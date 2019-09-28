@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -27,7 +28,11 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateEntry;
+import org.apache.flink.runtime.state.StateSnapshot;
+import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,7 +40,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
+/**
+ * Test for snapshot compatiblily between differen state tables.
+ */
 public class StateTableSnapshotCompatibilityTest {
+	private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 
 	/**
 	 * This test ensures that different implementations of {@link StateTable} are compatible in their serialization
@@ -44,18 +53,17 @@ public class StateTableSnapshotCompatibilityTest {
 	@Test
 	public void checkCompatibleSerializationFormats() throws IOException {
 		final Random r = new Random(42);
-		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredKeyedBackendStateMetaInfo<>(
-						StateDescriptor.Type.UNKNOWN,
-						"test",
-						IntSerializer.INSTANCE,
-						new ArrayListSerializer<>(IntSerializer.INSTANCE));
+		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
+				StateDescriptor.Type.UNKNOWN,
+				"test",
+				IntSerializer.INSTANCE,
+				new ArrayListSerializer<>(IntSerializer.INSTANCE));
 
-		final CopyOnWriteStateTableTest.MockInternalKeyContext<Integer> keyContext =
-				new CopyOnWriteStateTableTest.MockInternalKeyContext<>(IntSerializer.INSTANCE);
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> cowStateTable =
-				new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		for (int i = 0; i < 100; ++i) {
 			ArrayList<Integer> list = new ArrayList<>(5);
@@ -64,25 +72,25 @@ public class StateTableSnapshotCompatibilityTest {
 				list.add(r.nextInt(100));
 			}
 
-			cowStateTable.put(r.nextInt(10), r.nextInt(2), list);
+			keyContext.setCurrentKey(r.nextInt(10));
+			cowStateTable.put(r.nextInt(2), list);
 		}
 
-		StateTableSnapshot snapshot = cowStateTable.createSnapshot();
+		StateSnapshot snapshot = cowStateTable.stateSnapshot();
 
 		final NestedMapsStateTable<Integer, Integer, ArrayList<Integer>> nestedMapsStateTable =
-				new NestedMapsStateTable<>(keyContext, metaInfo);
+			new NestedMapsStateTable<>(keyContext, metaInfo, keySerializer);
 
 		restoreStateTableFromSnapshot(nestedMapsStateTable, snapshot, keyContext.getKeyGroupRange());
 		snapshot.release();
-
 
 		Assert.assertEquals(cowStateTable.size(), nestedMapsStateTable.size());
 		for (StateEntry<Integer, Integer, ArrayList<Integer>> entry : cowStateTable) {
 			Assert.assertEquals(entry.getState(), nestedMapsStateTable.get(entry.getKey(), entry.getNamespace()));
 		}
 
-		snapshot = nestedMapsStateTable.createSnapshot();
-		cowStateTable = new CopyOnWriteStateTable<>(keyContext, metaInfo);
+		snapshot = nestedMapsStateTable.stateSnapshot();
+		cowStateTable = new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
 		restoreStateTableFromSnapshot(cowStateTable, snapshot, keyContext.getKeyGroupRange());
 		snapshot.release();
@@ -93,23 +101,23 @@ public class StateTableSnapshotCompatibilityTest {
 		}
 	}
 
-	private static <K, N, S> void restoreStateTableFromSnapshot(
-			StateTable<K, N, S> stateTable,
-			StateTableSnapshot snapshot,
-			KeyGroupRange keyGroupRange) throws IOException {
+	private void restoreStateTableFromSnapshot(
+		StateTable<Integer, Integer, ArrayList<Integer>> stateTable,
+		StateSnapshot snapshot,
+		KeyGroupRange keyGroupRange) throws IOException {
 
 		final ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(1024 * 1024);
 		final DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
-
+		final StateSnapshot.StateKeyGroupWriter keyGroupPartitionedSnapshot = snapshot.getKeyGroupWriter();
 		for (Integer keyGroup : keyGroupRange) {
-			snapshot.writeMappingsInKeyGroup(dov, keyGroup);
+			keyGroupPartitionedSnapshot.writeStateInKeyGroup(dov, keyGroup);
 		}
 
 		final ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(out.getBuf());
 		final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(in);
 
-		final StateTableByKeyGroupReader keyGroupReader =
-				StateTableByKeyGroupReaders.readerForVersion(stateTable, KeyedBackendSerializationProxy.VERSION);
+		final StateSnapshotKeyGroupReader keyGroupReader =
+			StateTableByKeyGroupReaders.readerForVersion(stateTable, KeyedBackendSerializationProxy.VERSION);
 
 		for (Integer keyGroup : keyGroupRange) {
 			keyGroupReader.readMappingsInKeyGroup(div, keyGroup);

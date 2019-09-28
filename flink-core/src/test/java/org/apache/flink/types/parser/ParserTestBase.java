@@ -405,28 +405,31 @@ public abstract class ParserTestBase<T> extends TestLogger {
 	}
 
 	@Test
-	public void testEmptyFieldInIsolation() {
+	public void testTrailingEmptyField() {
 		try {
-			String [] emptyStrings = new String[] {"|"};
-
 			FieldParser<T> parser = getParser();
 
-			for (String emptyString : emptyStrings) {
-				byte[] bytes = emptyString.getBytes(ConfigConstants.DEFAULT_CHARSET);
-				int numRead = parser.parseField(bytes, 0, bytes.length, new byte[]{'|'}, parser.createValue());
+			byte[] bytes = "||".getBytes(ConfigConstants.DEFAULT_CHARSET);
+
+			for (int i = 0; i < 2; i++) {
+
+				// test empty field with trailing delimiter when i = 0,
+				// test empty field with out trailing delimiter when i= 1.
+				int numRead = parser.parseField(bytes, i, bytes.length, new byte[]{'|'}, parser.createValue());
 
 				assertEquals(FieldParser.ParseErrorState.EMPTY_COLUMN, parser.getErrorState());
 
-				if(this.allowsEmptyField()) {
+				if (this.allowsEmptyField()) {
 					assertTrue("Parser declared the empty string as invalid.", numRead != -1);
-					assertEquals("Invalid number of bytes read returned.", bytes.length, numRead);
-				}
-				else {
+					assertEquals("Invalid number of bytes read returned.", i + 1, numRead);
+				} else {
 					assertTrue("Parser accepted the empty string.", numRead == -1);
 				}
+
+				parser.resetParserState();
 			}
-		}
-		catch (Exception e) {
+
+		} catch (Exception e) {
 			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail("Test erroneous: " + e.getMessage());

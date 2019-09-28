@@ -179,7 +179,7 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 
 		// this method is not supported
 		try {
-			services.getSubmittedJobGraphStore();
+			services.getJobGraphStore();
 			fail();
 		} catch (UnsupportedOperationException ignored) {}
 

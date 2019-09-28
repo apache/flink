@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
 
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
@@ -32,25 +30,23 @@ public class ErrorInfo implements Serializable {
 
 	private static final long serialVersionUID = -6138942031953594202L;
 
-	private final transient Throwable exception;
+	/** The exception that we keep holding forever. Has no strong reference to any user-defined code. */
+	private final SerializedThrowable exception;
+
 	private final long timestamp;
-
-	private volatile String exceptionAsString;
-
 	public ErrorInfo(Throwable exception, long timestamp) {
 		Preconditions.checkNotNull(exception);
 		Preconditions.checkArgument(timestamp > 0);
 
-		this.exception = exception;
+		this.exception = exception instanceof SerializedThrowable ?
+				(SerializedThrowable) exception : new SerializedThrowable(exception);
 		this.timestamp = timestamp;
 	}
 
 	/**
-	 * Returns the contained exception.
-	 *
-	 * @return contained exception, or {@code "(null)"} if either no exception was set or this object has been deserialized
+	 * Returns the serialized form of the original exception.
 	 */
-	Throwable getException() {
+	public SerializedThrowable getException() {
 		return exception;
 	}
 
@@ -60,10 +56,7 @@ public class ErrorInfo implements Serializable {
 	 * @return failure causing exception as a string, or {@code "(null)"}
 	 */
 	public String getExceptionAsString() {
-		if (exceptionAsString == null) {
-			exceptionAsString = ExceptionUtils.stringifyException(exception);
-		}
-		return exceptionAsString;
+		return exception.getFullStringifiedStackTrace();
 	}
 
 	/**
@@ -73,13 +66,5 @@ public class ErrorInfo implements Serializable {
 	 */
 	public long getTimestamp() {
 		return timestamp;
-	}
-
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		// make sure that the exception was stringified so it isn't lost during serialization
-		if (exceptionAsString == null) {
-			exceptionAsString = ExceptionUtils.stringifyException(exception);
-		}
-		out.defaultWriteObject();
 	}
 }

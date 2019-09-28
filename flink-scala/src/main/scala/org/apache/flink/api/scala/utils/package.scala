@@ -21,14 +21,12 @@ package org.apache.flink.api.scala
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.distributions.DataDistribution
 import org.apache.flink.api.common.operators.Keys
-import org.apache.flink.api.common.operators.base.PartitionOperatorBase
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.Utils
 import org.apache.flink.api.java.Utils.ChecksumHashCode
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.operators.PartitionOperator
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.utils.{DataSetUtils => jutils}
 import org.apache.flink.util.AbstractID
 
@@ -72,7 +70,9 @@ package object utils {
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
         implicitly[TypeInformation[T]]
       )
-      wrap(jutils.zipWithIndex(self.javaSet)).map { t => (t.f0.toLong, t.f1) }
+      wrap(jutils.zipWithIndex(self.javaSet)).map {
+        t: org.apache.flink.api.java.tuple.Tuple2[java.lang.Long, T] => (t.f0.toLong, t.f1)
+      }
     }
 
     /**
@@ -85,7 +85,9 @@ package object utils {
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
         implicitly[TypeInformation[T]]
       )
-      wrap(jutils.zipWithUniqueId(self.javaSet)).map { t => (t.f0.toLong, t.f1) }
+      wrap(jutils.zipWithUniqueId(self.javaSet)).map {
+        t: org.apache.flink.api.java.tuple.Tuple2[java.lang.Long, T]=> (t.f0.toLong, t.f1)
+      }
     }
 
     // --------------------------------------------------------------------------------------------

@@ -89,6 +89,7 @@ public abstract class ScopeFormat {
 
 	// ----- Operator ----
 
+	public static final String SCOPE_OPERATOR_ID = asVariable("operator_id");
 	public static final String SCOPE_OPERATOR_NAME = asVariable("operator_name");
 
 

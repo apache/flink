@@ -45,62 +45,6 @@ public abstract class PlanExecutor {
 	private static final String REMOTE_EXECUTOR_CLASS = "org.apache.flink.client.RemoteExecutor";
 
 	// ------------------------------------------------------------------------
-	//  Config Options
-	// ------------------------------------------------------------------------
-	
-	/** If true, all execution progress updates are not only logged, but also printed to System.out */
-	private boolean printUpdatesToSysout = true;
-
-	/**
-	 * Sets whether the executor should print progress results to "standard out" ({@link System#out}).
-	 * All progress messages are logged using the configured logging framework independent of the value
-	 * set here.
-	 * 
-	 * @param printStatus True, to print progress updates to standard out, false to not do that. 
-	 */
-	public void setPrintStatusDuringExecution(boolean printStatus) {
-		this.printUpdatesToSysout = printStatus;
-	}
-
-	/**
-	 * Gets whether the executor prints progress results to "standard out" ({@link System#out}).
-	 * 
-	 * @return True, if the executor prints progress messages to standard out, false if not.
-	 */
-	public boolean isPrintingStatusDuringExecution() {
-		return this.printUpdatesToSysout;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Startup & Shutdown
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Starts the program executor. After the executor has been started, it will keep
-	 * running until {@link #stop()} is called. 
-	 * 
-	 * @throws Exception Thrown, if the executor startup failed.
-	 */
-	public abstract void start() throws Exception;
-
-	/**
-	 * Shuts down the plan executor and releases all local resources.
-	 *
-	 * <p>This method also ends all sessions created by this executor. Remote job executions
-	 * may complete, but the session is not kept alive after that.</p>
-	 *
-	 * @throws Exception Thrown, if the proper shutdown failed. 
-	 */
-	public abstract void stop() throws Exception;
-
-	/**
-	 * Checks if this executor is currently running.
-	 * 
-	 * @return True is the executor is running, false otherwise.
-	 */
-	public abstract boolean isRunning();
-	
-	// ------------------------------------------------------------------------
 	//  Program Execution
 	// ------------------------------------------------------------------------
 	
@@ -119,28 +63,7 @@ public abstract class PlanExecutor {
 	 * @throws Exception Thrown, if job submission caused an exception.
 	 */
 	public abstract JobExecutionResult executePlan(Plan plan) throws Exception;
-	
-	/**
-	 * Gets the programs execution plan in a JSON format.
-	 * 
-	 * @param plan The program to get the execution plan for.
-	 * @return The execution plan, as a JSON string.
-	 * 
-	 * @throws Exception Thrown, if the executor could not connect to the compiler.
-	 */
-	public abstract String getOptimizerPlanAsJSON(Plan plan) throws Exception;
 
-	/**
-	 * Ends the job session, identified by the given JobID. Jobs can be kept around as sessions,
-	 * if a session timeout is specified. Keeping Jobs as sessions allows users to incrementally
-	 * add new operations to their dataflow, that refer to previous intermediate results of the
-	 * dataflow.
-	 * 
-	 * @param jobID The JobID identifying the job session.
-	 * @throws Exception Thrown, if the message to finish the session cannot be delivered.
-	 */
-	public abstract void endSession(JobID jobID) throws Exception;
-	
 	// ------------------------------------------------------------------------
 	//  Executor Factories
 	// ------------------------------------------------------------------------
@@ -192,12 +115,11 @@ public abstract class PlanExecutor {
 				Collections.<URL>emptyList() : globalClasspaths;
 
 		try {
-			PlanExecutor executor = (clientConfiguration == null) ?
+			return (clientConfiguration == null) ?
 					reClass.getConstructor(String.class, int.class, List.class)
 						.newInstance(hostname, port, files) :
 					reClass.getConstructor(String.class, int.class, Configuration.class, List.class, List.class)
 						.newInstance(hostname, port, clientConfiguration, files, paths);
-			return executor;
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("An error occurred while loading the remote executor ("

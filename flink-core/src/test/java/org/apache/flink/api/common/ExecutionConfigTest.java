@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -37,7 +38,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class ExecutionConfigTest {
+public class ExecutionConfigTest extends TestLogger {
 
 	@Test
 	public void testDoubleTypeRegistration() {
@@ -104,8 +105,7 @@ public class ExecutionConfigTest {
 				forceAvroEnabled = r.nextBoolean(),
 				forceKryoEnabled = r.nextBoolean(),
 				disableGenericTypes = r.nextBoolean(),
-				objectReuseEnabled = r.nextBoolean(),
-				sysoutLoggingEnabled = r.nextBoolean();
+				objectReuseEnabled = r.nextBoolean();
 
 		final ExecutionConfig config = new ExecutionConfig();
 
@@ -134,11 +134,6 @@ public class ExecutionConfigTest {
 		} else {
 			config.disableObjectReuse();
 		}
-		if (sysoutLoggingEnabled) {
-			config.enableSysoutLogging();
-		} else {
-			config.disableSysoutLogging();
-		}
 		config.setParallelism(parallelism);
 
 		final ExecutionConfig copy1 = CommonTestUtils.createCopySerializable(config);
@@ -155,7 +150,22 @@ public class ExecutionConfigTest {
 		assertEquals(forceKryoEnabled, copy1.isForceKryoEnabled());
 		assertEquals(disableGenericTypes, copy1.hasGenericTypesDisabled());
 		assertEquals(objectReuseEnabled, copy1.isObjectReuseEnabled());
-		assertEquals(sysoutLoggingEnabled, copy1.isSysoutLoggingEnabled());
 		assertEquals(parallelism, copy1.getParallelism());
+	}
+
+	@Test
+	public void testGlobalParametersNotNull() {
+		final ExecutionConfig config = new ExecutionConfig();
+
+		assertNotNull(config.getGlobalJobParameters());
+	}
+
+	@Test
+	public void testGlobalParametersHashCode() {
+		ExecutionConfig config = new ExecutionConfig();
+		ExecutionConfig anotherConfig = new ExecutionConfig();
+
+		assertEquals(config.getGlobalJobParameters().hashCode(),
+			anotherConfig.getGlobalJobParameters().hashCode());
 	}
 }

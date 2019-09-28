@@ -31,7 +31,7 @@ under the License.
 ## Predefined Sources and Sinks
 
 A few basic data sources and sinks are built into Flink and are always available.
-The [predefined data sources]({{ site.baseurll }}/dev/datastream_api.html#data-sources) include reading from files, directories, and sockets, and
+The [predefined data sources]({{ site.baseurl }}/dev/datastream_api.html#data-sources) include reading from files, directories, and sockets, and
 ingesting data from collections and iterators.
 The [predefined data sinks]({{ site.baseurl }}/dev/datastream_api.html#data-sinks) support writing to files, to stdout and stderr, and to sockets.
 
@@ -47,6 +47,7 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [RabbitMQ](rabbitmq.html) (source/sink)
  * [Apache NiFi](nifi.html) (source/sink)
  * [Twitter Streaming API](twitter.html) (source)
+ * [Google PubSub](pubsub.html) (source/sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party
 components are usually required, e.g. servers for the data stores or message queues.
@@ -82,3 +83,5 @@ If the data involved has many fewer reads than writes, a better approach can be
 for an external application to pull from Flink the data it needs.
 The [Queryable State]({{ site.baseurl }}/dev/stream/state/queryable_state.html) interface
 enables this by allowing the state being managed by Flink to be queried on demand.
+
+{% top %}

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCache;
 
 import org.junit.Test;
 
@@ -29,7 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for the CheckpoitnStatsCache.
+ * Tests for the CheckpointStatsCache.
  */
 public class CheckpointStatsCacheTest {
 

@@ -40,7 +40,7 @@ public abstract class CartesianProductDescriptor extends OperatorDescriptorDual 
 	
 	
 	protected CartesianProductDescriptor(boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
-		if (!(allowBroadcastFirst | allowBroadcastSecond)) {
+		if (!(allowBroadcastFirst || allowBroadcastSecond)) {
 			throw new IllegalArgumentException();
 		}
 
@@ -93,7 +93,7 @@ public abstract class CartesianProductDescriptor extends OperatorDescriptorDual 
 	
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
-		return new DualInputPlanNode(node, "Cross("+node.getOperator().getName()+")", in1, in2, getStrategy());
+		return new DualInputPlanNode(node, "Cross ("+node.getOperator().getName()+")", in1, in2, getStrategy());
 	}
 	
 	@Override

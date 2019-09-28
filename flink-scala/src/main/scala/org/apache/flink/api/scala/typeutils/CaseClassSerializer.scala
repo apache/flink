@@ -48,7 +48,7 @@ abstract class CaseClassSerializer[T <: Product](
     val result = super.clone().asInstanceOf[CaseClassSerializer[T]]
 
     // achieve a deep copy by duplicating the field serializers
-    result.fieldSerializers.transform(_.duplicate())
+    result.fieldSerializers = result.fieldSerializers.map(_.duplicate())
     result.fields = null
     result.instanceCreationFailed = false
 
@@ -79,15 +79,6 @@ abstract class CaseClassSerializer[T <: Product](
 
   override def createOrReuseInstance(fields: Array[Object], reuse: T) : T = {
     createInstance(fields)
-  }
-
-  override def createSerializerInstance(
-      tupleClass: Class[T],
-      fieldSerializers: Array[TypeSerializer[_]]): TupleSerializerBase[T] = {
-    this.getClass
-      .getConstructors()(0)
-      .newInstance(tupleClass, fieldSerializers)
-      .asInstanceOf[CaseClassSerializer[T]]
   }
 
   def copy(from: T, reuse: T): T = {

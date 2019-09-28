@@ -22,6 +22,8 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.OptionalFailure;
 
 import org.junit.Test;
 
@@ -31,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link StringifiedAccumulatorResult}.
@@ -63,8 +66,8 @@ public class StringifiedAccumulatorResultTest {
 		final int targetValue = 314159;
 		final IntCounter acc = new IntCounter();
 		acc.add(targetValue);
-		final Map<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
-		accumulatorMap.put(name, acc);
+		final Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = new HashMap<>();
+		accumulatorMap.put(name, OptionalFailure.of(acc));
 
 		final StringifiedAccumulatorResult[] results = StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 
@@ -80,8 +83,8 @@ public class StringifiedAccumulatorResultTest {
 	public void stringifyingResultsShouldReportNullLocalValueAsNonnullValueString() {
 		final String name = "a";
 		final NullBearingAccumulator acc = new NullBearingAccumulator();
-		final Map<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
-		accumulatorMap.put(name, acc);
+		final Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = new HashMap<>();
+		accumulatorMap.put(name, OptionalFailure.of(acc));
 
 		final StringifiedAccumulatorResult[] results = StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 
@@ -97,7 +100,7 @@ public class StringifiedAccumulatorResultTest {
 	@Test
 	public void stringifyingResultsShouldReportNullAccumulatorWithNonnullValueAndTypeString() {
 		final String name = "a";
-		final Map<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
+		final Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = new HashMap<>();
 		accumulatorMap.put(name, null);
 
 		final StringifiedAccumulatorResult[] results = StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
@@ -109,6 +112,23 @@ public class StringifiedAccumulatorResultTest {
 		assertEquals(name, firstResult.getName());
 		assertEquals("null", firstResult.getType());
 		assertEquals("null", firstResult.getValue());
+	}
+
+	@Test
+	public void stringifyingFailureResults() {
+		final String name = "a";
+		final Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = new HashMap<>();
+		accumulatorMap.put(name, OptionalFailure.ofFailure(new FlinkRuntimeException("Test")));
+
+		final StringifiedAccumulatorResult[] results = StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
+
+		assertEquals(1, results.length);
+
+		// Note the use of String values with content of "null" rather than null values
+		final StringifiedAccumulatorResult firstResult = results[0];
+		assertEquals(name, firstResult.getName());
+		assertEquals("null", firstResult.getType());
+		assertTrue(firstResult.getValue().startsWith("org.apache.flink.util.FlinkRuntimeException: Test"));
 	}
 
 	private static class NullBearingAccumulator implements SimpleAccumulator<Serializable> {

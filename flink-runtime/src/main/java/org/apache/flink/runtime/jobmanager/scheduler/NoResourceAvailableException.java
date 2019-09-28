@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.throwable.ThrowableAnnotation;
+import org.apache.flink.runtime.throwable.ThrowableType;
 
+@ThrowableAnnotation(ThrowableType.NonRecoverableError)
 public class NoResourceAvailableException extends JobException {
 
 	private static final long serialVersionUID = -2249953165298717803L;
@@ -44,8 +47,8 @@ public class NoResourceAvailableException extends JobException {
 	NoResourceAvailableException(ScheduledUnit task, int numInstances, int numSlotsTotal, int availableSlots) {
 		super(String.format("%s Task to schedule: < %s > with groupID < %s > in sharing group < %s >. Resources available to scheduler: Number of instances=%d, total number of slots=%d, available slots=%d",
 				BASE_MESSAGE, task.getTaskToExecute(),
-				task.getLocationConstraint() == null ? task.getTaskToExecute().getVertex().getJobvertexId() : task.getLocationConstraint().getGroupId(),
-				task.getSlotSharingGroup(),
+				task.getCoLocationConstraint() == null ? task.getTaskToExecute().getVertex().getJobvertexId() : task.getCoLocationConstraint().getGroupId(),
+				task.getSlotSharingGroupId(),
 				numInstances,
 				numSlotsTotal,
 				availableSlots));

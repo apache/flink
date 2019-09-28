@@ -28,11 +28,11 @@ import java.nio.ByteOrder;
  */
 @Internal
 public class MemoryUtils {
-	
+
 	/** The "unsafe", which can be used to perform native memory accesses. */
 	@SuppressWarnings("restriction")
 	public static final sun.misc.Unsafe UNSAFE = getUnsafe();
-	
+
 	/** The native byte order of the platform on which the system currently runs. */
 	public static final ByteOrder NATIVE_BYTE_ORDER = ByteOrder.nativeOrder();
 
@@ -55,6 +55,6 @@ public class MemoryUtils {
 		}
 	}
 
-	/** Should not be instantiated */
+	/** Should not be instantiated. */
 	private MemoryUtils() {}
 }

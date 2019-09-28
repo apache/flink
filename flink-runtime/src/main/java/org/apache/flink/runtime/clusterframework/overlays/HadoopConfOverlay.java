@@ -40,7 +40,7 @@ import java.io.IOException;
  * The following environment variables are set in the container:
  *  - HADOOP_CONF_DIR
  *
- * The folloowing Flink configuration entries are updated:
+ * The following Flink configuration entries are updated:
  *  - fs.hdfs.hadoopconf
  */
 public class HadoopConfOverlay implements ContainerOverlay {

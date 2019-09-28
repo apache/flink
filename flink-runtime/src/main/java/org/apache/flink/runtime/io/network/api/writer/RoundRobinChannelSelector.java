@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
@@ -30,24 +29,24 @@ import org.apache.flink.core.io.IOReadableWritable;
  */
 public class RoundRobinChannelSelector<T extends IOReadableWritable> implements ChannelSelector<T> {
 
-	/**
-	 * Stores the index of the channel to send the next record to.
-	 */
-	private final int[] nextChannelToSendTo = new int[1];
+	/** Stores the index of the channel to send the next record to. */
+	private int nextChannelToSendTo = -1;
 
-	/**
-	 * Constructs a new default channel selector.
-	 */
-	public RoundRobinChannelSelector() {
-		this.nextChannelToSendTo[0] = 0;
-	}
-
+	private int numberOfChannels;
 
 	@Override
-	public int[] selectChannels(final T record, final int numberOfOutputChannels) {
+	public void setup(int numberOfChannels) {
+		this.numberOfChannels = numberOfChannels;
+	}
 
-		this.nextChannelToSendTo[0] = (this.nextChannelToSendTo[0] + 1) % numberOfOutputChannels;
+	@Override
+	public int selectChannel(final T record) {
+		nextChannelToSendTo = (nextChannelToSendTo + 1) % numberOfChannels;
+		return nextChannelToSendTo;
+	}
 
-		return this.nextChannelToSendTo;
+	@Override
+	public boolean isBroadcast() {
+		return false;
 	}
 }

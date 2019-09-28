@@ -54,10 +54,10 @@ public class AggregateApplyWindowFunction<K, W extends Window, T, ACC, V, R>
 
 	@Override
 	public void apply(K key, W window, Iterable<T> values, Collector<R> out) throws Exception {
-		final ACC acc = aggFunction.createAccumulator();
+		ACC acc = aggFunction.createAccumulator();
 
 		for (T val : values) {
-			aggFunction.add(val, acc);
+			acc = aggFunction.add(val, acc);
 		}
 
 		wrappedFunction.apply(key, window, Collections.singletonList(aggFunction.getResult(acc)), out);

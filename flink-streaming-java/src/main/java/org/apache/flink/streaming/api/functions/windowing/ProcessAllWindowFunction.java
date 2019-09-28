@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
 /**
  * Base abstract class for functions that are evaluated over non-keyed windows using a context
@@ -77,5 +78,13 @@ public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window> extend
 		 * State accessor for per-key global state.
 		 */
 		public abstract KeyedStateStore globalState();
+
+		/**
+		 * Emits a record to the side output identified by the {@link OutputTag}.
+		 *
+		 * @param outputTag the {@code OutputTag} that identifies the side output to emit to.
+		 * @param value The record to emit.
+		 */
+		public abstract <X> void output(OutputTag<X> outputTag, X value);
 	}
 }

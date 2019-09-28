@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
@@ -36,12 +37,10 @@ import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.streaming.util.migration.MigrationTestUtil;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.FileUtils;
@@ -77,12 +76,19 @@ public class ContinuousFileProcessingMigrationTest {
 	public static Collection<Tuple2<MigrationVersion, Long>> parameters () {
 		return Arrays.asList(
 			Tuple2.of(MigrationVersion.v1_2, 1493116191000L),
-			Tuple2.of(MigrationVersion.v1_3, 1496532000000L));
+			Tuple2.of(MigrationVersion.v1_3, 1496532000000L),
+			Tuple2.of(MigrationVersion.v1_4, 1516897628000L),
+			Tuple2.of(MigrationVersion.v1_5, 1533639934000L),
+			Tuple2.of(MigrationVersion.v1_6, 1534696817000L),
+			Tuple2.of(MigrationVersion.v1_7, 1544024599000L),
+			Tuple2.of(MigrationVersion.v1_8, 1555215710000L),
+			Tuple2.of(MigrationVersion.v1_9, 1567499868000L));
 	}
 
 	/**
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 * TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
@@ -145,7 +151,7 @@ public class ContinuousFileProcessingMigrationTest {
 		// to initialize another reader and compare the results of the
 		// two operators.
 
-		final OperatorStateHandles snapshot;
+		final OperatorSubtaskState snapshot;
 		synchronized (testHarness.getCheckpointLock()) {
 			snapshot = testHarness.snapshot(0L, 0L);
 		}
@@ -171,11 +177,9 @@ public class ContinuousFileProcessingMigrationTest {
 
 		testHarness.setup();
 
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"reader-migration-test-flink" + testMigrateVersion + "-snapshot"),
-			testMigrateVersion);
+				"reader-migration-test-flink" + testMigrateVersion + "-snapshot"));
 
 		testHarness.open();
 
@@ -202,17 +206,10 @@ public class ContinuousFileProcessingMigrationTest {
 		// compare if the results contain what they should contain and also if
 		// they are the same, as they should.
 
-		if (testMigrateVersion == MigrationVersion.v1_1) {
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split1))));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split2))));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split3))));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split4))));
-		} else {
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
-		}
+		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
+		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
+		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
+		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
 	}
 
 	/**
@@ -276,7 +273,7 @@ public class ContinuousFileProcessingMigrationTest {
 			latch.await();
 		}
 
-		final OperatorStateHandles snapshot;
+		final OperatorSubtaskState snapshot;
 		synchronized (testHarness.getCheckpointLock()) {
 			snapshot = testHarness.snapshot(0L, 0L);
 		}
@@ -309,11 +306,9 @@ public class ContinuousFileProcessingMigrationTest {
 
 		testHarness.setup();
 
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"monitoring-function-migration-test-" + expectedModTime + "-flink" + testMigrateVersion + "-snapshot"),
-			testMigrateVersion);
+				"monitoring-function-migration-test-" + expectedModTime + "-flink" + testMigrateVersion + "-snapshot"));
 
 		testHarness.open();
 

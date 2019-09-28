@@ -19,10 +19,12 @@
 package org.apache.flink.util;
 
 /**
- * Base class for state migration related exceptions
+ * Base class for state migration related exceptions.
  */
 public class StateMigrationException extends FlinkException {
 	private static final long serialVersionUID = 8268516412747670839L;
+
+	public static final String MIGRATION_NOT_SUPPORTED_MSG = "State migration is currently not supported.";
 
 	public StateMigrationException(String message) {
 		super(message);
@@ -34,5 +36,9 @@ public class StateMigrationException extends FlinkException {
 
 	public StateMigrationException(String message, Throwable cause) {
 		super(message, cause);
+	}
+
+	public static StateMigrationException notSupported() {
+		return new StateMigrationException(MIGRATION_NOT_SUPPORTED_MSG);
 	}
 }

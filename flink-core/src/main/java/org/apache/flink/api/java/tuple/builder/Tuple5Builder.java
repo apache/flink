@@ -16,21 +16,28 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
 
-
 package org.apache.flink.api.java.tuple.builder;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.tuple.Tuple5;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * A builder class for {@link Tuple5}.
+ *
+ * @param <T0> The type of field 0
+ * @param <T1> The type of field 1
+ * @param <T2> The type of field 2
+ * @param <T3> The type of field 3
+ * @param <T4> The type of field 4
+ */
 @Public
 public class Tuple5Builder<T0, T1, T2, T3, T4> {
 

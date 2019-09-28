@@ -93,7 +93,7 @@ public class MapTypeInfo<K, V> extends TypeInformation<Map<K, V>> {
 
 	@Override
 	public int getTotalFields() {
-		return 2;
+		return 1;
 	}
 
 	@SuppressWarnings("unchecked")

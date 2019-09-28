@@ -18,12 +18,8 @@
 
 package org.apache.flink.configuration;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -31,12 +27,17 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 /**
  * This class verifies that the Unmodifiable Configuration class overrides all setter methods in
  * Configuration.
  */
 public class UnmodifiableConfigurationTest extends TestLogger {
-	
+
 	@Test
 	public void testOverrideAddMethods() {
 		try {
@@ -52,14 +53,14 @@ public class UnmodifiableConfigurationTest extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testExceptionOnSet() {
 		try {
 			@SuppressWarnings("rawtypes")
 			final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
 
-			Map<Class<?>, Object> parameters = new HashMap<Class<?>, Object>();
+			Map<Class<?>, Object> parameters = new HashMap<>();
 			parameters.put(byte[].class, new byte[0]);
 			parameters.put(Class.class, Object.class);
 			parameters.put(int.class, 0);

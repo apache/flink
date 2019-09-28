@@ -18,19 +18,22 @@
 
 package org.apache.flink.hdfstests;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.LocalEnvironment;
-import org.apache.flink.api.java.io.AvroOutputFormat;
+import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;
-import org.apache.flink.runtime.blob.BlobRecoveryITCase;
+import org.apache.flink.runtime.blob.BlobCacheCorruptionTest;
+import org.apache.flink.runtime.blob.BlobCacheRecoveryTest;
+import org.apache.flink.runtime.blob.BlobServerCorruptionTest;
+import org.apache.flink.runtime.blob.BlobServerRecoveryTest;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
@@ -51,6 +54,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -75,6 +79,9 @@ public class HDFSTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Rule
+	public final ExpectedException exception = ExpectedException.none();
 
 	@BeforeClass
 	public static void verifyOS() {
@@ -161,31 +168,30 @@ public class HDFSTest {
 	}
 
 	@Test
-	public void testAvroOut() {
+	public void testChangingFileNames() {
+		org.apache.hadoop.fs.Path hdfsPath = new org.apache.hadoop.fs.Path(hdfsURI + "/hdfsTest");
+		Path path = new Path(hdfsPath.toString());
+
 		String type = "one";
-		AvroOutputFormat<String> avroOut =
-				new AvroOutputFormat<String>(String.class);
+		TextOutputFormat<String> outputFormat = new TextOutputFormat<>(path);
 
-		org.apache.hadoop.fs.Path result = new org.apache.hadoop.fs.Path(hdfsURI + "/avroTest");
-
-		avroOut.setOutputFilePath(new Path(result.toString()));
-		avroOut.setWriteMode(FileSystem.WriteMode.NO_OVERWRITE);
-		avroOut.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);
+		outputFormat.setWriteMode(FileSystem.WriteMode.NO_OVERWRITE);
+		outputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);
 
 		try {
-			avroOut.open(0, 2);
-			avroOut.writeRecord(type);
-			avroOut.close();
+			outputFormat.open(0, 2);
+			outputFormat.writeRecord(type);
+			outputFormat.close();
 
-			avroOut.open(1, 2);
-			avroOut.writeRecord(type);
-			avroOut.close();
+			outputFormat.open(1, 2);
+			outputFormat.writeRecord(type);
+			outputFormat.close();
 
-			assertTrue("No result file present", hdfs.exists(result));
-			FileStatus[] files = hdfs.listStatus(result);
+			assertTrue("No result file present", hdfs.exists(hdfsPath));
+			FileStatus[] files = hdfs.listStatus(hdfsPath);
 			Assert.assertEquals(2, files.length);
 			for (FileStatus file : files) {
-				assertTrue("1.avro".equals(file.getPath().getName()) || "2.avro".equals(file.getPath().getName()));
+				assertTrue("1".equals(file.getPath().getName()) || "2".equals(file.getPath().getName()));
 			}
 
 		} catch (IOException e) {
@@ -240,28 +246,90 @@ public class HDFSTest {
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
-	 * participating BlobServer.
+	 * participating BlobServer when talking to the {@link org.apache.flink.runtime.blob.BlobServer} directly.
 	 */
 	@Test
 	public void testBlobServerRecovery() throws Exception {
 		org.apache.flink.configuration.Configuration
 			config = new org.apache.flink.configuration.Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "ZOOKEEPER");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
-		BlobStoreService blobStoreService = null;
+		BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
 		try {
-			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
-
-			BlobRecoveryITCase.testBlobServerRecovery(config, blobStoreService);
+			BlobServerRecoveryTest.testBlobServerRecovery(config, blobStoreService);
 		} finally {
-			if (blobStoreService != null) {
-				blobStoreService.closeAndCleanupAllData();
-			}
+			blobStoreService.closeAndCleanupAllData();
+		}
+	}
+
+	/**
+	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed corrupted JARs are
+	 * recognised during the download via a {@link org.apache.flink.runtime.blob.BlobServer}.
+	 */
+	@Test
+	public void testBlobServerCorruptedFile() throws Exception {
+		org.apache.flink.configuration.Configuration
+			config = new org.apache.flink.configuration.Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+
+		BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+
+		try {
+			BlobServerCorruptionTest.testGetFailsFromCorruptFile(config, blobStoreService, exception);
+		} finally {
+			blobStoreService.closeAndCleanupAllData();
+		}
+	}
+
+	/**
+	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
+	 * participating BlobServer when uploaded via a BLOB cache.
+	 */
+	@Test
+	public void testBlobCacheRecovery() throws Exception {
+		org.apache.flink.configuration.Configuration
+			config = new org.apache.flink.configuration.Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+
+		BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+
+		try {
+			BlobCacheRecoveryTest.testBlobCacheRecovery(config, blobStoreService);
+		} finally {
+			blobStoreService.closeAndCleanupAllData();
+		}
+	}
+
+	/**
+	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed corrupted JARs are
+	 * recognised during the download via a BLOB cache.
+	 */
+	@Test
+	public void testBlobCacheCorruptedFile() throws Exception {
+		org.apache.flink.configuration.Configuration
+			config = new org.apache.flink.configuration.Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+
+		BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+
+		try {
+			BlobCacheCorruptionTest
+				.testGetFailsFromCorruptFile(new JobID(), config, blobStoreService, exception);
+		} finally {
+			blobStoreService.closeAndCleanupAllData();
 		}
 	}
 

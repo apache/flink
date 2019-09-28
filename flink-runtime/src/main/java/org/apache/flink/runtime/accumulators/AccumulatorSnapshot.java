@@ -48,7 +48,7 @@ public class AccumulatorSnapshot implements Serializable {
 							Map<String, Accumulator<?, ?>> userAccumulators) throws IOException {
 		this.jobID = jobID;
 		this.executionAttemptID = executionAttemptID;
-		this.userAccumulators = new SerializedValue<Map<String, Accumulator<?, ?>>>(userAccumulators);
+		this.userAccumulators = new SerializedValue<>(userAccumulators);
 	}
 
 	public JobID getJobID() {

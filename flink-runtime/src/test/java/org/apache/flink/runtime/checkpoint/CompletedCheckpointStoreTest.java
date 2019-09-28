@@ -22,7 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -77,11 +79,11 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		// Add and get latest
 		checkpoints.addCheckpoint(expected[0]);
 		assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
-		verifyCheckpoint(expected[0], checkpoints.getLatestCheckpoint());
+		verifyCheckpoint(expected[0], checkpoints.getLatestCheckpoint(false));
 
 		checkpoints.addCheckpoint(expected[1]);
 		assertEquals(2, checkpoints.getNumberOfRetainedCheckpoints());
-		verifyCheckpoint(expected[1], checkpoints.getLatestCheckpoint());
+		verifyCheckpoint(expected[1], checkpoints.getLatestCheckpoint(false));
 	}
 
 	/**
@@ -117,7 +119,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	/**
 	 * Tests that
 	 * <ul>
-	 * <li>{@link CompletedCheckpointStore#getLatestCheckpoint()} returns <code>null</code>,</li>
+	 * <li>{@link CompletedCheckpointStore#getLatestCheckpoint(boolean)} returns <code>null</code>,</li>
 	 * <li>{@link CompletedCheckpointStore#getAllCheckpoints()} returns an empty list,</li>
 	 * <li>{@link CompletedCheckpointStore#getNumberOfRetainedCheckpoints()} returns 0.</li>
 	 * </ul>
@@ -126,7 +128,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	public void testEmptyState() throws Exception {
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(1);
 
-		assertNull(checkpoints.getLatestCheckpoint());
+		assertNull(checkpoints.getLatestCheckpoint(false));
 		assertEquals(0, checkpoints.getAllCheckpoints().size());
 		assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
 	}
@@ -177,7 +179,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		checkpoints.shutdown(JobStatus.FINISHED);
 
 		// Empty state
-		assertNull(checkpoints.getLatestCheckpoint());
+		assertNull(checkpoints.getLatestCheckpoint(false));
 		assertEquals(0, checkpoints.getAllCheckpoints().size());
 		assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
 
@@ -191,12 +193,12 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
 	// ---------------------------------------------------------------------------------------------
 
-	protected TestCompletedCheckpoint createCheckpoint(
+	public static TestCompletedCheckpoint createCheckpoint(
 		int id,
 		SharedStateRegistry sharedStateRegistry) throws IOException {
 
 		int numberOfStates = 4;
-		CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
+		CheckpointProperties props = CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION);
 
 		OperatorID operatorID = new OperatorID();
 
@@ -224,7 +226,12 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 	}
 
-	protected void verifyCheckpointDiscarded(Collection<OperatorState> operatorStates) {
+	public static void verifyCheckpointDiscarded(TestCompletedCheckpoint completedCheckpoint) {
+		assertTrue(completedCheckpoint.isDiscarded());
+		verifyCheckpointDiscarded(completedCheckpoint.getOperatorStates().values());
+	}
+
+	protected static void verifyCheckpointDiscarded(Collection<OperatorState> operatorStates) {
 		for (OperatorState operatorState : operatorStates) {
 			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
 				Assert.assertTrue(((TestOperatorSubtaskState)subtaskState).discarded);
@@ -251,12 +258,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		private transient final CountDownLatch discardLatch = new CountDownLatch(1);
 
 		public TestCompletedCheckpoint(
-			JobID jobId,
-			long checkpointId,
-			long timestamp,
-			Map<OperatorID, OperatorState> operatorGroupState,
-			CheckpointProperties props) {
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props, null, null);
+				JobID jobId,
+				long checkpointId,
+				long timestamp,
+				Map<OperatorID, OperatorState> operatorGroupState,
+				CheckpointProperties props) {
+
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props,
+					new TestCompletedCheckpointStorageLocation());
 		}
 
 		@Override
@@ -324,7 +333,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 	}
 
-	static class TestOperatorSubtaskState extends OperatorSubtaskState {
+	public static class TestOperatorSubtaskState extends OperatorSubtaskState {
 		private static final long serialVersionUID = 522580433699164230L;
 
 		boolean registered;
@@ -354,6 +363,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		public void reset() {
 			registered = false;
 			discarded = false;
+		}
+
+		public boolean isRegistered() {
+			return registered;
+		}
+
+		public boolean isDiscarded() {
+			return discarded;
 		}
 	}
 

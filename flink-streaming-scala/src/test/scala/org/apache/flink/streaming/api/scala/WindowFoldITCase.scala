@@ -31,9 +31,9 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.junit.{Ignore, Test}
+import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert._
+import org.junit.Test
 
 import scala.collection.mutable
 
@@ -41,7 +41,7 @@ import scala.collection.mutable
  * Tests for Folds over windows. These also test whether OutputTypeConfigurable functions
  * work for windows, because FoldWindowFunction is OutputTypeConfigurable.
  */
-class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
+class WindowFoldITCase extends AbstractTestBase {
 
   @Test
   def testFoldWindow(): Unit = {
@@ -75,7 +75,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .fold(("R:", 0)) { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
         WindowFoldITCase.testResults += value.toString
         }
       })
@@ -132,7 +132,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
         foldFunc,
         new CheckingIdentityRichWindowFunction[(String, Int), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFoldITCase.testResults += value.toString
         }
       })
@@ -191,7 +191,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
         foldFunc,
         new CheckingIdentityRichProcessWindowFunction[(Int, String), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(Int, String)]() {
-        def invoke(value: (Int, String)) {
+        override def invoke(value: (Int, String)) {
           WindowFoldITCase.testResults += value.toString
         }
       })
@@ -239,7 +239,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .fold(("R:", 0)) { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
       .addSink(new SinkFunction[(String, Int)]() {
-      def invoke(value: (String, Int)) {
+      override def invoke(value: (String, Int)) {
         WindowFoldITCase.testResults += value.toString
       }
     })
@@ -294,7 +294,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
         foldFunc,
         new CheckingIdentityRichAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFoldITCase.testResults += value.toString
         }
       })
@@ -351,7 +351,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
         foldFunc,
         new CheckingIdentityRichProcessAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFoldITCase.testResults += value.toString
         }
       })

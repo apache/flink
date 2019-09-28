@@ -20,13 +20,14 @@
 setlocal
 
 SET bin=%~dp0
-SET FLINK_ROOT_DIR=%bin%..
-SET FLINK_LIB_DIR=%FLINK_ROOT_DIR%\lib
+SET FLINK_HOME=%bin%..
+SET FLINK_LIB_DIR=%FLINK_HOME%\lib
+SET FLINK_PLUGINS_DIR=%FLINK_HOME%\plugins
 
 SET JVM_ARGS=-Xmx512m
 
 SET FLINK_JM_CLASSPATH=%FLINK_LIB_DIR%\*
 
-java %JVM_ARGS% -cp "%FLINK_JM_CLASSPATH%"; org.apache.flink.client.CliFrontend %*
+java %JVM_ARGS% -cp "%FLINK_JM_CLASSPATH%"; org.apache.flink.client.cli.CliFrontend %*
 
 endlocal

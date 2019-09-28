@@ -32,37 +32,67 @@ public class RestHandlerConfiguration {
 
 	private final long refreshInterval;
 
+	private final int maxCheckpointStatisticCacheEntries;
+
 	private final Time timeout;
 
-	private final File tmpDir;
+	private final File webUiDir;
 
-	public RestHandlerConfiguration(long refreshInterval, Time timeout, File tmpDir) {
+	private final boolean webSubmitEnabled;
+
+	public RestHandlerConfiguration(
+			long refreshInterval,
+			int maxCheckpointStatisticCacheEntries,
+			Time timeout,
+			File webUiDir,
+			boolean webSubmitEnabled) {
 		Preconditions.checkArgument(refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
 		this.refreshInterval = refreshInterval;
 
+		this.maxCheckpointStatisticCacheEntries = maxCheckpointStatisticCacheEntries;
+
 		this.timeout = Preconditions.checkNotNull(timeout);
-		this.tmpDir = Preconditions.checkNotNull(tmpDir);
+		this.webUiDir = Preconditions.checkNotNull(webUiDir);
+		this.webSubmitEnabled = webSubmitEnabled;
 	}
 
 	public long getRefreshInterval() {
 		return refreshInterval;
 	}
 
+	public int getMaxCheckpointStatisticCacheEntries() {
+		return maxCheckpointStatisticCacheEntries;
+	}
+
 	public Time getTimeout() {
 		return timeout;
 	}
 
-	public File getTmpDir() {
-		return tmpDir;
+	public File getWebUiDir() {
+		return webUiDir;
+	}
+
+	public boolean isWebSubmitEnabled() {
+		return webSubmitEnabled;
 	}
 
 	public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
 		final long refreshInterval = configuration.getLong(WebOptions.REFRESH_INTERVAL);
 
+		final int maxCheckpointStatisticCacheEntries = configuration.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
+
 		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 
-		final File tmpDir = new File(configuration.getString(WebOptions.TMP_DIR));
+		final String rootDir = "flink-web-ui";
+		final File webUiDir = new File(configuration.getString(WebOptions.TMP_DIR), rootDir);
 
-		return new RestHandlerConfiguration(refreshInterval, timeout, tmpDir);
+		final boolean webSubmitEnabled = configuration.getBoolean(WebOptions.SUBMIT_ENABLE);
+
+		return new RestHandlerConfiguration(
+			refreshInterval,
+			maxCheckpointStatisticCacheEntries,
+			timeout,
+			webUiDir,
+			webSubmitEnabled);
 	}
 }

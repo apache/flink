@@ -21,8 +21,10 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
@@ -67,6 +69,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.lang.reflect.Type;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -84,7 +90,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * When using an evictor window performance will degrade significantly, since
  * incremental aggregation of window results cannot be used.
  *
- * <p>Note that the {@code WindowedStream} is purely and API construct, during runtime the
+ * <p>Note that the {@code WindowedStream} is purely an API construct, during runtime the
  * {@code WindowedStream} will be collapsed together with the {@code KeyedStream} and the operation
  * over the window into one single operation.
  *
@@ -266,10 +272,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, reduceFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -281,8 +284,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator =
 				new EvictingWindowOperator<>(windowAssigner,
@@ -300,8 +301,6 @@ public class WindowedStream<T, K, W extends Window> {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				reduceFunction,
 				input.getType().createSerializer(getExecutionEnvironment().getConfig()));
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator =
 				new WindowOperator<>(windowAssigner,
@@ -359,10 +358,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, reduceFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -374,8 +370,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 					new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator =
 					new EvictingWindowOperator<>(windowAssigner,
@@ -393,8 +387,6 @@ public class WindowedStream<T, K, W extends Window> {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
 					reduceFunction,
 					input.getType().createSerializer(getExecutionEnvironment().getConfig()));
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator =
 					new WindowOperator<>(windowAssigner,
@@ -523,10 +515,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		foldFunction = input.getExecutionEnvironment().clean(foldFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, foldFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -538,8 +527,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator = new EvictingWindowOperator<>(windowAssigner,
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
@@ -555,8 +542,6 @@ public class WindowedStream<T, K, W extends Window> {
 		} else {
 			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
 				initialValue, foldFunction, foldAccumulatorType.createSerializer(getExecutionEnvironment().getConfig()));
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator = new WindowOperator<>(windowAssigner,
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
@@ -616,7 +601,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param windowResultType The process window function result type.
 	 * @return The data stream that is the result of applying the fold function to the window.
 	 *
-	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
+	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation)} instead
 	 */
 	@Deprecated
 	@Internal
@@ -637,10 +622,7 @@ public class WindowedStream<T, K, W extends Window> {
 		windowFunction = input.getExecutionEnvironment().clean(windowFunction);
 		foldFunction = input.getExecutionEnvironment().clean(foldFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, foldFunction, windowFunction);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -652,8 +634,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 					new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator =
 					new EvictingWindowOperator<>(windowAssigner,
@@ -672,8 +652,6 @@ public class WindowedStream<T, K, W extends Window> {
 					initialValue,
 					foldFunction,
 					foldResultType.createSerializer(getExecutionEnvironment().getConfig()));
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator =
 					new WindowOperator<>(windowAssigner,
@@ -750,7 +728,7 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 
 		return aggregate(function, new PassThroughWindowFunction<K, W, R>(),
-				accumulatorType, resultType, resultType);
+			accumulatorType, resultType);
 	}
 
 	/**
@@ -787,7 +765,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 		TypeInformation<R> resultType = getWindowFunctionReturnType(windowFunction, aggResultType);
 
-		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
+		return aggregate(aggFunction, windowFunction, accumulatorType, resultType);
 	}
 
 	/**
@@ -815,13 +793,11 @@ public class WindowedStream<T, K, W extends Window> {
 			AggregateFunction<T, ACC, V> aggregateFunction,
 			WindowFunction<V, R, K, W> windowFunction,
 			TypeInformation<ACC> accumulatorType,
-			TypeInformation<V> aggregateResultType,
 			TypeInformation<R> resultType) {
 
 		checkNotNull(aggregateFunction, "aggregateFunction");
 		checkNotNull(windowFunction, "windowFunction");
 		checkNotNull(accumulatorType, "accumulatorType");
-		checkNotNull(aggregateResultType, "aggregateResultType");
 		checkNotNull(resultType, "resultType");
 
 		if (aggregateFunction instanceof RichFunction) {
@@ -832,10 +808,7 @@ public class WindowedStream<T, K, W extends Window> {
 		windowFunction = input.getExecutionEnvironment().clean(windowFunction);
 		aggregateFunction = input.getExecutionEnvironment().clean(aggregateFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, aggregateFunction, windowFunction);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -847,8 +820,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 					new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator = new EvictingWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
@@ -864,8 +835,6 @@ public class WindowedStream<T, K, W extends Window> {
 		} else {
 			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>("window-contents",
 					aggregateFunction, accumulatorType.createSerializer(getExecutionEnvironment().getConfig()));
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator = new WindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
@@ -926,7 +895,6 @@ public class WindowedStream<T, K, W extends Window> {
 			WindowFunction.class,
 			0,
 			1,
-			new int[]{2, 0},
 			new int[]{3, 0},
 			inType,
 			null,
@@ -942,7 +910,6 @@ public class WindowedStream<T, K, W extends Window> {
 			ProcessWindowFunction.class,
 			0,
 			1,
-			TypeExtractor.NO_INDEX,
 			TypeExtractor.NO_INDEX,
 			inType,
 			functionName,
@@ -991,10 +958,7 @@ public class WindowedStream<T, K, W extends Window> {
 		windowFunction = input.getExecutionEnvironment().clean(windowFunction);
 		aggregateFunction = input.getExecutionEnvironment().clean(aggregateFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, aggregateFunction, windowFunction);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -1006,8 +970,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 					new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator = new EvictingWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
@@ -1023,8 +985,6 @@ public class WindowedStream<T, K, W extends Window> {
 		} else {
 			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>("window-contents",
 					aggregateFunction, accumulatorType.createSerializer(getExecutionEnvironment().getConfig()));
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator = new WindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
@@ -1049,7 +1009,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1074,9 +1034,8 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
-		String callLocation = Utils.getCallLocationName();
 		function = input.getExecutionEnvironment().clean(function);
-		return apply(new InternalIterableWindowFunction<>(function), resultType, callLocation);
+		return apply(new InternalIterableWindowFunction<>(function), resultType, function);
 	}
 
 	/**
@@ -1084,7 +1043,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1102,7 +1061,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1111,16 +1070,13 @@ public class WindowedStream<T, K, W extends Window> {
 	 */
 	@Internal
 	public <R> SingleOutputStreamOperator<R> process(ProcessWindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
-		String callLocation = Utils.getCallLocationName();
 		function = input.getExecutionEnvironment().clean(function);
-		return apply(new InternalIterableProcessWindowFunction<>(function), resultType, callLocation);
+		return apply(new InternalIterableProcessWindowFunction<>(function), resultType, function);
 	}
 
-	private <R> SingleOutputStreamOperator<R> apply(InternalWindowFunction<Iterable<T>, R, K, W> function, TypeInformation<R> resultType, String callLocation) {
+	private <R> SingleOutputStreamOperator<R> apply(InternalWindowFunction<Iterable<T>, R, K, W> function, TypeInformation<R> resultType, Function originalFunction) {
 
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, originalFunction, null);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		WindowOperator<K, T, Iterable<T>, R, W> operator;
@@ -1132,8 +1088,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 					new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator =
 				new EvictingWindowOperator<>(windowAssigner,
@@ -1150,8 +1104,6 @@ public class WindowedStream<T, K, W extends Window> {
 		} else {
 			ListStateDescriptor<T> stateDesc = new ListStateDescriptor<>("window-contents",
 				input.getType().createSerializer(getExecutionEnvironment().getConfig()));
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator =
 				new WindowOperator<>(windowAssigner,
@@ -1213,10 +1165,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, reduceFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -1228,8 +1177,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 					new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator =
 				new EvictingWindowOperator<>(windowAssigner,
@@ -1247,8 +1194,6 @@ public class WindowedStream<T, K, W extends Window> {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				reduceFunction,
 				input.getType().createSerializer(getExecutionEnvironment().getConfig()));
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator =
 				new WindowOperator<>(windowAssigner,
@@ -1316,10 +1261,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		foldFunction = input.getExecutionEnvironment().clean(foldFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		String opName;
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, foldFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -1331,8 +1273,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc =
 					new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator = new EvictingWindowOperator<>(windowAssigner,
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
@@ -1349,8 +1289,6 @@ public class WindowedStream<T, K, W extends Window> {
 			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
 				initialValue, foldFunction, resultType.createSerializer(getExecutionEnvironment().getConfig()));
 
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
-
 			operator = new WindowOperator<>(windowAssigner,
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 				keySel,
@@ -1363,6 +1301,40 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 
 		return input.transform(opName, resultType, operator);
+	}
+
+	private static String generateFunctionName(Function function) {
+		Class<? extends Function> functionClass = function.getClass();
+		if (functionClass.isAnonymousClass()) {
+			// getSimpleName returns an empty String for anonymous classes
+			Type[] interfaces = functionClass.getInterfaces();
+			if (interfaces.length == 0) {
+				// extends an existing class (like RichMapFunction)
+				Class<?> functionSuperClass = functionClass.getSuperclass();
+				return functionSuperClass.getSimpleName() + functionClass.getName().substring(functionClass.getEnclosingClass().getName().length());
+			} else {
+				// implements a Function interface
+				Class<?> functionInterface = functionClass.getInterfaces()[0];
+				return functionInterface.getSimpleName() + functionClass.getName().substring(functionClass.getEnclosingClass().getName().length());
+			}
+		} else {
+			return functionClass.getSimpleName();
+		}
+	}
+
+	private static String generateOperatorName(
+			WindowAssigner<?, ?> assigner,
+			Trigger<?, ?> trigger,
+			@Nullable Evictor<?, ?> evictor,
+			Function function1,
+			@Nullable Function function2) {
+		return "Window(" +
+			assigner + ", " +
+			trigger.getClass().getSimpleName() + ", " +
+			(evictor == null ? "" : (evictor.getClass().getSimpleName() + ", ")) +
+			generateFunctionName(function1) +
+			(function2 == null ? "" : (", " + generateFunctionName(function2))) +
+			")";
 	}
 
 	// ------------------------------------------------------------------------
@@ -1565,5 +1537,12 @@ public class WindowedStream<T, K, W extends Window> {
 
 	public TypeInformation<T> getInputType() {
 		return input.getType();
+	}
+
+	// -------------------- Testing Methods --------------------
+
+	@VisibleForTesting
+	long getAllowedLateness() {
+		return allowedLateness;
 	}
 }

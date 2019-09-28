@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ExecutorUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,9 +41,9 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -116,10 +117,7 @@ public class AsyncIOExample {
 	private static class SampleAsyncFunction extends RichAsyncFunction<Integer, String> {
 		private static final long serialVersionUID = 2098635244857937717L;
 
-		private static ExecutorService executorService;
-		private static Random random;
-
-		private int counter;
+		private transient ExecutorService executorService;
 
 		/**
 		 * The result of multiplying sleepFactor with a random float is used to pause
@@ -145,57 +143,31 @@ public class AsyncIOExample {
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 
-			synchronized (SampleAsyncFunction.class) {
-				if (counter == 0) {
-					executorService = Executors.newFixedThreadPool(30);
-
-					random = new Random();
-				}
-
-				++counter;
-			}
+			executorService = Executors.newFixedThreadPool(30);
 		}
 
 		@Override
 		public void close() throws Exception {
 			super.close();
-
-			synchronized (SampleAsyncFunction.class) {
-				--counter;
-
-				if (counter == 0) {
-					executorService.shutdown();
-
-					try {
-						if (!executorService.awaitTermination(shutdownWaitTS, TimeUnit.MILLISECONDS)) {
-							executorService.shutdownNow();
-						}
-					} catch (InterruptedException e) {
-						executorService.shutdownNow();
-					}
-				}
-			}
+			ExecutorUtils.gracefulShutdown(shutdownWaitTS, TimeUnit.MILLISECONDS, executorService);
 		}
 
 		@Override
-		public void asyncInvoke(final Integer input, final ResultFuture<String> resultFuture) throws Exception {
-			this.executorService.submit(new Runnable() {
-				@Override
-				public void run() {
-					// wait for while to simulate async operation here
-					long sleep = (long) (random.nextFloat() * sleepFactor);
-					try {
-						Thread.sleep(sleep);
+		public void asyncInvoke(final Integer input, final ResultFuture<String> resultFuture) {
+			executorService.submit(() -> {
+				// wait for while to simulate async operation here
+				long sleep = (long) (ThreadLocalRandom.current().nextFloat() * sleepFactor);
+				try {
+					Thread.sleep(sleep);
 
-						if (random.nextFloat() < failRatio) {
-							resultFuture.completeExceptionally(new Exception("wahahahaha..."));
-						} else {
-							resultFuture.complete(
-								Collections.singletonList("key-" + (input % 10)));
-						}
-					} catch (InterruptedException e) {
-						resultFuture.complete(new ArrayList<String>(0));
+					if (ThreadLocalRandom.current().nextFloat() < failRatio) {
+						resultFuture.completeExceptionally(new Exception("wahahahaha..."));
+					} else {
+						resultFuture.complete(
+							Collections.singletonList("key-" + (input % 10)));
 					}
+				} catch (InterruptedException e) {
+					resultFuture.complete(new ArrayList<>(0));
 				}
 			});
 		}

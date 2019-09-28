@@ -19,8 +19,12 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's YARN runners.
@@ -34,14 +38,24 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<String> APP_MASTER_RPC_ADDRESS =
 			key("yarn.appmaster.rpc.address")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("The hostname or address where the application master RPC system is listening.");
 
 	/**
 	 * The port where the application master RPC system is listening.
 	 */
 	public static final ConfigOption<Integer> APP_MASTER_RPC_PORT =
 			key("yarn.appmaster.rpc.port")
-			.defaultValue(-1);
+			.defaultValue(-1)
+			.withDescription("The port where the application master RPC system is listening.");
+
+	/**
+	 * The vcores used by YARN application master.
+	 */
+	public static final ConfigOption<Integer> APP_MASTER_VCORES =
+		key("yarn.appmaster.vcores")
+		.defaultValue(1)
+		.withDescription("The number of virtual cores (vcores) used by YARN application master.");
 
 	/**
 	 * Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning
@@ -50,25 +64,36 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<String> CLASSPATH_INCLUDE_USER_JAR =
 		key("yarn.per-job-cluster.include-user-jar")
-			.defaultValue("ORDER");
+			.defaultValue("ORDER")
+			.withDescription("Defines whether user-jars are included in the system class path for per-job-clusters as" +
+				" well as their positioning in the path. They can be positioned at the beginning (\"FIRST\"), at the" +
+				" end (\"LAST\"), or be positioned based on their name (\"ORDER\").");
 
 	/**
 	 * The vcores exposed by YARN.
 	 */
 	public static final ConfigOption<Integer> VCORES =
 		key("yarn.containers.vcores")
-		.defaultValue(-1);
+			.defaultValue(-1)
+			.withDescription(Description.builder().text(
+					"The number of virtual cores (vcores) per YARN container. By default, the number of vcores" +
+					" is set to the number of slots per TaskManager, if set, or to 1, otherwise. In order for this" +
+					" parameter to be used your cluster must have CPU scheduling enabled. You can do this by setting" +
+					" the %s.",
+				code("org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler"))
+				.build());
 
 	/**
 	 * The maximum number of failed YARN containers before entirely stopping
 	 * the YARN session / job on YARN.
-	 * By default, we take the number of of initially requested containers.
+	 * By default, we take the number of initially requested containers.
 	 *
 	 * <p>Note: This option returns a String since Integer options must have a static default value.
 	 */
 	public static final ConfigOption<String> MAX_FAILED_CONTAINERS =
 		key("yarn.maximum-failed-containers")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Maximum number of containers the system is going to reallocate in case of a failure.");
 
 	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
@@ -79,14 +104,48 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<String> APPLICATION_ATTEMPTS =
 		key("yarn.application-attempts")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Number of ApplicationMaster restarts. Note that that the entire Flink cluster will restart" +
+			" and the YARN Client will loose the connection. Also, the JobManager address will change and you’ll need" +
+			" to set the JM host:port manually. It is recommended to leave this option at 1.");
+
+	/**
+	 * The config parameter defining the attemptFailuresValidityInterval of Yarn application.
+	 */
+	public static final ConfigOption<Long> APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL =
+		key("yarn.application-attempt-failures-validity-interval")
+		.defaultValue(10000L)
+		.withDescription(Description.builder()
+			.text("Time window in milliseconds which defines the number of application attempt failures when restarting the AM. " +
+				"Failures which fall outside of this window are not being considered. " +
+				"Set this value to -1 in order to count globally. " +
+				"See %s for more information.", link("https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/", "here"))
+			.build());
 
 	/**
 	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
 	 */
 	public static final ConfigOption<Integer> HEARTBEAT_DELAY_SECONDS =
-		key("yarn.heartbeat-delay")
-		.defaultValue(5);
+		key("yarn.heartbeat.interval")
+		.defaultValue(5)
+		.withDeprecatedKeys("yarn.heartbeat-delay")
+		.withDescription("Time between heartbeats with the ResourceManager in seconds.");
+
+	/**
+	 * The heartbeat interval between the Application Master and the YARN Resource Manager
+	 * if Flink is requesting containers.
+	 */
+	public static final ConfigOption<Integer> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
+		key("yarn.heartbeat.container-request-interval")
+			.defaultValue(500)
+			.withDescription(
+				new Description.DescriptionBuilder()
+					.text("Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:")
+					.list(
+						text("The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats."),
+						text("The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn."))
+					.text("If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See %s for more information.", link("https://issues.apache.org/jira/browse/YARN-1902", "this link"))
+					.build());
 
 	/**
 	 * When a Flink job is submitted to YARN, the JobManager's host and the number of available
@@ -97,7 +156,11 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<String> PROPERTIES_FILE_LOCATION =
 		key("yarn.properties-file.location")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("When a Flink job is submitted to YARN, the JobManager’s host and the number of available" +
+			" processing slots is written into a properties file, so that the Flink client is able to pick those" +
+			" details up. This configuration parameter allows changing the default location of that file" +
+			" (for example for environments sharing a Flink installation between users).");
 
 	/**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
@@ -109,14 +172,37 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<String> APPLICATION_MASTER_PORT =
 		key("yarn.application-master.port")
-		.defaultValue("0");
+		.defaultValue("0")
+		.withDescription("With this configuration option, users can specify a port, a range of ports or a list of ports" +
+			" for the Application Master (and JobManager) RPC port. By default we recommend using the default value (0)" +
+			" to let the operating system choose an appropriate port. In particular when multiple AMs are running on" +
+			" the same physical host, fixed port assignments prevent the AM from starting. For example when running" +
+			" Flink on YARN on an environment with a restrictive firewall, this option allows specifying a range of" +
+			" allowed ports.");
+
+	/**
+	 * A non-negative integer indicating the priority for submitting a Flink YARN application. It will only take effect
+	 * if YARN priority scheduling setting is enabled. Larger integer corresponds with higher priority. If priority is
+	 * negative or set to '-1'(default), Flink will unset yarn priority setting and use cluster default priority.
+	 *
+	 * @see <a href="https://hadoop.apache.org/docs/r2.8.5/hadoop-yarn/hadoop-yarn-site/CapacityScheduler.html">YARN Capacity Scheduling Doc</a>
+	 */
+	public static final ConfigOption<Integer> APPLICATION_PRIORITY =
+		key("yarn.application.priority")
+			.defaultValue(-1)
+			.withDescription("A non-negative integer indicating the priority for submitting a Flink YARN application. It" +
+				" will only take effect if YARN priority scheduling setting is enabled. Larger integer corresponds" +
+				" with higher priority. If priority is negative or set to '-1'(default), Flink will unset yarn priority" +
+				" setting and use cluster default priority. Please refer to YARN's official documentation for specific" +
+				" settings required to enable priority scheduling for the targeted YARN version.");
 
 	/**
 	 * A comma-separated list of strings to use as YARN application tags.
 	 */
 	public static final ConfigOption<String> APPLICATION_TAGS =
 		key("yarn.tags")
-		.defaultValue("");
+		.defaultValue("")
+		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
 	// ------------------------------------------------------------------------
 
@@ -125,7 +211,6 @@ public class YarnConfigOptions {
 
 	/** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
 	public enum UserJarInclusion {
-		DISABLED,
 		FIRST,
 		LAST,
 		ORDER

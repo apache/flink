@@ -23,7 +23,7 @@ import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -135,57 +135,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   /**
-   * Gets the UUID by which this environment is identified. The UUID sets the execution context
-   * in the cluster or local environment.
-   */
-  @PublicEvolving
-  def getId: JobID = {
-    javaEnv.getId
-  }
-
-  /**
    * Gets the JobExecutionResult of the last executed job.
    */
   def getLastJobExecutionResult = javaEnv.getLastJobExecutionResult
-
-  /**
-   * Gets the UUID by which this environment is identified, as a string.
-   */
-  @PublicEvolving
-  def getIdString: String = {
-    javaEnv.getIdString
-  }
-
-  /**
-   * Starts a new session, discarding all intermediate results.
-   */
-  @PublicEvolving
-  def startNewSession() {
-    javaEnv.startNewSession()
-  }
-
-  /**
-   * Sets the session timeout to hold the intermediate results of a job. This only
-   * applies the updated timeout in future executions.
- *
-   * @param timeout The timeout in seconds.
-   */
-  @PublicEvolving
-  def setSessionTimeout(timeout: Long) {
-    javaEnv.setSessionTimeout(timeout)
-  }
-
-  /**
-   * Gets the session timeout for this environment. The session timeout defines for how long
-   * after an execution, the job and its intermediate results will be kept for future
-   * interactions.
-   *
-   * @return The session timeout, in seconds.
-   */
-  @PublicEvolving
-  def getSessionTimeout: Long = {
-    javaEnv.getSessionTimeout
-  }
 
   /**
    * Registers the given type with the serializer at the [[KryoSerializer]].
@@ -493,9 +445,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Registers a file at the distributed cache under the given name. The file will be accessible
    * from any user-defined function in the (distributed) runtime under a local path. Files
-   * may be local files (as long as all relevant workers have access to it),
-   * or files in a distributed file system.
-   * The runtime will copy the files temporarily to a local cache, if needed.
+   * may be local files (which will be distributed via BlobServer), or files in a distributed file
+   * system. The runtime will copy the files temporarily to a local cache, if needed.
    *
    * The [[org.apache.flink.api.common.functions.RuntimeContext]] can be obtained inside UDFs
    * via
@@ -633,7 +584,7 @@ object ExecutionEnvironment {
    * the same JVM as the environment was created in. It will use the parallelism specified in the
    * parameter.
    *
-   * If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
+   * If the configuration key 'rest.port' was set in the configuration, that particular
    * port will be used for the web UI. Otherwise, the default port (8081) will be used.
    *
    * @param config optional config for the local execution

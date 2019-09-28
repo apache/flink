@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 
@@ -25,6 +26,7 @@ import org.elasticsearch.action.ActionRequest;
 /**
  * An {@link ActionRequestFailureHandler} that simply fails the sink on any failures.
  */
+@Internal
 public class NoOpFailureHandler implements ActionRequestFailureHandler {
 
 	private static final long serialVersionUID = 737941343410827885L;

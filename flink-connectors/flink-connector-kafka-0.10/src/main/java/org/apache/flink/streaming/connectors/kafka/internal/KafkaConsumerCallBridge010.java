@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 
@@ -32,7 +34,8 @@ import java.util.List;
  *
  * <p>Because of that, we need two versions whose compiled code goes against different method signatures.
  */
-public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
+@Internal
+public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge09 {
 
 	@Override
 	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {

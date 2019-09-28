@@ -42,7 +42,7 @@ public class PendingCheckpointStatsTest {
 	public void testReportSubtaskStats() throws Exception {
 		long checkpointId = Integer.MAX_VALUE + 1222L;
 		long triggerTimestamp = Integer.MAX_VALUE - 1239L;
-		CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
+		CheckpointProperties props = CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION);
 		TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
 		TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
 		int totalSubtaskCount = task1.getNumberOfSubtasks() + task2.getNumberOfSubtasks();
@@ -138,7 +138,7 @@ public class PendingCheckpointStatsTest {
 		PendingCheckpointStats pending = new PendingCheckpointStats(
 			0,
 			1,
-			CheckpointProperties.forStandardCheckpoint(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			task1.getNumberOfSubtasks() + task2.getNumberOfSubtasks(),
 			taskStats,
 			callback);
@@ -199,7 +199,7 @@ public class PendingCheckpointStatsTest {
 		PendingCheckpointStats pending = new PendingCheckpointStats(
 			0,
 			triggerTimestamp,
-			CheckpointProperties.forStandardCheckpoint(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			task1.getNumberOfSubtasks() + task2.getNumberOfSubtasks(),
 			taskStats,
 			callback);
@@ -251,7 +251,7 @@ public class PendingCheckpointStatsTest {
 		PendingCheckpointStats pending = new PendingCheckpointStats(
 			123123123L,
 			10123L,
-			CheckpointProperties.forStandardCheckpoint(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			1337,
 			taskStats,
 			mock(CheckpointStatsTracker.PendingCheckpointStatsCallback.class));

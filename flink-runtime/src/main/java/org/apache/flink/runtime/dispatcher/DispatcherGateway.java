@@ -20,10 +20,10 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -57,30 +57,24 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Cancel the given job.
+	 * Returns the port of the blob server.
 	 *
-	 * @param jobId identifying the job to cancel
 	 * @param timeout of the operation
-	 * @return A future acknowledge if the cancellation succeeded
+	 * @return A future integer of the blob server port
 	 */
-	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
+	CompletableFuture<Integer> getBlobServerPort(@RpcTimeout Time timeout);
 
 	/**
-	 * Stop the given job.
+	 * Requests the {@link ArchivedExecutionGraph} for the given jobId. If there is no such graph, then
+	 * the future is completed with a {@link FlinkJobNotFoundException}.
 	 *
-	 * @param jobId identifying the job to stop
-	 * @param timeout of the operation
-	 * @return A future acknowledge if the stopping succeeded
-	 */
-	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
-
-	/**
-	 * Request the cluster overview.
+	 * <p>Note: We enforce that the returned future contains a {@link ArchivedExecutionGraph} unlike
+	 * the super interface.
 	 *
-	 * @param timeout of the operation
-	 * @return Future {@link StatusOverview} containing the cluster information
+	 * @param jobId identifying the job whose AccessExecutionGraph is requested
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
 	 */
-	CompletableFuture<StatusOverview> requestStatusOverview(@RpcTimeout Time timeout);
-
-	CompletableFuture<MultipleJobsDetails> requestJobDetails(@RpcTimeout Time timeout);
+	@Override
+	CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
 }

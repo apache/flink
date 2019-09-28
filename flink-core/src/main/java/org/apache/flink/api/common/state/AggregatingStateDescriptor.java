@@ -30,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The type internally stored in the state is the type of the {@code Accumulator} of the
  * {@code AggregateFunction}.
- * 
+ *
  * @param <IN> The type of the values that are added to the state.
  * @param <ACC> The type of the accumulator (intermediate aggregation state).
  * @param <OUT> The type of the values that are returned from the state.
@@ -39,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<AggregatingState<IN, OUT>, ACC> {
 	private static final long serialVersionUID = 1L;
 
-	/** The aggregation function for the state */
+	/** The aggregation function for the state. */
 	private final AggregateFunction<IN, ACC, OUT> aggFunction;
 
 	/**
@@ -49,7 +49,7 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 	 * consider using the {@link #AggregatingStateDescriptor(String, AggregateFunction, TypeInformation)} constructor.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param aggFunction The {@code AggregateFunction} used to aggregate the state.   
+	 * @param aggFunction The {@code AggregateFunction} used to aggregate the state.
 	 * @param stateType The type of the accumulator. The accumulator is stored in the state.
 	 */
 	public AggregatingStateDescriptor(
@@ -93,13 +93,6 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 		this.aggFunction = checkNotNull(aggFunction);
 	}
 
-	// ------------------------------------------------------------------------
-
-	@Override
-	public AggregatingState<IN, OUT> bind(StateBinder stateBinder) throws Exception {
-		return stateBinder.createAggregatingState(this);
-	}
-
 	/**
 	 * Returns the aggregate function to be used for the state.
 	 */
@@ -110,36 +103,5 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 	@Override
 	public Type getType() {
 		return Type.AGGREGATING;
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else if (o != null && getClass() == o.getClass()) {
-			AggregatingStateDescriptor<?, ?, ?> that = (AggregatingStateDescriptor<?, ?, ?>) o;
-			return serializer.equals(that.serializer) && name.equals(that.name);
-		}
-		else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		int result = serializer.hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return "AggregatingStateDescriptor{" +
-				"serializer=" + serializer +
-				", aggFunction=" + aggFunction +
-				'}';
 	}
 }

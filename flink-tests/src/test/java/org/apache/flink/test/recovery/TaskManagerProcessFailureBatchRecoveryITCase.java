@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.configuration.Configuration;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -63,13 +64,12 @@ public class TaskManagerProcessFailureBatchRecoveryITCase extends AbstractTaskMa
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void testTaskManagerFailure(int jobManagerPort, final File coordinateDir) throws Exception {
+	public void testTaskManagerFailure(Configuration configuration, final File coordinateDir) throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
+		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, configuration);
 		env.setParallelism(PARALLELISM);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 10000));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
 		env.getConfig().setExecutionMode(executionMode);
-		env.getConfig().disableSysoutLogging();
 
 		final long numElements = 100000L;
 		final DataSet<Long> result = env.generateSequence(1, numElements)

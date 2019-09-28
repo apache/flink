@@ -18,19 +18,14 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.lang.reflect.Array;
-
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+import java.lang.reflect.Array;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,6 +49,14 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	public GenericArraySerializer(Class<C> componentClass, TypeSerializer<C> componentSerializer) {
 		this.componentClass = checkNotNull(componentClass);
 		this.componentSerializer = checkNotNull(componentSerializer);
+	}
+
+	public Class<C> getComponentClass() {
+		return componentClass;
+	}
+
+	public TypeSerializer<C> getComponentSerializer() {
+		return componentSerializer;
 	}
 
 	@Override
@@ -84,16 +87,21 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 
 	@Override
 	public C[] copy(C[] from) {
-		C[] copy = create(from.length);
 
-		for (int i = 0; i < copy.length; i++) {
-			C val = from[i];
-			if (val != null) {
-				copy[i] = this.componentSerializer.copy(val);
+		final TypeSerializer<C> serializer = this.componentSerializer;
+
+		if (serializer.isImmutableType()) {
+			return Arrays.copyOf(from, from.length);
+		} else {
+			C[] copy = create(from.length);
+			for (int i = 0; i < copy.length; i++) {
+				C val = from[i];
+				if (val != null) {
+					copy[i] = serializer.copy(val);
+				}
 			}
+			return copy;
 		}
-
-		return copy;
 	}
 	
 	@Override
@@ -175,17 +183,11 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		if (obj instanceof GenericArraySerializer) {
 			GenericArraySerializer<?> other = (GenericArraySerializer<?>)obj;
 
-			return other.canEqual(this) &&
-				componentClass == other.componentClass &&
+			return componentClass == other.componentClass &&
 				componentSerializer.equals(other.componentSerializer);
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof GenericArraySerializer;
 	}
 
 	@Override
@@ -198,36 +200,7 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public GenericArraySerializerConfigSnapshot snapshotConfiguration() {
-		return new GenericArraySerializerConfigSnapshot<>(componentClass, componentSerializer);
-	}
-
-	@Override
-	public CompatibilityResult<C[]> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof GenericArraySerializerConfigSnapshot) {
-			final GenericArraySerializerConfigSnapshot config = (GenericArraySerializerConfigSnapshot) configSnapshot;
-
-			if (componentClass.equals(config.getComponentClass())) {
-				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousComponentSerializerAndConfig =
-					config.getSingleNestedSerializerAndConfig();
-
-				CompatibilityResult<C> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-						previousComponentSerializerAndConfig.f0,
-						UnloadableDummyTypeSerializer.class,
-						previousComponentSerializerAndConfig.f1,
-						componentSerializer);
-
-				if (!compatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
-				} else if (compatResult.getConvertDeserializer() != null) {
-					return CompatibilityResult.requiresMigration(
-						new GenericArraySerializer<>(
-							componentClass,
-							new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
-				}
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
+	public GenericArraySerializerSnapshot<C> snapshotConfiguration() {
+		return new GenericArraySerializerSnapshot<>(this);
 	}
 }

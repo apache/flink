@@ -26,11 +26,13 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -101,7 +103,7 @@ public class CEPRescalingTest {
 				new StreamRecord<Event>(middleEvent2, 4));                // valid element
 
 			// take a snapshot with some elements in internal sorting queue
-			OperatorStateHandles snapshot = harness.snapshot(0, 0);
+			OperatorSubtaskState snapshot = harness.snapshot(0, 0);
 			harness.close();
 
 			// initialize two sub-tasks with the previously snapshotted state to simulate scaling up
@@ -110,10 +112,16 @@ public class CEPRescalingTest {
 			// so we initialize the two tasks and we put the rest of
 			// the valid elements for the pattern on task 0.
 
+			OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				snapshot, maxParallelism, 1, 2, 0);
+
+			OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				snapshot, maxParallelism, 1, 2, 1);
+
 			harness1 = getTestHarness(maxParallelism, 2, 0);
 
 			harness1.setup();
-			harness1.initializeState(snapshot);
+			harness1.initializeState(initState1);
 			harness1.open();
 
 			// if element timestamps are not correctly checkpointed/restored this will lead to
@@ -135,7 +143,7 @@ public class CEPRescalingTest {
 			harness2 = getTestHarness(maxParallelism, 2, 1);
 
 			harness2.setup();
-			harness2.initializeState(snapshot);
+			harness2.initializeState(initState2);
 			harness2.open();
 
 			// now we move to the second parallel task
@@ -273,20 +281,26 @@ public class CEPRescalingTest {
 
 			// we take a snapshot and make it look as a single operator
 			// this will be the initial state of all downstream tasks.
-			OperatorStateHandles snapshot = AbstractStreamOperatorTestHarness.repackageState(
+			OperatorSubtaskState snapshot = AbstractStreamOperatorTestHarness.repackageState(
 				harness2.snapshot(0, 0),
 				harness1.snapshot(0, 0),
 				harness3.snapshot(0, 0)
 			);
 
+			OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				snapshot, maxParallelism, 3, 2, 0);
+
+			OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				snapshot, maxParallelism, 3, 2, 1);
+
 			harness4 = getTestHarness(maxParallelism, 2, 0);
 			harness4.setup();
-			harness4.initializeState(snapshot);
+			harness4.initializeState(initState1);
 			harness4.open();
 
 			harness5 = getTestHarness(maxParallelism, 2, 1);
 			harness5.setup();
-			harness5.initializeState(snapshot);
+			harness5.initializeState(initState2);
 			harness5.open();
 
 			harness5.processElement(new StreamRecord<>(endEvent2, 11));
@@ -366,20 +380,23 @@ public class CEPRescalingTest {
 	}
 
 	private KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> getTestHarness(
-		int maxParallelism,
-		int taskParallelism,
-		int subtaskIdx) throws Exception {
+			int maxParallelism,
+			int taskParallelism,
+			int subtaskIdx) throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new TestKeySelector();
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-			getKeyedCepOpearator(
-				false,
-				new NFAFactory()),
-			keySelector,
-			BasicTypeInfo.INT_TYPE_INFO,
-			maxParallelism,
-			taskParallelism,
-			subtaskIdx);
+		KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> harness =
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						getKeyedCepOpearator(
+								false,
+								new NFAFactory()),
+						keySelector,
+						BasicTypeInfo.INT_TYPE_INFO,
+						maxParallelism,
+						taskParallelism,
+						subtaskIdx);
+		harness.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
+		return harness;
 	}
 
 	private static class NFAFactory implements NFACompiler.NFAFactory<Event> {
@@ -427,7 +444,7 @@ public class CEPRescalingTest {
 				// priority queue in CEP operator are correctly checkpointed/restored
 				.within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
 		}
 	}
 

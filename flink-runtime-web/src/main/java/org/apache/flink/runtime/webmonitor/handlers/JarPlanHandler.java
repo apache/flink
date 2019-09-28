@@ -18,56 +18,87 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.JarHandlerContext;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import com.fasterxml.jackson.core.JsonGenerator;
+import javax.annotation.Nonnull;
 
-import java.io.File;
-import java.io.StringWriter;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
+
+import static java.util.Objects.requireNonNull;
 
 /**
- * This handler handles requests to fetch plan for a jar.
+ * This handler handles requests to fetch the plan for a jar.
  */
-public class JarPlanHandler extends JarActionHandler {
+public class JarPlanHandler
+		extends AbstractRestHandler<RestfulGateway, JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> {
 
-	static final String JAR_PLAN_REST_PATH = "/jars/:jarid/plan";
+	private final Path jarDir;
 
-	public JarPlanHandler(Executor executor, File jarDirectory) {
-		super(executor, jarDirectory);
+	private final Configuration configuration;
+
+	private final Executor executor;
+
+	private final Function<JobGraph, JobPlanInfo> planGenerator;
+
+	public JarPlanHandler(
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			final Time timeout,
+			final Map<String, String> responseHeaders,
+			final MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> messageHeaders,
+			final Path jarDir,
+			final Configuration configuration,
+			final Executor executor) {
+		this(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			messageHeaders,
+			jarDir,
+			configuration,
+			executor,
+			jobGraph -> new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph)));
+	}
+
+	public JarPlanHandler(
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			final Time timeout,
+			final Map<String, String> responseHeaders,
+			final MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> messageHeaders,
+			final Path jarDir,
+			final Configuration configuration,
+			final Executor executor,
+			final Function<JobGraph, JobPlanInfo> planGenerator) {
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		this.jarDir = requireNonNull(jarDir);
+		this.configuration = requireNonNull(configuration);
+		this.executor = requireNonNull(executor);
+		this.planGenerator = planGenerator;
 	}
 
 	@Override
-	public String[] getPaths() {
-		return new String[]{JAR_PLAN_REST_PATH};
-	}
+	protected CompletableFuture<JobPlanInfo> handleRequest(
+			@Nonnull final HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request,
+			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
+		final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
 
-	@Override
-	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
-		return CompletableFuture.supplyAsync(
-			() -> {
-				try {
-					JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
-					JobGraph graph = getJobGraphAndClassLoader(config).f0;
-					StringWriter writer = new StringWriter();
-					JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-					gen.writeStartObject();
-					gen.writeFieldName("plan");
-					gen.writeRawValue(JsonPlanGenerator.generatePlan(graph));
-					gen.writeEndObject();
-					gen.close();
-					return writer.toString();
-				}
-				catch (Exception e) {
-					throw new CompletionException(e);
-				}
-			},
-			executor);
+		return CompletableFuture.supplyAsync(() -> {
+			final JobGraph jobGraph = context.toJobGraph(configuration);
+			return planGenerator.apply(jobGraph);
+		}, executor);
 	}
 }

@@ -33,7 +33,7 @@ public interface ManagedSnapshotContext {
 	 * 
 	 * <p>The checkpoint ID is guaranteed to be strictly monotonously increasing across checkpoints.
 	 * For two completed checkpoints <i>A</i> and <i>B</i>, {@code ID_B > ID_A} means that checkpoint
-	 * <i>B</i> subsumes checkpoint <i>A</i>, i.e., checkpoint <i>B</i>it contains a later state
+	 * <i>B</i> subsumes checkpoint <i>A</i>, i.e., checkpoint <i>B</i> contains a later state
 	 * than checkpoint <i>A</i>.
 	 */
 	long getCheckpointId();

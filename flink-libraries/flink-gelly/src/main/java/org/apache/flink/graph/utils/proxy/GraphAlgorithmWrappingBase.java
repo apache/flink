@@ -58,7 +58,7 @@ implements GraphAlgorithm<K, VV, EV, R> {
 	 */
 	public GraphAlgorithmWrappingBase<K, VV, EV, R> setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
+				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
 
 		this.parallelism = parallelism;
 

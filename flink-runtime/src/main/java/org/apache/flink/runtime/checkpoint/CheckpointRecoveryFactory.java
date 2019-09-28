@@ -26,21 +26,6 @@ import org.apache.flink.api.common.JobID;
 public interface CheckpointRecoveryFactory {
 
 	/**
-	 * The number of {@link CompletedCheckpoint} instances to retain.
-	 */
-	int NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN = 1;
-
-	/**
-	 * Starts the {@link CheckpointRecoveryFactory} service.
-	 */
-	void start();
-
-	/**
-	 * Stops the {@link CheckpointRecoveryFactory} service.
-	 */
-	void stop();
-
-	/**
 	 * Creates a {@link CompletedCheckpointStore} instance for a job.
 	 *
 	 * @param jobId           Job ID to recover checkpoints for

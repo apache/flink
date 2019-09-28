@@ -67,7 +67,7 @@ public class SourceSinkDataTestKit {
 	}
 
 	/**
-	 * A {@link ElasticsearchSinkFunction} that indexes each element it receives to a sepecified Elasticsearch index.
+	 * A {@link ElasticsearchSinkFunction} that indexes each element it receives to a specified Elasticsearch index.
 	 */
 	public static class TestElasticsearchSinkFunction implements ElasticsearchSinkFunction<Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;

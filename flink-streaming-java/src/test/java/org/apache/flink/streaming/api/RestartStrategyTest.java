@@ -33,12 +33,11 @@ import org.junit.Test;
 public class RestartStrategyTest extends TestLogger {
 
 	/**
-	 * Tests that in a streaming use case where checkpointing is enabled, a
-	 * fixed delay with Integer.MAX_VALUE retries is instantiated if no other restart
-	 * strategy has been specified.
+	 * Tests that in a streaming use case where checkpointing is enabled, there is no default strategy set on the
+	 * client side.
 	 */
 	@Test
-	public void testAutomaticRestartingWhenCheckpointing() throws Exception {
+	public void testFallbackStrategyOnClientSideWhenCheckpointingEnabled() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 
@@ -51,8 +50,7 @@ public class RestartStrategyTest extends TestLogger {
 			jobGraph.getSerializedExecutionConfig().deserializeValue(getClass().getClassLoader()).getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
-		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
-		Assert.assertEquals(Integer.MAX_VALUE, ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy).getRestartAttempts());
+		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FallbackRestartStrategyConfiguration);
 	}
 
 	/**

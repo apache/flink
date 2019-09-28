@@ -29,7 +29,7 @@ import java.io.File;
  *       also be located under the same package. The intentional package-private accessibility of this interface
  *       enforces that.
  */
-interface EmbeddedElasticsearchNodeEnvironment {
+public interface EmbeddedElasticsearchNodeEnvironment {
 
 	/**
 	 * Start an embedded Elasticsearch node instance.

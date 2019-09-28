@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
+import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -32,9 +34,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Factory for {@link PartitionRequestClient} instances.
- * <p>
- * Instances of partition requests clients are shared among several {@link RemoteInputChannel}
+ * Factory for {@link NettyPartitionRequestClient} instances.
+ *
+ * <p>Instances of partition requests clients are shared among several {@link RemoteInputChannel}
  * instances.
  */
 class PartitionRequestClientFactory {
@@ -49,19 +51,19 @@ class PartitionRequestClientFactory {
 
 	/**
 	 * Atomically establishes a TCP connection to the given remote address and
-	 * creates a {@link PartitionRequestClient} instance for this connection.
+	 * creates a {@link NettyPartitionRequestClient} instance for this connection.
 	 */
-	PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException {
+	NettyPartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException {
 		Object entry;
-		PartitionRequestClient client = null;
+		NettyPartitionRequestClient client = null;
 
 		while (client == null) {
 			entry = clients.get(connectionId);
 
 			if (entry != null) {
 				// Existing channel or connecting channel
-				if (entry instanceof PartitionRequestClient) {
-					client = (PartitionRequestClient) entry;
+				if (entry instanceof NettyPartitionRequestClient) {
+					client = (NettyPartitionRequestClient) entry;
 				}
 				else {
 					ConnectingChannel future = (ConnectingChannel) entry;
@@ -91,7 +93,7 @@ class PartitionRequestClientFactory {
 					clients.replace(connectionId, old, client);
 				}
 				else {
-					client = (PartitionRequestClient) old;
+					client = (NettyPartitionRequestClient) old;
 				}
 			}
 
@@ -164,11 +166,9 @@ class PartitionRequestClientFactory {
 		private void handInChannel(Channel channel) {
 			synchronized (connectLock) {
 				try {
-					PartitionRequestClientHandler requestHandler = channel.pipeline()
-							.get(PartitionRequestClientHandler.class);
-
-					partitionRequestClient = new PartitionRequestClient(
-							channel, requestHandler, connectionId, clientFactory);
+					NetworkClientHandler clientHandler = channel.pipeline().get(NetworkClientHandler.class);
+					partitionRequestClient = new NettyPartitionRequestClient(
+						channel, clientHandler, connectionId, clientFactory);
 
 					if (disposeRequestClient) {
 						partitionRequestClient.disposeIfNotUsed();
@@ -182,11 +182,11 @@ class PartitionRequestClientFactory {
 			}
 		}
 
-		private volatile PartitionRequestClient partitionRequestClient;
+		private volatile NettyPartitionRequestClient partitionRequestClient;
 
 		private volatile Throwable error;
 
-		private PartitionRequestClient waitForChannel() throws IOException, InterruptedException {
+		private NettyPartitionRequestClient waitForChannel() throws IOException, InterruptedException {
 			synchronized (connectLock) {
 				while (error == null && partitionRequestClient == null) {
 					connectLock.wait(2000);
@@ -221,8 +221,10 @@ class PartitionRequestClientFactory {
 			}
 			else {
 				notifyOfError(new LocalTransportException(
-						"Connecting to remote task manager + '" + connectionId.getAddress() +
-								"' has been cancelled.", null));
+					String.format(
+						"Connecting to remote task manager '%s' has been cancelled.",
+						connectionId.getAddress()),
+					null));
 			}
 		}
 	}

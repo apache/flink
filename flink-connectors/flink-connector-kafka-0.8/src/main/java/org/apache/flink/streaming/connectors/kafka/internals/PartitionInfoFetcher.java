@@ -18,9 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.List;
 import java.util.Properties;
 
+@Internal
 class PartitionInfoFetcher extends Thread {
 
 	private final List<String> topics;

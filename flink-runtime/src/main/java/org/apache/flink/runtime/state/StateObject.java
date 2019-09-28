@@ -45,7 +45,7 @@ public interface StateObject extends Serializable {
 	void discardState() throws Exception;
 
 	/**
-	 * Returns the size of the state in bytes. If the the size is not known, this
+	 * Returns the size of the state in bytes. If the size is not known, this
 	 * method should return {@code 0}.
 	 * 
 	 * <p>The values produced by this method are only used for informational purposes and

@@ -117,7 +117,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	}
 
 	@Override
-	public void quiesceAndAwaitPending() {
+	public void quiesce() {
 		if (!isTerminated) {
 			isQuiesced = true;
 			priorityQueue.clear();
@@ -125,8 +125,25 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	}
 
 	@Override
+	public void awaitPendingAfterQuiesce() throws InterruptedException {
+		// do nothing.
+	}
+
+	@Override
 	public void shutdownService() {
 		this.isTerminated = true;
+	}
+
+	@Override
+	public boolean shutdownServiceUninterruptible(long timeoutMs) {
+		shutdownService();
+		return true;
+	}
+
+	@Override
+	public boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
+		shutdownService();
+		return true;
 	}
 
 	public int getNumActiveTimers() {

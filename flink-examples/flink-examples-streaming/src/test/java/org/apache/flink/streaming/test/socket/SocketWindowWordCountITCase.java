@@ -19,8 +19,8 @@ package org.apache.flink.streaming.test.socket;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.examples.socket.SocketWindowWordCount;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
@@ -38,7 +38,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link SocketWindowWordCount}.
  */
-public class SocketWindowWordCountITCase extends StreamingMultipleProgramsTestBase {
+public class SocketWindowWordCountITCase extends AbstractTestBase {
 
 	@Test
 	public void testJavaProgram() throws Exception {

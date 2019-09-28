@@ -38,7 +38,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.hash.MutableHashTable.HashBucketIterator;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.UniformIntPairGenerator;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -101,13 +100,10 @@ public class HashTableITCase extends TestLogger {
 	}
 	
 	@After
-	public void tearDown()
+	public void tearDown() throws Exception
 	{
 		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		this.ioManager.shutdown();
-		if (!this.ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
+		this.ioManager.close();
 		if (!this.memManager.verifyEmpty()) {
 			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
 		}
@@ -806,11 +802,8 @@ public class HashTableITCase extends TestLogger {
 			return;
 		}
 		
-		// create the I/O access for spilling
-		final IOManager ioManager = new IOManagerAsync();
-		
 		// ----------------------------------------------------------------------------------------
-		
+
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
 			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
 			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
@@ -906,9 +899,6 @@ public class HashTableITCase extends TestLogger {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManagerAsync();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
@@ -1021,9 +1011,6 @@ public class HashTableITCase extends TestLogger {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManagerAsync();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);

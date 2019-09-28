@@ -19,10 +19,9 @@
 package org.apache.flink.mesos.entrypoint;
 
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.mesos.runtime.clusterframework.MesosConfigKeys;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
@@ -41,9 +41,8 @@ import org.apache.commons.cli.PosixParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 /**
  * The entry point for running a TaskManager in a Mesos container.
@@ -76,7 +75,7 @@ public class MesosTaskExecutorRunner {
 			Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
 			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
 
-			configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
+			configuration = MesosEntrypointUtils.loadConfiguration(dynamicProperties, LOG);
 		}
 		catch (Throwable t) {
 			LOG.error("Failed to load the TaskManager configuration and dynamic properties.", t);
@@ -84,28 +83,10 @@ public class MesosTaskExecutorRunner {
 			return;
 		}
 
-		// read the environment variables
 		final Map<String, String> envs = System.getenv();
-		final String tmpDirs = envs.get(MesosConfigKeys.ENV_FLINK_TMP_DIR);
 
-		// configure local directory
-		String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);
-		if (flinkTempDirs != null) {
-			LOG.info("Overriding Mesos temporary file directories with those " +
-				"specified in the Flink config: {}", flinkTempDirs);
-		}
-		else if (tmpDirs != null) {
-			LOG.info("Setting directories for temporary files to: {}", tmpDirs);
-			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, tmpDirs);
-		}
-
-		// configure the default filesystem
-		try {
-			FileSystem.setDefaultScheme(configuration);
-		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
-		}
+		// configure the filesystems
+		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
@@ -120,17 +101,15 @@ public class MesosTaskExecutorRunner {
 		SecurityUtils.install(sc);
 
 		try {
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
-				@Override
-				public Integer call() throws Exception {
-					TaskManagerRunner.runTaskManager(configuration, resourceId);
+			SecurityUtils.getInstalledContext().runSecured(() -> {
+				TaskManagerRunner.runTaskManager(configuration, resourceId);
 
-					return 0;
-				}
+				return 0;
 			});
 		}
 		catch (Throwable t) {
-			LOG.error("Error while starting the TaskManager", t);
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			LOG.error("Error while starting the TaskManager", strippedThrowable);
 			System.exit(INIT_ERROR_EXIT_CODE);
 		}
 	}

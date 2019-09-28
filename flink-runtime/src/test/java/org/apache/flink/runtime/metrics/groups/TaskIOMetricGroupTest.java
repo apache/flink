@@ -21,7 +21,6 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 
 import org.junit.Test;
 
@@ -34,7 +33,7 @@ import static org.junit.Assert.assertNotNull;
 public class TaskIOMetricGroupTest {
 	@Test
 	public void testTaskIOMetricGroup() {
-		TaskMetricGroup task = new UnregisteredTaskMetricsGroup();
+		TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 		TaskIOMetricGroup taskIO = task.getIOMetricGroup();
 
 		// test counter forwarding
@@ -52,15 +51,15 @@ public class TaskIOMetricGroupTest {
 		assertEquals(64L, taskIO.getNumRecordsOutCounter().getCount());
 
 		// test IOMetrics instantiation
-		taskIO.getNumBytesInLocalCounter().inc(100L);
-		taskIO.getNumBytesInRemoteCounter().inc(150L);
+		taskIO.getNumBytesInCounter().inc(100L);
 		taskIO.getNumBytesOutCounter().inc(250L);
+		taskIO.getNumBuffersOutCounter().inc(3L);
 
 		IOMetrics io = taskIO.createSnapshot();
 		assertEquals(32L, io.getNumRecordsIn());
 		assertEquals(64L, io.getNumRecordsOut());
-		assertEquals(100L, io.getNumBytesInLocal());
-		assertEquals(150L, io.getNumBytesInRemote());
+		assertEquals(100L, io.getNumBytesIn());
 		assertEquals(250L, io.getNumBytesOut());
+		assertEquals(3L, taskIO.getNumBuffersOutCounter().getCount());
 	}
 }

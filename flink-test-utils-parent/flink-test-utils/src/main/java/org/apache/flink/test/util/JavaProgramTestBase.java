@@ -19,7 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -34,11 +34,7 @@ import org.junit.Test;
  */
 public abstract class JavaProgramTestBase extends AbstractTestBase {
 
-	private static final int DEFAULT_PARALLELISM = 4;
-
 	private JobExecutionResult latestExecutionResult;
-
-	private int parallelism = DEFAULT_PARALLELISM;
 
 	/**
 	 * The number of times a test should be repeated.
@@ -50,26 +46,12 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 
 	private boolean isCollectionExecution;
 
-	public JavaProgramTestBase() {
-		this(new Configuration());
-	}
-
-	public JavaProgramTestBase(Configuration config) {
-		super(config);
-		setTaskManagerNumSlots(parallelism);
-	}
-
-	public void setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-		setTaskManagerNumSlots(parallelism);
-	}
-
 	public void setNumberOfTestRepetitions(int numberOfTestRepetitions) {
 		this.numberOfTestRepetitions = numberOfTestRepetitions;
 	}
 
 	public int getParallelism() {
-		return isCollectionExecution ? 1 : parallelism;
+		return isCollectionExecution ? 1 : miniClusterResource.getNumberSlots();
 	}
 
 	public JobExecutionResult getLatestExecutionResult() {
@@ -102,53 +84,47 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	public void testJobWithObjectReuse() throws Exception {
 		isCollectionExecution = false;
 
-		startCluster();
-
+		// pre-submit
 		try {
-			// pre-submit
+			preSubmit();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+		}
+
+		// This only works because the underlying ExecutionEnvironment is a TestEnvironment
+		// We should fix that we are able to get access to the latest execution result from a different
+		// execution environment and how the object reuse mode is enabled
+		TestEnvironment env = miniClusterResource.getTestEnvironment();
+		env.getConfig().enableObjectReuse();
+
+		// Possibly run the test multiple times
+		for (int i = 0; i < numberOfTestRepetitions; i++) {
+			// call the test program
 			try {
-				preSubmit();
+				testProgram();
+				this.latestExecutionResult = env.getLastJobExecutionResult();
 			}
 			catch (Exception e) {
 				System.err.println(e.getMessage());
 				e.printStackTrace();
-				Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+				Assert.fail("Error while calling the test program: " + e.getMessage());
 			}
 
-			// prepare the test environment
-			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism, false);
-			env.getConfig().enableObjectReuse();
-			env.setAsContext();
+			Assert.assertNotNull("The test program never triggered an execution.",
+					this.latestExecutionResult);
+		}
 
-			// Possibly run the test multiple times
-			for (int i = 0; i < numberOfTestRepetitions; i++) {
-				// call the test program
-				try {
-					testProgram();
-					this.latestExecutionResult = env.getLastJobExecutionResult();
-				}
-				catch (Exception e) {
-					System.err.println(e.getMessage());
-					e.printStackTrace();
-					Assert.fail("Error while calling the test program: " + e.getMessage());
-				}
-
-				Assert.assertNotNull("The test program never triggered an execution.",
-						this.latestExecutionResult);
-			}
-
-			// post-submit
-			try {
-				postSubmit();
-			}
-			catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				Assert.fail("Post-submit work caused an error: " + e.getMessage());
-			}
-		} finally {
-			stopCluster();
-			TestEnvironment.unsetAsContext();
+		// post-submit
+		try {
+			postSubmit();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Post-submit work caused an error: " + e.getMessage());
 		}
 	}
 
@@ -156,52 +132,47 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	public void testJobWithoutObjectReuse() throws Exception {
 		isCollectionExecution = false;
 
-		startCluster();
+		// pre-submit
 		try {
-			// pre-submit
+			preSubmit();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+		}
+
+		// This only works because the underlying ExecutionEnvironment is a TestEnvironment
+		// We should fix that we are able to get access to the latest execution result from a different
+		// execution environment and how the object reuse mode is enabled
+		ExecutionEnvironment env = miniClusterResource.getTestEnvironment();
+		env.getConfig().disableObjectReuse();
+
+		// Possibly run the test multiple times
+		for (int i = 0; i < numberOfTestRepetitions; i++) {
+			// call the test program
 			try {
-				preSubmit();
+				testProgram();
+				this.latestExecutionResult = env.getLastJobExecutionResult();
 			}
 			catch (Exception e) {
 				System.err.println(e.getMessage());
 				e.printStackTrace();
-				Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+				Assert.fail("Error while calling the test program: " + e.getMessage());
 			}
 
-			// prepare the test environment
-			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism, false);
-			env.getConfig().disableObjectReuse();
-			env.setAsContext();
+			Assert.assertNotNull("The test program never triggered an execution.",
+					this.latestExecutionResult);
+		}
 
-			// Possibly run the test multiple times
-			for (int i = 0; i < numberOfTestRepetitions; i++) {
-				// call the test program
-				try {
-					testProgram();
-					this.latestExecutionResult = env.getLastJobExecutionResult();
-				}
-				catch (Exception e) {
-					System.err.println(e.getMessage());
-					e.printStackTrace();
-					Assert.fail("Error while calling the test program: " + e.getMessage());
-				}
-
-				Assert.assertNotNull("The test program never triggered an execution.",
-						this.latestExecutionResult);
-			}
-
-			// post-submit
-			try {
-				postSubmit();
-			}
-			catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				Assert.fail("Post-submit work caused an error: " + e.getMessage());
-			}
-		} finally {
-			stopCluster();
-			TestEnvironment.unsetAsContext();
+		// post-submit
+		try {
+			postSubmit();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Post-submit work caused an error: " + e.getMessage());
 		}
 	}
 
@@ -239,7 +210,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			e.printStackTrace();
 			Assert.fail("Error while calling the test program: " + e.getMessage());
 		} finally {
-			CollectionTestEnvironment.unsetAsContext();
+			miniClusterResource.getTestEnvironment().setAsContext();
 		}
 
 		Assert.assertNotNull("The test program never triggered an execution.", this.latestExecutionResult);

@@ -19,19 +19,26 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
@@ -40,15 +47,23 @@ import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
+import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.CollectingSourceContext;
+import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,21 +71,28 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
-import org.mockito.internal.util.reflection.Whitebox;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -82,7 +104,7 @@ import static org.mockito.Mockito.when;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({FlinkKinesisConsumer.class, KinesisConfigUtil.class})
-public class FlinkKinesisConsumerTest {
+public class FlinkKinesisConsumerTest extends TestLogger {
 
 	@Rule
 	private ExpectedException exception = ExpectedException.none();
@@ -93,10 +115,7 @@ public class FlinkKinesisConsumerTest {
 
 	@Test
 	public void testUseRestoredStateForSnapshotIfFetcherNotInitialized() throws Exception {
-		Properties config = new Properties();
-		config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties config = TestUtils.getStandardProperties();
 
 		List<Tuple2<StreamShardMetadata, SequenceNumber>> globalUnionState = new ArrayList<>(4);
 		globalUnionState.add(Tuple2.of(
@@ -142,12 +161,12 @@ public class FlinkKinesisConsumerTest {
 		// arbitrary checkpoint id and timestamp
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(123, 123));
 
-		Assert.assertTrue(listState.isClearCalled());
+		assertTrue(listState.isClearCalled());
 
 		// the checkpointed list state should contain only the shards that it should subscribe to
-		Assert.assertEquals(globalUnionState.size() / 2, listState.getList().size());
-		Assert.assertTrue(listState.getList().contains(globalUnionState.get(0)));
-		Assert.assertTrue(listState.getList().contains(globalUnionState.get(2)));
+		assertEquals(globalUnionState.size() / 2, listState.getList().size());
+		assertTrue(listState.getList().contains(globalUnionState.get(0)));
+		assertTrue(listState.getList().contains(globalUnionState.get(2)));
 	}
 
 	@Test
@@ -156,10 +175,7 @@ public class FlinkKinesisConsumerTest {
 		// ----------------------------------------------------------------------
 		// setup config, initial state and expected state snapshot
 		// ----------------------------------------------------------------------
-		Properties config = new Properties();
-		config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties config = TestUtils.getStandardProperties();
 
 		ArrayList<Tuple2<StreamShardMetadata, SequenceNumber>> initialState = new ArrayList<>(1);
 		initialState.add(Tuple2.of(
@@ -251,8 +267,7 @@ public class FlinkKinesisConsumerTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testFetcherShouldNotBeRestoringFromFailureIfNotRestoringFromCheckpoint() throws Exception {
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -294,11 +309,10 @@ public class FlinkKinesisConsumerTest {
 		// mock fetcher
 		// ----------------------------------------------------------------------
 
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 		List<StreamShardHandle> shards = new ArrayList<>();
 		shards.addAll(fakeRestoredState.keySet());
 		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -356,11 +370,10 @@ public class FlinkKinesisConsumerTest {
 		// mock fetcher
 		// ----------------------------------------------------------------------
 
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 		List<StreamShardHandle> shards = new ArrayList<>();
 		shards.addAll(fakeRestoredState.keySet());
 		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -449,13 +462,12 @@ public class FlinkKinesisConsumerTest {
 		// mock fetcher
 		// ----------------------------------------------------------------------
 
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 		List<StreamShardHandle> shards = new ArrayList<>();
 		shards.addAll(fakeRestoredState.keySet());
 		shards.add(new StreamShardHandle("fakeStream2",
 			new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(2))));
 		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -523,6 +535,78 @@ public class FlinkKinesisConsumerTest {
 		assertTrue(typeInformation.createSerializer(new ExecutionConfig()) instanceof PojoSerializer);
 	}
 
+	/**
+	 * FLINK-8484: ensure that a state change in the StreamShardMetadata other than {@link StreamShardMetadata#getShardId()} or
+	 * {@link StreamShardMetadata#getStreamName()} does not result in the shard not being able to be restored.
+	 * This handles the corner case where the stored shard metadata is open (no ending sequence number), but after the
+	 * job restore, the shard has been closed (ending number set) due to re-sharding, and we can no longer rely on
+	 * {@link StreamShardMetadata#equals(Object)} to find back the sequence number in the collection of restored shard metadata.
+	 * <p></p>
+	 * Therefore, we will rely on synchronizing the snapshot's state with the Kinesis shard before attempting to find back
+	 * the sequence number to restore.
+	 */
+	@Test
+	public void testFindSequenceNumberToRestoreFromIfTheShardHasBeenClosedSinceTheStateWasStored() throws Exception {
+		// ----------------------------------------------------------------------
+		// setup initial state
+		// ----------------------------------------------------------------------
+
+		HashMap<StreamShardHandle, SequenceNumber> fakeRestoredState = getFakeRestoredStore("all");
+
+		// ----------------------------------------------------------------------
+		// mock operator state backend and initial state for initializeState()
+		// ----------------------------------------------------------------------
+
+		TestingListState<Tuple2<StreamShardMetadata, SequenceNumber>> listState = new TestingListState<>();
+		for (Map.Entry<StreamShardHandle, SequenceNumber> state : fakeRestoredState.entrySet()) {
+			listState.add(Tuple2.of(KinesisDataFetcher.convertToStreamShardMetadata(state.getKey()), state.getValue()));
+		}
+
+		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
+		when(operatorStateStore.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
+
+		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+		when(initializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
+		when(initializationContext.isRestored()).thenReturn(true);
+
+		// ----------------------------------------------------------------------
+		// mock fetcher
+		// ----------------------------------------------------------------------
+
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
+		List<StreamShardHandle> shards = new ArrayList<>();
+
+		// create a fake stream shard handle based on the first entry in the restored state
+		final StreamShardHandle originalStreamShardHandle = fakeRestoredState.keySet().iterator().next();
+		final StreamShardHandle closedStreamShardHandle = new StreamShardHandle(originalStreamShardHandle.getStreamName(), originalStreamShardHandle.getShard());
+		// close the shard handle by setting an ending sequence number
+		final SequenceNumberRange sequenceNumberRange = new SequenceNumberRange();
+		sequenceNumberRange.setEndingSequenceNumber("1293844");
+		closedStreamShardHandle.getShard().setSequenceNumberRange(sequenceNumberRange);
+
+		shards.add(closedStreamShardHandle);
+
+		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
+
+		// assume the given config is correct
+		PowerMockito.mockStatic(KinesisConfigUtil.class);
+		PowerMockito.doNothing().when(KinesisConfigUtil.class);
+
+		// ----------------------------------------------------------------------
+		// start to test fetcher's initial state seeding
+		// ----------------------------------------------------------------------
+
+		TestableFlinkKinesisConsumer consumer = new TestableFlinkKinesisConsumer(
+			"fakeStream", new Properties(), 10, 2);
+		consumer.initializeState(initializationContext);
+		consumer.open(new Configuration());
+		consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
+
+		Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
+			new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(closedStreamShardHandle),
+				closedStreamShardHandle, fakeRestoredState.get(closedStreamShardHandle)));
+	}
+
 	private static final class TestingListState<T> implements ListState<T> {
 
 		private final List<T> list = new ArrayList<>();
@@ -550,6 +634,20 @@ public class FlinkKinesisConsumerTest {
 
 		public boolean isClearCalled() {
 			return clearCalled;
+		}
+
+		@Override
+		public void update(List<T> values) throws Exception {
+			list.clear();
+
+			addAll(values);
+		}
+
+		@Override
+		public void addAll(List<T> values) throws Exception {
+			if (values != null) {
+				list.addAll(values);
+			}
 		}
 	}
 
@@ -585,34 +683,363 @@ public class FlinkKinesisConsumerTest {
 		return fakeRestoredState;
 	}
 
-	/**
-	 * A non-serializable {@link KinesisDeserializationSchema} (because it is a nested class with reference
-	 * to the enclosing class, which is not serializable) used for testing.
-	 */
-	private final class NonSerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
-		@Override
-		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
-			return new String(recordValue);
-		}
+	private static KinesisDataFetcher mockKinesisDataFetcher() throws Exception {
+		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
 
-		@Override
-		public TypeInformation<String> getProducedType() {
-			return BasicTypeInfo.STRING_TYPE_INFO;
+		java.lang.reflect.Constructor<KinesisDataFetcher> ctor = (java.lang.reflect.Constructor<KinesisDataFetcher>) KinesisDataFetcher.class.getConstructors()[0];
+		Class<?>[] otherParamTypes = new Class<?>[ctor.getParameterTypes().length - 1];
+		System.arraycopy(ctor.getParameterTypes(), 1, otherParamTypes, 0, ctor.getParameterTypes().length - 1);
+
+		Supplier<Object[]> argumentSupplier = () -> {
+			Object[] otherParamArgs = new Object[otherParamTypes.length];
+			for (int i = 0; i < otherParamTypes.length; i++) {
+				otherParamArgs[i] = Mockito.nullable(otherParamTypes[i]);
+			}
+			return otherParamArgs;
+		};
+		PowerMockito.whenNew(ctor).withArguments(Mockito.any(ctor.getParameterTypes()[0]),
+			argumentSupplier.get()).thenReturn(mockedFetcher);
+		return mockedFetcher;
+	}
+
+	@Test
+	public void testPeriodicWatermark() throws Exception {
+
+		String streamName = "fakeStreamName";
+		Time maxOutOfOrderness = Time.milliseconds(5);
+		long autoWatermarkInterval = 1_000;
+
+		HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds = new HashMap<>();
+		subscribedStreamsToLastDiscoveredShardIds.put(streamName, null);
+
+		KinesisDeserializationSchema<String> deserializationSchema = new KinesisDeserializationSchemaWrapper<>(
+			new SimpleStringSchema());
+		Properties props = new Properties();
+		props.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		props.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, Long.toString(10L));
+
+		BlockingQueue<String> shard1 = new LinkedBlockingQueue();
+		BlockingQueue<String> shard2 = new LinkedBlockingQueue();
+
+		Map<String, List<BlockingQueue<String>>> streamToQueueMap = new HashMap<>();
+		streamToQueueMap.put(streamName, Lists.newArrayList(shard1, shard2));
+
+		// override createFetcher to mock Kinesis
+		FlinkKinesisConsumer<String> sourceFunc =
+			new FlinkKinesisConsumer<String>(streamName, deserializationSchema, props) {
+				@Override
+				protected KinesisDataFetcher<String> createFetcher(
+					List<String> streams,
+					SourceContext<String> sourceContext,
+					RuntimeContext runtimeContext,
+					Properties configProps,
+					KinesisDeserializationSchema<String> deserializationSchema) {
+
+					KinesisDataFetcher<String> fetcher =
+						new KinesisDataFetcher<String>(
+							streams,
+							sourceContext,
+							sourceContext.getCheckpointLock(),
+							runtimeContext,
+							configProps,
+							deserializationSchema,
+							getShardAssigner(),
+							getPeriodicWatermarkAssigner(),
+							null,
+							new AtomicReference<>(),
+							new ArrayList<>(),
+							subscribedStreamsToLastDiscoveredShardIds,
+							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamToQueueMap)
+							) {};
+					return fetcher;
+				}
+			};
+
+		sourceFunc.setShardAssigner(
+			(streamShardHandle, i) -> {
+				// shardId-000000000000
+				return Integer.parseInt(
+					streamShardHandle.getShard().getShardId().substring("shardId-".length()));
+			});
+
+		sourceFunc.setPeriodicWatermarkAssigner(new TestTimestampExtractor(maxOutOfOrderness));
+
+		// there is currently no test harness specifically for sources,
+		// so we overlay the source thread here
+		AbstractStreamOperatorTestHarness<Object> testHarness =
+			new AbstractStreamOperatorTestHarness<Object>(
+				new StreamSource(sourceFunc), 1, 1, 0);
+		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+		testHarness.getExecutionConfig().setAutoWatermarkInterval(autoWatermarkInterval);
+
+		testHarness.initializeEmptyState();
+		testHarness.open();
+
+		ConcurrentLinkedQueue<Watermark> watermarks = new ConcurrentLinkedQueue<>();
+
+		@SuppressWarnings("unchecked")
+		SourceFunction.SourceContext<String> sourceContext = new CollectingSourceContext(
+			testHarness.getCheckpointLock(), testHarness.getOutput()) {
+			@Override
+			public void emitWatermark(Watermark mark) {
+				watermarks.add(mark);
+			}
+
+			@Override
+			public void markAsTemporarilyIdle() {
+			}
+		};
+
+		new Thread(
+			() -> {
+				try {
+					sourceFunc.run(sourceContext);
+				} catch (InterruptedException e) {
+					// expected on cancel
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			})
+			.start();
+
+		shard1.put("1");
+		shard1.put("2");
+		shard2.put("10");
+		int recordCount = 3;
+		int watermarkCount = 0;
+		awaitRecordCount(testHarness.getOutput(), recordCount);
+
+		// trigger watermark emit
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
+		watermarkCount++;
+
+		// advance watermark
+		shard1.put("10");
+		recordCount++;
+		awaitRecordCount(testHarness.getOutput(), recordCount);
+
+		// trigger watermark emit
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
+		watermarkCount++;
+
+		sourceFunc.cancel();
+		testHarness.close();
+
+		assertEquals("record count", recordCount, testHarness.getOutput().size());
+		assertEquals("watermark count", watermarkCount, watermarks.size());
+		assertThat(watermarks, org.hamcrest.Matchers.contains(new Watermark(-3), new Watermark(5)));
+	}
+
+	@Test
+	public void testSourceSynchronization() throws Exception {
+
+		final String streamName = "fakeStreamName";
+		final Time maxOutOfOrderness = Time.milliseconds(5);
+		final long autoWatermarkInterval = 1_000;
+		final long watermarkSyncInterval = autoWatermarkInterval + 1;
+
+		TestWatermarkTracker.WATERMARK.set(0);
+		HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds = new HashMap<>();
+		subscribedStreamsToLastDiscoveredShardIds.put(streamName, null);
+
+		final KinesisDeserializationSchema<String> deserializationSchema =
+			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema());
+		Properties props = new Properties();
+		props.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		props.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, Long.toString(10L));
+		props.setProperty(ConsumerConfigConstants.WATERMARK_SYNC_MILLIS,
+			Long.toString(watermarkSyncInterval));
+		props.setProperty(ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS, Long.toString(5));
+
+		BlockingQueue<String> shard1 = new LinkedBlockingQueue();
+
+		Map<String, List<BlockingQueue<String>>> streamToQueueMap = new HashMap<>();
+		streamToQueueMap.put(streamName, Collections.singletonList(shard1));
+
+		// override createFetcher to mock Kinesis
+		FlinkKinesisConsumer<String> sourceFunc =
+			new FlinkKinesisConsumer<String>(streamName, deserializationSchema, props) {
+				@Override
+				protected KinesisDataFetcher<String> createFetcher(
+					List<String> streams,
+					SourceFunction.SourceContext<String> sourceContext,
+					RuntimeContext runtimeContext,
+					Properties configProps,
+					KinesisDeserializationSchema<String> deserializationSchema) {
+
+					KinesisDataFetcher<String> fetcher =
+						new KinesisDataFetcher<String>(
+							streams,
+							sourceContext,
+							sourceContext.getCheckpointLock(),
+							runtimeContext,
+							configProps,
+							deserializationSchema,
+							getShardAssigner(),
+							getPeriodicWatermarkAssigner(),
+							getWatermarkTracker(),
+							new AtomicReference<>(),
+							new ArrayList<>(),
+							subscribedStreamsToLastDiscoveredShardIds,
+							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(
+								streamToQueueMap)
+						) {
+							@Override
+							protected void emitWatermark() {
+								// necessary in this test to ensure that watermark state is updated
+								// before the watermark timer callback is triggered
+								synchronized (sourceContext.getCheckpointLock()) {
+									super.emitWatermark();
+								}
+							}
+						};
+					return fetcher;
+				}
+			};
+
+		sourceFunc.setShardAssigner(
+			(streamShardHandle, i) -> {
+				// shardId-000000000000
+				return Integer.parseInt(
+					streamShardHandle.getShard().getShardId().substring("shardId-".length()));
+			});
+
+		sourceFunc.setPeriodicWatermarkAssigner(new TestTimestampExtractor(maxOutOfOrderness));
+
+		sourceFunc.setWatermarkTracker(new TestWatermarkTracker());
+
+		// there is currently no test harness specifically for sources,
+		// so we overlay the source thread here
+		AbstractStreamOperatorTestHarness<Object> testHarness =
+			new AbstractStreamOperatorTestHarness<Object>(
+				new StreamSource(sourceFunc), 1, 1, 0);
+		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+		testHarness.getExecutionConfig().setAutoWatermarkInterval(autoWatermarkInterval);
+
+		testHarness.initializeEmptyState();
+		testHarness.open();
+
+		final ConcurrentLinkedQueue<Object> results = testHarness.getOutput();
+
+		@SuppressWarnings("unchecked")
+		SourceFunction.SourceContext<String> sourceContext = new CollectingSourceContext(
+			testHarness.getCheckpointLock(), results) {
+			@Override
+			public void markAsTemporarilyIdle() {
+			}
+
+			@Override
+			public void emitWatermark(Watermark mark) {
+				results.add(mark);
+			}
+		};
+
+		new Thread(
+			() -> {
+				try {
+					sourceFunc.run(sourceContext);
+				} catch (InterruptedException e) {
+					// expected on cancel
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			})
+			.start();
+
+		ArrayList<Object> expectedResults = new ArrayList<>();
+
+		final long record1 = 1;
+		shard1.put(Long.toString(record1));
+		expectedResults.add(Long.toString(record1));
+		awaitRecordCount(results, expectedResults.size());
+
+		// at this point we know the fetcher was initialized
+		final KinesisDataFetcher fetcher = org.powermock.reflect.Whitebox.getInternalState(sourceFunc, "fetcher");
+
+		// trigger watermark emit
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
+		expectedResults.add(new Watermark(-4));
+		// verify watermark
+		awaitRecordCount(results, expectedResults.size());
+		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
+		assertEquals(0, TestWatermarkTracker.WATERMARK.get());
+
+		// trigger sync
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
+		TestWatermarkTracker.assertGlobalWatermark(-4);
+
+		final long record2 = record1 + (watermarkSyncInterval * 3) + 1;
+		shard1.put(Long.toString(record2));
+
+		// wait for the record to be buffered in the emitter
+		final RecordEmitter<?> emitter = org.powermock.reflect.Whitebox.getInternalState(fetcher, "recordEmitter");
+		RecordEmitter.RecordQueue emitterQueue = emitter.getQueue(0);
+		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
+		while (deadline.hasTimeLeft() && emitterQueue.getSize() < 1) {
+			Thread.sleep(10);
+		}
+		assertEquals("first record received", 1, emitterQueue.getSize());
+
+		// Advance the watermark. Since the new record is past global watermark + threshold,
+		// it won't be emitted and the watermark does not advance
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
+		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
+		assertEquals(3000L, (long) org.powermock.reflect.Whitebox.getInternalState(fetcher, "nextWatermark"));
+		TestWatermarkTracker.assertGlobalWatermark(-4);
+
+		// Trigger global watermark sync
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
+		expectedResults.add(Long.toString(record2));
+		awaitRecordCount(results, expectedResults.size());
+		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
+		TestWatermarkTracker.assertGlobalWatermark(3000);
+
+		// Trigger watermark update and emit
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
+		expectedResults.add(new Watermark(3000));
+		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
+
+		sourceFunc.cancel();
+		testHarness.close();
+	}
+
+	private void awaitRecordCount(ConcurrentLinkedQueue<? extends Object> queue, int count) throws Exception {
+		Deadline deadline  = Deadline.fromNow(Duration.ofSeconds(10));
+		while (deadline.hasTimeLeft() && queue.size() < count) {
+			Thread.sleep(10);
 		}
 	}
 
-	/**
-	 * A static, serializable {@link KinesisDeserializationSchema}.
-	 */
-	private static final class SerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
-		@Override
-		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
-			return new String(recordValue);
+	private static class TestTimestampExtractor extends BoundedOutOfOrdernessTimestampExtractor<String> {
+		private static final long serialVersionUID = 1L;
+
+		public TestTimestampExtractor(Time maxAllowedLateness) {
+			super(maxAllowedLateness);
 		}
 
 		@Override
-		public TypeInformation<String> getProducedType() {
-			return BasicTypeInfo.STRING_TYPE_INFO;
+		public long extractTimestamp(String element) {
+			return Long.parseLong(element);
+		}
+	}
+
+	private static class TestWatermarkTracker extends WatermarkTracker {
+
+		private static final AtomicLong WATERMARK = new AtomicLong();
+
+		@Override
+		public long getUpdateTimeoutCount() {
+			return 0;
+		}
+
+		@Override
+		public long updateWatermark(long localWatermark) {
+			WATERMARK.set(localWatermark);
+			return localWatermark;
+		}
+
+		static void assertGlobalWatermark(long expected) {
+			Assert.assertEquals(expected, WATERMARK.get());
 		}
 	}
 }

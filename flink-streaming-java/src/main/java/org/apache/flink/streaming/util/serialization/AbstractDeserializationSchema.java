@@ -18,10 +18,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-
-import java.io.IOException;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * The deserialization schema describes how to turn the byte messages delivered by certain
@@ -32,37 +29,15 @@ import java.io.IOException;
  * automatically by extracting it from the generic class arguments.
  *
  * @param <T> The type created by the deserialization schema.
+ *
+ * @deprecated Use {@link org.apache.flink.api.common.serialization.AbstractDeserializationSchema} instead.
  */
-public abstract class AbstractDeserializationSchema<T> implements DeserializationSchema<T> {
+@Deprecated
+@PublicEvolving
+@SuppressWarnings("deprecation")
+public abstract class AbstractDeserializationSchema<T>
+		extends org.apache.flink.api.common.serialization.AbstractDeserializationSchema<T>
+		implements DeserializationSchema<T> {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * De-serializes the byte message.
-	 *
-	 * @param message The message, as a byte array.
-	 * @return The de-serialized message as an object.
-	 */
-	@Override
-	public abstract T deserialize(byte[] message) throws IOException;
-
-	/**
-	 * Method to decide whether the element signals the end of the stream. If
-	 * true is returned the element won't be emitted.
-	 *
-	 * <p>This default implementation returns always false, meaning the stream is interpreted
-	 * to be unbounded.
-	 *
-	 * @param nextElement The element to test for the end-of-stream signal.
-	 * @return True, if the element signals end of stream, false otherwise.
-	 */
-	@Override
-	public boolean isEndOfStream(T nextElement) {
-		return false;
-	}
-
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return TypeExtractor.createTypeInfo(AbstractDeserializationSchema.class, getClass(), 0, null, null);
-	}
 }

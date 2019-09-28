@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -47,7 +47,7 @@ import java.util.Set;
 /**
  * ITCase for Session Windows.
  */
-public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
+public class SessionWindowITCase extends AbstractTestBase {
 
 	// seed for the pseudo random engine of this test
 	private static final long RANDOM_SEED = 1234567;

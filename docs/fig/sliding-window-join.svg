@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<svg width="1000px" height="350px" viewBox="0 0 1000 350" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="background: #FFFFFF;">
+    <!-- Generator: Sketch 48.2 (47327) - http://www.bohemiancoding.com/sketch -->
+    <title>Sliding Window Join</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Sliding-Window-Join">
+            <path d="M101.5,215.5 L882.5,215.5" id="Line" stroke="#979797" stroke-linecap="square"></path>
+            <path id="Line-decoration-1" d="M882.5,215.5 L871.7,212.5 L871.7,218.5 L882.5,215.5 Z" stroke="#979797" stroke-linecap="square"></path>
+            <text id="time" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                <tspan x="867" y="242">time</tspan>
+            </text>
+            <path d="M544,53 L544,163.8 L650.44697,163.8 L650.44697,53 L544,53 Z" id="Rectangle-Copy" stroke="#BD10E0" stroke-width="2"></path>
+            <path d="M490,46 L490,170.9 L596.44697,170.9 L596.44697,46 L490,46 Z" id="Rectangle-Copy-2" stroke="#3F8FAE" stroke-width="2"></path>
+            <path d="M381,46 L381,170.9 L487.44697,170.9 L487.44697,46 L381,46 Z" id="Rectangle-Copy-3" stroke="#50E3C2" stroke-width="2"></path>
+            <path d="M327,53 L327,163.8 L433.44697,163.8 L433.44697,53 L327,53 Z" id="Rectangle-Copy-4" stroke="#F5A623" stroke-width="2"></path>
+            <path d="M435,39 L435,178 L541.44697,178 L541.44697,39 L435,39 Z" id="Rectangle-Copy-5" stroke="#417505" stroke-width="2"></path>
+            <path d="M273.98992,60 L273.010183,156.7 L379.44697,156.7 L379.44697,60 L273.98992,60 Z" id="Rectangle" stroke="#D0021B" stroke-width="2"></path>
+            <rect id="Rectangle-2" fill="#FFFFFF" x="257" y="70" width="409" height="78.96"></rect>
+            <g id="StreamRecord" transform="translate(463.000000, 124.000000)">
+                <ellipse id="Oval" stroke="#979797" fill="#F5A623" cx="9.68276515" cy="9.5" rx="9.68276515" ry="9.5"></ellipse>
+                <text id="2" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                    <tspan x="6.1969697" y="15">2</tspan>
+                </text>
+            </g>
+            <g id="StreamRecord-Copy" transform="translate(510.000000, 124.000000)">
+                <ellipse id="Oval" stroke="#979797" fill="#F5A623" cx="9.68276515" cy="9.5" rx="9.68276515" ry="9.5"></ellipse>
+                <text id="3" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                    <tspan x="6.1969697" y="15">3</tspan>
+                </text>
+            </g>
+            <g id="StreamRecord-Copy-2" transform="translate(564.000000, 124.000000)">
+                <ellipse id="Oval" stroke="#979797" fill="#F5A623" cx="9.68276515" cy="9.5" rx="9.68276515" ry="9.5"></ellipse>
+                <text id="4" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                    <tspan x="6.1969697" y="15">4</tspan>
+                </text>
+            </g>
+            <g id="StreamRecord-Copy-7" transform="translate(401.000000, 124.000000)">
+                <ellipse id="Oval" stroke="#979797" fill="#F5A623" cx="9.68276515" cy="9.5" rx="9.68276515" ry="9.5"></ellipse>
+                <text id="1" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                    <tspan x="6.1969697" y="15">1</tspan>
+                </text>
+            </g>
+            <g id="StreamRecord-Copy" transform="translate(507.000000, 75.000000)">
+                <ellipse id="Oval" stroke="#979797" fill="#7ED321" cx="9.68276515" cy="9.5" rx="9.68276515" ry="9.5"></ellipse>
+                <text id="3" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                    <tspan x="6.1969697" y="15">3</tspan>
+                </text>
+            </g>
+            <g id="StreamRecord-Copy-2" transform="translate(563.000000, 75.000000)">
+                <ellipse id="Oval" stroke="#979797" fill="#7ED321" cx="9.68276515" cy="9.5" rx="9.68276515" ry="9.5"></ellipse>
+                <text id="4" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                    <tspan x="6.1969697" y="15">4</tspan>
+                </text>
+            </g>
+            <g id="StreamRecord-Copy-6" transform="translate(340.000000, 124.000000)">
+                <ellipse id="Oval" stroke="#979797" fill="#F5A623" cx="9.68276515" cy="9.5" rx="9.68276515" ry="9.5"></ellipse>
+                <text id="0" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                    <tspan x="6.1969697" y="15">0</tspan>
+                </text>
+            </g>
+            <g id="StreamRecord-Copy-6" transform="translate(340.000000, 75.000000)">
+                <ellipse id="Oval" stroke="#979797" fill="#7ED321" cx="9.68276515" cy="9.5" rx="9.68276515" ry="9.5"></ellipse>
+                <text id="0" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                    <tspan x="6.1969697" y="15">0</tspan>
+                </text>
+            </g>
+            <text id="0,0" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#D0021B">
+                <tspan x="307" y="242">0,0</tspan>
+            </text>
+            <text id="0,0-1,0" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#F5A623">
+                <tspan x="362" y="242">0,0</tspan>
+                <tspan x="362" y="264">1,0</tspan>
+            </text>
+            <text id="2,3-3,3" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#417505">
+                <tspan x="470" y="242">2,3</tspan>
+                <tspan x="470" y="264">3,3</tspan>
+            </text>
+            <text id="3,3-3,4-4,3-4,4" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#3F8FAE">
+                <tspan x="524" y="242">3,3</tspan>
+                <tspan x="524" y="264">3,4</tspan>
+                <tspan x="524" y="286">4,3</tspan>
+                <tspan x="524" y="308">4,4</tspan>
+            </text>
+            <text id="4,4" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#9013FE">
+                <tspan x="579" y="242">4,4</tspan>
+            </text>
+            <text id="-" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#50E3C2">
+                <tspan x="428" y="242">-</tspan>
+            </text>
+        </g>
+    </g>
+</svg>

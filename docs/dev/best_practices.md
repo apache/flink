@@ -40,7 +40,7 @@ Please note that you don't have to use the `ParameterTool` described here. Other
 
 ### Getting your configuration values into the `ParameterTool`
 
-The `ParameterTool` provides a set of predefined static methods for reading the configuration. The tool is internally expecting a `Map<String, String>`, so its very easy to integrate it with your own configuration style.
+The `ParameterTool` provides a set of predefined static methods for reading the configuration. The tool is internally expecting a `Map<String, String>`, so it's very easy to integrate it with your own configuration style.
 
 
 #### From `.properties` files
@@ -111,28 +111,6 @@ DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters)
 
 and then use it inside the function for getting values from the command line.
 
-
-#### Passing parameters as a `Configuration` object to single functions
-
-The example below shows how to pass the parameters as a `Configuration` object to a user defined function.
-
-{% highlight java %}
-ParameterTool parameters = ParameterTool.fromArgs(args);
-DataSet<Tuple2<String, Integer>> counts = text
-        .flatMap(new Tokenizer()).withParameters(parameters.getConfiguration())
-{% endhighlight %}
-
-In the `Tokenizer`, the object is now accessible in the `open(Configuration conf)` method:
-
-{% highlight java %}
-public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
-    @Override
-    public void open(Configuration parameters) throws Exception {
-	parameters.getInteger("myInt", -1);
-	// .. do
-{% endhighlight %}
-
-
 #### Register the parameters globally
 
 Parameters registered as global job parameters in the `ExecutionConfig` can be accessed as configuration values from the JobManager web interface and in all functions defined by the user.
@@ -171,20 +149,20 @@ Also, POJOs can be used to give large `Tuple`-types a name.
 Instead of using:
 
 
-~~~java
+{% highlight java %}
 Tuple11<String, String, ..., String> var = new ...;
-~~~
+{% endhighlight %}
 
 
 It is much easier to create a custom type extending from the large Tuple type.
 
-~~~java
+{% highlight java %}
 CustomType var = new ...;
 
 public static class CustomType extends Tuple11<String, String, ..., String> {
     // constructor matching super
 }
-~~~
+{% endhighlight %}
 
 ## Using Logback instead of Log4j
 
@@ -212,9 +190,9 @@ public class MyClass implements MapFunction {
 ### Use Logback when running Flink out of the IDE / from a Java application
 
 
-In all cases were classes are executed with a classpath created by a dependency manager such as Maven, Flink will pull log4j into the classpath.
+In all cases where classes are executed with a classpath created by a dependency manager such as Maven, Flink will pull log4j into the classpath.
 
-Therefore, you will need to exclude log4j from Flink's dependencies. The following description will assume a Maven project created from a [Flink quickstart](../quickstart/java_api_quickstart.html).
+Therefore, you will need to exclude log4j from Flink's dependencies. The following description will assume a Maven project created from a [Flink quickstart](./projectsetup/java_api_quickstart.html).
 
 Change your projects `pom.xml` file like this:
 
@@ -317,4 +295,4 @@ Note that you need to explicitly set the `lib/` directory when using a per-job Y
 
 The command to submit Flink on YARN with a custom logger is: `./bin/flink run -yt $FLINK_HOME/lib <... remaining arguments ...>`
 
-
+{% top %}

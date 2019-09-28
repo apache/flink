@@ -29,6 +29,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link HybridMemorySegment} in on-heap mode.
+ */
 @RunWith(Parameterized.class)
 public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
@@ -45,7 +48,7 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 	MemorySegment createSegment(int size, Object owner) {
 		return new HybridMemorySegment(new byte[size], owner);
 	}
-	
+
 	@Test
 	public void testHybridHeapSegmentSpecifics() {
 		final byte[] buffer = new byte[411];
@@ -57,6 +60,7 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 		assertTrue(buffer == seg.getArray());
 
 		try {
+			//noinspection ResultOfMethodCallIgnored
 			seg.getOffHeapBuffer();
 			fail("should throw an exception");
 		}

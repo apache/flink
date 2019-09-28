@@ -27,7 +27,7 @@ import java.io.IOException;
 /**
  * Implements a feature vector as a multi-dimensional point. Coordinates of that point
  * (= the features) are stored as double values. The distance between two feature vectors is
- * the Euclidian distance between the points.
+ * the Euclidean distance between the points.
  */
 public final class CoordVector implements Value, Comparable<CoordVector> {
 	private static final long serialVersionUID = 1L;
@@ -82,14 +82,14 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 	}
 
 	/**
-	 * Computes the Euclidian distance between this coordinate vector and a
+	 * Computes the Euclidean distance between this coordinate vector and a
 	 * second coordinate vector.
 	 *
 	 * @param cv The coordinate vector to which the distance is computed.
-	 * @return The Euclidian distance to coordinate vector cv. If cv has a
+	 * @return The Euclidean distance to coordinate vector cv. If cv has a
 	 *         different length than this coordinate vector, -1 is returned.
 	 */
-	public double computeEuclidianDistance(CoordVector cv) {
+	public double computeEuclideanDistance(CoordVector cv) {
 		// check coordinate vector lengths
 		if (cv.coordinates.length != this.coordinates.length) {
 			return -1.0;

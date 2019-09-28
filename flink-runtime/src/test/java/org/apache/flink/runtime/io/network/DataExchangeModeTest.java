@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.api.common.ExecutionMode;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertNotNull;

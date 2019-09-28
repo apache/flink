@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
@@ -36,19 +38,22 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 
 	private final ResourceID resourceManagerResourceId;
 
-	private final long heartbeatInterval;
+	private final ClusterInformation clusterInformation;
 
 	/**
 	 * Create a new {@code TaskExecutorRegistrationSuccess} message.
-	 * 
-	 * @param registrationId     The ID that the ResourceManager assigned the registration.
+	 *
+	 * @param registrationId The ID that the ResourceManager assigned the registration.
 	 * @param resourceManagerResourceId The unique ID that identifies the ResourceManager.
-	 * @param heartbeatInterval  The interval in which the ResourceManager will heartbeat the TaskExecutor.
+	 * @param clusterInformation information about the cluster
 	 */
-	public TaskExecutorRegistrationSuccess(InstanceID registrationId, ResourceID resourceManagerResourceId, long heartbeatInterval) {
-		this.registrationId = registrationId;
-		this.resourceManagerResourceId = resourceManagerResourceId;
-		this.heartbeatInterval = heartbeatInterval;
+	public TaskExecutorRegistrationSuccess(
+			InstanceID registrationId,
+			ResourceID resourceManagerResourceId,
+			ClusterInformation clusterInformation) {
+		this.registrationId = Preconditions.checkNotNull(registrationId);
+		this.resourceManagerResourceId = Preconditions.checkNotNull(resourceManagerResourceId);
+		this.clusterInformation = Preconditions.checkNotNull(clusterInformation);
 	}
 
 	/**
@@ -66,17 +71,20 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 	}
 
 	/**
-	 * Gets the interval in which the ResourceManager will heartbeat the TaskExecutor.
+	 * Gets the cluster information.
 	 */
-	public long getHeartbeatInterval() {
-		return heartbeatInterval;
+	public ClusterInformation getClusterInformation() {
+		return clusterInformation;
 	}
 
 	@Override
 	public String toString() {
-		return "TaskExecutorRegistrationSuccess (" + registrationId + " / " + resourceManagerResourceId + " / " + heartbeatInterval + ')';
+		return "TaskExecutorRegistrationSuccess{" +
+			"registrationId=" + registrationId +
+			", resourceManagerResourceId=" + resourceManagerResourceId +
+			", clusterInformation=" + clusterInformation +
+			'}';
 	}
-
 }
 
 

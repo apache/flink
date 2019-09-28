@@ -17,17 +17,22 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
@@ -41,7 +46,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
@@ -67,8 +72,34 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * low-level control on the management of stream state. The Flink Kinesis Connector also supports setting the initial
  * starting points of Kinesis streams, namely TRIM_HORIZON and LATEST.</p>
  *
+ * <p>Kinesis and the Flink consumer support dynamic re-sharding and shard IDs, while sequential,
+ * cannot be assumed to be consecutive. There is no perfect generic default assignment function.
+ * Default shard to subtask assignment, which is based on hash code, may result in skew,
+ * with some subtasks having many shards assigned and others none.
+ *
+ * <p>It is recommended to monitor the shard distribution and adjust assignment appropriately.
+ * A custom assigner implementation can be set via {@link #setShardAssigner(KinesisShardAssigner)} to optimize the
+ * hash function or use static overrides to limit skew.
+ *
+ * <p>In order for the consumer to emit watermarks, a timestamp assigner needs to be set via {@link
+ * #setPeriodicWatermarkAssigner(AssignerWithPeriodicWatermarks)} and the auto watermark emit
+ * interval configured via {@link
+ * org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)}.
+ *
+ * <p>Watermarks can only advance when all shards of a subtask continuously deliver records. To
+ * avoid an inactive or closed shard to block the watermark progress, the idle timeout should be
+ * configured via configuration property {@link
+ * ConsumerConfigConstants#SHARD_IDLE_INTERVAL_MILLIS}. By default, shards won't be considered
+ * idle and watermark calculation will wait for newer records to arrive from all shards.
+ *
+ * <p>Note that re-sharding of the Kinesis stream while an application (that relies on
+ * the Kinesis records for watermarking) is running can lead to incorrect late events.
+ * This depends on how shards are assigned to subtasks and applies regardless of whether watermarks
+ * are generated in the source or a downstream operator.
+ *
  * @param <T> the type of data emitted
  */
+@PublicEvolving
 public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> implements
 		ResultTypeQueryable<T>,
 		CheckpointedFunction {
@@ -91,6 +122,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	/** User supplied deserialization schema to convert Kinesis byte messages to Flink objects. */
 	private final KinesisDeserializationSchema<T> deserializer;
 
+	/**
+	 * The function that determines which subtask a shard should be assigned to.
+	 */
+	private KinesisShardAssigner shardAssigner = KinesisDataFetcher.DEFAULT_SHARD_ASSIGNER;
+
+	private AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
+	private WatermarkTracker watermarkTracker;
+
 	// ------------------------------------------------------------------------
 	//  Runtime state
 	// ------------------------------------------------------------------------
@@ -99,7 +138,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	private transient KinesisDataFetcher<T> fetcher;
 
 	/** The sequence numbers to restore to upon restore from failure. */
-	private transient HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore;
+	private transient HashMap<StreamShardMetadata.EquivalenceWrapper, SequenceNumber> sequenceNumsToRestore;
 
 	private volatile boolean running = true;
 
@@ -190,6 +229,48 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		}
 	}
 
+	public KinesisShardAssigner getShardAssigner() {
+		return shardAssigner;
+	}
+
+	/**
+	 * Provide a custom assigner to influence how shards are distributed over subtasks.
+	 * @param shardAssigner shard assigner
+	 */
+	public void setShardAssigner(KinesisShardAssigner shardAssigner) {
+		this.shardAssigner = checkNotNull(shardAssigner, "function can not be null");
+		ClosureCleaner.clean(shardAssigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+	}
+
+	public AssignerWithPeriodicWatermarks<T> getPeriodicWatermarkAssigner() {
+		return periodicWatermarkAssigner;
+	}
+
+	/**
+	 * Set the assigner that will extract the timestamp from {@link T} and calculate the
+	 * watermark.
+	 * @param periodicWatermarkAssigner periodic watermark assigner
+	 */
+	public void setPeriodicWatermarkAssigner(
+		AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner) {
+		this.periodicWatermarkAssigner = periodicWatermarkAssigner;
+		ClosureCleaner.clean(this.periodicWatermarkAssigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+	}
+
+	public WatermarkTracker getWatermarkTracker() {
+		return this.watermarkTracker;
+	}
+
+	/**
+	 * Set the global watermark tracker. When set, it will be used by the fetcher
+	 * to align the shard consumers by event time.
+	 * @param watermarkTracker
+	 */
+	public void setWatermarkTracker(WatermarkTracker watermarkTracker) {
+		this.watermarkTracker = watermarkTracker;
+		ClosureCleaner.clean(this.watermarkTracker, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Source life cycle
 	// ------------------------------------------------------------------------
@@ -206,13 +287,16 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		List<StreamShardHandle> allShards = fetcher.discoverNewShardsToSubscribe();
 
 		for (StreamShardHandle shard : allShards) {
-			StreamShardMetadata kinesisStreamShard = KinesisDataFetcher.convertToStreamShardMetadata(shard);
+			StreamShardMetadata.EquivalenceWrapper kinesisStreamShard =
+				new StreamShardMetadata.EquivalenceWrapper(KinesisDataFetcher.convertToStreamShardMetadata(shard));
+
 			if (sequenceNumsToRestore != null) {
+
 				if (sequenceNumsToRestore.containsKey(kinesisStreamShard)) {
 					// if the shard was already seen and is contained in the state,
 					// just use the sequence number stored in the state
 					fetcher.registerNewSubscribedShardState(
-						new KinesisStreamShardState(kinesisStreamShard, shard, sequenceNumsToRestore.get(kinesisStreamShard)));
+						new KinesisStreamShardState(kinesisStreamShard.getShardMetadata(), shard, sequenceNumsToRestore.get(kinesisStreamShard)));
 
 					if (LOG.isInfoEnabled()) {
 						LOG.info("Subtask {} is seeding the fetcher with restored shard {}," +
@@ -222,7 +306,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 				} else {
 					// the shard wasn't discovered in the previous run, therefore should be consumed from the beginning
 					fetcher.registerNewSubscribedShardState(
-						new KinesisStreamShardState(kinesisStreamShard, shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get()));
+						new KinesisStreamShardState(kinesisStreamShard.getShardMetadata(), shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get()));
 
 					if (LOG.isInfoEnabled()) {
 						LOG.info("Subtask {} is seeding the fetcher with new discovered shard {}," +
@@ -238,7 +322,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 						ConsumerConfigConstants.DEFAULT_STREAM_INITIAL_POSITION)).toSentinelSequenceNumber();
 
 				fetcher.registerNewSubscribedShardState(
-					new KinesisStreamShardState(kinesisStreamShard, shard, startingSeqNum.get()));
+					new KinesisStreamShardState(kinesisStreamShard.getShardMetadata(), shard, startingSeqNum.get()));
 
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Subtask {} will be seeded with initial shard {}, starting state set as sequence number {}",
@@ -313,7 +397,13 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			if (sequenceNumsToRestore == null) {
 				sequenceNumsToRestore = new HashMap<>();
 				for (Tuple2<StreamShardMetadata, SequenceNumber> kinesisSequenceNumber : sequenceNumsStateForCheckpoint.get()) {
-					sequenceNumsToRestore.put(kinesisSequenceNumber.f0, kinesisSequenceNumber.f1);
+					sequenceNumsToRestore.put(
+						// we wrap the restored metadata inside an equivalence wrapper that checks only stream name and shard id,
+						// so that if a shard had been closed (due to a Kinesis reshard operation, for example) since
+						// the savepoint and has a different metadata than what we last stored,
+						// we will still be able to match it in sequenceNumsToRestore. Please see FLINK-8484 for details.
+						new StreamShardMetadata.EquivalenceWrapper(kinesisSequenceNumber.f0),
+						kinesisSequenceNumber.f1);
 				}
 
 				LOG.info("Setting restore state in the FlinkKinesisConsumer. Using the following offsets: {}",
@@ -337,16 +427,18 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 			if (fetcher == null) {
 				if (sequenceNumsToRestore != null) {
-					for (Map.Entry<StreamShardMetadata, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
+					for (Map.Entry<StreamShardMetadata.EquivalenceWrapper, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
 						// sequenceNumsToRestore is the restored global union state;
 						// should only snapshot shards that actually belong to us
-
+						int hashCode = shardAssigner.assign(
+							KinesisDataFetcher.convertToStreamShardHandle(entry.getKey().getShardMetadata()),
+							getRuntimeContext().getNumberOfParallelSubtasks());
 						if (KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(
-								KinesisDataFetcher.convertToStreamShardHandle(entry.getKey()),
+								hashCode,
 								getRuntimeContext().getNumberOfParallelSubtasks(),
 								getRuntimeContext().getIndexOfThisSubtask())) {
 
-							sequenceNumsStateForCheckpoint.add(Tuple2.of(entry.getKey(), entry.getValue()));
+							sequenceNumsStateForCheckpoint.add(Tuple2.of(entry.getKey().getShardMetadata(), entry.getValue()));
 						}
 					}
 				}
@@ -373,11 +465,11 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			Properties configProps,
 			KinesisDeserializationSchema<T> deserializationSchema) {
 
-		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema);
+		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema, shardAssigner, periodicWatermarkAssigner, watermarkTracker);
 	}
 
 	@VisibleForTesting
-	HashMap<StreamShardMetadata, SequenceNumber> getRestoredState() {
+	HashMap<StreamShardMetadata.EquivalenceWrapper, SequenceNumber> getRestoredState() {
 		return sequenceNumsToRestore;
 	}
 }

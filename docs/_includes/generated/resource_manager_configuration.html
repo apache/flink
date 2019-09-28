@@ -1,0 +1,46 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>containerized.heap-cutoff-min</h5></td>
+            <td style="word-wrap: break-word;">600</td>
+            <td>Minimum amount of heap memory to remove in containers, as a safety margin.</td>
+        </tr>
+        <tr>
+            <td><h5>containerized.heap-cutoff-ratio</h5></td>
+            <td style="word-wrap: break-word;">0.25</td>
+            <td>Percentage of heap space to remove from containers (YARN / Mesos), to compensate for other JVM memory usage.</td>
+        </tr>
+        <tr>
+            <td><h5>local.number-resourcemanager</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>The number of resource managers start.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.job.timeout</h5></td>
+            <td style="word-wrap: break-word;">"5 minutes"</td>
+            <td>Timeout for jobs which don't have a job manager as leader assigned.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.rpc.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Defines the network port to connect to for communication with the resource manager. By default, the port of the JobManager, because the same ActorSystem is used. Its not possible to use this configuration key to define port ranges.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.standalone.start-up-time</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Time in milliseconds of the start-up period of a standalone cluster. During this time, resource manager of the standalone cluster expects new task executors to be registered, and will not fail slot requests that can not be satisfied by any current registered slots. After this time, it will fail pending and new coming requests immediately that can not be satisfied by registered slots. If not set, 'slotmanager.request-timeout' will be used by default.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.taskmanager-timeout</h5></td>
+            <td style="word-wrap: break-word;">30000</td>
+            <td>The timeout for an idle task manager to be released.</td>
+        </tr>
+    </tbody>
+</table>

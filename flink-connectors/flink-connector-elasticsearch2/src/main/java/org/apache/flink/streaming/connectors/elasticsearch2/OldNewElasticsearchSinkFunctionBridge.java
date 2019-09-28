@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 
@@ -24,6 +25,7 @@ import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
  * A dummy {@link org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction} to bridge
  * the migration from the deprecated {@link ElasticsearchSinkFunction}.
  */
+@Internal
 class OldNewElasticsearchSinkFunctionBridge<T> implements org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction<T> {
 
 	private static final long serialVersionUID = 2415651895272659448L;

@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 
 /**
@@ -27,6 +29,7 @@ import java.io.Serializable;
  *             multiple topics, and has been deprecated. Please use {@link FlinkKafkaPartitioner} instead.
  */
 @Deprecated
+@Internal
 public abstract class KafkaPartitioner<T> implements Serializable {
 
 	private static final long serialVersionUID = -1974260817778593473L;

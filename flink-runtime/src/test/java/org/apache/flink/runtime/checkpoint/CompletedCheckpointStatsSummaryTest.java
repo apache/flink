@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -93,7 +93,7 @@ public class CompletedCheckpointStatsSummaryTest {
 		return new CompletedCheckpointStats(
 			checkpointId,
 			triggerTimestamp,
-			CheckpointProperties.forStandardCheckpoint(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			1,
 			taskStats,
 			1,

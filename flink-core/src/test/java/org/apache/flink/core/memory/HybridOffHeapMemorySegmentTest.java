@@ -29,6 +29,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link HybridMemorySegment} in off-heap mode.
+ */
 @RunWith(Parameterized.class)
 public class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBase {
 
@@ -57,6 +60,7 @@ public class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBase {
 		assertTrue(buffer == seg.getOffHeapBuffer());
 
 		try {
+			//noinspection ResultOfMethodCallIgnored
 			seg.getArray();
 			fail("should throw an exception");
 		}

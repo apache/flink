@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.memory;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.util.MathUtils;
 
@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
@@ -43,8 +44,8 @@ import java.util.Set;
  * is represented in segments of equal size. Operators allocate the memory by requesting a number
  * of memory segments.
  *
- * <p>The memory may be represented as on-heap byte arrays ({@link HeapMemorySegment}), or as off-heap
- * memory regions ({@link HybridMemorySegment}). Which kind of memory the MemoryManager serves can
+ * <p>The memory may be represented as on-heap byte arrays or as off-heap memory regions
+ * (both via {@link HybridMemorySegment}). Which kind of memory the MemoryManager serves can
  * be passed as an argument to the initialization.
  *
  * <p>The memory manager can either pre-allocate all memory, or allocate the memory on demand. In the
@@ -164,7 +165,7 @@ public class MemoryManager {
 
 		switch (memoryType) {
 			case HEAP:
-				this.memoryPool = new HeapMemoryPool(memToAllocate, pageSize);
+				this.memoryPool = new HybridHeapMemoryPool(memToAllocate, pageSize);
 				break;
 			case OFF_HEAP:
 				if (!preAllocateMemory) {
@@ -176,6 +177,15 @@ public class MemoryManager {
 			default:
 				throw new IllegalArgumentException("unrecognized memory type: " + memoryType);
 		}
+
+		LOG.debug("Initialized MemoryManager with total memory size {}, number of slots {}, page size {}, " +
+				"memory type {}, pre allocate memory {} and number of non allocated pages {}.",
+			memorySize,
+			numberOfSlots,
+			pageSize,
+			memoryType,
+			preAllocateMemory,
+			numNonAllocatedPages);
 	}
 
 	// ------------------------------------------------------------------------
@@ -445,7 +455,7 @@ public class MemoryManager {
 					// the only way to exit the loop
 					successfullyReleased = true;
 				}
-				catch (ConcurrentModificationException e) {
+				catch (ConcurrentModificationException | NoSuchElementException e) {
 					// this may happen in the case where an asynchronous
 					// call releases the memory. fall through the loop and try again
 				}
@@ -568,7 +578,7 @@ public class MemoryManager {
 	 * @return The number of pages corresponding to the memory fraction.
 	 */
 	public long computeMemorySize(double fraction) {
-		return pageSize * computeNumberOfPages(fraction);
+		return pageSize * (long) computeNumberOfPages(fraction);
 	}
 
 	/**
@@ -598,15 +608,15 @@ public class MemoryManager {
 		abstract void clear();
 	}
 
-	static final class HeapMemoryPool extends MemoryPool {
+	static final class HybridHeapMemoryPool extends MemoryPool {
 
 		/** The collection of available memory segments. */
 		private final ArrayDeque<byte[]> availableMemory;
 
 		private final int segmentSize;
 
-		public HeapMemoryPool(int numInitialSegments, int segmentSize) {
-			this.availableMemory = new ArrayDeque<byte[]>(numInitialSegments);
+		HybridHeapMemoryPool(int numInitialSegments, int segmentSize) {
+			this.availableMemory = new ArrayDeque<>(numInitialSegments);
 			this.segmentSize = segmentSize;
 
 			for (int i = 0; i < numInitialSegments; i++) {
@@ -615,25 +625,25 @@ public class MemoryManager {
 		}
 
 		@Override
-		HeapMemorySegment allocateNewSegment(Object owner) {
-			return HeapMemorySegment.FACTORY.allocateUnpooledSegment(segmentSize, owner);
+		MemorySegment allocateNewSegment(Object owner) {
+			return MemorySegmentFactory.allocateUnpooledSegment(segmentSize, owner);
 		}
 
 		@Override
-		HeapMemorySegment requestSegmentFromPool(Object owner) {
+		MemorySegment requestSegmentFromPool(Object owner) {
 			byte[] buf = availableMemory.remove();
-			return  HeapMemorySegment.FACTORY.wrapPooledHeapMemory(buf, owner);
+			return  MemorySegmentFactory.wrapPooledHeapMemory(buf, owner);
 		}
 
 		@Override
 		void returnSegmentToPool(MemorySegment segment) {
-			if (segment.getClass() == HeapMemorySegment.class) {
-				HeapMemorySegment heapSegment = (HeapMemorySegment) segment;
+			if (segment.getClass() == HybridMemorySegment.class) {
+				HybridMemorySegment heapSegment = (HybridMemorySegment) segment;
 				availableMemory.add(heapSegment.getArray());
 				heapSegment.free();
 			}
 			else {
-				throw new IllegalArgumentException("Memory segment is not a " + HeapMemorySegment.class.getSimpleName());
+				throw new IllegalArgumentException("Memory segment is not a " + HybridMemorySegment.class.getSimpleName());
 			}
 		}
 
@@ -655,8 +665,8 @@ public class MemoryManager {
 
 		private final int segmentSize;
 
-		public HybridOffHeapMemoryPool(int numInitialSegments, int segmentSize) {
-			this.availableMemory = new ArrayDeque<ByteBuffer>(numInitialSegments);
+		HybridOffHeapMemoryPool(int numInitialSegments, int segmentSize) {
+			this.availableMemory = new ArrayDeque<>(numInitialSegments);
 			this.segmentSize = segmentSize;
 
 			for (int i = 0; i < numInitialSegments; i++) {
@@ -665,15 +675,14 @@ public class MemoryManager {
 		}
 
 		@Override
-		HybridMemorySegment allocateNewSegment(Object owner) {
-			ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
-			return HybridMemorySegment.FACTORY.wrapPooledOffHeapMemory(memory, owner);
+		MemorySegment allocateNewSegment(Object owner) {
+			return MemorySegmentFactory.allocateUnpooledOffHeapMemory(segmentSize, owner);
 		}
 
 		@Override
-		HybridMemorySegment requestSegmentFromPool(Object owner) {
+		MemorySegment requestSegmentFromPool(Object owner) {
 			ByteBuffer buf = availableMemory.remove();
-			return HybridMemorySegment.FACTORY.wrapPooledOffHeapMemory(buf, owner);
+			return MemorySegmentFactory.wrapPooledOffHeapMemory(buf, owner);
 		}
 
 		@Override
@@ -685,7 +694,7 @@ public class MemoryManager {
 				hybridSegment.free();
 			}
 			else {
-				throw new IllegalArgumentException("Memory segment is not a " + HeapMemorySegment.class.getSimpleName());
+				throw new IllegalArgumentException("Memory segment is not a " + HybridMemorySegment.class.getSimpleName());
 			}
 		}
 

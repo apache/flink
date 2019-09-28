@@ -17,10 +17,12 @@
 
 package org.apache.flink.streaming.util.serialization;
 
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.io.IOException;
-import java.io.Serializable;
 
 /**
  * The deserialization schema describes how to turn the byte key / value messages delivered by certain
@@ -28,9 +30,12 @@ import java.io.Serializable;
  * processed by Flink.
  *
  * @param <T> The type created by the keyed deserialization schema.
+ *
+ * @deprecated Use {@link KafkaDeserializationSchema}.
  */
-public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
-
+@Deprecated
+@PublicEvolving
+public interface KeyedDeserializationSchema<T> extends KafkaDeserializationSchema<T> {
 	/**
 	 * Deserializes the byte message.
 	 *
@@ -43,13 +48,8 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	 */
 	T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException;
 
-	/**
-	 * Method to decide whether the element signals the end of the stream. If
-	 * true is returned the element won't be emitted.
-	 *
-	 * @param nextElement The element to test for the end-of-stream signal.
-	 *
-	 * @return True, if the element signals end of stream, false otherwise.
-	 */
-	boolean isEndOfStream(T nextElement);
+	@Override
+	default T deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
+		return deserialize(record.key(), record.value(), record.topic(), record.partition(), record.offset());
+	}
 }

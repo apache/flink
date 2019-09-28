@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
@@ -35,7 +36,6 @@ import java.io.Closeable;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -87,7 +87,7 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 		CheckpointStreamFactory.CheckpointStateOutputStream outputStream2 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
 
 		CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
-		when(streamFactory.createCheckpointStateOutputStream(eq(checkpointId), eq(checkpointTimestamp))).thenReturn(outputStream1, outputStream2);
+		when(streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)).thenReturn(outputStream1, outputStream2);
 
 		InsightCloseableRegistry closableRegistry = new InsightCloseableRegistry();
 
@@ -104,13 +104,54 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 		context.getRawKeyedOperatorStateOutput();
 		context.getRawOperatorStateOutput();
 
-		verify(streamFactory, times(2)).createCheckpointStateOutputStream(eq(checkpointId), eq(checkpointTimestamp));
+		verify(streamFactory, times(2)).createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 
 		assertEquals(2, closableRegistry.size());
 		assertTrue(closableRegistry.contains(outputStream1));
 		assertTrue(closableRegistry.contains(outputStream2));
 
-		context.close();
+		context.getKeyedStateStreamFuture().run();
+		context.getOperatorStateStreamFuture().run();
+
+		verify(outputStream1).closeAndGetHandle();
+		verify(outputStream2).closeAndGetHandle();
+
+		assertEquals(0, closableRegistry.size());
+	}
+
+	@Test
+	public void testStreamClosingExceptionally() throws Exception {
+		long checkpointId = 42L;
+		long checkpointTimestamp = 1L;
+
+		CheckpointStreamFactory.CheckpointStateOutputStream outputStream1 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
+		CheckpointStreamFactory.CheckpointStateOutputStream outputStream2 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
+
+		CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
+		when(streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)).thenReturn(outputStream1, outputStream2);
+
+		InsightCloseableRegistry closableRegistry = new InsightCloseableRegistry();
+
+		KeyGroupRange keyGroupRange = new KeyGroupRange(0, 2);
+
+		StateSnapshotContextSynchronousImpl context = new StateSnapshotContextSynchronousImpl(
+			checkpointId,
+			checkpointTimestamp,
+			streamFactory,
+			keyGroupRange,
+			closableRegistry);
+
+		// creating the output streams
+		context.getRawKeyedOperatorStateOutput();
+		context.getRawOperatorStateOutput();
+
+		verify(streamFactory, times(2)).createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+
+		assertEquals(2, closableRegistry.size());
+		assertTrue(closableRegistry.contains(outputStream1));
+		assertTrue(closableRegistry.contains(outputStream2));
+
+		context.closeExceptionally();
 
 		verify(outputStream1).close();
 		verify(outputStream2).close();

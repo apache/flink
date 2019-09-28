@@ -82,7 +82,7 @@ public class SharedStateRegistryTest {
 	}
 
 	/**
-	 * Validate that unregister an unexisted key will throw exception
+	 * Validate that unregister a nonexistent key will throw exception
 	 */
 	@Test(expected = IllegalStateException.class)
 	public void testUnregisterWithUnexistedKey() {

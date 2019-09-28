@@ -208,7 +208,7 @@ public class MergingWindowSetTest {
 
 		TestingMergeFunction mergeFunction = new TestingMergeFunction();
 
-		// add several non-overlapping initial windoww
+		// add several non-overlapping initial windows
 
 		mergeFunction.reset();
 		assertEquals(new TimeWindow(0, 3), windowSet.addWindow(new TimeWindow(0, 3), mergeFunction));
@@ -333,7 +333,7 @@ public class MergingWindowSetTest {
 
 		TestingMergeFunction mergeFunction = new TestingMergeFunction();
 
-		// add several non-overlapping initial windoww
+		// add several non-overlapping initial windows
 
 		mergeFunction.reset();
 		assertEquals(new TimeWindow(1, 3), windowSet.addWindow(new TimeWindow(1, 3), mergeFunction));
@@ -505,6 +505,7 @@ public class MergingWindowSetTest {
 		/**
 		 * Merge overlapping {@link TimeWindow}s.
 		 */
+		@Override
 		public void mergeWindows(Collection<TimeWindow> windows, MergingWindowAssigner.MergeCallback<TimeWindow> c) {
 
 			TimeWindow earliestStart = null;

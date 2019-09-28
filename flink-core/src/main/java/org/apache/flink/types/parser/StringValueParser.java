@@ -45,6 +45,12 @@ public class StringValueParser extends FieldParser<StringValue> {
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, StringValue reusable) {
 
+		if (startPos == limit) {
+			setErrorState(ParseErrorState.EMPTY_COLUMN);
+			reusable.setValueAscii(bytes, startPos, 0);
+			return limit;
+		}
+
 		this.result = reusable;
 		int i = startPos;
 
@@ -89,10 +95,6 @@ public class StringValueParser extends FieldParser<StringValue> {
 			}
 
 			if (i >= delimLimit) {
-				// no delimiter found. Take the full string
-				if (limit == startPos) {
-					setErrorState(ParseErrorState.EMPTY_COLUMN); // mark empty column
-				}
 				reusable.setValueAscii(bytes, startPos, limit - startPos);
 				return limit;
 			} else {

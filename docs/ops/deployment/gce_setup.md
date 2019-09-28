@@ -91,3 +91,5 @@ To bring up the Flink cluster on Google Compute Engine, execute:
 Shutting down a cluster is as simple as executing
 
     ./bdutil -e extensions/flink/flink_env.sh delete
+
+{% top %}

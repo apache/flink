@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -27,11 +26,11 @@ import org.apache.flink.annotation.PublicEvolving;
  */
 @PublicEvolving
 public interface SeekableDataInputView extends DataInputView {
-	
+
 	/**
 	 * Sets the read pointer to the given position.
-	 * 
+	 *
 	 * @param position The new read position.
 	 */
-	public void setReadPosition(long position);
+	void setReadPosition(long position);
 }

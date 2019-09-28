@@ -18,23 +18,26 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.ActorRef;
-import akka.pattern.Patterns;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
-import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
-import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
+
+import akka.actor.ActorRef;
+import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,17 +50,19 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Invocation handler to be used with an {@link AkkaRpcActor}. The invocation handler wraps the
  * rpc in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
  * executed.
  */
-class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer {
+class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, RpcServer {
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaInvocationHandler.class);
 
 	/**
@@ -82,6 +87,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	private final long maximumFramesize;
 
 	// null if gateway; otherwise non-null
+	@Nullable
 	private final CompletableFuture<Void> terminationFuture;
 
 	AkkaInvocationHandler(
@@ -107,7 +113,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 
 		Object result;
 
-		if (declaringClass.equals(AkkaGateway.class) ||
+		if (declaringClass.equals(AkkaBasedEndpoint.class) ||
 			declaringClass.equals(Object.class) ||
 			declaringClass.equals(RpcGateway.class) ||
 			declaringClass.equals(StartStoppable.class) ||
@@ -127,7 +133,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	}
 
 	@Override
-	public ActorRef getRpcEndpoint() {
+	public ActorRef getActorRef() {
 		return rpcEndpoint;
 	}
 
@@ -152,7 +158,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 
 	@Override
 	public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
-		if(isLocal) {
+		if (isLocal) {
 			@SuppressWarnings("unchecked")
 			CompletableFuture<V> resultFuture = (CompletableFuture<V>) ask(new CallAsync(callable), callTimeout);
 
@@ -165,12 +171,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 
 	@Override
 	public void start() {
-		rpcEndpoint.tell(Processing.START, ActorRef.noSender());
+		rpcEndpoint.tell(ControlMessages.START, ActorRef.noSender());
 	}
 
 	@Override
 	public void stop() {
-		rpcEndpoint.tell(Processing.STOP, ActorRef.noSender());
+		rpcEndpoint.tell(ControlMessages.STOP, ActorRef.noSender());
 	}
 
 	// ------------------------------------------------------------------------
@@ -201,14 +207,33 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 			tell(rpcInvocation);
 
 			result = null;
-		} else if (Objects.equals(returnType,CompletableFuture.class)) {
-			// execute an asynchronous call
-			result = ask(rpcInvocation, futureTimeout);
 		} else {
-			// execute a synchronous call
-			CompletableFuture<?> futureResult = ask(rpcInvocation, futureTimeout);
+			// execute an asynchronous call
+			CompletableFuture<?> resultFuture = ask(rpcInvocation, futureTimeout);
 
-			result = futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());
+			CompletableFuture<?> completableFuture = resultFuture.thenApply((Object o) -> {
+				if (o instanceof SerializedValue) {
+					try {
+						return  ((SerializedValue<?>) o).deserializeValue(getClass().getClassLoader());
+					} catch (IOException | ClassNotFoundException e) {
+						throw new CompletionException(
+							new RpcException("Could not deserialize the serialized payload of RPC method : "
+								+ methodName, e));
+					}
+				} else {
+					return o;
+				}
+			});
+
+			if (Objects.equals(returnType, CompletableFuture.class)) {
+				result = completableFuture;
+			} else {
+				try {
+					result = completableFuture.get(futureTimeout.getSize(), futureTimeout.getUnit());
+				} catch (ExecutionException ee) {
+					throw new RpcException("Failure while obtaining synchronous RPC result.", ExceptionUtils.stripExecutionException(ee));
+				}
+			}
 		}
 
 		return result;
@@ -291,7 +316,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	}
 
 	/**
-	 * Checks whether any of the annotations is of type {@link RpcTimeout}
+	 * Checks whether any of the annotations is of type {@link RpcTimeout}.
 	 *
 	 * @param annotations Array of annotations
 	 * @return True if {@link RpcTimeout} was found; otherwise false

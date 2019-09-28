@@ -31,12 +31,6 @@ public class WordCountITCase extends JavaProgramTestBase {
 	protected String textPath;
 	protected String resultPath;
 
-	public WordCountITCase(){
-		setParallelism(4);
-		setNumTaskManagers(2);
-		setTaskManagerNumSlots(2);
-	}
-
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);

@@ -52,7 +52,7 @@ import java.util.List;
  *  - Staging area: This is a small, temporary storage area for writing updated records. This is needed,
  *    because before serializing a record, there is no way to know in advance how large will it be.
  *    Therefore, we can't serialize directly into the record area when we are doing an update, because
- *    if it turns out to be larger then the old record, then it would override some other record
+ *    if it turns out to be larger than the old record, then it would override some other record
  *    that happens to be after the old one in memory. The solution is to serialize to the staging area first,
  *    and then copy it to the place of the original if it has the same size, otherwise allocate a new linked
  *    list element at the end of the record area, and mark the old one as abandoned. This creates "holes" in
@@ -199,7 +199,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 	 * @return The hash table's total capacity.
 	 */
 	public long getCapacity() {
-		return numAllMemorySegments * segmentSize;
+		return numAllMemorySegments * (long)segmentSize;
 	}
 
 	/**
@@ -562,7 +562,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 		}
 
 		public long getTotalSize() {
-			return segments.size() * segmentSize;
+			return segments.size() * (long)segmentSize;
 		}
 
 		// ----------------------- Output -----------------------
@@ -628,7 +628,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 		}
 
 		/**
-		 * Overwrites a record at the sepcified position. The record is read from a DataInputView  (this will be the staging area).
+		 * Overwrites a record at the specified position. The record is read from a DataInputView  (this will be the staging area).
 		 * WARNING: The record must not be larger than the original record.
 		 * @param pointer Points to the position to overwrite.
 		 * @param input The DataInputView to read the record from

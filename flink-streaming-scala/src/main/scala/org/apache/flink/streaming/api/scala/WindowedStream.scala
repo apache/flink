@@ -303,12 +303,10 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     val applyFunction = new ScalaWindowFunctionWrapper[V, R, K, W](cleanedWindowFunction)
 
     val accumulatorType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
-    val aggregationResultType: TypeInformation[V] = implicitly[TypeInformation[V]]
     val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
 
     asScalaStream(javaStream.aggregate(
-      cleanedPreAggregator, applyFunction,
-      accumulatorType, aggregationResultType, resultType))
+      cleanedPreAggregator, applyFunction, accumulatorType, resultType))
   }
 
   /**
@@ -333,12 +331,10 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     val applyFunction = new ScalaWindowFunction[V, R, K, W](cleanedWindowFunction)
 
     val accumulatorType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
-    val aggregationResultType: TypeInformation[V] = implicitly[TypeInformation[V]]
     val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
 
     asScalaStream(javaStream.aggregate(
-      cleanedPreAggregator, applyFunction,
-      accumulatorType, aggregationResultType, resultType))
+      cleanedPreAggregator, applyFunction, accumulatorType, resultType))
   }
 
   /**

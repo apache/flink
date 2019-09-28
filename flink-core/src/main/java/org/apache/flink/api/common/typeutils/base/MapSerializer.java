@@ -19,19 +19,13 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -94,7 +88,9 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 		TypeSerializer<K> duplicateKeySerializer = keySerializer.duplicate();
 		TypeSerializer<V> duplicateValueSerializer = valueSerializer.duplicate();
 
-		return new MapSerializer<>(duplicateKeySerializer, duplicateValueSerializer);
+		return (duplicateKeySerializer == keySerializer) && (duplicateValueSerializer == valueSerializer)
+				? this
+				: new MapSerializer<>(duplicateKeySerializer, duplicateValueSerializer);
 	}
 
 	@Override
@@ -191,52 +187,16 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return (obj != null && obj.getClass() == getClass());
-	}
-
-	@Override
 	public int hashCode() {
 		return keySerializer.hashCode() * 31 + valueSerializer.hashCode();
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
+	// Serializer configuration snapshotting
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public MapSerializerConfigSnapshot snapshotConfiguration() {
-		return new MapSerializerConfigSnapshot<>(keySerializer, valueSerializer);
-	}
-
-	@Override
-	public CompatibilityResult<Map<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousKvSerializersAndConfigs =
-				((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
-
-			CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousKvSerializersAndConfigs.get(0).f0,
-					UnloadableDummyTypeSerializer.class,
-					previousKvSerializersAndConfigs.get(0).f1,
-					keySerializer);
-
-			CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousKvSerializersAndConfigs.get(1).f0,
-					UnloadableDummyTypeSerializer.class,
-					previousKvSerializersAndConfigs.get(1).f1,
-					valueSerializer);
-
-			if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			} else if (keyCompatResult.getConvertDeserializer() != null && valueCompatResult.getConvertDeserializer() != null) {
-				return CompatibilityResult.requiresMigration(
-					new MapSerializer<>(
-						new TypeDeserializerAdapter<>(keyCompatResult.getConvertDeserializer()),
-						new TypeDeserializerAdapter<>(valueCompatResult.getConvertDeserializer())));
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
+	public TypeSerializerSnapshot<Map<K, V>> snapshotConfiguration() {
+		return new MapSerializerSnapshot<>(this);
 	}
 }

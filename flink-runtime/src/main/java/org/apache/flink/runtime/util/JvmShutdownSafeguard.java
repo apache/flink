@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.util.ShutdownHookUtil;
+
 import org.slf4j.Logger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -112,15 +114,6 @@ public class JvmShutdownSafeguard extends Thread {
 
 		// install the blocking shutdown hook
 		Thread shutdownHook = new JvmShutdownSafeguard(delayMillis);
-		try {
-			// Add JVM shutdown hook to call shutdown of service
-			Runtime.getRuntime().addShutdownHook(shutdownHook);
-		}
-		catch (IllegalStateException ignored) {
-			// JVM is already shutting down. No need to do this.
-		}
-		catch (Throwable t) {
-			logger.error("Cannot install JVM Shutdown Safeguard against blocked shutdown hooks");
-		}
+		ShutdownHookUtil.addShutdownHookThread(shutdownHook, JvmShutdownSafeguard.class.getSimpleName(), logger);
 	}
 }

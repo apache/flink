@@ -18,61 +18,61 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.ActorSystem;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.TestLogger;
+
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests that akka rpc invocation messages are properly serialized and errors reported
+ * Tests that akka rpc invocation messages are properly serialized and errors reported.
  */
 public class MessageSerializationTest extends TestLogger {
-	private static ActorSystem actorSystem1;
-	private static ActorSystem actorSystem2;
-	private static AkkaRpcService akkaRpcService1;
-	private static AkkaRpcService akkaRpcService2;
+	private static RpcService akkaRpcService1;
+	private static RpcService akkaRpcService2;
 
 	private static final Time timeout = Time.seconds(10L);
 	private static final int maxFrameSize = 32000;
 
 	@BeforeClass
-	public static void setup() {
-		Config akkaConfig = AkkaUtils.getDefaultAkkaConfig();
-		Config modifiedAkkaConfig = akkaConfig.withValue(AkkaRpcService.MAXIMUM_FRAME_SIZE_PATH, ConfigValueFactory.fromAnyRef(maxFrameSize + "b"));
+	public static void setup() throws Exception {
+		Configuration configuration = new Configuration();
+		configuration.setString(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
 
-		actorSystem1 = AkkaUtils.createActorSystem(modifiedAkkaConfig);
-		actorSystem2 = AkkaUtils.createActorSystem(modifiedAkkaConfig);
-
-		akkaRpcService1 = new AkkaRpcService(actorSystem1, timeout);
-		akkaRpcService2 = new AkkaRpcService(actorSystem2, timeout);
+		akkaRpcService1 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
+		akkaRpcService2 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
 	}
 
 	@AfterClass
-	public static void teardown() {
-		akkaRpcService1.stopService();
-		akkaRpcService2.stopService();
+	public static void teardown() throws InterruptedException, ExecutionException, TimeoutException {
+		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(2);
 
-		actorSystem1.shutdown();
-		actorSystem2.shutdown();
+		terminationFutures.add(akkaRpcService1.stopService());
+		terminationFutures.add(akkaRpcService2.stopService());
 
-		actorSystem1.awaitTermination();
-		actorSystem2.awaitTermination();
+		FutureUtils
+			.waitForAll(terminationFutures)
+			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	/**

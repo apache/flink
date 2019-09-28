@@ -59,46 +59,39 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- TableAPI-->
+		<!-- SQL Client -->
 		<file>
-			<source>../flink-libraries/flink-table/target/flink-table_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-table/flink-sql-client/target/flink-sql-client_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-sql-client_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- ML -->
+		<!-- State Processor API -->
 		<file>
-			<source>../flink-libraries/flink-ml/target/flink-ml_${scala.binary.version}-${project.version}-jar-with-dependencies.jar</source>
+			<source>../flink-libraries/flink-state-processing-api/target/flink-state-processor-api_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-state-processor-api_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<!-- Metrics -->
 		<file>
-			<source>../flink-metrics/flink-metrics-dropwizard/target/flink-metrics-dropwizard-${project.version}-jar-with-dependencies.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-dropwizard-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-metrics/flink-metrics-ganglia/target/flink-metrics-ganglia-${project.version}-jar-with-dependencies.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-ganglia-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-metrics/flink-metrics-graphite/target/flink-metrics-graphite-${project.version}-jar-with-dependencies.jar</source>
+			<source>../flink-metrics/flink-metrics-graphite/target/flink-metrics-graphite-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-metrics-graphite-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<file>
-			<source>../flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus-${project.version}.jar</source>
+			<source>../flink-metrics/flink-metrics-influxdb/target/flink-metrics-influxdb_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-metrics-influxdb-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-metrics-prometheus-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
@@ -117,5 +110,80 @@
 			<destName>flink-metrics-datadog-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<file>
+			<source>../flink-metrics/flink-metrics-slf4j/target/flink-metrics-slf4j-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-metrics-slf4j-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-filesystems/flink-s3-fs-hadoop/target/flink-s3-fs-hadoop-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-s3-fs-hadoop-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-filesystems/flink-s3-fs-presto/target/flink-s3-fs-presto-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-s3-fs-presto-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-filesystems/flink-swift-fs-hadoop/target/flink-swift-fs-hadoop-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-swift-fs-hadoop-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-filesystems/flink-oss-fs-hadoop/target/flink-oss-fs-hadoop-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-oss-fs-hadoop-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-filesystems/flink-azure-fs-hadoop/target/flink-azure-fs-hadoop-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-azure-fs-hadoop-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- Queryable State -->
+		<file>
+			<source>../flink-queryable-state/flink-queryable-state-runtime/target/flink-queryable-state-runtime_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-queryable-state-runtime_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- Python -->
+		<file>
+			<source>../flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
+	<fileSets>
+		<fileSet>
+			<directory>../flink-python/lib/</directory>
+			<outputDirectory>opt/python/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+	</fileSets>
+	<dependencySets>
+		<dependencySet>
+			<unpack>false</unpack>
+			<outputDirectory>opt</outputDirectory>
+			<includes>
+				<include>org.apache.flink:flink-shaded-netty-tcnative-dynamic</include>
+			</includes>
+			<scope>provided</scope>
+		</dependencySet>
+	</dependencySets>
 </assembly>

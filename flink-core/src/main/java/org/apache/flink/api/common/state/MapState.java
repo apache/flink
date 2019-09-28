@@ -60,7 +60,7 @@ public interface MapState<UK, UV> extends State {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	void put(UK key, UV value) throws Exception;
-	
+
 	/**
 	 * Copies all of the mappings from the given map into the state.
 	 *
@@ -90,19 +90,19 @@ public interface MapState<UK, UV> extends State {
 	boolean contains(UK key) throws Exception;
 
 	/**
-	 * Returns all the mappings in the state
+	 * Returns all the mappings in the state.
 	 *
 	 * @return An iterable view of all the key-value pairs in the state.
-	 * 
+	 *
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	Iterable<Map.Entry<UK, UV>> entries() throws Exception;
-	
+
 	/**
-	 * Returns all the keys in the state
+	 * Returns all the keys in the state.
 	 *
 	 * @return An iterable view of all the keys in the state.
-	 * 
+	 *
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	Iterable<UK> keys() throws Exception;
@@ -111,7 +111,7 @@ public interface MapState<UK, UV> extends State {
 	 * Returns all the values in the state.
 	 *
 	 * @return An iterable view of all the values in the state.
-	 * 
+	 *
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	Iterable<UV> values() throws Exception;
@@ -120,7 +120,7 @@ public interface MapState<UK, UV> extends State {
 	 * Iterates over all the mappings in the state.
 	 *
 	 * @return An iterator over all the mappings in the state
-	 * 
+	 *
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	Iterator<Map.Entry<UK, UV>> iterator() throws Exception;

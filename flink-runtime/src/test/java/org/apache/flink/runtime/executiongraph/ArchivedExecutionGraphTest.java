@@ -15,36 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -56,6 +60,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -63,9 +68,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class ArchivedExecutionGraphTest {
-	private static JobVertexID v1ID = new JobVertexID();
-	private static JobVertexID v2ID = new JobVertexID();
+/**
+ * Tests for the {@link ArchivedExecutionGraph}.
+ */
+public class ArchivedExecutionGraphTest extends TestLogger {
 
 	private static ExecutionGraph runtimeGraph;
 
@@ -75,8 +81,8 @@ public class ArchivedExecutionGraphTest {
 		// Setup
 		// -------------------------------------------------------------------------------------------------------------
 
-		v1ID = new JobVertexID();
-		v2ID = new JobVertexID();
+		JobVertexID v1ID = new JobVertexID();
+		JobVertexID v2ID = new JobVertexID();
 
 		JobVertex v1 = new JobVertex("v1", v1ID);
 		JobVertex v2 = new JobVertex("v2", v2ID);
@@ -87,7 +93,7 @@ public class ArchivedExecutionGraphTest {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 
-		List<JobVertex> vertices = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
+		List<JobVertex> vertices = new ArrayList<>(Arrays.asList(v1, v2));
 
 		ExecutionConfig config = new ExecutionConfig();
 
@@ -108,52 +114,56 @@ public class ArchivedExecutionGraphTest {
 			new NoRestartStrategy(),
 			mock(SlotProvider.class));
 
+		runtimeGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
 		runtimeGraph.attachJobGraph(vertices);
 
 		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
 		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
 		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
-		
+
 		CheckpointStatsTracker statsTracker = new CheckpointStatsTracker(
 				0,
 				jobVertices,
-				mock(JobCheckpointingSettings.class),
+				mock(CheckpointCoordinatorConfiguration.class),
 				new UnregisteredMetricsGroup());
 
-		runtimeGraph.enableCheckpointing(
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			100,
 			100,
 			100,
 			1,
-			ExternalizedCheckpointSettings.none(),
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+
+		runtimeGraph.enableCheckpointing(
+			chkConfig,
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<MasterTriggerRestoreHook<?>>emptyList(),
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
-			null,
-			null,
+			new MemoryStateBackend(),
 			statsTracker);
 
-		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>();
-		userAccumulators.put("userAcc", new LongCounter(64));
-
-		Execution executionWithAccumulators = runtimeGraph.getJobVertex(v1ID).getTaskVertices()[0].getCurrentExecutionAttempt();
+		runtimeGraph.setJsonPlan("{}");
 
 		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().fail(new RuntimeException("This exception was thrown on purpose."));
 	}
 
 	@Test
 	public void testArchive() throws IOException, ClassNotFoundException {
-		ArchivedExecutionGraph archivedGraph = runtimeGraph.archive();
+		ArchivedExecutionGraph archivedGraph = ArchivedExecutionGraph.createFrom(runtimeGraph);
 
 		compareExecutionGraph(runtimeGraph, archivedGraph);
 	}
 
 	@Test
 	public void testSerialization() throws IOException, ClassNotFoundException {
-		ArchivedExecutionGraph archivedGraph = runtimeGraph.archive();
+		ArchivedExecutionGraph archivedGraph = ArchivedExecutionGraph.createFrom(runtimeGraph);
 
 		verifySerializability(archivedGraph);
 	}
@@ -167,7 +177,7 @@ public class ArchivedExecutionGraphTest {
 		assertEquals(runtimeGraph.getJobID(), archivedGraph.getJobID());
 		assertEquals(runtimeGraph.getJobName(), archivedGraph.getJobName());
 		assertEquals(runtimeGraph.getState(), archivedGraph.getState());
-		assertEquals(runtimeGraph.getFailureCause().getExceptionAsString(), archivedGraph.getFailureCause().getExceptionAsString());
+		assertEquals(runtimeGraph.getFailureInfo().getExceptionAsString(), archivedGraph.getFailureInfo().getExceptionAsString());
 		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.CREATED), archivedGraph.getStatusTimestamp(JobStatus.CREATED));
 		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.RUNNING), archivedGraph.getStatusTimestamp(JobStatus.RUNNING));
 		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.FAILING), archivedGraph.getStatusTimestamp(JobStatus.FAILING));
@@ -313,11 +323,13 @@ public class ArchivedExecutionGraphTest {
 		}
 	}
 
-	private static void compareSerializedAccumulators(Map<String, SerializedValue<Object>> runtimeAccs, Map<String, SerializedValue<Object>> archivedAccs) throws IOException, ClassNotFoundException {
+	private static void compareSerializedAccumulators(
+			Map<String, SerializedValue<OptionalFailure<Object>>> runtimeAccs,
+			Map<String, SerializedValue<OptionalFailure<Object>>> archivedAccs) throws IOException, ClassNotFoundException {
 		assertEquals(runtimeAccs.size(), archivedAccs.size());
-		for (Map.Entry<String, SerializedValue<Object>> runtimeAcc : runtimeAccs.entrySet()) {
-			long runtimeUserAcc = (long) runtimeAcc.getValue().deserializeValue(ClassLoader.getSystemClassLoader());
-			long archivedUserAcc = (long) archivedAccs.get(runtimeAcc.getKey()).deserializeValue(ClassLoader.getSystemClassLoader());
+		for (Entry<String, SerializedValue<OptionalFailure<Object>>> runtimeAcc : runtimeAccs.entrySet()) {
+			long runtimeUserAcc = (long) runtimeAcc.getValue().deserializeValue(ClassLoader.getSystemClassLoader()).getUnchecked();
+			long archivedUserAcc = (long) archivedAccs.get(runtimeAcc.getKey()).deserializeValue(ClassLoader.getSystemClassLoader()).getUnchecked();
 
 			assertEquals(runtimeUserAcc, archivedUserAcc);
 		}

@@ -19,19 +19,19 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
-import org.apache.flink.runtime.rest.handler.legacy.messages.StatusOverviewWithVersion;
+import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * Message headers for the {@link ClusterOverviewHandler}.
  */
-public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequestBody, StatusOverviewWithVersion, EmptyMessageParameters> {
+public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> {
 
 	private static final ClusterOverviewHeaders INSTANCE = new ClusterOverviewHeaders();
 
-	public static final String CLUSTER_OVERVIEW_REST_PATH = "/overview";
+	public static final String URL = "/overview";
 
 	// make this class a singleton
 	private ClusterOverviewHeaders() {}
@@ -48,12 +48,12 @@ public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequest
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return CLUSTER_OVERVIEW_REST_PATH;
+		return URL;
 	}
 
 	@Override
-	public Class<StatusOverviewWithVersion> getResponseClass() {
-		return StatusOverviewWithVersion.class;
+	public Class<ClusterOverviewWithVersion> getResponseClass() {
+		return ClusterOverviewWithVersion.class;
 	}
 
 	@Override
@@ -68,5 +68,10 @@ public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequest
 
 	public static ClusterOverviewHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns an overview over the Flink cluster.";
 	}
 }

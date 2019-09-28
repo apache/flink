@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * {@link org.apache.flink.api.common.io.OutputFormat}s can implement this interface to be configured
- * with the data type they will operate on. The method {@link #setInputType(TypeInformation, ExecutionConfig)
+ * with the data type they will operate on. The method {@link #setInputType(TypeInformation, ExecutionConfig)}
  * will be called when the output format is used with an output API method.
  */
 @Public

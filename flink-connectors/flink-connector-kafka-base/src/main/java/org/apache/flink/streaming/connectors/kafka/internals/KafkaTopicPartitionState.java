@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * The state that the Flink Kafka Consumer holds for each Kafka partition.
  * Includes the Kafka descriptor for partitions.
@@ -27,6 +29,7 @@ package org.apache.flink.streaming.connectors.kafka.internals;
  *
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions.
  */
+@Internal
 public class KafkaTopicPartitionState<KPH> {
 
 	// ------------------------------------------------------------------------

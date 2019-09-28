@@ -18,14 +18,20 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.function.Function;
 
 
 /**
@@ -54,16 +60,48 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 
 	/**
 	 * Creates a test harness with the specified number of input gates and specified number
-	 * of channels per input gate.
+	 * of channels per input gate and local recovery disabled.
 	 */
 	public OneInputStreamTaskTestHarness(
-		OneInputStreamTask<IN, OUT> task,
+		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
 		int numInputGates,
 		int numInputChannelsPerGate,
 		TypeInformation<IN> inputType,
 		TypeInformation<OUT> outputType) {
+		this(taskFactory, numInputGates, numInputChannelsPerGate, inputType, outputType, TestLocalRecoveryConfig.disabled());
+	}
 
-		super(task, outputType);
+	public OneInputStreamTaskTestHarness(
+		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+		int numInputGates,
+		int numInputChannelsPerGate,
+		TypeInformation<IN> inputType,
+		TypeInformation<OUT> outputType,
+		File localRootDir) {
+		super(taskFactory, outputType, localRootDir);
+
+		this.inputType = inputType;
+		inputSerializer = inputType.createSerializer(executionConfig);
+
+		this.numInputGates = numInputGates;
+		this.numInputChannelsPerGate = numInputChannelsPerGate;
+
+		streamConfig.setStateKeySerializer(inputSerializer);
+	}
+
+	/**
+	 * Creates a test harness with the specified number of input gates and specified number
+	 * of channels per input gate and specified localRecoveryConfig.
+	 */
+	public OneInputStreamTaskTestHarness(
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			int numInputGates,
+			int numInputChannelsPerGate,
+			TypeInformation<IN> inputType,
+			TypeInformation<OUT> outputType,
+			LocalRecoveryConfig localRecoveryConfig) {
+
+		super(taskFactory, outputType, localRecoveryConfig);
 
 		this.inputType = inputType;
 		inputSerializer = inputType.createSerializer(executionConfig);
@@ -76,10 +114,10 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * Creates a test harness with one input gate that has one input channel.
 	 */
 	public OneInputStreamTaskTestHarness(
-		OneInputStreamTask<IN, OUT> task,
+		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
 		TypeInformation<IN> inputType,
 		TypeInformation<OUT> outputType) {
-		this(task, 1, 1, inputType, outputType);
+		this(taskFactory, 1, 1, inputType, outputType, TestLocalRecoveryConfig.disabled());
 	}
 
 	@Override
@@ -101,9 +139,15 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	public <K> void configureForKeyedStream(
 			KeySelector<IN, K> keySelector,
 			TypeInformation<K> keyType) {
-		ClosureCleaner.clean(keySelector, false);
+		ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
 		streamConfig.setStatePartitioner(0, keySelector);
 		streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public OneInputStreamTask<IN, OUT> getTask() {
+		return (OneInputStreamTask<IN, OUT>) super.getTask();
 	}
 }
 

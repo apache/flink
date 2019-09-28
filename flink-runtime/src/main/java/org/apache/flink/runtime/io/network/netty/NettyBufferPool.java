@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.PooledByteBufAllocator;
 
@@ -33,17 +32,14 @@ import scala.Option;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Wrapper around Netty's {@link PooledByteBufAllocator} with strict control
+ * Extends around Netty's {@link PooledByteBufAllocator} with strict control
  * over the number of created arenas.
  */
-public class NettyBufferPool implements ByteBufAllocator {
+public class NettyBufferPool extends PooledByteBufAllocator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyBufferPool.class);
 
-	/** The wrapped buffer allocator. */
-	private final PooledByteBufAllocator alloc;
-
-	/** PoolArena<ByteBuffer>[] via Reflection. */
+	/** <tt>PoolArena&lt;ByteBuffer&gt;[]</tt> via Reflection. */
 	private final Object[] directArenas;
 
 	/** Configured number of arenas. */
@@ -52,6 +48,25 @@ public class NettyBufferPool implements ByteBufAllocator {
 	/** Configured chunk size for the arenas. */
 	private final int chunkSize;
 
+	/** We strictly prefer direct buffers and disallow heap allocations. */
+	private static final boolean PREFER_DIRECT = true;
+
+	/**
+	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
+	 * chunks of 16 MB.
+	 *
+	 * @see #MAX_ORDER
+	 */
+	private static final int PAGE_SIZE = 8192;
+
+	/**
+	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
+	 * chunks of 16 MB.
+	 *
+	 * @see #PAGE_SIZE
+	 */
+	private static final int MAX_ORDER = 11;
+
 	/**
 	 * Creates Netty's buffer pool with the specified number of direct arenas.
 	 *
@@ -59,44 +74,35 @@ public class NettyBufferPool implements ByteBufAllocator {
 	 *                       slots)
 	 */
 	public NettyBufferPool(int numberOfArenas) {
+		super(
+			PREFER_DIRECT,
+			// No heap arenas, please.
+			0,
+			// Number of direct arenas. Each arena allocates a chunk of 16 MB, i.e.
+			// we allocate numDirectArenas * 16 MB of direct memory. This can grow
+			// to multiple chunks per arena during runtime, but this should only
+			// happen with a large amount of connections per task manager. We
+			// control the memory allocations with low/high watermarks when writing
+			// to the TCP channels. Chunks are allocated lazily.
+			numberOfArenas,
+			PAGE_SIZE,
+			MAX_ORDER);
+
 		checkArgument(numberOfArenas >= 1, "Number of arenas");
 		this.numberOfArenas = numberOfArenas;
 
-		// We strictly prefer direct buffers and disallow heap allocations.
-		boolean preferDirect = true;
-
 		// Arenas allocate chunks of pageSize << maxOrder bytes. With these
 		// defaults, this results in chunks of 16 MB.
-		int pageSize = 8192;
-		int maxOrder = 11;
 
-		this.chunkSize = pageSize << maxOrder;
-
-		// Number of direct arenas. Each arena allocates a chunk of 16 MB, i.e.
-		// we allocate numDirectArenas * 16 MB of direct memory. This can grow
-		// to multiple chunks per arena during runtime, but this should only
-		// happen with a large amount of connections per task manager. We
-		// control the memory allocations with low/high watermarks when writing
-		// to the TCP channels. Chunks are allocated lazily.
-		int numDirectArenas = numberOfArenas;
-
-		// No heap arenas, please.
-		int numHeapArenas = 0;
-
-		this.alloc = new PooledByteBufAllocator(
-				preferDirect,
-				numHeapArenas,
-				numDirectArenas,
-				pageSize,
-				maxOrder);
+		this.chunkSize = PAGE_SIZE << MAX_ORDER;
 
 		Object[] allocDirectArenas = null;
 		try {
-			Field directArenasField = alloc.getClass()
+			Field directArenasField = PooledByteBufAllocator.class
 					.getDeclaredField("directArenas");
 			directArenasField.setAccessible(true);
 
-			allocDirectArenas = (Object[]) directArenasField.get(alloc);
+			allocDirectArenas = (Object[]) directArenasField.get(this);
 		} catch (Exception ignored) {
 			LOG.warn("Memory statistics not available");
 		} finally {
@@ -217,38 +223,8 @@ public class NettyBufferPool implements ByteBufAllocator {
 	}
 
 	// ------------------------------------------------------------------------
-	// Delegate calls to the allocated and prohibit heap buffer allocations
+	// Prohibit heap buffer allocations
 	// ------------------------------------------------------------------------
-
-	@Override
-	public ByteBuf buffer() {
-		return alloc.buffer();
-	}
-
-	@Override
-	public ByteBuf buffer(int initialCapacity) {
-		return alloc.buffer(initialCapacity);
-	}
-
-	@Override
-	public ByteBuf buffer(int initialCapacity, int maxCapacity) {
-		return alloc.buffer(initialCapacity, maxCapacity);
-	}
-
-	@Override
-	public ByteBuf ioBuffer() {
-		return alloc.ioBuffer();
-	}
-
-	@Override
-	public ByteBuf ioBuffer(int initialCapacity) {
-		return alloc.ioBuffer(initialCapacity);
-	}
-
-	@Override
-	public ByteBuf ioBuffer(int initialCapacity, int maxCapacity) {
-		return alloc.ioBuffer(initialCapacity, maxCapacity);
-	}
 
 	@Override
 	public ByteBuf heapBuffer() {
@@ -266,31 +242,6 @@ public class NettyBufferPool implements ByteBufAllocator {
 	}
 
 	@Override
-	public ByteBuf directBuffer() {
-		return alloc.directBuffer();
-	}
-
-	@Override
-	public ByteBuf directBuffer(int initialCapacity) {
-		return alloc.directBuffer(initialCapacity);
-	}
-
-	@Override
-	public ByteBuf directBuffer(int initialCapacity, int maxCapacity) {
-		return alloc.directBuffer(initialCapacity, maxCapacity);
-	}
-
-	@Override
-	public CompositeByteBuf compositeBuffer() {
-		return alloc.compositeBuffer();
-	}
-
-	@Override
-	public CompositeByteBuf compositeBuffer(int maxNumComponents) {
-		return alloc.compositeBuffer(maxNumComponents);
-	}
-
-	@Override
 	public CompositeByteBuf compositeHeapBuffer() {
 		throw new UnsupportedOperationException("Heap buffer");
 	}
@@ -298,20 +249,5 @@ public class NettyBufferPool implements ByteBufAllocator {
 	@Override
 	public CompositeByteBuf compositeHeapBuffer(int maxNumComponents) {
 		throw new UnsupportedOperationException("Heap buffer");
-	}
-
-	@Override
-	public CompositeByteBuf compositeDirectBuffer() {
-		return alloc.compositeDirectBuffer();
-	}
-
-	@Override
-	public CompositeByteBuf compositeDirectBuffer(int maxNumComponents) {
-		return alloc.compositeDirectBuffer(maxNumComponents);
-	}
-
-	@Override
-	public boolean isDirectBufferPooled() {
-		return alloc.isDirectBufferPooled();
 	}
 }

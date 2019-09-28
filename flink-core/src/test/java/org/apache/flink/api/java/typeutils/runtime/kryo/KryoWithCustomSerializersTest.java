@@ -55,9 +55,9 @@ public class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializer
 		TypeInformation<T> typeInfo = new GenericTypeInfo<T>(type);
 		return typeInfo.createSerializer(conf);
 	}
-	
+
 	public static final class LocalDateSerializer extends Serializer<LocalDate> implements java.io.Serializable {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -66,7 +66,7 @@ public class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializer
 			output.writeInt(object.getMonthOfYear());
 			output.writeInt(object.getDayOfMonth());
 		}
-		
+
 		@Override
 		public LocalDate read(Kryo kryo, Input input, Class<LocalDate> type) {
 			return new LocalDate(input.readInt(), input.readInt(), input.readInt());

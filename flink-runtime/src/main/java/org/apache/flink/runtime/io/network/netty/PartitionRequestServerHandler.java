@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
@@ -43,18 +45,22 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 	private final ResultPartitionProvider partitionProvider;
 
-	private final TaskEventDispatcher taskEventDispatcher;
+	private final TaskEventPublisher taskEventPublisher;
 
 	private final PartitionRequestQueue outboundQueue;
 
+	private final boolean creditBasedEnabled;
+
 	PartitionRequestServerHandler(
 		ResultPartitionProvider partitionProvider,
-		TaskEventDispatcher taskEventDispatcher,
-		PartitionRequestQueue outboundQueue) {
+		TaskEventPublisher taskEventPublisher,
+		PartitionRequestQueue outboundQueue,
+		boolean creditBasedEnabled) {
 
 		this.partitionProvider = partitionProvider;
-		this.taskEventDispatcher = taskEventDispatcher;
+		this.taskEventPublisher = taskEventPublisher;
 		this.outboundQueue = outboundQueue;
+		this.creditBasedEnabled = creditBasedEnabled;
 	}
 
 	@Override
@@ -81,14 +87,24 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				LOG.debug("Read channel on {}: {}.", ctx.channel().localAddress(), request);
 
 				try {
-					SequenceNumberingViewReader reader = new SequenceNumberingViewReader(
-						request.receiverId,
-						outboundQueue);
+					NetworkSequenceViewReader reader;
+					if (creditBasedEnabled) {
+						reader = new CreditBasedSequenceNumberingViewReader(
+							request.receiverId,
+							request.credit,
+							outboundQueue);
+					} else {
+						reader = new SequenceNumberingViewReader(
+							request.receiverId,
+							outboundQueue);
+					}
 
 					reader.requestSubpartitionView(
 						partitionProvider,
 						request.partitionId,
 						request.queueIndex);
+
+					outboundQueue.notifyReaderCreated(reader);
 				} catch (PartitionNotFoundException notFound) {
 					respondWithError(ctx, notFound, request.receiverId);
 				}
@@ -99,7 +115,7 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 			else if (msgClazz == TaskEventRequest.class) {
 				TaskEventRequest request = (TaskEventRequest) msg;
 
-				if (!taskEventDispatcher.publish(request.partitionId, request.event)) {
+				if (!taskEventPublisher.publish(request.partitionId, request.event)) {
 					respondWithError(ctx, new IllegalArgumentException("Task event receiver not found."), request.receiverId);
 				}
 			} else if (msgClazz == CancelPartitionRequest.class) {
@@ -108,6 +124,10 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				outboundQueue.cancel(request.receiverId);
 			} else if (msgClazz == CloseRequest.class) {
 				outboundQueue.close();
+			} else if (msgClazz == AddCredit.class) {
+				AddCredit request = (AddCredit) msg;
+
+				outboundQueue.addCredit(request.receiverId, request.credit);
 			} else {
 				LOG.warn("Received unexpected client request: {}", msg);
 			}

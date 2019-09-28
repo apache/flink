@@ -17,9 +17,15 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.util.Preconditions;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
@@ -29,29 +35,37 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link CassandraTupleSink}.
+ * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link
+ * CassandraTupleSink}.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
+public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> implements CheckpointedFunction {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
+
 	protected transient Cluster cluster;
 	protected transient Session session;
 
-	protected transient volatile Throwable exception;
-	protected transient FutureCallback<V> callback;
+	private AtomicReference<Throwable> throwable;
+	private FutureCallback<V> callback;
+	private Semaphore semaphore;
 
 	private final ClusterBuilder builder;
+	private final CassandraSinkBaseConfig config;
 
-	private final AtomicInteger updatesPending = new AtomicInteger();
+	private final CassandraFailureHandler failureHandler;
 
-	CassandraSinkBase(ClusterBuilder builder) {
+	CassandraSinkBase(ClusterBuilder builder, CassandraSinkBaseConfig config, CassandraFailureHandler failureHandler) {
 		this.builder = builder;
-		ClosureCleaner.clean(builder, true);
+		this.config = config;
+		this.failureHandler = Preconditions.checkNotNull(failureHandler);
+		ClosureCleaner.clean(builder, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
 
 	@Override
@@ -59,59 +73,29 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 		this.callback = new FutureCallback<V>() {
 			@Override
 			public void onSuccess(V ignored) {
-				int pending = updatesPending.decrementAndGet();
-				if (pending == 0) {
-					synchronized (updatesPending) {
-						updatesPending.notifyAll();
-					}
-				}
+				semaphore.release();
 			}
 
 			@Override
 			public void onFailure(Throwable t) {
-				int pending = updatesPending.decrementAndGet();
-				if (pending == 0) {
-					synchronized (updatesPending) {
-						updatesPending.notifyAll();
-					}
-				}
-				exception = t;
-
+				throwable.compareAndSet(null, t);
 				log.error("Error while sending value.", t);
+				semaphore.release();
 			}
 		};
 		this.cluster = builder.getCluster();
-		this.session = cluster.connect();
-	}
+		this.session = createSession();
 
-	@Override
-	public void invoke(IN value) throws Exception {
-		if (exception != null) {
-			throw new IOException("Error while sending value.", exception);
-		}
-		ListenableFuture<V> result = send(value);
-		updatesPending.incrementAndGet();
-		Futures.addCallback(result, callback);
+		throwable = new AtomicReference<>();
+		semaphore = new Semaphore(config.getMaxConcurrentRequests());
 	}
-
-	public abstract ListenableFuture<V> send(IN value);
 
 	@Override
 	public void close() throws Exception {
 		try {
-			if (exception != null) {
-				throw new IOException("Error while sending value.", exception);
-			}
-
-			while (updatesPending.get() > 0) {
-				synchronized (updatesPending) {
-					updatesPending.wait();
-				}
-			}
-
-			if (exception != null) {
-				throw new IOException("Error while sending value.", exception);
-			}
+			checkAsyncErrors();
+			flush();
+			checkAsyncErrors();
 		} finally {
 			try {
 				if (session != null) {
@@ -128,5 +112,71 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 				log.error("Error while closing cluster.", e);
 			}
 		}
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+	}
+
+	@Override
+	public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
+		checkAsyncErrors();
+		flush();
+		checkAsyncErrors();
+	}
+
+	@Override
+	public void invoke(IN value) throws Exception {
+		checkAsyncErrors();
+		tryAcquire(1);
+		final ListenableFuture<V> result;
+		try {
+			result = send(value);
+		} catch (Exception e) {
+			semaphore.release();
+			throw e;
+		}
+		Futures.addCallback(result, callback);
+	}
+
+	protected Session createSession() {
+		return cluster.connect();
+	}
+
+	public abstract ListenableFuture<V> send(IN value);
+
+	private void tryAcquire(int permits) throws InterruptedException, TimeoutException {
+		if (!semaphore.tryAcquire(permits, config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+			throw new TimeoutException(
+				String.format(
+					"Failed to acquire %d out of %d permits to send value in %s.",
+					permits,
+					config.getMaxConcurrentRequests(),
+					config.getMaxConcurrentRequestsTimeout()
+				)
+			);
+		}
+	}
+
+	private void checkAsyncErrors() throws Exception {
+		final Throwable currentError = throwable.getAndSet(null);
+		if (currentError != null) {
+			failureHandler.onFailure(currentError);
+		}
+	}
+
+	private void flush() throws InterruptedException, TimeoutException {
+		tryAcquire(config.getMaxConcurrentRequests());
+		semaphore.release(config.getMaxConcurrentRequests());
+	}
+
+	@VisibleForTesting
+	int getAvailablePermits() {
+		return semaphore.availablePermits();
+	}
+
+	@VisibleForTesting
+	int getAcquiredPermits() {
+		return config.getMaxConcurrentRequests() - semaphore.availablePermits();
 	}
 }

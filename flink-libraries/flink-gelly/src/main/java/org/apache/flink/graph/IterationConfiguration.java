@@ -18,6 +18,7 @@
 
 package org.apache.flink.graph;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.util.Preconditions;
@@ -77,7 +78,9 @@ public abstract class IterationConfiguration {
 	 * @param parallelism The parallelism.
 	 */
 	public void setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
+		Preconditions.checkArgument(
+				parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
 		this.parallelism = parallelism;
 	}
 

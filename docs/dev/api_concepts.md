@@ -64,7 +64,7 @@ derived from these by transforming them using API methods such as `map`, `filter
 Anatomy of a Flink Program
 --------------------------
 
-Flink program programs look like regular programs that transform collections of data.
+Flink programs look like regular programs that transform collections of data.
 Each program consists of the same basic parts:
 
 1. Obtain an `execution environment`,
@@ -393,7 +393,7 @@ These are valid field expressions for the example code above:
 <div data-lang="scala" markdown="1">
 
 In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `keyBy()` function.
-{% highlight java %}
+{% highlight scala %}
 // some ordinary POJO (Plain old Java Object)
 class WC(var word: String, var count: Int) {
   def this() { this("", 0L) }
@@ -460,7 +460,7 @@ The following example shows a key selector function that simply returns the fiel
 // some ordinary POJO
 public class WC {public String word; public int count;}
 DataStream<WC> words = // [...]
-KeyedStream<WC> kyed = words
+KeyedStream<WC> keyed = words
   .keyBy(new KeySelector<WC, String>() {
      public String getKey(WC wc) { return wc.word; }
    });
@@ -495,7 +495,7 @@ The most basic way is to implement one of the provided interfaces:
 {% highlight java %}
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 data.map(new MyMapFunction());
 {% endhighlight %}
 
@@ -510,7 +510,7 @@ data.map(new MapFunction<String, Integer> () {
 
 #### Java 8 Lambdas
 
-Flink also supports Java 8 Lambdas in the Java API. Please see the full [Java 8 Guide]({{ site.baseurl }}/dev/java8.html).
+Flink also supports Java 8 Lambdas in the Java API.
 
 {% highlight java %}
 data.filter(s -> s.startsWith("http://"));
@@ -528,7 +528,7 @@ instead take as argument a *rich* function. For example, instead of
 {% highlight java %}
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 {% endhighlight %}
 
 you can write
@@ -536,7 +536,7 @@ you can write
 {% highlight java %}
 class MyMapFunction extends RichMapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 {% endhighlight %}
 
 and pass the function as usual to a `map` transformation:
@@ -586,7 +586,7 @@ you can write
 {% highlight scala %}
 class MyMapFunction extends RichMapFunction[String, Int] {
   def map(in: String):Int = { in.toInt }
-})
+};
 {% endhighlight %}
 
 and pass the function to a `map` transformation:
@@ -624,7 +624,7 @@ Flink places some restrictions on the type of elements that can be in a DataSet 
 The reason for this is that the system analyzes the types to determine
 efficient execution strategies.
 
-There are six different categories of data types:
+There are seven different categories of data types:
 
 1. **Java Tuples** and **Scala Case Classes**
 2. **Java POJOs**
@@ -694,7 +694,12 @@ Java and Scala classes are treated by Flink as a special POJO data type if they 
 
 - All fields are either public or must be accessible through getter and setter functions. For a field called `foo` the getter and setter methods must be named `getFoo()` and `setFoo()`.
 
-- The type of a field must be supported by Flink. At the moment, Flink uses [Avro](http://avro.apache.org) to serialize arbitrary objects (such as `Date`).
+- The type of a field must be supported by a registered serializer.
+
+POJOs are generally represented with a `PojoTypeInfo` and serialized with the `PojoSerializer` (using [Kryo](https://github.com/EsotericSoftware/kryo) as configurable fallback).
+The exception is when the POJOs are actually Avro types (Avro Specific Records) or produced as "Avro Reflect Types". 
+In that case the POJO's are represented by an `AvroTypeInfo` and serialized with the `AvroSerializer`.
+You can also register your own custom serializer if required; see [Serialization](https://ci.apache.org/projects/flink/flink-docs-stable/dev/types_serialization.html#serialization-of-pojo-types) for further information.
 
 Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, Flink can process POJOs more efficiently than general types.
 
@@ -753,7 +758,7 @@ Restrictions apply to classes containing fields that cannot be serialized, like 
 resources. Classes that follow the Java Beans conventions work well in general.
 
 All classes that are not identified as POJO types (see POJO requirements above) are handled by Flink as general class types.
-Flink treats these data types as black boxes and is not able to access their content (i.e., for efficient sorting). General types are de/serialized using the serialization framework [Kryo](https://github.com/EsotericSoftware/kryo).
+Flink treats these data types as black boxes and is not able to access their content (e.g., for efficient sorting). General types are de/serialized using the serialization framework [Kryo](https://github.com/EsotericSoftware/kryo).
 
 #### Values
 
@@ -783,7 +788,7 @@ defined in the `write()`and `readFields()` methods will be used for serializatio
 
 You can use special types, including Scala's `Either`, `Option`, and `Try`.
 The Java API has its own custom implementation of `Either`.
-Similarly to Scala's `Either`, it represents a value of one two possible types, *Left* or *Right*.
+Similarly to Scala's `Either`, it represents a value of two possible types, *Left* or *Right*.
 `Either` can be useful for error handling or operators that need to output two different types of records.
 
 #### Type Erasure & Type Inference
@@ -895,4 +900,3 @@ result type ```R``` for the final result. E.g. for a histogram, ```V``` is a num
  a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
 {% top %}
-

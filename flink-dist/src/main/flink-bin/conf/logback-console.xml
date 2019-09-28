@@ -50,7 +50,7 @@
     </logger>
 
     <!-- Suppress the irrelevant (wrong) warnings from the Netty channel handler -->
-    <logger name="org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR">
+    <logger name="org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR">
         <appender-ref ref="console"/>
     </logger>
 </configuration>

@@ -715,9 +715,8 @@ public class RowCsvInputFormatTest {
 		}
 	}
 
-	// Test disabled because we do not support double-quote escaped quotes right now.
 	@Test
-	@Ignore
+	@Ignore("Test disabled because we do not support double-quote escaped quotes right now.")
 	public void testParserCorrectness() throws Exception {
 		// RFC 4180 Compliance Test content
 		// Taken from http://en.wikipedia.org/wiki/Comma-separated_values#Example

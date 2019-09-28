@@ -18,16 +18,18 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
+import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -44,11 +46,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * A fetcher that fetches data from Kafka brokers via the Kafka 0.9 consumer API.
  *
  * @param <T> The type of elements produced by the fetcher.
  */
+@Internal
 public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Kafka09Fetcher.class);
@@ -56,7 +61,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	// ------------------------------------------------------------------------
 
 	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
-	private final KeyedDeserializationSchema<T> deserializer;
+	private final KafkaDeserializationSchema<T> deserializer;
 
 	/** The handover of data and exceptions between the consumer thread and the task thread. */
 	private final Handover handover;
@@ -78,11 +83,13 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			MetricGroup metricGroup,
-			KeyedDeserializationSchema<T> deserializer,
+			KafkaDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
-			boolean useMetrics) throws Exception {
+			MetricGroup subtaskMetricGroup,
+			MetricGroup consumerMetricGroup,
+			boolean useMetrics,
+			FlinkConnectorRateLimiter rateLimiter) throws Exception {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -91,24 +98,24 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				processingTimeProvider,
 				autoWatermarkInterval,
 				userCodeClassLoader,
+				consumerMetricGroup,
 				useMetrics);
 
 		this.deserializer = deserializer;
 		this.handover = new Handover();
-
-		final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
-		addOffsetStateGauge(kafkaMetricGroup);
 
 		this.consumerThread = new KafkaConsumerThread(
 				LOG,
 				handover,
 				kafkaProperties,
 				unassignedPartitionsQueue,
-				kafkaMetricGroup,
 				createCallBridge(),
 				getFetcherName() + " for " + taskNameWithSubtasks,
 				pollTimeout,
-				useMetrics);
+				useMetrics,
+				consumerMetricGroup,
+				subtaskMetricGroup,
+				rateLimiter);
 	}
 
 	// ------------------------------------------------------------------------
@@ -135,9 +142,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						final T value = deserializer.deserialize(
-								record.key(), record.value(),
-								record.topic(), record.partition(), record.offset());
+
+						final T value = deserializer.deserialize(record);
 
 						if (deserializer.isEndOfStream(value)) {
 							// end of stream signaled
@@ -198,8 +204,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		return "Kafka 0.9 Fetcher";
 	}
 
-	protected KafkaConsumerCallBridge createCallBridge() {
-		return new KafkaConsumerCallBridge();
+	protected KafkaConsumerCallBridge09 createCallBridge() {
+		return new KafkaConsumerCallBridge09();
 	}
 
 	// ------------------------------------------------------------------------
@@ -212,7 +218,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	}
 
 	@Override
-	public void commitInternalOffsetsToKafka(
+	protected void doCommitInternalOffsetsToKafka(
 			Map<KafkaTopicPartition, Long> offsets,
 			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
 
@@ -224,6 +230,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
 			Long lastProcessedOffset = offsets.get(partition.getKafkaTopicPartition());
 			if (lastProcessedOffset != null) {
+				checkState(lastProcessedOffset >= 0, "Illegal offset value to commit");
+
 				// committed offsets through the KafkaConsumer need to be 1 more than the last processed offset.
 				// This does not affect Flink's checkpoints/saved state.
 				long offsetToCommit = lastProcessedOffset + 1;

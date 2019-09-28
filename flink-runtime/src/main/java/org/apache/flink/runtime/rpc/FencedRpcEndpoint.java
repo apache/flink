@@ -19,13 +19,16 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Base class for fenced {@link RpcEndpoint}. A fenced rpc endpoint expects all rpc messages
@@ -35,20 +38,28 @@ import java.util.concurrent.CompletableFuture;
  *
  * @param <F> type of the fencing token
  */
-public class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
+public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
 
+	private final UnfencedMainThreadExecutor unfencedMainThreadExecutor;
 	private volatile F fencingToken;
 	private volatile MainThreadExecutor fencedMainThreadExecutor;
 
 	protected FencedRpcEndpoint(RpcService rpcService, String endpointId) {
 		super(rpcService, endpointId);
 
+		Preconditions.checkArgument(
+			rpcServer instanceof FencedMainThreadExecutable,
+			"The rpcServer must be of type %s.",
+			FencedMainThreadExecutable.class.getSimpleName());
+
 		// no fencing token == no leadership
 		this.fencingToken = null;
+		this.unfencedMainThreadExecutor = new UnfencedMainThreadExecutor((FencedMainThreadExecutable) rpcServer);
 		this.fencedMainThreadExecutor = new MainThreadExecutor(
 			getRpcService().fenceRpcServer(
 				rpcServer,
-				null));
+				null),
+			this::validateRunsInMainThread);
 	}
 
 	protected FencedRpcEndpoint(RpcService rpcService) {
@@ -71,7 +82,7 @@ public class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
 			rpcServer,
 			newFencingToken);
 
-		this.fencedMainThreadExecutor = new MainThreadExecutor(mainThreadExecutable);
+		this.fencedMainThreadExecutor = new MainThreadExecutor(mainThreadExecutable, this::validateRunsInMainThread);
 	}
 
 	/**
@@ -84,6 +95,17 @@ public class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
 	@Override
 	protected MainThreadExecutor getMainThreadExecutor() {
 		return fencedMainThreadExecutor;
+	}
+
+	/**
+	 * Returns a main thread executor which is not bound to the fencing token.
+	 * This means that {@link Runnable} which are executed with this executor will always
+	 * be executed.
+	 *
+	 * @return MainThreadExecutor which is not bound to the fencing token
+	 */
+	protected Executor getUnfencedMainThreadExecutor() {
+		return unfencedMainThreadExecutor;
 	}
 
 	/**
@@ -113,6 +135,27 @@ public class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
 			return ((FencedMainThreadExecutable) rpcServer).callAsyncWithoutFencing(callable, timeout);
 		} else {
 			throw new RuntimeException("FencedRpcEndpoint has not been started with a FencedMainThreadExecutable RpcServer.");
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Executor which executes {@link Runnable} in the main thread context without fencing.
+	 */
+	private static class UnfencedMainThreadExecutor implements Executor {
+
+		private final FencedMainThreadExecutable gateway;
+
+		UnfencedMainThreadExecutor(FencedMainThreadExecutable gateway) {
+			this.gateway = Preconditions.checkNotNull(gateway);
+		}
+
+		@Override
+		public void execute(@Nonnull Runnable runnable) {
+			gateway.runAsyncWithoutFencing(runnable);
 		}
 	}
 }

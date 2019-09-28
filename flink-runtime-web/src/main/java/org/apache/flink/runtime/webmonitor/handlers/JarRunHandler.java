@@ -19,77 +19,129 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.blob.BlobClient;
+import org.apache.flink.runtime.client.ClientUtils;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.JarHandlerContext;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
 
-import com.fasterxml.jackson.core.JsonGenerator;
+import javax.annotation.Nonnull;
 
-import java.io.File;
-import java.io.StringWriter;
+import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
+import static java.util.Objects.requireNonNull;
+import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
+import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
+import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
+
 /**
- * This handler handles requests to fetch plan for a jar.
+ * Handler to submit jobs uploaded via the Web UI.
  */
-public class JarRunHandler extends JarActionHandler {
+public class JarRunHandler extends
+		AbstractRestHandler<DispatcherGateway, JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> {
 
-	static final String JAR_RUN_REST_PATH = "/jars/:jarid/run";
+	private final Path jarDir;
 
-	private final Time timeout;
-	private final Configuration clientConfig;
+	private final Configuration configuration;
 
-	public JarRunHandler(Executor executor, File jarDirectory, Time timeout, Configuration clientConfig) {
-		super(executor, jarDirectory);
-		this.timeout = Preconditions.checkNotNull(timeout);
-		this.clientConfig = Preconditions.checkNotNull(clientConfig);
+	private final Executor executor;
+
+	public JarRunHandler(
+			final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
+			final Time timeout,
+			final Map<String, String> responseHeaders,
+			final MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> messageHeaders,
+			final Path jarDir,
+			final Configuration configuration,
+			final Executor executor) {
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+
+		this.jarDir = requireNonNull(jarDir);
+		this.configuration = requireNonNull(configuration);
+		this.executor = requireNonNull(executor);
 	}
 
 	@Override
-	public String[] getPaths() {
-		return new String[]{JAR_RUN_REST_PATH};
+	protected CompletableFuture<JarRunResponseBody> handleRequest(
+			@Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
+			@Nonnull final DispatcherGateway gateway) throws RestHandlerException {
+		final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
+
+		final SavepointRestoreSettings savepointRestoreSettings = getSavepointRestoreSettings(request);
+
+		final CompletableFuture<JobGraph> jobGraphFuture = getJobGraphAsync(context, savepointRestoreSettings);
+
+		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
+
+		CompletableFuture<JobGraph> jarUploadFuture = jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
+			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
+			try {
+				ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(address, configuration));
+			} catch (FlinkException e) {
+				throw new CompletionException(e);
+			}
+
+			return jobGraph;
+		});
+
+		CompletableFuture<Acknowledge> jobSubmissionFuture = jarUploadFuture.thenCompose(jobGraph -> {
+			// we have to enable queued scheduling because slots will be allocated lazily
+			jobGraph.setAllowQueuedScheduling(true);
+			return gateway.submitJob(jobGraph, timeout);
+		});
+
+		return jobSubmissionFuture
+			.thenCombine(jarUploadFuture, (ack, jobGraph) -> new JarRunResponseBody(jobGraph.getJobID()));
 	}
 
-	@Override
-	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
-		return CompletableFuture.supplyAsync(
-			() -> {
-				try {
-					JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
-					Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(config);
+	private SavepointRestoreSettings getSavepointRestoreSettings(
+			final @Nonnull HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
+				throws RestHandlerException {
 
-					try {
-						JobClient.submitJobDetached(
-							jobManagerGateway,
-							clientConfig,
-							graph.f0,
-							timeout,
-							graph.f1);
-					} catch (JobExecutionException e) {
-						throw new ProgramInvocationException("Failed to submit the job to the job manager", e);
-					}
+		final JarRunRequestBody requestBody = request.getRequestBody();
 
-					StringWriter writer = new StringWriter();
-					JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-					gen.writeStartObject();
-					gen.writeStringField("jobid", graph.f0.getJobID().toString());
-					gen.writeEndObject();
-					gen.close();
-					return writer.toString();
-				} catch (Exception e) {
-					throw new CompletionException(new FlinkException("Could not run the jar.", e));
-				}
-			},
-			executor);
+		final boolean allowNonRestoredState = fromRequestBodyOrQueryParameter(
+			requestBody.getAllowNonRestoredState(),
+			() -> getQueryParameter(request, AllowNonRestoredStateQueryParameter.class),
+			false,
+			log);
+		final String savepointPath = fromRequestBodyOrQueryParameter(
+			emptyToNull(requestBody.getSavepointPath()),
+			() -> emptyToNull(getQueryParameter(request, SavepointPathQueryParameter.class)),
+			null,
+			log);
+		final SavepointRestoreSettings savepointRestoreSettings;
+		if (savepointPath != null) {
+			savepointRestoreSettings = SavepointRestoreSettings.forPath(
+				savepointPath,
+				allowNonRestoredState);
+		} else {
+			savepointRestoreSettings = SavepointRestoreSettings.none();
+		}
+		return savepointRestoreSettings;
+	}
+
+	private CompletableFuture<JobGraph> getJobGraphAsync(
+			JarHandlerContext context,
+			final SavepointRestoreSettings savepointRestoreSettings) {
+		return CompletableFuture.supplyAsync(() -> {
+			final JobGraph jobGraph = context.toJobGraph(configuration);
+			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
+			return jobGraph;
+		}, executor);
 	}
 }

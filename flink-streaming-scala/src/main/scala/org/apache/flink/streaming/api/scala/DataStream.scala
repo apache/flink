@@ -23,6 +23,8 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.operators.ResourceSpec
+import org.apache.flink.api.common.serialization.SerializationSchema
+import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
@@ -38,7 +40,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
-import org.apache.flink.streaming.util.serialization.SerializationSchema
 import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
@@ -364,6 +365,27 @@ class DataStream[T](stream: JavaStream[T]) {
     asScalaStream(stream.connect(dataStream.javaStream))
 
   /**
+    * Creates a new [[BroadcastConnectedStream]] by connecting the current
+    * [[DataStream]] or [[KeyedStream]] with a [[BroadcastStream]].
+    *
+    * The latter can be created using the [[broadcast(MapStateDescriptor[])]] method.
+    *
+    * The resulting stream can be further processed using the
+    * ``broadcastConnectedStream.process(myFunction)``
+    * method, where ``myFunction`` can be either a
+    * [[org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction]]
+    * or a [[org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction]]
+    * depending on the current stream being a [[KeyedStream]] or not.
+    *
+    * @param broadcastStream The broadcast stream with the broadcast state to be
+    *                        connected with this stream.
+    * @return The [[BroadcastConnectedStream]].
+    */
+  @PublicEvolving
+  def connect[R](broadcastStream: BroadcastStream[R]): BroadcastConnectedStream[T, R] =
+    asScalaStream(stream.connect(broadcastStream))
+
+  /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
@@ -390,6 +412,18 @@ class DataStream[T](stream: JavaStream[T]) {
       override def getProducedType: TypeInformation[K] = keyType
     }
     asScalaStream(new JavaKeyedStream(stream, keyExtractor, keyType))
+  }
+
+  /**
+   * Groups the elements of a DataStream by the given K key to
+   * be used with grouped operators like grouped reduce or grouped aggregations.
+   */
+  def keyBy[K: TypeInformation](fun: KeySelector[T, K]): KeyedStream[T, K] = {
+
+    val cleanFun = clean(fun)
+    val keyType: TypeInformation[K] = implicitly[TypeInformation[K]]
+
+    asScalaStream(new JavaKeyedStream(stream, cleanFun, keyType))
   }
 
   /**
@@ -440,6 +474,26 @@ class DataStream[T](stream: JavaStream[T]) {
    * are broad casted to every parallel instance of the next component.
    */
   def broadcast: DataStream[T] = asScalaStream(stream.broadcast())
+
+  /**
+    * Sets the partitioning of the [[DataStream]] so that the output elements
+    * are broadcasted to every parallel instance of the next operation. In addition,
+    * it implicitly creates as many
+    * [[org.apache.flink.api.common.state.BroadcastState broadcast states]]
+    * as the specified descriptors which can be used to store the element of the stream.
+    *
+    * @param broadcastStateDescriptors the descriptors of the broadcast states to create.
+    * @return A [[BroadcastStream]] which can be used in the
+    *         [[DataStream.connect(BroadcastStream)]] to create a
+    *         [[BroadcastConnectedStream]] for further processing of the elements.
+    */
+  @PublicEvolving
+  def broadcast(broadcastStateDescriptors: MapStateDescriptor[_, _]*): BroadcastStream[T] = {
+    if (broadcastStateDescriptors == null) {
+      throw new NullPointerException("State Descriptors must not be null.")
+    }
+    javaStream.broadcast(broadcastStateDescriptors: _*)
+  }
 
   /**
    * Sets the partitioning of the DataStream so that the output values all go to
@@ -527,7 +581,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * stream of the iterative part.
    *
    * The input stream of the iterate operator and the feedback stream will be treated
-   * as a ConnectedStreams where the the input is connected with the feedback stream.
+   * as a ConnectedStreams where the input is connected with the feedback stream.
    *
    * This allows the user to distinguish standard input from feedback inputs.
    *
@@ -861,13 +915,19 @@ class DataStream[T](stream: JavaStream[T]) {
    * Operator used for directing tuples to specific named outputs using an
    * OutputSelector. Calling this method on an operator creates a new
    * [[SplitStream]].
+   *
+   * @deprecated Please use side output instead.
    */
+  @deprecated
   def split(selector: OutputSelector[T]): SplitStream[T] = asScalaStream(stream.split(selector))
 
   /**
    * Creates a new [[SplitStream]] that contains only the elements satisfying the
    *  given output selector predicate.
+   *
+   * @deprecated Please use side output instead.
    */
+  @deprecated
   def split(fun: T => TraversableOnce[String]): SplitStream[T] = {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
@@ -916,6 +976,29 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @PublicEvolving
   def printToErr() = stream.printToErr()
+
+  /**
+    * Writes a DataStream to the standard output stream (stdout). For each
+    * element of the DataStream the result of [[AnyRef.toString()]] is
+    * written.
+    *
+    * @param sinkIdentifier The string to prefix the output with.
+    * @return The closed DataStream.
+    */
+  @PublicEvolving
+  def print(sinkIdentifier: String): DataStreamSink[T] = stream.print(sinkIdentifier)
+
+  /**
+    * Writes a DataStream to the standard output stream (stderr).
+    *
+    * For each element of the DataStream the result of
+    * [[AnyRef.toString()]] is written.
+    *
+    * @param sinkIdentifier The string to prefix the output with.
+    * @return The closed DataStream.
+    */
+  @PublicEvolving
+  def printToErr(sinkIdentifier: String) = stream.printToErr(sinkIdentifier)
 
   /**
     * Writes a DataStream to the file specified by path in text format. For
@@ -1047,7 +1130,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
     val cleanFun = clean(fun)
     val sinkFunction = new SinkFunction[T] {
-      def invoke(in: T) = cleanFun(in)
+      override def invoke(in: T) = cleanFun(in)
     }
     this.addSink(sinkFunction)
   }

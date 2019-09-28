@@ -19,19 +19,20 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -84,8 +85,8 @@ public class FlinkKafkaProducerBaseTest {
 
 		assertTrue(props.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
 		assertTrue(props.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG));
-		assertTrue(props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG).equals(ByteArraySerializer.class.getCanonicalName()));
-		assertTrue(props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG).equals(ByteArraySerializer.class.getCanonicalName()));
+		assertTrue(props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG).equals(ByteArraySerializer.class.getName()));
+		assertTrue(props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG).equals(ByteArraySerializer.class.getName()));
 	}
 
 	/**
@@ -96,7 +97,7 @@ public class FlinkKafkaProducerBaseTest {
 	public void testPartitionerInvokedWithDeterminatePartitionList() throws Exception {
 		FlinkKafkaPartitioner<String> mockPartitioner = mock(FlinkKafkaPartitioner.class);
 
-		RuntimeContext mockRuntimeContext = mock(RuntimeContext.class);
+		RuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
 		when(mockRuntimeContext.getIndexOfThisSubtask()).thenReturn(0);
 		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
 
@@ -189,7 +190,7 @@ public class FlinkKafkaProducerBaseTest {
 	 * Test ensuring that if an async exception is caught for one of the flushed requests on checkpoint,
 	 * it should be rethrown; we set a timeout because the test will not finish if the logic is broken.
 	 *
-	 * <p>Note that this test does not test the snapshot method is blocked correctly when there are pending recorrds.
+	 * <p>Note that this test does not test the snapshot method is blocked correctly when there are pending records.
 	 * The test for that is covered in testAtLeastOnceProducer.
 	 */
 	@SuppressWarnings("unchecked")
@@ -351,7 +352,7 @@ public class FlinkKafkaProducerBaseTest {
 			when(mockProducer.send(any(ProducerRecord.class), any(Callback.class))).thenAnswer(new Answer<Object>() {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-					pendingCallbacks.add(invocationOnMock.getArgumentAt(1, Callback.class));
+					pendingCallbacks.add(invocationOnMock.getArgument(1));
 					return null;
 				}
 			});

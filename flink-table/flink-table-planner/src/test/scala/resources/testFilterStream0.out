@@ -1,0 +1,20 @@
+== Abstract Syntax Tree ==
+LogicalFilter(condition=[=(MOD($0, 2), 0)])
+  %logicalSourceNode0%
+
+== Optimized Logical Plan ==
+DataStreamCalc(select=[a, b], where=[=(MOD(a, 2), 0)])
+  %sourceNode0%
+
+== Physical Execution Plan ==
+Stage 1 : Data Source
+	content : collect elements with CollectionInputFormat
+
+	Stage 2 : Operator
+		content : from: (a, b)
+		ship_strategy : REBALANCE
+
+		Stage 3 : Operator
+			content : where: (=(MOD(a, 2), 0)), select: (a, b)
+			ship_strategy : FORWARD
+

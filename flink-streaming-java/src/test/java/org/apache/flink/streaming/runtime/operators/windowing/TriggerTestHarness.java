@@ -28,7 +28,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -37,6 +39,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.TestInternalTimerService;
@@ -48,6 +51,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Utility for testing {@link Trigger} behaviour.
@@ -74,13 +78,18 @@ public class TriggerTestHarness<T, W extends Window> {
 		MemoryStateBackend backend = new MemoryStateBackend();
 
 		@SuppressWarnings("unchecked")
-		HeapKeyedStateBackend<Integer> stateBackend = (HeapKeyedStateBackend<Integer>) backend.createKeyedStateBackend(dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				1,
-				new KeyGroupRange(0, 0),
-				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+		HeapKeyedStateBackend<Integer> stateBackend = (HeapKeyedStateBackend<Integer>) backend.createKeyedStateBackend(
+			dummyEnv,
+			new JobID(),
+			"test_op",
+			IntSerializer.INSTANCE,
+			1,
+			new KeyGroupRange(0, 0),
+			new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			new CloseableRegistry());
 		this.stateBackend = stateBackend;
 
 		this.stateBackend.setCurrentKey(KEY);
@@ -115,11 +124,11 @@ public class TriggerTestHarness<T, W extends Window> {
 	}
 
 	public int numStateEntries() {
-		return stateBackend.numStateEntries();
+		return stateBackend.numKeyValueStateEntries();
 	}
 
 	public int numStateEntries(W window) {
-		return stateBackend.numStateEntries(window);
+		return stateBackend.numKeyValueStateEntries(window);
 	}
 
 	/**
@@ -379,7 +388,7 @@ public class TriggerTestHarness<T, W extends Window> {
 
 				if (rawState instanceof InternalMergingState) {
 					@SuppressWarnings("unchecked")
-					InternalMergingState<W, ?, ?> mergingState = (InternalMergingState<W, ?, ?>) rawState;
+					InternalMergingState<K, W, ?, ?, ?> mergingState = (InternalMergingState<K, W, ?, ?, ?>) rawState;
 					mergingState.mergeNamespaces(window, mergedWindows);
 				}
 				else {

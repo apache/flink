@@ -109,12 +109,9 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
 	}
 
 	@After
-	public void afterTest() {
+	public void afterTest() throws Exception {
 		if (this.ioManager != null) {
-			this.ioManager.shutdown();
-			if (!this.ioManager.isProperlyShutDown()) {
-				Assert.fail("I/O manager failed to properly shut down.");
-			}
+			this.ioManager.close();
 			this.ioManager = null;
 		}
 
@@ -299,9 +296,6 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
 		);
 
 		TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> pairComparator = new GenericPairComparator<>(comparator1, comparator2);
-
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
-		this.ioManager = new IOManagerAsync();
 
 		final int DUPLICATE_KEY = 13;
 

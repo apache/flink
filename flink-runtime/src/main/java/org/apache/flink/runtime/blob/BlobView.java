@@ -34,7 +34,9 @@ public interface BlobView {
 	 * @param jobId     ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param blobKey   The blob ID
 	 * @param localFile The local file to copy to
+	 *
+	 * @return whether the file was copied (<tt>true</tt>) or not (<tt>false</tt>)
 	 * @throws IOException If the copy fails
 	 */
-	void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException;
+	boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException;
 }

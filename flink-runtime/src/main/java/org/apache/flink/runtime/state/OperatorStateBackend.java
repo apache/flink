@@ -19,19 +19,21 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.util.Disposable;
 
 import java.io.Closeable;
 
 /**
  * Interface that combines both, the user facing {@link OperatorStateStore} interface and the system interface
- * {@link Snapshotable}
+ * {@link SnapshotStrategy}
  *
  */
-public interface OperatorStateBackend extends OperatorStateStore, Snapshotable<OperatorStateHandle>, Closeable {
+public interface OperatorStateBackend extends
+	OperatorStateStore,
+	SnapshotStrategy<SnapshotResult<OperatorStateHandle>>,
+	Closeable,
+	Disposable {
 
-	/**
-	 * Disposes the backend and releases all resources.
-	 */
+	@Override
 	void dispose();
-
 }

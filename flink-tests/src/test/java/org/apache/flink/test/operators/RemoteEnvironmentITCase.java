@@ -20,27 +20,21 @@ package org.apache.flink.test.operators;
 
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
-import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.runtime.minicluster.StandaloneMiniCluster;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.net.URI;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -55,52 +49,13 @@ public class RemoteEnvironmentITCase extends TestLogger {
 
 	private static final int USER_DOP = 2;
 
-	private static final String INVALID_STARTUP_TIMEOUT = "0.001 ms";
-
 	private static final String VALID_STARTUP_TIMEOUT = "100 s";
 
-	private static Configuration configuration;
-
-	private static StandaloneMiniCluster cluster;
-
-	@BeforeClass
-	public static void setupCluster() throws Exception {
-		configuration = new Configuration();
-
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, TM_SLOTS);
-
-		cluster = new StandaloneMiniCluster(configuration);
-	}
-
-	@AfterClass
-	public static void tearDownCluster() throws Exception {
-		cluster.close();
-	}
-
-	/**
-	 * Ensure that that Akka configuration parameters can be set.
-	 */
-	@Test(expected = FlinkException.class)
-	public void testInvalidAkkaConfiguration() throws Throwable {
-		Configuration config = new Configuration();
-		config.setString(AkkaOptions.STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
-
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				cluster.getHostname(),
-				cluster.getPort(),
-				config
-		);
-		env.getConfig().disableSysoutLogging();
-
-		DataSet<String> result = env.createInput(new TestNonRichInputFormat());
-		result.output(new LocalCollectionOutputFormat<>(new ArrayList<String>()));
-		try {
-			env.execute();
-			Assert.fail("Program should not run successfully, cause of invalid akka settings.");
-		} catch (ProgramInvocationException ex) {
-			throw ex.getCause();
-		}
-	}
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberSlotsPerTaskManager(TM_SLOTS)
+			.build());
 
 	/**
 	 * Ensure that the program parallelism can be set even if the configuration is supplied.
@@ -110,13 +65,16 @@ public class RemoteEnvironmentITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
+		final URI restAddress = MINI_CLUSTER_RESOURCE.getRestAddres();
+		final String hostname = restAddress.getHost();
+		final int port = restAddress.getPort();
+
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				cluster.getHostname(),
-				cluster.getPort(),
+				hostname,
+				port,
 				config
 		);
 		env.setParallelism(USER_DOP);
-		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> result = env.createInput(new ParallelismDependentInputFormat())
 				.rebalance()

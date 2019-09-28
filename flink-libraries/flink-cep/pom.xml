@@ -26,7 +26,7 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.4-SNAPSHOT</version>
+        <version>1.10-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -59,6 +59,14 @@ under the License.
 
         <!-- test dependencies -->
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-test-utils_${scala.binary.version}</artifactId>
@@ -88,8 +96,6 @@ under the License.
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
-
-
     </dependencies>
     
     <build>

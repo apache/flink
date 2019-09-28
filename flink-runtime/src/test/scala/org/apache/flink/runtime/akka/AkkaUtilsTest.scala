@@ -18,22 +18,33 @@
 
 package org.apache.flink.runtime.akka
 
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 
+import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException}
+import org.apache.flink.runtime.clusterframework.BootstrapTools.FixedThreadPoolExecutorConfiguration
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
-import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
 import org.apache.flink.util.NetUtils
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 
 @RunWith(classOf[JUnitRunner])
 class AkkaUtilsTest
   extends FunSuite
   with Matchers
   with BeforeAndAfterAll {
+
+  test("getAkkaConfig should validate transport heartbeats") {
+    val configuration = new Configuration()
+    configuration.setString(
+      AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE.key(),
+      AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL.defaultValue())
+    intercept[IllegalConfigurationException] {
+      AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
+    }
+  }
 
   test("getHostFromAkkaURL should return the correct host from a remote Akka URL") {
     val host = "127.0.0.1"
@@ -48,7 +59,7 @@ class AkkaUtilsTest
       AddressResolution.NO_ADDRESS_RESOLUTION,
       AkkaProtocol.TCP)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(remoteAkkaUrl)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(remoteAkkaUrl)
 
     result should equal(address)
   }
@@ -58,7 +69,7 @@ class AkkaUtilsTest
     val localAkkaURL = AkkaUtils.getLocalAkkaURL("actor")
 
     intercept[Exception] {
-      AkkaUtils.getInetSockeAddressFromAkkaURL(localAkkaURL)
+      AkkaUtils.getInetSocketAddressFromAkkaURL(localAkkaURL)
     }
   }
 
@@ -66,7 +77,7 @@ class AkkaUtilsTest
     val url = "akka://flink@localhost:1234/user/jobmanager"
     val expected = new InetSocketAddress("localhost", 1234)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(expected)
   }
@@ -75,7 +86,7 @@ class AkkaUtilsTest
     val url = "akka.tcp://flink@localhost:1234/user/jobmanager"
     val expected = new InetSocketAddress("localhost", 1234)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(expected)
   }
@@ -84,7 +95,7 @@ class AkkaUtilsTest
     val url = "akka.ssl.tcp://flink@localhost:1234/user/jobmanager"
     val expected = new InetSocketAddress("localhost", 1234)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(expected)
   }
@@ -96,7 +107,7 @@ class AkkaUtilsTest
     
     val url = s"akka://flink@$IPv4AddressString:$port/user/jobmanager"
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(address)
   }
@@ -108,7 +119,7 @@ class AkkaUtilsTest
 
     val url = s"akka://flink@[$IPv6AddressString]:$port/user/jobmanager"
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(address)
   }
@@ -120,7 +131,7 @@ class AkkaUtilsTest
 
     val url = s"akka.tcp://flink@[$IPv6AddressString]:$port/user/jobmanager"
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(address)
   }
@@ -132,8 +143,78 @@ class AkkaUtilsTest
 
     val url = s"akka.ssl.tcp://flink@[$IPv6AddressString]:$port/user/jobmanager"
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(address)
+  }
+
+  test("getAkkaConfig should normalize the hostname") {
+    val configuration = new Configuration()
+    val hostname = "AbC123foOBaR"
+    val port = 1234
+
+    val akkaConfig = AkkaUtils.getAkkaConfig(configuration, hostname, port)
+
+    akkaConfig.getString("akka.remote.netty.tcp.hostname") should
+      equal(NetUtils.unresolvedHostToNormalizedString(hostname))
+  }
+
+  test("null hostname should go to localhost") {
+    val configure = AkkaUtils.getAkkaConfig(new Configuration(), Some((null, 1772)))
+
+    val hostname = configure.getString("akka.remote.netty.tcp.hostname")
+
+    InetAddress.getByName(hostname).isLoopbackAddress should be(true)
+  }
+
+  test("getAkkaConfig defaults to fork-join-executor") {
+    val akkaConfig = AkkaUtils.getAkkaConfig(new Configuration())
+
+    akkaConfig.getString("akka.actor.default-dispatcher.executor") should
+      equal("fork-join-executor")
+  }
+
+  test("getAkkaConfig sets executor with thread priority") {
+    val threadPriority = 3
+    val minThreads = 1
+    val maxThreads = 3
+    val akkaConfig = AkkaUtils.getAkkaConfig(
+      new Configuration(),
+      "localhost",
+      1234,
+      AkkaUtils.getThreadPoolExecutorConfig(
+        new FixedThreadPoolExecutorConfiguration(minThreads, maxThreads, threadPriority)
+      ))
+
+    akkaConfig.getString("akka.actor.default-dispatcher.executor") should
+      equal("thread-pool-executor")
+
+    akkaConfig.getInt("akka.actor.default-dispatcher.thread-priority") should
+      equal(threadPriority)
+    akkaConfig.getInt("akka.actor.default-dispatcher.thread-pool-executor.core-pool-size-min")
+      .should(equal(minThreads))
+    akkaConfig.getInt("akka.actor.default-dispatcher.thread-pool-executor.core-pool-size-max")
+      .should(equal(maxThreads))
+  }
+
+  test("getAkkaConfig should work with ipv6 addresses") {
+    val ipv6AddressString = "2001:db8:10:11:12:ff00:42:8329"
+    val configuration = new Configuration()
+    val port = 1234
+
+    val akkaConfig = AkkaUtils.getAkkaConfig(configuration, ipv6AddressString, port)
+
+    akkaConfig.getString("akka.remote.netty.tcp.hostname") should
+      equal(NetUtils.unresolvedHostToNormalizedString(ipv6AddressString))
+  }
+
+  test("getAkkaConfig should set startup timeout to be 10 times of ask timeout by default") {
+    val configuration = new Configuration()
+    configuration.setString(AkkaOptions.ASK_TIMEOUT.key(), "100ms")
+
+    val akkaConfig = AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
+
+    akkaConfig.getString("akka.remote.startup-timeout") should
+      equal("1000ms")
   }
 }

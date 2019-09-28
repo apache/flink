@@ -54,8 +54,6 @@ public class HashTablePerformanceComparison {
 	
 	private final TypePairComparator<IntPair, IntPair> pairComparator = new IntPairPairComparator();
 	
-	private IOManager ioManager = new IOManagerAsync();
-	
 	@Test
 	public void testCompactingHashMapPerformance() {
 		
@@ -132,7 +130,7 @@ public class HashTablePerformanceComparison {
 	
 	@Test
 	public void testMutableHashMapPerformance() {
-		try {
+		try (IOManager ioManager = new IOManagerAsync()) {
 			final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
 			
 			MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_PAIRS, 1, false);

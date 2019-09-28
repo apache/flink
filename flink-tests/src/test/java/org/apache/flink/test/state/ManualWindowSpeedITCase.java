@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -49,7 +49,7 @@ import java.util.Random;
  * been processed in each window. This gives an estimate of the throughput.
  */
 @Ignore
-public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
+public class ManualWindowSpeedITCase extends AbstractTestBase {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -64,7 +64,7 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 		String checkpoints = tempFolder.newFolder().toURI().toString();
 		env.setStateBackend(new FsStateBackend(checkpoints));
 
-		env.addSource(new InfiniteTupleSource(10_000))
+		env.addSource(new InfiniteTupleSource(1_000))
 				.keyBy(0)
 				.timeWindow(Time.seconds(3))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {

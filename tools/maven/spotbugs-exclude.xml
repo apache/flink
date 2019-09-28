@@ -22,6 +22,13 @@ under the License.
 	<Match>
     	<Package name="~org\.apache\.calcite.*"/>
   	</Match>
+
+	<Match>
+		<!-- Intentional hack to reduce calls to the OS; locking is required for concurrency -->
+		<Bug pattern="SWL_SLEEP_WITH_LOCK_HELD"/>
+		<Class name="org.apache.flink.util.FileUtils"/>
+		<Method name="guardIfWindows"/>
+	</Match>
   	
 	<Match>
 		<Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>

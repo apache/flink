@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link io.netty.buffer.PooledByteBufAllocator} wrapper.
+ * Tests for the {@link NettyBufferPool} wrapper.
  */
 public class NettyBufferPoolTest {
 

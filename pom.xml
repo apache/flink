@@ -21,24 +21,24 @@ under the License.
 	<parent>
 		<groupId>org.apache</groupId>
 		<artifactId>apache</artifactId>
-		<version>18</version>
+		<version>20</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.4-SNAPSHOT</version>
+	<version>1.10-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
-	<url>http://flink.apache.org</url>
+	<url>https://flink.apache.org</url>
 	<inceptionYear>2014</inceptionYear>
 
 	<licenses>
 		<license>
 			<name>The Apache Software License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
@@ -46,32 +46,35 @@ under the License.
 	<scm>
 		<url>https://github.com/apache/flink</url>
 		<connection>git@github.com:apache/flink.git</connection>
-		<developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/flink.git</developerConnection>
+		<developerConnection>scm:git:https://gitbox.apache.org/repos/asf/flink.git</developerConnection>
 	</scm>
 
 	<modules>
 		<!-- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
 		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
-		<module>flink-shaded-hadoop</module>
 		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
-		<module>flink-java8</module>
 		<module>flink-scala</module>
+		<module>flink-filesystems</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
 		<module>flink-streaming-java</module>
 		<module>flink-streaming-scala</module>
 		<module>flink-connectors</module>
+		<module>flink-formats</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
+		<module>flink-container</module>
+		<module>flink-queryable-state</module>
 		<module>flink-tests</module>
 		<module>flink-end-to-end-tests</module>
 		<module>flink-test-utils-parent</module>
+		<module>flink-state-backends</module>
 		<module>flink-libraries</module>
-		<module>flink-scala-shell</module>
+		<module>flink-table</module>
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
@@ -80,6 +83,10 @@ under the License.
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
+		<module>flink-docs</module>
+		<module>flink-python</module>
+		<module>flink-ml-parent</module>
+		<module>flink-walkthroughs</module>
 	</modules>
 
 	<properties>
@@ -95,10 +102,11 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
+		<flink.shaded.version>8.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
-		<akka.version>2.3-custom</akka.version>
+		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
-		<slf4j.version>1.7.7</slf4j.version>
+		<slf4j.version>1.7.15</slf4j.version>
 		<log4j.version>1.2.17</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
@@ -106,19 +114,26 @@ under the License.
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<scala.macros.version>2.1.0</scala.macros.version>
-		<!-- Default scala versions, may be overwritten by build profiles -->
-		<scala.version>2.11.11</scala.version>
+		<!-- Default scala versions, must be overwritten by build profiles, so we set something
+		invalid here -->
+		<scala.version>2.11.12</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
-		<chill.version>0.7.4</chill.version>
+		<chill.version>0.7.6</chill.version>
 		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
-		<jackson.version>2.7.4</jackson.version>
+		<jackson.version>2.9.8</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
-		<prometheus.version>0.0.21</prometheus.version>
+		<prometheus.version>0.3.0</prometheus.version>
+		<avro.version>1.8.2</avro.version>
 		<junit.version>4.12</junit.version>
-		<mockito.version>1.10.19</mockito.version>
-		<powermock.version>1.6.5</powermock.version>
+		<mockito.version>2.21.0</mockito.version>
+		<powermock.version>2.0.2</powermock.version>
+		<hamcrest.version>1.3</hamcrest.version>
+		<py4j.version>0.10.8.1</py4j.version>
+		<beam.version>2.15.0</beam.version>
+		<protoc.version>3.7.1</protoc.version>
 		<japicmp.skip>false</japicmp.skip>
+		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -127,6 +142,16 @@ under the License.
 		-->
 		<minikdc.version>2.7.2</minikdc.version>
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
+		<hive.version>2.3.4</hive.version>
+		<!--
+			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
+			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
+		-->
+		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
+		<jamicmp.referenceVersion>1.8.0</jamicmp.referenceVersion>
+		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
+		<test.scheduler.type></test.scheduler.type>
+		<test.groups></test.groups>
 	</properties>
 
 	<dependencies>
@@ -134,7 +159,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>force-shading</artifactId>
-			<version>1.4-SNAPSHOT</version>
+			<version>1.10-SNAPSHOT</version>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
@@ -156,14 +181,13 @@ under the License.
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>${junit.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.mockito</groupId>
-			<artifactId>mockito-all</artifactId>
+			<artifactId>mockito-core</artifactId>
 			<version>${mockito.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
@@ -179,16 +203,22 @@ under the License.
 
 		<dependency>
 			<groupId>org.powermock</groupId>
-			<artifactId>powermock-api-mockito</artifactId>
+			<artifactId>powermock-api-mockito2</artifactId>
 			<version>${powermock.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.mockito</groupId>
+					<artifactId>mockito-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-all</artifactId>
-			<version>1.3</version>
+			<version>${hamcrest.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -212,22 +242,53 @@ under the License.
 	</dependencies>
 
 	<!-- this section defines the module versions that are used if nothing else is specified. -->
-	
+
 	<dependencyManagement>
-		<!-- WARN: 
-			DO NOT put 	guava, 
-						protobuf, 
+		<!-- WARN:
+			DO NOT put 	guava,
+						protobuf,
 						asm,
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
-			separatly in the flink-shaded-hadoop module).
+			separatly in the flink-shaded-hadoop-2 dependency).
 		-->
 		<dependencies>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-asm-7</artifactId>
+				<version>7.1-${flink.shaded.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-guava</artifactId>
-				<version>18.0-1.0</version>
+				<version>18.0-${flink.shaded.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-jackson</artifactId>
+				<version>${jackson.version}-${flink.shaded.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-jackson-module-jsonSchema</artifactId>
+				<version>${jackson.version}-${flink.shaded.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-netty</artifactId>
+				<version>4.1.39.Final-${flink.shaded.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
+				<version>2.0.25.Final-${flink.shaded.version}</version>
+				<scope>test</scope>
 			</dependency>
 
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
@@ -262,28 +323,78 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-shaded-asm</artifactId>
-				<version>5.0.4-1.0</version>
+				<groupId>org.xerial.snappy</groupId>
+				<artifactId>snappy-java</artifactId>
+				<version>1.1.4</version>
 			</dependency>
 
-			<!-- Make sure we use a consistent avro version throughout the project -->
+			<dependency>
+				<groupId>com.github.oshi</groupId>
+				<artifactId>oshi-core</artifactId>
+				<version>3.4.0</version>
+			</dependency>
+
+			<!-- Make sure we use a consistent avro version between Flink and Hadoop -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
-				<version>1.8.2</version>
+				<version>${avro.version}</version>
 			</dependency>
-			
+
+			<!-- For dependency convergence -->
 			<dependency>
-				<groupId>org.apache.avro</groupId>
-				<artifactId>avro-ipc</artifactId>
-				<version>1.8.2</version>
+				<groupId>org.hamcrest</groupId>
+				<artifactId>hamcrest-core</artifactId>
+				<version>${hamcrest.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>org.xerial.snappy</groupId>
-				<artifactId>snappy-java</artifactId>
-				<version>1.1.1.3</version>
+				<!-- mockito/powermock mismatch -->
+				<groupId>net.bytebuddy</groupId>
+				<artifactId>byte-buddy</artifactId>
+				<version>1.8.15</version>
+			</dependency>
+
+			<dependency>
+				<!-- mockito/powermock mismatch -->
+				<groupId>net.bytebuddy</groupId>
+				<artifactId>byte-buddy-agent</artifactId>
+				<version>1.8.15</version>
+			</dependency>
+
+			<!-- For dependency convergence -->
+			<dependency>
+				<groupId>org.objenesis</groupId>
+				<artifactId>objenesis</artifactId>
+				<version>2.1</version>
+			</dependency>
+
+			<!-- For dependency convergence -->
+			<dependency>
+				<groupId>com.typesafe</groupId>
+				<artifactId>config</artifactId>
+				<version>1.3.0</version>
+			</dependency>
+
+			<!-- For dependency convergence -->
+			<dependency>
+				<groupId>commons-logging</groupId>
+				<artifactId>commons-logging</artifactId>
+				<version>1.1.3</version>
+			</dependency>
+
+			<!-- For dependency convergence -->
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>${junit.version}</version>
+			</dependency>
+
+			<!-- For dependency convergence -->
+			<dependency>
+				<groupId>org.tukaani</groupId>
+				<artifactId>xz</artifactId>
+				<version>1.5</version>
 			</dependency>
 
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->
@@ -304,13 +415,6 @@ under the License.
 				<groupId>commons-collections</groupId>
 				<artifactId>commons-collections</artifactId>
 				<version>3.2.2</version>
-			</dependency>
-
-			<!-- common-beanutils-bean-collections is used by flink-shaded-hadoop2 -->
-			<dependency>
-				<groupId>commons-beanutils</groupId>
-				<artifactId>commons-beanutils-bean-collections</artifactId>
-				<version>1.8.3</version>
 			</dependency>
 
 			<!--We have to bump the commons-configuration to version 1.7 because Hadoop uses per
@@ -342,14 +446,14 @@ under the License.
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
-				<version>1.4.1</version>
+				<version>1.18</version>
 			</dependency>
 
 			<!-- Managed dependency required for HBase in flink-hbase -->
 			<dependency>
 				<groupId>org.javassist</groupId>
 				<artifactId>javassist</artifactId>
-				<version>3.18.2-GA</version>
+				<version>3.24.0-GA</version>
 			</dependency>
 
 			<!-- joda time is pulled in different versions by different transitive dependencies-->
@@ -364,7 +468,7 @@ under the License.
 				<artifactId>joda-convert</artifactId>
 				<version>1.7</version>
 			</dependency>
-			
+
 			<!-- kryo used in different versions by Flink an chill -->
 			<dependency>
 				<groupId>com.esotericsoftware.kryo</groupId>
@@ -393,36 +497,68 @@ under the License.
 			<dependency>
 				<groupId>org.clapper</groupId>
 				<artifactId>grizzled-slf4j_${scala.binary.version}</artifactId>
-				<version>1.0.2</version>
+				<version>1.3.2</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-actor_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-remote_${scala.binary.version}</artifactId>
+				<version>${akka.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>io.aeron</groupId>
+						<artifactId>aeron-driver</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>io.aeron</groupId>
+						<artifactId>aeron-client</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+                visible after the shading (without relocation!) of akka-remote -->
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-stream_${scala.binary.version}</artifactId>
+				<version>${akka.version}</version>
+			</dependency>
+
+			<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+                visible after the shading (without relocation!) of akka-remote -->
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-protobuf_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-camel_${scala.binary.version}</artifactId>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-camel_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+				<groupId>org.scala-lang.modules</groupId>
+				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
+				<version>1.1.1</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 				<scope>test</scope>
 			</dependency>
@@ -430,7 +566,7 @@ under the License.
 			<dependency>
 				<groupId>org.scalatest</groupId>
 				<artifactId>scalatest_${scala.binary.version}</artifactId>
-				<version>2.2.2</version>
+				<version>3.0.0</version>
 				<scope>test</scope>
 			</dependency>
 
@@ -459,21 +595,17 @@ under the License.
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
 					</exclusion>
+					<!-- Netty is only needed for ZK servers, not clients -->
+					<exclusion>
+						<groupId>io.netty</groupId>
+						<artifactId>netty</artifactId>
+					</exclusion>
+					<!-- jline is optional for ZK console shell -->
+					<exclusion>
+						<groupId>jline</groupId>
+						<artifactId>jline</artifactId>
+					</exclusion>
 				</exclusions>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-shaded-netty</artifactId>
-				<!-- Don't upgrade for now. Netty versions >= 4.0.28.Final
-				contain an improvement by Netty, which slices a Netty buffer
-				instead of doing a memory copy [1] in the
-				LengthFieldBasedFrameDecoder. In some situations, this
-				interacts badly with our Netty pipeline leading to OutOfMemory
-				errors.
-
-				[1] https://github.com/netty/netty/issues/3704 -->
-				<version>4.0.27.Final-1.0</version>
 			</dependency>
 
 			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
@@ -493,46 +625,296 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-core</artifactId>
-				<version>${jackson.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-databind</artifactId>
-				<version>${jackson.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-annotations</artifactId>
-				<version>${jackson.version}</version>
-			</dependency>
-
-			<dependency>
 				<groupId>org.reflections</groupId>
 				<artifactId>reflections</artifactId>
 				<version>0.9.10</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-test-utils-junit</artifactId>
+				<version>${project.version}</version>
 				<scope>test</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<profiles>
-		
-		<!-- Profile to switch to Scala Version 2.10 -->
 		<profile>
-			<id>scala-2.10</id>
+			<id>scheduler-ng</id>
+			<properties>
+				<scheduler.type>ng</scheduler.type>
+				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG</test.groups>
+			</properties>
 			<activation>
 				<property>
-					<name>scala-2.10</name>
+					<name>scheduler-ng</name>
 				</property>
 			</activation>
+		</profile>
+
+		<profile>
+			<id>scala-2.11</id>
 			<properties>
-				<scala.version>2.10.6</scala.version>
-				<scala.binary.version>2.10</scala.binary.version>
+				<scala.version>2.11.12</scala.version>
+				<scala.binary.version>2.11</scala.binary.version>
 			</properties>
+			<activation>
+				<property>
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+			<!-- Scala Shell doesn't currently work with Scala 2.12 so only include
+			when building for Scala 2.11. -->
+			<modules>
+				<module>flink-scala-shell</module>
+			</modules>
+			<build>
+				<plugins>
+					<!-- make sure we don't have any _2.10 or _2.12 dependencies when building
+					for Scala 2.11 -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>enforce-versions</id>
+								<goals>
+									<goal>enforce</goal>
+								</goals>
+								<configuration>
+									<rules>
+										<bannedDependencies>
+											<excludes combine.children="append">
+												<exclude>*:*_2.12</exclude>
+												<exclude>*:*_2.10</exclude>
+											</excludes>
+										</bannedDependencies>
+									</rules>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+
+		<profile>
+			<id>scala-2.12</id>
+			<properties>
+				<scala.version>2.12.7</scala.version>
+				<scala.binary.version>2.12</scala.binary.version>
+			</properties>
+			<activation>
+				<property>
+					<name>scala-2.12</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<!-- don't run tests that don't work for Scala 2.12, because not all of the
+					required test dependencies are available for Scala 2.12. The Kafka 0.9 connector
+					still works with Scala 2.12 because it only needs the scala-version-independent
+					kafka-clients dependency at runtime. -->
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>regex-property</id>
+								<goals>
+									<goal>regex-property</goal>
+								</goals>
+								<configuration>
+									<name>maven.test.skip</name>
+									<value>${project.artifactId}</value>
+									<regex>(flink-connector-kafka-0.9.*)|(flink-scala-shell.*)</regex>
+									<replacement>true</replacement>
+									<failIfNoMatch>false</failIfNoMatch>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<!-- make sure we don't have any _2.10 or _2.11 dependencies when building
+					for Scala 2.12 -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>enforce-versions</id>
+								<goals>
+									<goal>enforce</goal>
+								</goals>
+								<configuration>
+									<rules>
+										<bannedDependencies>
+											<excludes combine.children="append">
+												<exclude>*:*_2.11</exclude>
+												<exclude>*:*_2.10</exclude>
+											</excludes>
+										</bannedDependencies>
+									</rules>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>java11</id>
+			<activation>
+				<jdk>11</jdk>
+			</activation>
+
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.codehaus.mojo</groupId>
+							<artifactId>build-helper-maven-plugin</artifactId>
+							<version>1.7</version>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-shade-plugin</artifactId>
+							<version>3.2.1</version>
+						</plugin>
+						<plugin>
+							<groupId>com.github.siom79.japicmp</groupId>
+							<artifactId>japicmp-maven-plugin</artifactId>
+							<dependencies>
+								<dependency>
+									<groupId>javax.xml.bind</groupId>
+									<artifactId>jaxb-api</artifactId>
+									<version>2.3.0</version>
+								</dependency>
+								<dependency>
+									<groupId>com.sun.xml.bind</groupId>
+									<artifactId>jaxb-impl</artifactId>
+									<version>2.3.0</version>
+								</dependency>
+								<dependency>
+									<groupId>com.sun.xml.bind</groupId>
+									<artifactId>jaxb-core</artifactId>
+									<version>2.3.0</version>
+								</dependency>
+								<dependency>
+									<groupId>javax.activation</groupId>
+									<artifactId>activation</artifactId>
+									<version>1.1.1</version>
+								</dependency>
+							</dependencies>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludedGroups>org.apache.flink.testutils.junit.FailsOnJava11</excludedGroups>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<source>11</source>
+							<target>11</target>
+							<compilerArgs combine.children="append">
+								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
+								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
+							</compilerArgs>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>fast</id>
+			<activation>
+				<property>
+					<name>fast</name>
+				</property>
+			</activation>
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.apache.rat</groupId>
+							<artifactId>apache-rat-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-checkstyle-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.scalastyle</groupId>
+							<artifactId>scalastyle-maven-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-enforcer-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-javadoc-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>com.github.siom79.japicmp</groupId>
+							<artifactId>japicmp-maven-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+			</build>
+		</profile>
+
+		<profile>
+			<id>check-convergence</id>
+			<activation>
+				<property>
+					<name>check-convergence</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>dependency-convergence</id>
+								<phase>${flink.convergence.phase}</phase>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 
 		<profile>
@@ -564,7 +946,7 @@ under the License.
 							<threshold>Low</threshold>
 							<effort>default</effort>
 							<findbugsXmlOutputDirectory>${project.build.directory}/spotbugs</findbugsXmlOutputDirectory>
-							<excludeFilterFile>tools/maven/spotbugs-exclude.xml</excludeFilterFile>
+							<excludeFilterFile>${rootDir}/tools/maven/spotbugs-exclude.xml</excludeFilterFile>
 							<failOnError>true</failOnError>
 						</configuration>
 					</plugin>
@@ -588,7 +970,7 @@ under the License.
 									<outputDir>${project.build.directory}/spotbugs</outputDir>
 									<!-- A list of available stylesheets can be found here: https://github.com/findbugsproject/findbugs/tree/master/findbugs/src/xsl -->
 									<stylesheet>plain.xsl</stylesheet>
-									
+
 									<fileMappers>
 										<fileMapper
 											implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
@@ -612,6 +994,11 @@ under the License.
 
 		<profile>
 			<id>vendor-repos</id>
+			<activation>
+				<property>
+					<name>vendor-repos</name>
+				</property>
+			</activation>
 			<!-- Add vendor maven repositories -->
 			<repositories>
 				<!-- Cloudera -->
@@ -629,21 +1016,21 @@ under the License.
 				<repository>
 					<id>HDPReleases</id>
 					<name>HDP Releases</name>
-					<url>http://repo.hortonworks.com/content/repositories/releases/</url>
+					<url>https://repo.hortonworks.com/content/repositories/releases/</url>
 					<snapshots><enabled>false</enabled></snapshots>
 					<releases><enabled>true</enabled></releases>
 				</repository>
 				<repository>
 					<id>HortonworksJettyHadoop</id>
 					<name>HDP Jetty</name>
-					<url>http://repo.hortonworks.com/content/repositories/jetty-hadoop</url>
+					<url>https://repo.hortonworks.com/content/repositories/jetty-hadoop</url>
 					<snapshots><enabled>false</enabled></snapshots>
 					<releases><enabled>true</enabled></releases>
 				</repository>
 				<!-- MapR -->
 				<repository>
 					<id>mapr-releases</id>
-					<url>http://repository.mapr.com/maven/</url>
+					<url>https://repository.mapr.com/maven/</url>
 					<snapshots><enabled>false</enabled></snapshots>
 					<releases><enabled>true</enabled></releases>
 				</repository>
@@ -656,6 +1043,11 @@ under the License.
 				to be able to locate the MapR Hadoop / Zookeeper dependencies.
 			-->
 			<id>mapr</id>
+			<activation>
+				<property>
+					<name>mapr</name>
+				</property>
+			</activation>
 
 			<!--
 				use MapR Hadoop / Zookeeper dependencies appropriate for MapR 5.2.0;
@@ -687,121 +1079,20 @@ under the License.
 		</profile>
 
 		<profile>
-			<!-- used for aggregating  ScalaDoc with JavaDoc -->
+            <!-- Kept for backwards compatiblity, the doc buildbot expects
+                 this profile to exist.-->
 			<id>aggregate-scaladoc</id>
-			<dependencies>
-				<dependency>
-					<!--
-					This is necessary for building the java docs using Java 8. Otherwise the javadoc
-					plugin will fail with "javadoc: error -
-						com.sun.tools.doclets.internal.toolkit.util.DocletAbortException:
-							com.sun.tools.javac.code.Symbol$CompletionFailure:
-								class file for akka.testkit.TestKit not found"
-					-->
-					<groupId>com.data-artisans</groupId>
-					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
-					<version>${akka.version}</version>
-					<scope>provided</scope>
-				</dependency>
-			</dependencies>
-			<build>
-
-				<plugins>
-					<!-- We need to clean compiled classes to make sure that genjavadoc
-					is called to generate our fake Java source from Scala source. -->
-					<plugin>
-						<artifactId>maven-clean-plugin</artifactId>
-						<version>2.5</version><!--$NO-MVN-MAN-VER$-->
-						<executions>
-							<execution>
-								<id>clean-target</id>
-								<phase>generate-sources</phase>
-								<goals>
-									<goal>clean</goal>
-								</goals>
-								<configuration>
-									<excludeDefaultDirectories>true</excludeDefaultDirectories>
-									<filesets>
-										<fileset>
-											<directory>${project.build.directory}</directory>
-											<includes>
-												<include>**/*.class</include>
-												<include>**/classes.*.timestamp</include>
-											</includes>
-										</fileset>
-									</filesets>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-
-					<plugin>
-						<groupId>net.alchim31.maven</groupId>
-						<artifactId>scala-maven-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>doc</id>
-								<phase>generate-sources</phase>
-								<goals>
-									<goal>compile</goal>
-								</goals>
-							</execution>
-						</executions>
-						<configuration>
-							<args>
-								<arg>-P:genjavadoc:out=${project.build.directory}/genjavadoc</arg>
-							</args>
-							<compilerPlugins>
-								<compilerPlugin>
-									<groupId>com.typesafe.genjavadoc</groupId>
-									<artifactId>genjavadoc-plugin_${scala.version}</artifactId>
-									<version>0.10</version>
-								</compilerPlugin>
-							</compilerPlugins>
-						</configuration>
-					</plugin>
-					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>build-helper-maven-plugin</artifactId>
-						<version>1.7</version>
-						<executions>
-							<execution>
-								<phase>generate-sources</phase>
-								<goals>
-									<goal>add-source</goal>
-								</goals>
-								<configuration>
-									<sources>
-										<source>${project.build.directory}/genjavadoc</source>
-									</sources>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
 		</profile>
-		
-		<profile>
-			<!--japicmp 0.7 does not support deactivation from the command
-				line, so we have to use a workaround with profiles instead.
-				This can be removed when upgrading japicmp to 0.10+.
-				-->
-			<id>skip-japicmp</id>
-			<activation>
-				<property>
-					<name>japicmp.skip</name>
-					<value>true</value>
-				</property>
-			</activation>
-			<properties>
-				<japicmp.skip>true</japicmp.skip>
-			</properties>
-		</profile>
+
 
 		<profile>
 			<!-- used for SNAPSHOT and regular releases -->
 			<id>docs-and-source</id>
+			<activation>
+				<property>
+					<name>docs-and-source</name>
+				</property>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>
@@ -844,16 +1135,21 @@ under the License.
 							com.sun.tools.javac.code.Symbol$CompletionFailure:
 								class file for akka.testkit.TestKit not found"
 					-->
-					<groupId>com.data-artisans</groupId>
-					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 					<version>${akka.version}</version>
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>
 		</profile>
-		
+
 		<profile>
 			<id>release</id>
+			<activation>
+				<property>
+					<name>release</name>
+				</property>
+			</activation>
 			<properties>
 				<java.version>1.8</java.version>
 			</properties>
@@ -876,7 +1172,6 @@ under the License.
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-enforcer-plugin</artifactId>
-						<version>1.4.1</version>
 						<executions>
 							<execution>
 								<id>enforce-maven</id>
@@ -893,7 +1188,6 @@ under the License.
 											<version>1.8.0</version>
 										</requireJavaVersion>
 									</rules>
-
 								</configuration>
 							</execution>
 						</executions>
@@ -932,6 +1226,21 @@ under the License.
 
 	<build>
 		<plugins>
+			<!--
+			We need to include this here because some of our modules have transitive dependencies
+			on jdbm1, which is of type "bundle". This only works if you include the
+			maven-bundle-plugin (see https://issues.apache.org/jira/browse/DIRSHARED-134). We need
+			the plugin in the root pom because Javadoc aggregation runs only in the root pom and
+			not the specific poms. Not having this here was the cause for FLINK-7702.
+			-->
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>3.0.1</version>
+				<inherited>true</inherited>
+				<extensions>true</extensions>
+			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -949,7 +1258,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
-				<version>0.11</version><!--$NO-MVN-MAN-VER$-->
+				<version>0.12</version><!--$NO-MVN-MAN-VER$-->
 				<inherited>false</inherited>
 				<executions>
 					<execution>
@@ -999,6 +1308,7 @@ under the License.
 						<exclude>**/*.prefs</exclude>
 						<exclude>**/*.log</exclude>
 						<!-- External web libraries. -->
+						<exclude>docs/**/jquery*</exclude>
 						<exclude>docs/**/bootstrap*</exclude>
 						<exclude>docs/Gemfile.lock</exclude>
 						<exclude>docs/ruby2/Gemfile.lock</exclude>
@@ -1011,49 +1321,71 @@ under the License.
 
 						<!-- the licenses that are re-bundled -->
 						<exclude>**/packaged_licenses/LICENSE.*.txt</exclude>
+						<exclude>**/licenses/LICENSE*</exclude>
+						<exclude>**/licenses-binary/LICENSE*</exclude>
 
 						<!-- web dashboard config JSON files -->
 						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/bower.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/package-lock.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/angular.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/proxy.conf.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/tsconfig.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/tslint.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/src/browserslist</exclude>
+						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.app.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.spec.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/src/tslint.json</exclude>
 
-						<!-- web dashboard files under 3rd party license -->
-						<exclude>flink-runtime-web/web-dashboard/vendor-local/d3-timeline.js</exclude>
-						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
-						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
-
-						<!-- web dashboard non-binary image assets -->
-						<exclude>flink-runtime-web/web-dashboard/assets/images/browserconfig.xml</exclude>
-						<exclude>flink-runtime-web/web-dashboard/assets/images/manifest.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/assets/images/safari-pinned-tab.svg</exclude>
+						<!-- web dashboard non-binary assets -->
+						<exclude>flink-runtime-web/web-dashboard/src/assets/**</exclude>
 
 						<!-- generated contents -->
 						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
+						<!-- old version -->
+						<exclude>flink-runtime-web/web-dashboard/old-version/**</exclude>
+
 						<!-- downloaded and generated web libraries. -->
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
-						<exclude>flink-runtime-web/web-dashboard/bower_components/**</exclude>
-						<exclude>flink-runtime-web/web-dashboard/tmp/**</exclude>
+						<exclude>flink-runtime-web/web-dashboard/node/**</exclude>
 
 						<!-- Test Data. -->
+						<exclude>**/src/test/resources/*-data</exclude>
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
-						<exclude>flink-tests/src/test/resources/flink_11-kryo_registrations</exclude>
-						<exclude>flink-connectors/flink-avro/src/test/resources/avro/*.avsc</exclude>
+                        <exclude>flink-formats/flink-avro/src/test/resources/flink_11-kryo_registrations</exclude>
+						<exclude>flink-runtime/src/test/resources/flink_11-kryo_registrations</exclude>
+						<exclude>flink-core/src/test/resources/kryo-serializer-config-snapshot-v1</exclude>
+						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
-						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
-						<exclude>test-infra/end-to-end-test/test-data/*</exclude>
+						<exclude>flink-table/flink-table-planner/src/test/scala/resources/*.out</exclude>
+						<exclude>flink-table/flink-table-planner-blink/src/test/resources/digest/*.out</exclude>
+						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/*.out</exclude>
+						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
+						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
+						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
+						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
+						<exclude>flink-connectors/flink-connector-kafka-0.11/src/test/resources/**</exclude>
+						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/*-snapshot</exclude>
+						<exclude>**/src/test/resources/*.snapshot</exclude>
 						<exclude>**/src/test/resources/*-savepoint</exclude>
+						<exclude>flink-core/src/test/resources/serialized-kryo-serializer-1.3</exclude>
+						<exclude>flink-core/src/test/resources/type-without-avro-serialized-using-kryo</exclude>
+						<exclude>flink-formats/flink-avro/src/test/resources/flink-1.4-serializer-java-serialized</exclude>
 
-						<exclude>flink-connectors/flink-avro/src/test/resources/testdata.avro</exclude>
-						<exclude>flink-connectors/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
-						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
-						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_text</exclude>
+						<exclude>flink-end-to-end-tests/flink-state-evolution-test/src/main/java/org/apache/flink/avro/generated/*</exclude>
+						<exclude>flink-end-to-end-tests/flink-state-evolution-test/savepoints/*</exclude>
+						<exclude>flink-formats/flink-avro/src/test/resources/testdata.avro</exclude>
+						<exclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</exclude>
+						<exclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</exclude>
+						<exclude>flink-formats/flink-parquet/src/test/resources/avro/**</exclude>
+						<!-- netty test file, still Apache License 2.0 but with a different header -->
+						<exclude>flink-runtime/src/test/java/org/apache/flink/runtime/io/network/buffer/AbstractByteBufTest.java</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<exclude>**/flink-bin/conf/masters</exclude>
-						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
 						<exclude>.github/**</exclude>
@@ -1070,69 +1402,53 @@ under the License.
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
+						<!-- Tools: japicmp output -->
+						<exclude>tools/japicmp-output/**</exclude>
+						<!-- artifacts created during release process -->
+						<exclude>tools/releasing/release/**</exclude>
 						<!-- manually installed version on travis -->
 						<exclude>apache-maven-3.2.5/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
+						<!-- Generated code via Avro -->
+						<exclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/**</exclude>
+						<exclude>flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/**</exclude>
+						<!-- Files generated by jepsen tests -->
+						<exclude>flink-jepsen/store/**</exclude>
+						<exclude>flink-jepsen/docker/id_rsa*</exclude>
+						<exclude>flink-jepsen/docker/nodes</exclude>
+
+						<!-- flink-python -->
+						<exclude>flink-python/lib/**</exclude>
+						<exclude>flink-python/dev/download/**</exclude>
+						<exclude>flink-python/docs/_build/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.17</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.puppycrawl.tools</groupId>
-						<artifactId>checkstyle</artifactId>
-						<version>6.19</version>
-					</dependency>
-				</dependencies>
-				<executions>
-					<execution>
-						<id>validate</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-					<configLocation>/tools/maven/checkstyle.xml</configLocation>
-					<logViolationsToConsole>true</logViolationsToConsole>
-					<failOnViolation>true</failOnViolation>
-				</configuration>
 			</plugin>
 			<plugin>
-				<!-- just define the Java version to be used for compiling and plugins -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.1</version><!--$NO-MVN-MAN-VER$-->
-				<configuration>
-					<source>${java.version}</source>
-					<target>${java.version}</target>
-					<!-- The output of Xlint is not shown by default, but we activate it for the QA bot
-					to be able to get more warnings -->
-					<compilerArgument>-Xlint:all</compilerArgument>
-				</configuration>
 			</plugin>
 
 			<!--surefire for unit tests and integration tests-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<!-- Do NOT use a version >=2.19.X, as test cases may get stuck before execution. See SUREFIRE-1255 -->
-				<version>2.18.1</version>
+				<version>2.22.1</version>
 				<configuration>
+					<groups>${test.groups}</groups>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
+						<jobmanager.scheduler>${test.scheduler.type}</jobmanager.scheduler>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseSerialGC</argLine>
+					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
@@ -1178,10 +1494,10 @@ under the License.
 					<downloadJavadocs>true</downloadJavadocs>
 				</configuration>
 			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>
-				<version>1.4.1</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<id>enforce-maven</id>
@@ -1191,8 +1507,8 @@ under the License.
 						<configuration>
 							<rules>
 								<requireMavenVersion>
-									<!-- enforce at least mvn version 3.0.3 -->
-									<version>[3.0.3,)</version>
+									<!-- enforce at least mvn version 3.1.1 (see FLINK-12447) -->
+									<version>[3.1.1,)</version>
 								</requireMavenVersion>
 								<requireJavaVersion>
 									<version>${java.version}</version>
@@ -1200,43 +1516,22 @@ under the License.
 							</rules>
 						</configuration>
 					</execution>
-				</executions>
-			</plugin>
-
-			<!-- make sure all licenses that need to be repackaged are in the target folder -->
-			<plugin>
-				<artifactId>maven-resources-plugin</artifactId>
-				<configuration>
-					<encoding>UTF-8</encoding>
-				</configuration>
-				<executions>
 					<execution>
-						<id>copy-packaged-licenses</id>
-						<phase>prepare-package</phase>
+						<id>dependency-convergence</id>
+						<!-- disabled by default as it interacts badly with shade-plugin -->
+						<phase>none</phase>
 						<goals>
-							<goal>copy-resources</goal>
+							<goal>enforce</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>${basedir}/target/classes/META-INF/licenses/</outputDirectory>
-							<resources>
-								<resource>
-									<directory>${basedir}/packaged_licenses</directory>
-									<includes>
-										<include>LICENSE.*.txt</include>
-									</includes>
-								</resource>
-							</resources>
+							<rules>
+								<dependencyConvergence/>
+							</rules>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 
-			<!-- We use shading in all packages for relocating some classes, such as
-				Guava and ASM.
-				By doing so, users adding Flink as a dependency won't run into conflicts.
-				(For example users can use whatever guava version they want, because we don't
-				expose our guava dependency)
-			-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -1252,13 +1547,28 @@ under the License.
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
-							<filters>
+							<!-- Filters MUST be appended; merging filters does not work properly, see MSHADE-305 -->
+							<filters combine.children="append">
 								<!-- Globally exclude log4j.properties from our JAR files. -->
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>log4j.properties</exclude>
 										<exclude>log4j-test.properties</exclude>
+									</excludes>
+								</filter>
+								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
+								<filter>
+									<artifact>org.apache.flink:force-shading</artifact>
+									<excludes>
+										<exclude>**</exclude>
+									</excludes>
+								</filter>
+								<!-- io.netty:netty brings its own LICENSE.txt which we don't need -->
+								<filter>
+									<artifact>io.netty:netty</artifact>
+									<excludes>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -1273,13 +1583,13 @@ under the License.
 									<include>org.apache.flink:force-shading</include>
 								</includes>
 							</artifactSet>
-							<transformers>
+							<transformers combine.children="append">
 								<!-- The service transformer is needed to merge META-INF/services files -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
-								<!-- The ApacheLicenseResourceTransformer prevents duplicate Apache Licenses -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+									<projectName>Apache Flink</projectName>
+								</transformer>
 							</transformers>
 						</configuration>
 					</execution>
@@ -1304,22 +1614,55 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<artifactId>maven-clean-plugin</artifactId>
-				<configuration>
-					<filesets>
-						<fileset>
-							<directory>${generated.docs.dir}</directory>
-						</fileset>
-					</filesets>
-				</configuration>
-			</plugin>
 		</plugins>
-
-		<!-- Plugin configurations for plugins activated in sub-projects --> 
 
 		<pluginManagement>
 			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>3.8.0</version>
+					<configuration>
+						<source>${java.version}</source>
+						<target>${java.version}</target>
+						<!-- The semantics of this option are reversed, see MCOMPILER-209. -->
+						<useIncrementalCompilation>false</useIncrementalCompilation>
+						<compilerArgs>
+							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
+							<arg>-Xpkginfo:always</arg>
+						</compilerArgs>
+					</configuration>
+				</plugin>
+
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-checkstyle-plugin</artifactId>
+					<version>2.17</version>
+					<dependencies>
+						<dependency>
+							<groupId>com.puppycrawl.tools</groupId>
+							<artifactId>checkstyle</artifactId>
+							<!-- Note: match version with docs/flinkDev/ide_setup.md -->
+							<version>8.14</version>
+						</dependency>
+					</dependencies>
+					<executions>
+						<execution>
+							<id>validate</id>
+							<phase>validate</phase>
+							<goals>
+								<goal>check</goal>
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+						<includeTestSourceDirectory>true</includeTestSourceDirectory>
+						<configLocation>/tools/maven/checkstyle.xml</configLocation>
+						<logViolationsToConsole>true</logViolationsToConsole>
+						<failOnViolation>true</failOnViolation>
+					</configuration>
+				</plugin>
 
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -1332,14 +1675,33 @@ under the License.
 					</configuration>
 				</plugin>
 
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-enforcer-plugin</artifactId>
+					<version>3.0.0-M1</version>
+				</plugin>
 
 				<!-- Pin the version of the maven shade plugin -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
-					<version>2.4.1</version>
+					<version>3.2.1</version>
 				</plugin>
-				
+
+				<plugin>
+					<groupId>pl.project13.maven</groupId>
+					<artifactId>git-commit-id-plugin</artifactId>
+					<!-- Don't use 2.1.14 as it is incompatible with various maven versions -->
+					<version>2.1.10</version>
+					<configuration>
+						<excludeProperties>
+							<excludeProperty>git.build.*</excludeProperty>
+							<excludeProperty>git.branch.*</excludeProperty>
+							<excludeProperty>git.remote.*</excludeProperty>
+						</excludeProperties>
+					</configuration>
+				</plugin>
+
 				<!-- Disable certain plugins in Eclipse -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
@@ -1409,7 +1771,7 @@ under the License.
 				<plugin>
 					<groupId>org.scalastyle</groupId>
 					<artifactId>scalastyle-maven-plugin</artifactId>
-					<version>0.8.0</version>
+					<version>1.0.0</version>
 					<executions>
 						<execution>
 							<goals>
@@ -1435,19 +1797,28 @@ under the License.
 					<groupId>net.alchim31.maven</groupId>
 					<artifactId>scala-maven-plugin</artifactId>
 					<version>3.2.2</version>
+					<configuration>
+						<args>
+							<arg>-nobootcp</arg>
+							<arg>-target:jvm-${java.version}</arg>
+						</args>
+						<jvmArgs>
+							<arg>-Xss2m</arg>
+						</jvmArgs>
+					</configuration>
 				</plugin>
 
 				<!-- Configuration for the binary compatibility checker -->
 				<plugin>
 					<groupId>com.github.siom79.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.7.0</version>
+					<version>0.11.0</version>
 					<configuration>
 						<oldVersion>
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>1.1.4</version>
+								<version>${jamicmp.referenceVersion}</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>
@@ -1464,6 +1835,8 @@ under the License.
 							<excludes>
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
+								<exclude>org.apache.flink.streaming.api.datastream.DataStream#DataStream(org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,org.apache.flink.streaming.api.transformations.StreamTransformation)</exclude>
+								<exclude>org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.sink.RichSinkFunction#invoke(java.lang.Object)</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>
 								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat</exclude>
@@ -1486,7 +1859,7 @@ under the License.
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
 						</parameter>
-						<skip>${japicmp.skip}</skip>
+						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
 						<dependencies>
 							<dependency>
 								<groupId>org.apache.flink</groupId>
@@ -1505,6 +1878,23 @@ under the License.
 					</executions>
 				</plugin>
 
+				<plugin>
+					<!-- run via "mvn org.owasp:dependency-check-maven:aggregate" -->
+					<groupId>org.owasp</groupId>
+					<artifactId>dependency-check-maven</artifactId>
+					<version>5.0.0-M2</version>
+					<configuration>
+						<format>ALL</format>
+						<skipSystemScope>true</skipSystemScope>
+						<skipProvidedScope>true</skipProvidedScope>
+						<excludes>
+							<exclude>*flink-docs</exclude>
+							<exclude>*flink-end-to-end-tests</exclude>
+							<exclude>*flink-fs-tests*</exclude>
+							<exclude>*flink-yarn-tests*</exclude>
+						</excludes>
+					</configuration>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 	</build>

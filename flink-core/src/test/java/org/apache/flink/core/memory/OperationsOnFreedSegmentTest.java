@@ -28,12 +28,17 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * Various tests with freed memory segments for {@link HeapMemorySegment} and {@link
+ * HybridMemorySegment} (in both heap and off-heap modes).
+ */
 public class OperationsOnFreedSegmentTest {
 
 	private static final int PAGE_SIZE = (int) ((Math.random() * 10000) + 1000);
-	
+
 	@Test
 	public void testSingleSegmentOperationsHeapSegment() throws Exception {
 		testOpsOnFreedSegment(new HeapMemorySegment(new byte[PAGE_SIZE]));
@@ -78,7 +83,7 @@ public class OperationsOnFreedSegmentTest {
 			}
 		}
 	}
-	
+
 	@Test
 	public void testCopyTo() {
 		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
@@ -154,13 +159,13 @@ public class OperationsOnFreedSegmentTest {
 			}
 		}
 	}
-	
+
 	private void testOpsOnFreedSegment(MemorySegment segment) throws Exception {
 		segment.free();
 		assertTrue(segment.isFreed());
-		
-		// --------- bytes ----------- 
-		
+
+		// --------- bytes -----------
+
 		try {
 			segment.get(0);
 			fail("Should fail with an exception");
@@ -190,7 +195,7 @@ public class OperationsOnFreedSegmentTest {
 			fail("Should fail with an exception");
 		}
 		catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-		
+
 		try {
 			segment.get(Integer.MAX_VALUE);
 			fail("Should fail with an exception");
@@ -245,7 +250,7 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException | NullPointerException ignored) {}
 
-		// --------- booleans ----------- 
+		// --------- booleans -----------
 
 		try {
 			segment.getBoolean(0);
@@ -330,8 +335,8 @@ public class OperationsOnFreedSegmentTest {
 			fail("Should fail with an exception");
 		}
 		catch (IllegalStateException | NullPointerException ignored) {}
-		
-		// --------- char ----------- 
+
+		// --------- char -----------
 
 		try {
 			segment.getChar(0);
@@ -417,7 +422,7 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException ignored) {}
 
-		// --------- short ----------- 
+		// --------- short -----------
 
 		try {
 			segment.getShort(0);
@@ -503,7 +508,7 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException ignored) {}
 
-		// --------- integer ----------- 
+		// --------- integer -----------
 
 		try {
 			segment.getInt(0);
@@ -589,7 +594,7 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException ignored) {}
 
-		// --------- longs ----------- 
+		// --------- longs -----------
 
 		try {
 			segment.getLong(0);
@@ -675,7 +680,7 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException ignored) {}
 
-		// --------- floats ----------- 
+		// --------- floats -----------
 
 		try {
 			segment.getFloat(0);
@@ -761,7 +766,7 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException ignored) {}
 
-		// --------- doubles ----------- 
+		// --------- doubles -----------
 
 		try {
 			segment.getDouble(0);
@@ -847,10 +852,10 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException ignored) {}
 
-		// --------- byte[] ----------- 
+		// --------- byte[] -----------
 
 		final byte[] array = new byte[55];
-		
+
 		try {
 			segment.get(0, array, 3, 17);
 			fail("Should fail with an exception");
@@ -935,90 +940,90 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException | NullPointerException ignored) {}
 
-		// --------- ByteBuffer ----------- 
+		// --------- ByteBuffer -----------
 
 		for (ByteBuffer bbuf : new ByteBuffer[] {
 				ByteBuffer.allocate(55),
-				ByteBuffer.allocateDirect(55) } )
-		{
+				ByteBuffer.allocateDirect(55) }) {
+
 			try {
 				segment.get(0, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException ignored) {}
-	
+
 			try {
 				segment.get(-1, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-	
+
 			try {
 				segment.get(1, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException ignored) {}
-	
+
 			try {
 				segment.get(segment.size(), bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException ignored) {}
-	
+
 			try {
 				segment.get(-segment.size(), bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-	
+
 			try {
 				segment.get(Integer.MAX_VALUE, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-	
+
 			try {
 				segment.get(Integer.MIN_VALUE, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-	
+
 			try {
 				segment.put(0, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-	
+
 			try {
 				segment.put(-1, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-	
+
 			try {
 				segment.put(1, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException ignored) {}
-	
+
 			try {
 				segment.put(segment.size(), bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException ignored) {}
-	
+
 			try {
 				segment.put(-segment.size(), bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-	
+
 			try {
-				segment.put(Integer.MAX_VALUE,bbuf, 17);
+				segment.put(Integer.MAX_VALUE, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
-	
+
 			try {
 				segment.put(Integer.MIN_VALUE, bbuf, 17);
 				fail("Should fail with an exception");
@@ -1026,7 +1031,7 @@ public class OperationsOnFreedSegmentTest {
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
 		}
 
-		// --------- Data Input / Output ----------- 
+		// --------- Data Input / Output -----------
 
 		final DataInput din = new DataInputStream(new ByteArrayInputStream(new byte[100]));
 		final DataOutput dout = new DataOutputStream(new ByteArrayOutputStream());
@@ -1115,12 +1120,11 @@ public class OperationsOnFreedSegmentTest {
 		}
 		catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
 	}
-	
-	
+
 	private void testCompare(MemorySegment seg1, MemorySegment seg2) {
 		int[] offsetsToTest = { 0, 1, -1, seg1.size(), -seg1.size(), Integer.MAX_VALUE, Integer.MIN_VALUE };
 		int[] lengthsToTest = { 1, seg1.size(), Integer.MAX_VALUE };
-		
+
 		for (int off1 : offsetsToTest) {
 			for (int off2 : offsetsToTest) {
 				for (int len : lengthsToTest) {
@@ -1155,7 +1159,7 @@ public class OperationsOnFreedSegmentTest {
 		int[] offsetsToTest = { 0, 1, -1, seg1.size(), -seg1.size(), Integer.MAX_VALUE, Integer.MIN_VALUE };
 		int[] lengthsToTest = { 0, 1, -1, seg1.size(), -seg1.size(), Integer.MAX_VALUE, Integer.MIN_VALUE };
 		byte[] swapBuffer = new byte[seg1.size()];
-		
+
 		for (int off1 : offsetsToTest) {
 			for (int off2 : offsetsToTest) {
 				for (int len : lengthsToTest) {

@@ -21,9 +21,11 @@ package org.apache.flink.runtime.checkpoint.hooks;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.concurrent.CompletableFuture;
@@ -65,6 +67,16 @@ public class MasterHooksTest extends TestLogger {
 			public String getIdentifier() {
 				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
 				return id;
+			}
+
+			@Override
+			public void reset() throws Exception {
+				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
+			}
+
+			@Override
+			public void close() throws Exception {
+				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
 			}
 
 			@Nullable
@@ -112,6 +124,11 @@ public class MasterHooksTest extends TestLogger {
 		// verify createCheckpointDataSerializer
 		wrapped.createCheckpointDataSerializer();
 		verify(hook, times(1)).createCheckpointDataSerializer();
+		assertEquals(originalClassLoader, thread.getContextClassLoader());
+
+		// verify close
+		wrapped.close();
+		verify(hook, times(1)).close();
 		assertEquals(originalClassLoader, thread.getContextClassLoader());
 	}
 

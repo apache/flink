@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
 
 /**
  * A collection of static utility methods to validate input.
- * 
+ *
  * <p>This class is modelled after Google Guava's Preconditions class, and partly takes code
  * from that class. We add this code to the Flink code base in order to reduce external
  * dependencies.
@@ -43,14 +43,14 @@ public final class Preconditions {
 	// ------------------------------------------------------------------------
 	//  Null checks
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Ensures that the given object reference is not null.
 	 * Upon violation, a {@code NullPointerException} with no message is thrown.
-	 * 
+	 *
 	 * @param reference The object reference
 	 * @return The object reference itself (generically typed).
-	 * 
+	 *
 	 * @throws NullPointerException Thrown, if the passed reference was null.
 	 */
 	public static <T> T checkNotNull(T reference) {
@@ -59,11 +59,11 @@ public final class Preconditions {
 		}
 		return reference;
 	}
-	
+
 	/**
 	 * Ensures that the given object reference is not null.
 	 * Upon violation, a {@code NullPointerException} with the given message is thrown.
-	 * 
+	 *
 	 * @param reference The object reference
 	 * @param errorMessage The message for the {@code NullPointerException} that is thrown if the check fails.
 	 * @return The object reference itself (generically typed).
@@ -80,7 +80,7 @@ public final class Preconditions {
 	/**
 	 * Ensures that the given object reference is not null.
 	 * Upon violation, a {@code NullPointerException} with the given message is thrown.
-	 * 
+	 *
 	 * <p>The error message is constructed from a template and an arguments array, after
 	 * a similar fashion as {@link String#format(String, Object...)}, but supporting only
 	 * {@code %s} as a placeholder.
@@ -91,7 +91,7 @@ public final class Preconditions {
 	 *                             {@code %s} placeholders with the error message arguments.
 	 * @param errorMessageArgs The arguments for the error message, to be inserted into the
 	 *                         message template for the {@code %s} placeholders.
-	 *                         
+	 *
 	 * @return The object reference itself (generically typed).
 	 *
 	 * @throws NullPointerException Thrown, if the passed reference was null.
@@ -99,7 +99,7 @@ public final class Preconditions {
 	public static <T> T checkNotNull(T reference,
 				@Nullable String errorMessageTemplate,
 				@Nullable Object... errorMessageArgs) {
-		
+
 		if (reference == null) {
 			throw new NullPointerException(format(errorMessageTemplate, errorMessageArgs));
 		}
@@ -109,13 +109,13 @@ public final class Preconditions {
 	// ------------------------------------------------------------------------
 	//  Boolean Condition Checking (Argument)
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Checks the given boolean condition, and throws an {@code IllegalArgumentException} if
 	 * the condition is not met (evaluates to {@code false}).
 	 *
 	 * @param condition The condition to check
-	 *                     
+	 *
 	 * @throws IllegalArgumentException Thrown, if the condition is violated.
 	 */
 	public static void checkArgument(boolean condition) {
@@ -131,7 +131,7 @@ public final class Preconditions {
 	 *
 	 * @param condition The condition to check
 	 * @param errorMessage The message for the {@code IllegalArgumentException} that is thrown if the check fails.
-	 * 
+	 *
 	 * @throws IllegalArgumentException Thrown, if the condition is violated.
 	 */
 	public static void checkArgument(boolean condition, @Nullable Object errorMessage) {
@@ -150,13 +150,13 @@ public final class Preconditions {
 	 *                             {@code %s} placeholders with the error message arguments.
 	 * @param errorMessageArgs The arguments for the error message, to be inserted into the
 	 *                         message template for the {@code %s} placeholders.
-	 * 
+	 *
 	 * @throws IllegalArgumentException Thrown, if the condition is violated.
 	 */
 	public static void checkArgument(boolean condition,
 			@Nullable String errorMessageTemplate,
 			@Nullable Object... errorMessageArgs) {
-		
+
 		if (!condition) {
 			throw new IllegalArgumentException(format(errorMessageTemplate, errorMessageArgs));
 		}
@@ -165,7 +165,7 @@ public final class Preconditions {
 	// ------------------------------------------------------------------------
 	//  Boolean Condition Checking (State)
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Checks the given boolean condition, and throws an {@code IllegalStateException} if
 	 * the condition is not met (evaluates to {@code false}).
@@ -220,10 +220,10 @@ public final class Preconditions {
 
 	/**
 	 * Ensures that the given index is valid for an array, list or string of the given size.
-	 * 
+	 *
 	 * @param index index to check
 	 * @param size size of the array, list or string
-	 * 
+	 *
 	 * @throws IllegalArgumentException Thrown, if size is negative.
 	 * @throws IndexOutOfBoundsException Thrown, if the index negative or greater than or equal to size
      */
@@ -239,7 +239,7 @@ public final class Preconditions {
 	 *
 	 * @param index index to check
 	 * @param size size of the array, list or string
-	 * @param errorMessage The message for the {@code IndexOutOfBoundsException} that is thrown if the check fails.   
+	 * @param errorMessage The message for the {@code IndexOutOfBoundsException} that is thrown if the check fails.
 	 *
 	 * @throws IllegalArgumentException Thrown, if size is negative.
 	 * @throws IndexOutOfBoundsException Thrown, if the index negative or greater than or equal to size
@@ -258,13 +258,13 @@ public final class Preconditions {
 	/**
 	 * A simplified formatting method. Similar to {@link String#format(String, Object...)}, but
 	 * with lower overhead (only String parameters, no locale, no format validation).
-	 * 
+	 *
 	 * <p>This method is taken quasi verbatim from the Guava Preconditions class.
 	 */
 	private static String format(@Nullable String template, @Nullable Object... args) {
 		final int numArgs = args == null ? 0 : args.length;
 		template = String.valueOf(template); // null -> "null"
-		
+
 		// start substituting the arguments into the '%s' placeholders
 		StringBuilder builder = new StringBuilder(template.length() + 16 * numArgs);
 		int templateStart = 0;
@@ -296,6 +296,6 @@ public final class Preconditions {
 
 	// ------------------------------------------------------------------------
 
-	/** Private constructor to prevent instantiation */
+	/** Private constructor to prevent instantiation. */
 	private Preconditions() {}
 }

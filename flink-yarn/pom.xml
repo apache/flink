@@ -23,13 +23,19 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
-	
+
 	<artifactId>flink-yarn_${scala.binary.version}</artifactId>
 	<name>flink-yarn</name>
 	<packaging>jar</packaging>
+
+	<properties>
+		<!-- for testing (will override Hadoop's default dependency on too low SDK versions that
+			do not work with our httpcomponents version) -->
+		<aws.sdk.version>1.11.171</aws.sdk.version>
+	</properties>
 
 	<dependencies>
 
@@ -39,12 +45,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>hadoop-core</artifactId>
-					<groupId>org.apache.hadoop</groupId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -55,9 +55,11 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}</version>
+			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<version>${hadoop.version}-${flink.shaded.version}</version>
 		</dependency>
+
+		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -68,27 +70,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-camel_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -112,149 +96,90 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 			<version>${hadoop.version}</version>
+			<exclusions>
+				<exclusion>
+					<!-- This dependency is no longer shipped with the JDK since Java 9.-->
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 
 	<profiles>
 		<profile>
-			<id>generate-config-docs</id>
-
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.7</version>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-						<configuration>
-							<target>
-								<mkdir dir="${rootDir}/${generated.docs.dir}"/>
-								<java classname="org.apache.flink.configuration.ConfigOptionsDocGenerator" fork="true">
-									<classpath refid="maven.compile.classpath" />
-									<arg value="${rootDir}/${generated.docs.dir}/" />
-									<!--package with configuration classes-->
-									<arg value="org.apache.flink.yarn.configuration" />
-								</java>
-							</target>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
+			<!-- Hadoop >= 2.6 moved the S3 file systems from hadoop-common into hadoop-aws artifact
+				(see https://issues.apache.org/jira/browse/HADOOP-11074)
+				We can add the (test) dependency per default once 2.6 is the minimum required version.
+			-->
+			<id>include_hadoop_aws</id>
+			<activation>
+				<property>
+					<name>include_hadoop_aws</name>
+				</property>
+			</activation>
+			<dependencies>
+				<!-- for the S3 tests of YarnFileStageTestS3ITCase -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-aws</artifactId>
+					<version>${hadoop.version}</version>
+					<scope>test</scope>
+					<exclusions>
+						<exclusion>
+							<groupId>org.apache.avro</groupId>
+							<artifactId>avro</artifactId>
+						</exclusion>
+						<!-- The aws-java-sdk-core requires jackson 2.6, but
+							hadoop pulls in 2.3 -->
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-annotations</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-core</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-databind</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+				<!-- override Hadoop's default dependency on too low SDK versions that do not work
+					with our httpcomponents version when initialising the s3a file system -->
+				<dependency>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-s3</artifactId>
+					<version>${aws.sdk.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
+					<version>${aws.sdk.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
 		</profile>
 	</profiles>
 
 	<build>
 		<plugins>
-			<!-- Scala Compiler -->
-			<plugin>
-				<groupId>net.alchim31.maven</groupId>
-				<artifactId>scala-maven-plugin</artifactId>
-				<executions>
-					<!-- Run scala compiler in the process-resources phase, so that dependencies on
-						scala classes can be resolved later in the (Java) compile phase -->
-					<execution>
-						<id>scala-compile-first</id>
-						<phase>process-resources</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-					</execution>
-
-					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-						 scala classes can be resolved later in the (Java) test-compile phase -->
-					<execution>
-						<id>scala-test-compile</id>
-						<phase>process-test-resources</phase>
-						<goals>
-							<goal>testCompile</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<jvmArgs>
-						<jvmArg>-Xms128m</jvmArg>
-						<jvmArg>-Xmx512m</jvmArg>
-					</jvmArgs>
-				</configuration>
-			</plugin>
-
-			<!-- Eclipse Integration -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.8</version>
-				<configuration>
-					<downloadSources>true</downloadSources>
-					<projectnatures>
-						<projectnature>org.scala-ide.sdt.core.scalanature</projectnature>
-						<projectnature>org.eclipse.jdt.core.javanature</projectnature>
-					</projectnatures>
-					<buildcommands>
-						<buildcommand>org.scala-ide.sdt.core.scalabuilder</buildcommand>
-					</buildcommands>
-					<classpathContainers>
-						<classpathContainer>org.scala-ide.sdt.launching.SCALA_CONTAINER</classpathContainer>
-						<classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
-					</classpathContainers>
-					<excludes>
-						<exclude>org.scala-lang:scala-library</exclude>
-						<exclude>org.scala-lang:scala-compiler</exclude>
-					</excludes>
-					<sourceIncludes>
-						<sourceInclude>**/*.scala</sourceInclude>
-						<sourceInclude>**/*.java</sourceInclude>
-					</sourceIncludes>
-				</configuration>
-			</plugin>
-
-			<!-- Adding scala source directories to build path -->
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
+				<artifactId>maven-enforcer-plugin</artifactId>
 				<executions>
-					<!-- Add src/main/scala to eclipse build path -->
 					<execution>
-						<id>add-source</id>
-						<phase>generate-sources</phase>
+						<id>dependency-convergence</id>
 						<goals>
-							<goal>add-source</goal>
+							<goal>enforce</goal>
 						</goals>
 						<configuration>
-							<sources>
-								<source>src/main/scala</source>
-							</sources>
-						</configuration>
-					</execution>
-					<!-- Add src/test/scala to eclipse build path -->
-					<execution>
-						<id>add-test-source</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>add-test-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>src/test/scala</source>
-							</sources>
+							<skip>true</skip>
 						</configuration>
 					</execution>
 				</executions>
-			</plugin>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
 			</plugin>
 
 			<plugin>

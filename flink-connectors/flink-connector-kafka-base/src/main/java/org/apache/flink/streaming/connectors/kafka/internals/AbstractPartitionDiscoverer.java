@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -38,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * not be concurrently accessed. The only exception for this would be the {@link #wakeup()}
  * call, which allows the discoverer to be interrupted during a {@link #discoverPartitions()} call.
  */
+@Internal
 public abstract class AbstractPartitionDiscoverer {
 
 	/** Describes whether we are discovering partitions for fixed topics or a topic pattern. */
@@ -132,7 +135,7 @@ public abstract class AbstractPartitionDiscoverer {
 					// retain topics that match the pattern
 					Iterator<String> iter = matchedTopics.iterator();
 					while (iter.hasNext()) {
-						if (!topicsDescriptor.getTopicPattern().matcher(iter.next()).matches()) {
+						if (!topicsDescriptor.isMatchingTopic(iter.next())) {
 							iter.remove();
 						}
 					}

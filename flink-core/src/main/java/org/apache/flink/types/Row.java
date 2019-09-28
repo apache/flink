@@ -106,12 +106,12 @@ public class Row implements Serializable{
 
 		Row row = (Row) o;
 
-		return Arrays.equals(fields, row.fields);
+		return Arrays.deepEquals(fields, row.fields);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(fields);
+		return Arrays.deepHashCode(fields);
 	}
 
 	/**
@@ -142,15 +142,59 @@ public class Row implements Serializable{
 
 	/**
 	 * Creates a new Row which copied from another row.
+	 * This method does not perform a deep copy.
 	 *
 	 * @param row The row being copied.
 	 * @return The cloned new Row
 	 */
 	public static Row copy(Row row) {
-		Row ret = new Row(row.getArity());
-		for (int i = 0; i < row.getArity(); ++i) {
-			ret.setField(i, row.getField(i));
+		final Row newRow = new Row(row.fields.length);
+		System.arraycopy(row.fields, 0, newRow.fields, 0, row.fields.length);
+		return newRow;
+	}
+
+	/**
+	 * Creates a new Row with projected fields from another row.
+	 * This method does not perform a deep copy.
+	 *
+	 * @param fields fields to be projected
+	 * @return the new projected Row
+	 */
+	public static Row project(Row row, int[] fields) {
+		final Row newRow = new Row(fields.length);
+		for (int i = 0; i < fields.length; i++) {
+			newRow.fields[i] = row.fields[fields[i]];
 		}
-		return ret;
+		return newRow;
+	}
+
+	/**
+	 * Creates a new Row which fields are copied from the other rows.
+	 * This method does not perform a deep copy.
+	 *
+	 * @param first The first row being copied.
+	 * @param remainings The other rows being copied.
+	 * @return the joined new Row
+	 */
+	public static Row join(Row first, Row... remainings) {
+		int newLength = first.fields.length;
+		for (Row remaining : remainings) {
+			newLength += remaining.fields.length;
+		}
+
+		final Row joinedRow = new Row(newLength);
+		int index = 0;
+
+		// copy the first row
+		System.arraycopy(first.fields, 0, joinedRow.fields, index, first.fields.length);
+		index += first.fields.length;
+
+		// copy the remaining rows
+		for (Row remaining : remainings) {
+			System.arraycopy(remaining.fields, 0, joinedRow.fields, index, remaining.fields.length);
+			index += remaining.fields.length;
+		}
+
+		return joinedRow;
 	}
 }

@@ -24,7 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.metrics.util.TestingHistogram;
+import org.apache.flink.metrics.util.TestHistogram;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -70,7 +70,10 @@ public class MetricDumpSerializerTest {
 			Collections.<Meter, Tuple2<QueryScopeInfo, String>>emptyMap());
 
 		// no metrics should be serialized
-		Assert.assertEquals(0, output.serializedMetrics.length);
+		Assert.assertEquals(0, output.serializedCounters.length);
+		Assert.assertEquals(0, output.serializedGauges.length);
+		Assert.assertEquals(0, output.serializedHistograms.length);
+		Assert.assertEquals(0, output.serializedMeters.length);
 
 		List<MetricDump> deserialized = deserializer.deserialize(output);
 		Assert.assertEquals(0, deserialized.size());
@@ -113,7 +116,7 @@ public class MetricDumpSerializerTest {
 			}
 		};
 
-		Histogram h1 = new TestingHistogram();
+		Histogram h1 = new TestHistogram();
 
 		Meter m1 = new Meter() {
 			@Override
@@ -141,7 +144,8 @@ public class MetricDumpSerializerTest {
 		gauges.put(g1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, "D"), "g1"));
 		histograms.put(h1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.OperatorQueryScopeInfo("jid", "vid", 2, "opname", "E"), "h1"));
 
-		MetricDumpSerialization.MetricSerializationResult serialized = serializer.serialize(counters, gauges, histograms, meters);
+		MetricDumpSerialization.MetricSerializationResult serialized = serializer.serialize(
+			counters, gauges, histograms, meters);
 		List<MetricDump> deserialized = deserializer.deserialize(serialized);
 
 		// ===== Counters ==============================================================================================

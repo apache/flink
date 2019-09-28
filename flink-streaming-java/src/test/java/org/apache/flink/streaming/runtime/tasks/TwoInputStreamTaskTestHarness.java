@@ -20,8 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -31,6 +31,7 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Function;
 
 
 /**
@@ -55,10 +56,8 @@ import java.util.List;
  */
 public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTestHarness<OUT> {
 
-	private TypeInformation<IN1> inputType1;
 	private TypeSerializer<IN1> inputSerializer1;
 
-	private TypeInformation<IN2> inputType2;
 	private TypeSerializer<IN2> inputSerializer2;
 
 	private int[] inputGateAssignment;
@@ -68,19 +67,19 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * of channels per input gate. Parameter inputGateAssignment specifies for each gate whether
 	 * it should be assigned to the first (1), or second (2) input of the task.
 	 */
-	public TwoInputStreamTaskTestHarness(TwoInputStreamTask<IN1, IN2, OUT> task,
+	public TwoInputStreamTaskTestHarness(
+			Function<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
 			int numInputGates,
 			int numInputChannelsPerGate,
 			int[] inputGateAssignment,
 			TypeInformation<IN1> inputType1,
 			TypeInformation<IN2> inputType2,
 			TypeInformation<OUT> outputType) {
-		super(task, outputType);
 
-		this.inputType1 = inputType1;
+		super(taskFactory, outputType);
+
 		inputSerializer1 = inputType1.createSerializer(executionConfig);
 
-		this.inputType2 = inputType2;
 		inputSerializer2 = inputType2.createSerializer(executionConfig);
 
 		this.numInputGates = numInputGates;
@@ -93,31 +92,33 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * input gate is assigned to the first task input, the second input gate is assigned to the
 	 * second task input.
 	 */
-	public TwoInputStreamTaskTestHarness(TwoInputStreamTask<IN1, IN2, OUT> task,
+	public TwoInputStreamTaskTestHarness(
+			Function<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
 			TypeInformation<IN1> inputType1,
 			TypeInformation<IN2> inputType2,
 			TypeInformation<OUT> outputType) {
-		this(task, 2, 1, new int[] {1, 2}, inputType1, inputType2, outputType);
+
+		this(taskFactory, 2, 1, new int[] {1, 2}, inputType1, inputType2, outputType);
 	}
 
 	@Override
 	protected void initializeInputs() throws IOException, InterruptedException {
 
 		inputGates = new StreamTestSingleInputGate[numInputGates];
-		List<StreamEdge> inPhysicalEdges = new LinkedList<StreamEdge>();
+		List<StreamEdge> inPhysicalEdges = new LinkedList<>();
 
 		StreamOperator<IN1> dummyOperator = new AbstractStreamOperator<IN1>() {
 			private static final long serialVersionUID = 1L;
 		};
 
-		StreamNode sourceVertexDummy = new StreamNode(null, 0, "default group", dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(null, 1, "default group", dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode sourceVertexDummy = new StreamNode(0, "default group", null, dummyOperator, "source dummy", new LinkedList<>(), SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(1, "default group", null, dummyOperator, "target dummy", new LinkedList<>(), SourceStreamTask.class);
 
 		for (int i = 0; i < numInputGates; i++) {
 
 			switch (inputGateAssignment[i]) {
 				case 1: {
-					inputGates[i] = new StreamTestSingleInputGate<IN1>(
+					inputGates[i] = new StreamTestSingleInputGate<>(
 							numInputChannelsPerGate,
 							bufferSize,
 							inputSerializer1);
@@ -125,15 +126,15 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
 							1,
-							new LinkedList<String>(),
-							new BroadcastPartitioner<Object>(),
+							new LinkedList<>(),
+							new BroadcastPartitioner<>(),
 							null /* output tag */);
 
 					inPhysicalEdges.add(streamEdge);
 					break;
 				}
 				case 2: {
-					inputGates[i] = new StreamTestSingleInputGate<IN2>(
+					inputGates[i] = new StreamTestSingleInputGate<>(
 							numInputChannelsPerGate,
 							bufferSize,
 							inputSerializer2);
@@ -141,8 +142,8 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
 							2,
-							new LinkedList<String>(),
-							new BroadcastPartitioner<Object>(),
+							new LinkedList<>(),
+							new BroadcastPartitioner<>(),
 							null /* output tag */);
 
 					inPhysicalEdges.add(streamEdge);
@@ -161,5 +162,10 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 		streamConfig.setTypeSerializerIn2(inputSerializer2);
 	}
 
+	@Override
+	@SuppressWarnings("unchecked")
+	public AbstractTwoInputStreamTask<IN1, IN2, OUT> getTask() {
+		return (AbstractTwoInputStreamTask<IN1, IN2, OUT>) super.getTask();
+	}
 }
 

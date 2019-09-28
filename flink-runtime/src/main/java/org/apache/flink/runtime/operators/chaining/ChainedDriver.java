@@ -69,7 +69,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 		this.config = config;
 		this.taskName = taskName;
 		this.userCodeClassLoader = userCodeClassLoader;
-		this.metrics = parent.getEnvironment().getMetricGroup().addOperator(taskName);
+		this.metrics = parent.getEnvironment().getMetricGroup().getOrAddOperator(taskName);
 		this.numRecordsIn = this.metrics.getIOMetricGroup().getNumRecordsInCounter();
 		this.numRecordsOut = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();
 		this.outputCollector = new CountingCollector<>(outputCollector, numRecordsOut);

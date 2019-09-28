@@ -18,12 +18,8 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
@@ -57,7 +53,7 @@ import java.util.Collection;
  *
  * }</pre>
  */
-public class MultipleProgramsTestBase extends TestBaseUtils {
+public class MultipleProgramsTestBase extends AbstractTestBase {
 
 	/**
 	 * Enum that defines which execution environment to run the next test on:
@@ -68,16 +64,6 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 		CLUSTER_OBJECT_REUSE,
 		COLLECTION,
 	}
-
-	// ------------------------------------------------------------------------
-	//  The mini cluster that is shared across tests
-	// ------------------------------------------------------------------------
-
-	protected static final int DEFAULT_PARALLELISM = 4;
-
-	protected static boolean startWebServer = false;
-
-	protected static LocalFlinkMiniCluster cluster = null;
 
 	// ------------------------------------------------------------------------
 
@@ -93,12 +79,21 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 
 	@Before
 	public void setupEnvironment() {
+		TestEnvironment testEnvironment;
 		switch(mode){
 			case CLUSTER:
-				new TestEnvironment(cluster, 4, false).setAsContext();
+				// This only works because of the quirks we built in the TestEnvironment.
+				// We should refactor this in the future!!!
+				testEnvironment = miniClusterResource.getTestEnvironment();
+				testEnvironment.getConfig().disableObjectReuse();
+				testEnvironment.setAsContext();
 				break;
 			case CLUSTER_OBJECT_REUSE:
-				new TestEnvironment(cluster, 4, true).setAsContext();
+				// This only works because of the quirks we built in the TestEnvironment.
+				// We should refactor this in the future!!!
+				testEnvironment = miniClusterResource.getTestEnvironment();
+				testEnvironment.getConfig().enableObjectReuse();
+				testEnvironment.setAsContext();
 				break;
 			case COLLECTION:
 				new CollectionTestEnvironment().setAsContext();
@@ -117,25 +112,6 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 				CollectionTestEnvironment.unsetAsContext();
 				break;
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Cluster setup & teardown
-	// ------------------------------------------------------------------------
-
-	@BeforeClass
-	public static void setup() throws Exception {
-		cluster = TestBaseUtils.startCluster(
-			1,
-			DEFAULT_PARALLELISM,
-			startWebServer,
-			false,
-			true);
-	}
-
-	@AfterClass
-	public static void teardown() throws Exception {
-		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 	}
 
 	// ------------------------------------------------------------------------

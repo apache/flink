@@ -50,6 +50,7 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Visitor;
 
 import java.util.ArrayList;
@@ -82,7 +83,7 @@ public class CollectionExecutor {
 	
 	private final Map<String, Aggregator<?>> aggregators;
 	
-	private final ClassLoader classLoader;
+	private final ClassLoader userCodeClassLoader;
 	
 	private final ExecutionConfig executionConfig;
 
@@ -98,7 +99,7 @@ public class CollectionExecutor {
 		this.previousAggregates = new HashMap<String, Value>();
 		this.aggregators = new HashMap<String, Aggregator<?>>();
 		this.cachedFiles = new HashMap<String, Future<Path>>();
-		this.classLoader = getClass().getClassLoader();
+		this.userCodeClassLoader = Thread.currentThread().getContextClassLoader();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -115,7 +116,7 @@ public class CollectionExecutor {
 		}
 		
 		long endTime = System.currentTimeMillis();
-		Map<String, Object> accumulatorResults = AccumulatorHelper.toResultMap(accumulators);
+		Map<String, OptionalFailure<Object>> accumulatorResults = AccumulatorHelper.toResultMap(accumulators);
 		return new JobExecutionResult(null, endTime - startTime, accumulatorResults);
 	}
 
@@ -190,8 +191,8 @@ public class CollectionExecutor {
 		MetricGroup metrics = new UnregisteredMetricsGroup();
 			
 		if (RichOutputFormat.class.isAssignableFrom(typedSink.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
-					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics);
 		} else {
 			ctx = null;
 		}
@@ -210,8 +211,8 @@ public class CollectionExecutor {
 
 		MetricGroup metrics = new UnregisteredMetricsGroup();
 		if (RichInputFormat.class.isAssignableFrom(typedSource.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
-					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics);
 		} else {
 			ctx = null;
 		}
@@ -236,8 +237,8 @@ public class CollectionExecutor {
 
 		MetricGroup metrics = new UnregisteredMetricsGroup();
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
-					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -277,8 +278,8 @@ public class CollectionExecutor {
 		MetricGroup metrics = new UnregisteredMetricsGroup();
 	
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
-				new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics) :
+				new IterationRuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());

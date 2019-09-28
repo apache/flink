@@ -29,20 +29,20 @@ import java.util.NoSuchElementException;
  */
 @Public
 public class NumberSequenceIterator extends SplittableIterator<Long> {
-	
+
 	private static final long serialVersionUID = 1L;
 
-	/** The last number returned by the iterator */
+	/** The last number returned by the iterator. */
 	private final long to;
-	
-	/** The next number to be returned */
+
+	/** The next number to be returned. */
 	private long current;
-	
-	
+
+
 	/**
 	 * Creates a new splittable iterator, returning the range [from, to].
 	 * Both boundaries of the interval are inclusive.
-	 * 
+	 *
 	 * @param from The first number returned by the iterator.
 	 * @param to The last number returned by the iterator.
 	 */
@@ -50,15 +50,15 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
 		if (from > to) {
 			throw new IllegalArgumentException("The 'to' value must not be smaller than the 'from' value.");
 		}
-		
+
 		this.current = from;
 		this.to = to;
 	}
-	
-	
+
+
 	/**
 	 * Internal constructor to allow for empty iterators.
-	 * 
+	 *
 	 * @param from The first number returned by the iterator.
 	 * @param to The last number returned by the iterator.
 	 * @param unused A dummy parameter to disambiguate the constructor.
@@ -67,11 +67,11 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
 		this.current = from;
 		this.to = to;
 	}
-	
+
 	public long getCurrent() {
 		return this.current;
 	}
-	
+
 	public long getTo() {
 		return this.to;
 	}
@@ -100,15 +100,15 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
 		if (numPartitions < 1) {
 			throw new IllegalArgumentException("The number of partitions must be at least 1.");
 		}
-		
+
 		if (numPartitions == 1) {
 			return new NumberSequenceIterator[] { new NumberSequenceIterator(current, to) };
 		}
-		
+
 		// here, numPartitions >= 2 !!!
-		
+
 		long elementsPerSplit;
-		
+
 		if (to - current + 1 >= 0) {
 			elementsPerSplit = (to - current + 1) / numPartitions;
 		}
@@ -118,10 +118,10 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
 			// in most cases it holds that: current < 0 and to > 0, except for: to == 0 and current == Long.MIN_VALUE
 			// the later needs a special case
 			final long halfDiff; // must be positive
-			
+
 			if (current == Long.MIN_VALUE) {
 				// this means to >= 0
-				halfDiff = (Long.MAX_VALUE/2+1) + to/2;
+				halfDiff = (Long.MAX_VALUE / 2 + 1) + to / 2;
 			} else {
 				long posFrom = -current;
 				if (posFrom > to) {
@@ -132,35 +132,35 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
 			}
 			elementsPerSplit = halfDiff / numPartitions * 2;
 		}
-		
+
 		if (elementsPerSplit < Long.MAX_VALUE) {
 			// figure out how many get one in addition
 			long numWithExtra = -(elementsPerSplit * numPartitions) + to - current + 1;
-			
+
 			// based on rounding errors, we may have lost one)
 			if (numWithExtra > numPartitions) {
 				elementsPerSplit++;
 				numWithExtra -= numPartitions;
-				
+
 				if (numWithExtra > numPartitions) {
 					throw new RuntimeException("Bug in splitting logic. To much rounding loss.");
 				}
 			}
-			
+
 			NumberSequenceIterator[] iters = new NumberSequenceIterator[numPartitions];
 			long curr = current;
 			int i = 0;
 			for (; i < numWithExtra; i++) {
 				long next = curr + elementsPerSplit + 1;
-				iters[i] = new NumberSequenceIterator(curr, next-1);
+				iters[i] = new NumberSequenceIterator(curr, next - 1);
 				curr = next;
 			}
 			for (; i < numPartitions; i++) {
 				long next = curr + elementsPerSplit;
-				iters[i] = new NumberSequenceIterator(curr, next-1, true);
+				iters[i] = new NumberSequenceIterator(curr, next - 1, true);
 				curr = next;
 			}
-			
+
 			return iters;
 		}
 		else {
@@ -168,22 +168,21 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
 			if (numPartitions != 2) {
 				throw new RuntimeException("Bug in splitting logic.");
 			}
-			
+
 			return new NumberSequenceIterator[] {
 				new NumberSequenceIterator(current, current + elementsPerSplit),
 				new NumberSequenceIterator(current + elementsPerSplit, to)
 			};
 		}
 	}
-	
 
 	@Override
 	public int getMaximumNumberOfSplits() {
-		if (to >= Integer.MAX_VALUE || current <= Integer.MIN_VALUE || to-current+1 >= Integer.MAX_VALUE) {
+		if (to >= Integer.MAX_VALUE || current <= Integer.MIN_VALUE || to - current + 1 >= Integer.MAX_VALUE) {
 			return Integer.MAX_VALUE;
 		}
 		else {
-			return (int) (to-current+1);
+			return (int) (to - current + 1);
 		}
 	}
 }

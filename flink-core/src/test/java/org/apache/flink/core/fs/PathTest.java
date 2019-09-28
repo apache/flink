@@ -15,13 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.core.fs;
+
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URI;
-import org.junit.Test;
-import static org.junit.Assert.*;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+/**
+ * Tests for the {@link Path} class.
+ */
 public class PathTest {
 
 	@Test
@@ -70,23 +80,23 @@ public class PathTest {
 		assertEquals("/C:/my/windows/path", p.toUri().getPath());
 
 		try {
-			new Path((String)null);
+			new Path((String) null);
 			fail();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			// exception expected
 		}
 
 		try {
 			new Path("");
 			fail();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			// exception expected
 		}
 
 		try {
 			new Path(" ");
 			fail();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			// exception expected
 		}
 
@@ -277,23 +287,20 @@ public class PathTest {
 
 	@Test
 	public void testMakeQualified() throws IOException {
-		String path;
-		Path p;
-		URI u;
+		// make relative path qualified
+		String path = "test/test";
+		Path p  = new Path(path).makeQualified(FileSystem.getLocalFileSystem());
+		URI u = p.toUri();
 
-		path = "test/test";
-		p = new Path(path);
-		u = p.toUri();
-		p = p.makeQualified(FileSystem.get(u));
-		u = p.toUri();
 		assertEquals("file", u.getScheme());
 		assertEquals(null, u.getAuthority());
-		assertEquals(FileSystem.getLocalFileSystem().getWorkingDirectory().toUri().getPath() + "/" + path, u.getPath());
 
+		String q = new Path(FileSystem.getLocalFileSystem().getWorkingDirectory().getPath(), path).getPath();
+		assertEquals(q, u.getPath());
+
+		// make absolute path qualified
 		path = "/test/test";
-		p = new Path(path);
-		u = p.toUri();
-		p = p.makeQualified(FileSystem.get(u));
+		p = new Path(path).makeQualified(FileSystem.getLocalFileSystem());
 		u = p.toUri();
 		assertEquals("file", u.getScheme());
 		assertEquals(null, u.getAuthority());

@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -151,6 +152,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	 */
 	protected final boolean objectReuseEnabled;
 
+	private final Collection<InMemorySorter<?>> inMemorySorters;
+
 	// ------------------------------------------------------------------------
 	//                         Constructor & Shutdown
 	// ------------------------------------------------------------------------
@@ -212,11 +215,41 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean noSpillingMemory, boolean handleLargeRecords,
-			boolean objectReuseEnabled)
-	throws IOException
-	{
+			boolean objectReuseEnabled) throws IOException {
+		this (
+			memoryManager,
+			memory,
+			ioManager,
+			input,
+			parentTask,
+			serializerFactory,
+			comparator,
+			numSortBuffers,
+			maxNumFileHandles,
+			startSpillingFraction,
+			noSpillingMemory,
+			handleLargeRecords,
+			objectReuseEnabled,
+			new DefaultInMemorySorterFactory<>(serializerFactory, comparator, THRESHOLD_FOR_IN_PLACE_SORTING));
+	}
+
+	protected UnilateralSortMerger(
+			MemoryManager memoryManager,
+			List<MemorySegment> memory,
+			IOManager ioManager,
+			MutableObjectIterator<E> input,
+			AbstractInvokable parentTask,
+			TypeSerializerFactory<E> serializerFactory,
+			TypeComparator<E> comparator,
+			int numSortBuffers,
+			int maxNumFileHandles,
+			float startSpillingFraction,
+			boolean noSpillingMemory,
+			boolean handleLargeRecords,
+			boolean objectReuseEnabled,
+			InMemorySorterFactory<E> inMemorySorterFactory) throws IOException {
 		// sanity checks
-		if (memoryManager == null | (ioManager == null && !noSpillingMemory) | serializerFactory == null | comparator == null) {
+		if (memoryManager == null || (ioManager == null && !noSpillingMemory) || serializerFactory == null || comparator == null) {
 			throw new NullPointerException();
 		}
 		if (parentTask == null) {
@@ -330,6 +363,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		
 		// circular queues pass buffers between the threads
 		final CircularQueues<E> circularQueues = new CircularQueues<E>();
+
+		inMemorySorters = new ArrayList<>(numSortBuffers);
 		
 		// allocate the sort buffers and fill empty queue with them
 		final Iterator<MemorySegment> segments = this.sortReadMemory.iterator();
@@ -341,20 +376,11 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				sortSegments.add(segments.next());
 			}
 			
-			final TypeComparator<E> comp = comparator.duplicate();
-			final InMemorySorter<E> buffer;
-			
-			// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-			if (comp.supportsSerializationWithKeyNormalization() &&
-					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
-			{
-				buffer = new FixedLengthRecordSorter<E>(serializerFactory.getSerializer(), comp, sortSegments);
-			} else {
-				buffer = new NormalizedKeySorter<E>(serializerFactory.getSerializer(), comp, sortSegments);
-			}
+			final InMemorySorter<E> inMemorySorter = inMemorySorterFactory.create(sortSegments);
+			inMemorySorters.add(inMemorySorter);
 
 			// add to empty queue
-			CircularElement<E> element = new CircularElement<E>(i, buffer, sortSegments);
+			CircularElement<E> element = new CircularElement<E>(i, inMemorySorter, sortSegments);
 			circularQueues.empty.add(element);
 		}
 
@@ -494,7 +520,12 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			}
 		}
 		finally {
-			
+
+			// Dispose all in memory sorter in order to clear memory references
+			for (InMemorySorter<?> inMemorySorter : inMemorySorters) {
+				inMemorySorter.dispose();
+			}
+
 			// RELEASE ALL MEMORY. If the threads and channels are still running, this should cause
 			// exceptions, because their memory segments are freed
 			try {

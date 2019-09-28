@@ -29,7 +29,7 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.util.Visitor;
 
 /**
- * Abstract operator superclass for for all operators that have two inputs, like "Join", "CoGroup", or "Cross".
+ * Abstract operator superclass for all operators that have two inputs, like "Join", "CoGroup", or "Cross".
  *
  * @param <IN1> First input type of the user function
  * @param <IN2> Second input type of the user function

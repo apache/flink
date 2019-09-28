@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * This registry manages state that is shared across (incremental) checkpoints, and is responsible
@@ -43,12 +44,7 @@ public class SharedStateRegistry implements AutoCloseable {
 	private static final Logger LOG = LoggerFactory.getLogger(SharedStateRegistry.class);
 
 	/** A singleton object for the default implementation of a {@link SharedStateRegistryFactory} */
-	public static final SharedStateRegistryFactory DEFAULT_FACTORY = new SharedStateRegistryFactory() {
-		@Override
-		public SharedStateRegistry create(Executor deleteExecutor) {
-			return new SharedStateRegistry(deleteExecutor);
-		}
-	};
+	public static final SharedStateRegistryFactory DEFAULT_FACTORY = SharedStateRegistry::new;
 
 	/** All registered state objects by an artificial key */
 	private final Map<SharedStateRegistryKey, SharedStateRegistry.SharedStateEntry> registeredStates;
@@ -84,7 +80,7 @@ public class SharedStateRegistry implements AutoCloseable {
 	 *
 	 * @param state the shared state for which we register a reference.
 	 * @return the result of this registration request, consisting of the state handle that is
-	 * registered under the key by the end of the oepration and its current reference count.
+	 * registered under the key by the end of the operation and its current reference count.
 	 */
 	public Result registerReference(SharedStateRegistryKey registrationKey, StreamStateHandle state) {
 
@@ -199,8 +195,17 @@ public class SharedStateRegistry implements AutoCloseable {
 		// We do the small optimization to not issue discards for placeholders, which are NOPs.
 		if (streamStateHandle != null && !isPlaceholder(streamStateHandle)) {
 			LOG.trace("Scheduled delete of state handle {}.", streamStateHandle);
-			asyncDisposalExecutor.execute(
-				new SharedStateRegistry.AsyncDisposalRunnable(streamStateHandle));
+			AsyncDisposalRunnable asyncDisposalRunnable = new AsyncDisposalRunnable(streamStateHandle);
+			try {
+				asyncDisposalExecutor.execute(asyncDisposalRunnable);
+			} catch (RejectedExecutionException ex) {
+				// TODO This is a temporary fix for a problem during ZooKeeperCompletedCheckpointStore#shutdown:
+				// Disposal is issued in another async thread and the shutdown proceeds to close the I/O Executor pool.
+				// This leads to RejectedExecutionException once the async deletes are triggered by ZK. We need to
+				// wait for all pending ZK deletes before closing the I/O Executor pool. We can simply call #run()
+				// because we are already in the async ZK thread that disposes the handles.
+				asyncDisposalRunnable.run();
+			}
 		}
 	}
 

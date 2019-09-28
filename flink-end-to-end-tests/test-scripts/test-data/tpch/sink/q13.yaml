@@ -1,0 +1,19 @@
+tables:
+  - name: q13
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q13.csv"
+    format:
+      type: csv
+      fields:
+        - name: c_count
+          type: BIGINT
+        - name: custdist
+          type: BIGINT
+      field-delimiter: "|"
+    schema:
+      - name: c_count
+        type: BIGINT
+      - name: custdist
+        type: BIGINT

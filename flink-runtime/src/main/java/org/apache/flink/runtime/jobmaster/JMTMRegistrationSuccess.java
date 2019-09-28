@@ -20,26 +20,22 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * Message indicating a successful {@link JobMaster} and {@link TaskExecutor} registration.
+ */
 public class JMTMRegistrationSuccess extends RegistrationResponse.Success {
 	private static final long serialVersionUID = -3528383155961318929L;
 
 	private final ResourceID resourceID;
-	private final int blobPort;
 
-	public JMTMRegistrationSuccess(ResourceID resourceID, int blobPort) {
-		Preconditions.checkArgument(0 < blobPort && 65536 > blobPort, "The blob port has to be 0 < blobPort < 65536.");
-
+	public JMTMRegistrationSuccess(ResourceID resourceID) {
 		this.resourceID = Preconditions.checkNotNull(resourceID);
-		this.blobPort = blobPort;
 	}
 
 	public ResourceID getResourceID() {
 		return resourceID;
-	}
-
-	public int getBlobPort() {
-		return blobPort;
 	}
 }

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-connectors</artifactId>
+		<version>1.10-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+
+	<artifactId>flink-sql-connector-elasticsearch6_${scala.binary.version}</artifactId>
+	<name>flink-sql-connector-elasticsearch6</name>
+
+	<packaging>jar</packaging>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes>
+									<include>*:*</include>
+								</includes>
+								<excludes>
+									<!-- These dependencies are not required. -->
+									<exclude>com.carrotsearch:hppc</exclude>
+									<exclude>com.tdunning:t-digest</exclude>
+									<exclude>joda-time:joda-time</exclude>
+									<exclude>net.sf.jopt-simple:jopt-simple</exclude>
+									<exclude>org.elasticsearch:jna</exclude>
+									<exclude>org.hdrhistogram:HdrHistogram</exclude>
+									<exclude>org.yaml:snakeyaml</exclude>
+								</excludes>
+							</artifactSet>
+							<filters>
+								<!-- Unless otherwise noticed these filters only serve to reduce the size of the resulting
+									jar by removing unnecessary files -->
+								<filter>
+									<artifact>org.elasticsearch:elasticsearch</artifact>
+									<excludes>
+										<exclude>config/**</exclude>
+										<exclude>modules.txt</exclude>
+										<exclude>plugins.txt</exclude>
+										<exclude>org/joda/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.elasticsearch.client:elasticsearch-rest-high-level-client</artifact>
+									<excludes>
+										<exclude>forbidden/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.httpcomponents:httpclient</artifact>
+									<excludes>
+										<exclude>mozilla/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.lucene:lucene-analyzers-common</artifact>
+									<excludes>
+										<exclude>org/tartarus/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<!-- exclude Java 9 specific classes as otherwise the shade-plugin crashes -->
+										<exclude>META-INF/versions/**</exclude>
+										<exclude>META-INF/services/com.fasterxml.**</exclude>
+										<exclude>META-INF/services/org.apache.lucene.**</exclude>
+										<exclude>META-INF/services/org.elasticsearch.**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<relocations>
+								<!-- Force relocation of all Elasticsearch dependencies. -->
+								<relocation>
+									<pattern>org.apache.commons</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.commons</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.http</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.lucene</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.lucene</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.elasticsearch</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.elasticsearch</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.logging</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.logging</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch6.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

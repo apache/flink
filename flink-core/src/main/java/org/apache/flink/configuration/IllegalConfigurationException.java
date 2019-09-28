@@ -33,11 +33,22 @@ public class IllegalConfigurationException extends RuntimeException {
 
 	/**
 	 * Constructs an new IllegalConfigurationException with the given error message.
-	 * 
+	 *
 	 * @param message The error message for the exception.
 	 */
 	public IllegalConfigurationException(String message) {
 		super(message);
+	}
+
+	/**
+	 * Constructs an new IllegalConfigurationException with the given error message
+	 * format and arguments.
+	 *
+	 * @param format The error message format for the exception.
+	 * @param arguments The arguments for the format.
+	 */
+	public IllegalConfigurationException(String format, Object... arguments) {
+		super(String.format(format, arguments));
 	}
 
 	/**

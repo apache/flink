@@ -1,5 +1,5 @@
 ---
-title: "Table Sources & Sinks"
+title: "User-defined Sources & Sinks"
 nav-parent_id: tableapi
 nav-pos: 40
 ---
@@ -22,292 +22,32 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can accessed by [Table API](tableApi.html) or [SQL](sql.html) queries.
+A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can be accessed by [Table API](tableApi.html) or [SQL](sql.html) queries.
 
-A TableSink [emits a Table](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC). 
+A `TableSink` [emits a Table](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC).
 
-Have a look at the [common concepts and API](common.html) page for details how to [register a TableSource](common.html#register-a-tablesource) and how to [emit a Table through a TableSink](common.html#emit-a-table).
+A `TableFactory` allows for separating the declaration of a connection to an external system from the actual implementation. A table factory creates configured instances of table sources and sinks from normalized, string-based properties. The properties can be generated programmatically using a `Descriptor` or via YAML configuration files for the [SQL Client](sqlClient.html).
+
+Have a look at the [common concepts and API](common.html) page for details how to [register a TableSource](common.html#register-a-tablesource) and how to [emit a Table through a TableSink](common.html#emit-a-table). See the [built-in sources, sinks, and formats](connect.html) page for examples how to use factories.
 
 * This will be replaced by the TOC
 {:toc}
 
-Provided TableSources
----------------------
-
-Currently, Flink provides the `CsvTableSource` to read CSV files and a few table sources to read JSON or Avro data from Kafka.
-A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface. See section on [defining a custom TableSource](#define-a-tablesource) for details.
-
-| **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
-| `CsvTableSource` | `flink-table` | Y | Y | A simple source for CSV files.
-| `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for JSON data.
-| `Kafka08AvroTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for Avro data.
-| `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for JSON data.
-| `Kafka09AvroTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for Avro data.
-| `Kafka010JsonTableSource` | `flink-connector-kafka-0.10` | N | Y | A Kafka 0.10 source for JSON data.
-| `Kafka010AvroTableSource` | `flink-connector-kafka-0.10` | N | Y | A Kafka 0.10 source for Avro data.
-
-All sources that come with the `flink-table` dependency can be directly used by your Table programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
-
-{% top %}
-
-### KafkaJsonTableSource
-
-To use the Kafka JSON source, you have to add the Kafka connector dependency to your project:
-
-  - `flink-connector-kafka-0.8` for Kafka 0.8,
-  - `flink-connector-kafka-0.9` for Kafka 0.9, or
-  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
-
-You can then create the source as follows (example for Kafka 0.8):
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-// specify JSON field names and types
-TypeInformation<Row> typeInfo = Types.ROW(
-  new String[] { "id", "name", "score" },
-  new TypeInformation<?>[] { Types.INT(), Types.STRING(), Types.DOUBLE() }
-);
-
-KafkaJsonTableSource kafkaTableSource = new Kafka08JsonTableSource(
-    kafkaTopic,
-    kafkaProperties,
-    typeInfo);
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-// specify JSON field names and types
-val typeInfo = Types.ROW(
-  Array("id", "name", "score"),
-  Array(Types.INT, Types.STRING, Types.DOUBLE)
-)
-
-val kafkaTableSource = new Kafka08JsonTableSource(
-    kafkaTopic,
-    kafkaProperties,
-    typeInfo)
-{% endhighlight %}
-</div>
-</div>
-
-By default, a missing JSON field does not fail the source. You can configure this via:
-
-```java
-// Fail on missing JSON field
-tableSource.setFailOnMissingField(true);
-```
-
-{% top %}
-
-### KafkaAvroTableSource
-
-The `KafkaAvroTableSource` allows you to read Avro's `SpecificRecord` objects from Kafka.
-
-To use the Kafka Avro source, you have to add the Kafka connector dependency to your project:
-
-  - `flink-connector-kafka-0.8` for Kafka 0.8,
-  - `flink-connector-kafka-0.9` for Kafka 0.9, or
-  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
-
-You can then create the source as follows (example for Kafka 0.8):
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-// pass the generated Avro class to the TableSource
-Class<? extends SpecificRecord> clazz = MyAvroType.class; 
-
-KafkaAvroTableSource kafkaTableSource = new Kafka08AvroTableSource(
-    kafkaTopic,
-    kafkaProperties,
-    clazz);
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-// pass the generated Avro class to the TableSource
-val clazz = classOf[MyAvroType]
-
-val kafkaTableSource = new Kafka08AvroTableSource(
-    kafkaTopic,
-    kafkaProperties,
-    clazz)
-{% endhighlight %}
-</div>
-</div>
-
-{% top %}
-
-### CsvTableSource
-
-The `CsvTableSource` is already included in `flink-table` without additional dependecies.
-
-The easiest way to create a `CsvTableSource` is by using the enclosed builder `CsvTableSource.builder()`, the builder has the following methods to configure properties:
-
- - `path(String path)` Sets the path to the CSV file, required.
- - `field(String fieldName, TypeInformation<?> fieldType)` Adds a field with the field name and field type information, can be called multiple times, required. The call order of this method defines also the order of the fields in a row.
- - `fieldDelimiter(String delim)` Sets the field delimiter, `","` by default.
- - `lineDelimiter(String delim)` Sets the line delimiter, `"\n"` by default.
- - `quoteCharacter(Character quote)` Sets the quote character for String values, `null` by default.
- - `commentPrefix(String prefix)` Sets a prefix to indicate comments, `null` by default.
- - `ignoreFirstLine()` Ignore the first line. Disabled by default.
- - `ignoreParseErrors()` Skip records with parse error instead to fail. Throwing an exception by default.
-
-You can create the source as follows:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-CsvTableSource csvTableSource = CsvTableSource
-    .builder()
-    .path("/path/to/your/file.csv")
-    .field("name", Types.STRING())
-    .field("id", Types.INT())
-    .field("score", Types.DOUBLE())
-    .field("comments", Types.STRING())
-    .fieldDelimiter("#")
-    .lineDelimiter("$")
-    .ignoreFirstLine()
-    .ignoreParseErrors()
-    .commentPrefix("%")
-    .build();
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val csvTableSource = CsvTableSource
-    .builder
-    .path("/path/to/your/file.csv")
-    .field("name", Types.STRING)
-    .field("id", Types.INT)
-    .field("score", Types.DOUBLE)
-    .field("comments", Types.STRING)
-    .fieldDelimiter("#")
-    .lineDelimiter("$")
-    .ignoreFirstLine
-    .ignoreParseErrors
-    .commentPrefix("%")
-    .build
-{% endhighlight %}
-</div>
-</div>
-
-{% top %}
-
-Provided TableSinks
--------------------
-
-The following table lists the `TableSink`s which are provided with Flink.
-
-| **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
-| `CsvTableSink` | `flink-table` | Y | Append | A simple sink for CSV files.
-| `JDBCAppendTableSink` | `flink-jdbc` | Y | Append | Writes tables to a JDBC database.
-| `Kafka08JsonTableSink` | `flink-connector-kafka-0.8` | N | Append | A Kafka 0.8 sink with JSON encoding.
-| `Kafka09JsonTableSink` | `flink-connector-kafka-0.9` | N | Append | A Kafka 0.9 sink with JSON encoding.
-
-All sinks that come with the `flink-table` dependency can be directly used by your Table programs. For all other table sinks, you have to add the respective dependency in addition to the `flink-table` dependency.
-
-A custom `TableSink` can be defined by implementing the `BatchTableSink`, `AppendStreamTableSink`, `RetractStreamTableSink`, or `UpsertStreamTableSink` interface. See section on [defining a custom TableSink](#define-a-tablesink) for details.
-
-{% top %}
-
-### CsvTableSink
-
-The `CsvTableSink` emits a `Table` to one or more CSV files. 
-
-The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming.html#table-to-stream-conversion) for details. When emitting a streaming table, rows are written at least once (if checkpointing is enabled) and the `CsvTableSink` does not split output files into bucket files but continuously writes to the same files. 
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-
-Table table = ...
-
-table.writeToSink(
-  new CsvTableSink(
-    path,                  // output path 
-    "|",                   // optional: delimit files by '|'
-    1,                     // optional: write to a single file
-    WriteMode.OVERWRITE)); // optional: override existing files
-
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-
-val table: Table = ???
-
-table.writeToSink(
-  new CsvTableSink(
-    path,                             // output path 
-    fieldDelim = "|",                 // optional: delimit files by '|'
-    numFiles = 1,                     // optional: write to a single file
-    writeMode = WriteMode.OVERWRITE)) // optional: override existing files
-
-{% endhighlight %}
-</div>
-</div>
-
-### JDBCAppendTableSink
-
-The `JDBCAppendTableSink` emits a `Table` to a JDBC connection. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming.html#table-to-stream-conversion) for details. 
-
-The `JDBCAppendTableSink` inserts each `Table` row at least once into the database table (if checkpointing is enabled). However, you can specify the insertion query using <code>REPLACE</code> or <code>INSERT OVERWRITE</code> to perform upsert writes to the database.
-
-To use the JDBC sink, you have to add the JDBC connector dependency (<code>flink-jdbc</code>) to your project. Then you can create the sink using <code>JDBCAppendSinkBuilder</code>:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-
-JDBCAppendTableSink sink = JDBCAppendTableSink.builder()
-  .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
-  .setDBUrl("jdbc:derby:memory:ebookshop")
-  .setQuery("INSERT INTO books (id) VALUES (?)")
-  .setParameterTypes(INT_TYPE_INFO)
-  .build();
-
-Table table = ...
-table.writeToSink(sink);
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val sink: JDBCAppendTableSink = JDBCAppendTableSink.builder()
-  .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
-  .setDBUrl("jdbc:derby:memory:ebookshop")
-  .setQuery("INSERT INTO books (id) VALUES (?)")
-  .setParameterTypes(INT_TYPE_INFO)
-  .build()
-
-val table: Table = ???
-table.writeToSink(sink)
-{% endhighlight %}
-</div>
-</div>
-
-Similar to using <code>JDBCOutputFormat</code>, you have to explicitly specify the name of the JDBC driver, the JDBC URL, the query to be executed, and the field types of the JDBC table. 
-
-{% top %}
-
 Define a TableSource
 --------------------
 
-A `TableSource` is a generic interface to access to data stored in an external system as a table. It produces a `DataSet` or `DataStream` and provides the type information to derive the schema of the generated table. There are different table sources for batch tables and streaming tables.
+A `TableSource` is a generic interface that gives Table API and SQL queries access to data stored in an external system. It provides the schema of the table and the records that are mapped to rows with the table's schema. Depending on whether the `TableSource` is used in a streaming or batch query, the records are produced as a `DataSet` or `DataStream`. 
 
-Schema information consists of a data type, field names, and corresponding indexes of these names in the data type.
+If a `TableSource` is used in a streaming query it must implement the `StreamTableSource` interface, if it is used in a batch query it must implement the `BatchTableSource` interface. A `TableSource` can also implement both interfaces and be used in streaming and batch queries. 
 
-The general interface looks as follows:
+`StreamTableSource` and `BatchTableSource` extend the base interface `TableSource` that defines the following methods:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 TableSource<T> {
+
+  public TableSchema getTableSchema();
 
   public TypeInformation<T> getReturnType();
 
@@ -320,6 +60,8 @@ TableSource<T> {
 {% highlight scala %}
 TableSource[T] {
 
+  def getTableSchema: TableSchema
+
   def getReturnType: TypeInformation[T]
 
   def explainSource: String
@@ -329,20 +71,24 @@ TableSource[T] {
 </div>
 </div>
 
-To define a `TableSource` one needs to implement `TableSource#getReturnType`. In this case field names and field indexes are derived from the returned type.
+* `getTableSchema()`: Returns the schema of the table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `TypeInformation` (see [Table API types](tableApi.html#data-types) and [SQL types](sql.html#data-types)).
 
-If the `TypeInformation` returned by `getReturnType` does not allow to specify custom field names, it is possible to implement the `DefinedFieldNames` interface in addition.
+* `getReturnType()`: Returns the physical type of the `DataStream` (`StreamTableSource`) or `DataSet` (`BatchTableSource`) and the records that are produced by the `TableSource`.
 
-### BatchTableSource
+* `explainSource()`: Returns a String that describes the `TableSource`. This method is optional and used for display purposes only.
 
-Defines an external `TableSource` to create a batch table and provides access to its data.
+The `TableSource` interface separates the logical table schema from the physical type of the returned `DataStream` or `DataSet`. As a consequence, all fields of the table schema (`getTableSchema()`) must be mapped to a field with corresponding type of the physical return type (`getReturnType()`). By default, this mapping is done based on field names. For example, a `TableSource` that defines a table schema with two fields `[name: String, size: Integer]` requires a `TypeInformation` with at least two fields called `name` and `size` of type `String` and `Integer`, respectively. This could be a `PojoTypeInfo` or a `RowTypeInfo` that have two fields named `name` and `size` with matching types. 
 
-The interface looks as follows:
+However, some types, such as Tuple or CaseClass types, do support custom field names. If a `TableSource` returns a `DataStream` or `DataSet` of a type with fixed field names, it can implement the `DefinedFieldMapping` interface to map field names from the table schema to field names of the physical return type.
+
+### Defining a BatchTableSource
+
+The `BatchTableSource` interface extends the `TableSource` interface and defines one additional method:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-BatchTableSource<T> extends TableSource<T> {
+BatchTableSource<T> implements TableSource<T> {
 
   public DataSet<T> getDataSet(ExecutionEnvironment execEnv);
 }
@@ -359,20 +105,20 @@ BatchTableSource[T] extends TableSource[T] {
 </div>
 </div>
 
+* `getDataSet(execEnv)`: Returns a `DataSet` with the data of the table. The type of the `DataSet` must be identical to the return type defined by the `TableSource.getReturnType()` method. The `DataSet` can by created using a regular [data source]({{ site.baseurl }}/dev/batch/#data-sources) of the DataSet API. Commonly, a `BatchTableSource` is implemented by wrapping a `InputFormat` or [batch connector]({{ site.baseurl }}/dev/batch/connectors.html).
+
 {% top %}
 
-### StreamTableSource
+### Defining a StreamTableSource
 
-Defines an external `TableSource` to create a streaming table and provides access to its data.
-
-The interface looks as follows:
+The `StreamTableSource` interface extends the `TableSource` interface and defines one additional method: 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-StreamTableSource<T> extends TableSource<T> {
+StreamTableSource<T> implements TableSource<T> {
 
-  public DataSet<T> getDataStream(StreamExecutionEnvironment execEnv);
+  public DataStream<T> getDataStream(StreamExecutionEnvironment execEnv);
 }
 {% endhighlight %}
 </div>
@@ -381,28 +127,119 @@ StreamTableSource<T> extends TableSource<T> {
 {% highlight scala %}
 StreamTableSource[T] extends TableSource[T] {
 
-  def getDataStream(execEnv: StreamExecutionEnvironment): DataSet[T]
+  def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T]
 }
 {% endhighlight %}
 </div>
 </div>
 
-**Note:** If a Table needs to be processed in event-time, the `DataStream` returned by the `getDataStream()` method must carry timestamps and watermarks. Please see the documentation on [timestamp and watermark assignment]({{ site.baseurl }}/dev/event_timestamps_watermarks.html) for details on how to assign timestamps and watermarks.
-
-**Note:** Time-based operations on streaming tables such as windows in both the [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows) require explicitly specified time attributes. 
-
-- `DefinedRowtimeAttribute` provides the `getRowtimeAttribute()` method to specify the name of the event-time time attribute.
-- `DefinedProctimeAttribute` provides the `getProctimeAttribute()` method to specify the name of the processing-time time attribute.
-
-Please see the documentation on [time attributes]({{ site.baseurl }}/dev/table/streaming.html#time-attributes) for details.
+* `getDataStream(execEnv)`: Returns a `DataStream` with the data of the table. The type of the `DataStream` must be identical to the return type defined by the `TableSource.getReturnType()` method. The `DataStream` can by created using a regular [data source]({{ site.baseurl }}/dev/datastream_api.html#data-sources) of the DataStream API. Commonly, a `StreamTableSource` is implemented by wrapping a `SourceFunction` or a [stream connector]({{ site.baseurl }}/dev/connectors/).
 
 {% top %}
 
-### ProjectableTableSource
+### Defining a TableSource with Time Attributes
 
-The `ProjectableTableSource` interface adds support for projection push-down to a `TableSource`. A `TableSource` extending this interface is able to project the fields of the return table.
+Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes](streaming/time_attributes.html).
 
-The interface looks as follows:
+A `TableSource` defines a time attribute as a field of type `Types.SQL_TIMESTAMP` in its table schema. In contrast to all regular fields in the schema, a time attribute must not be matched to a physical field in the return type of the table source. Instead, a `TableSource` defines a time attribute by implementing a certain interface.
+
+#### Defining a Processing Time Attribute
+
+[Processing time attributes](streaming/time_attributes.html#processing-time) are commonly used in streaming queries. A processing time attribute returns the current wall-clock time of the operator that accesses it. A `TableSource` defines a processing time attribute by implementing the `DefinedProctimeAttribute` interface. The interface looks as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DefinedProctimeAttribute {
+
+  public String getProctimeAttribute();
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+DefinedProctimeAttribute {
+
+  def getProctimeAttribute: String
+}
+{% endhighlight %}
+</div>
+</div>
+
+* `getProctimeAttribute()`: Returns the name of the processing time attribute. The specified attribute must be defined of type `Types.SQL_TIMESTAMP` in the table schema and can be used in time-based operations. A `DefinedProctimeAttribute` table source can define no processing time attribute by returning `null`.
+
+<span class="label label-danger">Attention</span> Both `StreamTableSource` and `BatchTableSource` can implement `DefinedProctimeAttribute` and define a processing time attribute. In case of a `BatchTableSource` the processing time field is initialized with the current timestamp during the table scan.
+
+#### Defining a Rowtime Attribute
+
+[Rowtime attributes](streaming/time_attributes.html#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
+
+A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying 
+
+* the name of the field, 
+* a `TimestampExtractor` that computes the actual value for the attribute (usually from one or more other fields), and
+* a `WatermarkStrategy` that specifies how watermarks are generated for the the rowtime attribute.
+
+A `TableSource` defines a rowtime attribute by implementing the `DefinedRowtimeAttributes` interface. The interface looks as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DefinedRowtimeAttribute {
+
+  public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors();
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+DefinedRowtimeAttributes {
+
+  def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor]
+}
+{% endhighlight %}
+</div>
+</div>
+
+* `getRowtimeAttributeDescriptors()`: Returns a list of `RowtimeAttributeDescriptor`. A `RowtimeAttributeDescriptor` describes a rowtime attribute with the following properties:
+  * `attributeName`: The name of the rowtime attribute in the table schema. The field must be defined with type `Types.SQL_TIMESTAMP`.
+  * `timestampExtractor`: The timestamp extractor extracts the timestamp from a record with the return type. For example, it can convert a Long field into a timestamp or parse a String-encoded timestamp. Flink comes with a set of built-in `TimestampExtractor` implementation for common use cases. It is also possible to provide a custom implementation.
+  * `watermarkStrategy`: The watermark strategy defines how watermarks are generated for the rowtime attribute. Flink comes with a set of built-in `WatermarkStrategy` implementations for common use cases. It is also possible to provide a custom implementation.
+
+<span class="label label-danger">Attention</span> Although the `getRowtimeAttributeDescriptors()` method returns a list of descriptors, only a single rowtime attribute is support at the moment. We plan to remove this restriction in the future and support tables with more than one rowtime attribute.
+
+<span class="label label-danger">Attention</span> Both, `StreamTableSource` and `BatchTableSource`, can implement `DefinedRowtimeAttributes` and define a rowtime attribute. In either case, the rowtime field is extracted using the `TimestampExtractor`. Hence, a `TableSource` that implements `StreamTableSource` and `BatchTableSource` and defines a rowtime attribute provides exactly the same data to streaming and batch queries.
+
+##### Provided Timestamp Extractors
+
+Flink provides `TimestampExtractor` implementations for common use cases.
+
+The following `TimestampExtractor` implementations are currently available:
+
+* `ExistingField(fieldName)`: Extracts the value of a rowtime attribute from an existing `LONG`, `SQL_TIMESTAMP`, or timestamp formatted `STRING` field. One example of such a string would be '2018-05-28 12:34:56.000'.
+* `StreamRecordTimestamp()`: Extracts the value of a rowtime attribute from the timestamp of the `DataStream` `StreamRecord`. Note, this `TimestampExtractor` is not available for batch table sources.
+
+A custom `TimestampExtractor` can be defined by implementing the corresponding interface.
+
+##### Provided Watermark Strategies
+
+Flink provides `WatermarkStrategy` implementations for common use cases.
+
+The following `WatermarkStrategy` implementations are currently available:
+
+* `AscendingTimestamps`: A watermark strategy for ascending timestamps. Records with timestamps that are out-of-order will be considered late.
+* `BoundedOutOfOrderTimestamps(delay)`: A watermark strategy for timestamps that are at most out-of-order by the specified delay.
+* `PreserveWatermarks()`: A strategy which indicates the watermarks should be preserved from the underlying `DataStream`.
+
+A custom `WatermarkStrategy` can be defined by implementing the corresponding interface.
+
+{% top %}
+
+### Defining a TableSource with Projection Push-Down
+
+A `TableSource` supports projection push-down by implementing the `ProjectableTableSource` interface. The interface defines a single method:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -418,21 +255,15 @@ ProjectableTableSource<T> {
 {% highlight scala %}
 ProjectableTableSource[T] {
 
-  def TableSource[T] projectFields(fields: Array[Int])
+  def projectFields(fields: Array[Int]): TableSource[T]
 }
 {% endhighlight %}
 </div>
 </div>
 
-The `projectFields()` is called with an array that holds the indexes of the required fields. The method returns a new `TableSource` object that returns rows with the requested schema.
+* `projectFields(fields)`: Returns a *copy* of the `TableSource` with adjusted physical return type. The `fields` parameter provides the indexes of the fields that must be provided by the `TableSource`. The indexes relate to the `TypeInformation` of the physical return type, *not* to the logical table schema. The copied `TableSource` must adjust its return type and the returned `DataStream` or `DataSet`. The `TableSchema` of the copied `TableSource` must not be changed, i.e, it must be the same as the original `TableSource`. If the `TableSource` implements the `DefinedFieldMapping` interface, the field mapping must be adjusted to the new return type.
 
-{% top %}
-
-### NestedFieldsProjectableTableSource
-
-The `NestedFieldsProjectableTableSource` interface adds support for projection push-down to a `TableSource` with nested fields. A `TableSource` extending this interface is able to project the nested fields of the returned table.
-
-The interface looks as follows:
+The `ProjectableTableSource` adds support to project flat fields. If the `TableSource` defines a table with nested schema, it can implement the `NestedFieldsProjectableTableSource` to extend the projection to nested fields. The `NestedFieldsProjectableTableSource` is defined as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -454,9 +285,13 @@ NestedFieldsProjectableTableSource[T] {
 </div>
 </div>
 
-### FilterableTableSource
+* `projectNestedField(fields, nestedFields)`: Returns a *copy* of the `TableSource` with adjusted physical return type. Fields of the physical return type may be removed or reordered but their type must not be changed. The contract of this method is essentially the same as for the `ProjectableTableSource.projectFields()` method. In addition, the `nestedFields` parameter contains for each field index in the `fields` list, a list of paths to all nested fields that are accessed by the query. All other nested fields do not need to be read, parsed, and set in the records that are produced by the `TableSource`. **IMPORTANT** the types of the projected fields must not be changed but unused fields may be set to null or to a default value.
 
-The `FilterableTableSource` interface adds support for filtering push-down to a `TableSource`. A `TableSource` extending this interface is able to filter records before returning.
+{% top %}
+
+### Defining a TableSource with Filter Push-Down
+
+The `FilterableTableSource` interface adds support for filter push-down to a `TableSource`. A `TableSource` extending this interface is able to filter records such that the returned `DataStream` or `DataSet` returns fewer records.
 
 The interface looks as follows:
 
@@ -484,9 +319,50 @@ FilterableTableSource[T] {
 </div>
 </div>
 
-The optimizer pushes predicates down by calling the `applyPredicate()` method. The `TableSource` can evaluate which predicates to evaluate by itself and which to leave for the framework. Predicates which are evaluated by the `TableSource` must be removed from the `List`. All predicates which remain in the `List` after the method call returns are evaluated by the framework. The `applyPredicate()` method returns a new `TableSource` that evaluates all selected predicates.
+* `applyPredicate(predicates)`: Returns a *copy* of the `TableSource` with added predicates. The `predicates` parameter is a mutable list of conjunctive predicates that are "offered" to the `TableSource`. The `TableSource` accepts to evaluate a predicate by removing it from the list. Predicates that are left in the list will be evaluated by a subsequent filter operator. 
+* `isFilterPushedDown()`: Returns true if the `applyPredicate()` method was called before. Hence, `isFilterPushedDown()` must return true for all `TableSource` instances returned from a `applyPredicate()` call.
 
-The `isFilterPushedDown()` method tells the optimizer whether predicates have been pushed down or not.
+{% top %}
+
+### Defining a TableSource for Lookups
+
+<span class="label label-danger">Attention</span> This is an experimental feature. The interface may be changed in future versions. It's only supported in Blink planner.
+
+The `LookupableTableSource` interface adds support for the table to be accessed via key column(s) in a lookup fashion. This is very useful when used to join with a dimension table to enrich some information. If you want to use the `TableSource` in lookup mode, you should use the source in [temporal table join syntax](streaming/joins.html).
+
+The interface looks as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+LookupableTableSource<T> implements TableSource<T> {
+
+  public TableFunction<T> getLookupFunction(String[] lookupkeys);
+
+  public AsyncTableFunction<T> getAsyncLookupFunction(String[] lookupkeys);
+
+  public boolean isAsyncEnabled();
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+LookupableTableSource[T] extends TableSource[T] {
+
+  def getLookupFunction(lookupKeys: Array[String]): TableFunction[T]
+
+  def getAsyncLookupFunction(lookupKeys: Array[String]): AsyncTableFunction[T]
+
+  def isAsyncEnabled: Boolean
+}
+{% endhighlight %}
+</div>
+</div>
+
+* `getLookupFunction(lookupkeys)`: Returns a `TableFunction` which used to lookup the matched row(s) via lookup keys. The lookupkeys are the field names of `LookupableTableSource` in the join equal conditions. The eval method parameters of the returned `TableFunction`'s should be in the order which `lookupkeys` defined. It is recommended to define the parameters in varargs (e.g. `eval(Object... lookupkeys)` to match all the cases). The return type of the `TableFunction` must be identical to the return type defined by the `TableSource.getReturnType()` method.
+* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O](/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
+* `isAsyncEnabled()`: Returns true if async lookup is enabled. It requires `getAsyncLookupFunction(lookupkeys)` is implemented if `isAsyncEnabled` returns true.
 
 {% top %}
 
@@ -540,7 +416,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-BatchTableSink<T> extends TableSink<T> {
+BatchTableSink<T> implements TableSink<T> {
 
   public void emitDataSet(DataSet<T> dataSet);
 }
@@ -568,7 +444,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-AppendStreamTableSink<T> extends TableSink<T> {
+AppendStreamTableSink<T> implements TableSink<T> {
 
   public void emitDataStream(DataStream<T> dataStream);
 }
@@ -579,7 +455,7 @@ AppendStreamTableSink<T> extends TableSink<T> {
 {% highlight scala %}
 AppendStreamTableSink[T] extends TableSink[T] {
 
-  def emitDataStream(dataStream: DataStream<T>): Unit
+  def emitDataStream(dataStream: DataStream[T]): Unit
 }
 {% endhighlight %}
 </div>
@@ -598,7 +474,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RetractStreamTableSink<T> extends TableSink<Tuple2<Boolean, T>> {
+RetractStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
@@ -632,7 +508,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-UpsertStreamTableSink<T> extends TableSink<Tuple2<Boolean, T>> {
+UpsertStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public void setKeyFields(String[] keys);
 
@@ -669,3 +545,245 @@ A message with true boolean field is an upsert message for the configured key. A
 
 {% top %}
 
+Define a TableFactory
+---------------------
+
+A `TableFactory` allows to create different table-related instances from string-based properties. All available factories are called for matching to the given set of properties and a corresponding factory class.
+
+Factories leverage Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) for discovering. This means that every dependency and JAR file should contain a file `org.apache.flink.table.factories.TableFactory` in the `META_INF/services` resource directory that lists all available table factories that it provides.
+
+Every table factory needs to implement the following interface:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+package org.apache.flink.table.factories;
+
+interface TableFactory {
+
+  Map<String, String> requiredContext();
+
+  List<String> supportedProperties();
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+package org.apache.flink.table.factories
+
+trait TableFactory {
+
+  def requiredContext(): util.Map[String, String]
+
+  def supportedProperties(): util.List[String]
+}
+{% endhighlight %}
+</div>
+</div>
+
+* `requiredContext()`: Specifies the context that this factory has been implemented for. The framework guarantees to only match for this factory if the specified set of properties and values are met. Typical properties might be `connector.type`, `format.type`, or `update-mode`. Property keys such as `connector.property-version` and `format.property-version` are reserved for future backwards compatibility cases.
+* `supportedProperties`: List of property keys that this factory can handle. This method will be used for validation. If a property is passed that this factory cannot handle, an exception will be thrown. The list must not contain the keys that are specified by the context.
+
+In order to create a specific instance, a factory class can implement one or more interfaces provided in `org.apache.flink.table.factories`:
+
+* `BatchTableSourceFactory`: Creates a batch table source.
+* `BatchTableSinkFactory`: Creates a batch table sink.
+* `StreamTableSourceFactory`: Creates a stream table source.
+* `StreamTableSinkFactory`: Creates a stream table sink.
+* `DeserializationSchemaFactory`: Creates a deserialization schema format.
+* `SerializationSchemaFactory`: Creates a serialization schema format.
+
+The discovery of a factory happens in multiple stages:
+
+- Discover all available factories.
+- Filter by factory class (e.g., `StreamTableSourceFactory`).
+- Filter by matching context.
+- Filter by supported properties.
+- Verify that exactly one factory matches, otherwise throw an `AmbiguousTableFactoryException` or `NoMatchingTableFactoryException`.
+
+The following example shows how to provide a custom streaming source with an additional `connector.debug` property flag for parameterization.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.types.Row;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+class MySystemTableSourceFactory implements StreamTableSourceFactory<Row> {
+
+  @Override
+  public Map<String, String> requiredContext() {
+    Map<String, String> context = new HashMap<>();
+    context.put("update-mode", "append");
+    context.put("connector.type", "my-system");
+    return context;
+  }
+
+  @Override
+  public List<String> supportedProperties() {
+    List<String> list = new ArrayList<>();
+    list.add("connector.debug");
+    return list;
+  }
+
+  @Override
+  public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
+    boolean isDebug = Boolean.valueOf(properties.get("connector.debug"));
+
+    # additional validation of the passed properties can also happen here
+
+    return new MySystemAppendTableSource(isDebug);
+  }
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import java.util
+import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.types.Row
+
+class MySystemTableSourceFactory extends StreamTableSourceFactory[Row] {
+
+  override def requiredContext(): util.Map[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put("update-mode", "append")
+    context.put("connector.type", "my-system")
+    context
+  }
+
+  override def supportedProperties(): util.List[String] = {
+    val properties = new util.ArrayList[String]()
+    properties.add("connector.debug")
+    properties
+  }
+
+  override def createStreamTableSource(properties: util.Map[String, String]): StreamTableSource[Row] = {
+    val isDebug = java.lang.Boolean.valueOf(properties.get("connector.debug"))
+
+    # additional validation of the passed properties can also happen here
+
+    new MySystemAppendTableSource(isDebug)
+  }
+}
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
+
+### Use a TableFactory in the SQL Client
+
+In a SQL Client environment file, the previously presented factory could be declared as:
+
+{% highlight yaml %}
+tables:
+ - name: MySystemTable
+   type: source
+   update-mode: append
+   connector:
+     type: my-system
+     debug: true
+{% endhighlight %}
+
+The YAML file is translated into flattened string properties and a table factory is called with those properties that describe the connection to the external system:
+
+{% highlight text %}
+update-mode=append
+connector.type=my-system
+connector.debug=true
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> Properties such as `tables.#.name` or `tables.#.type` are SQL Client specifics and are not passed to any factory. The `type` property decides, depending on the execution environment, whether a `BatchTableSourceFactory`/`StreamTableSourceFactory` (for `source`), a `BatchTableSinkFactory`/`StreamTableSinkFactory` (for `sink`), or both (for `both`) need to discovered.
+
+{% top %}
+
+### Use a TableFactory in the Table & SQL API
+
+For a type-safe, programmatic approach with explanatory Scaladoc/Javadoc, the Table & SQL API offers descriptors in `org.apache.flink.table.descriptors` that translate into string-based properties. See the [built-in descriptors](connect.html) for sources, sinks, and formats as a reference.
+
+A connector for `MySystem` in our example can extend `ConnectorDescriptor` as shown below:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+  * Connector to MySystem with debug mode.
+  */
+public class MySystemConnector extends ConnectorDescriptor {
+
+  public final boolean isDebug;
+
+  public MySystemConnector(boolean isDebug) {
+    super("my-system", 1, false);
+    this.isDebug = isDebug;
+  }
+
+  @Override
+  protected Map<String, String> toConnectorProperties() {
+    Map<String, String> properties = new HashMap<>();
+    properties.put("connector.debug", Boolean.toString(isDebug));
+    return properties;
+  }
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.table.descriptors.ConnectorDescriptor
+import java.util.HashMap
+import java.util.Map
+
+/**
+  * Connector to MySystem with debug mode.
+  */
+class MySystemConnector(isDebug: Boolean) extends ConnectorDescriptor("my-system", 1, false) {
+  
+  override protected def toConnectorProperties(): Map[String, String] = {
+    val properties = new HashMap[String, String]
+    properties.put("connector.debug", isDebug.toString)
+    properties
+  }
+}
+{% endhighlight %}
+</div>
+</div>
+
+The descriptor can then be used in the API as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+StreamTableEnvironment tableEnv = // ...
+
+tableEnv
+  .connect(new MySystemConnector(true))
+  .inAppendMode()
+  .registerTableSource("MySystemTable");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val tableEnv: StreamTableEnvironment = // ...
+
+tableEnv
+  .connect(new MySystemConnector(isDebug = true))
+  .inAppendMode()
+  .registerTableSource("MySystemTable")
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}

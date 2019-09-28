@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,16 +40,16 @@ public class TimerService<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TimerService.class);
 
-	/** Executor service for the scheduled timeouts */
+	/** Executor service for the scheduled timeouts. */
 	private final ScheduledExecutorService scheduledExecutorService;
 
 	/** Timeout for the shutdown of the service. */
 	private final long shutdownTimeout;
 
-	/** Map of currently active timeouts */
+	/** Map of currently active timeouts. */
 	private final Map<K, Timeout<K>> timeouts;
 
-	/** Listener which is notified about occurring timeouts */
+	/** Listener which is notified about occurring timeouts. */
 	private TimeoutListener<K> timeoutListener;
 
 	public TimerService(
@@ -79,7 +80,7 @@ public class TimerService<K> {
 		scheduledExecutorService.shutdown();
 
 		try {
-			if(!scheduledExecutorService.awaitTermination(shutdownTimeout, TimeUnit.MILLISECONDS)) {
+			if (!scheduledExecutorService.awaitTermination(shutdownTimeout, TimeUnit.MILLISECONDS)) {
 				LOG.debug("The scheduled executor service did not properly terminate. Shutting " +
 					"it down now.");
 				scheduledExecutorService.shutdownNow();

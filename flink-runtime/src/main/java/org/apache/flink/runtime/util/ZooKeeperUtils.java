@@ -18,12 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.api.ACLProvider;
-import org.apache.curator.framework.imps.DefaultACLProvider;
-import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -33,14 +27,24 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
-import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.api.ACLProvider;
+import org.apache.curator.framework.imps.DefaultACLProvider;
+import org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
@@ -53,9 +57,18 @@ import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Class containing helper functions to interact with ZooKeeper.
+ */
 public class ZooKeeperUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
+
+	/**  The prefix of the submitted job graph file. */
+	public static final String HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX = "submittedJobGraph";
+
+	/** The prefix of the completed checkpoint file. */
+	public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
 
 	/**
 	 * Starts a {@link CuratorFramework} instance and connects it to the given ZooKeeper
@@ -92,21 +105,20 @@ public class ZooKeeperUtils {
 
 		ZkClientACLMode aclMode = ZkClientACLMode.fromConfig(configuration);
 
-		if(disableSaslClient && aclMode == ZkClientACLMode.CREATOR) {
-			String errorMessage = "Cannot set ACL role to " + aclMode +"  since SASL authentication is " +
+		if (disableSaslClient && aclMode == ZkClientACLMode.CREATOR) {
+			String errorMessage = "Cannot set ACL role to " + aclMode + "  since SASL authentication is " +
 					"disabled through the " + SecurityOptions.ZOOKEEPER_SASL_DISABLE.key() + " property";
 			LOG.warn(errorMessage);
 			throw new IllegalConfigurationException(errorMessage);
 		}
 
-		if(aclMode == ZkClientACLMode.CREATOR) {
+		if (aclMode == ZkClientACLMode.CREATOR) {
 			LOG.info("Enforcing creator for ZK connections");
 			aclProvider = new SecureAclProvider();
 		} else {
 			LOG.info("Enforcing default ACL for ZK connections");
 			aclProvider = new DefaultACLProvider();
 		}
-
 
 		String rootWithNamespace = generateZookeeperPath(root, namespace);
 
@@ -164,8 +176,7 @@ public class ZooKeeperUtils {
 	 */
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
 		final CuratorFramework client,
-		final Configuration configuration) throws Exception
-	{
+		final Configuration configuration) throws Exception {
 		return createLeaderRetrievalService(client, configuration, "");
 	}
 
@@ -181,8 +192,7 @@ public class ZooKeeperUtils {
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
 		final CuratorFramework client,
 		final Configuration configuration,
-		final String pathSuffix)
-	{
+		final String pathSuffix) {
 		String leaderPath = configuration.getString(
 			HighAvailabilityOptions.HA_ZOOKEEPER_LEADER_PATH) + pathSuffix;
 
@@ -212,10 +222,9 @@ public class ZooKeeperUtils {
 	 * @return {@link ZooKeeperLeaderElectionService} instance.
 	 */
 	public static ZooKeeperLeaderElectionService createLeaderElectionService(
-		final CuratorFramework client,
-		final Configuration configuration,
-		final String pathSuffix)
-	{
+			final CuratorFramework client,
+			final Configuration configuration,
+			final String pathSuffix) {
 		final String latchPath = configuration.getString(
 			HighAvailabilityOptions.HA_ZOOKEEPER_LATCH_PATH) + pathSuffix;
 		final String leaderPath = configuration.getString(
@@ -225,28 +234,42 @@ public class ZooKeeperUtils {
 	}
 
 	/**
-	 * Creates a {@link ZooKeeperSubmittedJobGraphStore} instance.
+	 * Creates a {@link ZooKeeperJobGraphStore} instance.
 	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
-	 * @param executor to run ZooKeeper callbacks
-	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
+	 * @return {@link ZooKeeperJobGraphStore} instance
 	 * @throws Exception if the submitted job graph store cannot be created
 	 */
-	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
+	public static ZooKeeperJobGraphStore createJobGraphs(
 			CuratorFramework client,
-			Configuration configuration,
-			Executor executor) throws Exception {
+			Configuration configuration) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
-		RetrievableStateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
+		RetrievableStateStorageHelper<JobGraph> stateStorage = createFileSystemStateStorage(
+			configuration, HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX);
 
 		// ZooKeeper submitted jobs root dir
-		String zooKeeperSubmittedJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
+		String zooKeeperJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
-		return new ZooKeeperSubmittedJobGraphStore(
-				client, zooKeeperSubmittedJobsPath, stateStorage, executor);
+		// Ensure that the job graphs path exists
+		client.newNamespaceAwareEnsurePath(zooKeeperJobsPath)
+			.ensure(client.getZookeeperClient());
+
+		// All operations will have the path as root
+		CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperJobsPath);
+
+		final String zooKeeperFullJobsPath = client.getNamespace() + zooKeeperJobsPath;
+
+		final ZooKeeperStateHandleStore<JobGraph> zooKeeperStateHandleStore = new ZooKeeperStateHandleStore<>(facade, stateStorage);
+
+		final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
+
+		return new ZooKeeperJobGraphStore(
+			zooKeeperFullJobsPath,
+			zooKeeperStateHandleStore,
+			pathCache);
 	}
 
 	/**
@@ -274,16 +297,35 @@ public class ZooKeeperUtils {
 
 		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage = createFileSystemStateStorage(
 			configuration,
-			"completedCheckpoint");
+			HA_STORAGE_COMPLETED_CHECKPOINT);
 
-		checkpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+		checkpointsPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
-		return new ZooKeeperCompletedCheckpointStore(
+		final ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			maxNumberOfCheckpointsToRetain,
-			client,
-			checkpointsPath,
-			stateStorage,
+			createZooKeeperStateHandleStore(client, checkpointsPath, stateStorage),
 			executor);
+
+		LOG.info("Initialized {} in '{}'.", ZooKeeperCompletedCheckpointStore.class.getSimpleName(), checkpointsPath);
+		return zooKeeperCompletedCheckpointStore;
+	}
+
+	/**
+	 * Creates an instance of {@link ZooKeeperStateHandleStore}.
+	 *
+	 * @param client       ZK client
+	 * @param path         Path to use for the client namespace
+	 * @param stateStorage RetrievableStateStorageHelper that persist the actual state and whose
+	 *                     returned state handle is then written to ZooKeeper
+	 * @param <T>          Type of state
+	 * @return {@link ZooKeeperStateHandleStore} instance
+	 * @throws Exception ZK errors
+	 */
+	public static <T extends Serializable> ZooKeeperStateHandleStore<T> createZooKeeperStateHandleStore(
+			final CuratorFramework client,
+			final String path,
+			final RetrievableStateStorageHelper<T> stateStorage) throws Exception {
+		return new ZooKeeperStateHandleStore<>(useNamespaceAndEnsurePath(client, path), stateStorage);
 	}
 
 	/**
@@ -302,7 +344,7 @@ public class ZooKeeperUtils {
 		String checkpointIdCounterPath = configuration.getString(
 				HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
 
-		checkpointIdCounterPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+		checkpointIdCounterPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
 		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath);
 	}
@@ -320,14 +362,7 @@ public class ZooKeeperUtils {
 			Configuration configuration,
 			String prefix) throws IOException {
 
-		String rootPath = configuration.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
-
-		if (rootPath == null || StringUtils.isBlank(rootPath)) {
-			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
-					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
-		} else {
-			return new FileSystemStateStorageHelper<T>(rootPath, prefix);
-		}
+		return new FileSystemStateStorageHelper<>(HighAvailabilityServicesUtils.getClusterHighAvailableStoragePath(configuration), prefix);
 	}
 
 	public static String generateZookeeperPath(String root, String namespace) {
@@ -346,22 +381,45 @@ public class ZooKeeperUtils {
 		return root + namespace;
 	}
 
+	/**
+	 * Returns a facade of the client that uses the specified namespace, and ensures that all nodes
+	 * in the path exist.
+	 *
+	 * @param client ZK client
+	 * @param path the new namespace
+	 * @return ZK Client that uses the new namespace
+	 * @throws Exception ZK errors
+	 */
+	public static CuratorFramework useNamespaceAndEnsurePath(final CuratorFramework client, final String path) throws Exception {
+		Preconditions.checkNotNull(client, "client must not be null");
+		Preconditions.checkNotNull(path, "path must not be null");
 
-	public static class SecureAclProvider implements ACLProvider
-	{
+		// Ensure that the checkpoints path exists
+		client.newNamespaceAwareEnsurePath(path)
+			.ensure(client.getZookeeperClient());
+
+		// All operations will have the path as root
+		return client.usingNamespace(generateZookeeperPath(client.getNamespace(), path));
+	}
+
+	/**
+	 * Secure {@link ACLProvider} implementation.
+	 */
+	public static class SecureAclProvider implements ACLProvider {
 		@Override
-		public List<ACL> getDefaultAcl()
-		{
+		public List<ACL> getDefaultAcl() {
 			return ZooDefs.Ids.CREATOR_ALL_ACL;
 		}
 
 		@Override
-		public List<ACL> getAclForPath(String path)
-		{
+		public List<ACL> getAclForPath(String path) {
 			return ZooDefs.Ids.CREATOR_ALL_ACL;
 		}
 	}
 
+	/**
+	 * ZooKeeper client ACL mode enum.
+	 */
 	public enum ZkClientACLMode {
 		CREATOR,
 		OPEN;

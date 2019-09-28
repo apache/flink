@@ -20,9 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -30,48 +29,30 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /**
  * Test checkpoint cancellation barrier.
  */
 public class StreamTaskCancellationBarrierTest {
 
-	/**
-	 * This test checks that tasks emit a proper cancel checkpoint barrier, if a "trigger checkpoint" message
-	 * comes before they are ready.
-	 */
-	@Test
-	public void testEmitCancellationBarrierWhenNotReady() throws Exception {
-		StreamTask<String, ?> task = new InitBlockingTask();
-		StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO);
-		testHarness.setupOutputForSingletonOperatorChain();
-
-		// start the test - this cannot succeed across the 'init()' method
-		testHarness.invoke();
-
-		// tell the task to commence a checkpoint
-		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()),
-			CheckpointOptions.forFullCheckpoint());
-		assertFalse("task triggered checkpoint though not ready", result);
-
-		// a cancellation barrier should be downstream
-		Object emitted = testHarness.getOutput().poll();
-		assertNotNull("nothing emitted", emitted);
-		assertTrue("wrong type emitted", emitted instanceof CancelCheckpointMarker);
-		assertEquals("wrong checkpoint id", 41L, ((CancelCheckpointMarker) emitted).getCheckpointId());
-	}
+	@Rule
+	public final Timeout timeoutPerTest = Timeout.seconds(10);
 
 	/**
 	 * This test verifies (for onw input tasks) that the Stream tasks react the following way to
@@ -82,9 +63,8 @@ public class StreamTaskCancellationBarrierTest {
 	@Test
 	public void testDeclineCallOnCancelBarrierOneInput() throws Exception {
 
-		OneInputStreamTask<String, String> task = new OneInputStreamTask<String, String>();
 		OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				task,
+				OneInputStreamTask::new,
 				1, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -106,7 +86,8 @@ public class StreamTaskCancellationBarrierTest {
 		testHarness.waitForInputProcessing();
 
 		// the decline call should go to the coordinator
-		verify(environment, times(1)).declineCheckpoint(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(environment, times(1)).declineCheckpoint(eq(2L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
 		// a cancellation barrier should be downstream
 		Object result = testHarness.getOutput().poll();
@@ -120,7 +101,7 @@ public class StreamTaskCancellationBarrierTest {
 	}
 
 	/**
-	 * This test verifies (for one input tasks) that the Stream tasks react the following way to
+	 * This test verifies (for two input tasks) that the Stream tasks react the following way to
 	 * receiving a checkpoint cancellation barrier:
 	 *   - send a "decline checkpoint" notification out (to the JobManager)
 	 *   - emit a cancellation barrier downstream.
@@ -128,9 +109,8 @@ public class StreamTaskCancellationBarrierTest {
 	@Test
 	public void testDeclineCallOnCancelBarrierTwoInputs() throws Exception {
 
-		TwoInputStreamTask<String, String, String> task = new TwoInputStreamTask<String, String, String>();
 		TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-				task,
+				TwoInputStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
@@ -151,7 +131,8 @@ public class StreamTaskCancellationBarrierTest {
 		testHarness.waitForInputProcessing();
 
 		// the decline call should go to the coordinator
-		verify(environment, times(1)).declineCheckpoint(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(environment, times(1)).declineCheckpoint(eq(2L),
+			argThat(new CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
 		// a cancellation barrier should be downstream
 		Object result = testHarness.getOutput().poll();
@@ -168,25 +149,24 @@ public class StreamTaskCancellationBarrierTest {
 	//  test tasks / functions
 	// ------------------------------------------------------------------------
 
-	private static class InitBlockingTask extends StreamTask<String, AbstractStreamOperator<String>> {
+	private static class InitBlockingTask extends NoOpStreamTask<String, AbstractStreamOperator<String>> {
 
 		private final Object lock = new Object();
 		private volatile boolean running = true;
 
+		protected InitBlockingTask(Environment env) {
+			super(env);
+		}
+
 		@Override
 		protected void init() throws Exception {
+			super.init();
 			synchronized (lock) {
 				while (running) {
 					lock.wait();
 				}
 			}
 		}
-
-		@Override
-		protected void run() throws Exception {}
-
-		@Override
-		protected void cleanup() throws Exception {}
 
 		@Override
 		protected void cancelTask() throws Exception {

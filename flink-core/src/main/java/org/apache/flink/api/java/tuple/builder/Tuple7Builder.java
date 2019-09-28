@@ -16,21 +16,30 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
 
-
 package org.apache.flink.api.java.tuple.builder;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.tuple.Tuple7;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * A builder class for {@link Tuple7}.
+ *
+ * @param <T0> The type of field 0
+ * @param <T1> The type of field 1
+ * @param <T2> The type of field 2
+ * @param <T3> The type of field 3
+ * @param <T4> The type of field 4
+ * @param <T5> The type of field 5
+ * @param <T6> The type of field 6
+ */
 @Public
 public class Tuple7Builder<T0, T1, T2, T3, T4, T5, T6> {
 

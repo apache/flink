@@ -21,11 +21,16 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
+import java.util.Collection;
 
 /**
  * A <b>State Backend</b> defines how the state of a streaming application is stored and
@@ -73,8 +78,7 @@ import java.io.IOException;
  * states stores that provide access to the persistent storage and hold the keyed- and operator
  * state data structures. That way, the State Backend can be very lightweight (contain only
  * configurations) which makes it easier to be serializable.
- * 
- * 
+ *
  * <h2>Thread Safety</h2>
  * 
  * State backend implementations have to be thread-safe. Multiple threads may be creating
@@ -84,84 +88,92 @@ import java.io.IOException;
 public interface StateBackend extends java.io.Serializable {
 
 	// ------------------------------------------------------------------------
-	//  Persistent Bytes Storage
+	//  Checkpoint storage - the durable persistence of checkpoint data
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
-	 * that should end up in a checkpoint.
+	 * Resolves the given pointer to a checkpoint/savepoint into a checkpoint location. The location
+	 * supports reading the checkpoint metadata, or disposing the checkpoint storage location.
 	 *
-	 * @param jobId              The {@link JobID} of the job for which we are creating checkpoint streams.
-	 * @param operatorIdentifier An identifier of the operator for which we create streams.
+	 * <p>If the state backend cannot understand the format of the pointer (for example because it
+	 * was created by a different state backend) this method should throw an {@code IOException}.
+	 *
+	 * @param externalPointer The external checkpoint pointer to resolve.
+	 * @return The checkpoint location handle.
+	 *
+	 * @throws IOException Thrown, if the state backend does not understand the pointer, or if
+	 *                     the pointer could not be resolved due to an I/O error.
 	 */
-	CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException;
+	CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException;
 
 	/**
-	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
-	 * that should end up in a savepoint.
+	 * Creates a storage for checkpoints for the given job. The checkpoint storage is
+	 * used to write checkpoint data and metadata.
 	 *
-	 * <p>This is only called if the triggered checkpoint is a savepoint. Commonly
-	 * this will return the same factory as for regular checkpoints, but maybe
-	 * slightly adjusted.
+	 * @param jobId The job to store checkpoint data for.
+	 * @return A checkpoint storage for the given job.
 	 *
-	 * @param jobId The {@link JobID} of the job for which we are creating checkpoint streams.
-	 * @param operatorIdentifier An identifier of the operator for which we create streams.
-	 * @param targetLocation An optional custom location for the savepoint stream.
-	 * 
-	 * @return The stream factory for savepoints.
-	 * 
-	 * @throws IOException Failures during stream creation are forwarded.
+	 * @throws IOException Thrown if the checkpoint storage cannot be initialized.
 	 */
-	CheckpointStreamFactory createSavepointStreamFactory(
-			JobID jobId,
-			String operatorIdentifier,
-			@Nullable String targetLocation) throws IOException;
+	CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException;
 
 	// ------------------------------------------------------------------------
 	//  Structure Backends 
 	// ------------------------------------------------------------------------
-
 	/**
 	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for holding <b>keyed state</b>
 	 * and checkpointing it.
-	 * 
+	 *
 	 * <p><i>Keyed State</i> is state where each value is bound to a key.
-	 * 
-	 * @param env
-	 * @param jobID
-	 * @param operatorIdentifier
-	 * @param keySerializer
-	 * @param numberOfKeyGroups
-	 * @param keyGroupRange
-	 * @param kvStateRegistry
-	 * 
-	 * @param <K> The type of the keys by which the state is organized.
-	 *     
+	 *
+	 * @param env                  The environment of the task.
+	 * @param jobID                The ID of the job that the task belongs to.
+	 * @param operatorIdentifier   The identifier text of the operator.
+	 * @param keySerializer        The key-serializer for the operator.
+	 * @param numberOfKeyGroups    The number of key-groups aka max parallelism.
+	 * @param keyGroupRange        Range of key-groups for which the to-be-created backend is responsible.
+	 * @param kvStateRegistry      KvStateRegistry helper for this task.
+	 * @param ttlTimeProvider      Provider for TTL logic to judge about state expiration.
+	 * @param metricGroup          The parent metric group for all state backend metrics.
+	 * @param stateHandles         The state handles for restore.
+	 * @param cancelStreamRegistry The registry to which created closeable objects will be registered during restore.
+	 * @param <K>                  The type of the keys by which the state is organized.
+	 *
 	 * @return The Keyed State Backend for the given job, operator, and key group range.
-	 * 
+	 *
 	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
 	 */
 	<K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws Exception;
-
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup,
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws Exception;
+	
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.
-	 * 
+	 *
 	 * <p>Operator state is state that is associated with parallel operator (or function) instances,
 	 * rather than with keys.
-	 * 
+	 *
 	 * @param env The runtime environment of the executing task.
 	 * @param operatorIdentifier The identifier of the operator whose state should be stored.
-	 * 
+	 * @param stateHandles The state handles for restore.
+	 * @param cancelStreamRegistry The registry to register streams to close if task canceled.
+	 *
 	 * @return The OperatorStateBackend for operator identified by the job and operator identifier.
-	 * 
+	 *
 	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
 	 */
-	OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception;
+	OperatorStateBackend createOperatorStateBackend(
+		Environment env,
+		String operatorIdentifier,
+		@Nonnull Collection<OperatorStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws Exception;
 }

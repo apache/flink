@@ -23,12 +23,13 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * A variant of the HighAvailabilityServices for testing. Each individual service can be set
@@ -40,6 +41,12 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderRetrievalService dispatcherLeaderRetriever;
 
+	private volatile LeaderRetrievalService clusterRestEndpointLeaderRetriever;
+
+	private volatile Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction = ignored -> null;
+
+	private volatile Function<JobID, LeaderElectionService> jobMasterLeaderElectionServiceFunction = ignored -> null;
+
 	private ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers = new ConcurrentHashMap<>();
 
 	private ConcurrentHashMap<JobID, LeaderElectionService> jobManagerLeaderElectionServices = new ConcurrentHashMap<>();
@@ -48,9 +55,13 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderElectionService dispatcherLeaderElectionService;
 
+	private volatile LeaderElectionService clusterRestEndpointLeaderElectionService;
+
 	private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
 
-	private volatile SubmittedJobGraphStore submittedJobGraphStore;
+	private volatile JobGraphStore jobGraphStore;
+
+	private volatile RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
 	// ------------------------------------------------------------------------
 	//  Setters for mock / testing implementations
@@ -62,6 +73,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	public void setDispatcherLeaderRetriever(LeaderRetrievalService dispatcherLeaderRetriever) {
 		this.dispatcherLeaderRetriever = dispatcherLeaderRetriever;
+	}
+
+	public void setClusterRestEndpointLeaderRetriever(final LeaderRetrievalService clusterRestEndpointLeaderRetriever) {
+		this.clusterRestEndpointLeaderRetriever = clusterRestEndpointLeaderRetriever;
 	}
 
 	public void setJobMasterLeaderRetriever(JobID jobID, LeaderRetrievalService jobMasterLeaderRetriever) {
@@ -80,12 +95,28 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.dispatcherLeaderElectionService = leaderElectionService;
 	}
 
+	public void setClusterRestEndpointLeaderElectionService(final LeaderElectionService clusterRestEndpointLeaderElectionService) {
+		this.clusterRestEndpointLeaderElectionService = clusterRestEndpointLeaderElectionService;
+	}
+
 	public void setCheckpointRecoveryFactory(CheckpointRecoveryFactory checkpointRecoveryFactory) {
 		this.checkpointRecoveryFactory = checkpointRecoveryFactory;
 	}
 
-	public void setSubmittedJobGraphStore(SubmittedJobGraphStore submittedJobGraphStore) {
-		this.submittedJobGraphStore = submittedJobGraphStore;
+	public void setJobGraphStore(JobGraphStore jobGraphStore) {
+		this.jobGraphStore = jobGraphStore;
+	}
+
+	public void setRunningJobsRegistry(RunningJobsRegistry runningJobsRegistry) {
+		this.runningJobsRegistry = runningJobsRegistry;
+	}
+
+	public void setJobMasterLeaderElectionServiceFunction(Function<JobID, LeaderElectionService> jobMasterLeaderElectionServiceFunction) {
+		this.jobMasterLeaderElectionServiceFunction = jobMasterLeaderElectionServiceFunction;
+	}
+
+	public void setJobMasterLeaderRetrieverFunction(Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction) {
+		this.jobMasterLeaderRetrieverFunction = jobMasterLeaderRetrieverFunction;
 	}
 
 	// ------------------------------------------------------------------------
@@ -114,7 +145,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-		LeaderRetrievalService service = this.jobMasterLeaderRetrievers.get(jobID);
+		LeaderRetrievalService service = jobMasterLeaderRetrievers.computeIfAbsent(jobID, jobMasterLeaderRetrieverFunction);
 		if (service != null) {
 			return service;
 		} else {
@@ -125,6 +156,11 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress) {
 		return getJobManagerLeaderRetriever(jobID);
+	}
+
+	@Override
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+		return clusterRestEndpointLeaderRetriever;
 	}
 
 	@Override
@@ -151,13 +187,18 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	@Override
 	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
-		LeaderElectionService service = this.jobManagerLeaderElectionServices.get(jobID);
+		LeaderElectionService service = jobManagerLeaderElectionServices.computeIfAbsent(jobID, jobMasterLeaderElectionServiceFunction);
 
 		if (service != null) {
 			return service;
 		} else {
 			throw new IllegalStateException("JobMasterLeaderElectionService has not been set");
 		}
+	}
+
+	@Override
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+		return clusterRestEndpointLeaderElectionService;
 	}
 
 	@Override
@@ -172,20 +213,20 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
-	public SubmittedJobGraphStore getSubmittedJobGraphStore() {
-		SubmittedJobGraphStore store = submittedJobGraphStore;
+	public JobGraphStore getJobGraphStore() {
+		JobGraphStore store = jobGraphStore;
 
 		if (store != null) {
 			return store;
 		} else {
-			throw new IllegalStateException("SubmittedJobGraphStore has not been set");
+			throw new IllegalStateException("JobGraphStore has not been set");
 
 		}
 	}
 
 	@Override
 	public RunningJobsRegistry getRunningJobsRegistry() {
-		return new StandaloneRunningJobsRegistry();
+		return runningJobsRegistry;
 	}
 
 	@Override

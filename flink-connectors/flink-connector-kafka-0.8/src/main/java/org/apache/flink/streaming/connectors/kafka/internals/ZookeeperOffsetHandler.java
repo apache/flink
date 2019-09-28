@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
 
 import kafka.utils.ZKGroupTopicDirs;
@@ -36,6 +37,7 @@ import java.util.Properties;
 /**
  * Handler for committing Kafka offsets to Zookeeper and to retrieve them again.
  */
+@Internal
 public class ZookeeperOffsetHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZookeeperOffsetHandler.class);

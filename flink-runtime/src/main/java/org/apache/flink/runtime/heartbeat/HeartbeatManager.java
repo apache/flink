@@ -50,4 +50,12 @@ public interface HeartbeatManager<I, O> extends HeartbeatTarget<I> {
 	 * Stops the heartbeat manager.
 	 */
 	void stop();
+
+	/**
+	 * Returns the last received heartbeat from the given target.
+	 *
+	 * @param resourceId for which to return the last heartbeat
+	 * @return Last heartbeat received from the given target or -1 if the target is not being monitored.
+	 */
+	long getLastHeartbeatFrom(ResourceID resourceId);
 }

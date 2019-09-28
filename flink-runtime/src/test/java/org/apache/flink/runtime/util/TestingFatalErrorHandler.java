@@ -19,10 +19,18 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Testing fatal error handler which records the occurred exceptions during the execution of the
@@ -30,34 +38,62 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class TestingFatalErrorHandler implements FatalErrorHandler {
 	private static final Logger LOG = LoggerFactory.getLogger(TestingFatalErrorHandler.class);
-	private final AtomicReference<Throwable> atomicThrowable;
+	private CompletableFuture<Throwable> errorFuture;
 
 	public TestingFatalErrorHandler() {
-		atomicThrowable = new AtomicReference<>(null);
+		errorFuture = new CompletableFuture<>();
 	}
 
-	public void rethrowError() throws TestingException {
-		Throwable throwable = atomicThrowable.get();
+	public synchronized void rethrowError() throws TestingException {
+		final Throwable throwable = getException();
 
 		if (throwable != null) {
-			throw new TestingException(throwable);
+            throw new TestingException(throwable);
+        }
+	}
+
+	public synchronized boolean hasExceptionOccurred() {
+		return errorFuture.isDone();
+	}
+
+	@Nullable
+	public synchronized Throwable getException() {
+		if (errorFuture.isDone()) {
+			Throwable throwable;
+
+			try {
+				throwable = errorFuture.get();
+			} catch (InterruptedException ie) {
+				ExceptionUtils.checkInterrupted(ie);
+				throw new FlinkRuntimeException("This should never happen since the future was completed.");
+			} catch (ExecutionException e) {
+				throwable = ExceptionUtils.stripExecutionException(e);
+			}
+
+			return throwable;
+		} else {
+			return null;
 		}
 	}
 
-	public boolean hasExceptionOccurred() {
-		return atomicThrowable.get() != null;
+	public synchronized CompletableFuture<Throwable> getErrorFuture() {
+		return errorFuture;
 	}
 
-	public Throwable getException() {
-		return atomicThrowable.get();
+	public synchronized void clearError() {
+		errorFuture = new CompletableFuture<>();
 	}
 
 	@Override
-	public void onFatalError(Throwable exception) {
+	public synchronized void onFatalError(@Nonnull Throwable exception) {
 		LOG.error("OnFatalError:", exception);
 
-		if (!atomicThrowable.compareAndSet(null, exception)) {
-			atomicThrowable.get().addSuppressed(exception);
+		if (!errorFuture.complete(exception)) {
+			final Throwable throwable = getException();
+
+			Preconditions.checkNotNull(throwable);
+
+			throwable.addSuppressed(exception);
 		}
 	}
 

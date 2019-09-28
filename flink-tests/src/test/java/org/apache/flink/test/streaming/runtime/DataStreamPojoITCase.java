@@ -21,7 +21,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -34,7 +34,7 @@ import java.util.List;
  *
  * <p>See FLINK-3697
  */
-public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
+public class DataStreamPojoITCase extends AbstractTestBase {
 	static List<Data> elements = new ArrayList<>();
 	static {
 		elements.add(new Data(0, 0, 0));

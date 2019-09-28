@@ -427,7 +427,7 @@ public class Costs implements Comparable<Costs>, Cloneable {
 			return 1;
 		}
 		
-		// next, check the disk cost. again, if we have actual costs on both, use them, otherwise use the heuristic costs.
+		// next, check the CPU cost. again, if we have actual costs on both, use them, otherwise use the heuristic costs.
 		if (this.cpuCost != UNKNOWN && o.cpuCost != UNKNOWN) {
 			return this.cpuCost < o.cpuCost ? -1 : this.cpuCost > o.cpuCost ? 1 : 0;
 		} else if (this.heuristicCpuCost < o.heuristicCpuCost) {

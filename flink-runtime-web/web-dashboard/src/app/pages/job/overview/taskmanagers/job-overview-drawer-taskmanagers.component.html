@@ -1,0 +1,78 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-table
+  class="no-border small full-height"
+  [nzSize]="'small'"
+  [nzLoading]="isLoading"
+  [nzData]="listOfTaskManager"
+  [nzScroll]="{x:'1450px',y:'calc( 100% - 35px )'}"
+  [nzFrontPagination]="false"
+  [nzShowPagination]="false">
+  <thead (nzSortChange)="sort($event)" nzSingleSort>
+    <tr>
+      <th nzWidth="160px" nzLeft="0px" nzShowSort nzSortKey="host">Host</th>
+      <th nzWidth="150px" nzShowSort nzSortKey="metrics.read-bytes">Bytes received</th>
+      <th nzWidth="150px" nzShowSort nzSortKey="metrics.read-records">Records received</th>
+      <th nzWidth="120px" nzShowSort nzSortKey="metrics.write-bytes">Bytes sent</th>
+      <th nzWidth="150px" nzShowSort nzSortKey="metrics.write-records">Records sent</th>
+      <th nzWidth="200px" nzShowSort nzSortKey="start-time">Start Time</th>
+      <th nzWidth="200px" nzShowSort nzSortKey="end-time">End Time</th>
+      <th nzWidth="100px" nzShowSort nzSortKey="duration">Duration</th>
+      <th nzWidth="120px">Tasks</th>
+      <th nzWidth="100px" nzRight="0px" nzShowSort nzSortKey="status">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let taskManager of listOfTaskManager; trackBy:trackTaskManagerBy;">
+      <td nzLeft="0px">{{ taskManager.host }}</td>
+      <td>
+        <span *ngIf="taskManager.metrics['read-bytes-complete'];else loadingTemplate">
+          {{ taskManager.metrics['read-bytes'] | humanizeBytes }}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="taskManager.metrics['read-records-complete'];else loadingTemplate">
+          {{ taskManager.metrics['read-records'] | number }}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="taskManager.metrics['write-bytes-complete'];else loadingTemplate">
+          {{ taskManager.metrics['write-bytes'] | humanizeBytes }}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="taskManager.metrics['write-records-complete'];else loadingTemplate">
+          {{ taskManager.metrics['write-records'] | number }}
+        </span>
+      </td>
+      <td>{{ taskManager['start-time'] | humanizeDate:'yyyy-MM-dd HH:mm:ss' }}</td>
+      <td>{{ taskManager['end-time'] | humanizeDate:'yyyy-MM-dd HH:mm:ss' }}</td>
+      <td>{{ taskManager['duration'] | humanizeDuration }}</td>
+      <td>
+        <flink-task-badge [tasks]="taskManager['status-counts']"></flink-task-badge>
+      </td>
+      <td nzRight="0px">
+        <flink-job-badge [state]="taskManager.status"></flink-job-badge>
+      </td>
+    </tr>
+  </tbody>
+</nz-table>
+<ng-template #loadingTemplate>
+  <i nz-icon type="loading"></i>
+</ng-template>

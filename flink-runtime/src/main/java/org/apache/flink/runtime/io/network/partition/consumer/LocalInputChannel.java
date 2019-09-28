@@ -20,22 +20,22 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
-import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -55,12 +55,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	private final ResultPartitionManager partitionManager;
 
 	/** Task event dispatcher for backwards events. */
-	private final TaskEventDispatcher taskEventDispatcher;
+	private final TaskEventPublisher taskEventPublisher;
 
-	/** Number of available buffers used to keep track of non-empty gate notifications. */
-	private final AtomicLong numBuffersAvailable;
-
-	/** The consumed subpartition */
+	/** The consumed subpartition. */
 	private volatile ResultSubpartitionView subpartitionView;
 
 	private volatile boolean isReleased;
@@ -70,10 +67,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int channelIndex,
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
-		TaskEventDispatcher taskEventDispatcher,
-		TaskIOMetricGroup metrics) {
+		TaskEventPublisher taskEventPublisher,
+		InputChannelMetrics metrics) {
 
-		this(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher,
+		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher,
 			0, 0, metrics);
 	}
 
@@ -82,16 +79,15 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int channelIndex,
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
-		TaskEventDispatcher taskEventDispatcher,
+		TaskEventPublisher taskEventPublisher,
 		int initialBackoff,
 		int maxBackoff,
-		TaskIOMetricGroup metrics) {
+		InputChannelMetrics metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter());
+		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
 
 		this.partitionManager = checkNotNull(partitionManager);
-		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
-		this.numBuffersAvailable = new AtomicLong();
+		this.taskEventPublisher = checkNotNull(taskEventPublisher);
 	}
 
 	// ------------------------------------------------------------------------
@@ -166,11 +162,19 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	@Override
-	BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
+	Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
 		checkError();
 
 		ResultSubpartitionView subpartitionView = this.subpartitionView;
 		if (subpartitionView == null) {
+			// There is a possible race condition between writing a EndOfPartitionEvent (1) and flushing (3) the Local
+			// channel on the sender side, and reading EndOfPartitionEvent (2) and processing flush notification (4). When
+			// they happen in that order (1 - 2 - 3 - 4), flush notification can re-enqueue LocalInputChannel after (or
+			// during) it was released during reading the EndOfPartitionEvent (2).
+			if (isReleased) {
+				return Optional.empty();
+			}
+
 			// this can happen if the request for the partition was triggered asynchronously
 			// by the time trigger
 			// would be good to avoid that, by guaranteeing that the requestPartition() and
@@ -179,37 +183,24 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			subpartitionView = checkAndWaitForSubpartitionView();
 		}
 
-		Buffer next = subpartitionView.getNextBuffer();
+		BufferAndBacklog next = subpartitionView.getNextBuffer();
 
 		if (next == null) {
 			if (subpartitionView.isReleased()) {
 				throw new CancelTaskException("Consumed partition " + subpartitionView + " has been released.");
 			} else {
-				// This means there is a bug in the buffer availability
-				// notifications.
-				throw new IllegalStateException("Consumed partition has no buffers available. " +
-					"Number of received buffer notifications is " + numBuffersAvailable + ".");
+				return Optional.empty();
 			}
 		}
 
-		long remaining = numBuffersAvailable.decrementAndGet();
-
-		if (remaining >= 0) {
-			numBytesIn.inc(next.getSize());
-			return new BufferAndAvailability(next, remaining > 0);
-		} else if (subpartitionView.isReleased()) {
-			throw new ProducerFailedException(subpartitionView.getFailureCause());
-		} else {
-			throw new IllegalStateException("No buffer available and producer partition not released.");
-		}
+		numBytesIn.inc(next.buffer().getSize());
+		numBuffersIn.inc();
+		return Optional.of(new BufferAndAvailability(next.buffer(), next.isMoreAvailable(), next.buffersInBacklog()));
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long numBuffers) {
-		// if this request made the channel non-empty, notify the input gate
-		if (numBuffers > 0 && numBuffersAvailable.getAndAdd(numBuffers) == 0) {
-			notifyChannelNonEmpty();
-		}
+	public void notifyDataAvailable() {
+		notifyChannelNonEmpty();
 	}
 
 	private ResultSubpartitionView checkAndWaitForSubpartitionView() {
@@ -232,7 +223,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		checkError();
 		checkState(subpartitionView != null, "Tried to send task event to producer before requesting the subpartition.");
 
-		if (!taskEventDispatcher.publish(partitionId, event)) {
+		if (!taskEventPublisher.publish(partitionId, event)) {
 			throw new IOException("Error while publishing event " + event + " to producer. The producer could not be found.");
 		}
 	}
@@ -246,15 +237,8 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		return isReleased;
 	}
 
-	@Override
-	void notifySubpartitionConsumed() throws IOException {
-		if (subpartitionView != null) {
-			subpartitionView.notifySubpartitionConsumed();
-		}
-	}
-
 	/**
-	 * Releases the partition reader
+	 * Releases the partition reader.
 	 */
 	@Override
 	void releaseAllResources() throws IOException {
@@ -267,6 +251,17 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 				subpartitionView = null;
 			}
 		}
+	}
+
+	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		ResultSubpartitionView view = subpartitionView;
+
+		if (view != null) {
+			return view.unsynchronizedGetNumberOfQueuedBuffers();
+		}
+
+		return 0;
 	}
 
 	@Override

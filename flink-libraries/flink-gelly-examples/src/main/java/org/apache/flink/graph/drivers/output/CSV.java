@@ -20,6 +20,7 @@ package org.apache.flink.graph.drivers.output;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.io.CsvOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.graph.drivers.parameter.StringParameter;
 
 import java.io.PrintStream;
@@ -42,8 +43,17 @@ extends OutputBase<T> {
 
 	@Override
 	public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
-		data
-			.writeAsCsv(filename.getValue(), lineDelimiter.getValue(), fieldDelimiter.getValue())
-				.name("CSV: " + filename.getValue());
+		if (Tuple.class.isAssignableFrom(data.getType().getTypeClass())) {
+			data
+				.writeAsCsv(filename.getValue(), lineDelimiter.getValue(), fieldDelimiter.getValue())
+					.name("CSV: " + filename.getValue());
+		} else {
+			// line and field delimiters are ineffective when writing custom POJOs result types
+			data
+				.writeAsText(filename.getValue())
+					.name("CSV: " + filename.getValue());
+		}
+
+		data.getExecutionEnvironment().execute();
 	}
 }

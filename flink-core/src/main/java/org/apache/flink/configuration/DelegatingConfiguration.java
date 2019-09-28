@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.flink.configuration.FallbackKey.createDeprecatedKey;
+
 /**
  * A configuration that manages a subset of keys with a common prefix from a given configuration.
  */
@@ -111,7 +113,7 @@ public final class DelegatingConfiguration extends Configuration {
 	public int getInteger(ConfigOption<Integer> configOption) {
 		return  this.backingConfig.getInteger(prefixOption(configOption, prefix));
 	}
-	
+
 	@Override
 	public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
 		return this.backingConfig.getInteger(configOption, overrideDefault);
@@ -243,6 +245,11 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public <T extends Enum<T>> T getEnum(final Class<T> enumClass, final ConfigOption<String> configOption) {
+		return this.backingConfig.getEnum(enumClass, prefixOption(configOption, prefix));
+	}
+
+	@Override
 	public void addAllToProperties(Properties props) {
 		// only add keys with our prefix
 		synchronized (backingConfig.confData) {
@@ -282,7 +289,7 @@ public final class DelegatingConfiguration extends Configuration {
 			return this.backingConfig.keySet();
 		}
 
-		final HashSet<String> set = new HashSet<String>();
+		final HashSet<String> set = new HashSet<>();
 		int prefixLen = this.prefix.length();
 
 		for (String key : this.backingConfig.keySet()) {
@@ -307,7 +314,12 @@ public final class DelegatingConfiguration extends Configuration {
 			prefixed.put(prefix + entry.getKey(), entry.getValue());
 		}
 
-		return prefixed; 
+		return prefixed;
+	}
+
+	@Override
+	public <T> boolean removeConfig(ConfigOption<T> configOption){
+		return backingConfig.removeConfig(configOption);
 	}
 
 	@Override
@@ -356,18 +368,18 @@ public final class DelegatingConfiguration extends Configuration {
 	private static <T> ConfigOption<T> prefixOption(ConfigOption<T> option, String prefix) {
 		String key = prefix + option.key();
 
-		List<String> deprecatedKeys;
-		if (option.hasDeprecatedKeys()) {
+		List<FallbackKey> deprecatedKeys;
+		if (option.hasFallbackKeys()) {
 			deprecatedKeys = new ArrayList<>();
-			for (String dk : option.deprecatedKeys()) {
-				deprecatedKeys.add(prefix + dk);
+			for (FallbackKey dk : option.fallbackKeys()) {
+				deprecatedKeys.add(createDeprecatedKey(prefix + dk.getKey()));
 			}
 		} else {
 			deprecatedKeys = Collections.emptyList();
 		}
 
-		String[] deprecated = deprecatedKeys.toArray(new String[deprecatedKeys.size()]);
-		return new ConfigOption<T>(key,
+		FallbackKey[] deprecated = deprecatedKeys.toArray(new FallbackKey[0]);
+		return new ConfigOption<>(key,
 			option.description(),
 			option.defaultValue(),
 			deprecated);

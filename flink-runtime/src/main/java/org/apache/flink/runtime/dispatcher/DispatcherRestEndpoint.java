@@ -21,155 +21,129 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.rest.RestServerEndpoint;
+import org.apache.flink.runtime.blob.TransientBlobService;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
-import org.apache.flink.runtime.rest.handler.LegacyRestHandlerAdapter;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
-import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
-import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
-import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
-import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
-import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
-import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
-import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
-import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfigurationInfo;
-import org.apache.flink.runtime.rest.handler.legacy.messages.DashboardConfiguration;
-import org.apache.flink.runtime.rest.handler.legacy.messages.StatusOverviewWithVersion;
-import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
-import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
-import org.apache.flink.runtime.rest.messages.CurrentJobsOverviewHandlerHeaders;
-import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
+import org.apache.flink.runtime.rest.handler.job.JobSubmitHandler;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
+import org.apache.flink.runtime.webmonitor.WebMonitorExtension;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Optional;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 /**
  * REST endpoint for the {@link Dispatcher} component.
  */
-public class DispatcherRestEndpoint extends RestServerEndpoint {
+public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway> {
 
-	private final GatewayRetriever<DispatcherGateway> leaderRetriever;
-	private final Configuration clusterConfiguration;
-	private final RestHandlerConfiguration restConfiguration;
-	private final Executor executor;
+	private WebMonitorExtension webSubmissionExtension;
 
 	public DispatcherRestEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
 			GatewayRetriever<DispatcherGateway> leaderRetriever,
 			Configuration clusterConfiguration,
 			RestHandlerConfiguration restConfiguration,
-			Executor executor) {
-		super(endpointConfiguration);
-		this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
-		this.clusterConfiguration = Preconditions.checkNotNull(clusterConfiguration);
-		this.restConfiguration = Preconditions.checkNotNull(restConfiguration);
-		this.executor = Preconditions.checkNotNull(executor);
+			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
+			TransientBlobService transientBlobService,
+			ExecutorService executor,
+			MetricFetcher metricFetcher,
+			LeaderElectionService leaderElectionService,
+			FatalErrorHandler fatalErrorHandler) throws IOException {
+
+		super(
+			endpointConfiguration,
+			leaderRetriever,
+			clusterConfiguration,
+			restConfiguration,
+			resourceManagerRetriever,
+			transientBlobService,
+			executor,
+			metricFetcher,
+			leaderElectionService,
+			fatalErrorHandler);
+
+		webSubmissionExtension = WebMonitorExtension.empty();
 	}
 
 	@Override
-	protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-		ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(3);
+	protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
+		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = super.initializeHandlers(localAddressFuture);
+
+		// Add the Dispatcher specific handlers
 
 		final Time timeout = restConfiguration.getTimeout();
 
-		LegacyRestHandlerAdapter<DispatcherGateway, StatusOverviewWithVersion, EmptyMessageParameters> clusterOverviewHandler = new LegacyRestHandlerAdapter<>(
-			restAddressFuture,
+		JobSubmitHandler jobSubmitHandler = new JobSubmitHandler(
 			leaderRetriever,
 			timeout,
-			ClusterOverviewHeaders.getInstance(),
-			new ClusterOverviewHandler(
-				executor,
-				timeout));
+			responseHeaders,
+			executor,
+			clusterConfiguration);
 
-		LegacyRestHandlerAdapter<DispatcherGateway, DashboardConfiguration, EmptyMessageParameters> dashboardConfigurationHandler = new LegacyRestHandlerAdapter<>(
-			restAddressFuture,
-			leaderRetriever,
-			timeout,
-			DashboardConfigurationHeaders.getInstance(),
-			new DashboardConfigHandler(
-				executor,
-				restConfiguration.getRefreshInterval()));
+		if (restConfiguration.isWebSubmitEnabled()) {
+			try {
+				webSubmissionExtension = WebMonitorUtils.loadWebSubmissionExtension(
+					leaderRetriever,
+					timeout,
+					responseHeaders,
+					localAddressFuture,
+					uploadDir,
+					executor,
+					clusterConfiguration);
 
-		LegacyRestHandlerAdapter<DispatcherGateway, MultipleJobsDetails, EmptyMessageParameters> currentJobsOverviewHandler = new LegacyRestHandlerAdapter<>(
-			restAddressFuture,
-			leaderRetriever,
-			timeout,
-			CurrentJobsOverviewHandlerHeaders.getInstance(),
-			new CurrentJobsOverviewHandler(
-				executor,
-				timeout,
-				true,
-				true));
-
-		LegacyRestHandlerAdapter<DispatcherGateway, ClusterConfigurationInfo, EmptyMessageParameters> clusterConfigurationHandler = new LegacyRestHandlerAdapter<>(
-			restAddressFuture,
-			leaderRetriever,
-			timeout,
-			ClusterConfigurationInfoHeaders.getInstance(),
-			new ClusterConfigHandler(
-				executor,
-				clusterConfiguration));
-
-		JobTerminationHandler jobTerminationHandler = new JobTerminationHandler(
-			restAddressFuture,
-			leaderRetriever,
-			timeout,
-			JobTerminationHeaders.getInstance());
-
-		final File tmpDir = restConfiguration.getTmpDir();
-
-		Optional<StaticFileServerHandler<DispatcherGateway>> optWebContent;
-
-		try {
-			optWebContent = WebMonitorUtils.tryLoadWebContent(
-				leaderRetriever,
-				restAddressFuture,
-				timeout,
-				tmpDir);
-		} catch (IOException e) {
-			log.warn("Could not load web content handler.", e);
-			optWebContent = Optional.empty();
+				// register extension handlers
+				handlers.addAll(webSubmissionExtension.getHandlers());
+			} catch (FlinkException e) {
+				if (log.isDebugEnabled()) {
+					log.debug("Failed to load web based job submission extension.", e);
+				} else {
+					log.info("Failed to load web based job submission extension. " +
+						"Probable reason: flink-runtime-web is not in the classpath.");
+				}
+			}
+		} else {
+			log.info("Web-based job submission is not enabled.");
 		}
 
-		handlers.add(Tuple2.of(ClusterOverviewHeaders.getInstance(), clusterOverviewHandler));
-		handlers.add(Tuple2.of(ClusterConfigurationInfoHeaders.getInstance(), clusterConfigurationHandler));
-		handlers.add(Tuple2.of(DashboardConfigurationHeaders.getInstance(), dashboardConfigurationHandler));
-		handlers.add(Tuple2.of(CurrentJobsOverviewHandlerHeaders.getInstance(), currentJobsOverviewHandler));
-		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobTerminationHandler));
-
-		// This handler MUST be added last, as it otherwise masks all subsequent GET handlers
-		optWebContent.ifPresent(
-			webContent -> handlers.add(Tuple2.of(WebContentHandlerSpecification.getInstance(), webContent)));
+		handlers.add(Tuple2.of(jobSubmitHandler.getMessageHeaders(), jobSubmitHandler));
 
 		return handlers;
 	}
 
 	@Override
-	public void shutdown(Time timeout) {
-		super.shutdown(timeout);
+	protected CompletableFuture<Void> shutDownInternal() {
+		final CompletableFuture<Void> shutdownFuture = super.shutDownInternal();
 
-		final File tmpDir = restConfiguration.getTmpDir();
+		final CompletableFuture<Void> shutdownResultFuture = new CompletableFuture<>();
 
-		try {
-			log.info("Removing cache directory {}", tmpDir);
-			FileUtils.deleteDirectory(tmpDir);
-		} catch (Throwable t) {
-			log.warn("Error while deleting cache directory {}", tmpDir, t);
-		}
+		shutdownFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				webSubmissionExtension.closeAsync().whenComplete(
+					(Void innerIgnored, Throwable innerThrowable) -> {
+						if (innerThrowable != null) {
+							shutdownResultFuture.completeExceptionally(
+								ExceptionUtils.firstOrSuppressed(innerThrowable, throwable));
+						} else if (throwable != null) {
+							shutdownResultFuture.completeExceptionally(throwable);
+						} else {
+							shutdownResultFuture.complete(null);
+						}
+					});
+			});
+
+		return shutdownResultFuture;
 	}
 }

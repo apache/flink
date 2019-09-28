@@ -25,6 +25,8 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,20 @@ import static org.mockito.Mockito.when;
  */
 public class RetryingRegistrationTest extends TestLogger {
 
+	private TestingRpcService rpcService;
+
+	@Before
+	public void setup() {
+		rpcService = new TestingRpcService();
+	}
+
+	@After
+	public void tearDown() throws ExecutionException, InterruptedException {
+		if (rpcService != null) {
+			rpcService.stopService().get();
+		}
+	}
+
 	@Test
 	public void testSimpleSuccessfulRegistration() throws Exception {
 		final String testId = "laissez les bon temps roulez";
@@ -61,12 +77,11 @@ public class RetryingRegistrationTest extends TestLogger {
 
 		// an endpoint that immediately returns success
 		TestRegistrationGateway testGateway = new TestRegistrationGateway(new TestRegistrationSuccess(testId));
-		TestingRpcService rpc = new TestingRpcService();
 
 		try {
-			rpc.registerGateway(testEndpointAddress, testGateway);
+			rpcService.registerGateway(testEndpointAddress, testGateway);
 
-			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, testEndpointAddress, leaderId);
+			TestRetryingRegistration registration = new TestRetryingRegistration(rpcService, testEndpointAddress, leaderId);
 			registration.startRegistration();
 
 			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
@@ -84,7 +99,6 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 		finally {
 			testGateway.stop();
-			rpc.stopService();
 		}
 	}
 
@@ -129,9 +143,9 @@ public class RetryingRegistrationTest extends TestLogger {
 			when(rpc.getExecutor()).thenReturn(executor);
 			when(rpc.scheduleRunnable(any(Runnable.class), anyLong(), any(TimeUnit.class))).thenAnswer(
 				(InvocationOnMock invocation) -> {
-					final Runnable runnable = invocation.getArgumentAt(0, Runnable.class);
-					final long delay = invocation.getArgumentAt(1, Long.class);
-					final TimeUnit timeUnit = invocation.getArgumentAt(2, TimeUnit.class);
+					final Runnable runnable = invocation.getArgument(0);
+					final long delay = invocation.getArgument(1);
+					final TimeUnit timeUnit = invocation.getArgument(2);
 					return TestingUtils.defaultScheduledExecutor().schedule(runnable, delay, timeUnit);
 				});
 
@@ -160,7 +174,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 	}
 
-	@Test
+	@Test(timeout = 10000)
 	public void testRetriesOnTimeouts() throws Exception {
 		final String testId = "rien ne va plus";
 		final String testEndpointAddress = "<test-address>";
@@ -173,12 +187,19 @@ public class RetryingRegistrationTest extends TestLogger {
 				new TestRegistrationSuccess(testId) // success
 		);
 
-		TestingRpcService rpc = new TestingRpcService();
-
 		try {
-			rpc.registerGateway(testEndpointAddress, testGateway);
+			rpcService.registerGateway(testEndpointAddress, testGateway);
 
-			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, testEndpointAddress, leaderId);
+			final long initialTimeout = 20L;
+			TestRetryingRegistration registration = new TestRetryingRegistration(
+				rpcService,
+				testEndpointAddress,
+				leaderId,
+				new RetryingRegistrationConfiguration(
+					initialTimeout,
+					1000L,
+					15000L, // make sure that we timeout in case of an error
+					15000L));
 
 			long started = System.nanoTime();
 			registration.startRegistration();
@@ -195,10 +216,9 @@ public class RetryingRegistrationTest extends TestLogger {
 			assertEquals(leaderId, testGateway.getInvocations().take().leaderId());
 
 			// validate that some retry-delay / back-off behavior happened
-			assertTrue("retries did not properly back off", elapsedMillis >= 3 * TestRetryingRegistration.INITIAL_TIMEOUT);
+			assertTrue("retries did not properly back off", elapsedMillis >= 3 * initialTimeout);
 		}
 		finally {
-			rpc.stopService();
 			testGateway.stop();
 		}
 	}
@@ -209,8 +229,6 @@ public class RetryingRegistrationTest extends TestLogger {
 		final String testEndpointAddress = "<test-address>";
 		final UUID leaderId = UUID.randomUUID();
 
-		TestingRpcService rpc = new TestingRpcService();
-
 		TestRegistrationGateway testGateway = new TestRegistrationGateway(
 				null, // timeout
 				new RegistrationResponse.Decline("no reason "),
@@ -219,9 +237,9 @@ public class RetryingRegistrationTest extends TestLogger {
 		);
 
 		try {
-			rpc.registerGateway(testEndpointAddress, testGateway);
+			rpcService.registerGateway(testEndpointAddress, testGateway);
 
-			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, testEndpointAddress, leaderId);
+			TestRetryingRegistration registration = new TestRetryingRegistration(rpcService, testEndpointAddress, leaderId);
 
 			long started = System.nanoTime();
 			registration.startRegistration();
@@ -243,7 +261,6 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 		finally {
 			testGateway.stop();
-			rpc.stopService();
 		}
 	}
 
@@ -254,39 +271,32 @@ public class RetryingRegistrationTest extends TestLogger {
 		final String testEndpointAddress = "<test-address>";
 		final UUID leaderId = UUID.randomUUID();
 
-		TestingRpcService rpc = new TestingRpcService();
+		// gateway that upon calls first responds with a failure, then with a success
+		TestRegistrationGateway testGateway = mock(TestRegistrationGateway.class);
 
-		try {
-			// gateway that upon calls first responds with a failure, then with a success
-			TestRegistrationGateway testGateway = mock(TestRegistrationGateway.class);
+		when(testGateway.registrationCall(any(UUID.class), anyLong())).thenReturn(
+				FutureUtils.completedExceptionally(new Exception("test exception")),
+				CompletableFuture.completedFuture(new TestRegistrationSuccess(testId)));
 
-			when(testGateway.registrationCall(any(UUID.class), anyLong())).thenReturn(
-					FutureUtils.completedExceptionally(new Exception("test exception")),
-					CompletableFuture.completedFuture(new TestRegistrationSuccess(testId)));
+		rpcService.registerGateway(testEndpointAddress, testGateway);
 
-			rpc.registerGateway(testEndpointAddress, testGateway);
+		TestRetryingRegistration registration = new TestRetryingRegistration(rpcService, testEndpointAddress, leaderId);
 
-			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, testEndpointAddress, leaderId);
+		long started = System.nanoTime();
+		registration.startRegistration();
 
-			long started = System.nanoTime();
-			registration.startRegistration();
+		CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+		Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
+				future.get(10, TimeUnit.SECONDS);
 
-			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
-			Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
-					future.get(10, TimeUnit.SECONDS);
+		long finished = System.nanoTime();
+		long elapsedMillis = (finished - started) / 1000000;
 
-			long finished = System.nanoTime();
-			long elapsedMillis = (finished - started) / 1000000;
+		assertEquals(testId, success.f1.getCorrelationId());
 
-			assertEquals(testId, success.f1.getCorrelationId());
-
-			// validate that some retry-delay / back-off behavior happened
-			assertTrue("retries did not properly back off",
-					elapsedMillis >= TestRetryingRegistration.DELAY_ON_ERROR);
-		}
-		finally {
-			rpc.stopService();
-		}
+		// validate that some retry-delay / back-off behavior happened
+		assertTrue("retries did not properly back off",
+				elapsedMillis >= TestRetryingRegistration.DELAY_ON_ERROR);
 	}
 
 	@Test
@@ -294,29 +304,22 @@ public class RetryingRegistrationTest extends TestLogger {
 		final String testEndpointAddress = "my-test-address";
 		final UUID leaderId = UUID.randomUUID();
 
-		TestingRpcService rpc = new TestingRpcService();
+		CompletableFuture<RegistrationResponse> result = new CompletableFuture<>();
 
-		try {
-			CompletableFuture<RegistrationResponse> result = new CompletableFuture<>();
+		TestRegistrationGateway testGateway = mock(TestRegistrationGateway.class);
+		when(testGateway.registrationCall(any(UUID.class), anyLong())).thenReturn(result);
 
-			TestRegistrationGateway testGateway = mock(TestRegistrationGateway.class);
-			when(testGateway.registrationCall(any(UUID.class), anyLong())).thenReturn(result);
+		rpcService.registerGateway(testEndpointAddress, testGateway);
 
-			rpc.registerGateway(testEndpointAddress, testGateway);
+		TestRetryingRegistration registration = new TestRetryingRegistration(rpcService, testEndpointAddress, leaderId);
+		registration.startRegistration();
 
-			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, testEndpointAddress, leaderId);
-			registration.startRegistration();
+		// cancel and fail the current registration attempt
+		registration.cancel();
+		result.completeExceptionally(new TimeoutException());
 
-			// cancel and fail the current registration attempt
-			registration.cancel();
-			result.completeExceptionally(new TimeoutException());
-
-			// there should not be a second registration attempt
-			verify(testGateway, atMost(1)).registrationCall(any(UUID.class), anyLong());
-		}
-		finally {
-			rpc.stopService();
-		}
+		// there should not be a second registration attempt
+		verify(testGateway, atMost(1)).registrationCall(any(UUID.class), anyLong());
 	}
 
 	// ------------------------------------------------------------------------
@@ -344,13 +347,33 @@ public class RetryingRegistrationTest extends TestLogger {
 		static final long MAX_TIMEOUT = 200;
 		static final long DELAY_ON_ERROR = 200;
 		static final long DELAY_ON_DECLINE = 200;
+		static final RetryingRegistrationConfiguration RETRYING_REGISTRATION_CONFIGURATION = new RetryingRegistrationConfiguration(
+			INITIAL_TIMEOUT,
+			MAX_TIMEOUT,
+			DELAY_ON_ERROR,
+			DELAY_ON_DECLINE);
 
 		public TestRetryingRegistration(RpcService rpc, String targetAddress, UUID leaderId) {
-			super(LoggerFactory.getLogger(RetryingRegistrationTest.class),
-					rpc, "TestEndpoint",
-					TestRegistrationGateway.class,
-					targetAddress, leaderId,
-					INITIAL_TIMEOUT, MAX_TIMEOUT, DELAY_ON_ERROR, DELAY_ON_DECLINE);
+			this(
+				rpc,
+				targetAddress,
+				leaderId,
+				RETRYING_REGISTRATION_CONFIGURATION);
+		}
+
+		public TestRetryingRegistration(
+				RpcService rpc,
+				String targetAddress,
+				UUID leaderId,
+				RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
+			super(
+				LoggerFactory.getLogger(RetryingRegistrationTest.class),
+				rpc,
+				"TestEndpoint",
+				TestRegistrationGateway.class,
+				targetAddress,
+				leaderId,
+				retryingRegistrationConfiguration);
 		}
 
 		@Override

@@ -45,6 +45,23 @@ public class MessageParametersTest extends TestLogger {
 		Assert.assertEquals("/jobs/" + pathJobID + "/state?jobid=" + queryJobID, resolvedUrl);
 	}
 
+	@Test
+	public void testUnresolvedParameters() {
+		String genericUrl = "/jobs/:jobid/state";
+		TestMessageParameters parameters = new TestMessageParameters();
+		try {
+			MessageParameters.resolveUrl(genericUrl, parameters);
+			Assert.fail();
+		} catch (IllegalStateException expected) {
+			// the mandatory jobid path parameter was not resolved
+		}
+		JobID jobID = new JobID();
+		parameters.pathParameter.resolve(jobID);
+
+		String resolvedUrl = MessageParameters.resolveUrl(genericUrl, parameters);
+		Assert.assertEquals("/jobs/" + jobID + "/state", resolvedUrl);
+	}
+
 	private static class TestMessageParameters extends MessageParameters {
 		private final TestPathParameter pathParameter = new TestPathParameter();
 		private final TestQueryParameter queryParameter = new TestQueryParameter();
@@ -75,22 +92,32 @@ public class MessageParametersTest extends TestLogger {
 		protected String convertToString(JobID value) {
 			return value.toString();
 		}
+
+		@Override
+		public String getDescription() {
+			return "path parameter";
+		}
 	}
 
 	private static class TestQueryParameter extends MessageQueryParameter<JobID> {
 
 		TestQueryParameter() {
-			super("jobid", MessageParameterRequisiteness.MANDATORY);
+			super("jobid", MessageParameterRequisiteness.OPTIONAL);
 		}
 
 		@Override
-		public JobID convertValueFromString(String value) {
+		public JobID convertStringToValue(String value) {
 			return JobID.fromHexString(value);
 		}
 
 		@Override
-		public String convertStringToValue(JobID value) {
+		public String convertValueToString(JobID value) {
 			return value.toString();
+		}
+
+		@Override
+		public String getDescription() {
+			return "query parameter";
 		}
 	}
 }

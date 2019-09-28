@@ -38,23 +38,10 @@ To use the connector, add the following Maven dependency to your project:
 </dependency>
 {% endhighlight %}
 
-**The `flink-connector-kinesis{{ site.scala_version_suffix }}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/) (ASL).
-Linking to the flink-connector-kinesis will include ASL licensed code into your application.**
+<span class="label label-danger">Attention</span> Prior to Flink version 1.10.0 the `flink-connector-kinesis{{ site.scala_version_suffix }}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
+Linking to the prior versions of flink-connector-kinesis will include this code into your application.
 
-The `flink-connector-kinesis{{ site.scala_version_suffix }}` artifact is not deployed to Maven central as part of
-Flink releases because of the licensing issue. Therefore, you need to build the connector yourself from the source.
-
-Download the Flink source or check it out from the git repository. Then, use the following Maven command to build the module:
-{% highlight bash %}
-mvn clean install -Pinclude-kinesis -DskipTests
-# In Maven 3.3 the shading of flink-dist doesn't work properly in one run, so we need to run mvn for flink-dist again.
-cd flink-dist
-mvn clean install -Pinclude-kinesis -DskipTests
-{% endhighlight %}
-
-
-The streaming connectors are not part of the binary distribution. See how to link with them for cluster
-execution [here]({{site.baseurl}}/dev/linking.html).
+Due to the licensing issue, the `flink-connector-kinesis{{ site.scala_version_suffix }}` artifact is not deployed to Maven central for the prior versions. Please see the version specific documentation for further information.
 
 ## Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
@@ -73,9 +60,9 @@ Before consuming data from Kinesis streams, make sure that all streams are creat
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Properties consumerConfig = new Properties();
-consumerConfig.put(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-consumerConfig.put(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-consumerConfig.put(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+consumerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+consumerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
+consumerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
 consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
@@ -86,11 +73,11 @@ DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val consumerConfig = new Properties();
-consumerConfig.put(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-consumerConfig.put(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-consumerConfig.put(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
+val consumerConfig = new Properties()
+consumerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
+consumerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
+consumerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
+consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
 
 val env = StreamExecutionEnvironment.getEnvironment
 
@@ -101,10 +88,11 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
 </div>
 
 The above is a simple example of using the consumer. Configuration for the consumer is supplied with a `java.util.Properties`
-instance, the configuration keys for which can be found in `ConsumerConfigConstants`. The example
+instance, the configuration keys for which can be found in `AWSConfigConstants` (AWS-specific parameters) and 
+`ConsumerConfigConstants` (Kinesis consumer parameters). The example
 demonstrates consuming a single Kinesis stream in the AWS region "us-east-1". The AWS credentials are supplied using the basic method in which
 the AWS access key ID and secret access key are directly supplied in the configuration (other options are setting
-`ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER` to `ENV_VAR`, `SYS_PROP`, `PROFILE`, and `AUTO`). Also, data is being consumed
+`AWSConfigConstants.AWS_CREDENTIALS_PROVIDER` to `ENV_VAR`, `SYS_PROP`, `PROFILE`, `ASSUME_ROLE`, and `AUTO`). Also, data is being consumed
 from the newest position in the Kinesis stream (the other option will be setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION`
 to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from the earliest record possible).
 
@@ -118,6 +106,11 @@ if the number of shards is smaller than the parallelism of the consumer,
 then some consumer subtasks will simply be idle and wait until it gets assigned
 new shards (i.e., when the streams are resharded to increase the
 number of shards for higher provisioned Kinesis service throughput).
+
+Also note that the assignment of shards to subtasks may not be optimal when
+shard IDs are not consecutive (as result of dynamic re-sharding in Kinesis).
+For cases where skew in the assignment leads to significant imbalanced consumption,
+a custom implementation of `KinesisShardAssigner` can be set on the consumer.
 
 ### Configuring Starting Position
 
@@ -180,14 +173,14 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 </div>
 </div>
 
-If streaming topologies choose to use the [event time notion]({{site.baseurl}}/apis/streaming/event_time.html) for record
+If streaming topologies choose to use the [event time notion]({{site.baseurl}}/dev/event_time.html) for record
 timestamps, an *approximate arrival timestamp* will be used by default. This timestamp is attached to records by Kinesis once they
 were successfully received and stored by streams. Note that this timestamp is typically referred to as a Kinesis server-side
 timestamp, and there are no guarantees about the accuracy or order correctness (i.e., the timestamps may not always be
 ascending).
 
-Users can choose to override this default with a custom timestamp, as described [here]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html),
-or use one from the [predefined ones]({{ site.baseurl }}/apis/streaming/event_timestamp_extractors.html). After doing so,
+Users can choose to override this default with a custom timestamp, as described [here]({{ site.baseurl }}/dev/event_timestamps_watermarks.html),
+or use one from the [predefined ones]({{ site.baseurl }}/dev/event_timestamp_extractors.html). After doing so,
 it can be passed to the consumer in the following way:
 
 <div class="codetabs" markdown="1">
@@ -281,6 +274,8 @@ producerConfig.put("RecordTtl", "30000");
 producerConfig.put("RequestTimeout", "6000");
 producerConfig.put("ThreadPoolSize", "15");
 
+// Disable Aggregation if it's not supported by a consumer
+// producerConfig.put("AggregationEnabled", "false");
 // Switch KinesisProducer's threading model
 // producerConfig.put("ThreadingModel", "PER_REQUEST");
 
@@ -295,28 +290,30 @@ simpleStringStream.addSink(kinesis);
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val producerConfig = new Properties();
+val producerConfig = new Properties()
 // Required configs
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
+producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
+producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 // Optional KPL configs
-producerConfig.put("AggregationMaxCount", "4294967295");
-producerConfig.put("CollectionMaxCount", "1000");
-producerConfig.put("RecordTtl", "30000");
-producerConfig.put("RequestTimeout", "6000");
-producerConfig.put("ThreadPoolSize", "15");
+producerConfig.put("AggregationMaxCount", "4294967295")
+producerConfig.put("CollectionMaxCount", "1000")
+producerConfig.put("RecordTtl", "30000")
+producerConfig.put("RequestTimeout", "6000")
+producerConfig.put("ThreadPoolSize", "15")
 
+// Disable Aggregation if it's not supported by a consumer
+// producerConfig.put("AggregationEnabled", "false")
 // Switch KinesisProducer's threading model
-// producerConfig.put("ThreadingModel", "PER_REQUEST");
+// producerConfig.put("ThreadingModel", "PER_REQUEST")
 
-val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig);
-kinesis.setFailOnError(true);
-kinesis.setDefaultStream("kinesis_stream_name");
-kinesis.setDefaultPartition("0");
+val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig)
+kinesis.setFailOnError(true)
+kinesis.setDefaultStream("kinesis_stream_name")
+kinesis.setDefaultPartition("0")
 
-val simpleStringStream = ...;
-simpleStringStream.addSink(kinesis);
+val simpleStringStream = ...
+simpleStringStream.addSink(kinesis)
 {% endhighlight %}
 </div>
 </div>
@@ -331,9 +328,39 @@ Otherwise, the returned stream name is used.
 
 ### Threading Model
 
-Since Flink 1.4.0, `FlinkKinesisProducer` switches its default underlying KPL from a one-thread-per-request mode to a thread-pool mode. KPL in thread-pool mode uses a queue and thread pool to execute requests to Kinesis. This limits the number of threads that KPL's native process may create, and therefore greatly lowers CPU utilizations and improves efficiency. **Thus, We highly recommend Flink users use thread-pool model.** The default thread pool size is `10`. Users can set the pool size in `java.util.Properties` instance with key `ThreadPoolSize`, as shown in the above example.
+Since Flink 1.4.0, `FlinkKinesisProducer` switches its default underlying KPL from a one-thread-per-request mode to a thread-pool mode. KPL in thread-pool mode uses a queue and thread pool to execute requests to Kinesis. This limits the number of threads that KPL's native process may create, and therefore greatly lowers CPU utilization and improves efficiency. **Thus, We highly recommend Flink users use thread-pool model.** The default thread pool size is `10`. Users can set the pool size in `java.util.Properties` instance with key `ThreadPoolSize`, as shown in the above example.
 
 Users can still switch back to one-thread-per-request mode by setting a key-value pair of `ThreadingModel` and `PER_REQUEST` in `java.util.Properties`, as shown in the code commented out in above example.
+
+### Backpressure
+
+By default, `FlinkKinesisProducer` does not backpressure. Instead, records that
+cannot be sent because of the rate restriction of 1 MB per second per shard are
+buffered in an unbounded queue and dropped when their `RecordTtl` expires.
+
+To avoid data loss, you can enable backpressuring by restricting the size of the
+internal queue:
+
+```
+// 200 Bytes per record, 1 shard
+kinesis.setQueueLimit(500);
+```
+
+The value for `queueLimit` depends on the expected record size. To choose a good
+value, consider that Kinesis is rate-limited to 1MB per second per shard. If
+less than one second's worth of records is buffered, then the queue may not be
+able to operate at full capacity. With the default `RecordMaxBufferedTime` of
+100ms, a queue size of 100kB per shard should be sufficient. The `queueLimit`
+can then be computed via
+
+```
+queue limit = (number of shards * queue size per shard) / record size
+```
+
+E.g. for 200Bytes per record and 8 shards, a queue limit of 4000 is a good
+starting point. If the queue size limits throughput (below 1MB per second per
+shard), try increasing the queue limit slightly.
+
 
 ## Using Non-AWS Kinesis Endpoints for Testing
 
@@ -359,11 +386,13 @@ producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val producerConfig = new Properties();
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
+val producerConfig = new Properties()
+producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
+producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
+producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
+producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567")
 {% endhighlight %}
 </div>
 </div>
+
+{% top %}

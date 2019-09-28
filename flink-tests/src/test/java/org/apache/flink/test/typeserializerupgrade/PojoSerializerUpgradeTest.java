@@ -23,8 +23,6 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -32,22 +30,24 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
 
@@ -70,7 +70,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
-import static org.apache.flink.runtime.state.filesystem.FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -85,9 +84,9 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	@Parameterized.Parameters(name = "StateBackend: {0}")
 	public static Collection<String> parameters () {
 		return Arrays.asList(
-			AbstractStateBackend.MEMORY_STATE_BACKEND_NAME,
-			AbstractStateBackend.FS_STATE_BACKEND_NAME,
-			AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME);
+				StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
+				StateBackendLoader.FS_STATE_BACKEND_NAME,
+				StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME);
 	}
 
 	@ClassRule
@@ -97,9 +96,9 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	public PojoSerializerUpgradeTest(String backendType) throws IOException, DynamicCodeLoadingException {
 		Configuration config = new Configuration();
-		config.setString(CoreOptions.STATE_BACKEND, backendType);
-		config.setString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, temporaryFolder.newFolder().toURI().toString());
-		stateBackend = AbstractStateBackend.loadStateBackendFromConfig(config, Thread.currentThread().getContextClassLoader(), null);
+		config.setString(CheckpointingOptions.STATE_BACKEND, backendType);
+		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temporaryFolder.newFolder().toURI().toString());
+		stateBackend = StateBackendLoader.loadStateBackendFromConfig(config, Thread.currentThread().getContextClassLoader(), null);
 	}
 
 	private static final String POJO_NAME = "Pojo";
@@ -224,74 +223,38 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * Adding fields to a POJO as keyed state should require a state migration.
+	 * Adding fields to a POJO as keyed state should succeed.
 	 */
 	@Test
 	public void testAdditionalFieldWithKeyedState() throws Exception {
-		try {
-			testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, true);
-			fail("Expected a state migration exception.");
-		} catch (Exception e) {
-			if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-				// StateMigrationException expected
-			} else {
-				throw e;
-			}
-		}
+		testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, true);
 	}
 
 	/**
-	 * Adding fields to a POJO as operator state should require a state migration.
+	 * Adding fields to a POJO as operator state should succeed.
 	 */
 	@Test
 	public void testAdditionalFieldWithOperatorState() throws Exception {
-		try {
-			testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, false);
-			fail("Expected a state migration exception.");
-		} catch (Exception e) {
-			if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-				// StateMigrationException expected
-			} else {
-				throw e;
-			}
-		}
+		testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, false);
 	}
 
 	/**
-	 * Removing fields from a POJO as keyed state should require a state migration.
+	 * Removing fields from a POJO as keyed state should succeed.
 	 */
 	@Test
 	public void testMissingFieldWithKeyedState() throws Exception {
-		try {
-			testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, true);
-			fail("Expected a state migration exception.");
-		} catch (Exception e) {
-			if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-				// StateMigrationException expected
-			} else {
-				throw e;
-			}
-		}
+		testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, true);
 	}
 
 	/**
-	 * Removing fields from a POJO as operator state should require a state migration.
+	 * Removing fields from a POJO as operator state should succeed.
 	 */
 	@Test
 	public void testMissingFieldWithOperatorState() throws Exception {
-		try {
-			testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, false);
-			fail("Expected a state migration exception.");
-		} catch (Exception e) {
-			if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-				// StateMigrationException expected
-			} else {
-				throw e;
-			}
-		}
+		testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, false);
 	}
 
-	public void testPojoSerializerUpgrade(String classSourceA, String classSourceB, boolean hasBField, boolean isKeyedState) throws Exception {
+	private void testPojoSerializerUpgrade(String classSourceA, String classSourceB, boolean hasBField, boolean isKeyedState) throws Exception {
 		final Configuration taskConfiguration = new Configuration();
 		final ExecutionConfig executionConfig = new ExecutionConfig();
 		final KeySelector<Long, Long> keySelector = new IdentityKeySelector<>();
@@ -306,7 +269,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			new URL[]{rootPath.toURI().toURL()},
 			Thread.currentThread().getContextClassLoader());
 
-		OperatorStateHandles stateHandles = runOperator(
+		OperatorSubtaskState stateHandles = runOperator(
 			taskConfiguration,
 			executionConfig,
 			new StreamMap<>(new StatefulMapper(isKeyedState, false, hasBField)),
@@ -339,7 +302,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			inputs);
 	}
 
-	private OperatorStateHandles runOperator(
+	private OperatorSubtaskState runOperator(
 			Configuration taskConfiguration,
 			ExecutionConfig executionConfig,
 			OneInputStreamOperator<Long, Long> operator,
@@ -347,53 +310,53 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			boolean isKeyedState,
 			StateBackend stateBackend,
 			ClassLoader classLoader,
-			OperatorStateHandles operatorStateHandles,
+			OperatorSubtaskState operatorSubtaskState,
 			Iterable<Long> input) throws Exception {
 
-		final MockEnvironment environment = new MockEnvironment(
-			"test task",
-			32 * 1024,
-			new MockInputSplitProvider(),
-			256,
-			taskConfiguration,
-			executionConfig,
-			16,
-			1,
-			0,
-			classLoader);
+		try (final MockEnvironment environment =
+				new MockEnvironmentBuilder()
+					.setTaskName("test task")
+					.setMemorySize(32 * 1024)
+					.setInputSplitProvider(new MockInputSplitProvider())
+					.setBufferSize(256)
+					.setTaskConfiguration(taskConfiguration)
+					.setExecutionConfig(executionConfig)
+					.setMaxParallelism(16)
+					.setUserCodeClassLoader(classLoader)
+					.build()) {
 
-		OneInputStreamOperatorTestHarness<Long, Long> harness;
+			OneInputStreamOperatorTestHarness<Long, Long> harness = null;
+			try {
+				if (isKeyedState) {
+					harness = new KeyedOneInputStreamOperatorTestHarness<>(
+						operator,
+						keySelector,
+						BasicTypeInfo.LONG_TYPE_INFO,
+						environment);
+				} else {
+					harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+				}
 
-		if (isKeyedState) {
-			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				operator,
-				keySelector,
-				BasicTypeInfo.LONG_TYPE_INFO,
-				environment);
-		} else {
-			harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+				harness.setStateBackend(stateBackend);
+
+				harness.setup();
+				harness.initializeState(operatorSubtaskState);
+				harness.open();
+
+				long timestamp = 0L;
+
+				for (Long value : input) {
+					harness.processElement(value, timestamp++);
+				}
+
+				long checkpointId = 1L;
+				long checkpointTimestamp = timestamp + 1L;
+
+				return harness.snapshot(checkpointId, checkpointTimestamp);
+			} finally {
+				IOUtils.closeQuietly(harness);
+			}
 		}
-
-		harness.setStateBackend(stateBackend);
-
-		harness.setup();
-		harness.initializeState(operatorStateHandles);
-		harness.open();
-
-		long timestamp = 0L;
-
-		for (Long value : input) {
-			harness.processElement(value, timestamp++);
-		}
-
-		long checkpointId = 1L;
-		long checkpointTimestamp = timestamp + 1L;
-
-		OperatorStateHandles stateHandles = harness.snapshot(checkpointId, checkpointTimestamp);
-
-		harness.close();
-
-		return stateHandles;
 	}
 
 	private static File writeSourceFile(File root, String name, String source) throws IOException {
@@ -410,7 +373,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, sourceFile.getPath());
+		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
 	}
 
 	private static final class StatefulMapper extends RichMapFunction<Long, Long> implements CheckpointedFunction {
@@ -423,7 +386,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 		// keyed states
 		private transient ValueState<Object> keyedValueState;
-		private transient MapState<Object, Object> keyedMapState;
 		private transient ListState<Object> keyedListState;
 		private transient ReducingState<Object> keyedReducingState;
 
@@ -435,7 +397,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 		private transient Field fieldA;
 		private transient Field fieldB;
 
-		public StatefulMapper(boolean keyed, boolean verify, boolean hasBField) {
+		StatefulMapper(boolean keyed, boolean verify, boolean hasBField) {
 			this.keyed = keyed;
 			this.verify = verify;
 			this.hasBField = hasBField;
@@ -454,9 +416,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			if (verify) {
 				if (keyed) {
 					assertEquals(pojo, keyedValueState.value());
-
-					assertTrue(keyedMapState.contains(pojo));
-					assertEquals(pojo, keyedMapState.get(pojo));
 
 					Iterator<Object> listIterator = keyedListState.get().iterator();
 
@@ -487,7 +446,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			} else {
 				if (keyed) {
 					keyedValueState.update(pojo);
-					keyedMapState.put(pojo, pojo);
 					keyedListState.add(pojo);
 					keyedReducingState.add(pojo);
 				} else {
@@ -504,6 +462,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			pojoClass = getRuntimeContext().getUserCodeClassLoader().loadClass(POJO_NAME);
@@ -519,8 +478,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			if (keyed) {
 				keyedValueState = context.getKeyedStateStore().getState(
 					new ValueStateDescriptor<>("keyedValueState", (Class<Object>) pojoClass));
-				keyedMapState = context.getKeyedStateStore().getMapState(
-					new MapStateDescriptor<>("keyedMapState", (Class<Object>) pojoClass, (Class<Object>) pojoClass));
 				keyedListState = context.getKeyedStateStore().getListState(
 					new ListStateDescriptor<>("keyedListState", (Class<Object>) pojoClass));
 

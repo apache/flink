@@ -18,14 +18,6 @@
 
 package org.apache.flink.configuration;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -33,14 +25,26 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Lightweight configuration object which stores key/value pairs.
  */
 @Public
-public class Configuration extends ExecutionConfig.GlobalJobParameters 
+public class Configuration extends ExecutionConfig.GlobalJobParameters
 		implements IOReadableWritable, java.io.Serializable, Cloneable {
 
 	private static final long serialVersionUID = 1L;
@@ -66,29 +70,29 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * Creates a new empty configuration.
 	 */
 	public Configuration() {
-		this.confData = new HashMap<String, Object>();
+		this.confData = new HashMap<>();
 	}
 
 	/**
 	 * Creates a new configuration with the copy of the given configuration.
-	 * 
+	 *
 	 * @param other The configuration to copy the entries from.
 	 */
 	public Configuration(Configuration other) {
-		this.confData = new HashMap<String, Object>(other.confData);
+		this.confData = new HashMap<>(other.confData);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Returns the class associated with the given key as a string.
-	 * 
+	 *
 	 * @param <T> The type of the class to return.
 
 	 * @param key The key pointing to the associated value
 	 * @param defaultValue The optional default value returned if no entry exists
 	 * @param classLoader The class loader used to resolve the class.
-	 * 
+	 *
 	 * @return The value associated with the given key, or the default value, if to entry for the key exists.
 	 */
 	@SuppressWarnings("unchecked")
@@ -97,11 +101,11 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		if (o == null) {
 			return (Class<T>) defaultValue;
 		}
-		
+
 		if (o.getClass() == String.class) {
 			return (Class<T>) Class.forName((String) o, true, classLoader);
 		}
-		
+
 		LOG.warn("Configuration cannot evaluate value " + o + " as a class name");
 		return (Class<T>) defaultValue;
 	}
@@ -109,7 +113,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	/**
 	 * Adds the given key/value pair to the configuration object. The class can be retrieved by invoking
 	 * {@link #getClass(String, Class, ClassLoader)} if it is in the scope of the class loader on the caller.
-	 * 
+	 *
 	 * @param key The key of the pair to be added
 	 * @param klazz The value of the pair to be added
 	 * @see #getClass(String, Class, ClassLoader)
@@ -120,7 +124,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Returns the value associated with the given key as a string.
-	 * 
+	 *
 	 * @param key
 	 *        the key pointing to the associated value
 	 * @param defaultValue
@@ -164,7 +168,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Adds the given key/value pair to the configuration object.
-	 * 
+	 *
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
@@ -190,7 +194,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Returns the value associated with the given key as an integer.
-	 * 
+	 *
 	 * @param key
 	 *        the key pointing to the associated value
 	 * @param defaultValue
@@ -238,7 +242,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Adds the given key/value pair to the configuration object.
-	 * 
+	 *
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
@@ -264,7 +268,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Returns the value associated with the given key as a long.
-	 * 
+	 *
 	 * @param key
 	 *        the key pointing to the associated value
 	 * @param defaultValue
@@ -312,7 +316,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Adds the given key/value pair to the configuration object.
-	 * 
+	 *
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
@@ -338,7 +342,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Returns the value associated with the given key as a boolean.
-	 * 
+	 *
 	 * @param key
 	 *        the key pointing to the associated value
 	 * @param defaultValue
@@ -386,7 +390,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Adds the given key/value pair to the configuration object.
-	 * 
+	 *
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
@@ -412,7 +416,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Returns the value associated with the given key as a float.
-	 * 
+	 *
 	 * @param key
 	 *        the key pointing to the associated value
 	 * @param defaultValue
@@ -460,7 +464,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Adds the given key/value pair to the configuration object.
-	 * 
+	 *
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
@@ -486,7 +490,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Returns the value associated with the given key as a double.
-	 * 
+	 *
 	 * @param key
 	 *        the key pointing to the associated value
 	 * @param defaultValue
@@ -534,7 +538,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Adds the given key/value pair to the configuration object.
-	 * 
+	 *
 	 * @param key
 	 *        the key of the key/value pair to be added
 	 * @param value
@@ -560,7 +564,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/**
 	 * Returns the value associated with the given key as a byte array.
-	 * 
+	 *
 	 * @param key
 	 *        The key pointing to the associated value.
 	 * @param defaultValue
@@ -569,7 +573,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 */
 	@SuppressWarnings("EqualsBetweenInconvertibleTypes")
 	public byte[] getBytes(String key, byte[] defaultValue) {
-		
+
 		Object o = getRawValue(key);
 		if (o == null) {
 			return defaultValue;
@@ -582,10 +586,10 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return defaultValue;
 		}
 	}
-	
+
 	/**
 	 * Adds the given byte array to the configuration object. If key is <code>null</code> then nothing is added.
-	 * 
+	 *
 	 * @param key
 	 *        The key under which the bytes are added.
 	 * @param bytes
@@ -607,17 +611,44 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		return o == null ? null : o.toString();
 	}
 
+	/**
+	 * Returns the value associated with the given config option as an enum.
+	 *
+	 * @param enumClass    The return enum class
+	 * @param configOption The configuration option
+	 * @throws IllegalArgumentException If the string associated with the given config option cannot
+	 *                                  be parsed as a value of the provided enum class.
+	 */
+	@PublicEvolving
+	public <T extends Enum<T>> T getEnum(
+			final Class<T> enumClass,
+			final ConfigOption<String> configOption) {
+		checkNotNull(enumClass, "enumClass must not be null");
+		checkNotNull(configOption, "configOption must not be null");
+
+		final String configValue = getString(configOption);
+		try {
+			return Enum.valueOf(enumClass, configValue.toUpperCase(Locale.ROOT));
+		} catch (final IllegalArgumentException | NullPointerException e) {
+			final String errorMessage = String.format("Value for config option %s must be one of %s (was %s)",
+				configOption.key(),
+				Arrays.toString(enumClass.getEnumConstants()),
+				configValue);
+			throw new IllegalArgumentException(errorMessage, e);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Returns the keys of all key/value pairs stored inside this
 	 * configuration object.
-	 * 
+	 *
 	 * @return the keys of all key/value pairs stored inside this configuration object
 	 */
 	public Set<String> keySet() {
 		synchronized (this.confData) {
-			return new HashSet<String>(this.confData.keySet());
+			return new HashSet<>(this.confData.keySet());
 		}
 	}
 
@@ -639,11 +670,11 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			}
 		}
 	}
-	
+
 	/**
 	 * Adds all entries from the given configuration into this configuration. The keys
 	 * are prepended with the given prefix.
-	 * 
+	 *
 	 * @param other
 	 *        The configuration whose entries are added to this configuration.
 	 * @param prefix
@@ -674,7 +705,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 
 	/**
-	 * Checks whether there is an entry with the specified key
+	 * Checks whether there is an entry with the specified key.
 	 *
 	 * @param key key of entry
 	 * @return true if the key is stored, false otherwise
@@ -686,7 +717,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 
 	/**
-	 * Checks whether there is an entry for the given config option
+	 * Checks whether there is an entry for the given config option.
 	 *
 	 * @param configOption The configuration option
 	 *
@@ -700,12 +731,11 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			if (this.confData.containsKey(configOption.key())) {
 				return true;
 			}
-			else if (configOption.hasDeprecatedKeys()) {
-				// try the deprecated keys
-				for (String deprecatedKey : configOption.deprecatedKeys()) {
-					if (this.confData.containsKey(deprecatedKey)) {
-						LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
-							deprecatedKey, configOption.key());
+			else if (configOption.hasFallbackKeys()) {
+				// try the fallback keys
+				for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
+					if (this.confData.containsKey(fallbackKey.getKey())) {
+						loggingFallback(fallbackKey, configOption);
 						return true;
 					}
 				}
@@ -720,17 +750,42 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	@Override
 	public Map<String, String> toMap() {
 		synchronized (this.confData){
-			Map<String, String> ret = new HashMap<String, String>(this.confData.size());
-			for(Map.Entry<String, Object> entry : confData.entrySet()) {
+			Map<String, String> ret = new HashMap<>(this.confData.size());
+			for (Map.Entry<String, Object> entry : confData.entrySet()) {
 				ret.put(entry.getKey(), entry.getValue().toString());
 			}
 			return ret;
 		}
 	}
 
+	/**
+	 * Removes given config option from the configuration.
+	 *
+	 * @param configOption config option to remove
+	 * @param <T> Type of the config option
+	 * @return true is config has been removed, false otherwise
+	 */
+	public <T> boolean removeConfig(ConfigOption<T> configOption){
+		synchronized (this.confData){
+			// try the current key
+			Object oldValue = this.confData.remove(configOption.key());
+			if (oldValue == null){
+				for (FallbackKey fallbackKey : configOption.fallbackKeys()){
+					oldValue = this.confData.remove(fallbackKey.getKey());
+					if (oldValue != null){
+						loggingFallback(fallbackKey, configOption);
+						return true;
+					}
+				}
+				return false;
+			}
+			return true;
+		}
+	}
+
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	<T> void setValueInternal(String key, T value) {
 		if (key == null) {
 			throw new NullPointerException("Key must not be null.");
@@ -738,17 +793,17 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		if (value == null) {
 			throw new NullPointerException("Value must not be null.");
 		}
-		
+
 		synchronized (this.confData) {
 			this.confData.put(key, value);
 		}
 	}
-	
+
 	private Object getRawValue(String key) {
 		if (key == null) {
 			throw new NullPointerException("Key must not be null.");
 		}
-		
+
 		synchronized (this.confData) {
 			return this.confData.get(key);
 		}
@@ -762,13 +817,12 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			// found a value for the current proper key
 			return o;
 		}
-		else if (configOption.hasDeprecatedKeys()) {
+		else if (configOption.hasFallbackKeys()) {
 			// try the deprecated keys
-			for (String deprecatedKey : configOption.deprecatedKeys()) {
-				Object oo = getRawValue(deprecatedKey);
+			for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
+				Object oo = getRawValue(fallbackKey.getKey());
 				if (oo != null) {
-					LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'", 
-							deprecatedKey, configOption.key());
+					loggingFallback(fallbackKey, configOption);
 					return oo;
 				}
 			}
@@ -780,6 +834,16 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	private Object getValueOrDefaultFromOption(ConfigOption<?> configOption) {
 		Object o = getRawValueFromOption(configOption);
 		return o != null ? o : configOption.defaultValue();
+	}
+
+	private void loggingFallback(FallbackKey fallbackKey, ConfigOption<?> configOption) {
+		if (fallbackKey.isDeprecated()) {
+			LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
+				fallbackKey.getKey(), configOption.key());
+		} else {
+			LOG.info("Config uses fallback configuration key '{}' instead of key '{}'",
+				fallbackKey.getKey(), configOption.key());
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -893,7 +957,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			for (int i = 0; i < numberOfProperties; i++) {
 				String key = StringValue.readString(in);
 				Object value;
-				
+
 				byte type = in.readByte();
 				switch (type) {
 					case TYPE_STRING:
@@ -922,7 +986,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 					default:
 						throw new IOException("Unrecognized type: " + type);
 				}
-				
+
 				this.confData.put(key, value);
 			}
 		}
@@ -932,14 +996,14 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	public void write(final DataOutputView out) throws IOException {
 		synchronized (this.confData) {
 			out.writeInt(this.confData.size());
-			
+
 			for (Map.Entry<String, Object> entry : this.confData.entrySet()) {
 				String key = entry.getKey();
 				Object val = entry.getValue();
-						
+
 				StringValue.writeString(key, out);
 				Class<?> clazz = val.getClass();
-				
+
 				if (clazz == String.class) {
 					out.write(TYPE_STRING);
 					StringValue.writeString((String) val, out);
@@ -976,7 +1040,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -996,11 +1060,11 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		}
 		else if (obj instanceof Configuration) {
 			Map<String, Object> otherConf = ((Configuration) obj).confData;
-			
+
 			for (Map.Entry<String, Object> e : this.confData.entrySet()) {
 				Object thisVal = e.getValue();
 				Object otherVal = otherConf.get(e.getKey());
-				
+
 				if (!thisVal.getClass().equals(byte[].class)) {
 					if (!thisVal.equals(otherVal)) {
 						return false;
@@ -1013,14 +1077,14 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 					return false;
 				}
 			}
-			
+
 			return true;
 		}
 		else {
 			return false;
 		}
 	}
-	
+
 	@Override
 	public String toString() {
 		return this.confData.toString();

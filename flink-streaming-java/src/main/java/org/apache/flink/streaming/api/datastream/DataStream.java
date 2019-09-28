@@ -31,9 +31,12 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.CsvOutputFormat;
@@ -57,14 +60,16 @@ import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
@@ -91,7 +96,6 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -113,7 +117,7 @@ public class DataStream<T> {
 
 	protected final StreamExecutionEnvironment environment;
 
-	protected final StreamTransformation<T> transformation;
+	protected final Transformation<T> transformation;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
@@ -121,7 +125,7 @@ public class DataStream<T> {
 	 *
 	 * @param environment The StreamExecutionEnvironment
 	 */
-	public DataStream(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
+	public DataStream(StreamExecutionEnvironment environment, Transformation<T> transformation) {
 		this.environment = Preconditions.checkNotNull(environment, "Execution Environment must not be null.");
 		this.transformation = Preconditions.checkNotNull(transformation, "Stream Transformation must not be null.");
 	}
@@ -209,7 +213,7 @@ public class DataStream<T> {
 	 */
 	@SafeVarargs
 	public final DataStream<T> union(DataStream<T>... streams) {
-		List<StreamTransformation<T>> unionedTransforms = new ArrayList<>();
+		List<Transformation<T>> unionedTransforms = new ArrayList<>();
 		unionedTransforms.add(this.transformation);
 
 		for (DataStream<T> newStream : streams) {
@@ -233,7 +237,9 @@ public class DataStream<T> {
 	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
 	 *            for directing the tuples.
 	 * @return The {@link SplitStream}
+	 * @deprecated Please use side output instead.
 	 */
+	@Deprecated
 	public SplitStream<T> split(OutputSelector<T> outputSelector) {
 		return new SplitStream<>(this, clean(outputSelector));
 	}
@@ -253,6 +259,30 @@ public class DataStream<T> {
 	}
 
 	/**
+	 * Creates a new {@link BroadcastConnectedStream} by connecting the current
+	 * {@link DataStream} or {@link KeyedStream} with a {@link BroadcastStream}.
+	 *
+	 * <p>The latter can be created using the {@link #broadcast(MapStateDescriptor[])} method.
+	 *
+	 * <p>The resulting stream can be further processed using the {@code BroadcastConnectedStream.process(MyFunction)}
+	 * method, where {@code MyFunction} can be either a
+	 * {@link org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction KeyedBroadcastProcessFunction}
+	 * or a {@link org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction BroadcastProcessFunction}
+	 * depending on the current stream being a {@link KeyedStream} or not.
+	 *
+	 * @param broadcastStream The broadcast stream with the broadcast state to be connected with this stream.
+	 * @return The {@link BroadcastConnectedStream}.
+	 */
+	@PublicEvolving
+	public <R> BroadcastConnectedStream<T, R> connect(BroadcastStream<R> broadcastStream) {
+		return new BroadcastConnectedStream<>(
+				environment,
+				this,
+				Preconditions.checkNotNull(broadcastStream),
+				broadcastStream.getBroadcastStateDescriptor());
+	}
+
+	/**
 	 * It creates a new {@link KeyedStream} that uses the provided key for partitioning
 	 * its operator states.
 	 *
@@ -261,7 +291,22 @@ public class DataStream<T> {
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
 	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
+		Preconditions.checkNotNull(key);
 		return new KeyedStream<>(this, clean(key));
+	}
+
+	/**
+	 * It creates a new {@link KeyedStream} that uses the provided key with explicit type information
+	 * for partitioning its operator states.
+	 *
+	 * @param key The KeySelector to be used for extracting the key for partitioning.
+	 * @param keyType The type information describing the key type.
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
+	 */
+	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key, TypeInformation<K> keyType) {
+		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNull(keyType);
+		return new KeyedStream<>(this, clean(key), keyType);
 	}
 
 	/**
@@ -307,7 +352,7 @@ public class DataStream<T> {
 	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
-	 * @param field The field index on which the DataStream is to partitioned.
+	 * @param field The field index on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, int field) {
@@ -322,7 +367,7 @@ public class DataStream<T> {
 	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
-	 * @param field The expression for the field on which the DataStream is to partitioned.
+	 * @param field The expression for the field on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, String field) {
@@ -369,6 +414,23 @@ public class DataStream<T> {
 	 */
 	public DataStream<T> broadcast() {
 		return setConnectionType(new BroadcastPartitioner<T>());
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output elements
+	 * are broadcasted to every parallel instance of the next operation. In addition,
+	 * it implicitly as many {@link org.apache.flink.api.common.state.BroadcastState broadcast states}
+	 * as the specified descriptors which can be used to store the element of the stream.
+	 *
+	 * @param broadcastStateDescriptors the descriptors of the broadcast states to create.
+	 * @return A {@link BroadcastStream} which can be used in the {@link #connect(BroadcastStream)} to
+	 * create a {@link BroadcastConnectedStream} for further processing of the elements.
+	 */
+	@PublicEvolving
+	public BroadcastStream<T> broadcast(final MapStateDescriptor<?, ?>... broadcastStateDescriptors) {
+		Preconditions.checkNotNull(broadcastStateDescriptors);
+		final DataStream<T> broadcastStream = setConnectionType(new BroadcastPartitioner<>());
+		return new BroadcastStream<>(environment, broadcastStream, broadcastStateDescriptors);
 	}
 
 	/**
@@ -579,7 +641,6 @@ public class DataStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			TypeExtractor.NO_INDEX,
 			getType(),
 			Utils.getCallLocationName(),
 			true);
@@ -675,9 +736,8 @@ public class DataStream<T> {
 	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic
 	 * set using
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
@@ -699,9 +759,8 @@ public class DataStream<T> {
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * @param size The size of the window.
 	 */
@@ -716,9 +775,8 @@ public class DataStream<T> {
 	/**
 	 * Windows this {@code DataStream} into tumbling count windows.
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * @param size The size of the windows in number of elements.
 	 */
@@ -729,9 +787,8 @@ public class DataStream<T> {
 	/**
 	 * Windows this {@code DataStream} into sliding count windows.
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * @param size The size of the windows in number of elements.
 	 * @param slide The slide interval in number of elements.
@@ -743,18 +800,17 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Windows this data stream to a {@code KeyedTriggerWindowDataStream}, which evaluates windows
-	 * over a key grouped stream. Elements are put into windows by a
+	 * Windows this data stream to a {@code AllWindowedStream}, which evaluates windows
+	 * over a non key grouped stream. Elements are put into windows by a
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. The grouping of
-	 * elements is done both by key and by window.
+	 * elements is done by window.
 	 *
 	 * <p>A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to specify
 	 * when windows are evaluated. However, {@code WindowAssigners} have a default {@code Trigger}
 	 * that is used if a {@code Trigger} is not specified.
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.
@@ -895,12 +951,15 @@ public class DataStream<T> {
 	 *
 	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
 	 *
+	 * <p>NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
 	 * @return The closed DataStream.
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> print() {
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>();
-		return addSink(printFunction);
+		return addSink(printFunction).name("Print to Std. Out");
 	}
 
 	/**
@@ -908,12 +967,49 @@ public class DataStream<T> {
 	 *
 	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
 	 *
+	 * <p>NOTE: This will print to stderr on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
 	 * @return The closed DataStream.
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> printToErr() {
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(true);
-		return addSink(printFunction);
+		return addSink(printFunction).name("Print to Std. Err");
+	}
+
+	/**
+	 * Writes a DataStream to the standard output stream (stdout).
+	 *
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The closed DataStream.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> print(String sinkIdentifier) {
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, false);
+		return addSink(printFunction).name("Print to Std. Out");
+	}
+
+	/**
+	 * Writes a DataStream to the standard output stream (stderr).
+	 *
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stderr on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The closed DataStream.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> printToErr(String sinkIdentifier) {
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, true);
+		return addSink(printFunction).name("Print to Std. Err");
 	}
 
 	/**
@@ -1079,9 +1175,41 @@ public class DataStream<T> {
 	 * @param <R>
 	 *            type of the return stream
 	 * @return the data stream constructed
+	 * @see #transform(String, TypeInformation, OneInputStreamOperatorFactory)
 	 */
 	@PublicEvolving
-	public <R> SingleOutputStreamOperator<R> transform(String operatorName, TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
+	public <R> SingleOutputStreamOperator<R> transform(
+			String operatorName,
+			TypeInformation<R> outTypeInfo,
+			OneInputStreamOperator<T, R> operator) {
+
+		return doTransform(operatorName, outTypeInfo, SimpleOperatorFactory.of(operator));
+	}
+
+	/**
+	 * Method for passing user defined operators created by the given factory along with the type information that will
+	 * transform the DataStream.
+	 *
+	 * <p>This method uses the rather new operator factories and should only be used when custom factories are needed.
+	 *
+	 * @param operatorName name of the operator, for logging purposes
+	 * @param outTypeInfo the output type of the operator
+	 * @param operatorFactory the factory for the operator.
+	 * @param <R> type of the return stream
+	 * @return the data stream constructed.
+	 */
+	@PublicEvolving
+	public <R> SingleOutputStreamOperator<R> transform(
+			String operatorName,
+			TypeInformation<R> outTypeInfo,
+			OneInputStreamOperatorFactory<T, R> operatorFactory) {
+		return doTransform(operatorName, outTypeInfo, operatorFactory);
+	}
+
+	private <R> SingleOutputStreamOperator<R> doTransform(
+			String operatorName,
+			TypeInformation<R> outTypeInfo,
+			StreamOperatorFactory<R> operatorFactory) {
 
 		// read the output type of the input Transform to coax out errors about MissingTypeInfo
 		transformation.getOutputType();
@@ -1089,11 +1217,11 @@ public class DataStream<T> {
 		OneInputTransformation<T, R> resultTransform = new OneInputTransformation<>(
 				this.transformation,
 				operatorName,
-				operator,
+				operatorFactory,
 				outTypeInfo,
 				environment.getParallelism());
 
-		@SuppressWarnings({ "unchecked", "rawtypes" })
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		SingleOutputStreamOperator<R> returnStream = new SingleOutputStreamOperator(environment, resultTransform);
 
 		getExecutionEnvironment().addOperator(resultTransform);
@@ -1140,13 +1268,13 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Returns the {@link StreamTransformation} that represents the operation that logically creates
+	 * Returns the {@link Transformation} that represents the operation that logically creates
 	 * this {@link DataStream}.
 	 *
 	 * @return The Transformation
 	 */
 	@Internal
-	public StreamTransformation<T> getTransformation() {
+	public Transformation<T> getTransformation() {
 		return transformation;
 	}
 }

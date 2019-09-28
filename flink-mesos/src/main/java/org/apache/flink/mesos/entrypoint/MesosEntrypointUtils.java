@@ -19,10 +19,13 @@
 package org.apache.flink.mesos.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.mesos.configuration.MesosOptions;
+import org.apache.flink.mesos.runtime.clusterframework.MesosConfigKeys;
 import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
 import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay;
@@ -36,13 +39,14 @@ import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
- * Utils for Mesos entrpoints.
+ * Utils for Mesos entry points.
  */
 public class MesosEntrypointUtils {
 
@@ -105,11 +109,13 @@ public class MesosEntrypointUtils {
 		log.info("TaskManagers will be created with {} task slots",
 			taskManagerParameters.containeredParameters().numSlots());
 		log.info("TaskManagers will be started with container size {} MB, JVM heap size {} MB, " +
-				"JVM direct memory limit {} MB, {} cpus",
+				"JVM direct memory limit {} MB, {} cpus, {} gpus, disk space {} MB",
 			taskManagerParameters.containeredParameters().taskManagerTotalMemoryMB(),
 			taskManagerParameters.containeredParameters().taskManagerHeapSizeMB(),
 			taskManagerParameters.containeredParameters().taskManagerDirectMemoryLimitMB(),
-			taskManagerParameters.cpus());
+			taskManagerParameters.cpus(),
+			taskManagerParameters.gpus(),
+			taskManagerParameters.disk());
 
 		return taskManagerParameters;
 	}
@@ -152,4 +158,24 @@ public class MesosEntrypointUtils {
 		overlay.configure(containerSpec);
 	}
 
+	/**
+	 * Loads the global configuration, adds the given dynamic properties configuration, and sets
+	 * the temp directory paths.
+	 *
+	 * @param dynamicProperties dynamic properties to integrate
+	 * @param log logger instance
+	 * @return the loaded and adapted global configuration
+	 */
+	public static Configuration loadConfiguration(Configuration dynamicProperties, Logger log) {
+		Configuration configuration =
+			GlobalConfiguration.loadConfiguration(dynamicProperties);
+
+		// read the environment variables
+		final Map<String, String> envs = System.getenv();
+		final String tmpDirs = envs.get(MesosConfigKeys.ENV_FLINK_TMP_DIR);
+
+		BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, tmpDirs);
+
+		return configuration;
+	}
 }

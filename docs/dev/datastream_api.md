@@ -113,7 +113,7 @@ object WindowWordCount {
       .timeWindow(Time.seconds(5))
       .sum(1)
 
-    counts.print
+    counts.print()
 
     env.execute("Window Stream WordCount")
   }
@@ -125,9 +125,9 @@ object WindowWordCount {
 
 To run the example program, start the input stream with netcat first from a terminal:
 
-~~~bash
+{% highlight bash %}
 nc -lk 9999
-~~~
+{% endhighlight %}
 
 Just type some words hitting return for a new word. These will be the input to the
 word count program. If you want to see counts greater than 1, type the same word again and again within
@@ -161,7 +161,7 @@ File-based:
 
     *IMPLEMENTATION:*
 
-    Under the hood, Flink splits the file reading process into two sub-tasks, namely *directory monitoring* and *data reading*. Each of these sub-tasks is implemented by a separate entity. Monitoring is implemented by a single, **non-parallel** (parallelism = 1) task, while reading is performed by multiple tasks running in parallel. The parallelism of the latter is equal to the job parallelism. The role of the single monitoring task is to scan the directory (periodically or only once depending on the `watchType`), find the files to be processed, divide them in *splits*, and assign these splits to the downstream readers. The readers are the ones who will read the actual data. Each split is read by only one reader, while a reader can read muplitple splits, one-by-one.
+    Under the hood, Flink splits the file reading process into two sub-tasks, namely *directory monitoring* and *data reading*. Each of these sub-tasks is implemented by a separate entity. Monitoring is implemented by a single, **non-parallel** (parallelism = 1) task, while reading is performed by multiple tasks running in parallel. The parallelism of the latter is equal to the job parallelism. The role of the single monitoring task is to scan the directory (periodically or only once depending on the `watchType`), find the files to be processed, divide them in *splits*, and assign these splits to the downstream readers. The readers are the ones who will read the actual data. Each split is read by only one reader, while a reader can read multiple splits, one-by-one.
 
     *IMPORTANT NOTES:*
 
@@ -192,7 +192,7 @@ Collection-based:
 
 Custom:
 
-- `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
+- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
     `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/index.html) for more details.
 
 </div>
@@ -219,7 +219,7 @@ File-based:
 
     *IMPLEMENTATION:*
 
-    Under the hood, Flink splits the file reading process into two sub-tasks, namely *directory monitoring* and *data reading*. Each of these sub-tasks is implemented by a separate entity. Monitoring is implemented by a single, **non-parallel** (parallelism = 1) task, while reading is performed by multiple tasks running in parallel. The parallelism of the latter is equal to the job parallelism. The role of the single monitoring task is to scan the directory (periodically or only once depending on the `watchType`), find the files to be processed, divide them in *splits*, and assign these splits to the downstream readers. The readers are the ones who will read the actual data. Each split is read by only one reader, while a reader can read muplitple splits, one-by-one.
+    Under the hood, Flink splits the file reading process into two sub-tasks, namely *directory monitoring* and *data reading*. Each of these sub-tasks is implemented by a separate entity. Monitoring is implemented by a single, **non-parallel** (parallelism = 1) task, while reading is performed by multiple tasks running in parallel. The parallelism of the latter is equal to the job parallelism. The role of the single monitoring task is to scan the directory (periodically or only once depending on the `watchType`), find the files to be processed, divide them in *splits*, and assign these splits to the downstream readers. The readers are the ones who will read the actual data. Each split is read by only one reader, while a reader can read multiple splits, one-by-one.
 
     *IMPORTANT NOTES:*
 
@@ -375,9 +375,6 @@ iteration.closeWith(iterationBody.filter(/* one part of the stream */));
 DataStream<Integer> output = iterationBody.filter(/* some other part of the stream */);
 {% endhighlight %}
 
-By default the partitioning of the feedback stream will be automatically set to be the same as the input of the
-iteration head. To override this the user can set an optional boolean flag in the `closeWith` method.
-
 For example, here is program that continuously subtracts 1 from a series of integers until they reach zero:
 
 {% highlight java %}
@@ -424,13 +421,9 @@ are forwarded downstream using filters.
 val iteratedStream = someDataStream.iterate(
   iteration => {
     val iterationBody = iteration.map(/* this is executed many times */)
-    (tail.filter(/* one part of the stream */), tail.filter(/* some other part of the stream */))
+    (iterationBody.filter(/* one part of the stream */), iterationBody.filter(/* some other part of the stream */))
 })
 {% endhighlight %}
-
-
-By default the partitioning of the feedback stream will be automatically set to be the same as the input of the
-iteration head. To override this the user can set an optional boolean flag in the `closeWith` method.
 
 For example, here is program that continuously subtracts 1 from a series of integers until they reach zero:
 
@@ -459,9 +452,6 @@ The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to 
 
 Please refer to [execution configuration]({{ site.baseurl }}/dev/execution_configuration.html)
 for an explanation of most parameters. These parameters pertain specifically to the DataStream API:
-
-- `enableTimestamps()` / **`disableTimestamps()`**: Attach a timestamp to each event emitted from a source.
-    `areTimestampsEnabled()` returns the current value.
 
 - `setAutoWatermarkInterval(long milliseconds)`: Set the interval for automatic watermark emission. You can
     get the current value with `long getAutoWatermarkInterval()`
@@ -494,10 +484,10 @@ env.generateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment
+val env: LocalStreamEnvironment = StreamExecutionEnvironment.createLocalEnvironment
 env.setBufferTimeout(timeoutMillis)
 
-env.genereateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
+env.generateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
 {% endhighlight %}
 </div>
 </div>
@@ -605,7 +595,7 @@ Flink also provides a sink to collect DataStream results for testing and debuggi
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.contrib.streaming.DataStreamUtils
+import org.apache.flink.streaming.experimental.DataStreamUtils
 
 DataStream<Tuple2<String, Integer>> myResult = ...
 Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
@@ -615,7 +605,7 @@ Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
-import org.apache.flink.contrib.streaming.DataStreamUtils
+import org.apache.flink.streaming.experimental.DataStreamUtils
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 val myResult: DataStream[(String, Int)] = ...
@@ -625,6 +615,9 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStr
 </div>
 
 {% top %}
+
+**Note:** `flink-streaming-contrib` module is removed from Flink 1.5.0.
+Its classes have been moved into `flink-streaming-java` and `flink-streaming-scala`.
 
 Where to go next?
 -----------------

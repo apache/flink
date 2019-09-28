@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -80,6 +81,18 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 		return new EventTimeSessionWindows(size.toMilliseconds());
 	}
 
+	/**
+	 * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns
+	 * elements to sessions based on the element timestamp.
+	 *
+	 * @param sessionWindowTimeGapExtractor The extractor to use to extract the time gap from the input elements
+	 * @return The policy.
+	 */
+	@PublicEvolving
+	public static <T> DynamicEventTimeSessionWindows<T> withDynamicGap(SessionWindowTimeGapExtractor<T> sessionWindowTimeGapExtractor) {
+		return new DynamicEventTimeSessionWindows<>(sessionWindowTimeGapExtractor);
+	}
+
 	@Override
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
@@ -93,6 +106,7 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 	/**
 	 * Merge overlapping {@link TimeWindow}s.
 	 */
+	@Override
 	public void mergeWindows(Collection<TimeWindow> windows, MergingWindowAssigner.MergeCallback<TimeWindow> c) {
 		TimeWindow.mergeWindows(windows, c);
 	}

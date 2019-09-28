@@ -18,183 +18,103 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.util.DataOutputSerializer;
 
 /**
  * Record serializer which serializes the complete record to an intermediate
  * data serialization buffer and copies this buffer to target buffers
- * one-by-one using {@link #setNextBuffer(Buffer)}.
+ * one-by-one using {@link #copyToBufferBuilder(BufferBuilder)}.
  *
- * @param <T>
+ * @param <T> The type of the records that are serialized.
  */
 public class SpanningRecordSerializer<T extends IOReadableWritable> implements RecordSerializer<T> {
 
-	/** Flag to enable/disable checks, if buffer not set/full or pending serialization */
+	/** Flag to enable/disable checks, if buffer not set/full or pending serialization. */
 	private static final boolean CHECKED = false;
 
-	/** Intermediate data serialization */
+	/** Intermediate data serialization. */
 	private final DataOutputSerializer serializationBuffer;
 
-	/** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}) */
+	/** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}). */
 	private ByteBuffer dataBuffer;
 
-	/** Intermediate buffer for length serialization */
-	private final ByteBuffer lengthBuffer;
-
-	/** Current target {@link Buffer} of the serializer */
-	private Buffer targetBuffer;
-
-	/** Position in current {@link MemorySegment} of target buffer */
-	private int position;
-
-	/** Limit of current {@link MemorySegment} of target buffer */
-	private int limit;
-
 	public SpanningRecordSerializer() {
-		this.serializationBuffer = new DataOutputSerializer(128);
+		serializationBuffer = new DataOutputSerializer(128);
 
-		this.lengthBuffer = ByteBuffer.allocate(4);
-		this.lengthBuffer.order(ByteOrder.BIG_ENDIAN);
-
-		// ensure initial state with hasRemaining false (for correct setNextBuffer logic)
-		this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
-		this.lengthBuffer.position(4);
+		// ensure initial state with hasRemaining false (for correct continueWritingWithNextBufferBuilder logic)
+		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 	}
 
 	/**
-	 * Serializes the complete record to an intermediate data serialization
-	 * buffer and starts copying it to the target buffer (if available).
+	 * Serializes the complete record to an intermediate data serialization buffer.
 	 *
 	 * @param record the record to serialize
-	 * @return how much information was written to the target buffer and
-	 *         whether this buffer is full
-	 * @throws IOException
 	 */
 	@Override
-	public SerializationResult addRecord(T record) throws IOException {
+	public void serializeRecord(T record) throws IOException {
 		if (CHECKED) {
-			if (this.dataBuffer.hasRemaining()) {
+			if (dataBuffer.hasRemaining()) {
 				throw new IllegalStateException("Pending serialization of previous record.");
 			}
 		}
 
-		this.serializationBuffer.clear();
-		this.lengthBuffer.clear();
+		serializationBuffer.clear();
+		// the initial capacity of the serialization buffer should be no less than 4
+		serializationBuffer.skipBytesToWrite(4);
 
 		// write data and length
-		record.write(this.serializationBuffer);
+		record.write(serializationBuffer);
 
-		int len = this.serializationBuffer.length();
-		this.lengthBuffer.putInt(0, len);
+		int len = serializationBuffer.length() - 4;
+		serializationBuffer.setPosition(0);
+		serializationBuffer.writeInt(len);
+		serializationBuffer.skipBytesToWrite(len);
 
-		this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
-
-		// Copy from intermediate buffers to current target memory segment
-		copyToTargetBufferFrom(this.lengthBuffer);
-		copyToTargetBufferFrom(this.dataBuffer);
-
-		return getSerializationResult();
-	}
-
-	@Override
-	public SerializationResult setNextBuffer(Buffer buffer) throws IOException {
-		this.targetBuffer = buffer;
-		this.position = 0;
-		this.limit = buffer.getSize();
-
-		if (this.lengthBuffer.hasRemaining()) {
-			copyToTargetBufferFrom(this.lengthBuffer);
-		}
-
-		if (this.dataBuffer.hasRemaining()) {
-			copyToTargetBufferFrom(this.dataBuffer);
-		}
-
-		SerializationResult result = getSerializationResult();
-		
-		// make sure we don't hold onto the large buffers for too long
-		if (result.isFullRecord()) {
-			this.serializationBuffer.clear();
-			this.serializationBuffer.pruneBuffer();
-			this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
-		}
-		
-		return result;
+		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 	}
 
 	/**
-	 * Copies as many bytes as possible from the given {@link ByteBuffer} to the {@link MemorySegment} of the target
-	 * {@link Buffer} and advances the current position by the number of written bytes.
+	 * Copies an intermediate data serialization buffer into the target BufferBuilder.
 	 *
-	 * @param source the {@link ByteBuffer} to copy data from
+	 * @param targetBuffer the target BufferBuilder to copy to
+	 * @return how much information was written to the target buffer and
+	 *         whether this buffer is full
 	 */
-	private void copyToTargetBufferFrom(ByteBuffer source) {
-		if (this.targetBuffer == null) {
-			return;
+	@Override
+	public SerializationResult copyToBufferBuilder(BufferBuilder targetBuffer) {
+		targetBuffer.append(dataBuffer);
+		targetBuffer.commit();
+
+		return getSerializationResult(targetBuffer);
+	}
+
+	private SerializationResult getSerializationResult(BufferBuilder targetBuffer) {
+		if (dataBuffer.hasRemaining()) {
+			return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
 		}
-
-		int needed = source.remaining();
-		int available = this.limit - this.position;
-		int toCopy = Math.min(needed, available);
-
-		this.targetBuffer.getMemorySegment().put(this.position, source, toCopy);
-
-		this.position += toCopy;
-	}
-
-	private SerializationResult getSerializationResult() {
-		if (!this.dataBuffer.hasRemaining() && !this.lengthBuffer.hasRemaining()) {
-			return (this.position < this.limit)
-					? SerializationResult.FULL_RECORD
-					: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
-		}
-
-		return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
+		return !targetBuffer.isFull()
+			? SerializationResult.FULL_RECORD
+			: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
 	}
 
 	@Override
-	public Buffer getCurrentBuffer() {
-		if (targetBuffer == null) {
-			return null;
-		}
-
-		this.targetBuffer.setSize(this.position);
-		return this.targetBuffer;
+	public void reset() {
+		dataBuffer.position(0);
 	}
 
 	@Override
-	public void clearCurrentBuffer() {
-		targetBuffer = null;
-		position = 0;
-		limit = 0;
+	public void prune() {
+		serializationBuffer.pruneBuffer();
+		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 	}
 
 	@Override
-	public void clear() {
-		this.targetBuffer = null;
-		this.position = 0;
-		this.limit = 0;
-
-		// ensure clear state with hasRemaining false (for correct setNextBuffer logic)
-		this.dataBuffer.position(this.dataBuffer.limit());
-		this.lengthBuffer.position(4);
-	}
-
-	@Override
-	public boolean hasData() {
-		// either data in current target buffer or intermediate buffers
-		return this.position > 0 || (this.lengthBuffer.hasRemaining() || this.dataBuffer.hasRemaining());
-	}
-
-	@Override
-	public void instantiateMetrics(TaskIOMetricGroup metrics) {
+	public boolean hasSerializedData() {
+		return dataBuffer.hasRemaining();
 	}
 }

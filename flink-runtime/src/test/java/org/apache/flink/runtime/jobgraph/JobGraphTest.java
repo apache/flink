@@ -18,16 +18,30 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import static org.junit.Assert.*;
-
-import java.util.List;
-
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
-public class JobGraphTest {
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+public class JobGraphTest extends TestLogger {
 
 	@Test
 	public void testSerialization() {
@@ -272,5 +286,75 @@ public class JobGraphTest {
 				break;
 			}
 		}
+	}
+
+	@Test
+	public void testSetUserArtifactBlobKey() throws IOException, ClassNotFoundException {
+		JobGraph jb = new JobGraph();
+
+		final DistributedCache.DistributedCacheEntry[] entries = {
+			new DistributedCache.DistributedCacheEntry("p1", true, true),
+			new DistributedCache.DistributedCacheEntry("p2", true, false),
+			new DistributedCache.DistributedCacheEntry("p3", false, true),
+			new DistributedCache.DistributedCacheEntry("p4", true, false),
+		};
+
+		for (DistributedCache.DistributedCacheEntry entry : entries) {
+			jb.addUserArtifact(entry.filePath, entry);
+		}
+
+		for (DistributedCache.DistributedCacheEntry entry : entries) {
+			PermanentBlobKey blobKey = new PermanentBlobKey();
+			jb.setUserArtifactBlobKey(entry.filePath, blobKey);
+
+			DistributedCache.DistributedCacheEntry jobGraphEntry = jb.getUserArtifacts().get(entry.filePath);
+			assertNotNull(jobGraphEntry);
+			assertEquals(blobKey, InstantiationUtil.deserializeObject(jobGraphEntry.blobKey, ClassLoader.getSystemClassLoader(), false));
+			assertEquals(entry.isExecutable, jobGraphEntry.isExecutable);
+			assertEquals(entry.isZipped, jobGraphEntry.isZipped);
+			assertEquals(entry.filePath, jobGraphEntry.filePath);
+		}
+	}
+
+	@Test
+	public void checkpointingIsDisabledByDefault() {
+		final JobGraph jobGraph = new JobGraph();
+
+		assertFalse(jobGraph.isCheckpointingEnabled());
+	}
+
+	@Test
+	public void checkpointingIsEnabledIfIntervalIsqAndLegal() {
+		final JobGraph jobGraph = new JobGraph();
+		jobGraph.setSnapshotSettings(createCheckpointSettingsWithInterval(10));
+
+		assertTrue(jobGraph.isCheckpointingEnabled());
+	}
+
+	@Test
+	public void checkpointingIsDisabledIfIntervalIsMaxValue() {
+		final JobGraph jobGraph = new JobGraph();
+		jobGraph.setSnapshotSettings(createCheckpointSettingsWithInterval(Long.MAX_VALUE));
+
+		assertFalse(jobGraph.isCheckpointingEnabled());
+	}
+
+	private static JobCheckpointingSettings createCheckpointSettingsWithInterval(final long checkpointInterval) {
+		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
+			checkpointInterval,
+			Long.MAX_VALUE,
+			Long.MAX_VALUE,
+			Integer.MAX_VALUE,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+
+		return new JobCheckpointingSettings(
+			Collections.emptyList(),
+			Collections.emptyList(),
+			Collections.emptyList(),
+			checkpointCoordinatorConfiguration,
+			null);
 	}
 }

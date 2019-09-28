@@ -29,12 +29,12 @@ public class StringBasedID implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Uses a String as internal representation
+	 * Uses a String as internal representation.
 	 */
 	private final String keyString;
 
 	/**
-	 * Protected constructor to enfore that subclassing.
+	 * Protected constructor to enforce that subclassing.
 	 */
 	protected StringBasedID(String keyString) {
 		this.keyString = Preconditions.checkNotNull(keyString);

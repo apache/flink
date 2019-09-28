@@ -20,14 +20,15 @@ package org.apache.flink.test.manual;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import static org.junit.Assert.fail;
 
@@ -45,22 +46,25 @@ public class StreamingScalabilityAndLatency {
 		final int slotsPerTaskManager = 80;
 		final int parallelism = taskManagers * slotsPerTaskManager;
 
-		LocalFlinkMiniCluster cluster = null;
+		MiniClusterWithClientResource cluster = null;
 
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, taskManagers);
-			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slotsPerTaskManager);
-			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 20000);
+			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
+			config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 20000);
 
 			config.setInteger("taskmanager.net.server.numThreads", 1);
 			config.setInteger("taskmanager.net.client.numThreads", 1);
 
-			cluster = new LocalFlinkMiniCluster(config, false);
-			cluster.start();
+			cluster = new MiniClusterWithClientResource(
+				new MiniClusterResourceConfiguration.Builder()
+					.setConfiguration(config)
+					.setNumberTaskManagers(taskManagers)
+					.setNumberSlotsPerTaskManager(slotsPerTaskManager)
+					.build());
+			cluster.before();
 
-			runPartitioningProgram(cluster.getLeaderRPCPort(), parallelism);
+			runPartitioningProgram(parallelism);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -68,13 +72,13 @@ public class StreamingScalabilityAndLatency {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
+				cluster.after();
 			}
 		}
 	}
 
-	private static void runPartitioningProgram(int jobManagerPort, int parallelism) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
+	private static void runPartitioningProgram(int parallelism) throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.getConfig().enableObjectReuse();
 

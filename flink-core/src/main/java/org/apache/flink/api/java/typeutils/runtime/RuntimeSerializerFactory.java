@@ -114,7 +114,7 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof RuntimeSerializerFactory) {
+		if (obj instanceof RuntimeSerializerFactory) {
 			RuntimeSerializerFactory<?> other = (RuntimeSerializerFactory<?>) obj;
 			
 			return this.clazz == other.clazz &&

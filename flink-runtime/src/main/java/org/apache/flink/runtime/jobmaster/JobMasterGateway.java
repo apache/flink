@@ -18,41 +18,46 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.query.KvStateID;
-import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@link JobMaster} rpc gateway interface
+ * {@link JobMaster} rpc gateway interface.
  */
-public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRpcGateway<JobMasterId> {
+public interface JobMasterGateway extends
+	CheckpointCoordinatorGateway,
+	FencedRpcGateway<JobMasterId>,
+	KvStateLocationOracle,
+	KvStateRegistryGateway {
 
 	/**
 	 * Cancels the currently executed job.
@@ -61,14 +66,6 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	 * @return Future acknowledge of the operation
 	 */
 	CompletableFuture<Acknowledge> cancel(@RpcTimeout Time timeout);
-
-	/**
-	 * Cancel the currently executed job.
-	 *
-	 * @param timeout of this operation
-	 * @return Future acknowledge if the cancellation was successful
-	 */
-	CompletableFuture<Acknowledge> stop(@RpcTimeout Time timeout);
 
 	/**
 	 * Updates the task execution state for a given task.
@@ -127,8 +124,9 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	 *
 	 * @param resourceID identifying the TaskManager to disconnect
 	 * @param cause for the disconnection of the TaskManager
+	 * @return Future acknowledge once the JobMaster has been disconnected from the TaskManager
 	 */
-	void disconnectTaskManager(ResourceID resourceID, Exception cause);
+	CompletableFuture<Acknowledge> disconnectTaskManager(ResourceID resourceID, Exception cause);
 
 	/**
 	 * Disconnects the resource manager from the job manager because of the given cause.
@@ -141,47 +139,6 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 		final Exception cause);
 
 	/**
-	 * Requests a {@link KvStateLocation} for the specified {@link InternalKvState} registration name.
-	 *
-	 * @param registrationName Name under which the KvState has been registered.
-	 * @return Future of the requested {@link InternalKvState} location
-	 */
-	CompletableFuture<KvStateLocation> lookupKvStateLocation(final String registrationName);
-
-	/**
-	 * Notifies that queryable state has been registered.
-	 *
-	 * @param jobVertexId          JobVertexID the KvState instance belongs to.
-	 * @param keyGroupRange        Key group range the KvState instance belongs to.
-	 * @param registrationName     Name under which the KvState has been registered.
-	 * @param kvStateId            ID of the registered KvState instance.
-	 * @param kvStateServerAddress Server address where to find the KvState instance.
-	 */
-	void notifyKvStateRegistered(
-			final JobVertexID jobVertexId,
-			final KeyGroupRange keyGroupRange,
-			final String registrationName,
-			final KvStateID kvStateId,
-			final KvStateServerAddress kvStateServerAddress);
-
-	/**
-	 * Notifies that queryable state has been unregistered.
-	 *
-	 * @param jobVertexId      JobVertexID the KvState instance belongs to.
-	 * @param keyGroupRange    Key group index the KvState instance belongs to.
-	 * @param registrationName Name under which the KvState has been registered.
-	 */
-	void notifyKvStateUnregistered(
-			JobVertexID jobVertexId,
-			KeyGroupRange keyGroupRange,
-			String registrationName);
-
-	/**
-	 * Request the classloading props of this job.
-	 */
-	CompletableFuture<ClassloadingProps> requestClassloadingProps();
-
-	/**
 	 * Offers the given slots to the job manager. The response contains the set of accepted slots.
 	 *
 	 * @param taskManagerId identifying the task manager
@@ -191,7 +148,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	 */
 	CompletableFuture<Collection<SlotOffer>> offerSlots(
 			final ResourceID taskManagerId,
-			final Iterable<SlotOffer> slots,
+			final Collection<SlotOffer> slots,
 			@RpcTimeout final Time timeout);
 
 	/**
@@ -219,18 +176,98 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 			@RpcTimeout final Time timeout);
 
 	/**
-	 * Sends the heartbeat to job manager from task manager
+	 * Sends the heartbeat to job manager from task manager.
 	 *
 	 * @param resourceID unique id of the task manager
+	 * @param accumulatorReport report containing accumulator updates
 	 */
-	void heartbeatFromTaskManager(final ResourceID resourceID);
+	void heartbeatFromTaskManager(
+		final ResourceID resourceID,
+		final AccumulatorReport accumulatorReport);
 
 	/**
-	 * Sends heartbeat request from the resource manager
+	 * Sends heartbeat request from the resource manager.
 	 *
 	 * @param resourceID unique id of the resource manager
 	 */
 	void heartbeatFromResourceManager(final ResourceID resourceID);
 
+	/**
+	 * Request the details of the executed job.
+	 *
+	 * @param timeout for the rpc call
+	 * @return Future details of the executed job
+	 */
 	CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests the current job status.
+	 *
+	 * @param timeout for the rpc call
+	 * @return Future containing the current job status
+	 */
+	CompletableFuture<JobStatus> requestJobStatus(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests the {@link ArchivedExecutionGraph} of the executed job.
+	 *
+	 * @param timeout for the rpc call
+	 * @return Future which is completed with the {@link ArchivedExecutionGraph} of the executed job
+	 */
+	CompletableFuture<ArchivedExecutionGraph> requestJob(@RpcTimeout Time timeout);
+
+	/**
+	 * Triggers taking a savepoint of the executed job.
+	 *
+	 * @param targetDirectory to which to write the savepoint data or null if the
+	 *                           default savepoint directory should be used
+	 * @param timeout for the rpc call
+	 * @return Future which is completed with the savepoint path once completed
+	 */
+	CompletableFuture<String> triggerSavepoint(
+		@Nullable final String targetDirectory,
+		final boolean cancelJob,
+		@RpcTimeout final Time timeout);
+
+	/**
+	 * Stops the job with a savepoint.
+	 *
+	 * @param targetDirectory to which to write the savepoint data or null if the
+	 *                           default savepoint directory should be used
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers
+	 * @param timeout for the rpc call
+	 * @return Future which is completed with the savepoint path once completed
+	 */
+	CompletableFuture<String> stopWithSavepoint(
+		@Nullable final String targetDirectory,
+		final boolean advanceToEndOfEventTime,
+		@RpcTimeout final Time timeout);
+
+	/**
+	 * Requests the statistics on operator back pressure.
+	 *
+	 * @param jobVertexId JobVertex for which the stats are requested.
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse}.
+	 */
+	CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId);
+
+	/**
+	 * Notifies that the allocation has failed.
+	 *
+	 * @param allocationID the failed allocation id.
+	 * @param cause the reason that the allocation failed
+	 */
+	void notifyAllocationFailure(AllocationID allocationID, Exception cause);
+
+	/**
+	 * Update the aggregate and return the new value.
+	 *
+	 * @param aggregateName The name of the aggregate to update
+	 * @param aggregand The value to add to the aggregate
+	 * @param serializedAggregationFunction The function to apply to the current aggregate and aggregand to
+	 * obtain the new aggregate value, this should be of type {@link AggregateFunction}
+	 * @return The updated aggregate
+	 */
+	CompletableFuture<Object> updateGlobalAggregate(String aggregateName, Object aggregand, byte[] serializedAggregationFunction);
 }

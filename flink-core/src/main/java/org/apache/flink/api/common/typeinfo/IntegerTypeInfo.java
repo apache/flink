@@ -35,7 +35,7 @@ public class IntegerTypeInfo<T> extends NumericTypeInfo<T> {
 
 	private static final long serialVersionUID = -8068827354966766955L;
 
-	private static final HashSet<Class<?>> integerTypes = new HashSet<Class<?>>(
+	private static final HashSet<Class<?>> integerTypes = new HashSet<>(
 			Arrays.asList(
 				Integer.class,
 				Long.class,

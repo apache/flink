@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -38,7 +42,7 @@ class UnknownInputChannel extends InputChannel {
 
 	private final ResultPartitionManager partitionManager;
 
-	private final TaskEventDispatcher taskEventDispatcher;
+	private final TaskEventPublisher taskEventPublisher;
 
 	private final ConnectionManager connectionManager;
 
@@ -47,27 +51,32 @@ class UnknownInputChannel extends InputChannel {
 
 	private final int maxBackoff;
 
-	private final TaskIOMetricGroup metrics;
+	private final InputChannelMetrics metrics;
+
+	@Nonnull
+	private final MemorySegmentProvider memorySegmentProvider;
 
 	public UnknownInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
 			ResultPartitionID partitionId,
 			ResultPartitionManager partitionManager,
-			TaskEventDispatcher taskEventDispatcher,
+			TaskEventPublisher taskEventPublisher,
 			ConnectionManager connectionManager,
 			int initialBackoff,
 			int maxBackoff,
-			TaskIOMetricGroup metrics) {
+			InputChannelMetrics metrics,
+			@Nonnull MemorySegmentProvider memorySegmentProvider) {
 
-		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null);
+		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
 
 		this.partitionManager = checkNotNull(partitionManager);
-		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
+		this.taskEventPublisher = checkNotNull(taskEventPublisher);
 		this.connectionManager = checkNotNull(connectionManager);
 		this.metrics = checkNotNull(metrics);
 		this.initialBackoff = initialBackoff;
 		this.maxBackoff = maxBackoff;
+		this.memorySegmentProvider = memorySegmentProvider;
 	}
 
 	@Override
@@ -76,7 +85,7 @@ class UnknownInputChannel extends InputChannel {
 	}
 
 	@Override
-	public BufferAndAvailability getNextBuffer() throws IOException {
+	public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		// Nothing to do here
 		throw new UnsupportedOperationException("Cannot retrieve a buffer from an UnknownInputChannel");
 	}
@@ -88,18 +97,14 @@ class UnknownInputChannel extends InputChannel {
 
 	/**
 	 * Returns <code>false</code>.
-	 * <p>
-	 * <strong>Important</strong>: It is important that the method correctly
+	 *
+	 * <p><strong>Important</strong>: It is important that the method correctly
 	 * always <code>false</code> for unknown input channels in order to not
 	 * finish the consumption of an intermediate result partition early.
 	 */
 	@Override
 	public boolean isReleased() {
 		return false;
-	}
-
-	@Override
-	public void notifySubpartitionConsumed() {
 	}
 
 	@Override
@@ -117,10 +122,11 @@ class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, initialBackoff, maxBackoff, metrics);
+		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress),
+			connectionManager, initialBackoff, maxBackoff, metrics, memorySegmentProvider);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, initialBackoff, maxBackoff, metrics);
+		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher, initialBackoff, maxBackoff, metrics);
 	}
 }

@@ -19,21 +19,24 @@
 package org.apache.flink.mesos.scheduler
 
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, FSM, Props}
 import com.netflix.fenzo._
 import com.netflix.fenzo.functions.Action1
-import com.netflix.fenzo.plugins.VMLeaseObject
 import grizzled.slf4j.Logger
-import org.apache.flink.api.java.tuple.{Tuple2=>FlinkTuple2}
+import org.apache.flink.api.java.tuple.{Tuple2 => FlinkTuple2}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.mesos.Utils
 import org.apache.flink.mesos.scheduler.LaunchCoordinator._
 import org.apache.flink.mesos.scheduler.messages._
-import org.apache.mesos.{SchedulerDriver, Protos}
+import org.apache.flink.mesos.util.MesosResourceAllocation
+import org.apache.mesos.{Protos, SchedulerDriver}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MutableMap}
 import scala.concurrent.duration._
+import org.apache.flink.mesos.configuration.MesosOptions._
 
 /**
   * The launch coordinator handles offer processing, including
@@ -53,6 +56,15 @@ class LaunchCoordinator(
 
   val LOG = Logger(getClass)
 
+  val declineOfferFilters: Protos.Filters =
+    Protos.Filters.newBuilder()
+      .setRefuseSeconds(
+        Duration(config.getLong(DECLINED_OFFER_REFUSE_DURATION), TimeUnit.MILLISECONDS).toSeconds)
+      .build()
+
+  val unusedOfferExpirationDuration: Long =
+    Duration(config.getLong(UNUSED_OFFER_EXPIRATION), TimeUnit.MILLISECONDS).toSeconds
+
   /**
     * The task placement optimizer.
     *
@@ -65,10 +77,15 @@ class LaunchCoordinator(
       .withLeaseRejectAction(new Action1[VirtualMachineLease]() {
         def call(lease: VirtualMachineLease) {
           LOG.info(s"Declined offer ${lease.getId} from ${lease.hostname()} "
-            + s"of ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus.")
-          schedulerDriver.declineOffer(lease.getOffer.getId)
+            + s"of memory ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus, "
+            + s"${lease.getScalarValue("gpus")} gpus, "
+            + s"of disk: ${lease.diskMB()} MB, network: ${lease.networkMbps()} Mbps "
+            + s"for the next ${declineOfferFilters.getRefuseSeconds} seconds")
+          schedulerDriver.declineOffer(lease.getOffer.getId, declineOfferFilters)
         }
-      }).build
+      })
+      .withLeaseOfferExpirySecs(unusedOfferExpirationDuration)
+      .withRejectAllExpiredOffers().build
   }
 
   override def postStop(): Unit = {
@@ -108,7 +125,9 @@ class LaunchCoordinator(
     case Event(offers: ResourceOffers, data: GatherData) =>
       // decline any offers that come in
       schedulerDriver.suppressOffers()
-      for(offer <- offers.offers().asScala) { schedulerDriver.declineOffer(offer.getId) }
+      for(offer <- offers.offers().asScala) {
+        schedulerDriver.declineOffer(offer.getId, declineOfferFilters)
+      }
       stay()
 
     case Event(msg: Launch, data: GatherData) =>
@@ -147,15 +166,21 @@ class LaunchCoordinator(
       goto(Suspended) using data.copy(newLeases = Nil)
 
     case Event(offers: ResourceOffers, data: GatherData) =>
-      val leases = offers.offers().asScala.map(
-        new VMLeaseObject(_).asInstanceOf[VirtualMachineLease])
+      val leases = offers.offers().asScala.map(new Offer(_))
       if(LOG.isInfoEnabled) {
-        val (cpus, mem) = leases.foldLeft((0.0,0.0)) {
-          (z,o) => (z._1 + o.cpuCores(), z._2 + o.memoryMB())
+        val (cpus, gpus, mem, disk, network) = leases.foldLeft((0.0,0.0,0.0, 0.0, 0.0)) {
+          (z,o) => (z._1 + o.cpuCores(), z._2 + o.gpus(), z._3 + o.memoryMB(),
+            z._4 + o.diskMB(), z._5 + o.networkMbps())
         }
-        LOG.info(s"Received offer(s) of $mem MB, $cpus cpus:")
+        LOG.info(s"Received offer(s) of $mem MB, $cpus cpus, $gpus gpus, " +
+          s"$disk disk MB, $network Mbps")
         for(l <- leases) {
-          LOG.info(s"  ${l.getId} from ${l.hostname()} of ${l.memoryMB()} MB, ${l.cpuCores()} cpus")
+          val reservations = l.getResources.asScala.map(_.getRole).toSet
+          LOG.info(
+            s"  ${l.getId} from ${l.hostname()} of ${l.memoryMB()} MB," +
+            s" ${l.cpuCores()} cpus, ${l.gpus()} gpus" +
+            s" ${l.diskMB()} disk MB, ${l.networkMbps()} Mbps" +
+            s" for ${reservations.mkString("[", ",", "]")}")
         }
       }
       stay using data.copy(newLeases = data.newLeases ++ leases) forMax (1 seconds)
@@ -175,7 +200,9 @@ class LaunchCoordinator(
         LOG.info("Resources considered: (note: expired offers not deducted from below)")
         for(vm <- optimizer.getVmCurrentStates.asScala) {
           val lease = vm.getCurrAvailableResources
-          LOG.info(s"  ${vm.getHostname} has ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus")
+          LOG.info(s"  ${vm.getHostname} has ${lease.memoryMB()} MB," +
+            s" ${lease.cpuCores()} cpus, ${lease.getScalarValue("gpus")} gpus" +
+            s" ${lease.diskMB()} disk MB, ${lease.networkMbps()} Mbps")
         }
       }
       log.debug(result.toString)
@@ -185,7 +212,7 @@ class LaunchCoordinator(
         // process the assignments into a set of operations (reserve and/or launch)
         val slaveId = assignments.getLeasesUsed.get(0).getOffer.getSlaveId
         val offerIds = assignments.getLeasesUsed.asScala.map(_.getOffer.getId)
-        val operations = processAssignments(slaveId, assignments, remaining.toMap)
+        val operations = processAssignments(LOG, slaveId, assignments, remaining.toMap)
 
         // update the state to reflect the launched tasks
         val launchedTasks = operations
@@ -316,18 +343,26 @@ object LaunchCoordinator {
     *
     * The operations may include reservations and task launches.
     *
+    * @param log the logger to use.
     * @param slaveId the slave associated with the given assignments.
     * @param assignments the task assignments as provided by the optimizer.
     * @param allTasks all known tasks, keyed by taskId.
     * @return the operations to perform.
     */
   private def processAssignments(
+      log: Logger,
       slaveId: Protos.SlaveID,
       assignments: VMAssignmentResult,
       allTasks: Map[String, LaunchableTask]): Seq[Protos.Offer.Operation] = {
 
+    val resources =
+      assignments.getLeasesUsed.asScala.flatMap(_.asInstanceOf[Offer].getResources.asScala)
+    val allocation = new MesosResourceAllocation(resources.asJava)
+    log.debug(s"Assigning resources: ${Utils.toString(allocation.getRemaining)}")
+
     def taskInfo(assignment: TaskAssignmentResult): Protos.TaskInfo = {
-      allTasks(assignment.getTaskId).launch(slaveId, assignment)
+      log.debug(s"Processing task ${assignment.getTaskId}")
+      allTasks(assignment.getTaskId).launch(slaveId, allocation)
     }
 
     val launches = Protos.Offer.Operation.newBuilder()
@@ -337,6 +372,8 @@ object LaunchCoordinator {
           assignments.getTasksAssigned.asScala.map(taskInfo).asJava
         ))
       .build()
+
+    log.debug(s"Remaining resources: ${Utils.toString(allocation.getRemaining)}")
 
     Seq(launches)
   }

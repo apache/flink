@@ -21,6 +21,7 @@ package org.apache.flink.runtime.client;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -37,7 +38,7 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 
 	private final JobID jobId;
 
-	private final Map<String, SerializedValue<Object>> accumulatorResults;
+	private final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
 
 	private final long netRuntime;
 
@@ -48,8 +49,10 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
 	 * @param accumulators A map of all accumulator results produced by the job, in serialized form
 	 */
-	public SerializedJobExecutionResult(JobID jobID, long netRuntime,
-										Map<String, SerializedValue<Object>> accumulators) {
+	public SerializedJobExecutionResult(
+			JobID jobID,
+			long netRuntime,
+			Map<String, SerializedValue<OptionalFailure<Object>>> accumulators) {
 		this.jobId = jobID;
 		this.netRuntime = netRuntime;
 		this.accumulatorResults = accumulators;
@@ -74,12 +77,12 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 		return desiredUnit.convert(getNetRuntime(), TimeUnit.MILLISECONDS);
 	}
 
-	public Map<String, SerializedValue<Object>> getSerializedAccumulatorResults() {
+	public Map<String, SerializedValue<OptionalFailure<Object>>> getSerializedAccumulatorResults() {
 		return this.accumulatorResults;
 	}
 
 	public JobExecutionResult toJobExecutionResult(ClassLoader loader) throws IOException, ClassNotFoundException {
-		Map<String, Object> accumulators =
+		Map<String, OptionalFailure<Object>> accumulators =
 				AccumulatorHelper.deserializeAccumulators(accumulatorResults, loader);
 
 		return new JobExecutionResult(jobId, netRuntime, accumulators);

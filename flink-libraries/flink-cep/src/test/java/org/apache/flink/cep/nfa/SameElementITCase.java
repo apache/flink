@@ -19,10 +19,10 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
-import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
@@ -34,9 +34,10 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
-import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
+import static org.apache.flink.cep.utils.NFAUtils.compile;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for handling Events that are equal in case of {@link Object#equals(Object)} and have same timestamps.
@@ -45,7 +46,7 @@ import static org.junit.Assert.assertTrue;
 public class SameElementITCase extends TestLogger {
 
 	@Test
-	public void testEagerZeroOrMoreSameElement() {
+	public void testEagerZeroOrMoreSameElement() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event startEvent = new Event(40, "c", 1.0);
@@ -87,7 +88,7 @@ public class SameElementITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -138,13 +139,17 @@ public void testClearingBuffer() throws Exception {
 		}
 	});
 
-	NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+	NFA<Event> nfa = compile(pattern, false);
 
-	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+	NFAState nfaState = nfa.createInitialNFAState();
+	NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
+
+	List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 		Lists.newArrayList(a1, b1, c1, d)
 	));
-	assertTrue(nfa.isEmpty());
+	assertEquals(1, nfaState.getPartialMatches().size());
+	assertEquals("a", nfaState.getPartialMatches().peek().getCurrentStateName());
 }
 
 @Test
@@ -180,19 +185,23 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 		}
 	});
 
-	NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+	NFA<Event> nfa = compile(pattern, false);
 
-	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+	NFAState nfaState = nfa.createInitialNFAState();
+	NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
+
+	List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 		Lists.newArrayList(a1, d1, d2, d3),
 		Lists.newArrayList(a1, d1, d2),
 		Lists.newArrayList(a1, d1)
 	));
-	assertTrue(nfa.isEmpty());
+	assertEquals(1, nfaState.getPartialMatches().size());
+	assertEquals("a", nfaState.getPartialMatches().peek().getCurrentStateName());
 }
 
 	@Test
-	public void testZeroOrMoreSameElement() {
+	public void testZeroOrMoreSameElement() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event startEvent = new Event(40, "c", 1.0);
@@ -235,7 +244,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -316,7 +325,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -371,7 +380,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -414,7 +423,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 			}
 		}).oneOrMore().optional();
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -477,7 +486,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 

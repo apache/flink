@@ -23,6 +23,7 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -72,20 +73,19 @@ public class AsyncDataStream {
 			AsyncFunction.class,
 			0,
 			1,
-			new int[]{0},
 			new int[]{1, 0},
 			in.getType(),
 			Utils.getCallLocationName(),
 			true);
 
 		// create transform
-		AsyncWaitOperator<IN, OUT> operator = new AsyncWaitOperator<>(
+		AsyncWaitOperatorFactory<IN, OUT> operatorFactory = new AsyncWaitOperatorFactory<>(
 			in.getExecutionEnvironment().clean(func),
 			timeout,
 			bufSize,
 			mode);
 
-		return in.transform("async wait operator", outTypeInfo, operator);
+		return in.transform("async wait operator", outTypeInfo, operatorFactory);
 	}
 
 	/**

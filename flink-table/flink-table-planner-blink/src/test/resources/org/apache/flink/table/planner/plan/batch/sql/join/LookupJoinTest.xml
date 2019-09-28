@@ -1,0 +1,343 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAvoidAggregatePushDown">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, count(a), sum(c), sum(d)
+FROM (
+SELECT T.* FROM (
+SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime
+FROM T1
+GROUP BY a, b
+      ) AS T
+JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE D.age > 10
+      ) AS T
+GROUP BY b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
++- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3])
+   +- LogicalFilter(condition=[>($7, 10)])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
+         :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proctime=[PROCTIME()])
+         :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+         +- LogicalFilter(condition=[=($cor0.a, $0)])
+            +- LogicalSnapshot(period=[$cor0.proctime])
+               +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS EXPR$1, Final_SUM(sum$1) AS EXPR$2, Final_SUM(sum$2) AS EXPR$3])
++- Exchange(distribution=[hash[b]])
+   +- LocalHashAggregate(groupBy=[b], select=[b, Partial_COUNT(a) AS count$0, Partial_SUM(c) AS sum$1, Partial_SUM(d) AS sum$2])
+      +- Calc(select=[b, a, c, d])
+         +- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[>(age, 10)], select=[b, a, c, d, id])
+            +- Calc(select=[b, a, c, d])
+               +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_SUM(sum$0) AS c, Final_SUM(sum$1) AS d])
+                  +- Exchange(distribution=[hash[a, b]])
+                     +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_SUM(c) AS sum$0, Partial_SUM(d) AS sum$1])
+                        +- BoundedStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTable">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable AS T JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], select=[a, b, c, proctime, id, name, age])
++- Calc(select=[a, b, c, PROCTIME() AS proctime])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithFilterPushDown">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MyTable AS T
+JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id AND D.age = 10
+WHERE T.c > 1000
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
++- LogicalFilter(condition=[>($2, 1000)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+      +- LogicalFilter(condition=[AND(=($cor0.a, $0), =($2, 10))])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, proctime, id, name, CAST(10) AS age])
++- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[=(age, 10)], select=[a, b, c, proctime, id, name])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[>(c, 1000)])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithNestedQuery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
+   :- LogicalProject(a=[$0], b=[$1], proctime=[$3])
+   :  +- LogicalFilter(condition=[>($2, 1000)])
+   :     +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], select=[a, b, proctime, id, name, age])
++- Calc(select=[a, b, PROCTIME() AS proctime], where=[>(c, 1000)])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinTemporalTable">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable AS T LEFT JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[LeftOuterJoin], async=[false], on=[a=id], select=[a, b, c, proctime, id, name, age])
++- Calc(select=[a, b, c, PROCTIME() AS proctime])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithProjectionPushDown">
+    <Resource name="sql">
+      <![CDATA[
+SELECT T.*, D.id
+FROM MyTable AS T
+JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[], select=[a, b, c, proctime, id])
++- Calc(select=[a, b, c, PROCTIME() AS proctime])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLogicalPlan">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, count(a), sum(c), sum(d)
+FROM (
+SELECT T.* FROM (
+SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime
+FROM T1
+GROUP BY a, b
+      ) AS T
+JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE D.age > 10
+      ) AS T
+GROUP BY b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
++- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3])
+   +- LogicalFilter(condition=[>($7, 10)])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
+         :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proctime=[PROCTIME()])
+         :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+         +- LogicalFilter(condition=[=($cor0.a, $0)])
+            +- LogicalSnapshot(period=[$cor0.proctime])
+               +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
++- FlinkLogicalCalc(select=[b, a, c, d])
+   +- FlinkLogicalJoin(condition=[=($1, $4)], joinType=[inner])
+      :- FlinkLogicalCalc(select=[b, a, c, d])
+      :  +- FlinkLogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+      :     +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, T1]])
+      +- FlinkLogicalSnapshot(period=[$cor0.proctime])
+         +- FlinkLogicalCalc(select=[id], where=[>(age, 10)])
+            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]], fields=[id, name, age])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithTrueCondition">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MyTable AS T
+JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+ON true
+WHERE T.c > 1000
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
++- LogicalFilter(condition=[>($2, 1000)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[], select=[a, b, c, proctime, id, name, age])
++- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[>(c, 1000)])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReusing">
+    <Resource name="sql">
+      <![CDATA[
+SELECT count(T1.a), count(T1.id), sum(T2.a)
+FROM (
+SELECT * FROM (
+SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime
+FROM T1
+GROUP BY a, b
+      ) AS T
+JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE D.age > 10
+      ) AS T1, (
+SELECT id as a, b FROM (
+SELECT * FROM (
+SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime
+FROM T1
+GROUP BY a, b
+      ) AS T
+JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE D.age > 10
+      ) AS T
+       ) AS T2
+WHERE T1.a = T2.a
+GROUP BY T1.b, T2.b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$4])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)], EXPR$1=[COUNT($3)], EXPR$2=[SUM($4)])
+   +- LogicalProject(b=[$0], b0=[$9], a=[$1], id=[$5], a0=[$8])
+      +- LogicalFilter(condition=[=($1, $8)])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3], proctime=[$4], id=[$5], name=[$6], age=[$7])
+            :  +- LogicalFilter(condition=[>($7, 10)])
+            :     +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
+            :        :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proctime=[PROCTIME()])
+            :        :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+            :        :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            :        +- LogicalFilter(condition=[=($cor0.a, $0)])
+            :           +- LogicalSnapshot(period=[$cor0.proctime])
+            :              +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+            +- LogicalProject(a=[$5], b=[$0])
+               +- LogicalFilter(condition=[>($7, 10)])
+                  +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{1, 4}])
+                     :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proctime=[PROCTIME()])
+                     :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+                     :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+                     +- LogicalFilter(condition=[=($cor1.a, $0)])
+                        +- LogicalSnapshot(period=[$cor1.proctime])
+                           +- LogicalTableScan(table=[[default_catalog, default_database, temporalTest, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0, EXPR$1, EXPR$2])
++- HashAggregate(isMerge=[true], groupBy=[b, b0], select=[b, b0, Final_COUNT(count$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1, Final_SUM(sum$2) AS EXPR$2])
+   +- Exchange(distribution=[hash[b, b0]])
+      +- LocalHashAggregate(groupBy=[b, b0], select=[b, b0, Partial_COUNT(a) AS count$0, Partial_COUNT(id) AS count$1, Partial_SUM(a0) AS sum$2])
+         +- HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[b, a, id, a0, b0], build=[right])
+            :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+            :  +- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[>(age, 10)], select=[b, a, id], reuse_id=[1])
+            :     +- Calc(select=[b, a])
+            :        +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+            :           +- Exchange(distribution=[hash[a, b]])
+            :              +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
+            :                 +- BoundedStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, d])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[id AS a, b])
+                  +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

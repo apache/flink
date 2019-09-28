@@ -18,24 +18,44 @@
 
 package org.apache.flink.runtime.resourcemanager.registration;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
-
-import java.io.Serializable;
 
 /**
  * This class extends the {@link TaskExecutorConnection}, adding the worker information.
  */
-public class WorkerRegistration<WorkerType extends Serializable> extends TaskExecutorConnection {
+public class WorkerRegistration<WorkerType extends ResourceIDRetrievable> extends TaskExecutorConnection {
 
 	private final WorkerType worker;
 
-	public WorkerRegistration(TaskExecutorGateway taskExecutorGateway, WorkerType worker) {
-		super(taskExecutorGateway);
+	private final int dataPort;
+
+	private final HardwareDescription hardwareDescription;
+
+	public WorkerRegistration(
+			TaskExecutorGateway taskExecutorGateway,
+			WorkerType worker,
+			int dataPort,
+			HardwareDescription hardwareDescription) {
+
+		super(worker.getResourceID(), taskExecutorGateway);
+
 		this.worker = Preconditions.checkNotNull(worker);
+		this.dataPort = dataPort;
+		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
 	}
 
 	public WorkerType getWorker() {
 		return worker;
+	}
+
+	public int getDataPort() {
+		return dataPort;
+	}
+
+	public HardwareDescription getHardwareDescription() {
+		return hardwareDescription;
 	}
 }

@@ -24,7 +24,9 @@ import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 import scala.Option;
 
@@ -90,6 +92,14 @@ public class MesosConfiguration {
 	}
 
 	/**
+	 * Gets the roles associated with the framework.
+	 */
+	public Set<String> roles() {
+		return frameworkInfo.hasRole() && !"*".equals(frameworkInfo.getRole()) ?
+			Collections.singleton(frameworkInfo.getRole()) : Collections.emptySet();
+	}
+
+	/**
 	 * Create the Mesos scheduler driver based on this configuration.
 	 * @param scheduler the scheduler to use.
 	 * @param implicitAcknowledgements whether to configure the driver for implicit acknowledgements.
@@ -136,6 +146,8 @@ public class MesosConfiguration {
 		log.info("    Name: {}", info.hasName() ? info.getName() : "(none)");
 		log.info("    Failover Timeout (secs): {}", info.getFailoverTimeout());
 		log.info("    Role: {}", info.hasRole() ? info.getRole() : "(none)");
+		log.info("    Capabilities: {}",
+			info.getCapabilitiesList().size() > 0 ? info.getCapabilitiesList() : "(none)");
 		log.info("    Principal: {}", info.hasPrincipal() ? info.getPrincipal() : "(none)");
 		log.info("    Host: {}", info.hasHostname() ? info.getHostname() : "(none)");
 		if (env.containsKey("LIBPROCESS_IP")) {

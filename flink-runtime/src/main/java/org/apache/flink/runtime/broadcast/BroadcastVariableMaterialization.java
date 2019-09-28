@@ -40,7 +40,7 @@ import java.util.Set;
  * This class represents a single materialization of a broadcast variable and maintains a reference count for it. If the
  * reference count reaches zero the variable is no longer accessible and will eventually be garbage-collected.
  *
- * @param <T> The type of the elements in the broadcasted data set.
+ * @param <T> The type of the elements in the broadcast data set.
  */
 public class BroadcastVariableMaterialization<T, C> {
 

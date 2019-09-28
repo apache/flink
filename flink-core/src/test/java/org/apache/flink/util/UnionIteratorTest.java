@@ -18,8 +18,6 @@
 
 package org.apache.flink.util;
 
-import org.apache.flink.util.TraversableOnceException;
-import org.apache.flink.util.UnionIterator;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -27,8 +25,14 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link UnionIterator}.
+ */
 public class UnionIteratorTest {
 
 	@Test
@@ -40,7 +44,7 @@ public class UnionIteratorTest {
 			assertFalse(iter.iterator().hasNext());
 
 			iter.clear();
-			
+
 			try {
 				iter.iterator().next();
 				fail("should fail with an exception");
@@ -52,7 +56,7 @@ public class UnionIteratorTest {
 			iter.addList(Arrays.asList(1, 2, 3, 4, 5, 6, 7));
 			iter.addList(Collections.<Integer>emptyList());
 			iter.addList(Arrays.asList(8, 9, 10, 11));
-			
+
 			int val = 1;
 			for (int i : iter) {
 				assertEquals(val++, i);
@@ -63,15 +67,15 @@ public class UnionIteratorTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testTraversableOnce() {
 		try {
 			UnionIterator<Integer> iter = new UnionIterator<>();
-			
+
 			// should succeed
 			iter.iterator();
-			
+
 			// should fail
 			try {
 				iter.iterator();
@@ -113,13 +117,13 @@ public class UnionIteratorTest {
 			// reset the thing, add some data
 			iter.clear();
 			iter.addList(Arrays.asList(1, 2, 3, 4, 5, 6, 7));
-			
+
 			// should succeed
 			Iterator<Integer> ints = iter.iterator();
 			assertNotNull(ints.next());
 			assertNotNull(ints.next());
 			assertNotNull(ints.next());
-			
+
 			// should fail if called in the middle of operations
 			try {
 				iter.iterator();
@@ -133,7 +137,7 @@ public class UnionIteratorTest {
 
 			// should succeed again
 			assertFalse(iter.iterator().hasNext());
-			
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();

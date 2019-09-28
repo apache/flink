@@ -18,212 +18,192 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.filecache.FileCache;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
-import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
-import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
-import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
-import org.apache.flink.runtime.taskexecutor.slot.TimerService;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
+import org.apache.flink.runtime.minicluster.TestingMiniCluster;
+import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
-import org.hamcrest.Matchers;
+import org.apache.flink.util.function.SupplierWithException;
+
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
-import java.net.InetAddress;
-import java.util.Arrays;
-import java.util.UUID;
+import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.CountDownLatch;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.RETURNS_MOCKS;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
+/**
+ * Integration tests for the {@link TaskExecutor}.
+ */
 public class TaskExecutorITCase extends TestLogger {
 
-	private final Time timeout = Time.seconds(10L);
+	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
+	private static final int NUM_TMS = 2;
+	private static final int SLOTS_PER_TM = 2;
+	private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
 
+	private TestingMiniCluster miniCluster;
+
+	@Before
+	public void setup() throws Exception  {
+		miniCluster = new TestingMiniCluster(
+			new TestingMiniClusterConfiguration.Builder()
+				.setNumTaskManagers(NUM_TMS)
+				.setNumSlotsPerTaskManager(SLOTS_PER_TM)
+				.build(),
+			null);
+
+		miniCluster.start();
+	}
+
+	@After
+	public void teardown() throws Exception {
+		if (miniCluster != null) {
+			miniCluster.close();
+		}
+	}
+
+	/**
+	 * Tests that a job can be re-executed after the job has failed due
+	 * to a TaskExecutor termination.
+	 */
 	@Test
-	public void testSlotAllocation() throws Exception {
-		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
-		TestingHighAvailabilityServices testingHAServices = new TestingHighAvailabilityServices();
-		final Configuration configuration = new Configuration();
-		final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
-		final ResourceID taskManagerResourceId = new ResourceID("foobar");
-		final UUID rmLeaderId = UUID.randomUUID();
-		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
-		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService(null, null);
-		final String rmAddress = "rm";
-		final String jmAddress = "jm";
-		final JobMasterId jobMasterId = JobMasterId.generate();
-		final ResourceID rmResourceId = new ResourceID(rmAddress);
-		final ResourceID jmResourceId = new ResourceID(jmAddress);
-		final JobID jobId = new JobID();
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+	public void testJobReExecutionAfterTaskExecutorTermination() throws Exception {
+		final JobGraph jobGraph = createJobGraph(PARALLELISM);
 
-		testingHAServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
-		testingHAServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
-		testingHAServices.setJobMasterLeaderRetriever(jobId, new TestingLeaderRetrievalService(jmAddress, jobMasterId.toUUID()));
+		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
 
-		TestingRpcService rpcService = new TestingRpcService();
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
-			Time.milliseconds(500L),
-			Time.milliseconds(500L));
-		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
-			testingHAServices,
-			rpcService.getScheduledExecutor(),
-			Time.minutes(5L));
-		MetricRegistry metricRegistry = mock(MetricRegistry.class);
-		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class, RETURNS_MOCKS);
+		// kill one TaskExecutor which should fail the job execution
+		miniCluster.terminateTaskExecutor(0);
 
-		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
-		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(taskManagerResourceId, InetAddress.getLocalHost(), 1234);
-		final MemoryManager memoryManager = mock(MemoryManager.class);
-		final IOManager ioManager = mock(IOManager.class);
-		final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
-		final TaskManagerMetricGroup taskManagerMetricGroup = mock(TaskManagerMetricGroup.class);
-		final BroadcastVariableManager broadcastVariableManager = mock(BroadcastVariableManager.class);
-		final FileCache fileCache = mock(FileCache.class);
-		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(resourceProfile), new TimerService<AllocationID>(scheduledExecutorService, 100L));
-		final JobManagerTable jobManagerTable = new JobManagerTable();
-		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
-		final SlotManager slotManager = new SlotManager(
-			rpcService.getScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime());
+		final JobResult jobResult = jobResultFuture.get();
 
-		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
-			rpcService,
-			FlinkResourceManager.RESOURCE_MANAGER_NAME,
-			rmResourceId,
-			resourceManagerConfiguration,
-			testingHAServices,
-			heartbeatServices,
-			slotManager,
-			metricRegistry,
-			jobLeaderIdService,
-			testingFatalErrorHandler);
+		assertThat(jobResult.isSuccess(), is(false));
 
-		TaskExecutor taskExecutor = new TaskExecutor(
-			rpcService,
-			taskManagerConfiguration,
-			taskManagerLocation,
-			memoryManager,
-			ioManager,
-			networkEnvironment,
-			testingHAServices,
-			heartbeatServices,
-			metricRegistry,
-			taskManagerMetricGroup,
-			broadcastVariableManager,
-			fileCache,
-			taskSlotTable,
-			jobManagerTable,
-			jobLeaderService,
-			testingFatalErrorHandler);
+		miniCluster.startTaskExecutor();
 
-		JobMasterGateway jmGateway = mock(JobMasterGateway.class);
+		BlockingOperator.unblock();
 
-		when(jmGateway.registerTaskManager(any(String.class), any(TaskManagerLocation.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(new JMTMRegistrationSuccess(taskManagerResourceId, 1234)));
-		when(jmGateway.getHostname()).thenReturn(jmAddress);
-		when(jmGateway.offerSlots(
-			eq(taskManagerResourceId),
-			any(Iterable.class),
-			any(Time.class))).thenReturn(mock(CompletableFuture.class, RETURNS_MOCKS));
-		when(jmGateway.getFencingToken()).thenReturn(jobMasterId);
+		miniCluster.submitJob(jobGraph).get();
 
+		miniCluster.requestJobResult(jobGraph.getJobID()).get();
+	}
 
-		rpcService.registerGateway(rmAddress, resourceManager.getSelfGateway(ResourceManagerGateway.class));
-		rpcService.registerGateway(jmAddress, jmGateway);
-		rpcService.registerGateway(taskExecutor.getAddress(), taskExecutor.getSelfGateway(TaskExecutorGateway.class));
+	/**
+	 * Tests that the job can recover from a failing {@link TaskExecutor}.
+	 */
+	@Test
+	public void testJobRecoveryWithFailingTaskExecutor() throws Exception {
+		final JobGraph jobGraph = createJobGraphWithRestartStrategy(PARALLELISM);
 
-		final AllocationID allocationId = new AllocationID();
-		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, jmAddress);
-		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, resourceProfile);
+		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
 
-		try {
-			resourceManager.start();
-			taskExecutor.start();
+		// start an additional TaskExecutor
+		miniCluster.startTaskExecutor();
 
-			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+		miniCluster.terminateTaskExecutor(0).get(); // this should fail the job
 
-			// notify the RM that it is the leader
-			CompletableFuture<UUID> isLeaderFuture = rmLeaderElectionService.isLeader(rmLeaderId);
+		BlockingOperator.unblock();
 
-			// wait for the completion of the leader election
-			assertEquals(rmLeaderId, isLeaderFuture.get());
+		assertThat(jobResultFuture.get().isSuccess(), is(true));
+	}
 
-			// notify the TM about the new RM leader
-			rmLeaderRetrievalService.notifyListener(rmAddress, rmLeaderId);
+	private CompletableFuture<JobResult> submitJobAndWaitUntilRunning(JobGraph jobGraph) throws Exception {
+		miniCluster.submitJob(jobGraph).get();
 
-			CompletableFuture<RegistrationResponse> registrationResponseFuture = rmGateway.registerJobManager(
-				jobMasterId,
-				jmResourceId,
-				jmAddress,
-				jobId,
-				timeout);
+		final CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobGraph.getJobID());
 
-			RegistrationResponse registrationResponse = registrationResponseFuture.get();
+		assertThat(jobResultFuture.isDone(), is(false));
 
-			assertTrue(registrationResponse instanceof JobMasterRegistrationSuccess);
+		CommonTestUtils.waitUntilCondition(
+			jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
+			Deadline.fromNow(TESTING_TIMEOUT),
+			50L);
 
-			CompletableFuture<Acknowledge> slotAck = rmGateway.requestSlot(jobMasterId, slotRequest, timeout);
+		return jobResultFuture;
+	}
 
-			slotAck.get();
+	private SupplierWithException<Boolean, Exception> jobIsRunning(Supplier<CompletableFuture<? extends AccessExecutionGraph>> executionGraphFutureSupplier) {
+		final Predicate<AccessExecution> runningOrFinished = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.RUNNING).or(ExecutionGraphTestUtils.isInExecutionState(ExecutionState.FINISHED));
+		final Predicate<AccessExecutionGraph> allExecutionsRunning = ExecutionGraphTestUtils.allExecutionsPredicate(runningOrFinished);
 
-			verify(jmGateway, Mockito.timeout(timeout.toMilliseconds())).offerSlots(
-				eq(taskManagerResourceId),
-				(Iterable<SlotOffer>)argThat(Matchers.contains(slotOffer)),
-				any(Time.class));
-		} finally {
-			if (testingFatalErrorHandler.hasExceptionOccurred()) {
-				testingFatalErrorHandler.rethrowError();
-			}
+		return () -> {
+			final AccessExecutionGraph executionGraph = executionGraphFutureSupplier.get().join();
+			return allExecutionsRunning.test(executionGraph);
+		};
+	}
 
-			rpcService.stopService();
+	private JobGraph createJobGraphWithRestartStrategy(int parallelism) throws IOException {
+		final JobGraph jobGraph = createJobGraph(parallelism);
+		final ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+		jobGraph.setExecutionConfig(executionConfig);
+
+		return jobGraph;
+	}
+
+	private JobGraph createJobGraph(int parallelism) {
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(parallelism);
+		sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
+
+		final JobVertex receiver = new JobVertex("Blocking receiver");
+		receiver.setParallelism(parallelism);
+		receiver.setInvokableClass(BlockingOperator.class);
+		BlockingOperator.reset();
+
+		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+		sender.setSlotSharingGroup(slotSharingGroup);
+		receiver.setSlotSharingGroup(slotSharingGroup);
+
+		return new JobGraph("Blocking test job with slot sharing", sender, receiver);
+	}
+
+	/**
+	 * Blocking invokable which is controlled by a static field.
+	 */
+	public static class BlockingOperator extends TestingAbstractInvokables.Receiver {
+		private static CountDownLatch countDownLatch = new CountDownLatch(1);
+
+		public BlockingOperator(Environment environment) {
+			super(environment);
 		}
 
+		@Override
+		public void invoke() throws Exception {
+			countDownLatch.await();
+			super.invoke();
+		}
 
+		public static void unblock() {
+			countDownLatch.countDown();
+		}
+
+		public static void reset() {
+			countDownLatch = new CountDownLatch(1);
+		}
 	}
 }

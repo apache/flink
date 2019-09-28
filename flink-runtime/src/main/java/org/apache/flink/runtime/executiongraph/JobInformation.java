@@ -21,7 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -49,7 +49,7 @@ public class JobInformation implements Serializable {
 	private final Configuration jobConfiguration;
 
 	/** Blob keys for the required jar files */
-	private final Collection<BlobKey> requiredJarFileBlobKeys;
+	private final Collection<PermanentBlobKey> requiredJarFileBlobKeys;
 
 	/** URLs specifying the classpath to add to the class loader */
 	private final Collection<URL> requiredClasspathURLs;
@@ -60,7 +60,7 @@ public class JobInformation implements Serializable {
 			String jobName,
 			SerializedValue<ExecutionConfig> serializedExecutionConfig,
 			Configuration jobConfiguration,
-			Collection<BlobKey> requiredJarFileBlobKeys,
+			Collection<PermanentBlobKey> requiredJarFileBlobKeys,
 			Collection<URL> requiredClasspathURLs) {
 		this.jobId = Preconditions.checkNotNull(jobId);
 		this.jobName = Preconditions.checkNotNull(jobName);
@@ -86,7 +86,7 @@ public class JobInformation implements Serializable {
 		return jobConfiguration;
 	}
 
-	public Collection<BlobKey> getRequiredJarFileBlobKeys() {
+	public Collection<PermanentBlobKey> getRequiredJarFileBlobKeys() {
 		return requiredJarFileBlobKeys;
 	}
 

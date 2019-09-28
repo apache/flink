@@ -22,47 +22,61 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.Slot;
-import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.jobmanager.slots.TestingSlotOwner;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
+import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Test;
 
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.verification.Timeout;
+import javax.annotation.Nonnull;
 
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the scheduling of the execution graph. This tests that
@@ -71,7 +85,7 @@ import static org.mockito.Mockito.*;
  */
 public class ExecutionGraphSchedulingTest extends TestLogger {
 
-	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledExecutorService executor = new DirectScheduledExecutorService();
 
 	@After
 	public void shutdown() {
@@ -82,7 +96,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 	//  Tests
 	// ------------------------------------------------------------------------
 
-	
 	/**
 	 * Tests that with scheduling futures and pipelined deployment, the target vertex will
 	 * not deploy its task before the source vertex does.
@@ -107,26 +120,27 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
-		final CompletableFuture<SimpleSlot> sourceFuture = new CompletableFuture<>();
-		final CompletableFuture<SimpleSlot> targetFuture = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> sourceFuture = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> targetFuture = new CompletableFuture<>();
 
 		ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
 		slotProvider.addSlot(sourceVertex.getID(), 0, sourceFuture);
 		slotProvider.addSlot(targetVertex.getID(), 0, targetFuture);
 
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		//  set up two TaskManager gateways and slots
 
-		final TaskManagerGateway gatewaySource = createTaskManager();
-		final TaskManagerGateway gatewayTarget = createTaskManager();
+		final InteractionsCountingTaskManagerGateway gatewaySource = createTaskManager();
+		final InteractionsCountingTaskManagerGateway gatewayTarget = createTaskManager();
 
-		final SimpleSlot sourceSlot = createSlot(gatewaySource, jobId);
-		final SimpleSlot targetSlot = createSlot(gatewayTarget, jobId);
+		final LogicalSlot sourceSlot = createTestingLogicalSlot(gatewaySource);
+		final LogicalSlot targetSlot = createTestingLogicalSlot(gatewayTarget);
 
-		eg.setScheduleMode(ScheduleMode.EAGER);
-		eg.setQueuedSchedulingAllowed(true);
 		eg.scheduleForExecution();
 
 		// job should be running
@@ -136,17 +150,23 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		// that should not cause a deployment or deployment related failure
 		targetFuture.complete(targetSlot);
 
-		verify(gatewayTarget, new Timeout(50, times(0))).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+		assertThat(gatewayTarget.getSubmitTaskCount(), is(0));
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
 		// now supply the source slot
 		sourceFuture.complete(sourceSlot);
 
 		// by now, all deployments should have happened
-		verify(gatewaySource, timeout(1000)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
-		verify(gatewayTarget, timeout(1000)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+		assertThat(gatewaySource.getSubmitTaskCount(), is(1));
+		assertThat(gatewayTarget.getSubmitTaskCount(), is(1));
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
+	}
+
+	private TestingLogicalSlot createTestingLogicalSlot(InteractionsCountingTaskManagerGateway gatewaySource) {
+		return new TestingLogicalSlotBuilder()
+			.setTaskManagerGateway(gatewaySource)
+			.createTestingLogicalSlot();
 	}
 
 	/**
@@ -174,27 +194,29 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] sourceFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] sourceFutures = new CompletableFuture[parallelism];
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] targetFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] targetFutures = new CompletableFuture[parallelism];
 
 		//
 		//  Create the slots, futures, and the slot provider
 
-		final TaskManagerGateway[] sourceTaskManagers = new TaskManagerGateway[parallelism];
-		final TaskManagerGateway[] targetTaskManagers = new TaskManagerGateway[parallelism];
+		final InteractionsCountingTaskManagerGateway[] sourceTaskManagers = new InteractionsCountingTaskManagerGateway[parallelism];
+		final InteractionsCountingTaskManagerGateway[] targetTaskManagers = new InteractionsCountingTaskManagerGateway[parallelism];
 
-		final SimpleSlot[] sourceSlots = new SimpleSlot[parallelism];
-		final SimpleSlot[] targetSlots = new SimpleSlot[parallelism];
+		final LogicalSlot[] sourceSlots = new LogicalSlot[parallelism];
+		final LogicalSlot[] targetSlots = new LogicalSlot[parallelism];
 
 		for (int i = 0; i < parallelism; i++) {
 			sourceTaskManagers[i] = createTaskManager();
 			targetTaskManagers[i] = createTaskManager();
 
-			sourceSlots[i] = createSlot(sourceTaskManagers[i], jobId);
-			targetSlots[i] = createSlot(targetTaskManagers[i], jobId);
+			sourceSlots[i] = createTestingLogicalSlot(sourceTaskManagers[i]);
+			targetSlots[i] = createTestingLogicalSlot(targetTaskManagers[i]);
 
 			sourceFutures[i] = new CompletableFuture<>();
 			targetFutures[i] = new CompletableFuture<>();
@@ -215,9 +237,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		//
 		//  kick off the scheduling
-
-		eg.setScheduleMode(ScheduleMode.EAGER);
-		eg.setQueuedSchedulingAllowed(true);
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 
 		verifyNothingDeployed(eg, sourceTaskManagers);
@@ -240,11 +260,11 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		//
 		//  verify that all deployments have happened
 
-		for (TaskManagerGateway gateway : sourceTaskManagers) {
-			verify(gateway, timeout(500L)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+		for (InteractionsCountingTaskManagerGateway gateway : sourceTaskManagers) {
+			assertThat(gateway.getSubmitTaskCount(), is(1));
 		}
-		for (TaskManagerGateway gateway : targetTaskManagers) {
-			verify(gateway, timeout(500L)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+		for (InteractionsCountingTaskManagerGateway gateway : targetTaskManagers) {
+			assertThat(gateway.getSubmitTaskCount(), is(1));
 		}
 	}
 
@@ -271,24 +291,29 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
 		//
 		//  Create the slots, futures, and the slot provider
 
-		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
-		final SlotOwner slotOwner = mock(SlotOwner.class);
+		final InteractionsCountingTaskManagerGateway taskManager = createTaskManager();
+		final BlockingQueue<AllocationID> returnedSlots = new ArrayBlockingQueue<>(parallelism);
+		final TestingSlotOwner slotOwner = new TestingSlotOwner();
+		slotOwner.setReturnAllocatedSlotConsumer(
+			(LogicalSlot logicalSlot) -> returnedSlots.offer(logicalSlot.getAllocationId()));
 
-		final SimpleSlot[] sourceSlots = new SimpleSlot[parallelism];
-		final SimpleSlot[] targetSlots = new SimpleSlot[parallelism];
+		final LogicalSlot[] sourceSlots = new LogicalSlot[parallelism];
+		final LogicalSlot[] targetSlots = new LogicalSlot[parallelism];
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] sourceFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] sourceFutures = new CompletableFuture[parallelism];
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] targetFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] targetFutures = new CompletableFuture[parallelism];
 
 		for (int i = 0; i < parallelism; i++) {
-			sourceSlots[i] = createSlot(taskManager, jobId, slotOwner);
-			targetSlots[i] = createSlot(taskManager, jobId, slotOwner);
+			sourceSlots[i] = createSingleLogicalSlot(slotOwner, taskManager, new SlotRequestId());
+			targetSlots[i] = createSingleLogicalSlot(slotOwner, taskManager, new SlotRequestId());
 
 			sourceFutures[i] = new CompletableFuture<>();
 			targetFutures[i] = new CompletableFuture<>();
@@ -299,20 +324,17 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotProvider.addSlots(targetVertex.getID(), targetFutures);
 
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		//
 		//  we complete some of the futures
 
 		for (int i = 0; i < parallelism; i += 2) {
 			sourceFutures[i].complete(sourceSlots[i]);
-			targetFutures[i + 1].complete(targetSlots[i + 1]);
+			targetFutures[i].complete(targetSlots[i]);
 		}
 
-		//
 		//  kick off the scheduling
-
-		eg.setScheduleMode(ScheduleMode.EAGER);
-		eg.setQueuedSchedulingAllowed(true);
 		eg.scheduleForExecution();
 
 		// fail one slot
@@ -322,24 +344,26 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		eg.getTerminationFuture().get(2000, TimeUnit.MILLISECONDS);
 
 		// wait until all slots are back
-		verify(slotOwner, new Timeout(2000, times(6))).returnAllocatedSlot(any(Slot.class));
+		for (int i = 0; i < parallelism; i++) {
+			returnedSlots.poll(2000L, TimeUnit.MILLISECONDS);
+		}
 
 		// no deployment calls must have happened
-		verify(taskManager, times(0)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+		assertThat(taskManager.getSubmitTaskCount(), is(0));
 
 		// all completed futures must have been returns
 		for (int i = 0; i < parallelism; i += 2) {
-			assertTrue(sourceSlots[i].isCanceled());
-			assertTrue(targetSlots[i + 1].isCanceled());
+			assertFalse(sourceSlots[i].isAlive());
+			assertFalse(targetSlots[i].isAlive());
 		}
 	}
 
 	/**
-	 * This test verifies that the slot allocations times out after a certain time, and that
-	 * all slots are released in that case.
+	 * This tests makes sure that with eager scheduling no task is deployed if a single
+	 * slot allocation fails. Moreover we check that allocated slots will be returned.
 	 */
 	@Test
-	public void testTimeoutForSlotAllocation() throws Exception {
+	public void testEagerSchedulingWithSlotTimeout() throws Exception {
 
 		//  we construct a simple graph:    (task)
 
@@ -351,186 +375,198 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", vertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
-		final SlotOwner slotOwner = mock(SlotOwner.class);
+		final BlockingQueue<AllocationID> returnedSlots = new ArrayBlockingQueue<>(2);
+		final TestingSlotOwner slotOwner = new TestingSlotOwner();
+		slotOwner.setReturnAllocatedSlotConsumer(
+			(LogicalSlot logicalSlot) -> returnedSlots.offer(logicalSlot.getAllocationId()));
 
-		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
-		final SimpleSlot[] slots = new SimpleSlot[parallelism];
+		final InteractionsCountingTaskManagerGateway taskManager = createTaskManager();
+		final LogicalSlot[] slots = new LogicalSlot[parallelism];
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] slotFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] slotFutures = new CompletableFuture[parallelism];
 
 		for (int i = 0; i < parallelism; i++) {
-			slots[i] = createSlot(taskManager, jobId, slotOwner);
+			slots[i] = createSingleLogicalSlot(slotOwner, taskManager, new SlotRequestId());
 			slotFutures[i] = new CompletableFuture<>();
 		}
 
 		ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
 		slotProvider.addSlots(vertex.getID(), slotFutures);
 
-		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider, Time.milliseconds(20));
+		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
 
 		//  we complete one future
 		slotFutures[1].complete(slots[1]);
 
 		//  kick off the scheduling
-
-		eg.setScheduleMode(ScheduleMode.EAGER);
-		eg.setQueuedSchedulingAllowed(true);
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 
 		//  we complete another future
 		slotFutures[2].complete(slots[2]);
 
-		// since future[0] is still missing the while operation must time out
-		// we have no restarts allowed, so the job will go terminal
-		eg.getTerminationFuture().get(2000, TimeUnit.MILLISECONDS);
+		// check that the ExecutionGraph is not terminated yet
+		assertThat(eg.getTerminationFuture().isDone(), is(false));
+
+		// time out one of the slot futures
+		slotFutures[0].completeExceptionally(new TimeoutException("Test time out"));
+
+		assertThat(eg.getTerminationFuture().get(), is(JobStatus.FAILED));
 
 		// wait until all slots are back
-		verify(slotOwner, new Timeout(2000, times(2))).returnAllocatedSlot(any(Slot.class));
+		for (int i = 0; i < parallelism - 1; i++) {
+			returnedSlots.poll(2000, TimeUnit.MILLISECONDS);
+		}
 
 		//  verify that no deployments have happened
-		verify(taskManager, times(0)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
-
-		for (CompletableFuture<SimpleSlot> future : slotFutures) {
-			if (future.isDone()) {
-				assertTrue(future.get().isCanceled());
-			}
-		}
+		assertThat(taskManager.getSubmitTaskCount(), is(0));
 	}
 
 	/**
-	 * Tests that the {@link ExecutionJobVertex#allocateResourcesForAll(SlotProvider, boolean)} method
-	 * releases partially acquired resources upon exception.
+	 * Tests that an ongoing scheduling operation does not fail the {@link ExecutionGraph}
+	 * if it gets concurrently cancelled.
 	 */
 	@Test
-	public void testExecutionJobVertexAllocateResourcesReleasesOnException() throws Exception {
-		final int parallelism = 8;
+	public void testSchedulingOperationCancellationWhenCancel() throws Exception {
+		final JobVertex jobVertex = new JobVertex("NoOp JobVertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		jobVertex.setParallelism(2);
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
-		final JobVertex vertex = new JobVertex("vertex");
-		vertex.setParallelism(parallelism);
-		vertex.setInvokableClass(NoOpInvokable.class);
+		final CompletableFuture<LogicalSlot> slotFuture1 = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> slotFuture2 = new CompletableFuture<>();
+		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(2);
+		slotProvider.addSlots(jobVertex.getID(), new CompletableFuture[]{slotFuture1, slotFuture2});
+		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
 
-		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test", vertex);
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.scheduleForExecution();
 
-		// set up some available slots and some slot owner that accepts released slots back
-		final List<SimpleSlot> returnedSlots = new ArrayList<>();
-		final SlotOwner recycler = new SlotOwner() {
-			@Override
-			public boolean returnAllocatedSlot(Slot slot) {
-				returnedSlots.add((SimpleSlot) slot);
-				return true;
-			}
-		};
+		final TestingLogicalSlot slot = createTestingSlot();
+		final CompletableFuture<?> releaseFuture = slot.getReleaseFuture();
+		slotFuture1.complete(slot);
 
-		// slot provider that hand out parallelism / 3 slots, then throws an exception
-		final SlotProvider slotProvider = mock(SlotProvider.class);
+		// cancel should change the state of all executions to CANCELLED
+		executionGraph.cancel();
 
-		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
-		final List<SimpleSlot> availableSlots = new ArrayList<>(Arrays.asList(
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler)));
+		// complete the now CANCELLED execution --> this should cause a failure
+		slotFuture2.complete(new TestingLogicalSlotBuilder().createTestingLogicalSlot());
 
-		when(slotProvider.allocateSlot(any(ScheduledUnit.class), anyBoolean())).then(
-			(InvocationOnMock invocation) -> {
-					if (availableSlots.isEmpty()) {
-						throw new TestRuntimeException();
-					} else {
-						return CompletableFuture.completedFuture(availableSlots.remove(0));
-					}
-				});
+		Thread.sleep(1L);
+		// release the first slot to finish the cancellation
+		releaseFuture.complete(null);
 
-		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
-		final ExecutionJobVertex ejv = eg.getJobVertex(vertex.getID());
-
-		// acquire resources and check that all are back after the failure
-
-		final int numSlotsToExpectBack = availableSlots.size();
-
-		try {
-			ejv.allocateResourcesForAll(slotProvider, false);
-			fail("should have failed with an exception");
-		}
-		catch (TestRuntimeException e) {
-			// expected
-		}
-
-		assertEquals(numSlotsToExpectBack, returnedSlots.size());
+		// NOTE: This test will only occasionally fail without the fix since there is
+		// a race between the releaseFuture and the slotFuture2
+		assertThat(executionGraph.getTerminationFuture().get(), is(JobStatus.CANCELED));
 	}
 
 	/**
-	 * Tests that the {@link ExecutionGraph#scheduleForExecution()} method
-	 * releases partially acquired resources upon exception.
+	 * Tests that a partially completed eager scheduling operation fails if a
+	 * completed slot is released. See FLINK-9099.
 	 */
 	@Test
-	public void testExecutionGraphScheduleReleasesResourcesOnException() throws Exception {
+	public void testSlotReleasingFailsSchedulingOperation() throws Exception {
+		final int parallelism = 2;
 
-		//                                            [pipelined]
-		//  we construct a simple graph    (source) ----------------> (target)
+		final JobVertex jobVertex = new JobVertex("Testing job vertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		jobVertex.setParallelism(parallelism);
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
-		final int parallelism = 3;
+		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
 
-		final JobVertex sourceVertex = new JobVertex("source");
-		sourceVertex.setParallelism(parallelism);
-		sourceVertex.setInvokableClass(NoOpInvokable.class);
+		final LogicalSlot slot = createSingleLogicalSlot(new DummySlotOwner(), new SimpleAckingTaskManagerGateway(), new SlotRequestId());
+		slotProvider.addSlot(jobVertex.getID(), 0, CompletableFuture.completedFuture(slot));
 
-		final JobVertex targetVertex = new JobVertex("target");
-		targetVertex.setParallelism(parallelism);
-		targetVertex.setInvokableClass(NoOpInvokable.class);
+		final CompletableFuture<LogicalSlot> slotFuture = new CompletableFuture<>();
+		slotProvider.addSlot(jobVertex.getID(), 1, slotFuture);
 
-		targetVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
 
-		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.scheduleForExecution();
 
-		// set up some available slots and some slot owner that accepts released slots back
-		final List<SimpleSlot> returnedSlots = new ArrayList<>();
-		final SlotOwner recycler = new SlotOwner() {
-			@Override
-			public boolean returnAllocatedSlot(Slot slot) {
-				returnedSlots.add((SimpleSlot) slot);
-				return true;
+		assertThat(executionGraph.getState(), is(JobStatus.RUNNING));
+
+		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertex.getID());
+		final ExecutionVertex[] taskVertices = executionJobVertex.getTaskVertices();
+		assertThat(taskVertices[0].getExecutionState(), is(ExecutionState.SCHEDULED));
+		assertThat(taskVertices[1].getExecutionState(), is(ExecutionState.SCHEDULED));
+
+		// fail the single allocated slot --> this should fail the scheduling operation
+		slot.releaseSlot(new FlinkException("Test failure"));
+
+		assertThat(executionGraph.getTerminationFuture().get(), is(JobStatus.FAILED));
+	}
+
+	/**
+	 * Tests that all slots are being returned to the {@link SlotOwner} if the
+	 * {@link ExecutionGraph} is being cancelled. See FLINK-9908
+	 */
+	@Test
+	public void testCancellationOfIncompleteScheduling() throws Exception {
+		final int parallelism = 10;
+
+		final JobVertex jobVertex = new JobVertex("Test job vertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		jobVertex.setParallelism(parallelism);
+
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+
+		final TestingSlotOwner slotOwner = new TestingSlotOwner();
+		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+
+		final ConcurrentMap<SlotRequestId, Integer> slotRequestIds = new ConcurrentHashMap<>(parallelism);
+
+		final TestingSlotProvider slotProvider = new TestingSlotProvider(
+			(SlotRequestId slotRequestId) -> {
+				slotRequestIds.put(slotRequestId, 1);
+				// return 50/50 fulfilled and unfulfilled requests
+				return slotRequestIds.size() % 2 == 0 ?
+					CompletableFuture.completedFuture(
+						createSingleLogicalSlot(slotOwner, taskManagerGateway, slotRequestId)) :
+					new CompletableFuture<>();
+			});
+
+		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
+
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		final Set<SlotRequestId> slotRequestIdsToReturn = ConcurrentHashMap.newKeySet(slotRequestIds.size());
+
+		executionGraph.scheduleForExecution();
+
+		slotRequestIdsToReturn.addAll(slotRequestIds.keySet());
+
+		slotOwner.setReturnAllocatedSlotConsumer(logicalSlot -> {
+			slotRequestIdsToReturn.remove(logicalSlot.getSlotRequestId());
+		});
+
+		slotProvider.setSlotCanceller(slotRequestIdsToReturn::remove);
+
+		// make sure that we complete cancellations of deployed tasks
+		taskManagerGateway.setCancelConsumer(
+			(ExecutionAttemptID executionAttemptId) -> {
+				final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttemptId);
+
+				// if the execution was cancelled in state SCHEDULING, then it might already have been removed
+				if (execution != null) {
+					execution.completeCancelling();
+				}
 			}
-		};
+		);
 
-		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
-		final List<SimpleSlot> availableSlots = new ArrayList<>(Arrays.asList(
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler)));
-
-
-		// slot provider that hand out parallelism / 3 slots, then throws an exception
-		final SlotProvider slotProvider = mock(SlotProvider.class);
-
-		when(slotProvider.allocateSlot(any(ScheduledUnit.class), anyBoolean())).then(
-			(InvocationOnMock invocation) -> {
-					if (availableSlots.isEmpty()) {
-						throw new TestRuntimeException();
-					} else {
-						return CompletableFuture.completedFuture(availableSlots.remove(0));
-					}
-				});
-
-		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
-
-		// acquire resources and check that all are back after the failure
-
-		final int numSlotsToExpectBack = availableSlots.size();
-
-		try {
-			eg.setScheduleMode(ScheduleMode.EAGER);
-			eg.scheduleForExecution();
-			fail("should have failed with an exception");
-		}
-		catch (TestRuntimeException e) {
-			// expected
-		}
-
-		assertEquals(numSlotsToExpectBack, returnedSlots.size());
+		executionGraph.cancel();
+		assertThat(slotRequestIdsToReturn, is(empty()));
 	}
 
 	// ------------------------------------------------------------------------
@@ -554,43 +590,54 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			timeout,
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
-			1,
-			log);
+			VoidBlobWriter.getInstance(),
+			timeout,
+			log,
+			NettyShuffleMaster.INSTANCE,
+			NoOpPartitionTracker.INSTANCE);
 	}
 
-	private SimpleSlot createSlot(TaskManagerGateway taskManager, JobID jobId) {
-		return createSlot(taskManager, jobId, mock(SlotOwner.class));
-	}
-
-	private SimpleSlot createSlot(TaskManagerGateway taskManager, JobID jobId, SlotOwner slotOwner) {
+	@Nonnull
+	static SingleLogicalSlot createSingleLogicalSlot(SlotOwner slotOwner, TaskManagerGateway taskManagerGateway, SlotRequestId slotRequestId) {
 		TaskManagerLocation location = new TaskManagerLocation(
-				ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
+			ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
 
-		AllocatedSlot slot = new AllocatedSlot(
-				new AllocationID(), jobId, location, 0, ResourceProfile.UNKNOWN, taskManager);
+		SimpleSlotContext slotContext = new SimpleSlotContext(
+			new AllocationID(),
+			location,
+			0,
+			taskManagerGateway);
 
-		return new SimpleSlot(slot, slotOwner, 0);
+		return new SingleLogicalSlot(
+			slotRequestId,
+			slotContext,
+			null,
+			Locality.LOCAL,
+			slotOwner);
 	}
 
-	private static TaskManagerGateway createTaskManager() {
-		TaskManagerGateway tm = mock(TaskManagerGateway.class);
-		when(tm.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class)))
-				.thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
-
-		return tm;
+	private static InteractionsCountingTaskManagerGateway createTaskManager() {
+		return new InteractionsCountingTaskManagerGateway();
 	}
 
-	private static void verifyNothingDeployed(ExecutionGraph eg, TaskManagerGateway[] taskManagers) {
+	private static void verifyNothingDeployed(ExecutionGraph eg, InteractionsCountingTaskManagerGateway[] taskManagers) {
 		// job should still be running
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
 		// none of the TaskManager should have gotten a deployment call, yet
-		for (TaskManagerGateway gateway : taskManagers) {
-			verify(gateway, new Timeout(50, times(0))).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+		for (InteractionsCountingTaskManagerGateway gateway : taskManagers) {
+			assertThat(gateway.getSubmitTaskCount(), is(0));
 		}
 	}
 
 	private static class TestRuntimeException extends RuntimeException {
 		private static final long serialVersionUID = 1L;
+	}
+
+	@Nonnull
+	private static TestingLogicalSlot createTestingSlot() {
+		return new TestingLogicalSlotBuilder()
+			.setAutomaticallyCompleteReleaseFuture(false)
+			.createTestingLogicalSlot();
 	}
 }

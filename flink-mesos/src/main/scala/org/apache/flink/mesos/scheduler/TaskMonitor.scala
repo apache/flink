@@ -163,6 +163,7 @@ class TaskMonitor(
           LOG.warn(s"Mesos task ${goal.taskID.getValue} failed unexpectedly.")
           context.parent ! TaskTerminated(goal.taskID, msg.status())
           stop()
+        case TASK_KILLING => stay()
       }
 
     case Event(msg: StatusUpdate, StateData(goal: Released)) =>
@@ -175,6 +176,7 @@ class TaskMonitor(
           LOG.info(s"Mesos task ${goal.taskID.getValue} exited as planned.")
           context.parent ! TaskTerminated(goal.taskID, msg.status())
           stop()
+        case TASK_KILLING => stay()
       }
   }
 

@@ -20,7 +20,6 @@ package org.apache.flink.test.optimizer.jsonplan;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.examples.java.clustering.KMeans;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.PageRank;
@@ -30,10 +29,12 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.test.util.PlanExposingEnvironment;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,7 +48,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 	@Test
 	public void dumpWordCount() {
 		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
 		env.setAsContext();
 		try {
 			WordCount.main(new String[] {
@@ -65,7 +66,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 	@Test
 	public void dumpTPCH3() {
 		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
 		env.setAsContext();
 		try {
 			TPCHQuery3.main(new String[] {
@@ -85,7 +86,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 	@Test
 	public void dumpIterativeKMeans() {
 		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
 		env.setAsContext();
 		try {
 			KMeans.main(new String[] {
@@ -105,7 +106,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 	@Test
 	public void dumpWebLogAnalysis() {
 		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
 		env.setAsContext();
 		try {
 			org.apache.flink.examples.java.relational.WebLogAnalysis.main(new String[] {
@@ -125,7 +126,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 	@Test
 	public void dumpBulkIterationKMeans() {
 		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
 		env.setAsContext();
 		try {
 			ConnectedComponents.main(new String[] {
@@ -145,7 +146,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 	@Test
 	public void dumpPageRank() {
 		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
 		env.setAsContext();
 		try {
 			// --pages <path> --links <path> --output <path> --numPages <n> --iterations <n>

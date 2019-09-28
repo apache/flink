@@ -28,14 +28,12 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperVersionedValue;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.mesos.Protos;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import scala.Option;
@@ -215,19 +213,11 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 			int currentVersion = workersInZooKeeper.exists(path);
 			if (currentVersion == -1) {
-				try {
-					workersInZooKeeper.addAndLock(path, worker);
-					LOG.debug("Added {} in ZooKeeper.", worker);
-				} catch (KeeperException.NodeExistsException ex) {
-					throw new ConcurrentModificationException("ZooKeeper unexpectedly modified", ex);
-				}
+				workersInZooKeeper.addAndLock(path, worker);
+				LOG.debug("Added {} in ZooKeeper.", worker);
 			} else {
-				try {
-					workersInZooKeeper.replace(path, currentVersion, worker);
-					LOG.debug("Updated {} in ZooKeeper.", worker);
-				} catch (KeeperException.NoNodeException ex) {
-					throw new ConcurrentModificationException("ZooKeeper unexpectedly modified", ex);
-				}
+				workersInZooKeeper.replace(path, currentVersion, worker);
+				LOG.debug("Updated {} in ZooKeeper.", worker);
 			}
 		}
 	}

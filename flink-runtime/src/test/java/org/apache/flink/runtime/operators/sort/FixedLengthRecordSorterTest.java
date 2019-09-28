@@ -73,9 +73,14 @@ public class FixedLengthRecordSorterTest {
 	}
 
 	@After
-	public void afterTest() {
+	public void afterTest() throws Exception {
 		if (!this.memoryManager.verifyEmpty()) {
 			Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
+		}
+
+		if (this.ioManager != null) {
+			ioManager.close();
+			ioManager = null;
 		}
 		
 		if (this.memoryManager != null) {

@@ -59,16 +59,16 @@ Go to the [downloads page]({{ site.download_url }}) and get the ready-to-run pac
 
 After downloading the latest release, copy the archive to your master node and extract it:
 
-~~~bash
+{% highlight bash %}
 tar xzf flink-*.tgz
 cd flink-*
-~~~
+{% endhighlight %}
 
 ### Configuring Flink
 
 After having extracted the system files, you need to configure Flink for the cluster by editing *conf/flink-conf.yaml*.
 
-Set the `jobmanager.rpc.address` key to point to your master node. You should also define the maximum amount of main memory the JVM is allowed to allocate on each node by setting the `jobmanager.heap.mb` and `taskmanager.heap.mb` keys.
+Set the `jobmanager.rpc.address` key to point to your master node. You should also define the maximum amount of main memory the JVM is allowed to allocate on each node by setting the `jobmanager.heap.size` and `taskmanager.heap.size` keys.
 
 These values are given in MB. If some worker nodes have more main memory which you want to allocate to the Flink system you can overwrite the default value by setting the environment variable `FLINK_TM_HEAP` on those specific nodes.
 
@@ -106,11 +106,11 @@ Please see the [configuration page](../config.html) for details and additional c
 
 In particular,
 
- * the amount of available memory per JobManager (`jobmanager.heap.mb`),
- * the amount of available memory per TaskManager (`taskmanager.heap.mb`),
+ * the amount of available memory per JobManager (`jobmanager.heap.size`),
+ * the amount of available memory per TaskManager (`taskmanager.heap.size`),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
- * the temporary directories (`taskmanager.tmp.dirs`)
+ * the temporary directories (`io.tmp.dirs`)
 
 are very important configuration values.
 
@@ -122,9 +122,9 @@ The following script starts a JobManager on the local node and connects via SSH 
 
 Assuming that you are on the master node and inside the Flink directory:
 
-~~~bash
+{% highlight bash %}
 bin/start-cluster.sh
-~~~
+{% endhighlight %}
 
 To stop Flink, there is also a `stop-cluster.sh` script.
 
@@ -136,15 +136,15 @@ You can add both JobManager and TaskManager instances to your running cluster wi
 
 #### Adding a JobManager
 
-~~~bash
-bin/jobmanager.sh ((start|start-foreground) cluster)|stop|stop-all
-~~~
+{% highlight bash %}
+bin/jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all
+{% endhighlight %}
 
 #### Adding a TaskManager
 
-~~~bash
+{% highlight bash %}
 bin/taskmanager.sh start|start-foreground|stop|stop-all
-~~~
+{% endhighlight %}
 
 Make sure to call these scripts on the hosts on which you want to start/stop the respective instance.
 

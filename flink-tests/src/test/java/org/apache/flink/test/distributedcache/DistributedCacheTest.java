@@ -22,16 +22,10 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.test.util.TestBaseUtils;
-import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -54,30 +48,6 @@ public class DistributedCacheTest extends AbstractTestBase {
 			"heerscharen\n" +
 			"keiner\n" +
 			"meine\n";
-
-	private static final int PARALLELISM = 4;
-
-	private static LocalFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void setup() throws Exception {
-		cluster = TestBaseUtils.startCluster(1, PARALLELISM, false, false, true);
-		TestStreamEnvironment.setAsContext(cluster, PARALLELISM);
-		TestEnvironment.setAsContext(cluster, PARALLELISM);
-	}
-
-	@AfterClass
-	public static void teardown() throws Exception {
-		TestStreamEnvironment.unsetAsContext();
-		TestEnvironment.unsetAsContext();
-		TestBaseUtils.stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
-	}
-
-	// ------------------------------------------------------------------------
-
-	public DistributedCacheTest() {
-		super(new Configuration());
-	}
 
 	// ------------------------------------------------------------------------
 

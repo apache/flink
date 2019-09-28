@@ -18,17 +18,15 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.net.SSLUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
+import javax.annotation.Nullable;
+
 import java.net.InetAddress;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -38,52 +36,13 @@ public class NettyConfig {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyConfig.class);
 
-	// - Config keys ----------------------------------------------------------
-
-	public static final ConfigOption<Integer> NUM_ARENAS = ConfigOptions
-			.key("taskmanager.network.netty.num-arenas")
-			.defaultValue(-1)
-			.withDeprecatedKeys("taskmanager.net.num-arenas");
-
-	public static final ConfigOption<Integer> NUM_THREADS_SERVER = ConfigOptions
-			.key("taskmanager.network.netty.server.numThreads")
-			.defaultValue(-1)
-			.withDeprecatedKeys("taskmanager.net.server.numThreads");
-
-	public static final ConfigOption<Integer> NUM_THREADS_CLIENT = ConfigOptions
-			.key("taskmanager.network.netty.client.numThreads")
-			.defaultValue(-1)
-			.withDeprecatedKeys("taskmanager.net.client.numThreads");
-
-	public static final ConfigOption<Integer> CONNECT_BACKLOG = ConfigOptions
-			.key("taskmanager.network.netty.server.backlog")
-			.defaultValue(0) // default: 0 => Netty's default
-			.withDeprecatedKeys("taskmanager.net.server.backlog");
-
-	public static final ConfigOption<Integer> CLIENT_CONNECT_TIMEOUT_SECONDS = ConfigOptions
-			.key("taskmanager.network.netty.client.connectTimeoutSec")
-			.defaultValue(120) // default: 120s = 2min
-			.withDeprecatedKeys("taskmanager.net.client.connectTimeoutSec");
-
-	public static final ConfigOption<Integer> SEND_RECEIVE_BUFFER_SIZE = ConfigOptions
-			.key("taskmanager.network.netty.sendReceiveBufferSize")
-			.defaultValue(0) // default: 0 => Netty's default
-			.withDeprecatedKeys("taskmanager.net.sendReceiveBufferSize");
-
-	public static final ConfigOption<String> TRANSPORT_TYPE = ConfigOptions
-			.key("taskmanager.network.netty.transport")
-			.defaultValue("nio")
-			.withDeprecatedKeys("taskmanager.net.transport");
-
-	// ------------------------------------------------------------------------
-
 	enum TransportType {
 		NIO, EPOLL, AUTO
 	}
 
-	final static String SERVER_THREAD_GROUP_NAME = "Flink Netty Server";
+	static final String SERVER_THREAD_GROUP_NAME = "Flink Netty Server";
 
-	final static String CLIENT_THREAD_GROUP_NAME = "Flink Netty Client";
+	static final String CLIENT_THREAD_GROUP_NAME = "Flink Netty Client";
 
 	private final InetAddress serverAddress;
 
@@ -139,37 +98,37 @@ public class NettyConfig {
 	// ------------------------------------------------------------------------
 
 	public int getServerConnectBacklog() {
-		return config.getInteger(CONNECT_BACKLOG);
+		return config.getInteger(NettyShuffleEnvironmentOptions.CONNECT_BACKLOG);
 	}
 
 	public int getNumberOfArenas() {
 		// default: number of slots
-		final int configValue = config.getInteger(NUM_ARENAS);
+		final int configValue = config.getInteger(NettyShuffleEnvironmentOptions.NUM_ARENAS);
 		return configValue == -1 ? numberOfSlots : configValue;
 	}
 
 	public int getServerNumThreads() {
 		// default: number of task slots
-		final int configValue = config.getInteger(NUM_THREADS_SERVER);
+		final int configValue = config.getInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER);
 		return configValue == -1 ? numberOfSlots : configValue;
 	}
 
 	public int getClientNumThreads() {
 		// default: number of task slots
-		final int configValue = config.getInteger(NUM_THREADS_CLIENT);
+		final int configValue = config.getInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT);
 		return configValue == -1 ? numberOfSlots : configValue;
 	}
 
 	public int getClientConnectTimeoutSeconds() {
-		return config.getInteger(CLIENT_CONNECT_TIMEOUT_SECONDS);
+		return config.getInteger(NettyShuffleEnvironmentOptions.CLIENT_CONNECT_TIMEOUT_SECONDS);
 	}
 
 	public int getSendAndReceiveBufferSize() {
-		return config.getInteger(SEND_RECEIVE_BUFFER_SIZE);
+		return config.getInteger(NettyShuffleEnvironmentOptions.SEND_RECEIVE_BUFFER_SIZE);
 	}
 
 	public TransportType getTransportType() {
-		String transport = config.getString(TRANSPORT_TYPE);
+		String transport = config.getString(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE);
 
 		switch (transport) {
 			case "nio":
@@ -181,40 +140,27 @@ public class NettyConfig {
 		}
 	}
 
-	public SSLContext createClientSSLContext() throws Exception {
-
-		// Create SSL Context from config
-		SSLContext clientSSLContext = null;
-		if (getSSLEnabled()) {
-			clientSSLContext = SSLUtils.createSSLClientContext(config);
-		}
-
-		return clientSSLContext;
+	@Nullable
+	public SSLHandlerFactory createClientSSLEngineFactory() throws Exception {
+		return getSSLEnabled() ?
+				SSLUtils.createInternalClientSSLEngineFactory(config) :
+				null;
 	}
 
-	public SSLContext createServerSSLContext() throws Exception {
-
-		// Create SSL Context from config
-		SSLContext serverSSLContext = null;
-		if (getSSLEnabled()) {
-			serverSSLContext = SSLUtils.createSSLServerContext(config);
-		}
-
-		return serverSSLContext;
+	@Nullable
+	public SSLHandlerFactory createServerSSLEngineFactory() throws Exception {
+		return getSSLEnabled() ?
+				SSLUtils.createInternalServerSSLEngineFactory(config) :
+				null;
 	}
 
 	public boolean getSSLEnabled() {
-		return config.getBoolean(ConfigConstants.TASK_MANAGER_DATA_SSL_ENABLED,
-				ConfigConstants.DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED)
-			&& SSLUtils.getSSLEnabled(config);
+		return config.getBoolean(NettyShuffleEnvironmentOptions.DATA_SSL_ENABLED)
+			&& SSLUtils.isInternalSSLEnabled(config);
 	}
 
-	public void setSSLVerAndCipherSuites(SSLEngine engine) {
-		SSLUtils.setSSLVerAndCipherSuites(engine, config);
-	}
-
-	public void setSSLVerifyHostname(SSLParameters sslParams) {
-		SSLUtils.setSSLVerifyHostname(config, sslParams);
+	public Configuration getConfig() {
+		return config;
 	}
 
 	@Override
@@ -234,7 +180,7 @@ public class NettyConfig {
 		String def = "use Netty's default";
 		String man = "manual";
 
-		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true":"false",
+		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true" : "false",
 				memorySegmentSize, getTransportType(), getServerNumThreads(),
 				getServerNumThreads() == 0 ? def : man,
 				getClientNumThreads(), getClientNumThreads() == 0 ? def : man,

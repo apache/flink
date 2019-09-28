@@ -56,7 +56,7 @@ public final class OperatorStateCheckpointOutputStream
 	 */
 	@Override
 	OperatorStateHandle closeAndGetHandle() throws IOException {
-		StreamStateHandle streamStateHandle = delegate.closeAndGetHandle();
+		StreamStateHandle streamStateHandle = super.closeAndGetHandleAfterLeasesReleased();
 
 		if (null == streamStateHandle) {
 			return null;
@@ -71,11 +71,11 @@ public final class OperatorStateCheckpointOutputStream
 		OperatorStateHandle.StateMetaInfo metaInfo =
 				new OperatorStateHandle.StateMetaInfo(
 						partitionOffsets.toArray(),
-						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
+					OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
 
 		offsetsMap.put(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, metaInfo);
 
-		return new OperatorStateHandle(offsetsMap, streamStateHandle);
+		return new OperatorStreamStateHandle(offsetsMap, streamStateHandle);
 	}
 
 	public int getNumberOfPartitions() {

@@ -15,28 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
-import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Implementation of the {@link TaskManagerGateway} for Flink's RPC system
+ * Implementation of the {@link TaskManagerGateway} for Flink's RPC system.
  */
 public class RpcTaskManagerGateway implements TaskManagerGateway {
 
@@ -55,24 +55,6 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public void disconnectFromJobManager(InstanceID instanceId, Exception cause) {
-//		taskExecutorGateway.disconnectFromJobManager(instanceId, cause);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
-	}
-
-	@Override
-	public void stopCluster(ApplicationStatus applicationStatus, String message) {
-//		taskExecutorGateway.stopCluster(applicationStatus, message);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
-	}
-
-	@Override
-	public CompletableFuture<StackTrace> requestStackTrace(Time timeout) {
-//		return taskExecutorGateway.requestStackTrace(timeout);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
-	}
-
-	@Override
 	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
 			ExecutionAttemptID executionAttemptID,
 			int sampleId,
@@ -81,17 +63,18 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 			int maxStackTraceDepth,
 			Time timeout) {
 
-		throw new UnsupportedOperationException("Operation is not yet supported.");
+		return taskExecutorGateway.requestStackTraceSample(
+			executionAttemptID,
+			sampleId,
+			numSamples,
+			delayBetweenSamples,
+			maxStackTraceDepth,
+			timeout);
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
 		return taskExecutorGateway.submitTask(tdd, jobMasterId, timeout);
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		return taskExecutorGateway.stopTask(executionAttemptID, timeout);
 	}
 
 	@Override
@@ -105,31 +88,30 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public void failPartition(ExecutionAttemptID executionAttemptID) {
-		taskExecutorGateway.failPartition(executionAttemptID);
+	public void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds) {
+		taskExecutorGateway.releasePartitions(jobId, partitionIds);
 	}
 
 	@Override
 	public void notifyCheckpointComplete(ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
-//		taskExecutorGateway.notifyCheckpointComplete(executionAttemptID, jobId, checkpointId, timestamp);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
+		taskExecutorGateway.confirmCheckpoint(executionAttemptID, checkpointId, timestamp);
 	}
 
 	@Override
-	public void triggerCheckpoint(ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
-//		taskExecutorGateway.triggerCheckpoint(executionAttemptID, jobId, checkpointId, timestamp);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
+	public void triggerCheckpoint(ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
+		taskExecutorGateway.triggerCheckpoint(
+			executionAttemptID,
+			checkpointId,
+			timestamp,
+			checkpointOptions,
+			advanceToEndOfEventTime);
 	}
 
 	@Override
-	public CompletableFuture<BlobKey> requestTaskManagerLog(Time timeout) {
-//		return taskExecutorGateway.requestTaskManagerLog(timeout);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
-	}
-
-	@Override
-	public CompletableFuture<BlobKey> requestTaskManagerStdout(Time timeout) {
-//		return taskExecutorGateway.requestTaskManagerStdout(timeout);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
+	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
+		return taskExecutorGateway.freeSlot(
+			allocationId,
+			cause,
+			timeout);
 	}
 }

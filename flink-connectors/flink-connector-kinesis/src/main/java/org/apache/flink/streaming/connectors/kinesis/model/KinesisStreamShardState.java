@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import com.amazonaws.services.kinesis.model.Shard;
@@ -24,6 +25,7 @@ import com.amazonaws.services.kinesis.model.Shard;
 /**
  * A wrapper class that bundles a {@link StreamShardHandle} with its last processed sequence number.
  */
+@Internal
 public class KinesisStreamShardState {
 
 	/** A handle object that wraps the actual {@link Shard} instance and stream name. */

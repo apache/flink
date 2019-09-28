@@ -26,7 +26,6 @@ import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -37,6 +36,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.BufferedReader;
+import java.util.Arrays;
 import java.util.Collection;
 
 /**
@@ -52,12 +52,14 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 
 	private static final int NUM_EDGES = 10000;
 
+	private final boolean extraMapper;
+
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
 
-	public ConnectedComponentsWithDeferredUpdateITCase(Configuration config) {
-		super(config);
+	public ConnectedComponentsWithDeferredUpdateITCase(boolean extraMapper) {
+		this.extraMapper = extraMapper;
 	}
 
 	@Override
@@ -69,8 +71,6 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 
 	@Override
 	protected void testProgram() throws Exception {
-		boolean extraMapper = config.getBoolean("ExtraMapper", false);
-
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -99,6 +99,8 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 			delta = changes.map(
 					// ID Mapper
 					new MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
+						private static final long serialVersionUID = -3929364091829757322L;
+
 						@Override
 						public Tuple2<Long, Long> map(Tuple2<Long, Long> v) throws Exception {
 							return v;
@@ -127,13 +129,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		config1.setBoolean("ExtraMapper", false);
-
-		Configuration config2 = new Configuration();
-		config2.setBoolean("ExtraMapper", true);
-
-		return toParameterList(config1, config2);
+		return Arrays.asList(new Object[]{false}, new Object[]{true});
 	}
 
 	private static final class UpdateComponentIdMatchNonPreserving

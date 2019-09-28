@@ -177,6 +177,17 @@ public class YarnIntraNonHaMasterServices extends AbstractYarnNonHaServices {
 	}
 
 	@Override
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+		enter();
+		try {
+			throw new UnsupportedOperationException();
+		}
+		finally {
+			exit();
+		}
+	}
+
+	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
 		enter();
 		try {
@@ -192,6 +203,17 @@ public class YarnIntraNonHaMasterServices extends AbstractYarnNonHaServices {
 		enter();
 		try {
 			throw new UnsupportedOperationException("needs refactoring to accept default address");
+		}
+		finally {
+			exit();
+		}
+	}
+
+	@Override
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+		enter();
+		try {
+			throw new UnsupportedOperationException();
 		}
 		finally {
 			exit();

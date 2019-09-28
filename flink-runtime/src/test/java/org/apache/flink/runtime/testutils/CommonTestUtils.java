@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -29,34 +31,14 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This class contains auxiliary methods for unit tests.
  */
 public class CommonTestUtils {
 
-	/**
-	 * Sleeps for a given set of milliseconds, uninterruptibly. If interrupt is called,
-	 * the sleep will continue nonetheless.
-	 *
-	 * @param msecs The number of milliseconds to sleep.
-	 */
-	public static void sleepUninterruptibly(long msecs) {
-		
-		long now = System.currentTimeMillis();
-		long sleepUntil = now + msecs;
-		long remaining;
-		
-		while ((remaining = sleepUntil - now) > 0) {
-			try {
-				Thread.sleep(remaining);
-			}
-			catch (InterruptedException ignored) {}
-			
-			now = System.currentTimeMillis();
-		}
-	}
+	private static final long RETRY_INTERVAL = 100L;
 
 	/**
 	 * Gets the classpath with which the current JVM was started.
@@ -116,51 +98,32 @@ public class CommonTestUtils {
 		return null;
 	}
 
-	/**
-	 * Checks whether a process is still alive. Utility method for JVM versions before 1.8,
-	 * where no direct method to check that is available.
-	 *
-	 * @param process The process to check.
-	 * @return True, if the process is alive, false otherwise.
-	 */
-	public static boolean isProcessAlive(Process process) {
-		if (process == null) {
-			return false;
-
-		}
-		try {
-			process.exitValue();
-			return false;
-		}
-		catch(IllegalThreadStateException e) {
-			return true;
-		}
-	}
-
 	public static void printLog4jDebugConfig(File file) throws IOException {
 		try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
 			writer.println("log4j.rootLogger=DEBUG, console");
 			writer.println("log4j.appender.console=org.apache.log4j.ConsoleAppender");
 			writer.println("log4j.appender.console.target = System.err");
 			writer.println("log4j.appender.console.layout=org.apache.log4j.PatternLayout");
-			writer.println("log4j.appender.console.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n");
+			writer.println("log4j.appender.console.layout.ConversionPattern=%d{HH:mm:ss,SSS} %-4r [%t] %-5p %c %x - %m%n");
 			writer.println("log4j.logger.org.eclipse.jetty.util.log=OFF");
 			writer.println("log4j.logger.org.apache.zookeeper=OFF");
 			writer.flush();
 		}
 	}
 
-	public static File createTempDirectory() throws IOException {
-		File tempDir = new File(System.getProperty("java.io.tmpdir"));
+	public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout) throws Exception {
+		waitUntilCondition(condition, timeout, RETRY_INTERVAL);
+	}
 
-		for (int i = 0; i < 10; i++) {
-			File dir = new File(tempDir, UUID.randomUUID().toString());
-			if (!dir.exists() && dir.mkdirs()) {
-				return dir;
-			}
+	public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout, long retryIntervalMillis) throws Exception {
+		while (timeout.hasTimeLeft() && !condition.get()) {
+			final long timeLeft = Math.max(0, timeout.timeLeft().toMillis());
+			Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
 		}
 
-		throw new IOException("Could not create temporary file directory");
+		if (!timeout.hasTimeLeft()) {
+			throw new TimeoutException("Condition was not met in given timeout.");
+		}
 	}
 
 	/**
@@ -195,7 +158,7 @@ public class CommonTestUtils {
 		}
 	}
 
-	public static boolean isSteamContentEqual(InputStream input1, InputStream input2) throws IOException {
+	public static boolean isStreamContentEqual(InputStream input1, InputStream input2) throws IOException {
 
 		if (!(input1 instanceof BufferedInputStream)) {
 			input1 = new BufferedInputStream(input1);

@@ -1,0 +1,36 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>taskmanager.memory.fraction</h5></td>
+            <td style="word-wrap: break-word;">0.7</td>
+            <td>The relative amount of memory (after subtracting the amount of memory used by network buffers) that the task manager reserves for sorting, hash tables, and caching of intermediate results. For example, a value of <span markdown="span">`0.8`</span> means that a task manager reserves 80% of its memory (on-heap or off-heap depending on taskmanager.memory.off-heap) for internal data buffers, leaving 20% of free memory for the task manager's heap for objects created by user-defined functions. This parameter is only evaluated, if taskmanager.memory.size is not set.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.off-heap</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager. For setups with larger quantities of memory, this can improve the efficiency of the operations performed on the memory.<br />When set to true, then it is advised that <span markdown="span">`taskmanager.memory.preallocate`</span> is also set to true.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.preallocate</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting. When <span markdown="span">`taskmanager.memory.off-heap`</span> is set to true, then it is advised that this configuration is also set to true. If this configuration is set to false cleaning up of the allocated off-heap memory happens only when the configured JVM parameter MaxDirectMemorySize is reached by triggering a full GC. For streaming setups, it is highly recommended to set this value to false as the core state backends currently do not use the managed memory.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.segment-size</h5></td>
+            <td style="word-wrap: break-word;">"32kb"</td>
+            <td>Size of memory buffers used by the network stack and the memory manager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.size</h5></td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>The amount of memory (in megabytes) that the task manager reserves on-heap or off-heap (depending on taskmanager.memory.off-heap) for sorting, hash tables, and caching of intermediate results. If unspecified, the memory manager will take a fixed ratio with respect to the size of the task manager JVM as specified by taskmanager.memory.fraction.</td>
+        </tr>
+    </tbody>
+</table>

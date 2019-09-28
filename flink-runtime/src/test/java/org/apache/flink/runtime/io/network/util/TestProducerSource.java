@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.io.network.util;
 
-import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public interface TestProducerSource {
 
@@ -27,6 +29,23 @@ public interface TestProducerSource {
 	 *
 	 * <p> The channel index specifies the subpartition add the data to.
 	 */
-	BufferOrEvent getNextBufferOrEvent() throws Exception;
+	BufferConsumerAndChannel getNextBufferConsumer() throws Exception;
 
+	class BufferConsumerAndChannel {
+		private final BufferConsumer bufferConsumer;
+		private final int targetChannel;
+
+		public BufferConsumerAndChannel(BufferConsumer bufferConsumer, int targetChannel) {
+			this.bufferConsumer = checkNotNull(bufferConsumer);
+			this.targetChannel = targetChannel;
+		}
+
+		public BufferConsumer getBufferConsumer() {
+			return bufferConsumer;
+		}
+
+		public int getTargetChannel() {
+			return targetChannel;
+		}
+	}
 }

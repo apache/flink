@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 
@@ -25,6 +27,7 @@ import java.nio.ByteBuffer;
  * on a record's contents.
  * @param <T>
  */
+@PublicEvolving
 public interface KinesisSerializationSchema<T> extends Serializable {
 	/**
 	 * Serialize the given element into a ByteBuffer.

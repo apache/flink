@@ -20,9 +20,12 @@ package org.apache.flink.streaming.connectors.cassandra;
 import org.apache.flink.configuration.Configuration;
 
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.util.concurrent.ListenableFuture;
+
+import javax.annotation.Nullable;
 
 /**
  * Flink Sink to save data into a Cassandra cluster using
@@ -38,6 +41,8 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	private static final long serialVersionUID = 1L;
 
 	protected final Class<IN> clazz;
+	private final MapperOptions options;
+	private final String keyspace;
 	protected transient Mapper<IN> mapper;
 	protected transient MappingManager mappingManager;
 
@@ -46,9 +51,54 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	 *
 	 * @param clazz Class instance
 	 */
-	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder) {
-		super(builder);
+	public CassandraPojoSink(
+			Class<IN> clazz,
+			ClusterBuilder builder) {
+		this(clazz, builder, null, null);
+	}
+
+	public CassandraPojoSink(
+			Class<IN> clazz,
+			ClusterBuilder builder,
+			@Nullable MapperOptions options) {
+		this(clazz, builder, options, null);
+	}
+
+	public CassandraPojoSink(
+			Class<IN> clazz,
+			ClusterBuilder builder,
+			String keyspace) {
+		this(clazz, builder, null, keyspace);
+	}
+
+	public CassandraPojoSink(
+			Class<IN> clazz,
+			ClusterBuilder builder,
+			@Nullable MapperOptions options,
+			String keyspace) {
+		this(clazz, builder, options, keyspace, CassandraSinkBaseConfig.newBuilder().build());
+	}
+
+	CassandraPojoSink(
+			Class<IN> clazz,
+			ClusterBuilder builder,
+			@Nullable MapperOptions options,
+			String keyspace,
+			CassandraSinkBaseConfig config) {
+		this(clazz, builder, options, keyspace, config, new NoOpCassandraFailureHandler());
+	}
+
+	CassandraPojoSink(
+			Class<IN> clazz,
+			ClusterBuilder builder,
+			@Nullable MapperOptions options,
+			String keyspace,
+			CassandraSinkBaseConfig config,
+			CassandraFailureHandler failureHandler) {
+		super(builder, config, failureHandler);
 		this.clazz = clazz;
+		this.options = options;
+		this.keyspace = keyspace;
 	}
 
 	@Override
@@ -57,9 +107,20 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 		try {
 			this.mappingManager = new MappingManager(session);
 			this.mapper = mappingManager.mapper(clazz);
+			if (options != null) {
+				Mapper.Option[] optionsArray = options.getMapperOptions();
+				if (optionsArray != null) {
+					this.mapper.setDefaultSaveOptions(optionsArray);
+				}
+			}
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot create CassandraPojoSink with input: " + clazz.getSimpleName(), e);
 		}
+	}
+
+	@Override
+	protected Session createSession() {
+		return cluster.connect(keyspace);
 	}
 
 	@Override

@@ -20,7 +20,6 @@ package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 
-import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
 
 /**
@@ -29,28 +28,13 @@ import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
  */
 public abstract class CommandLineOptions {
 
-	private final CommandLine commandLine;
-
-	private final String jobManagerAddress;
-
 	private final boolean printHelp;
 
 	protected CommandLineOptions(CommandLine line) {
-		this.commandLine = line;
 		this.printHelp = line.hasOption(HELP_OPTION.getOpt());
-		this.jobManagerAddress = line.hasOption(ADDRESS_OPTION.getOpt()) ?
-				line.getOptionValue(ADDRESS_OPTION.getOpt()) : null;
-	}
-
-	public CommandLine getCommandLine() {
-		return commandLine;
 	}
 
 	public boolean isPrintHelp() {
 		return printHelp;
-	}
-
-	public String getJobManagerAddress() {
-		return jobManagerAddress;
 	}
 }

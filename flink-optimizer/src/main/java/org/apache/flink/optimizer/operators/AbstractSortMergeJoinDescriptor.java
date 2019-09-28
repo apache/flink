@@ -67,7 +67,7 @@ public abstract class AbstractSortMergeJoinDescriptor extends AbstractJoinDescri
 			inputOrders = tmp;
 		}
 
-		String nodeName = String.format("%s(%s)", getNodeName(), node.getOperator().getName());
+		String nodeName = String.format("%s (%s)", getNodeName(), node.getOperator().getName());
 		return new DualInputPlanNode(node, nodeName, in1, in2, getStrategy(), this.keys1, this.keys2, inputOrders);
 	}
 

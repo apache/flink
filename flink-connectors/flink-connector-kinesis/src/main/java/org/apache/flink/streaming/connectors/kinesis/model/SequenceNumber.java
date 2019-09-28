@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -26,6 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * and also a subsequence number. If this {@link SequenceNumber} is referring to an aggregated Kinesis record, the
  * subsequence number will be a non-negative value representing the order of the sub-record within the aggregation.
  */
+@Internal
 public class SequenceNumber implements Serializable {
 
 	private static final long serialVersionUID = 876972197938972667L;

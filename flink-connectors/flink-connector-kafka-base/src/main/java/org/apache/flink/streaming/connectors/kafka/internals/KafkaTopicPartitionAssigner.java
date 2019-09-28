@@ -17,9 +17,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Utility for assigning Kafka partitions to consumer subtasks.
  */
+@Internal
 public class KafkaTopicPartitionAssigner {
 
 	/**

@@ -55,7 +55,6 @@ object CollectionDataSets {
     data.+=((19, 6L, "Comment#13"))
     data.+=((20, 6L, "Comment#14"))
     data.+=((21, 6L, "Comment#15"))
-    Random.shuffle(data)
     env.fromCollection(Random.shuffle(data))
   }
 

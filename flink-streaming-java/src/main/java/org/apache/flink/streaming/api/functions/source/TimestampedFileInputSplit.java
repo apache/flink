@@ -119,7 +119,7 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 	public boolean equals(Object o) {
 		if (this == o) {
 			return true;
-		} else if (o != null && o instanceof TimestampedFileInputSplit && super.equals(o)) {
+		} else if (o instanceof TimestampedFileInputSplit && super.equals(o)) {
 			TimestampedFileInputSplit that = (TimestampedFileInputSplit) o;
 			return this.modificationTime == that.modificationTime;
 		}

@@ -18,20 +18,26 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+
+/**
+ * Type serializer for {@code Long}.
+ */
 @Internal
 public final class LongSerializer extends TypeSerializerSingleton<Long> {
 
 	private static final long serialVersionUID = 1L;
-	
+
+	/** Sharable instance of the LongSerializer. */
 	public static final LongSerializer INSTANCE = new LongSerializer();
-	
-	private static final Long ZERO = Long.valueOf(0);
+
+	private static final Long ZERO = 0L;
 
 	@Override
 	public boolean isImmutableType() {
@@ -47,7 +53,7 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	public Long copy(Long from) {
 		return from;
 	}
-	
+
 	@Override
 	public Long copy(Long from, Long reuse) {
 		return from;
@@ -55,19 +61,19 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 
 	@Override
 	public int getLength() {
-		return 8;
+		return Long.BYTES;
 	}
 
 	@Override
 	public void serialize(Long record, DataOutputView target) throws IOException {
-		target.writeLong(record.longValue());
+		target.writeLong(record);
 	}
 
 	@Override
 	public Long deserialize(DataInputView source) throws IOException {
-		return Long.valueOf(source.readLong());
+		return source.readLong();
 	}
-	
+
 	@Override
 	public Long deserialize(Long reuse, DataInputView source) throws IOException {
 		return deserialize(source);
@@ -79,13 +85,20 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof LongSerializer;
+	public TypeSerializerSnapshot<Long> snapshotConfiguration() {
+		return new LongSerializerSnapshot();
 	}
 
-	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(LongValueSerializer.class.getCanonicalName());
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class LongSerializerSnapshot extends SimpleTypeSerializerSnapshot<Long> {
+
+		public LongSerializerSnapshot() {
+			super(() -> INSTANCE);
+		}
 	}
 }

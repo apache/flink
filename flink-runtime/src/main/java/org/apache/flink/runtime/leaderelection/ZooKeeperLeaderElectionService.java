@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.api.UnhandledErrorListener;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
@@ -34,6 +37,8 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -45,29 +50,29 @@ import java.util.UUID;
  * ZooKeeper. The current leader's address as well as its leader session ID is published via
  * ZooKeeper as well.
  */
-public class ZooKeeperLeaderElectionService implements LeaderElectionService, LeaderLatchListener, NodeCacheListener {
+public class ZooKeeperLeaderElectionService implements LeaderElectionService, LeaderLatchListener, NodeCacheListener, UnhandledErrorListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionService.class);
 
 	private final Object lock = new Object();
 
-	/** Client to the ZooKeeper quorum */
+	/** Client to the ZooKeeper quorum. */
 	private final CuratorFramework client;
 
-	/** Curator recipe for leader election */
+	/** Curator recipe for leader election. */
 	private final LeaderLatch leaderLatch;
 
-	/** Curator recipe to watch a given ZooKeeper node for changes */
+	/** Curator recipe to watch a given ZooKeeper node for changes. */
 	private final NodeCache cache;
 
-	/** ZooKeeper path of the node which stores the current leader information */
+	/** ZooKeeper path of the node which stores the current leader information. */
 	private final String leaderPath;
 
-	private UUID issuedLeaderSessionID;
+	private volatile UUID issuedLeaderSessionID;
 
 	private volatile UUID confirmedLeaderSessionID;
 
-	/** The leader contender which applies for leadership */
+	/** The leader contender which applies for leadership. */
 	private volatile LeaderContender leaderContender;
 
 	private volatile boolean running;
@@ -118,6 +123,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 		synchronized (lock) {
 
+			client.getUnhandledErrorListenable().addListener(this);
+
 			leaderContender = contender;
 
 			leaderLatch.addListener(this);
@@ -146,6 +153,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 		LOG.info("Stopping ZooKeeperLeaderElectionService {}.", this);
 
+		client.getUnhandledErrorListenable().removeListener(this);
+
 		client.getConnectionStateListenable().removeListener(listener);
 
 		Exception exception = null;
@@ -158,7 +167,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 		try {
 			leaderLatch.close();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
@@ -178,7 +187,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 		Preconditions.checkNotNull(leaderSessionID);
 
-		if(leaderLatch.hasLeadership()) {
+		if (leaderLatch.hasLeadership()) {
 			// check if this is an old confirmation call
 			synchronized (lock) {
 				if (running) {
@@ -192,14 +201,14 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 				}
 			}
 		} else {
-			LOG.warn("The leader session ID {} was confirmed even though the" +
+			LOG.warn("The leader session ID {} was confirmed even though the " +
 					"corresponding JobManager was not elected as the leader.", leaderSessionID);
 		}
 	}
 
 	@Override
-	public boolean hasLeadership() {
-		return leaderLatch.hasLeadership();
+	public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+		return leaderLatch.hasLeadership() && leaderSessionId.equals(issuedLeaderSessionID);
 	}
 
 	@Override
@@ -334,14 +343,14 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 			boolean dataWritten = false;
 
-			while(!dataWritten && leaderLatch.hasLeadership()) {
+			while (!dataWritten && leaderLatch.hasLeadership()) {
 				Stat stat = client.checkExists().forPath(leaderPath);
 
 				if (stat != null) {
 					long owner = stat.getEphemeralOwner();
 					long sessionID = client.getZookeeperClient().getZooKeeper().getSessionId();
 
-					if(owner == sessionID) {
+					if (owner == sessionID) {
 						try {
 							client.setData().forPath(leaderPath, baos.toByteArray());
 
@@ -400,5 +409,17 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 					+ " no longer participates in the leader election.");
 				break;
 		}
+	}
+
+	@Override
+	public void unhandledError(String message, Throwable e) {
+		leaderContender.handleError(new FlinkException("Unhandled error in ZooKeeperLeaderElectionService: " + message, e));
+	}
+
+	@Override
+	public String toString() {
+		return "ZooKeeperLeaderElectionService{" +
+			"leaderPath='" + leaderPath + '\'' +
+			'}';
 	}
 }

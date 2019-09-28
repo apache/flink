@@ -19,21 +19,20 @@
 package org.apache.flink.test.misc;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -50,32 +49,25 @@ public class CustomSerializationITCase extends TestLogger {
 
 	private static final int PARLLELISM = 5;
 
-	private static LocalFlinkMiniCluster cluster;
+	@ClassRule
+	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(1)
+			.setNumberSlotsPerTaskManager(PARLLELISM)
+			.build());
 
-	private static TestEnvironment env;
-
-	@BeforeClass
-	public static void startCluster() {
+	public static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARLLELISM);
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 30L);
-		cluster = new LocalFlinkMiniCluster(config, false);
-		cluster.start();
-
-		env = new TestEnvironment(cluster, PARLLELISM, false);
-	}
-
-	@AfterClass
-	public static void shutdownCluster() {
-		cluster.shutdown();
-		cluster = null;
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "30m");
+		return config;
 	}
 
 	@Test
 	public void testIncorrectSerializer1() {
 		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.generateSequence(1, 10 * PARLLELISM)
@@ -104,8 +96,8 @@ public class CustomSerializationITCase extends TestLogger {
 	@Test
 	public void testIncorrectSerializer2() {
 		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
 
 			env
 					.generateSequence(1, 10 * PARLLELISM)
@@ -134,8 +126,8 @@ public class CustomSerializationITCase extends TestLogger {
 	@Test
 	public void testIncorrectSerializer3() {
 		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
 
 			env
 					.generateSequence(1, 10 * PARLLELISM)
@@ -164,8 +156,8 @@ public class CustomSerializationITCase extends TestLogger {
 	@Test
 	public void testIncorrectSerializer4() {
 		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
 
 			env
 					.generateSequence(1, 10 * PARLLELISM)

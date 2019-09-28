@@ -19,20 +19,23 @@
 //
 // The function "stringifyException" is based on source code from the Hadoop Project (http://hadoop.apache.org/),
 // licensed by the Apache Software Foundation (ASF) under the Apache License, Version 2.0.
-// See the NOTICE file distributed with this work for additional information regarding copyright ownership. 
+// See the NOTICE file distributed with this work for additional information regarding copyright ownership.
 //
 
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.function.RunnableWithException;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -42,15 +45,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class ExceptionUtils {
 
-	/** The stringified representation of a null exception reference */ 
+	/** The stringified representation of a null exception reference. */
 	public static final String STRINGIFIED_NULL_EXCEPTION = "(null)";
 
 	/**
 	 * Makes a string representation of the exception's stack trace, or "(null)", if the
 	 * exception is null.
-	 * 
-	 * This method makes a best effort and never fails.
-	 * 
+	 *
+	 * <p>This method makes a best effort and never fails.
+	 *
 	 * @param e The exception to stringify.
 	 * @return A string with exception name and call stack.
 	 */
@@ -58,7 +61,7 @@ public final class ExceptionUtils {
 		if (e == null) {
 			return STRINGIFIED_NULL_EXCEPTION;
 		}
-		
+
 		try {
 			StringWriter stm = new StringWriter();
 			PrintWriter wrt = new PrintWriter(stm);
@@ -79,23 +82,26 @@ public final class ExceptionUtils {
 	 * <p>Currently considered fatal exceptions are Virtual Machine errors indicating
 	 * that the JVM is corrupted, like {@link InternalError}, {@link UnknownError},
 	 * and {@link java.util.zip.ZipError} (a special case of InternalError).
+	 * The {@link ThreadDeath} exception is also treated as a fatal error, because when
+	 * a thread is forcefully stopped, there is a high chance that parts of the system
+	 * are in an inconsistent state.
 	 *
 	 * @param t The exception to check.
 	 * @return True, if the exception is considered fatal to the JVM, false otherwise.
 	 */
 	public static boolean isJvmFatalError(Throwable t) {
-		return (t instanceof InternalError) || (t instanceof UnknownError);
+		return (t instanceof InternalError) || (t instanceof UnknownError) || (t instanceof ThreadDeath);
 	}
 
 	/**
 	 * Checks whether the given exception indicates a situation that may leave the
 	 * JVM in a corrupted state, or an out-of-memory error.
-	 * 
+	 *
 	 * <p>See {@link ExceptionUtils#isJvmFatalError(Throwable)} for a list of fatal JVM errors.
 	 * This method additionally classifies the {@link OutOfMemoryError} as fatal, because it
 	 * may occur in any thread (not the one that allocated the majority of the memory) and thus
 	 * is often not recoverable by destroying the particular thread that threw the exception.
-	 * 
+	 *
 	 * @param t The exception to check.
 	 * @return True, if the exception is fatal to the JVM or and OutOfMemoryError, false otherwise.
 	 */
@@ -106,7 +112,7 @@ public final class ExceptionUtils {
 	/**
 	 * Rethrows the given {@code Throwable}, if it represents an error that is fatal to the JVM.
 	 * See {@link ExceptionUtils#isJvmFatalError(Throwable)} for a definition of fatal errors.
-	 * 
+	 *
 	 * @param t The Throwable to check and rethrow.
 	 */
 	public static void rethrowIfFatalError(Throwable t) {
@@ -179,7 +185,7 @@ public final class ExceptionUtils {
 	 * Throws the given {@code Throwable} in scenarios where the signatures do not allow you to
 	 * throw an arbitrary Throwable. Errors and RuntimeExceptions are thrown directly, other exceptions
 	 * are packed into runtime exceptions
-	 * 
+	 *
 	 * @param t The throwable to be thrown.
 	 */
 	public static void rethrow(Throwable t) {
@@ -193,12 +199,12 @@ public final class ExceptionUtils {
 			throw new RuntimeException(t);
 		}
 	}
-	
+
 	/**
 	 * Throws the given {@code Throwable} in scenarios where the signatures do not allow you to
 	 * throw an arbitrary Throwable. Errors and RuntimeExceptions are thrown directly, other exceptions
 	 * are packed into a parent RuntimeException.
-	 * 
+	 *
 	 * @param t The throwable to be thrown.
 	 * @param parentMessage The message for the parent RuntimeException, if one is needed.
 	 */
@@ -235,6 +241,37 @@ public final class ExceptionUtils {
 	}
 
 	/**
+	 * Throws the given {@code Throwable} in scenarios where the signatures do allow to
+	 * throw a Exception. Errors and Exceptions are thrown directly, other "exotic"
+	 * subclasses of Throwable are wrapped in an Exception.
+	 *
+	 * @param t The throwable to be thrown.
+	 */
+	public static void rethrowException(Throwable t) throws Exception {
+		if (t instanceof Error) {
+			throw (Error) t;
+		}
+		else if (t instanceof Exception) {
+			throw (Exception) t;
+		}
+		else {
+			throw new Exception(t.getMessage(), t);
+		}
+	}
+
+	/**
+	 * Tries to throw the given exception if not null.
+	 *
+	 * @param e exception to throw if not null.
+	 * @throws Exception
+	 */
+	public static void tryRethrowException(@Nullable Exception e) throws Exception {
+		if (e != null) {
+			throw e;
+		}
+	}
+
+	/**
 	 * Tries to throw the given {@code Throwable} in scenarios where the signatures allows only IOExceptions
 	 * (and RuntimeException and Error). Throws this exception directly, if it is an IOException,
 	 * a RuntimeException, or an Error. Otherwise does nothing.
@@ -256,10 +293,10 @@ public final class ExceptionUtils {
 	/**
 	 * Re-throws the given {@code Throwable} in scenarios where the signatures allows only IOExceptions
 	 * (and RuntimeException and Error).
-	 * 
-	 * Throws this exception directly, if it is an IOException, a RuntimeException, or an Error. Otherwise it 
+	 *
+	 * <p>Throws this exception directly, if it is an IOException, a RuntimeException, or an Error. Otherwise it
 	 * wraps it in an IOException and throws it.
-	 * 
+	 *
 	 * @param t The Throwable to be thrown.
 	 */
 	public static void rethrowIOException(Throwable t) throws IOException {
@@ -278,13 +315,15 @@ public final class ExceptionUtils {
 	}
 
 	/**
-	 * Checks whether a throwable chain contains a specific type of exception and returns it.
+	 * Checks whether a throwable chain contains a specific type of exception and returns it. It deserializes
+	 * any {@link SerializedThrowable} that are found using the provided {@link ClassLoader}.
 	 *
 	 * @param throwable the throwable chain to check.
 	 * @param searchType the type of exception to search for in the chain.
+	 * @param classLoader to use for deserialization.
 	 * @return Optional throwable of the requested type if available, otherwise empty
 	 */
-	public static Optional<Throwable> findThrowable(Throwable throwable, Class<?> searchType) {
+	public static <T extends Throwable> Optional<T> findSerializedThrowable(Throwable throwable, Class<T> searchType, ClassLoader classLoader) {
 		if (throwable == null || searchType == null) {
 			return Optional.empty();
 		}
@@ -292,6 +331,84 @@ public final class ExceptionUtils {
 		Throwable t = throwable;
 		while (t != null) {
 			if (searchType.isAssignableFrom(t.getClass())) {
+				return Optional.of(searchType.cast(t));
+			} else if (t.getClass().isAssignableFrom(SerializedThrowable.class)) {
+				Throwable next = ((SerializedThrowable) t).deserializeError(classLoader);
+				// SerializedThrowable#deserializeError returns itself under some conditions (e.g., null cause).
+				// If that happens, exit to avoid looping infinitely. This is ok because if the user was searching
+				// for a SerializedThrowable, we would have returned it in the initial if condition.
+				t = (next == t) ? null : next;
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Checks whether a throwable chain contains a specific type of exception and returns it.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchType the type of exception to search for in the chain.
+	 * @return Optional throwable of the requested type if available, otherwise empty
+	 */
+	public static <T extends Throwable> Optional<T> findThrowable(Throwable throwable, Class<T> searchType) {
+		if (throwable == null || searchType == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (searchType.isAssignableFrom(t.getClass())) {
+				return Optional.of(searchType.cast(t));
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Checks whether a throwable chain contains an exception matching a predicate and returns it.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param predicate the predicate of the exception to search for in the chain.
+	 * @return Optional throwable of the requested type if available, otherwise empty
+	 */
+	public static Optional<Throwable> findThrowable(Throwable throwable, Predicate<Throwable> predicate) {
+		if (throwable == null || predicate == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (predicate.test(t)) {
+				return Optional.of(t);
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Checks whether a throwable chain contains a specific error message and returns the corresponding throwable.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchMessage the error message to search for in the chain.
+	 * @return Optional throwable containing the search message if available, otherwise empty
+	 */
+	public static Optional<Throwable> findThrowableWithMessage(Throwable throwable, String searchMessage) {
+		if (throwable == null || searchMessage == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (t.getMessage() != null && t.getMessage().contains(searchMessage)) {
 				return Optional.of(t);
 			} else {
 				t = t.getCause();
@@ -309,11 +426,7 @@ public final class ExceptionUtils {
 	 * @return Cause of ExecutionException or given Throwable
 	 */
 	public static Throwable stripExecutionException(Throwable throwable) {
-		while (throwable instanceof ExecutionException && throwable.getCause() != null) {
-			throwable = throwable.getCause();
-		}
-
-		return throwable;
+		return stripException(throwable, ExecutionException.class);
 	}
 
 	/**
@@ -324,11 +437,23 @@ public final class ExceptionUtils {
 	 * @return Cause of CompletionException or given Throwable
 	 */
 	public static Throwable stripCompletionException(Throwable throwable) {
-		while (throwable instanceof CompletionException && throwable.getCause() != null) {
-			throwable = throwable.getCause();
+		return stripException(throwable, CompletionException.class);
+	}
+
+	/**
+	 * Unpacks an specified exception and returns its cause. Otherwise the given
+	 * {@link Throwable} is returned.
+	 *
+	 * @param throwableToStrip to strip
+	 * @param typeToStrip type to strip
+	 * @return Unpacked cause or given Throwable if not packed
+	 */
+	public static Throwable stripException(Throwable throwableToStrip, Class<? extends Throwable> typeToStrip) {
+		while (typeToStrip.isAssignableFrom(throwableToStrip.getClass()) && throwableToStrip.getCause() != null) {
+			throwableToStrip = throwableToStrip.getCause();
 		}
 
-		return throwable;
+		return throwableToStrip;
 	}
 
 	/**
@@ -350,6 +475,37 @@ public final class ExceptionUtils {
 			throw ((SerializedThrowable) current).deserializeError(classLoader);
 		} else {
 			throw throwable;
+		}
+	}
+
+	/**
+	 * Checks whether the given exception is a {@link InterruptedException} and sets
+	 * the interrupted flag accordingly.
+	 *
+	 * @param e to check whether it is an {@link InterruptedException}
+	 */
+	public static void checkInterrupted(Throwable e) {
+		if (e instanceof InterruptedException) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Lambda exception utilities
+	// ------------------------------------------------------------------------
+
+	public static void suppressExceptions(RunnableWithException action) {
+		try {
+			action.run();
+		}
+		catch (InterruptedException e) {
+			// restore interrupted state
+			Thread.currentThread().interrupt();
+		}
+		catch (Throwable t) {
+			if (isJvmFatalError(t)) {
+				rethrow(t);
+			}
 		}
 	}
 

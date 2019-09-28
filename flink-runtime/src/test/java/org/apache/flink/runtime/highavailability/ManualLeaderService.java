@@ -20,7 +20,7 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
 
@@ -32,13 +32,13 @@ import java.util.UUID;
 /**
  * Leader service for {@link TestingManualHighAvailabilityServices} implementation. The leader
  * service allows to create multiple {@link TestingLeaderElectionService} and
- * {@link TestingLeaderRetrievalService} and allows to manually trigger the services identified
+ * {@link SettableLeaderRetrievalService} and allows to manually trigger the services identified
  * by a continuous index.
  */
 public class ManualLeaderService {
 
 	private final List<TestingLeaderElectionService> leaderElectionServices;
-	private final List<TestingLeaderRetrievalService> leaderRetrievalServices;
+	private final List<SettableLeaderRetrievalService> leaderRetrievalServices;
 
 	private int currentLeaderIndex;
 
@@ -54,13 +54,13 @@ public class ManualLeaderService {
 	}
 
 	public LeaderRetrievalService createLeaderRetrievalService() {
-		final TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		final SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			getLeaderAddress(currentLeaderIndex),
 			currentLeaderId);
 
-		leaderRetrievalServices.add(testingLeaderRetrievalService);
+		leaderRetrievalServices.add(settableLeaderRetrievalService);
 
-		return testingLeaderRetrievalService;
+		return settableLeaderRetrievalService;
 	}
 
 	public LeaderElectionService createLeaderElectionService() {
@@ -100,7 +100,7 @@ public class ManualLeaderService {
 	}
 
 	public void notifyRetrievers(int index, UUID leaderId) {
-		for (TestingLeaderRetrievalService retrievalService: leaderRetrievalServices) {
+		for (SettableLeaderRetrievalService retrievalService: leaderRetrievalServices) {
 			retrievalService.notifyListener(getLeaderAddress(index), leaderId);
 		}
 	}

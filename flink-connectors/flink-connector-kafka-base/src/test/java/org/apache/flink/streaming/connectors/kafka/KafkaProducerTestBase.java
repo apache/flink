@@ -21,10 +21,12 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -36,28 +38,25 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
+import org.apache.flink.streaming.connectors.kafka.testutils.IntegerSource;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
-import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
@@ -67,7 +66,9 @@ import static org.junit.Assert.fail;
  * Abstract test base for all Kafka producer tests.
  */
 @SuppressWarnings("serial")
-public abstract class KafkaProducerTestBase extends KafkaTestBase {
+public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
+
+	private static final long KAFKA_READ_TIMEOUT = 60_000L;
 
 	/**
 	 * This tests verifies that custom partitioning works correctly, with a default topic
@@ -115,11 +116,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 			expectedTopicsToNumPartitions.put(defaultTopic, defaultTopicPartitions);
 			expectedTopicsToNumPartitions.put(dynamicTopic, dynamicTopicPartitions);
 
-			TypeInformation<Tuple2<Long, String>> longStringInfo = TypeInfoParser.parse("Tuple2<Long, String>");
+			TypeInformation<Tuple2<Long, String>> longStringInfo = TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){});
 
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setRestartStrategy(RestartStrategies.noRestart());
-			env.getConfig().disableSysoutLogging();
 
 			TypeInformationSerializationSchema<Tuple2<Long, String>> serSchema =
 				new TypeInformationSerializationSchema<>(longStringInfo, env.getConfig());
@@ -140,6 +140,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 					while (running) {
 						ctx.collect(new Tuple2<Long, String>(cnt, "kafka-" + cnt));
 						cnt++;
+						if (cnt % 100 == 0) {
+							Thread.sleep(1);
+						}
 					}
 				}
 
@@ -234,7 +237,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		env.enableCheckpointing(500);
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
 
 		Properties properties = new Properties();
 		properties.putAll(standardProps);
@@ -288,45 +290,90 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 				properties,
 				topic,
 				partition,
-				Collections.unmodifiableSet(new HashSet<>(getIntegersSequence(BrokerRestartingMapper.numElementsBeforeSnapshot))),
-				30000L);
+				Collections.unmodifiableSet(new HashSet<>(getIntegersSequence(BrokerRestartingMapper.lastSnapshotedElementBeforeShutdown))),
+				KAFKA_READ_TIMEOUT);
 
 		deleteTestTopic(topic);
 	}
 
 	/**
-	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
-	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
+	 * Tests the exactly-once semantic for the simple writes into Kafka.
 	 */
-	private void assertAtLeastOnceForTopic(
-			Properties properties,
-			String topic,
-			int partition,
-			Set<Integer> expectedElements,
-			long timeoutMillis) throws Exception {
+	@Test
+	public void testExactlyOnceRegularSink() throws Exception {
+		testExactlyOnce(true, 1);
+	}
 
-		long startMillis = System.currentTimeMillis();
-		Set<Integer> actualElements = new HashSet<>();
+	/**
+	 * Tests the exactly-once semantic for the simple writes into Kafka.
+	 */
+	@Test
+	public void testExactlyOnceCustomOperator() throws Exception {
+		testExactlyOnce(false, 1);
+	}
 
-		// until we timeout...
-		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
-			properties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
-			properties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+	/**
+	 * This test sets KafkaProducer so that it will  automatically flush the data and
+	 * and fails the broker to check whether flushed records since last checkpoint were not duplicated.
+	 */
+	protected void testExactlyOnce(boolean regularSink, int sinksCount) throws Exception {
+		final String topic = (regularSink ? "exactlyOnceTopicRegularSink" : "exactlyTopicCustomOperator") + sinksCount;
+		final int partition = 0;
+		final int numElements = 1000;
+		final int failAfterElements = 333;
 
-			// query kafka for new records ...
-			Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(properties, topic, partition, 100);
+		for (int i = 0; i < sinksCount; i++) {
+			createTestTopic(topic + i, 1, 1);
+		}
 
-			for (ConsumerRecord<Integer, Integer> record : records) {
-				actualElements.add(record.value());
-			}
+		TypeInformationSerializationSchema<Integer> schema = new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
+		KeyedSerializationSchema<Integer> keyedSerializationSchema = new KeyedSerializationSchemaWrapper<>(schema);
 
-			// succeed if we got all expectedElements
-			if (actualElements.containsAll(expectedElements)) {
-				return;
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(500);
+		env.setParallelism(1);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+
+		Properties properties = new Properties();
+		properties.putAll(standardProps);
+		properties.putAll(secureProps);
+
+		// process exactly failAfterElements number of elements and then shutdown Kafka broker and fail application
+		List<Integer> expectedElements = getIntegersSequence(numElements);
+
+		DataStream<Integer> inputStream = env
+			.addSource(new IntegerSource(numElements))
+			.map(new FailingIdentityMapper<Integer>(failAfterElements));
+
+		for (int i = 0; i < sinksCount; i++) {
+			FlinkKafkaPartitioner<Integer> partitioner = new FlinkKafkaPartitioner<Integer>() {
+				@Override
+				public int partition(Integer record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+					return partition;
+				}
+			};
+
+			if (regularSink) {
+				StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic + i, keyedSerializationSchema, properties, partitioner);
+				inputStream.addSink(kafkaSink.getUserFunction());
+			} else {
+				kafkaServer.produceIntoKafka(inputStream, topic + i, keyedSerializationSchema, properties, partitioner);
 			}
 		}
 
-		fail(String.format("Expected to contain all of: <%s>, but was: <%s>", expectedElements, actualElements));
+		FailingIdentityMapper.failedBefore = false;
+		TestUtils.tryExecute(env, "Exactly once test");
+
+		for (int i = 0; i < sinksCount; i++) {
+			// assert that before failure we successfully snapshot/flushed all expected elements
+			assertExactlyOnceForTopic(
+				properties,
+				topic + i,
+				partition,
+				expectedElements,
+				KAFKA_READ_TIMEOUT);
+			deleteTestTopic(topic + i);
+		}
 	}
 
 	private List<Integer> getIntegersSequence(int size) {
@@ -437,21 +484,18 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 		private static final long serialVersionUID = 6334389850158707313L;
 
-		public static volatile boolean restartedLeaderBefore;
-		public static volatile boolean hasBeenCheckpointedBeforeFailure;
-		public static volatile int numElementsBeforeSnapshot;
+		public static volatile boolean triggeredShutdown;
+		public static volatile int lastSnapshotedElementBeforeShutdown;
 		public static volatile Runnable shutdownAction;
 
 		private final int failCount;
 		private int numElementsTotal;
 
 		private boolean failer;
-		private boolean hasBeenCheckpointed;
 
 		public static void resetState(Runnable shutdownAction) {
-			restartedLeaderBefore = false;
-			hasBeenCheckpointedBeforeFailure = false;
-			numElementsBeforeSnapshot = 0;
+			triggeredShutdown = false;
+			lastSnapshotedElementBeforeShutdown = 0;
 			BrokerRestartingMapper.shutdownAction = shutdownAction;
 		}
 
@@ -467,28 +511,25 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		@Override
 		public T map(T value) throws Exception {
 			numElementsTotal++;
+			Thread.sleep(10);
 
-			if (!restartedLeaderBefore) {
-				Thread.sleep(10);
-
-				if (failer && numElementsTotal >= failCount) {
-					// shut down a Kafka broker
-					hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
-					restartedLeaderBefore = true;
-					shutdownAction.run();
-				}
+			if (!triggeredShutdown && failer && numElementsTotal >= failCount) {
+				// shut down a Kafka broker
+				triggeredShutdown = true;
+				shutdownAction.run();
 			}
 			return value;
 		}
 
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
-			hasBeenCheckpointed = true;
 		}
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			numElementsBeforeSnapshot = numElementsTotal;
+			if (!triggeredShutdown) {
+				lastSnapshotedElementBeforeShutdown = numElementsTotal;
+			}
 		}
 
 		@Override

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * A synchronous {@link BufferFileReader} implementation.
@@ -33,43 +32,22 @@ import java.nio.ByteBuffer;
  */
 public class SynchronousBufferFileReader extends SynchronousFileIOChannel implements BufferFileReader {
 
-	private final ByteBuffer header = ByteBuffer.allocateDirect(8);
+	private final BufferFileChannelReader reader;
 
 	private boolean hasReachedEndOfFile;
 
 	public SynchronousBufferFileReader(ID channelID, boolean writeEnabled) throws IOException {
 		super(channelID, writeEnabled);
+		this.reader = new BufferFileChannelReader(fileChannel);
 	}
 
 	@Override
 	public void readInto(Buffer buffer) throws IOException {
 		if (fileChannel.size() - fileChannel.position() > 0) {
-			// This is the synchronous counter part to the asynchronous buffer read request
-
-			// Read header
-			header.clear();
-			fileChannel.read(header);
-			header.flip();
-
-			final boolean isBuffer = header.getInt() == 1;
-			final int size = header.getInt();
-
-			if (size > buffer.getMemorySegment().size()) {
-				throw new IllegalStateException("Buffer is too small for data: " + buffer.getMemorySegment().size() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
-			}
-
-			buffer.setSize(size);
-
-			fileChannel.read(buffer.getNioBuffer());
-
-			if (!isBuffer) {
-				buffer.tagAsEvent();
-			}
-
-			hasReachedEndOfFile = fileChannel.size() - fileChannel.position() == 0;
+			hasReachedEndOfFile = reader.readBufferFromFileChannel(buffer);
 		}
 		else {
-			buffer.recycle();
+			buffer.recycleBuffer();
 		}
 	}
 

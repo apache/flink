@@ -448,7 +448,7 @@ public final class RequestedGlobalProperties implements Cloneable {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof RequestedGlobalProperties) {
+		if (obj instanceof RequestedGlobalProperties) {
 			RequestedGlobalProperties other = (RequestedGlobalProperties) obj;
 			return (ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
 					&& (partitioning == other.getPartitioning())

@@ -27,15 +27,12 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import java.util.Collection;
 
 /**
- * A base {@link WindowAssigner} used to instantiate one of the deprecated
- * {@link org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator
- * AccumulatingProcessingTimeWindowOperator} and
- * {@link org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator
- * AggregatingProcessingTimeWindowOperator}.
+ * A base {@link WindowAssigner} used to instantiate one of the deprecated operators.
  *
- * <p>For assigner that extend this one, the user can check the
- * {@link TumblingAlignedProcessingTimeWindows} and the {@link SlidingAlignedProcessingTimeWindows}.
- * */
+ * @deprecated will be removed in a future version. please use other {@link WindowAssigner}s listed under
+ * {@link org.apache.flink.streaming.api.windowing.assigners}.
+ */
+@Deprecated
 public class BaseAlignedWindowAssigner extends WindowAssigner<Object, TimeWindow> {
 
 	private static final long serialVersionUID = -6214980179706960234L;
@@ -57,7 +54,7 @@ public class BaseAlignedWindowAssigner extends WindowAssigner<Object, TimeWindow
 
 	@Override
 	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-		return null;
+		throw new UnsupportedOperationException("This assigner should not be used with the WindowOperator.");
 	}
 
 	@Override

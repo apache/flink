@@ -18,15 +18,16 @@
 
 package org.apache.flink.mesos.scheduler
 
+import java.util.concurrent.TimeUnit
 import java.util.{Collections, UUID}
 import java.util.concurrent.atomic.AtomicReference
 
+import akka.actor.ActorSystem
 import akka.actor.FSM.StateTimeout
 import akka.testkit._
 import com.netflix.fenzo.TaskRequest.{AssignedResources, NamedResourceSetRequest}
 import com.netflix.fenzo._
 import com.netflix.fenzo.functions.{Action1, Action2}
-import com.netflix.fenzo.plugins.VMLeaseObject
 import org.apache.flink.api.java.tuple.{Tuple2=>FlinkTuple2}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.mesos.scheduler.LaunchCoordinator._
@@ -38,7 +39,7 @@ import org.junit.runner.RunWith
 import org.mockito.Mockito.{verify, _}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.mockito.{Matchers => MM, Mockito}
+import org.mockito.{ArgumentMatchers => MM, Mockito}
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -47,6 +48,10 @@ import scala.collection.JavaConverters._
 import org.apache.flink.mesos.Utils.range
 import org.apache.flink.mesos.Utils.ranges
 import org.apache.flink.mesos.Utils.scalar
+import org.apache.flink.mesos.configuration.MesosOptions.DECLINED_OFFER_REFUSE_DURATION
+import org.apache.flink.mesos.util.MesosResourceAllocation
+
+import scala.concurrent.duration.Duration
 
 @RunWith(classOf[JUnitRunner])
 class LaunchCoordinatorTest
@@ -56,8 +61,8 @@ class LaunchCoordinatorTest
     with Matchers
     with BeforeAndAfterAll {
 
-  lazy val config = new Configuration()
-  implicit lazy val system = AkkaUtils.createLocalActorSystem(config)
+  lazy val config: Configuration = new Configuration()
+  implicit lazy val system: ActorSystem = AkkaUtils.createLocalActorSystem(config)
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -80,6 +85,7 @@ class LaunchCoordinatorTest
         override def getNetworkMbps: Double = 0.0
         override def getDisk: Double = 0.0
         override def getPorts: Int = 1
+        override def getScalarRequests = Collections.singletonMap("gpus", 1.0)
         override def getCustomNamedResources: java.util.Map[String, NamedResourceSetRequest] =
           Collections.emptyMap[String, NamedResourceSetRequest]
         override def getSoftConstraints: java.util.List[_ <: VMTaskFitnessCalculator] = null
@@ -95,7 +101,7 @@ class LaunchCoordinatorTest
       override def taskRequest: TaskRequest = generateTaskRequest
       override def launch(
           slaveId: SlaveID,
-          taskAssignment: TaskAssignmentResult): Protos.TaskInfo = {
+          allocation: MesosResourceAllocation): Protos.TaskInfo = {
         Protos.TaskInfo.newBuilder
           .setTaskId(taskID).setName(taskID.getValue)
           .setCommand(Protos.CommandInfo.newBuilder.setValue("whoami"))
@@ -129,7 +135,7 @@ class LaunchCoordinatorTest
   }
 
   def lease(offer: Protos.Offer) = {
-    new VMLeaseObject(offer)
+    new Offer(offer)
   }
 
   /**
@@ -199,12 +205,27 @@ class LaunchCoordinatorTest
     */
   def taskSchedulerBuilder(optimizer: TaskScheduler) = new TaskSchedulerBuilder {
     var leaseRejectAction: Action1[VirtualMachineLease] = null
+    var rejectAllExpiredOffers: Boolean = false
+    var leaseOfferExpiry: Long = 0L
+    var offersToReject: Int = 0
+
     override def withLeaseRejectAction(
         action: Action1[VirtualMachineLease]): TaskSchedulerBuilder = {
       leaseRejectAction = action
       this
     }
+    override def withRejectAllExpiredOffers(): TaskSchedulerBuilder = {
+      rejectAllExpiredOffers = true
+      this
+    }
+
+    override def withLeaseOfferExpirySecs(leaseOfferExpirySecs: Long): TaskSchedulerBuilder = {
+      leaseOfferExpiry = leaseOfferExpirySecs
+      this
+    }
+
     override def build(): TaskScheduler = optimizer
+
   }
 
   /**
@@ -231,6 +252,11 @@ class LaunchCoordinatorTest
     val trace = Mockito.inOrder(schedulerDriver)
     val fsm =
       TestFSMRef(new LaunchCoordinator(testActor, config, schedulerDriver, optimizerBuilder))
+    val refuseFilter =
+      Protos.Filters.newBuilder()
+        .setRefuseSeconds(
+          Duration(config.getLong(DECLINED_OFFER_REFUSE_DURATION), TimeUnit.MILLISECONDS).toSeconds)
+        .build()
 
     val framework = randomFramework
     val task1 = randomTask
@@ -313,8 +339,8 @@ class LaunchCoordinatorTest
         "stays in Idle with offers declined" in new Context {
           fsm.setState(Idle)
           fsm ! new ResourceOffers(Seq(slave1._3, slave1._4).asJava)
-          verify(schedulerDriver).declineOffer(slave1._3.getId)
-          verify(schedulerDriver).declineOffer(slave1._4.getId)
+          verify(schedulerDriver).declineOffer(slave1._3.getId, refuseFilter)
+          verify(schedulerDriver).declineOffer(slave1._4.getId, refuseFilter)
           fsm.stateName should be (Idle)
         }
       }
@@ -454,7 +480,7 @@ class LaunchCoordinatorTest
           fsm.setState(GatheringOffers,
             GatherData(tasks = Seq(task1._2), newLeases = Seq(lease(slave1._3))))
           fsm ! StateTimeout
-          verify(schedulerDriver).declineOffer(slave1._3.getId)
+          verify(schedulerDriver).declineOffer(slave1._3.getId, refuseFilter)
         }
       }
 

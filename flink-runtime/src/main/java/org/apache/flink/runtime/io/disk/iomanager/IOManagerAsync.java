@@ -21,9 +21,12 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,14 +56,14 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Constructs a new asynchronous I/O manger, writing files to the system 's temp directory.
+	 * Constructs a new asynchronous I/O manager, writing files to the system 's temp directory.
 	 */
 	public IOManagerAsync() {
 		this(EnvironmentInformation.getTemporaryFileDirectory());
 	}
 	
 	/**
-	 * Constructs a new asynchronous I/O manger, writing file to the given directory.
+	 * Constructs a new asynchronous I/O manager, writing file to the given directory.
 	 * 
 	 * @param tempDir The directory to write temporary files to.
 	 */
@@ -69,7 +72,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	}
 
 	/**
-	 * Constructs a new asynchronous I/O manger, writing file round robin across the given directories.
+	 * Constructs a new asynchronous I/O manager, writing file round robin across the given directories.
 	 * 
 	 * @param tempDirs The directories to write temporary files to.
 	 */
@@ -99,22 +102,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 		}
 
 		// install a shutdown hook that makes sure the temp directories get deleted
-		this.shutdownHook = new Thread("I/O manager shutdown hook") {
-			@Override
-			public void run() {
-				shutdown();
-			}
-		};
-		try {
-			Runtime.getRuntime().addShutdownHook(this.shutdownHook);
-		}
-		catch (IllegalStateException e) {
-			// race, JVM is in shutdown already, we can safely ignore this
-			LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
-		}
-		catch (Throwable t) {
-			LOG.warn("Error while adding shutdown hook for IOManager", t);
-		}
+		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this::close, getClass().getSimpleName(), LOG);
 	}
 
 	/**
@@ -123,50 +111,34 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	 * operation.
 	 */
 	@Override
-	public void shutdown() {
+	public void close() throws Exception {
 		// mark shut down and exit if it already was shut down
 		if (!isShutdown.compareAndSet(false, true)) {
 			return;
 		}
 
-		// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
-		if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-			try {
-				Runtime.getRuntime().removeShutdownHook(shutdownHook);
-			}
-			catch (IllegalStateException e) {
-				// race, JVM is in shutdown already, we can safely ignore this
-				LOG.debug("Unable to remove shutdown hook, shutdown already in progress", e);
-			}
-			catch (Throwable t) {
-				LOG.warn("Exception while unregistering IOManager's shutdown hook.", t);
-			}
+		// Remove shutdown hook to prevent resource leaks
+		ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
+
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Shutting down I/O manager.");
 		}
-		
-		try {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Shutting down I/O manager.");
-			}
 
-			// close writing and reading threads with best effort and log problems
-			// first notify all to close, then wait until all are closed
+		// close writing and reading threads with best effort and log problems
+		// first notify all to close, then wait until all are closed
 
-			for (WriterThread wt : writers) {
-				try {
-					wt.shutdown();
-				}
-				catch (Throwable t) {
-					LOG.error("Error while shutting down IO Manager writer thread.", t);
-				}
-			}
-			for (ReaderThread rt : readers) {
-				try {
-					rt.shutdown();
-				}
-				catch (Throwable t) {
-					LOG.error("Error while shutting down IO Manager reader thread.", t);
-				}
-			}
+		List<AutoCloseable> closeables = new ArrayList<>(writers.length + readers.length + 2);
+
+		for (WriterThread wt : writers) {
+			closeables.add(getWriterThreadCloser(wt));
+		}
+
+		for (ReaderThread rt : readers) {
+			closeables.add(getReaderThreadCloser(rt));
+		}
+
+		closeables.add(() -> {
 			try {
 				for (WriterThread wt : writers) {
 					wt.join();
@@ -174,44 +146,46 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 				for (ReaderThread rt : readers) {
 					rt.join();
 				}
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
 			}
-			catch (InterruptedException iex) {
-				// ignore this on shutdown
-			}
-		}
-		finally {
-			// make sure we call the super implementation in any case and at the last point,
-			// because this will clean up the I/O directories
-			super.shutdown();
-		}
-	}
-	
-	/**
-	 * Utility method to check whether the IO manager has been properly shut down. The IO manager is considered
-	 * to be properly shut down when it is closed and its threads have ceased operation.
-	 * 
-	 * @return True, if the IO manager has properly shut down, false otherwise.
-	 */
-	@Override
-	public boolean isProperlyShutDown() {
-		boolean readersShutDown = true;
-		for (ReaderThread rt : readers) {
-			readersShutDown &= rt.getState() == Thread.State.TERMINATED;
-		}
-		
-		boolean writersShutDown = true;
-		for (WriterThread wt : writers) {
-			writersShutDown &= wt.getState() == Thread.State.TERMINATED;
-		}
-		
-		return isShutdown.get() && readersShutDown && writersShutDown && super.isProperlyShutDown();
+		});
+
+		// make sure we call the super implementation in any case and at the last point,
+		// because this will clean up the I/O directories
+		closeables.add(super::close);
+
+		IOUtils.closeAll(closeables);
 	}
 
+	private static AutoCloseable getWriterThreadCloser(WriterThread thread) {
+		return () -> {
+			try {
+				thread.shutdown();
+			} catch (Throwable t) {
+				throw new IOException("Error while shutting down IO Manager writer thread.", t);
+			}
+		};
+	}
+
+	private static AutoCloseable getReaderThreadCloser(ReaderThread thread) {
+		return () -> {
+			try {
+				thread.shutdown();
+			} catch (Throwable t) {
+				throw new IOException("Error while shutting down IO Manager reader thread.", t);
+			}
+		};
+	}
 
 	@Override
 	public void uncaughtException(Thread t, Throwable e) {
 		LOG.error("IO Thread '" + t.getName() + "' terminated due to an exception. Shutting down I/O Manager.", e);
-		shutdown();
+		try {
+			close();
+		} catch (Exception ex) {
+			LOG.warn("IOManagerAsync did not shut down properly.", ex);
+		}
 	}
 	
 	// ------------------------------------------------------------------------
@@ -222,13 +196,13 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	public BlockChannelWriter<MemorySegment> createBlockChannelWriter(FileIOChannel.ID channelID,
 								LinkedBlockingQueue<MemorySegment> returnQueue) throws IOException
 	{
-		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
 		return new AsynchronousBlockWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, returnQueue);
 	}
 	
 	@Override
 	public BlockChannelWriterWithCallback<MemorySegment> createBlockChannelWriter(FileIOChannel.ID channelID, RequestDoneCallback<MemorySegment> callback) throws IOException {
-		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
 		return new AsynchronousBlockWriterWithCallback(channelID, this.writers[channelID.getThreadNum()].requestQueue, callback);
 	}
 	
@@ -246,27 +220,27 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	public BlockChannelReader<MemorySegment> createBlockChannelReader(FileIOChannel.ID channelID,
 										LinkedBlockingQueue<MemorySegment> returnQueue) throws IOException
 	{
-		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
 		return new AsynchronousBlockReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, returnQueue);
 	}
 
 	@Override
 	public BufferFileWriter createBufferFileWriter(FileIOChannel.ID channelID) throws IOException {
-		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
 
 		return new AsynchronousBufferFileWriter(channelID, writers[channelID.getThreadNum()].requestQueue);
 	}
 
 	@Override
 	public BufferFileReader createBufferFileReader(FileIOChannel.ID channelID, RequestDoneCallback<Buffer> callback) throws IOException {
-		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
 
 		return new AsynchronousBufferFileReader(channelID, readers[channelID.getThreadNum()].requestQueue, callback);
 	}
 
 	@Override
 	public BufferFileSegmentReader createBufferFileSegmentReader(FileIOChannel.ID channelID, RequestDoneCallback<FileSegment> callback) throws IOException {
-		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
 
 		return new AsynchronousBufferFileSegmentReader(channelID, readers[channelID.getThreadNum()].requestQueue, callback);
 	}
@@ -290,7 +264,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	public BulkBlockChannelReader createBulkBlockChannelReader(FileIOChannel.ID channelID,
 			List<MemorySegment> targetSegments, int numBlocks) throws IOException
 	{
-		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
 		return new AsynchronousBulkBlockReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, targetSegments, numBlocks);
 	}
 	

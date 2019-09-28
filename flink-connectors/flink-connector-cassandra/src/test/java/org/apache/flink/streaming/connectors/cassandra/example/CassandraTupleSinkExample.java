@@ -32,7 +32,7 @@ import java.util.ArrayList;
  * This is an example showing the to use the Tuple Cassandra Sink in the Streaming API.
  *
  * <p>The example assumes that a table exists in a local cassandra database, according to the following queries:
- * CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': ‘1’};
+ * CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
  * CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)
  */
 public class CassandraTupleSinkExample {

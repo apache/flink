@@ -17,10 +17,8 @@
 
 package org.apache.flink.streaming.scala.api;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.scala.OutputFormatTestPrograms;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -36,21 +34,14 @@ import static org.junit.Assert.fail;
 /**
  * IT cases for the {@link org.apache.flink.api.java.io.TextOutputFormat}.
  */
-public class TextOutputFormatITCase extends StreamingMultipleProgramsTestBase {
+public class TextOutputFormatITCase extends AbstractTestBase {
 
 	protected String resultPath;
 
-	public AbstractTestBase fileInfo = new AbstractTestBase(new Configuration()) {
-		@Override
-		public void startCluster() throws Exception {
-			super.startCluster();
-		}
-	};
-
 	@Before
 	public void createFile() throws Exception {
-		File f = fileInfo.createAndRegisterTempFile("result");
-		resultPath = f.toURI().toString();
+		File resultFile = createAndRegisterTempFile("result");
+		resultPath = resultFile.toURI().toString();
 	}
 
 	@Test
@@ -77,7 +68,6 @@ public class TextOutputFormatITCase extends StreamingMultipleProgramsTestBase {
 	@After
 	public void closeFile() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
-		fileInfo.stopCluster();
 	}
 
 }

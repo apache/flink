@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
@@ -48,6 +49,19 @@ public class IterationIntermediateTask<S extends Function, OT> extends AbstractI
 	private static final Logger log = LoggerFactory.getLogger(IterationIntermediateTask.class);
 
 	private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public IterationIntermediateTask(Environment environment) {
+		super(environment);
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	protected void initialize() throws Exception {

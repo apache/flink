@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.TaskContext;
@@ -368,7 +369,7 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger impl
 	
 	@Override
 	public OperatorMetricGroup getMetricGroup() {
-		return new UnregisteredTaskMetricsGroup.DummyOperatorMetricGroup();
+		return UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -384,8 +385,7 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger impl
 		this.sorters.clear();
 		
 		// 2nd, shutdown I/O
-		this.ioManager.shutdown();
-		Assert.assertTrue("I/O Manager has not properly shut down.", this.ioManager.isProperlyShutDown());
+		this.ioManager.close();
 
 		// last, verify all memory is returned and shutdown mem manager
 		MemoryManager memMan = getMemoryManager();

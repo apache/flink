@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -37,6 +38,8 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.BroadcastConnectedStream;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -45,9 +48,13 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
@@ -55,8 +62,10 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
@@ -70,12 +79,16 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.StringStartsWith;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -90,7 +103,10 @@ import static org.junit.Assert.fail;
  * Tests for {@link DataStream}.
  */
 @SuppressWarnings("serial")
-public class DataStreamTest {
+public class DataStreamTest extends TestLogger {
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	/**
 	 * Tests union functionality. This ensures that self-unions and unions of streams
@@ -187,7 +203,7 @@ public class DataStreamTest {
 			assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
 		}
 
-		// verify self union with differnt partitioners
+		// verify self union with different partitioners
 		assertTrue(streamGraph.getStreamNode(selfUnionDifferentPartition.getId()).getInEdges().size() == 2);
 		boolean hasForward = false;
 		boolean hasBroadcast = false;
@@ -531,26 +547,26 @@ public class DataStreamTest {
 	public void testResources() throws Exception{
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		ResourceSpec minResource1 = new ResourceSpec(1.0, 100);
-		ResourceSpec preferredResource1 = new ResourceSpec(2.0, 200);
+		ResourceSpec minResource1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
+		ResourceSpec preferredResource1 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(200).build();
 
-		ResourceSpec minResource2 = new ResourceSpec(1.0, 200);
-		ResourceSpec preferredResource2 = new ResourceSpec(2.0, 300);
+		ResourceSpec minResource2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(200).build();
+		ResourceSpec preferredResource2 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(300).build();
 
-		ResourceSpec minResource3 = new ResourceSpec(1.0, 300);
-		ResourceSpec preferredResource3 = new ResourceSpec(2.0, 400);
+		ResourceSpec minResource3 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(300).build();
+		ResourceSpec preferredResource3 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(400).build();
 
-		ResourceSpec minResource4 = new ResourceSpec(1.0, 400);
-		ResourceSpec preferredResource4 = new ResourceSpec(2.0, 500);
+		ResourceSpec minResource4 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(400).build();
+		ResourceSpec preferredResource4 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(500).build();
 
-		ResourceSpec minResource5 = new ResourceSpec(1.0, 500);
-		ResourceSpec preferredResource5 = new ResourceSpec(2.0, 600);
+		ResourceSpec minResource5 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(500).build();
+		ResourceSpec preferredResource5 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(600).build();
 
-		ResourceSpec minResource6 = new ResourceSpec(1.0, 600);
-		ResourceSpec preferredResource6 = new ResourceSpec(2.0, 700);
+		ResourceSpec minResource6 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(600).build();
+		ResourceSpec preferredResource6 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(700).build();
 
-		ResourceSpec minResource7 = new ResourceSpec(1.0, 700);
-		ResourceSpec preferredResource7 = new ResourceSpec(2.0, 800);
+		ResourceSpec minResource7 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(700).build();
+		ResourceSpec preferredResource7 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(800).build();
 
 		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
 		opMethod.setAccessible(true);
@@ -676,11 +692,11 @@ public class DataStreamTest {
 	}
 
 	/**
-	 * Verify that a {@link KeyedStream#process(ProcessFunction)} call is correctly translated to
-	 * an operator.
+	 * Verify that a {@link KeyedStream#process(ProcessFunction)} call is correctly translated to an operator.
 	 */
 	@Test
-	public void testKeyedProcessTranslation() {
+	@Deprecated
+	public void testKeyedStreamProcessTranslation() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStreamSource<Long> src = env.generateSequence(0, 0);
 
@@ -692,7 +708,7 @@ public class DataStreamTest {
 					Long value,
 					Context ctx,
 					Collector<Integer> out) throws Exception {
-
+				// Do nothing
 			}
 
 			@Override
@@ -700,7 +716,7 @@ public class DataStreamTest {
 					long timestamp,
 					OnTimerContext ctx,
 					Collector<Integer> out) throws Exception {
-
+				// Do nothing
 			}
 		};
 
@@ -711,12 +727,43 @@ public class DataStreamTest {
 		processed.addSink(new DiscardingSink<Integer>());
 
 		assertEquals(processFunction, getFunctionForDataStream(processed));
+		assertTrue(getOperatorForDataStream(processed) instanceof LegacyKeyedProcessOperator);
+	}
+
+	/**
+	 * Verify that a {@link KeyedStream#process(KeyedProcessFunction)} call is correctly translated to an operator.
+	 */
+	@Test
+	public void testKeyedStreamKeyedProcessTranslation() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Long> src = env.generateSequence(0, 0);
+
+		KeyedProcessFunction<Long, Long, Integer> keyedProcessFunction = new KeyedProcessFunction<Long, Long, Integer>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void processElement(Long value, Context ctx, Collector<Integer> out) throws Exception {
+				// Do nothing
+			}
+
+			@Override
+			public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out) throws Exception {
+				// Do nothing
+			}
+		};
+
+		DataStream<Integer> processed = src
+				.keyBy(new IdentityKeySelector<Long>())
+				.process(keyedProcessFunction);
+
+		processed.addSink(new DiscardingSink<Integer>());
+
+		assertEquals(keyedProcessFunction, getFunctionForDataStream(processed));
 		assertTrue(getOperatorForDataStream(processed) instanceof KeyedProcessOperator);
 	}
 
 	/**
-	 * Verify that a {@link DataStream#process(ProcessFunction)} call is correctly translated to
-	 * an operator.
+	 * Verify that a {@link DataStream#process(ProcessFunction)} call is correctly translated to an operator.
 	 */
 	@Test
 	public void testProcessTranslation() {
@@ -731,7 +778,7 @@ public class DataStreamTest {
 					Long value,
 					Context ctx,
 					Collector<Integer> out) throws Exception {
-
+				// Do nothing
 			}
 
 			@Override
@@ -739,7 +786,7 @@ public class DataStreamTest {
 					long timestamp,
 					OnTimerContext ctx,
 					Collector<Integer> out) throws Exception {
-
+				// Do nothing
 			}
 		};
 
@@ -750,6 +797,107 @@ public class DataStreamTest {
 
 		assertEquals(processFunction, getFunctionForDataStream(processed));
 		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
+	}
+
+	/**
+	 * Tests that with a {@link KeyedStream} we have to provide a {@link KeyedBroadcastProcessFunction}.
+	 */
+	@Test
+	public void testFailedTranslationOnKeyed() {
+
+		final MapStateDescriptor<Long, String> descriptor = new MapStateDescriptor<>(
+				"broadcast", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+		);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
+				.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
+
+					@Override
+					public long extractTimestamp(Long element, long previousElementTimestamp) {
+						return element;
+					}
+				}).keyBy((KeySelector<Long, Long>) value -> value);
+
+		final DataStream<String> srcTwo = env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+				.assignTimestampsAndWatermarks(new CustomWmEmitter<String>() {
+					@Override
+					public long extractTimestamp(String element, long previousElementTimestamp) {
+						return Long.parseLong(element.split(":")[1]);
+					}
+				});
+
+		BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
+		BroadcastConnectedStream<Long, String> bcStream = srcOne.connect(broadcast);
+
+		expectedException.expect(IllegalArgumentException.class);
+		bcStream.process(
+				new BroadcastProcessFunction<Long, String, String>() {
+					@Override
+					public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
+						// do nothing
+					}
+
+					@Override
+					public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
+						// do nothing
+					}
+				});
+	}
+
+	/**
+	 * Tests that with a non-keyed stream we have to provide a {@link BroadcastProcessFunction}.
+	 */
+	@Test
+	public void testFailedTranslationOnNonKeyed() {
+
+		final MapStateDescriptor<Long, String> descriptor = new MapStateDescriptor<>(
+				"broadcast", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+		);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
+				.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
+
+					@Override
+					public long extractTimestamp(Long element, long previousElementTimestamp) {
+						return element;
+					}
+				});
+
+		final DataStream<String> srcTwo = env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+				.assignTimestampsAndWatermarks(new CustomWmEmitter<String>() {
+					@Override
+					public long extractTimestamp(String element, long previousElementTimestamp) {
+						return Long.parseLong(element.split(":")[1]);
+					}
+				});
+
+		BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
+		BroadcastConnectedStream<Long, String> bcStream = srcOne.connect(broadcast);
+
+		expectedException.expect(IllegalArgumentException.class);
+		bcStream.process(
+				new KeyedBroadcastProcessFunction<String, Long, String, String>() {
+					@Override
+					public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
+						// do nothing
+					}
+
+					@Override
+					public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
+						// do nothing
+					}
+				});
+	}
+
+	private abstract static class CustomWmEmitter<T> implements AssignerWithPunctuatedWatermarks<T> {
+
+		@Nullable
+		@Override
+		public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
+			return new Watermark(extractedTimestamp);
+		}
 	}
 
 	@Test
@@ -805,12 +953,7 @@ public class DataStreamTest {
 			fail(e.getMessage());
 		}
 
-		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
-			@Override
-			public Iterable<String> select(Integer value) {
-				return null;
-			}
-		};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
 
 		SplitStream<Integer> split = unionFilter.split(outputSelector);
 		split.select("dummy").addSink(new DiscardingSink<Integer>());
@@ -823,6 +966,10 @@ public class DataStreamTest {
 
 		StreamEdge splitEdge = env.getStreamGraph().getStreamEdges(unionFilter.getId(), sink.getTransformation().getId()).get(0);
 		assertEquals("a", splitEdge.getSelectedNames().get(0));
+
+		DataStreamSink<Integer> sinkWithIdentifier = select.print("identifier");
+		StreamEdge newSplitEdge = env.getStreamGraph().getStreamEdges(unionFilter.getId(), sinkWithIdentifier.getTransformation().getId()).get(0);
+		assertEquals("a", newSplitEdge.getSelectedNames().get(0));
 
 		ConnectedStreams<Integer, Integer> connect = map.connect(flatMap);
 		CoMapFunction<Integer, Integer, String> coMapper = new CoMapFunction<Integer, Integer, String>() {
@@ -941,11 +1088,93 @@ public class DataStreamTest {
 	}
 
 	/////////////////////////////////////////////////////////////
-	// KeyBy testing
+	// Split testing
 	/////////////////////////////////////////////////////////////
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+	@Test
+	public void testConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.split(outputSelector).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testSplitAfterSideOutputRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputTag<Integer> outputTag = new OutputTag<Integer>("dummy"){};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.getSideOutput(outputTag).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Split after side-outputs are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testSelectBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.split(outputSelector).select("dummy").split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testUnionBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.split(outputSelector).select("dummy").union(src.map(x -> x)).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testKeybyBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.split(outputSelector).select("dummy").keyBy(x -> x).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	/////////////////////////////////////////////////////////////
+	// KeyBy testing
+	/////////////////////////////////////////////////////////////
 
 	@Test
 	public void testPrimitiveArrayKeyRejection() {
@@ -1277,6 +1506,13 @@ public class DataStreamTest {
 
 		public int getI() {
 			return i;
+		}
+	}
+
+	private class DummyOutputSelector<Integer> implements OutputSelector<Integer> {
+		@Override
+		public Iterable<String> select(Integer value) {
+			return null;
 		}
 	}
 }

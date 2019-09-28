@@ -26,8 +26,8 @@ package org.apache.flink.runtime.rest.handler.legacy;
 public class JsonFactory {
 
 	/** The singleton Jackson JSON factory. */
-	public static final com.fasterxml.jackson.core.JsonFactory JACKSON_FACTORY =
-			new com.fasterxml.jackson.core.JsonFactory();
+	public static final org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory JACKSON_FACTORY =
+			new  org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory();
 
 	// --------------------------------------------------------------------------------------------
 

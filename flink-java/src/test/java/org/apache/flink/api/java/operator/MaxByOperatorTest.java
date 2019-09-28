@@ -69,7 +69,7 @@ public class MaxByOperatorTest {
 	private final List<CustomType> customTypeData = new ArrayList<CustomType>();
 
 	/**
-	 * This test validates that an InvalidProgrammException is thrown when maxBy
+	 * This test validates that an InvalidProgramException is thrown when maxBy
 	 * is used on a custom data type.
 	 */
 	@Test(expected = InvalidProgramException.class)
@@ -86,7 +86,7 @@ public class MaxByOperatorTest {
 
 	/**
 	 * This test validates that an index which is out of bounds throws an
-	 * IndexOutOfBOundsExcpetion.
+	 * IndexOutOfBoundsException.
 	 */
 	@Test(expected = IndexOutOfBoundsException.class)
 	public void testOutOfTupleBoundsDataset1() {
@@ -100,7 +100,7 @@ public class MaxByOperatorTest {
 
 	/**
 	 * This test validates that an index which is out of bounds throws an
-	 * IndexOutOfBOundsExcpetion.
+	 * IndexOutOfBoundsException.
 	 */
 	@Test(expected = IndexOutOfBoundsException.class)
 	public void testOutOfTupleBoundsDataset2() {
@@ -114,7 +114,7 @@ public class MaxByOperatorTest {
 
 	/**
 	 * This test validates that an index which is out of bounds throws an
-	 * IndexOutOfBOundsExcpetion.
+	 * IndexOutOfBoundsException.
 	 */
 	@Test(expected = IndexOutOfBoundsException.class)
 	public void testOutOfTupleBoundsDataset3() {
@@ -147,7 +147,7 @@ public class MaxByOperatorTest {
 	}
 
 	/**
-	 * This test validates that an InvalidProgrammException is thrown when maxBy
+	 * This test validates that an InvalidProgramException is thrown when maxBy
 	 * is used on a custom data type.
 	 */
 	@Test(expected = InvalidProgramException.class)
@@ -164,7 +164,7 @@ public class MaxByOperatorTest {
 
 	/**
 	 * This test validates that an index which is out of bounds throws an
-	 * IndexOutOfBOundsExcpetion.
+	 * IndexOutOfBoundsException.
 	 */
 	@Test(expected = IndexOutOfBoundsException.class)
 	public void testOutOfTupleBoundsGrouping1() {
@@ -178,7 +178,7 @@ public class MaxByOperatorTest {
 
 	/**
 	 * This test validates that an index which is out of bounds throws an
-	 * IndexOutOfBOundsExcpetion.
+	 * IndexOutOfBoundsException.
 	 */
 	@Test(expected = IndexOutOfBoundsException.class)
 	public void testOutOfTupleBoundsGrouping2() {
@@ -192,7 +192,7 @@ public class MaxByOperatorTest {
 
 	/**
 	 * This test validates that an index which is out of bounds throws an
-	 * IndexOutOfBOundsExcpetion.
+	 * IndexOutOfBoundsException.
 	 */
 	@Test(expected = IndexOutOfBoundsException.class)
 	public void testOutOfTupleBoundsGrouping3() {

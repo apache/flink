@@ -259,7 +259,7 @@ public class EnvironmentInformation {
 	}
 	
 	/**
-	 * Logs a information about the environment, like code revision, current user, java version,
+	 * Logs information about the environment, like code revision, current user, Java version,
 	 * and JVM parameters.
 	 *
 	 * @param log The logger to log the information to.

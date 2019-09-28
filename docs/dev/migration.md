@@ -25,6 +25,16 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+## Migrating from Flink 1.3+ to Flink 1.7
+
+### API changes for serializer snapshots
+
+This would be relevant mostly for users implementing custom `TypeSerializer`s for their state.
+
+The old `TypeSerializerConfigSnapshot` abstraction is now deprecated, and will be fully removed in the future
+in favor of the new `TypeSerializerSnapshot`. For details and guides on how to migrate, please see
+[Migrating from deprecated serializer snapshot APIs before Flink 1.7]({{ site.baseurl }}/dev/stream/state/custom_serialization.html#migrating-from-deprecated-serializer-snapshot-apis-before-flink-17).
+
 ## Migrating from Flink 1.2 to Flink 1.3
 
 There are a few APIs that have been changed since Flink 1.2. Most of the changes are documented in their
@@ -55,11 +65,11 @@ Please visit the [CEP Migration docs]({{ site.baseurl }}/dev/libs/cep.html#migra
 
 In Flink 1.3, to make sure that users can use their own custom logging framework, core Flink artifacts are
 now clean of specific logger dependencies.
- 
-Example and quickstart archtypes already have loggers specified and should not be affected.
+
+Example and quickstart archetypes already have loggers specified and should not be affected.
 For other custom projects, make sure to add logger dependencies. For example, in Maven's `pom.xml`, you can add:
 
-~~~xml
+{% highlight xml %}
 <dependency>
     <groupId>org.slf4j</groupId>
     <artifactId>slf4j-log4j12</artifactId>
@@ -71,7 +81,7 @@ For other custom projects, make sure to add logger dependencies. For example, in
     <artifactId>log4j</artifactId>
     <version>1.2.17</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ## Migrating from Flink 1.1 to Flink 1.2
 
@@ -145,16 +155,16 @@ public class BufferingSink implements SinkFunction<Tuple2<String, Integer>>,
         bufferedElements.add(value);
         if (bufferedElements.size() == threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
-	        // send it to the sink
-	    }
-	    bufferedElements.clear();
-	}
+                // send it to the sink
+            }
+            bufferedElements.clear();
+        }
     }
 
     @Override
     public ArrayList<Tuple2<String, Integer>> snapshotState(
         long checkpointId, long checkpointTimestamp) throws Exception {
-	    return bufferedElements;
+        return bufferedElements;
     }
 
     @Override
@@ -165,7 +175,7 @@ public class BufferingSink implements SinkFunction<Tuple2<String, Integer>>,
 {% endhighlight %}
 
 
-The `CountMapper` is a `RichFlatMapFuction` which assumes a grouped-by-key input stream of the form
+The `CountMapper` is a `RichFlatMapFunction` which assumes a grouped-by-key input stream of the form
 `(word, 1)`. The function keeps a counter for each incoming key (`ValueState<Integer> counter`) and if
 the number of occurrences of a certain word surpasses the user-provided threshold, a tuple is emitted
 containing the word itself and the number of occurrences.
@@ -445,15 +455,15 @@ The code to use the aligned window operators in Flink 1.2 is presented below:
 
 // for tumbling windows
 DataStream<Tuple2<String, Integer>> window1 = source
-	.keyBy(0)
-	.window(TumblingAlignedProcessingTimeWindows.of(Time.of(1000, TimeUnit.MILLISECONDS)))
-	.apply(your-function)
+    .keyBy(0)
+    .window(TumblingAlignedProcessingTimeWindows.of(Time.of(1000, TimeUnit.MILLISECONDS)))
+    .apply(your-function)
 
 // for sliding windows
 DataStream<Tuple2<String, Integer>> window1 = source
-	.keyBy(0)
-	.window(SlidingAlignedProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-	.apply(your-function)
+    .keyBy(0)
+    .window(SlidingAlignedProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
+    .apply(your-function)
 
 {% endhighlight %}
 </div>
@@ -476,3 +486,5 @@ val window2 = source
 {% endhighlight %}
 </div>
 </div>
+
+{% top %}

@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;

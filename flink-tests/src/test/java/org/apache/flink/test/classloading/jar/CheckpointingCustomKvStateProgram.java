@@ -24,7 +24,9 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -59,8 +61,7 @@ public class CheckpointingCustomKvStateProgram {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(parallelism);
-		env.getConfig().disableSysoutLogging();
-		env.enableCheckpointing(100);
+				env.enableCheckpointing(100);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 		env.setStateBackend(new FsStateBackend(checkpointPath));
 
@@ -226,9 +227,22 @@ public class CheckpointingCustomKvStateProgram {
 			target.writeInt(source.readInt());
 		}
 
+		// -----------------------------------------------------------------------------------
+
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof CustomIntSerializer;
+		public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
+			return new CustomIntSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class CustomIntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer> {
+
+			public CustomIntSerializerSnapshot() {
+				super(() -> INSTANCE);
+			}
 		}
 	}
 }

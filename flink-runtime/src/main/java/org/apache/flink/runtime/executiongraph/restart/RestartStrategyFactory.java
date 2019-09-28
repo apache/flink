@@ -19,17 +19,19 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.Duration;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+/**
+ * Factory for {@link RestartStrategy}.
+ */
 public abstract class RestartStrategyFactory implements Serializable {
 	private static final long serialVersionUID = 7320252552640522191L;
 
@@ -37,7 +39,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 	private static final String CREATE_METHOD = "createFactory";
 
 	/**
-	 * Factory method to create a restart strategy
+	 * Factory method to create a restart strategy.
 	 * @return The created restart strategy
 	 */
 	public abstract RestartStrategy createRestartStrategy();
@@ -82,38 +84,14 @@ public abstract class RestartStrategyFactory implements Serializable {
 	 * @throws Exception which indicates that the RestartStrategy could not be instantiated.
 	 */
 	public static RestartStrategyFactory createRestartStrategyFactory(Configuration configuration) throws Exception {
-		String restartStrategyName = configuration.getString(ConfigConstants.RESTART_STRATEGY, "none");
+		String restartStrategyName = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY, null);
+
+		if (restartStrategyName == null) {
+			return new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory();
+		}
 
 		switch (restartStrategyName.toLowerCase()) {
 			case "none":
-				// support deprecated ConfigConstants values
-				final int numberExecutionRetries = configuration.getInteger(ConfigConstants.EXECUTION_RETRIES_KEY,
-					ConfigConstants.DEFAULT_EXECUTION_RETRIES);
-				String pauseString = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_PAUSE);
-				String delayString = configuration.getString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY,
-					pauseString);
-
-				long delay;
-
-				try {
-					delay = Duration.apply(delayString).toMillis();
-				} catch (NumberFormatException nfe) {
-					if (delayString.equals(pauseString)) {
-						throw new Exception("Invalid config value for " +
-							AkkaOptions.WATCH_HEARTBEAT_PAUSE.key() + ": " + pauseString +
-							". Value must be a valid duration (such as '10 s' or '1 min')");
-					} else {
-						throw new Exception("Invalid config value for " +
-							ConfigConstants.EXECUTION_RETRY_DELAY_KEY + ": " + delayString +
-							". Value must be a valid duration (such as '100 milli' or '10 s')");
-					}
-				}
-
-				if (numberExecutionRetries > 0 && delay >= 0) {
-					return new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(numberExecutionRetries, delay);
-				} else {
-					return NoRestartStrategy.createFactory(configuration);
-				}
 			case "off":
 			case "disable":
 				return NoRestartStrategy.createFactory(configuration);
@@ -149,7 +127,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 				}
 
 				// fallback in case of an error
-				return NoRestartStrategy.createFactory(configuration);
+				return new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory();
 		}
 	}
 }

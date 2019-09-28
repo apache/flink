@@ -25,12 +25,12 @@ import org.apache.flink.annotation.Public;
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
- * 
+ *
  * @param <T> Type of the elements that this function processes.
  */
 @Public
 public abstract class RichReduceFunction<T> extends AbstractRichFunction implements ReduceFunction<T> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	@Override

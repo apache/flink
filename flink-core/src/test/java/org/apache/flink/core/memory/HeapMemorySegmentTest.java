@@ -24,8 +24,13 @@ import org.junit.runners.Parameterized;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link HeapMemorySegment} in off-heap mode.
+ */
 @RunWith(Parameterized.class)
 public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 
@@ -42,7 +47,7 @@ public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 	MemorySegment createSegment(int size, Object owner) {
 		return new HeapMemorySegment(new byte[size], owner);
 	}
-	
+
 	@Test
 	public void testHeapSegmentSpecifics() {
 		final byte[] buffer = new byte[411];

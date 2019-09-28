@@ -19,13 +19,12 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 
 import java.util.Collection;
 
@@ -68,7 +67,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public DataStream<T> closeWith(DataStream<T> feedbackStream) {
 
-		Collection<StreamTransformation<?>> predecessors = feedbackStream.getTransformation().getTransitivePredecessors();
+		Collection<Transformation<?>> predecessors = feedbackStream.getTransformation().getTransitivePredecessors();
 
 		if (!predecessors.contains(this.transformation)) {
 			throw new UnsupportedOperationException(
@@ -87,12 +86,12 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	 *
 	 * <p>For type safety the user needs to define the feedback type
 	 *
-	 * @param feedbackTypeString
-	 *            String describing the type information of the feedback stream.
+	 * @param feedbackTypeClass
+	 *            Class of the elements in the feedback stream.
 	 * @return A {@link ConnectedIterativeStreams}.
 	 */
-	public <F> ConnectedIterativeStreams<T, F> withFeedbackType(String feedbackTypeString) {
-		return withFeedbackType(TypeInfoParser.<F> parse(feedbackTypeString));
+	public <F> ConnectedIterativeStreams<T, F> withFeedbackType(Class<F> feedbackTypeClass) {
+		return withFeedbackType(TypeInformation.of(feedbackTypeClass));
 	}
 
 	/**
@@ -102,12 +101,12 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	 *
 	 * <p>For type safety the user needs to define the feedback type
 	 *
-	 * @param feedbackTypeClass
+	 * @param feedbackTypeHint
 	 *            Class of the elements in the feedback stream.
 	 * @return A {@link ConnectedIterativeStreams}.
 	 */
-	public <F> ConnectedIterativeStreams<T, F> withFeedbackType(Class<F> feedbackTypeClass) {
-		return withFeedbackType(TypeExtractor.getForClass(feedbackTypeClass));
+	public <F> ConnectedIterativeStreams<T, F> withFeedbackType(TypeHint<F> feedbackTypeHint) {
+		return withFeedbackType(TypeInformation.of(feedbackTypeHint));
 	}
 
 	/**
@@ -170,7 +169,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 		 */
 		public DataStream<F> closeWith(DataStream<F> feedbackStream) {
 
-			Collection<StreamTransformation<?>> predecessors = feedbackStream.getTransformation().getTransitivePredecessors();
+			Collection<Transformation<?>> predecessors = feedbackStream.getTransformation().getTransitivePredecessors();
 
 			if (!predecessors.contains(this.coFeedbackTransformation)) {
 				throw new UnsupportedOperationException(
@@ -207,5 +206,9 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 			throw groupingException;
 		}
 
+		@Override
+		public <KEY> ConnectedStreams<I, F> keyBy(KeySelector<I, KEY> keySelector1, KeySelector<F, KEY> keySelector2, TypeInformation<KEY> keyType) {
+			throw groupingException;
+		}
 	}
 }
