@@ -28,6 +28,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -195,7 +196,7 @@ public class ClientTest extends TestLogger {
 		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-		OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);
+		OptimizedPlan op = (OptimizedPlan) ClientUtils.getOptimizedPlan(optimizer, prg, 1);
 		assertNotNull(op);
 
 		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

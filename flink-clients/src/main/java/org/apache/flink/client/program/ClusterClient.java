@@ -22,17 +22,14 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.StreamingPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -49,7 +46,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
@@ -111,45 +107,6 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Access to the Program's Plan
-	// ------------------------------------------------------------------------
-
-	public static String getOptimizedPlanAsJson(Optimizer compiler, PackagedProgram prog, int parallelism)
-			throws CompilerException, ProgramInvocationException {
-		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		return jsonGen.getOptimizerPlanAsJSON((OptimizedPlan) getOptimizedPlan(compiler, prog, parallelism));
-	}
-
-	public static FlinkPlan getOptimizedPlan(Optimizer compiler, PackagedProgram prog, int parallelism)
-			throws CompilerException, ProgramInvocationException {
-		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-		try {
-			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
-
-			// temporary hack to support the optimizer plan preview
-			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(compiler);
-			if (parallelism > 0) {
-				env.setParallelism(parallelism);
-			}
-			return env.getOptimizedPlan(prog);
-		} finally {
-			Thread.currentThread().setContextClassLoader(contextClassLoader);
-		}
-	}
-
-	public static OptimizedPlan getOptimizedPlan(Optimizer compiler, Plan p, int parallelism) throws CompilerException {
-		Logger log = LoggerFactory.getLogger(ClusterClient.class);
-
-		if (parallelism > 0 && p.getDefaultParallelism() <= 0) {
-			log.debug("Changing plan default parallelism from {} to {}", p.getDefaultParallelism(), parallelism);
-			p.setDefaultParallelism(parallelism);
-		}
-		log.debug("Set parallelism {}, plan default parallelism {}", parallelism, p.getDefaultParallelism());
-
-		return compiler.compile(p);
-	}
-
-	// ------------------------------------------------------------------------
 	//  Program submission / execution
 	// ------------------------------------------------------------------------
 
@@ -201,7 +158,7 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 		int parallelism,
 		SavepointRestoreSettings savepointSettings) throws CompilerException, ProgramInvocationException {
 
-		OptimizedPlan optPlan = getOptimizedPlan(compiler, plan, parallelism);
+		OptimizedPlan optPlan = ClientUtils.getOptimizedPlan(compiler, plan, parallelism);
 		return run(optPlan, libraries, classpaths, classLoader, savepointSettings);
 	}
 
@@ -211,7 +168,7 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 		List<URL> classpaths,
 		ClassLoader classLoader,
 		SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
-		JobGraph job = getJobGraph(flinkConfig, compiledPlan, libraries, classpaths, savepointSettings);
+		JobGraph job = ClientUtils.getJobGraph(flinkConfig, compiledPlan, libraries, classpaths, savepointSettings);
 		return submitJob(job, classLoader);
 	}
 
@@ -292,37 +249,6 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	 * @return A Map containing the accumulator's name and its value.
 	 */
 	public abstract Map<String, OptionalFailure<Object>> getAccumulators(JobID jobID, ClassLoader loader) throws Exception;
-
-	// ------------------------------------------------------------------------
-	//  Internal translation methods
-	// ------------------------------------------------------------------------
-
-	public static JobGraph getJobGraph(Configuration flinkConfig, PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
-		return getJobGraph(flinkConfig, optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings);
-	}
-
-	public static JobGraph getJobGraph(Configuration flinkConfig, FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths, SavepointRestoreSettings savepointSettings) {
-		JobGraph job;
-		if (optPlan instanceof StreamingPlan) {
-			job = ((StreamingPlan) optPlan).getJobGraph();
-			job.setSavepointRestoreSettings(savepointSettings);
-		} else {
-			JobGraphGenerator gen = new JobGraphGenerator(flinkConfig);
-			job = gen.compileJobGraph((OptimizedPlan) optPlan);
-		}
-
-		for (URL jar : jarFiles) {
-			try {
-				job.addJar(new Path(jar.toURI()));
-			} catch (URISyntaxException e) {
-				throw new RuntimeException("URL is invalid. This should not happen.", e);
-			}
-		}
-
-		job.setClasspaths(classpaths);
-
-		return job;
-	}
 
 	// ------------------------------------------------------------------------
 	//  Abstract methods to be implemented by the cluster specific Client

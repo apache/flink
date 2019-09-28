@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
@@ -336,7 +337,7 @@ public class CliFrontend {
 			LOG.info("Creating program plan dump");
 
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
-			FlinkPlan flinkPlan = ClusterClient.getOptimizedPlan(compiler, program, parallelism);
+			FlinkPlan flinkPlan = ClientUtils.getOptimizedPlan(compiler, program, parallelism);
 
 			String jsonPlan = null;
 			if (flinkPlan instanceof OptimizedPlan) {

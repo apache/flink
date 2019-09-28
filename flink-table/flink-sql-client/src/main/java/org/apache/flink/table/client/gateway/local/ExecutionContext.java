@@ -22,12 +22,12 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.optimizer.DataStatistics;
@@ -441,7 +441,7 @@ public class ExecutionContext<T> {
 
 		public JobGraph createJobGraph(String name) {
 			final FlinkPlan plan = createPlan(name, flinkConfig);
-			return ClusterClient.getJobGraph(
+			return ClientUtils.getJobGraph(
 				flinkConfig,
 				plan,
 				dependencies,
@@ -462,7 +462,7 @@ public class ExecutionContext<T> {
 				final Plan unoptimizedPlan = execEnv.createProgramPlan();
 				unoptimizedPlan.setJobName(name);
 				final Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
-				return ClusterClient.getOptimizedPlan(compiler, unoptimizedPlan, parallelism);
+				return ClientUtils.getOptimizedPlan(compiler, unoptimizedPlan, parallelism);
 			}
 		}
 

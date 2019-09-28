@@ -18,13 +18,16 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.optimizer.plan.FlinkPlan;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -41,8 +44,10 @@ import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_CLASSLOA
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getNonJarFilePath;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -283,11 +288,14 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			Configuration c = new Configuration();
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), c);
 
-			// we expect this to fail with a "ClassNotFoundException"
-			ClusterClient.getOptimizedPlanAsJson(compiler, prog, 666);
+			FlinkPlan flinkPlan = ClientUtils.getOptimizedPlan(compiler, prog, 666);
+			assertThat(flinkPlan, instanceOf(OptimizedPlan.class));
+
+			PlanJSONDumpGenerator generator = new PlanJSONDumpGenerator();
+			generator.getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
+
 			fail("Should have failed with a ClassNotFoundException");
-		}
-		catch (ProgramInvocationException e) {
+		} catch (ProgramInvocationException e) {
 			if (!(e.getCause() instanceof ClassNotFoundException)) {
 				e.printStackTrace();
 				fail("Program didn't throw ClassNotFoundException");
