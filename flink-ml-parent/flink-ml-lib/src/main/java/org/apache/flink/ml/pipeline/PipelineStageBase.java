@@ -24,11 +24,10 @@ import org.apache.flink.ml.api.misc.param.WithParams;
 import org.apache.flink.ml.params.shared.HasMLEnvironmentId;
 
 /**
- * The base class for a stage in a pipeline, either an [[Estimator]] or a [[Transformer]].
+ * The base class for a stage in a pipeline, either an [[EstimatorBase]] or a [[TransformerBase]].
  *
- * <p>Each pipeline stage is with parameters, and requires a public empty constructor for
- * restoration in Pipeline. It hold a {@link Params} as its member, thus the subclasses
- * could do not care about {@link WithParams#getParams()}
+ * <p>The PipelineStageBase maintains the parameters for the stage.
+ * A default constructor is needed in order to restore a pipeline stage.
  *
  * @param <S> The class type of the {@link PipelineStageBase} implementation itself, used by {@link
  *            org.apache.flink.ml.api.misc.param.WithParams} and Cloneable.

@@ -30,7 +30,12 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 /**
- * MLEnvironment hold the execution environment.
+ * The MLEnvironment stores the necessary context in Flink.
+ * Each MLEnvironment will be associated with a unique ID.
+ * The operations associated with the same MLEnvironment ID
+ * will share the same Flink job context.
+ *
+ * <p>Both MLEnvironment ID and MLEnvironment can only be retrieved from MLEnvironmentFactory.
  *
  * @see ExecutionEnvironment
  * @see StreamExecutionEnvironment

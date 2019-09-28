@@ -31,7 +31,11 @@ import java.io.Serializable;
 /**
  * Base class for algorithm operators.
  *
- * <p>Hold a Table as its output.
+ * <p>Base class for the algorithm operators. It hosts the parameters and output
+ * tables of an algorithm operator. Each AlgoOperator may have one or more output tables.
+ * One of the output table is the primary output table which can be obtained by calling
+ * {@link #getOutput}. The other output tables are side output tables that can be obtained
+ * by calling {@link #getSideOutputs()}.
  *
  * <p>For `output` field. The AlgoOperator may have one or more result tables,
  * in most cases, it has only one result. The output is the main operation result
@@ -52,7 +56,7 @@ import java.io.Serializable;
  *
  * @param <T> The class type of the {@link AlgoOperator} implementation itself
  */
-public abstract class AlgoOperator<T extends AlgoOperator <T>>
+public abstract class AlgoOperator<T extends AlgoOperator<T>>
 	implements WithParams<T>, HasMLEnvironmentId<T>, Serializable {
 
 	/**
@@ -73,7 +77,8 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>>
 	/**
 	 * Construct the operator with empty Params.
 	 *
-	 * <p>For how using this constructor, there is an example:
+	 * <p>This constructor is especially useful when users want to set parameters
+	 * for the algorithm operators. For example:
 	 * SplitBatchOp is widely used in ML data pre-processing,
 	 * which splits one dataset into two dataset: training set and validation set.
 	 * It is very convenient for us to write code like this:
@@ -145,7 +150,7 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>>
 	/**
 	 * Returns the column types of the output table.
 	 */
-	public TypeInformation <?>[] getColTypes() {
+	public TypeInformation<?>[] getColTypes() {
 		return getSchema().getFieldTypes();
 	}
 

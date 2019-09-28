@@ -34,7 +34,8 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 /**
  * The base class for estimator implementations.
  *
- * @param <E> The class type of the {@link EstimatorBase} implementation itself
+ * @param <E> A subclass of the {@link EstimatorBase}, used by
+ *            {@link org.apache.flink.ml.api.misc.param.WithParams}
  * @param <M> class type of the {@link ModelBase} this Estimator produces.
  */
 public abstract class EstimatorBase<E extends EstimatorBase<E, M>, M extends ModelBase<M>>

@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions;
 /**
  * Base class of stream algorithm operators.
  *
- * <p>This class is extended to support the data transmission between the StreamOperators.
+ * <p>This class extends {@link AlgoOperator} to support data transmission between StreamOperator.
  */
 public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOperator<T> {
 
@@ -48,7 +48,7 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	/**
 	 * Link to another {@link StreamOperator}.
 	 *
-	 * <p>Link the <code>next</code> to StreamOperator using this as its input.
+	 * <p>Link the <code>next</code> StreamOperator using this StreamOperator as its input.
 	 *
 	 * <p>For example:
 	 *
@@ -61,11 +61,14 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>c</code> in upper code is the linked
-	 * <code>b</code> which use <code>a</code> as input.
+	 * <p>The StreamOperator <code>c</code> in the above code
+	 * is the same instance as <code>b</code> which takes
+	 * <code>a</code> as its input.
+	 * Note that StreamOperator <code>b</code> will be changed
+	 * to link from StreamOperator <code>a</code>.
 	 *
 	 * @param next the linked StreamOperator
-	 * @param <S>  type of StreamOpearator returned
+	 * @param <S>  type of StreamOperator returned
 	 * @return the linked next
 	 * @see #linkFrom(StreamOperator[])
 	 */
@@ -91,8 +94,9 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>d</code> in upper code is the linked
-	 * <code>c</code> which use a and b as its inputs.
+	 * <p>The <code>d</code> in the above code is the same
+	 * instance as StreamOperator <code>c</code> which takes
+	 * both <code>a</code> and <code>b</code> as its input.
 	 *
 	 * <p>note: It is not recommended to linkFrom itself or linkFrom the same group inputs twice.
 	 *
@@ -117,7 +121,7 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 			+ size + ", current: " + inputs.length);
 	}
 
-	protected void checkRequiredOpSize(int size, StreamOperator<?>... inputs) {
+	protected void checkMinOpSize(int size, StreamOperator<?>... inputs) {
 		Preconditions.checkNotNull(inputs, "Operators should not be null.");
 		Preconditions.checkState(inputs.length >= size, "The size of operators should be equal or greater than "
 			+ size + ", current: " + inputs.length);

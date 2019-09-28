@@ -24,12 +24,13 @@ import java.util.HashMap;
 /**
  * Factory to get the MLEnvironment using a MLEnvironmentId.
  *
- * <p>The MLEnvironmentFactory manages the multiple MLEnvironments by the MLEnvironmentId.
- * Two steps that the user use the Factory:
- * <ul>
- *     <li>1. call the {@link #getNewMLEnvironmentId()} to get a new MLEnvironmentId</li>
- *     <li>2. call the {@link #get(Long)} to get the MLEnvironment from factory using the got MLEnvironmentId</li>
- * </ul>
+ * <p>The following code snippet shows how to interact with MLEnvironmentFactory.
+ * <pre>
+ * {@code
+ * long mlEnvId = MLEnvironmentFactory.getNewMLEnvironmentId();
+ * MLEnvironment mlEnv = MLEnvironmentFactory.get(mlEnvId);
+ * }
+ * </pre>
  */
 public class MLEnvironmentFactory {
 
@@ -48,6 +49,10 @@ public class MLEnvironmentFactory {
 	 */
 	private static HashMap<Long, MLEnvironment> map = new HashMap<>();
 
+	static {
+		map.put(DEFAULT_ML_ENVIRONMENT_ID, new MLEnvironment());
+	}
+
 	/**
 	 * Get the MLEnvironment using a MLEnvironmentId.
 	 *
@@ -61,10 +66,6 @@ public class MLEnvironmentFactory {
 		}
 
 		return map.get(mlEnvId);
-	}
-
-	static {
-		map.put(DEFAULT_ML_ENVIRONMENT_ID, new MLEnvironment());
 	}
 
 	/**

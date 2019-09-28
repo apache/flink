@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions;
 /**
  * Base class of batch algorithm operators.
  *
- * <p>This class is extended to support the data transmission between the BatchOperators.
+ * <p>This class extends {@link AlgoOperator} to support data transmission between BatchOperators.
  */
 public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOperator<T> {
 
@@ -47,7 +47,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	/**
 	 * Link to another {@link BatchOperator}.
 	 *
-	 * <p>Link the <code>next</code> to BatchOperator using this as its input.
+	 * <p>Link the <code>next</code> BatchOperator using this BatchOperator as its input.
 	 *
 	 * <p>For example:
 	 *
@@ -59,10 +59,13 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>c</code> in upper code is the linked
-	 * <code>b</code> which use <code>a</code> as input.
+	 * <p>The BatchOperator <code>c</code> in the above code
+	 * is the same instance as <code>b</code> which takes
+	 * <code>a</code> as its input.
+	 * Note that BatchOperator <code>b</code> will be changed
+	 * to link from BatchOperator <code>a</code>.
 	 *
-	 * @param next the linked BatchOperator
+	 * @param next The operator that will be modified to add this operator to its input.
 	 * @param <B>  type of BatchOperator returned
 	 * @return the linked next
 	 * @see #linkFrom(BatchOperator[])
@@ -89,8 +92,9 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>d</code> in upper code is the linked
-	 * <code>c</code> which use a and b as its inputs.
+	 * <p>The <code>d</code> in the above code is the same
+	 * instance as BatchOperator <code>c</code> which takes
+	 * both <code>a</code> and <code>b</code> as its input.
 	 *
 	 * <p>note: It is not recommended to linkFrom itself or linkFrom the same group inputs twice.
 	 *
@@ -114,7 +118,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 			+ size + ", current: " + inputs.length);
 	}
 
-	protected void checkRequiredOpSize(int size, BatchOperator<?>... inputs) {
+	protected void checkMinOpSize(int size, BatchOperator<?>... inputs) {
 		Preconditions.checkNotNull(inputs, "Operators should not be null.");
 		Preconditions.checkState(inputs.length >= size, "The size of operators should be equal or greater than "
 			+ size + ", current: " + inputs.length);
