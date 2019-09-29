@@ -23,12 +23,12 @@ import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSource
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor}
 import org.apache.flink.table.sources.PartitionableTableSource
-
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle}
+import org.apache.flink.table.api.TableException
 
 import scala.collection.JavaConversions._
 
@@ -113,6 +113,12 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
     )
 
     val newTableSource = tableSource.applyPartitionPruning(remainingPartitions)
+
+    if (newTableSource.explainSource().equals(tableSourceTable.tableSource.explainSource())) {
+      throw new TableException("Failed to push partition into table source! "
+        + "table source with pushdown capability must override and change "
+        + "explainSource() API to explain the pushdown applied!")
+    }
 
     val statistic = tableSourceTable.statistic
     val newStatistic = if (remainingPartitions.size() == allPartitions.size()) {

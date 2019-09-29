@@ -80,6 +80,53 @@ object TestFilterableTableSource {
   }
 }
 
+object TestFilterableTableSourceWithoutExplainSourceOverride{
+
+  /**
+    * @return The default filterable table source.
+    */
+  def apply(): TestFilterableTableSourceWithoutExplainSourceOverride = {
+    apply(defaultTypeInfo, defaultRows, defaultFilterableFields)
+  }
+
+  /**
+    * A filterable data source with custom data.
+    * @param rowTypeInfo The type of the data. Its expected that both types and field
+    *                    names are provided.
+    * @param rows The data as a sequence of rows.
+    * @param filterableFields The fields that are allowed to be filtered on.
+    * @return The table source.
+    */
+  def apply(
+      rowTypeInfo: RowTypeInfo,
+      rows: Seq[Row],
+      filterableFields: Set[String])
+  : TestFilterableTableSourceWithoutExplainSourceOverride = {
+    new TestFilterableTableSourceWithoutExplainSourceOverride(rowTypeInfo, rows, filterableFields)
+  }
+
+  private lazy val defaultFilterableFields = Set("amount")
+
+  private lazy val defaultTypeInfo: RowTypeInfo = {
+    val fieldNames: Array[String] = Array("name", "id", "amount", "price")
+    val fieldTypes: Array[TypeInformation[_]] = Array(STRING, LONG, INT, DOUBLE)
+    new RowTypeInfo(fieldTypes, fieldNames)
+  }
+
+  private lazy val defaultRows: Seq[Row] = {
+    for {
+      cnt <- 0 until 33
+    } yield {
+      Row.of(
+        s"Record_$cnt",
+        cnt.toLong.asInstanceOf[AnyRef],
+        cnt.toInt.asInstanceOf[AnyRef],
+        cnt.toDouble.asInstanceOf[AnyRef])
+    }
+  }
+}
+
+
 /**
   * A data source that implements some very basic filtering in-memory in order to test
   * expression push-down logic.
@@ -91,6 +138,53 @@ object TestFilterableTableSource {
   * @param filterPushedDown Whether predicates have been pushed down yet.
   */
 class TestFilterableTableSource(
+    rowTypeInfo: RowTypeInfo,
+    data: Seq[Row],
+    filterableFields: Set[String] = Set(),
+    filterPredicates: Seq[Expression] = Seq(),
+    filterPushedDown: Boolean = false)
+  extends TestFilterableTableSourceWithoutExplainSourceOverride(
+    rowTypeInfo,
+    data,
+    filterableFields,
+    filterPredicates,
+    filterPushedDown
+  ) {
+
+  override def applyPredicate(predicates: JList[Expression]): TableSource[Row] = {
+    val predicatesToUse = new mutable.ListBuffer[Expression]()
+    val iterator = predicates.iterator()
+    while (iterator.hasNext) {
+      val expr = iterator.next()
+      if (shouldPushDown(expr)) {
+        predicatesToUse += expr
+        iterator.remove()
+      }
+    }
+
+    new TestFilterableTableSource(
+      rowTypeInfo,
+      data,
+      filterableFields,
+      predicatesToUse,
+      filterPushedDown = true)
+  }
+
+  override def explainSource(): String = {
+    if (filterPredicates.nonEmpty) {
+      // TODO we cast to planner expression as a temporary solution to keep the old interfaces
+      s"filterPushedDown=[$filterPushedDown], filter=[${filterPredicates.reduce((l, r) =>
+        And(l.asInstanceOf[PlannerExpression], r.asInstanceOf[PlannerExpression])).toString}]"
+    } else {
+      s"filterPushedDown=[$filterPushedDown], filter=[]"
+    }
+  }
+}
+
+/**
+  * A [[TestFilterableTableSource]] without explain source override.
+  */
+class TestFilterableTableSourceWithoutExplainSourceOverride(
     rowTypeInfo: RowTypeInfo,
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
@@ -115,16 +209,6 @@ class TestFilterableTableSource(
     execEnv.fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
   }
 
-  override def explainSource(): String = {
-    if (filterPredicates.nonEmpty) {
-      // TODO we cast to planner expression as a temporary solution to keep the old interfaces
-      s"filter=[${filterPredicates.reduce((l, r) =>
-        And(l.asInstanceOf[PlannerExpression], r.asInstanceOf[PlannerExpression])).toString}]"
-    } else {
-      ""
-    }
-  }
-
   override def getReturnType: TypeInformation[Row] = rowTypeInfo
 
   override def applyPredicate(predicates: JList[Expression]): TableSource[Row] = {
@@ -138,7 +222,7 @@ class TestFilterableTableSource(
       }
     }
 
-    new TestFilterableTableSource(
+    new TestFilterableTableSourceWithoutExplainSourceOverride(
       rowTypeInfo,
       data,
       filterableFields,
@@ -148,18 +232,18 @@ class TestFilterableTableSource(
 
   override def isFilterPushedDown: Boolean = filterPushedDown
 
-  private def applyPredicatesToRows(rows: Seq[Row]): Seq[Row] = {
+  private[flink] def applyPredicatesToRows(rows: Seq[Row]): Seq[Row] = {
     rows.filter(shouldKeep)
   }
 
-  private def shouldPushDown(expr: Expression): Boolean = {
+  private[flink] def shouldPushDown(expr: Expression): Boolean = {
     expr match {
       case binExpr: BinaryComparison => shouldPushDown(binExpr)
       case _ => false
     }
   }
 
-  private def shouldPushDown(expr: BinaryComparison): Boolean = {
+  private[flink] def shouldPushDown(expr: BinaryComparison): Boolean = {
     (expr.left, expr.right) match {
       case (f: PlannerResolvedFieldReference, v: Literal) =>
         filterableFields.contains(f.name)
@@ -171,14 +255,14 @@ class TestFilterableTableSource(
     }
   }
 
-  private def shouldKeep(row: Row): Boolean = {
+  private[flink] def shouldKeep(row: Row): Boolean = {
     filterPredicates.isEmpty || filterPredicates.forall {
       case expr: BinaryComparison => binaryFilterApplies(expr, row)
       case expr => throw new RuntimeException(expr + " not supported!")
     }
   }
 
-  private def binaryFilterApplies(expr: BinaryComparison, row: Row): Boolean = {
+  private[flink] def binaryFilterApplies(expr: BinaryComparison, row: Row): Boolean = {
     val (lhsValue, rhsValue) = extractValues(expr, row)
 
     expr match {
@@ -197,7 +281,7 @@ class TestFilterableTableSource(
     }
   }
 
-  private def extractValues(expr: BinaryComparison, row: Row)
+  private[flink] def extractValues(expr: BinaryComparison, row: Row)
     : (Comparable[Any], Comparable[Any]) = {
 
     (expr.left, expr.right) match {
