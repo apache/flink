@@ -37,6 +37,8 @@ import java.io.Serializable;
  * {@link #getOutput}. The other output tables are side output tables that can be obtained
  * by calling {@link #getSideOutputs()}.
  *
+ * <p>The input of an AlgoOperator is defined in the subclasses of the AlgoOperator.
+ *
  * @param <T> The class type of the {@link AlgoOperator} implementation itself
  */
 public abstract class AlgoOperator<T extends AlgoOperator<T>>

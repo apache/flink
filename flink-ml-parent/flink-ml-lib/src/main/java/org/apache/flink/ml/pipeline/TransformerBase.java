@@ -33,7 +33,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 /**
  * The base class for transformer implementations.
  *
- * @param <T> The class type of the {@link TransformerBase} implementation itself, used by {@link
+ * @param <T> A subclass of {@link TransformerBase}, used by {@link
  *            org.apache.flink.ml.api.misc.param.WithParams}
  */
 public abstract class TransformerBase<T extends TransformerBase<T>>
