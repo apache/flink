@@ -1075,6 +1075,69 @@ CREATE TABLE MyUserTable (
 
 {% top %}
 
+### HBase Connector
+
+<span class="label label-primary">Source: Batch</span>
+<span class="label label-primary">Sink: Batch</span>
+<span class="label label-primary">Sink: Streaming Append Mode</span>
+<span class="label label-primary">Sink: Streaming Upsert Mode</span>
+<span class="label label-primary">Temporal Join: Sync Mode</span>
+
+The HBase connector allows for writing into an HBase cluster.
+
+The connector can operate in [upsert mode](#update-modes) for exchanging UPSERT/DELETE messages with the external system using a [key defined by the query](./streaming/dynamic_tables.html#table-to-stream-conversion).
+
+For append-only queries, the connector can also operate in [append mode](#update-modes) for exchanging only INSERT messages with the external system.
+
+To use this connector, add the following dependency to your project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-hbase{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+The connector can be defined as follows:
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  hbase_rowkey_name rowkey_type,
+  hbase_column_family_name1 ROW<...>,
+  hbase_column_family_name2 ROW<...>
+) WITH (
+  'connector.type' = 'hbase', -- required: specify this table type is hbase
+  
+  'connector.version' = '1.4.3',          -- required: valid connector versions are "1.4.3"
+  
+  'connector.table-name' = 'hbase_table_name',  -- required: hbase table name
+  
+  'connector.zookeeper.quorum' = 'quorum_url', -- required: hbase zookeeper config
+  'connector.zookeeper.znode.parent' = 'znode',
+
+  'connector.write.buffer-flush.max-size' = '1048576', -- required: Write option, sets when to flush a buffered request
+                                                       -- based on the memory size of rows currently added.
+
+  'connector.write.buffer-flush.max-rows' = '1', -- required: Write option, sets when to flush buffered 
+                                                    -- request based on the number of rows currently added.
+
+  'connector.write.buffer-flush.interval' = '1', -- required: Write option, sets a flush interval flushing buffered 
+                                                 -- requesting if the interval passes, in milliseconds.
+)
+{% endhighlight %}
+</div>
+</div>
+
+**Column family:** Values other than rowKey must be declared by column families. So need to wrap values with the SQL ROW function before inserting into hbase table.
+
+**HBase config:** If need to configure Config for HBase, create default configuration from current runtime env (`hbase-site.xml` in classpath) first, and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
+
+**Temporary join:** The Lookup Join of HBase does not use any caching, and every time the data is accessed directly to the client Api of HBase.
+
+{% top %}
+
 Table Formats
 -------------
 
