@@ -46,9 +46,9 @@
         {{ task.subtask }}
       </td>
       <td nzLeft="40px">
-        <span *ngIf="!task['resource-id'] || task['resource-id'] === '(unassigned)'; else hrefTpl">-</span>
+        <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
         <ng-template #hrefTpl>
-          <a [routerLink]="['/task-manager',task['resource-id'],'logs']" target="_blank">LOG {{ task.subtask }}</a>
+          <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">LOG</a>
         </ng-template>
       </td>
       <td>

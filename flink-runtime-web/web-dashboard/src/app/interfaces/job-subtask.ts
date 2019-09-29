@@ -34,5 +34,5 @@ export interface JobSubTaskInterface {
     'write-records': number;
     'write-records-complete': boolean;
   };
-  'resource-id': string;
+  'taskmanager-id': string;
 }
