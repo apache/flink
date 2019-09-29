@@ -46,8 +46,6 @@ public class MiniDispatcher extends Dispatcher {
 
 	private final JobClusterEntrypoint.ExecutionMode executionMode;
 
-	private final CompletableFuture<ApplicationStatus> jobTerminationFuture;
-
 	public MiniDispatcher(
 			RpcService rpcService,
 			String endpointId,
@@ -61,11 +59,6 @@ public class MiniDispatcher extends Dispatcher {
 			new SingleJobJobGraphStore(jobGraph));
 
 		this.executionMode = checkNotNull(executionMode);
-		this.jobTerminationFuture = new CompletableFuture<>();
-	}
-
-	public CompletableFuture<ApplicationStatus> getJobTerminationFuture() {
-		return jobTerminationFuture;
 	}
 
 	@Override
@@ -94,7 +87,7 @@ public class MiniDispatcher extends Dispatcher {
 				ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
 						ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
 
-				jobTerminationFuture.complete(status);
+				shutDownFuture.complete(status);
 			});
 		}
 
@@ -107,7 +100,7 @@ public class MiniDispatcher extends Dispatcher {
 
 		if (executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
 			// shut down since we don't have to wait for the execution result retrieval
-			jobTerminationFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
+			shutDownFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
 		}
 	}
 
@@ -116,6 +109,6 @@ public class MiniDispatcher extends Dispatcher {
 		super.jobNotFinished(jobId);
 
 		// shut down since we have done our job
-		jobTerminationFuture.complete(ApplicationStatus.UNKNOWN);
+		shutDownFuture.complete(ApplicationStatus.UNKNOWN);
 	}
 }

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -134,6 +135,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private CompletableFuture<Void> recoveryOperation = CompletableFuture.completedFuture(null);
 
+	protected final CompletableFuture<ApplicationStatus> shutDownFuture;
+
 	public Dispatcher(
 			RpcService rpcService,
 			String endpointId,
@@ -169,6 +172,16 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		this.jobManagerRunnerFactory = dispatcherServices.getJobManagerRunnerFactory();
 
 		this.jobManagerTerminationFutures = new HashMap<>(2);
+
+		this.shutDownFuture = new CompletableFuture<>();
+	}
+
+	//------------------------------------------------------
+	// Getters
+	//------------------------------------------------------
+
+	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+		return shutDownFuture;
 	}
 
 	//------------------------------------------------------
@@ -603,7 +616,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Acknowledge> shutDownCluster() {
-		closeAsync();
+		shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
