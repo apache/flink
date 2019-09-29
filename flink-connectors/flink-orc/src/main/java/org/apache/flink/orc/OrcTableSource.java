@@ -213,7 +213,8 @@ public class OrcTableSource
 
 	@Override
 	public String explainSource() {
-		return "OrcFile[path=" + path + ", schema=" + orcSchema + ", filter=" + predicateString() + "]";
+		return "OrcFile[path=" + path + ", schema=" + orcSchema + ", filter=" + predicateString()
+			+ ", selectedFields=" + Arrays.toString(selectedFields) + "]";
 	}
 
 	private String predicateString() {

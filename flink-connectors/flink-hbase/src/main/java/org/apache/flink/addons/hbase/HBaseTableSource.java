@@ -31,11 +31,12 @@ import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
+
+import java.util.Arrays;
 
 /**
  * Creates a TableSource to scan an HBase table.
@@ -141,7 +142,8 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public String explainSource() {
-		return TableConnectorUtils.generateRuntimeName(this.getClass(), getTableSchema().getFieldNames());
+		return "HBaseTableSource[schema=" + Arrays.toString(getTableSchema().getFieldNames())
+			+ ", projectFields=" + Arrays.toString(projectFields) + "]";
 	}
 
 	@Override
