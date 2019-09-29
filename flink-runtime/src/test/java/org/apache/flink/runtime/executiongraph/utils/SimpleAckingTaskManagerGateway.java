@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -55,6 +56,8 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = (ignore1, ignore2) -> { };
 
+	private Consumer<Tuple6<ExecutionAttemptID, JobID, Long, Long, CheckpointOptions, Boolean>> checkpointConsumer = ignore -> { };
+
 	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
 		this.submitConsumer = submitConsumer;
 	}
@@ -69,6 +72,10 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	public void setReleasePartitionsConsumer(BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer) {
 		this.releasePartitionsConsumer = releasePartitionsConsumer;
+	}
+
+	public void setCheckpointConsumer(Consumer<Tuple6<ExecutionAttemptID, JobID, Long, Long, CheckpointOptions, Boolean>> checkpointConsumer) {
+		this.checkpointConsumer = checkpointConsumer;
 	}
 
 	@Override
@@ -123,7 +130,9 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			long checkpointId,
 			long timestamp,
 			CheckpointOptions checkpointOptions,
-			boolean advanceToEndOfEventTime) {}
+			boolean advanceToEndOfEventTime) {
+		checkpointConsumer.accept(Tuple6.of(executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions, advanceToEndOfEventTime));
+	}
 
 	@Override
 	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
