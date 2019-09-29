@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
@@ -68,10 +69,16 @@ abstract class PhysicalTableSourceScan(
         case format: InputFormatTableSource[_] =>
           // we don't use InputFormatTableSource.getDataStream, because in here we use planner
           // type conversion to support precision of Varchar and something else.
-          streamEnv.createInput(
+          val typeInfo = fromDataTypeToTypeInfo(format.getProducedDataType)
+              .asInstanceOf[TypeInformation[Any]]
+          // env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
+          // paths. If read partitioned source, after partition pruning, we need let InputFormat
+          // to read multiple partitions which are multiple paths.
+          // We can use InputFormatSourceFunction directly to support InputFormat.
+          val func = new InputFormatSourceFunction[Any](
             format.getInputFormat.asInstanceOf[InputFormat[Any, _ <: InputSplit]],
-            fromDataTypeToTypeInfo(format.getProducedDataType).asInstanceOf[TypeInformation[Any]]
-          ).name(format.explainSource()).getTransformation
+            typeInfo)
+          streamEnv.addSource(func, format.explainSource(), typeInfo).getTransformation
         case s: StreamTableSource[_] => s.getDataStream(streamEnv).getTransformation
       }
     }
