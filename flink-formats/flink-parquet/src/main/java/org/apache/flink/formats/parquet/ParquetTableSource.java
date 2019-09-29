@@ -66,6 +66,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -223,7 +224,8 @@ public class ParquetTableSource
 	@Override
 	public String explainSource() {
 		return "ParquetFile[path=" + path + ", schema=" + parquetSchema + ", filter=" + predicateString()
-			+ ", typeInfo=" + typeInfo + "]";
+			+ ", typeInfo=" + typeInfo + ", selectedFields=" + Arrays.toString(selectedFields)
+			+ ", pushDownStatus=" + isFilterPushedDown + "]";
 	}
 
 	private String predicateString() {

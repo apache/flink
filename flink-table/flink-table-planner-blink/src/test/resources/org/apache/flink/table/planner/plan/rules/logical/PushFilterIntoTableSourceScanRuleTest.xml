@@ -24,14 +24,14 @@ limitations under the License.
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[>($3, 10)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[>($3, 10)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[]]]])
 ]]>
     </Resource>
   </TestCase>
@@ -43,14 +43,14 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[OR(>($2, 2), <($2, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[OR(>($2, 2), <($2, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[]]]])
 ]]>
     </Resource>
   </TestCase>
@@ -62,13 +62,13 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[>($2, 2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filter=[greaterThan(amount, 2)]]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]])
 ]]>
     </Resource>
   </TestCase>
@@ -80,13 +80,13 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(>($2, 2), <($2, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filter=[and(greaterThan(amount, 2), lessThan(amount, 10))]]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[and(greaterThan(amount, 2), lessThan(amount, 10))]]]])
 ]]>
     </Resource>
   </TestCase>
@@ -98,14 +98,14 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(>($2, 2), >($3, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[>($3, 10)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filter=[greaterThan(amount, 2)]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]])
 ]]>
     </Resource>
   </TestCase>
@@ -117,14 +117,14 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[OR(>($2, 2), >($3, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[OR(>($2, 2), >($3, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[]]]])
 ]]>
     </Resource>
   </TestCase>
@@ -139,14 +139,14 @@ SELECT * FROM MyTable WHERE
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(>($2, 2), <($1, 100), >(CAST($2):BIGINT, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(<($1, 100), >(CAST($2):BIGINT, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filter=[greaterThan(amount, 2)]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]])
 ]]>
     </Resource>
   </TestCase>
@@ -158,14 +158,14 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(>($2, 2), <(myUdf($2), 32))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[<(org$apache$flink$table$planner$expressions$utils$Func1$$0805867feea6fb8ff09dd9c097c5960b($2), 32)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filter=[greaterThan(amount, 2)]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]])
 ]]>
     </Resource>
   </TestCase>
