@@ -49,6 +49,7 @@ The following tables list all available connectors and formats. Their mutual com
 | Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| HBase             | 1.4.3               | `flink-hbase`                | [Download](http://central.maven.org/maven2/org/apache/flink/flink-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) |
 
 ### Formats
 
@@ -1072,6 +1073,90 @@ CREATE TABLE MyUserTable (
 **Key extraction:** Flink automatically extracts valid keys from a query. For example, a query `SELECT a, b, c FROM t GROUP BY a, b` defines a composite key of the fields `a` and `b`. The Elasticsearch connector generates a document ID string for every row by concatenating all key fields in the order defined in the query using a key delimiter. A custom representation of null literals for key fields can be defined.
 
 <span class="label label-danger">Attention</span> A JSON format defines how to encode documents for the external system, therefore, it must be added as a [dependency](connect.html#formats).
+
+{% top %}
+
+### HBase Connector
+
+<span class="label label-primary">Source: Batch</span>
+<span class="label label-primary">Sink: Batch</span>
+<span class="label label-primary">Sink: Streaming Append Mode</span>
+<span class="label label-primary">Sink: Streaming Upsert Mode</span>
+<span class="label label-primary">Temporal Join: Sync Mode</span>
+
+The HBase connector allows for reading from and writing to an HBase cluster.
+
+The connector can operate in [upsert mode](#update-modes) for exchanging UPSERT/DELETE messages with the external system using a [key defined by the query](./streaming/dynamic_tables.html#table-to-stream-conversion).
+
+For append-only queries, the connector can also operate in [append mode](#update-modes) for exchanging only INSERT messages with the external system.
+
+The connector can be defined as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+connector:
+  type: hbase
+  version: "1.4.3"                 # required: currently only support "1.4.3"
+  
+  table-name: "hbase_table_name" # required: HBase table name
+  
+  zookeeper:
+    quorum: "localhost:2181"     # required: HBase Zookeeper quorum configuration
+    znode.parent: "/test"        # optional: the root dir in Zookeeper for HBase cluster.
+                                 # The default value is "/hbase".
+  
+  write.buffer-flush:
+    max-size: "10mb"             # optional: writing option, determines how many size in memory of buffered
+                                 # rows to insert per round trip. This can help performance on writing to JDBC
+                                 # database. The default value is "2mb".
+    max-rows: 1000               # optional: writing option, determines how many rows to insert per round trip.
+                                 # This can help performance on writing to JDBC database. No default value,
+                                 # i.e. the default flushing is not depends on the number of buffered rows.
+    interval: "2s"               # optional: writing option, sets a flush interval flushing buffered requesting
+                                 # if the interval passes, in milliseconds. Default value is "0s", which means
+                                 # no asynchronous flush thread will be scheduled.
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  hbase_rowkey_name rowkey_type,
+  hbase_column_family_name1 ROW<...>,
+  hbase_column_family_name2 ROW<...>
+) WITH (
+  'connector.type' = 'hbase', -- required: specify this table type is hbase
+  
+  'connector.version' = '1.4.3',          -- required: valid connector versions are "1.4.3"
+  
+  'connector.table-name' = 'hbase_table_name',  -- required: hbase table name
+  
+  'connector.zookeeper.quorum' = 'localhost:2181', -- required: HBase Zookeeper quorum configuration
+  'connector.zookeeper.znode.parent' = '/test',    -- optional: the root dir in Zookeeper for HBase cluster.
+                                                   -- The default value is "/hbase".
+
+  'connector.write.buffer-flush.max-size' = '10mb', -- optional: writing option, determines how many size in memory of buffered
+                                                    -- rows to insert per round trip. This can help performance on writing to JDBC
+                                                    -- database. The default value is "2mb".
+
+  'connector.write.buffer-flush.max-rows' = '1000', -- optional: writing option, determines how many rows to insert per round trip.
+                                                    -- This can help performance on writing to JDBC database. No default value,
+                                                    -- i.e. the default flushing is not depends on the number of buffered rows.
+
+  'connector.write.buffer-flush.interval' = '2s',   -- optional: writing option, sets a flush interval flushing buffered requesting
+                                                    -- if the interval passes, in milliseconds. Default value is "0s", which means
+                                                    -- no asynchronous flush thread will be scheduled.
+)
+{% endhighlight %}
+</div>
+</div>
+
+**Columns:** All the column families in HBase table must be declared as `ROW` type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what's necessary. Except the `ROW` type fields, the only one field of atomic type (e.g. `STRING`, `BIGINT`) will be recognized as row key of the table. There's no constraints on the name of row key field. 
+
+**Temporary join:** Lookup join against HBase do not use any caching; data is always queired directly through the HBase client.
+
+**Java/Scala/Python API:** Java/Scala/Python APIs are not supported yet.
 
 {% top %}
 
