@@ -26,7 +26,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 /**
  * Factory for the {@link MiniDispatcherRunnerImpl}.
  */
-public class MiniDispatcherRunnerFactory implements DispatcherRunnerFactory<MiniDispatcherRunnerImpl> {
+public class MiniDispatcherRunnerFactory implements DispatcherRunnerFactory {
 
 	private final JobGraphRetriever jobGraphRetriever;
 

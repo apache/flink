@@ -24,7 +24,8 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.runner.StandaloneDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
-import org.apache.flink.runtime.entrypoint.component.SessionDispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.TestingDefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -107,7 +108,7 @@ public class TestingMiniCluster extends MiniCluster {
 			MetricRegistry metricRegistry,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
-		SessionDispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = createTestingDispatcherResourceManagerComponentFactory();
+		DispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = createTestingDispatcherResourceManagerComponentFactory();
 
 		final List<DispatcherResourceManagerComponent> result = new ArrayList<>(numberDispatcherResourceManagerComponents);
 
@@ -133,8 +134,8 @@ public class TestingMiniCluster extends MiniCluster {
 		return super.getDispatcherGatewayFuture();
 	}
 
-	private SessionDispatcherResourceManagerComponentFactory createTestingDispatcherResourceManagerComponentFactory() {
-		return new SessionDispatcherResourceManagerComponentFactory(
+	private DispatcherResourceManagerComponentFactory createTestingDispatcherResourceManagerComponentFactory() {
+		return TestingDefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
 			new StandaloneDispatcherRunnerFactory(SessionDispatcherWithUUIDFactory.INSTANCE),
 			StandaloneResourceManagerWithUUIDFactory.INSTANCE);
 	}

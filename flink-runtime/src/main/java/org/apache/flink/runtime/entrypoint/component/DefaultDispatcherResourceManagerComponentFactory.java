@@ -30,8 +30,11 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
+import org.apache.flink.runtime.dispatcher.runner.MiniDispatcherRunnerFactory;
+import org.apache.flink.runtime.dispatcher.runner.StandaloneDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -44,7 +47,9 @@ import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.rest.RestEndpointFactory;
+import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
@@ -72,15 +77,14 @@ import java.util.concurrent.ExecutorService;
 /**
  * Abstract class which implements the creation of the {@link DispatcherResourceManagerComponent} components.
  *
- * @param <T> type of the {@link DispatcherRunner}
  * @param <U> type of the {@link RestfulGateway} given to the {@link WebMonitorEndpoint}
  */
-public abstract class AbstractDispatcherResourceManagerComponentFactory<T extends DispatcherRunner, U extends RestfulGateway> implements DispatcherResourceManagerComponentFactory {
+public class DefaultDispatcherResourceManagerComponentFactory<U extends RestfulGateway> implements DispatcherResourceManagerComponentFactory {
 
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	@Nonnull
-	private final DispatcherRunnerFactory<? extends T> dispatcherRunnerFactory;
+	private final DispatcherRunnerFactory dispatcherRunnerFactory;
 
 	@Nonnull
 	private final ResourceManagerFactory<?> resourceManagerFactory;
@@ -88,8 +92,8 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 	@Nonnull
 	private final RestEndpointFactory<U> restEndpointFactory;
 
-	public AbstractDispatcherResourceManagerComponentFactory(
-			@Nonnull DispatcherRunnerFactory<? extends T> dispatcherRunnerFactory,
+	DefaultDispatcherResourceManagerComponentFactory(
+			@Nonnull DispatcherRunnerFactory dispatcherRunnerFactory,
 			@Nonnull ResourceManagerFactory<?> resourceManagerFactory,
 			@Nonnull RestEndpointFactory<U> restEndpointFactory) {
 		this.dispatcherRunnerFactory = dispatcherRunnerFactory;
@@ -115,7 +119,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 		ResourceManager<?> resourceManager = null;
 		JobManagerMetricGroup jobManagerMetricGroup = null;
 		ResourceManagerMetricGroup resourceManagerMetricGroup = null;
-		T dispatcherRunner = null;
+		DispatcherRunner dispatcherRunner = null;
 
 		try {
 			dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
@@ -206,7 +210,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 			resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
 			dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
 
-			return createDispatcherResourceManagerComponent(
+			return new DispatcherResourceManagerComponent(
 				dispatcherRunner,
 				resourceManager,
 				dispatcherLeaderRetrievalService,
@@ -265,10 +269,20 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 		}
 	}
 
-	protected abstract DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
-		T dispatcherRunner,
-		ResourceManager<?> resourceManager,
-		LeaderRetrievalService dispatcherLeaderRetrievalService,
-		LeaderRetrievalService resourceManagerRetrievalService,
-		WebMonitorEndpoint<?> webMonitorEndpoint);
+	public static DefaultDispatcherResourceManagerComponentFactory<DispatcherGateway> createSessionComponentFactory(
+			ResourceManagerFactory<?> resourceManagerFactory) {
+		return new DefaultDispatcherResourceManagerComponentFactory<>(
+			new StandaloneDispatcherRunnerFactory(SessionDispatcherFactory.INSTANCE),
+			resourceManagerFactory,
+			SessionRestEndpointFactory.INSTANCE);
+	}
+
+	public static DefaultDispatcherResourceManagerComponentFactory<RestfulGateway> createJobComponentFactory(
+			ResourceManagerFactory<?> resourceManagerFactory,
+			JobGraphRetriever jobGraphRetriever) {
+		return new DefaultDispatcherResourceManagerComponentFactory<>(
+			new MiniDispatcherRunnerFactory(jobGraphRetriever),
+			resourceManagerFactory,
+			JobRestEndpointFactory.INSTANCE);
+	}
 }
