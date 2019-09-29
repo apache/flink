@@ -1083,6 +1083,7 @@ CREATE TABLE MyUserTable (
 <span class="label label-primary">Sink: Streaming Upsert Mode</span>
 <span class="label label-primary">Temporal Join: Sync Mode</span>
 
+The HBase connector allows for reading from an HBase cluster.
 The HBase connector allows for writing into an HBase cluster.
 
 The connector can operate in [upsert mode](#update-modes) for exchanging UPSERT/DELETE messages with the external system using a [key defined by the query](./streaming/dynamic_tables.html#table-to-stream-conversion).
@@ -1117,13 +1118,13 @@ CREATE TABLE MyUserTable (
   'connector.zookeeper.quorum' = 'quorum_url', -- required: hbase zookeeper config
   'connector.zookeeper.znode.parent' = 'znode',
 
-  'connector.write.buffer-flush.max-size' = '1048576', -- required: Write option, sets when to flush a buffered request
+  'connector.write.buffer-flush.max-size' = '1048576', -- optional: Write option, sets when to flush a buffered request
                                                        -- based on the memory size of rows currently added.
 
-  'connector.write.buffer-flush.max-rows' = '1', -- required: Write option, sets when to flush buffered 
+  'connector.write.buffer-flush.max-rows' = '1', -- optional: Write option, sets when to flush buffered 
                                                     -- request based on the number of rows currently added.
 
-  'connector.write.buffer-flush.interval' = '1', -- required: Write option, sets a flush interval flushing buffered 
+  'connector.write.buffer-flush.interval' = '1', -- optional: Write option, sets a flush interval flushing buffered 
                                                  -- requesting if the interval passes, in milliseconds.
 )
 {% endhighlight %}
@@ -1135,6 +1136,8 @@ CREATE TABLE MyUserTable (
 **HBase config:** If need to configure Config for HBase, create default configuration from current runtime env (`hbase-site.xml` in classpath) first, and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
 
 **Temporary join:** The Lookup Join of HBase does not use any caching, and every time the data is accessed directly to the client Api of HBase.
+
+**Rowkey:** User should confirm rowkey should not be empty string. (waiting for support)
 
 {% top %}
 
