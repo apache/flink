@@ -48,7 +48,7 @@ public class SessionDispatcherResourceManagerComponentFactory extends AbstractDi
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponent<Dispatcher> createDispatcherResourceManagerComponent(
+	protected DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
 			Dispatcher dispatcher,
 			ResourceManager<?> resourceManager,
 			LeaderRetrievalService dispatcherLeaderRetrievalService,

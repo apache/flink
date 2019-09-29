@@ -123,7 +123,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 			miniCluster.submitJob(jobGraph).get();
 
-			Collection<DispatcherResourceManagerComponent<?>> dispatcherResourceManagerComponents = miniCluster.getDispatcherResourceManagerComponents();
+			Collection<DispatcherResourceManagerComponent> dispatcherResourceManagerComponents = miniCluster.getDispatcherResourceManagerComponents();
 
 			final NewLeaderRetriever newLeaderRetriever = new NewLeaderRetriever();
 			final HighAvailabilityServices highAvailabilityServices = miniCluster.getHighAvailabilityServices();
@@ -131,7 +131,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 			dispatcherLeaderRetriever.start(newLeaderRetriever);
 
 			for (int i = 0; i < numDispatchers - 1; i++) {
-				final DispatcherResourceManagerComponent<?> leadingDispatcherResourceManagerComponent = getLeadingDispatcherResourceManagerComponent(
+				final DispatcherResourceManagerComponent leadingDispatcherResourceManagerComponent = getLeadingDispatcherResourceManagerComponent(
 					dispatcherResourceManagerComponents,
 					newLeaderRetriever);
 
@@ -142,7 +142,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 				leadingDispatcherResourceManagerComponent.closeAsync();
 			}
 
-			final DispatcherResourceManagerComponent<?> leadingDispatcherResourceManagerComponent = getLeadingDispatcherResourceManagerComponent(
+			final DispatcherResourceManagerComponent leadingDispatcherResourceManagerComponent = getLeadingDispatcherResourceManagerComponent(
 				dispatcherResourceManagerComponents,
 				newLeaderRetriever);
 
@@ -158,8 +158,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 	}
 
 	@Nonnull
-	protected DispatcherResourceManagerComponent<?> getLeadingDispatcherResourceManagerComponent(
-			Collection<DispatcherResourceManagerComponent<?>> dispatcherResourceManagerComponents,
+	protected DispatcherResourceManagerComponent getLeadingDispatcherResourceManagerComponent(
+			Collection<DispatcherResourceManagerComponent> dispatcherResourceManagerComponents,
 			NewLeaderRetriever newLeaderRetriever) throws Exception {
 		final Tuple2<String, UUID> leaderInformation = newLeaderRetriever.waitUntilNewLeader().get();
 
@@ -171,8 +171,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 	}
 
 	@Nonnull
-	private static Optional<DispatcherResourceManagerComponent<?>> findLeadingDispatcherResourceManagerComponent(Collection<DispatcherResourceManagerComponent<?>> dispatcherResourceManagerComponents, String address) {
-		for (DispatcherResourceManagerComponent<?> dispatcherResourceManagerComponent : dispatcherResourceManagerComponents) {
+	private static Optional<DispatcherResourceManagerComponent> findLeadingDispatcherResourceManagerComponent(Collection<DispatcherResourceManagerComponent> dispatcherResourceManagerComponents, String address) {
+		for (DispatcherResourceManagerComponent dispatcherResourceManagerComponent : dispatcherResourceManagerComponents) {
 			if (dispatcherResourceManagerComponent.getDispatcher().getAddress().equals(address)) {
 				return Optional.of(dispatcherResourceManagerComponent);
 			}

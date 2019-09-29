@@ -75,7 +75,7 @@ import java.util.concurrent.ExecutorService;
  * @param <T> type of the {@link Dispatcher}
  * @param <U> type of the {@link RestfulGateway} given to the {@link WebMonitorEndpoint}
  */
-public abstract class AbstractDispatcherResourceManagerComponentFactory<T extends Dispatcher, U extends RestfulGateway> implements DispatcherResourceManagerComponentFactory<T> {
+public abstract class AbstractDispatcherResourceManagerComponentFactory<T extends Dispatcher, U extends RestfulGateway> implements DispatcherResourceManagerComponentFactory {
 
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -98,7 +98,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 	}
 
 	@Override
-	public DispatcherResourceManagerComponent<T> create(
+	public DispatcherResourceManagerComponent create(
 			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
@@ -266,7 +266,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 		}
 	}
 
-	protected abstract DispatcherResourceManagerComponent<T> createDispatcherResourceManagerComponent(
+	protected abstract DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
 		T dispatcher,
 		ResourceManager<?> resourceManager,
 		LeaderRetrievalService dispatcherLeaderRetrievalService,

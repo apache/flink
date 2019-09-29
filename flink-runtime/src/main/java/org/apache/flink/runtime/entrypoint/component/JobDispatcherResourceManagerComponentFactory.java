@@ -39,7 +39,7 @@ public class JobDispatcherResourceManagerComponentFactory extends AbstractDispat
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponent<MiniDispatcher> createDispatcherResourceManagerComponent(
+	protected DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
 			MiniDispatcher dispatcher,
 			ResourceManager<?> resourceManager,
 			LeaderRetrievalService dispatcherLeaderRetrievalService,

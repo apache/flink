@@ -26,7 +26,7 @@ import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 /**
  * {@link DispatcherResourceManagerComponent} used by session clusters.
  */
-class SessionDispatcherResourceManagerComponent extends DispatcherResourceManagerComponent<Dispatcher> {
+class SessionDispatcherResourceManagerComponent extends DispatcherResourceManagerComponent {
 	SessionDispatcherResourceManagerComponent(
 			Dispatcher dispatcher,
 			ResourceManager<?> resourceManager,
