@@ -30,7 +30,7 @@ public class TestingDefaultDispatcherResourceManagerComponentFactory {
 	public static DispatcherResourceManagerComponentFactory createSessionComponentFactory(
 			DispatcherRunnerFactory dispatcherRunnerFactory,
 			ResourceManagerFactory<ResourceID> resourceManagerFactory) {
-		return new DefaultDispatcherResourceManagerComponentFactory<>(
+		return new DefaultDispatcherResourceManagerComponentFactory(
 			dispatcherRunnerFactory,
 			resourceManagerFactory,
 			SessionRestEndpointFactory.INSTANCE);

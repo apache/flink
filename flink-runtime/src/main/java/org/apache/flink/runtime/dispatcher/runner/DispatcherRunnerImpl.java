@@ -29,12 +29,12 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Runner responsible for executing a {@link Dispatcher} or a subclass thereof.
  */
-class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRunner {
+class DispatcherRunnerImpl implements DispatcherRunner {
 
-	private final T dispatcher;
+	private final Dispatcher dispatcher;
 
 	DispatcherRunnerImpl(
-		DispatcherFactory<T> dispatcherFactory,
+		DispatcherFactory dispatcherFactory,
 		RpcService rpcService,
 		PartialDispatcherServices partialDispatcherServices) throws Exception {
 		this.dispatcher = dispatcherFactory.createDispatcher(
@@ -45,7 +45,7 @@ class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRunner {
 	}
 
 	@Override
-	public T getDispatcher() {
+	public Dispatcher getDispatcher() {
 		return dispatcher;
 	}
 

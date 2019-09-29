@@ -31,7 +31,7 @@ import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MO
 /**
  * {@link DispatcherFactory} which creates a {@link MiniDispatcher}.
  */
-public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
+public class JobDispatcherFactory implements DispatcherFactory {
 
 	private final JobGraphRetriever jobGraphRetriever;
 
