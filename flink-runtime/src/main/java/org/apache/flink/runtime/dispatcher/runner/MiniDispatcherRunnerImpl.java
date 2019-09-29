@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Runner which runs a {@link MiniDispatcher} implementation.
  */
-public class MiniDispatcherRunnerImpl extends DispatcherRunnerImpl<MiniDispatcher> implements MiniDispatcherRunner {
+class MiniDispatcherRunnerImpl extends DispatcherRunnerImpl<MiniDispatcher> {
 
 	MiniDispatcherRunnerImpl(
 			DispatcherFactory<MiniDispatcher> dispatcherFactory,

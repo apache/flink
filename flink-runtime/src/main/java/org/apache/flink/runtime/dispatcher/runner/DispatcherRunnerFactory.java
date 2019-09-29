@@ -23,10 +23,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 /**
  * Factory interface for the {@link DispatcherRunner}.
- *
- * @param <T> type of the dispatcher runner being created
  */
-public interface DispatcherRunnerFactory<T extends DispatcherRunner> {
+public interface DispatcherRunnerFactory {
 
-	T createDispatcherRunner(RpcService rpcService, PartialDispatcherServices partialDispatcherServices) throws Exception;
+	DispatcherRunner createDispatcherRunner(RpcService rpcService, PartialDispatcherServices partialDispatcherServices) throws Exception;
 }
