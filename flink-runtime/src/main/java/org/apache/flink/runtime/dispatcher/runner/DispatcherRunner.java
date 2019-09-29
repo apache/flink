@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.util.AutoCloseableAsync;
 
@@ -36,10 +37,11 @@ public interface DispatcherRunner extends AutoCloseableAsync {
 	Dispatcher getDispatcher();
 
 	/**
-	 * Return the termination future of this runner. The termination future
-	 * is being completed, once the runner has been completely terminated.
+	 * Return shut down future of this runner. The shut down future is being
+	 * completed with the final {@link ApplicationStatus} once the runner wants
+	 * to shut down.
 	 *
-	 * @return termination future of this runner
+	 * @return future with the final application status
 	 */
-	CompletableFuture<Void> getTerminationFuture();
+	CompletableFuture<ApplicationStatus> getShutDownFuture();
 }
