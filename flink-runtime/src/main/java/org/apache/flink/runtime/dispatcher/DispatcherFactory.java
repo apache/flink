@@ -27,12 +27,12 @@ import java.util.UUID;
 /**
  * {@link Dispatcher} factory interface.
  */
-public interface DispatcherFactory<T extends Dispatcher> {
+public interface DispatcherFactory {
 
 	/**
-	 * Create a {@link Dispatcher} of the given type {@link T}.
+	 * Create a {@link Dispatcher}.
 	 */
-	T createDispatcher(
+	Dispatcher createDispatcher(
 		@Nonnull RpcService rpcService,
 		@Nonnull PartialDispatcherServices partialDispatcherServices) throws Exception;
 

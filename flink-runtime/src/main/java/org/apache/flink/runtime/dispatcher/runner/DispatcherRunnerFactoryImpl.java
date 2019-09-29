@@ -26,18 +26,18 @@ import org.apache.flink.runtime.rpc.RpcService;
 /**
  * Factory which creates a {@link DispatcherRunnerImpl} which runs a {@link StandaloneDispatcher}.
  */
-public class StandaloneDispatcherRunnerFactory implements DispatcherRunnerFactory {
+public class DispatcherRunnerFactoryImpl implements DispatcherRunnerFactory {
 
-	private final DispatcherFactory<StandaloneDispatcher> dispatcherFactory;
+	private final DispatcherFactory dispatcherFactory;
 
-	public StandaloneDispatcherRunnerFactory(DispatcherFactory<StandaloneDispatcher> dispatcherFactory) {
+	public DispatcherRunnerFactoryImpl(DispatcherFactory dispatcherFactory) {
 		this.dispatcherFactory = dispatcherFactory;
 	}
 
 	@Override
-	public DispatcherRunnerImpl<StandaloneDispatcher> createDispatcherRunner(
+	public DispatcherRunnerImpl createDispatcherRunner(
 			RpcService rpcService,
-			PartialDispatcherServices dispatcherFactoryServices) throws Exception {
-		return new DispatcherRunnerImpl<>(dispatcherFactory, rpcService, dispatcherFactoryServices);
+			PartialDispatcherServices partialDispatcherServices) throws Exception {
+		return new DispatcherRunnerImpl(dispatcherFactory, rpcService, partialDispatcherServices);
 	}
 }

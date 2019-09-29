@@ -29,12 +29,12 @@ import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
+import org.apache.flink.runtime.dispatcher.JobDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
-import org.apache.flink.runtime.dispatcher.runner.MiniDispatcherRunnerFactory;
-import org.apache.flink.runtime.dispatcher.runner.StandaloneDispatcherRunnerFactory;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactoryImpl;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -56,7 +56,6 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -76,10 +75,8 @@ import java.util.concurrent.ExecutorService;
 
 /**
  * Abstract class which implements the creation of the {@link DispatcherResourceManagerComponent} components.
- *
- * @param <U> type of the {@link RestfulGateway} given to the {@link WebMonitorEndpoint}
  */
-public class DefaultDispatcherResourceManagerComponentFactory<U extends RestfulGateway> implements DispatcherResourceManagerComponentFactory {
+public class DefaultDispatcherResourceManagerComponentFactory implements DispatcherResourceManagerComponentFactory {
 
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -90,12 +87,12 @@ public class DefaultDispatcherResourceManagerComponentFactory<U extends RestfulG
 	private final ResourceManagerFactory<?> resourceManagerFactory;
 
 	@Nonnull
-	private final RestEndpointFactory<U> restEndpointFactory;
+	private final RestEndpointFactory<?> restEndpointFactory;
 
 	DefaultDispatcherResourceManagerComponentFactory(
 			@Nonnull DispatcherRunnerFactory dispatcherRunnerFactory,
 			@Nonnull ResourceManagerFactory<?> resourceManagerFactory,
-			@Nonnull RestEndpointFactory<U> restEndpointFactory) {
+			@Nonnull RestEndpointFactory<?> restEndpointFactory) {
 		this.dispatcherRunnerFactory = dispatcherRunnerFactory;
 		this.resourceManagerFactory = resourceManagerFactory;
 		this.restEndpointFactory = restEndpointFactory;
@@ -115,7 +112,7 @@ public class DefaultDispatcherResourceManagerComponentFactory<U extends RestfulG
 
 		LeaderRetrievalService dispatcherLeaderRetrievalService = null;
 		LeaderRetrievalService resourceManagerRetrievalService = null;
-		WebMonitorEndpoint<U> webMonitorEndpoint = null;
+		WebMonitorEndpoint<?> webMonitorEndpoint = null;
 		ResourceManager<?> resourceManager = null;
 		JobManagerMetricGroup jobManagerMetricGroup = null;
 		ResourceManagerMetricGroup resourceManagerMetricGroup = null;
@@ -269,19 +266,19 @@ public class DefaultDispatcherResourceManagerComponentFactory<U extends RestfulG
 		}
 	}
 
-	public static DefaultDispatcherResourceManagerComponentFactory<DispatcherGateway> createSessionComponentFactory(
+	public static DefaultDispatcherResourceManagerComponentFactory createSessionComponentFactory(
 			ResourceManagerFactory<?> resourceManagerFactory) {
-		return new DefaultDispatcherResourceManagerComponentFactory<>(
-			new StandaloneDispatcherRunnerFactory(SessionDispatcherFactory.INSTANCE),
+		return new DefaultDispatcherResourceManagerComponentFactory(
+			new DispatcherRunnerFactoryImpl(SessionDispatcherFactory.INSTANCE),
 			resourceManagerFactory,
 			SessionRestEndpointFactory.INSTANCE);
 	}
 
-	public static DefaultDispatcherResourceManagerComponentFactory<RestfulGateway> createJobComponentFactory(
+	public static DefaultDispatcherResourceManagerComponentFactory createJobComponentFactory(
 			ResourceManagerFactory<?> resourceManagerFactory,
 			JobGraphRetriever jobGraphRetriever) {
-		return new DefaultDispatcherResourceManagerComponentFactory<>(
-			new MiniDispatcherRunnerFactory(jobGraphRetriever),
+		return new DefaultDispatcherResourceManagerComponentFactory(
+			new DispatcherRunnerFactoryImpl(new JobDispatcherFactory(jobGraphRetriever)),
 			resourceManagerFactory,
 			JobRestEndpointFactory.INSTANCE);
 	}

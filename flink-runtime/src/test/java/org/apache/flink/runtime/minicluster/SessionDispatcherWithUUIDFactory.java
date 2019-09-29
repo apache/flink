@@ -31,7 +31,7 @@ import javax.annotation.Nonnull;
  * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher} which has an
  * endpoint id with a random UUID suffix.
  */
-public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory<StandaloneDispatcher> {
+public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory {
 	INSTANCE;
 
 	@Override

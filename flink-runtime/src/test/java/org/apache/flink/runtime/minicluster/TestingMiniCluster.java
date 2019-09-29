@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.runner.StandaloneDispatcherRunnerFactory;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactoryImpl;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.TestingDefaultDispatcherResourceManagerComponentFactory;
@@ -136,7 +136,7 @@ public class TestingMiniCluster extends MiniCluster {
 
 	private DispatcherResourceManagerComponentFactory createTestingDispatcherResourceManagerComponentFactory() {
 		return TestingDefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
-			new StandaloneDispatcherRunnerFactory(SessionDispatcherWithUUIDFactory.INSTANCE),
+			new DispatcherRunnerFactoryImpl(SessionDispatcherWithUUIDFactory.INSTANCE),
 			StandaloneResourceManagerWithUUIDFactory.INSTANCE);
 	}
 }
