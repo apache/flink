@@ -167,6 +167,7 @@ public class NettyShuffleEnvironmentConfiguration {
 	 *
 	 * @param configuration configuration object
 	 * @param maxJvmHeapMemory the maximum JVM heap size (in bytes)
+	 * @param shuffleMemorySize the size of memory reserved for shuffle environment, null if flip49 is disabled
 	 * @param localTaskManagerCommunication true, to skip initializing the network stack
 	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
 	 * @return NettyShuffleEnvironmentConfiguration
@@ -174,6 +175,8 @@ public class NettyShuffleEnvironmentConfiguration {
 	public static NettyShuffleEnvironmentConfiguration fromConfiguration(
 		Configuration configuration,
 		long maxJvmHeapMemory,
+		@Nullable // should only be null when flip49 is disabled
+		MemorySize shuffleMemorySize,
 		boolean localTaskManagerCommunication,
 		InetAddress taskManagerAddress) {
 
@@ -181,7 +184,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
-		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(configuration, maxJvmHeapMemory);
+		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(configuration, maxJvmHeapMemory, shuffleMemorySize, pageSize);
 
 		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataport);
 
@@ -450,34 +453,52 @@ public class NettyShuffleEnvironmentConfiguration {
 	 *
 	 * @param configuration configuration object
 	 * @param maxJvmHeapMemory the maximum JVM heap size (in bytes)
+	 * @param shuffleMemorySize the size of memory reserved for shuffle environment, null if flip49 is disabled
+	 * @param pageSize size of memory segment
 	 * @return the number of network buffers
 	 */
 	@SuppressWarnings("deprecation")
-	private static int calculateNumberOfNetworkBuffers(Configuration configuration, long maxJvmHeapMemory) {
+	private static int calculateNumberOfNetworkBuffers(
+		Configuration configuration,
+		long maxJvmHeapMemory,
+		@Nullable // should only be null when flip49 is disabled
+		MemorySize shuffleMemorySize,
+		int pageSize) {
+
 		final int numberOfNetworkBuffers;
-		if (!hasNewNetworkConfig(configuration)) {
+		if (shuffleMemorySize != null) { // flip49 enbaled
+			numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(shuffleMemorySize.getBytes(), pageSize);
+			logIfIgnoringOldConfigs(configuration);
+		} else if (!hasNewNetworkConfig(configuration)) {
 			// fallback: number of network buffers
 			numberOfNetworkBuffers = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
 
 			checkOldNetworkConfig(numberOfNetworkBuffers);
 		} else {
-			if (configuration.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS)) {
-				LOG.info("Ignoring old (but still present) network buffer configuration via {}.",
-					NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key());
-			}
+			logIfIgnoringOldConfigs(configuration);
 
 			final long networkMemorySize = calculateNewNetworkBufferMemory(configuration, maxJvmHeapMemory);
-
-			// tolerate offcuts between intended and allocated memory due to segmentation (will be available to the user-space memory)
-			long numberOfNetworkBuffersLong = networkMemorySize / ConfigurationParserUtils.getPageSize(configuration);
-			if (numberOfNetworkBuffersLong > Integer.MAX_VALUE) {
-				throw new IllegalArgumentException("The given number of memory bytes (" + networkMemorySize
-					+ ") corresponds to more than MAX_INT pages.");
-			}
-			numberOfNetworkBuffers = (int) numberOfNetworkBuffersLong;
+			numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(networkMemorySize, pageSize);
 		}
 
 		return numberOfNetworkBuffers;
+	}
+
+	private static void logIfIgnoringOldConfigs(Configuration configuration) {
+		if (configuration.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS)) {
+			LOG.info("Ignoring old (but still present) network buffer configuration via {}.",
+				NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key());
+		}
+	}
+
+	private static int calculateNumberOfNetworkBuffers(long networkMemorySizeByte, int pageSizeByte) {
+		// tolerate offcuts between intended and allocated memory due to segmentation (will be available to the user-space memory)
+		long numberOfNetworkBuffersLong = networkMemorySizeByte / pageSizeByte;
+		if (numberOfNetworkBuffersLong > Integer.MAX_VALUE) {
+			throw new IllegalArgumentException("The given number of memory bytes (" + networkMemorySizeByte
+				+ ") corresponds to more than MAX_INT pages.");
+		}
+		return (int) numberOfNetworkBuffersLong;
 	}
 
 	/**

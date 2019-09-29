@@ -59,6 +59,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 		NettyShuffleEnvironmentConfiguration networkConfig = NettyShuffleEnvironmentConfiguration.fromConfiguration(
 			shuffleEnvironmentContext.getConfiguration(),
 			shuffleEnvironmentContext.getMaxJvmHeapMemory(),
+			shuffleEnvironmentContext.getShuffleMemorySize(),
 			shuffleEnvironmentContext.isLocalCommunicationOnly(),
 			shuffleEnvironmentContext.getHostAddress());
 		return createNettyShuffleEnvironment(

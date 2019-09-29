@@ -43,7 +43,7 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
 	private static final long MEM_SIZE_PARAM = 128L * 1024 * 1024;
 
 	/**
-	 * Verifies that {@link  NettyShuffleEnvironmentConfiguration#fromConfiguration(Configuration, long, boolean, InetAddress)}
+	 * Verifies that {@link  NettyShuffleEnvironmentConfiguration#fromConfiguration(Configuration, long, MemorySize, boolean, InetAddress)}
 	 * returns the correct result for new configurations via
 	 * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_INITIAL},
 	 * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX},
@@ -63,6 +63,7 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
 		final  NettyShuffleEnvironmentConfiguration networkConfig =  NettyShuffleEnvironmentConfiguration.fromConfiguration(
 			config,
 			MEM_SIZE_PARAM,
+			null,
 			true,
 			InetAddress.getLoopbackAddress());
 
