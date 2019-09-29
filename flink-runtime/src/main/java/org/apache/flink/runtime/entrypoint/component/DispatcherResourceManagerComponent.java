@@ -82,25 +82,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 	}
 
 	private void registerShutDownFuture() {
-		terminationFuture.whenComplete(
-			(aVoid, throwable) -> {
-				if (throwable != null) {
-					shutDownFuture.completeExceptionally(throwable);
-				} else {
-					shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
-				}
-			});
-
-		dispatcherRunner
-			.getTerminationFuture()
-			.whenComplete(
-				(aVoid, throwable) -> {
-					if (throwable != null) {
-						shutDownFuture.completeExceptionally(throwable);
-					} else {
-						shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
-					}
-				});
+		FutureUtils.forward(dispatcherRunner.getShutDownFuture(), shutDownFuture);
 	}
 
 	public final CompletableFuture<ApplicationStatus> getShutDownFuture() {

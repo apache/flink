@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -28,17 +30,25 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Runner responsible for executing a {@link Dispatcher} or a subclass thereof.
  */
-public class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRunner {
+class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRunner {
 
 	private final T dispatcher;
 
+	private final CompletableFuture<ApplicationStatus> shutDownFuture;
+
 	DispatcherRunnerImpl(
-			DispatcherFactory<T> dispatcherFactory,
-			RpcService rpcService,
-			PartialDispatcherServices partialDispatcherServices) throws Exception {
+		DispatcherFactory<T> dispatcherFactory,
+		RpcService rpcService,
+		PartialDispatcherServices partialDispatcherServices) throws Exception {
 		this.dispatcher = dispatcherFactory.createDispatcher(
 			rpcService,
 			partialDispatcherServices);
+		shutDownFuture = new CompletableFuture<>();
+
+		FutureUtils.forward(
+			dispatcher.getTerminationFuture().thenApply((ignored) -> ApplicationStatus.UNKNOWN),
+			shutDownFuture);
+
 		dispatcher.start();
 	}
 
@@ -53,7 +63,7 @@ public class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRun
 	}
 
 	@Override
-	public CompletableFuture<Void> getTerminationFuture() {
-		return dispatcher.getTerminationFuture();
+	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+		return shutDownFuture;
 	}
 }
