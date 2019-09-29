@@ -169,7 +169,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private LeaderRetrievalService clusterRestEndpointLeaderRetrievalService;
 
 	@GuardedBy("lock")
-	private Collection<DispatcherResourceManagerComponent<?>> dispatcherResourceManagerComponents;
+	private Collection<DispatcherResourceManagerComponent> dispatcherResourceManagerComponents;
 
 	@GuardedBy("lock")
 	private RpcGatewayRetriever<DispatcherId, DispatcherGateway> dispatcherGatewayRetriever;
@@ -228,7 +228,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@VisibleForTesting
 	@Nonnull
-	protected Collection<DispatcherResourceManagerComponent<?>> getDispatcherResourceManagerComponents() {
+	protected Collection<DispatcherResourceManagerComponent> getDispatcherResourceManagerComponents() {
 		synchronized (lock) {
 			return Collections.unmodifiableCollection(dispatcherResourceManagerComponents);
 		}
@@ -374,7 +374,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	@VisibleForTesting
-	protected Collection<? extends DispatcherResourceManagerComponent<?>> createDispatcherResourceManagerComponents(
+	protected Collection<? extends DispatcherResourceManagerComponent> createDispatcherResourceManagerComponents(
 			Configuration configuration,
 			RpcServiceFactory rpcServiceFactory,
 			HighAvailabilityServices haServices,
@@ -755,7 +755,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(dispatcherResourceManagerComponents.size());
 
-		for (DispatcherResourceManagerComponent<?> dispatcherResourceManagerComponent : dispatcherResourceManagerComponents) {
+		for (DispatcherResourceManagerComponent dispatcherResourceManagerComponent : dispatcherResourceManagerComponents) {
 			terminationFutures.add(dispatcherResourceManagerComponent.closeAsync());
 		}
 

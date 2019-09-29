@@ -40,10 +40,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Component which starts a {@link Dispatcher}, {@link ResourceManager} and {@link WebMonitorEndpoint}
  * in the same process.
  */
-public class DispatcherResourceManagerComponent<T extends Dispatcher> implements AutoCloseableAsync {
+public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
 	@Nonnull
-	private final T dispatcher;
+	private final Dispatcher dispatcher;
 
 	@Nonnull
 	private final ResourceManager<?> resourceManager;
@@ -64,7 +64,7 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 	private final AtomicBoolean isRunning = new AtomicBoolean(true);
 
 	DispatcherResourceManagerComponent(
-			@Nonnull T dispatcher,
+			@Nonnull Dispatcher dispatcher,
 			@Nonnull ResourceManager<?> resourceManager,
 			@Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
 			@Nonnull LeaderRetrievalService resourceManagerRetrievalService,
@@ -107,7 +107,7 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 	}
 
 	@Nonnull
-	public T getDispatcher() {
+	public Dispatcher getDispatcher() {
 		return dispatcher;
 	}
 

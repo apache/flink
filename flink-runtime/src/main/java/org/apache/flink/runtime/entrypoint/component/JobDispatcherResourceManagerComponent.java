@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
  * {@link DispatcherResourceManagerComponent} for a job cluster. The dispatcher component starts
  * a {@link MiniDispatcher}.
  */
-class JobDispatcherResourceManagerComponent extends DispatcherResourceManagerComponent<MiniDispatcher> {
+class JobDispatcherResourceManagerComponent extends DispatcherResourceManagerComponent {
 
 	JobDispatcherResourceManagerComponent(
 			MiniDispatcher dispatcher,

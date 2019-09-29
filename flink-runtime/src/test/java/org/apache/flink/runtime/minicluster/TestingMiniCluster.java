@@ -67,7 +67,7 @@ public class TestingMiniCluster extends MiniCluster {
 
 	@Nonnull
 	@Override
-	public Collection<DispatcherResourceManagerComponent<?>> getDispatcherResourceManagerComponents() {
+	public Collection<DispatcherResourceManagerComponent> getDispatcherResourceManagerComponents() {
 		return super.getDispatcherResourceManagerComponents();
 	}
 
@@ -97,7 +97,7 @@ public class TestingMiniCluster extends MiniCluster {
 	}
 
 	@Override
-	protected Collection<? extends DispatcherResourceManagerComponent<?>> createDispatcherResourceManagerComponents(
+	protected Collection<? extends DispatcherResourceManagerComponent> createDispatcherResourceManagerComponents(
 			Configuration configuration,
 			RpcServiceFactory rpcServiceFactory,
 			HighAvailabilityServices haServices,
@@ -108,7 +108,7 @@ public class TestingMiniCluster extends MiniCluster {
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 		SessionDispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = createTestingDispatcherResourceManagerComponentFactory();
 
-		final List<DispatcherResourceManagerComponent<?>> result = new ArrayList<>(numberDispatcherResourceManagerComponents);
+		final List<DispatcherResourceManagerComponent> result = new ArrayList<>(numberDispatcherResourceManagerComponents);
 
 		for (int i = 0; i < numberDispatcherResourceManagerComponents; i++) {
 			result.add(
