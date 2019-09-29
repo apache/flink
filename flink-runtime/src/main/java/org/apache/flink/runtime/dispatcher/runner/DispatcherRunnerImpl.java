@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -34,8 +33,6 @@ class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRunner {
 
 	private final T dispatcher;
 
-	private final CompletableFuture<ApplicationStatus> shutDownFuture;
-
 	DispatcherRunnerImpl(
 		DispatcherFactory<T> dispatcherFactory,
 		RpcService rpcService,
@@ -43,11 +40,6 @@ class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRunner {
 		this.dispatcher = dispatcherFactory.createDispatcher(
 			rpcService,
 			partialDispatcherServices);
-		shutDownFuture = new CompletableFuture<>();
-
-		FutureUtils.forward(
-			dispatcher.getTerminationFuture().thenApply((ignored) -> ApplicationStatus.UNKNOWN),
-			shutDownFuture);
 
 		dispatcher.start();
 	}
@@ -64,6 +56,6 @@ class DispatcherRunnerImpl<T extends Dispatcher> implements DispatcherRunner {
 
 	@Override
 	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return shutDownFuture;
+		return dispatcher.getShutDownFuture();
 	}
 }

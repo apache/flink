@@ -769,14 +769,14 @@ public class DispatcherTest extends TestLogger {
 	}
 
 	@Test
-	public void testShutDownClusterShouldTerminateDispatcher() throws Exception {
+	public void testShutDownClusterShouldCompleteShutDownFuture() throws Exception {
 		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, DefaultJobManagerRunnerFactory.INSTANCE);
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
 		dispatcherGateway.shutDownCluster().get();
 
-		dispatcher.getTerminationFuture().get();
+		dispatcher.getShutDownFuture().get();
 	}
 
 	private final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {

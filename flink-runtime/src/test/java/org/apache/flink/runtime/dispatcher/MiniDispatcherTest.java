@@ -180,7 +180,7 @@ public class MiniDispatcherTest extends TestLogger {
 			testingJobManagerRunner.completeResultFuture(archivedExecutionGraph);
 
 			// wait until we terminate
-			miniDispatcher.getJobTerminationFuture().get();
+			miniDispatcher.getShutDownFuture().get();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
 		}

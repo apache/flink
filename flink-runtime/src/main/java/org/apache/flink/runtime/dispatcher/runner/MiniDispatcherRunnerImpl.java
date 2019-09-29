@@ -40,6 +40,6 @@ class MiniDispatcherRunnerImpl extends DispatcherRunnerImpl<MiniDispatcher> {
 
 	@Override
 	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return getDispatcher().getJobTerminationFuture();
+		return getDispatcher().getShutDownFuture();
 	}
 }
