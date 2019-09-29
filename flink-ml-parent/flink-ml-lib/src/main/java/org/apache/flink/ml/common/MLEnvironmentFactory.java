@@ -47,22 +47,24 @@ public class MLEnvironmentFactory {
 	/**
 	 * Map that hold the MLEnvironment and use the MLEnvironmentId as its key.
 	 */
-	private static HashMap<Long, MLEnvironment> map = new HashMap<>();
-
-	static {
-		map.put(DEFAULT_ML_ENVIRONMENT_ID, new MLEnvironment());
-	}
+	private static final HashMap<Long, MLEnvironment> map = new HashMap<>();
 
 	/**
 	 * Get the MLEnvironment using a MLEnvironmentId.
+	 * The default MLEnvironment will be set a new MLEnvironment
+	 * when there is no default MLEnvironment.
 	 *
 	 * @param mlEnvId the MLEnvironmentId
 	 * @return the MLEnvironment
 	 */
 	public static synchronized MLEnvironment get(Long mlEnvId) {
 		if (!map.containsKey(mlEnvId)) {
-			throw new RuntimeException("There is no Environment in factory. " +
-				"Maybe you could call `getNewMLEnvironmentId` to create a new MLEnvironmentId");
+			if (mlEnvId.equals(DEFAULT_ML_ENVIRONMENT_ID)) {
+				setDefault(new MLEnvironment());
+			} else {
+				throw new IllegalArgumentException("There is no Environment in factory. " +
+					"Maybe you could call `getNewMLEnvironmentId` to create a new MLEnvironmentId");
+			}
 		}
 
 		return map.get(mlEnvId);
@@ -78,12 +80,36 @@ public class MLEnvironmentFactory {
 	}
 
 	/**
-	 * Create a unique MLEnvironment id and set a new MLEnvironment in the factory.
+	 * Set the default MLEnvironment.
+	 * The default MLEnvironment should be set only once.
+	 *
+	 * @param env the MLEnvironment
+	 */
+	public static synchronized void setDefault(MLEnvironment env) {
+		if (map.containsKey(DEFAULT_ML_ENVIRONMENT_ID)) {
+			throw new IllegalArgumentException("The default MLEnvironment should be set only once.");
+		}
+
+		map.put(DEFAULT_ML_ENVIRONMENT_ID, env);
+	}
+
+	/**
+	 * Create a unique MLEnvironment id and register a new MLEnvironment in the factory.
 	 *
 	 * @return the MLEnvironment id.
 	 */
 	public static synchronized Long getNewMLEnvironmentId() {
-		map.put(id, new MLEnvironment());
+		return registerMLEnvironment(new MLEnvironment());
+	}
+
+	/**
+	 * Register a new MLEnvironment to the factory and return a new MLEnvironment id.
+	 *
+	 * @param env the MLEnvironment that will be stored in the factory.
+	 * @return the MLEnvironment id.
+	 */
+	public static synchronized Long registerMLEnvironment(MLEnvironment env) {
+		map.put(id, env);
 		return id++;
 	}
 

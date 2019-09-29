@@ -21,7 +21,6 @@ package org.apache.flink.ml.pipeline;
 
 import org.apache.flink.ml.api.core.Estimator;
 import org.apache.flink.ml.api.misc.param.Params;
-import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.ml.operator.batch.BatchOperator;
 import org.apache.flink.ml.operator.batch.source.TableSourceBatchOp;
 import org.apache.flink.ml.operator.stream.StreamOperator;
@@ -51,7 +50,6 @@ public abstract class EstimatorBase<E extends EstimatorBase<E, M>, M extends Mod
 
 	@Override
 	public M fit(TableEnvironment tEnv, Table input) {
-		MLEnvironmentFactory.get(getMLEnvironmentId()).setTableEnvironment(tEnv, input);
 		return fit(input);
 	}
 

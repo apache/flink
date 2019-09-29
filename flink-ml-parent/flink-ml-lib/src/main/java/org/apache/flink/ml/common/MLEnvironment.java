@@ -21,13 +21,8 @@ package org.apache.flink.ml.common;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 
 /**
  * The MLEnvironment stores the necessary context in Flink.
@@ -49,12 +44,39 @@ public class MLEnvironment {
 	private StreamTableEnvironment streamTableEnv;
 
 	/**
+	 * Construct with null that the class can load the environment in the `get` method.
+	 */
+	public MLEnvironment() {
+		this(null, null, null, null);
+	}
+
+	/**
+	 * Construct with env given by user.
+	 *
+	 * <p>The env can be null which will be loaded in the `get` method.
+	 *
+	 * @param batchEnv the ExecutionEnvironment
+	 * @param batchTableEnv the BatchTableEnvironment
+	 * @param streamEnv the StreamExecutionEnvironment
+	 * @param streamTableEnv the StreamTableEnvironment
+	 */
+	public MLEnvironment(
+		ExecutionEnvironment batchEnv,
+		BatchTableEnvironment batchTableEnv,
+		StreamExecutionEnvironment streamEnv,
+		StreamTableEnvironment streamTableEnv) {
+		this.env = batchEnv;
+		this.batchTableEnv = batchTableEnv;
+		this.streamEnv = streamEnv;
+		this.streamTableEnv = streamTableEnv;
+	}
+
+	/**
 	 * Get the ExecutionEnvironment.
 	 * if the ExecutionEnvironment has not been set, it initial the ExecutionEnvironment
 	 * with default Configuration.
 	 *
 	 * @return the batch {@link ExecutionEnvironment}
-	 * @see MLEnvironment#setExecutionEnvironment(ExecutionEnvironment)
 	 */
 	public ExecutionEnvironment getExecutionEnvironment() {
 		if (null == env) {
@@ -69,7 +91,6 @@ public class MLEnvironment {
 	 * with default Configuration.
 	 *
 	 * @return the {@link StreamExecutionEnvironment}
-	 * @see MLEnvironment#setStreamExecutionEnvironment(StreamExecutionEnvironment)
 	 */
 	public StreamExecutionEnvironment getStreamExecutionEnvironment() {
 		if (null == streamEnv) {
@@ -84,7 +105,6 @@ public class MLEnvironment {
 	 * with default Configuration.
 	 *
 	 * @return the {@link BatchTableEnvironment}
-	 * @see MLEnvironment#setTableEnvironment(TableEnvironment, Table)
 	 */
 	public BatchTableEnvironment getBatchTableEnvironment() {
 		if (null == batchTableEnv) {
@@ -99,91 +119,12 @@ public class MLEnvironment {
 	 * with default Configuration.
 	 *
 	 * @return the {@link StreamTableEnvironment}
-	 * @see MLEnvironment#setTableEnvironment(TableEnvironment, Table)
 	 */
 	public StreamTableEnvironment getStreamTableEnvironment() {
 		if (null == streamTableEnv) {
 			streamTableEnv = StreamTableEnvironment.create(getStreamExecutionEnvironment());
 		}
 		return streamTableEnv;
-	}
-
-	/**
-	 * Set the ExecutionEnvironment.
-	 * The ExecutionEnvironment should be set only once.
-	 *
-	 * @param env the ExecutionEnvironment
-	 */
-	public void setExecutionEnvironment(ExecutionEnvironment env) {
-		assert env != null;
-
-		if (this.env != null && this.env != env) {
-			throw new RuntimeException("There should be only one batch execution environment");
-		}
-
-		this.env = env;
-	}
-
-	/**
-	 * Set the StreamExecutionEnvironment.
-	 * The StreamExecutionEnvironment should be set only once.
-	 *
-	 * @param env the StreamExecutionEnvironment
-	 */
-	public void setStreamExecutionEnvironment(StreamExecutionEnvironment env) {
-		assert env != null;
-
-		if (this.streamEnv != null && this.streamEnv != env) {
-			throw new RuntimeException("There should be only one stream execution environment");
-		}
-
-		this.streamEnv = env;
-	}
-
-	/**
-	 * Set the TableEnvironment.
-	 * The TableEnvironment should be set only once.
-	 *
-	 * <p>We also set the {@link ExecutionEnvironment} or {@link StreamExecutionEnvironment} accordingly.
-	 *
-	 * @param tEnv  the TableEnvironment
-	 * @param table the table for get {@link ExecutionEnvironment} for batch
-	 */
-	public void setTableEnvironment(TableEnvironment tEnv, Table table) {
-		assert tEnv != null;
-
-		if (tEnv instanceof StreamTableEnvironment) {
-			if ((streamTableEnv != null && tEnv != streamTableEnv)
-				|| (this.streamEnv != null
-				&& this.streamEnv != ((StreamTableEnvironmentImpl) tEnv).execEnv())
-			) {
-				throw new RuntimeException("There should be only one stream table environment");
-			} else {
-				streamTableEnv = (StreamTableEnvironment) tEnv;
-
-				if (this.streamEnv == null) {
-					this.streamEnv = ((StreamTableEnvironmentImpl) streamTableEnv).execEnv();
-				}
-			}
-		} else if (tEnv instanceof BatchTableEnvironment) {
-			Preconditions.checkNotNull(table, "Table should not be null when set the BatchTableEnvironment");
-			ExecutionEnvironment env =
-				((BatchTableEnvironment) tEnv).toDataSet(table, Row.class).getExecutionEnvironment();
-			if ((batchTableEnv != null && tEnv != batchTableEnv)
-				|| (this.env != null && this.env != env)) {
-				throw new RuntimeException("There should be only one batch table environment");
-			} else {
-				batchTableEnv = (BatchTableEnvironment) tEnv;
-
-				if (this.env == null) {
-					this.env = env;
-				}
-			}
-		} else {
-			throw new IllegalArgumentException("The TableEnvironment should be StreamTableEnvironment " +
-				"or BatchTableEnvironment. The exception here may be a bug. " +
-				"please fire a issues on jira of flink.");
-		}
 	}
 }
 

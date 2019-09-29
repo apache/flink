@@ -37,23 +37,6 @@ import java.io.Serializable;
  * {@link #getOutput}. The other output tables are side output tables that can be obtained
  * by calling {@link #getSideOutputs()}.
  *
- * <p>For `output` field. The AlgoOperator may have one or more result tables,
- * in most cases, it has only one result. The output is the main operation result
- * table, and the other results are kept in the sideOutputs.
- *
- * <p>For example:
- * AlgoA and AlgoB, AlgoB takes the AlgoA’s results as its inputs,
- * we can write the code like this:
- * <pre>
- * {@code
- * AlgoB.linkFrom(AlgoA)
- * AlgoA.getOutput()
- * }
- * </pre>
- * The code provides the main result of AlgoA, and AlgoA.getSideOutputs()
- * provides the other results of AlgoA. AlgoB will take the AlgoA’s results as its
- * inputs by calling AlgoA.getOutput() and AlgoA.getSideOutputs().
- *
  * @param <T> The class type of the {@link AlgoOperator} implementation itself
  */
 public abstract class AlgoOperator<T extends AlgoOperator<T>>

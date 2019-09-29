@@ -21,7 +21,6 @@ package org.apache.flink.ml.pipeline;
 
 import org.apache.flink.ml.api.core.Transformer;
 import org.apache.flink.ml.api.misc.param.Params;
-import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.ml.operator.batch.BatchOperator;
 import org.apache.flink.ml.operator.batch.source.TableSourceBatchOp;
 import org.apache.flink.ml.operator.stream.StreamOperator;
@@ -34,7 +33,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 /**
  * The base class for transformer implementations.
  *
- * @param <T> A subclass of {@link TransformerBase}, used by {@link
+ * @param <T> The class type of the {@link TransformerBase} implementation itself, used by {@link
  *            org.apache.flink.ml.api.misc.param.WithParams}
  */
 public abstract class TransformerBase<T extends TransformerBase<T>>
@@ -50,7 +49,6 @@ public abstract class TransformerBase<T extends TransformerBase<T>>
 
 	@Override
 	public Table transform(TableEnvironment tEnv, Table input) {
-		MLEnvironmentFactory.get(getMLEnvironmentId()).setTableEnvironment(tEnv, input);
 		return transform(input);
 	}
 

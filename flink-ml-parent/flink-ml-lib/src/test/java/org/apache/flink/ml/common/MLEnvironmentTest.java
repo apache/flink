@@ -19,69 +19,46 @@
 
 package org.apache.flink.ml.common;
 
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 
+import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 /**
  * Test cases for MLEnvironment.
  */
 public class MLEnvironmentTest {
 	@Test
-	public void setTableEnvironment() {
+	public void testDefaultConstructor() {
 		MLEnvironment mlEnvironment = new MLEnvironment();
-		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
-		mlEnvironment.setExecutionEnvironment(env);
-
-		BatchTableEnvironment tEnv = MLEnvironmentFactory.getDefault().getBatchTableEnvironment();
-
-		DataSet<String> input = env.fromElements("a");
-
-		// register the DataSet as table "TestStringDataSet"
-		tEnv.registerDataSet("TestStringDataSet", input, "word");
-
-		// run a SQL query on the Table and retrieve the result as a new Table
-		Table table = tEnv.sqlQuery("SELECT word FROM TestStringDataSet");
-
-		mlEnvironment.setTableEnvironment(tEnv, table);
-
-		MLEnvironmentFactory.getDefault().getBatchTableEnvironment().registerDataSet("TestStringDataSetB", input, "word");
-		Table tableB = tEnv.sqlQuery("SELECT word FROM TestStringDataSetB");
-
-		mlEnvironment.setTableEnvironment(tEnv, tableB);
+		Assert.assertNotNull(mlEnvironment.getExecutionEnvironment());
+		Assert.assertNotNull(mlEnvironment.getBatchTableEnvironment());
+		Assert.assertNotNull(mlEnvironment.getStreamExecutionEnvironment());
+		Assert.assertNotNull(mlEnvironment.getStreamTableEnvironment());
 	}
 
 	@Test
-	public void setStreamTableEnvironment() {
-		// set up execution environment
-		MLEnvironment mlEnvironment = new MLEnvironment();
-		StreamExecutionEnvironment env = MLEnvironmentFactory.getDefault().getStreamExecutionEnvironment();
-		mlEnvironment.setStreamExecutionEnvironment(env);
+	public void testConstructWithBatchEnv() {
+		ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(executionEnvironment);
 
-		StreamTableEnvironment tEnv = MLEnvironmentFactory.getDefault().getStreamTableEnvironment();
+		MLEnvironment mlEnvironment = new MLEnvironment(executionEnvironment, batchTableEnvironment, null, null);
 
-		DataStream<String> orderA = env.fromCollection(Arrays.asList("beer", "pen"));
+		Assert.assertSame(mlEnvironment.getExecutionEnvironment(), executionEnvironment);
+		Assert.assertSame(mlEnvironment.getBatchTableEnvironment(), batchTableEnvironment);
+	}
 
-		// register the DataStream as table "OrderA"
-		tEnv.registerDataStream("OrderA", orderA, "product");
+	@Test
+	public void testConstructWithStreamEnv() {
+		StreamExecutionEnvironment streamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment streamTableEnvironment = StreamTableEnvironment.create(streamExecutionEnvironment);
 
-		// run a SQL query on the Table and retrieve the result as a new Table
-		Table table = tEnv.sqlQuery("SELECT * FROM OrderA");
+		MLEnvironment mlEnvironment = new MLEnvironment(null, null, streamExecutionEnvironment, streamTableEnvironment);
 
-		mlEnvironment.setTableEnvironment(tEnv, table);
-
-		MLEnvironmentFactory.getDefault().getStreamTableEnvironment().registerDataStream("OrderB", orderA, "product");
-
-		Table tableB = tEnv.sqlQuery("SELECT * FROM OrderA");
-
-		mlEnvironment.setTableEnvironment(tEnv, tableB);
+		Assert.assertSame(mlEnvironment.getStreamExecutionEnvironment(), streamExecutionEnvironment);
+		Assert.assertSame(mlEnvironment.getStreamTableEnvironment(), streamTableEnvironment);
 	}
 }
