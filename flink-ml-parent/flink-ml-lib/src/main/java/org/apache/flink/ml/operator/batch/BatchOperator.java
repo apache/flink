@@ -108,7 +108,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	 * @param table the input table
 	 * @return the new BatchOperator
 	 */
-	public static BatchOperator<?> sourceFrom(Table table) {
+	public static BatchOperator<?> fromTable(Table table) {
 		return new TableSourceBatchOp(table);
 	}
 

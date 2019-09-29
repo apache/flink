@@ -111,7 +111,7 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * @param table the input table
 	 * @return the new StreamOperator
 	 */
-	public static StreamOperator<?> sourceFrom(Table table) {
+	public static StreamOperator<?> fromTable(Table table) {
 		return new TableSourceStreamOp(table);
 	}
 

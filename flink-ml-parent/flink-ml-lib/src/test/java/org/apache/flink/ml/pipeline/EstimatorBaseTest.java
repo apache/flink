@@ -56,7 +56,7 @@ public class EstimatorBaseTest {
 		}
 	}
 
-	@Test(expected = NullPointerException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testFitNullTable() {
 		Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
 		MLEnvironment env = MLEnvironmentFactory.get(id);
