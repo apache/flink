@@ -23,8 +23,9 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -40,7 +41,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public final class BroadcastRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
 	/** The current buffer builder shared for all the channels. */
-	private Optional<BufferBuilder> bufferBuilder = Optional.empty();
+	@Nullable
+	private BufferBuilder bufferBuilder;
 
 	/**
 	 * The flag for judging whether {@link #requestNewBufferBuilder(int)} and {@link #flushTargetPartition(int)}
@@ -79,10 +81,10 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 		emit(record, targetChannelIndex);
 		randomTriggered = false;
 
-		if (bufferBuilder.isPresent()) {
+		if (bufferBuilder != null) {
 			for (int index = 0; index < numberOfChannels; index++) {
 				if (index != targetChannelIndex) {
-					targetPartition.addBufferConsumer(bufferBuilder.get().createBufferConsumer(), index);
+					targetPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), index);
 				}
 			}
 		}
@@ -111,11 +113,7 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 
 	@Override
 	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		if (bufferBuilder.isPresent()) {
-			return bufferBuilder.get();
-		} else {
-			return requestNewBufferBuilder(targetChannel);
-		}
+		return bufferBuilder != null ? bufferBuilder : requestNewBufferBuilder(targetChannel);
 	}
 
 	/**
@@ -128,7 +126,7 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 	 */
 	@Override
 	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		checkState(!bufferBuilder.isPresent() || bufferBuilder.get().isFinished());
+		checkState(bufferBuilder == null || bufferBuilder.isFinished());
 
 		BufferBuilder builder = targetPartition.getBufferBuilder();
 		if (randomTriggered) {
@@ -141,25 +139,25 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 			}
 		}
 
-		bufferBuilder = Optional.of(builder);
+		bufferBuilder = builder;
 		return builder;
 	}
 
 	@Override
 	public void tryFinishCurrentBufferBuilder(int targetChannel) {
-		if (!bufferBuilder.isPresent()) {
+		if (bufferBuilder == null) {
 			return;
 		}
 
-		BufferBuilder builder = bufferBuilder.get();
-		bufferBuilder = Optional.empty();
+		BufferBuilder builder = bufferBuilder;
+		bufferBuilder = null;
 
 		finishBufferBuilder(builder);
 	}
 
 	@Override
 	public void emptyCurrentBufferBuilder(int targetChannel) {
-		bufferBuilder = Optional.empty();
+		bufferBuilder = null;
 	}
 
 	@Override
@@ -173,9 +171,9 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 	}
 
 	private void closeBufferBuilder() {
-		if (bufferBuilder.isPresent()) {
-			bufferBuilder.get().finish();
-			bufferBuilder = Optional.empty();
+		if (bufferBuilder != null) {
+			bufferBuilder.finish();
+			bufferBuilder = null;
 		}
 	}
 }

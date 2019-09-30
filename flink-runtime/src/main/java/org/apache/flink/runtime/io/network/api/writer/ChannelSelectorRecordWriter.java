@@ -22,7 +22,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -40,7 +39,8 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 
 	private final ChannelSelector<T> channelSelector;
 
-	private final Optional<BufferBuilder>[] bufferBuilders;
+	/** Every subpartition maintains a separate buffer builder which might be null. */
+	private final BufferBuilder[] bufferBuilders;
 
 	ChannelSelectorRecordWriter(
 			ResultPartitionWriter writer,
@@ -52,10 +52,7 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 		this.channelSelector = checkNotNull(channelSelector);
 		this.channelSelector.setup(numberOfChannels);
 
-		this.bufferBuilders = new Optional[numberOfChannels];
-		for (int i = 0; i < numberOfChannels; i++) {
-			bufferBuilders[i] = Optional.empty();
-		}
+		this.bufferBuilders = new BufferBuilder[numberOfChannels];
 	}
 
 	@Override
@@ -92,8 +89,8 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 
 	@Override
 	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		if (bufferBuilders[targetChannel].isPresent()) {
-			return bufferBuilders[targetChannel].get();
+		if (bufferBuilders[targetChannel] != null) {
+			return bufferBuilders[targetChannel];
 		} else {
 			return requestNewBufferBuilder(targetChannel);
 		}
@@ -101,35 +98,35 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 
 	@Override
 	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		checkState(!bufferBuilders[targetChannel].isPresent() || bufferBuilders[targetChannel].get().isFinished());
+		checkState(bufferBuilders[targetChannel] == null || bufferBuilders[targetChannel].isFinished());
 
 		BufferBuilder bufferBuilder = targetPartition.getBufferBuilder();
 		targetPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), targetChannel);
-		bufferBuilders[targetChannel] = Optional.of(bufferBuilder);
+		bufferBuilders[targetChannel] = bufferBuilder;
 		return bufferBuilder;
 	}
 
 	@Override
 	public void tryFinishCurrentBufferBuilder(int targetChannel) {
-		if (!bufferBuilders[targetChannel].isPresent()) {
+		if (bufferBuilders[targetChannel] == null) {
 			return;
 		}
-		BufferBuilder bufferBuilder = bufferBuilders[targetChannel].get();
-		bufferBuilders[targetChannel] = Optional.empty();
+		BufferBuilder bufferBuilder = bufferBuilders[targetChannel];
+		bufferBuilders[targetChannel] = null;
 
 		finishBufferBuilder(bufferBuilder);
 	}
 
 	@Override
 	public void emptyCurrentBufferBuilder(int targetChannel) {
-		bufferBuilders[targetChannel] = Optional.empty();
+		bufferBuilders[targetChannel] = null;
 	}
 
 	@Override
 	public void closeBufferBuilder(int targetChannel) {
-		if (bufferBuilders[targetChannel].isPresent()) {
-			bufferBuilders[targetChannel].get().finish();
-			bufferBuilders[targetChannel] = Optional.empty();
+		if (bufferBuilders[targetChannel] != null) {
+			bufferBuilders[targetChannel].finish();
+			bufferBuilders[targetChannel] = null;
 		}
 	}
 
