@@ -244,7 +244,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			// ignore the execution results
 		};
 
-		final PythonEnv pythonEnv = new PythonEnv("", "", PythonEnv.ExecType.PROCESS);
+		final PythonEnv pythonEnv = new PythonEnv(PythonEnv.ExecType.PROCESS);
 
 		return new PythonScalarFunctionRunner(
 			"testPythonRunner",
@@ -266,7 +266,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 
 		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
 
-		final PythonEnv pythonEnv = new PythonEnv("", "", PythonEnv.ExecType.PROCESS);
+		final PythonEnv pythonEnv = new PythonEnv(PythonEnv.ExecType.PROCESS);
 
 		return new PythonScalarFunctionRunnerTestHarness(
 			"testPythonRunner",

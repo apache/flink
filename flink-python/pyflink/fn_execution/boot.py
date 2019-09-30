@@ -145,5 +145,5 @@ env = dict(os.environ)
 if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
     exit(0)
 
-call([sys.executable, "-m", "apache_beam.runners.worker.sdk_worker_main"],
+call([sys.executable, "-m", "pyflink.fn_execution.sdk_worker_main"],
      stdout=sys.stdout, stderr=sys.stderr, env=env)

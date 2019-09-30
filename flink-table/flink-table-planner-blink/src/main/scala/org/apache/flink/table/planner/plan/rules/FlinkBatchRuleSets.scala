@@ -221,7 +221,7 @@ object FlinkBatchRuleSets {
       FILTER_RULES.asScala
     ).asJava)
 
-  val JOIN_REORDER_PERPARE_RULES: RuleSet = RuleSets.ofList(
+  val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge join to MultiJoin
     JoinToMultiJoinRule.INSTANCE,
     // merge project to MultiJoin

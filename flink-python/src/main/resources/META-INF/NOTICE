@@ -53,6 +53,7 @@ See bundled license files for details
 - com.google.protobuf:protobuf-java:3.7.1
 - com.google.protobuf:protobuf-java-util:3.7.1
 - com.google.auth:google-auth-library-credentials:0.13.0
+- cloudpickle:1.2.2
 
 This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
 See bundled license files for details.

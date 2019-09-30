@@ -21,34 +21,36 @@ package org.apache.flink.table.functions.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
-
 /**
- * Python execution environments.
+ * A simple implementation of {@link PythonFunction}.
  */
 @Internal
-public final class PythonEnv implements Serializable {
+public final class SimplePythonFunction implements PythonFunction {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * The execution type of the Python worker, it defines how to execute the Python functions.
+	 * Serialized representation of the user-defined python function.
 	 */
-	private final ExecType execType;
-
-	public PythonEnv(ExecType execType) {
-		this.execType = Preconditions.checkNotNull(execType);
-	}
-
-	public ExecType getExecType() {
-		return execType;
-	}
+	private final byte[] serializedPythonFunction;
 
 	/**
-	 * The Execution type specifies how to execute the Python function.
+	 * Python execution environment.
 	 */
-	public enum ExecType {
-		// python function is executed in a separate process
-		PROCESS
+	private final PythonEnv pythonEnv;
+
+	public SimplePythonFunction(byte[] serializedPythonFunction, PythonEnv pythonEnv) {
+		this.serializedPythonFunction = Preconditions.checkNotNull(serializedPythonFunction);
+		this.pythonEnv = Preconditions.checkNotNull(pythonEnv);
+	}
+
+	@Override
+	public byte[] getSerializedPythonFunction() {
+		return serializedPythonFunction;
+	}
+
+	@Override
+	public PythonEnv getPythonEnv() {
+		return pythonEnv;
 	}
 }

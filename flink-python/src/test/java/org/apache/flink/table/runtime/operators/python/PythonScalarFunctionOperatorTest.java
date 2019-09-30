@@ -41,9 +41,9 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
-		int forwardedFieldCnt) {
+		int[] forwardedFields) {
 		return new PassThroughPythonScalarFunctionOperator(
-			scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFieldCnt);
+			scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
@@ -63,8 +63,8 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 			RowType inputType,
 			RowType outputType,
 			int[] udfInputOffsets,
-			int forwardedFieldCnt) {
-			super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFieldCnt);
+			int[] forwardedFields) {
+			super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 		}
 
 		@Override

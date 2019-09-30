@@ -23,6 +23,12 @@ import sys
 from shutil import copytree, copy, rmtree
 
 from setuptools import setup
+from setuptools.command.install import install
+from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
+from setuptools.command.egg_info import egg_info
+from setuptools.command.sdist import sdist
+from setuptools.command.test import test
 
 if sys.version_info < (2, 7):
     print("Python versions prior to 2.7 are not supported for PyFlink.",
@@ -61,6 +67,24 @@ README_FILE_TEMP_PATH = os.path.join("pyflink", "README.txt")
 
 in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/api/java/"
                                  "ExecutionEnvironment.java")
+
+
+# We must generate protos after setup_requires are installed.
+def generate_protos_first(original_cmd):
+    try:
+        # pylint: disable=wrong-import-position
+        from pyflink import gen_protos
+
+        class cmd(original_cmd, object):
+            def run(self):
+                gen_protos.generate_proto_files()
+                super(cmd, self).run()
+        return cmd
+    except ImportError:
+        import warnings
+        warnings.warn("Could not import gen_protos, skipping proto generation.")
+        return original_cmd
+
 
 try:
     if in_flink_source:
@@ -184,7 +208,8 @@ run sdist.
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Flink Developers',
         author_email='dev@flink.apache.org',
-        install_requires=['py4j==0.10.8.1', 'python-dateutil', 'apache-beam==2.15.0'],
+        install_requires=['py4j==0.10.8.1', 'python-dateutil', 'apache-beam==2.15.0',
+                          'cloudpickle==1.2.2'],
         tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
         long_description=long_description,
@@ -195,7 +220,15 @@ run sdist.
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7']
+            'Programming Language :: Python :: 3.7'],
+        cmdclass={
+            'build_py': generate_protos_first(build_py),
+            'develop': generate_protos_first(develop),
+            'egg_info': generate_protos_first(egg_info),
+            'sdist': generate_protos_first(sdist),
+            'test': generate_protos_first(test),
+            'install': generate_protos_first(install),
+        },
     )
 finally:
     if in_flink_source:
