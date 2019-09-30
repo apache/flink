@@ -107,7 +107,6 @@ public class StreamNetworkThroughputBenchmark {
 		environment.setUp(
 			recordWriters,
 			channels,
-			broadcastMode,
 			localMode,
 			senderBufferPoolSize,
 			receiverBufferPoolSize,
