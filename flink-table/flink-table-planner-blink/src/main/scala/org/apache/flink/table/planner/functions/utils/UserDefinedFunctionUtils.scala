@@ -704,7 +704,9 @@ object UserDefinedFunctionUtils {
   /**
     * Prints the first signature of methods with given name in a class and one signature consisting of DataType.
     */
-  def signaturesToString(signature: Seq[LogicalType], function: UserDefinedFunction, name: String): String = {
+  def signaturesToString(signature: Seq[LogicalType],
+                         function: UserDefinedFunction,
+                         name: String): String = {
     signatureToString(getMethodSignatures(function, name)(0).head +: internalTypesToClasses(signature))
   }
 
