@@ -58,9 +58,7 @@ public class FunctionCatalog implements FunctionLookup {
 
 	private final CatalogManager catalogManager;
 
-	// For simplicity, currently hold registered Flink functions in memory here
-	// TODO: should move to catalog
-	private final Map<String, FunctionDefinition> userFunctions = new LinkedHashMap<>();
+	private final Map<String, FunctionDefinition> tempSystemFunctions = new LinkedHashMap<>();
 
 	/**
 	 * Temporary utility until the new type inference is fully functional. It needs to be set by the planner.
@@ -75,7 +73,7 @@ public class FunctionCatalog implements FunctionLookup {
 		this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
 	}
 
-	public void registerScalarFunction(String name, ScalarFunction function) {
+	public void registerTemporarySystemScalarFunction(String name, ScalarFunction function) {
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
 		registerFunction(
 			name,
@@ -83,7 +81,7 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
-	public <T> void registerTableFunction(
+	public <T> void registerTemporarySystemTableFunction(
 			String name,
 			TableFunction<T> function,
 			TypeInformation<T> resultType) {
@@ -101,7 +99,7 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
-	public <T, ACC> void registerAggregateFunction(
+	public <T, ACC> void registerTemporarySystemAggregateFunction(
 			String name,
 			UserDefinedAggregateFunction<T, ACC> function,
 			TypeInformation<T> resultType,
@@ -165,7 +163,7 @@ public class FunctionCatalog implements FunctionLookup {
 
 		// Get functions registered in memory
 		result.addAll(
-			userFunctions.values().stream()
+			tempSystemFunctions.values().stream()
 				.map(FunctionDefinition::toString)
 				.collect(Collectors.toSet()));
 
@@ -204,7 +202,7 @@ public class FunctionCatalog implements FunctionLookup {
 		}
 
 		// If no corresponding function is found in catalog, check in-memory functions
-		userCandidate = userFunctions.get(functionName);
+		userCandidate = tempSystemFunctions.get(functionName);
 
 		final Optional<FunctionDefinition> foundDefinition;
 		if (userCandidate != null) {
@@ -242,7 +240,7 @@ public class FunctionCatalog implements FunctionLookup {
 
 	private void registerFunction(String name, FunctionDefinition functionDefinition) {
 		// TODO: should register to catalog
-		userFunctions.put(normalizeName(name), functionDefinition);
+		tempSystemFunctions.put(normalizeName(name), functionDefinition);
 	}
 
 	@VisibleForTesting

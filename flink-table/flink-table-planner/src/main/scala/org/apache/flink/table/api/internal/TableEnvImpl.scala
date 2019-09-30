@@ -99,7 +99,7 @@ abstract class TableEnvImpl(
   private def isBatchTable: Boolean = !isStreamingMode
 
   override def registerFunction(name: String, function: ScalarFunction): Unit = {
-    functionCatalog.registerScalarFunction(
+    functionCatalog.registerTemporarySystemScalarFunction(
       name,
       function)
   }
@@ -117,7 +117,7 @@ abstract class TableEnvImpl(
         function,
         implicitly[TypeInformation[T]])
 
-    functionCatalog.registerTableFunction(
+    functionCatalog.registerTemporarySystemTableFunction(
       name,
       function,
       resultTypeInfo)
@@ -141,7 +141,7 @@ abstract class TableEnvImpl(
       function,
       implicitly[TypeInformation[ACC]])
 
-    functionCatalog.registerAggregateFunction(
+    functionCatalog.registerTemporarySystemAggregateFunction(
       name,
       function,
       resultTypeInfo,
