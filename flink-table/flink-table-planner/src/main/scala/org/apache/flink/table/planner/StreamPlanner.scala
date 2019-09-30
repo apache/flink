@@ -49,14 +49,13 @@ import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.{SqlKind, SqlNode}
 
-import _root_.java.lang.{Boolean => JBool}
+import _root_.java.lang.{Boolean => JBool, Iterable => JIterable}
 import _root_.java.util
 import _root_.java.util.function.Consumer
-import _root_.java.util.{Objects, List => JList}
+import _root_.java.util.Objects
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.mutable.ArrayBuffer
 
 /**
   * Implementation of [[Planner]] for legacy Flink planner. It supports only streaming use cases.
@@ -101,20 +100,21 @@ class StreamPlanner(
       .orElse(CalciteConfig.DEFAULT),
     planningConfigurationBuilder)
 
-  override def parse(stmt: String, operationPreConsumer: Consumer[Operation]): JList[Operation] = {
+  override def parse(
+      stmt: String,
+      operationPreConsumer: Consumer[Operation]): JIterable[Operation] = {
     val planner = getFlinkPlanner
     // parse the sql query
     val parsedList = planner.parse(stmt)
 
-    val operations = new ArrayBuffer[Operation]()
-
     val parseHelper = (sqlNode: SqlNode) => {
       val operation = SqlToOperationConverter.convert(planner, sqlNode)
-      operations += operation
       operationPreConsumer.accept(operation)
+      operation
     }
 
-    parsedList.foreach {
+    import _root_.scala.collection.JavaConverters._
+    parsedList.map {
       case insert: RichSqlInsert =>
         parseHelper(insert)
       case query if query.getKind.belongsTo(SqlKind.QUERY) =>
@@ -127,9 +127,7 @@ class StreamPlanner(
             "SELECT, UNION, INTERSECT, EXCEPT, VALUES, ORDER_BY or INSERT;" +
             "and SQL DDLs of type " +
             "CREATE TABLE")
-    }
-
-    operations.toList
+    }.asJava
   }
 
   override def translate(tableOperations: util.List[ModifyOperation])

@@ -79,7 +79,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
         override def accept(t: Operation): Unit = {}
       })
 
-    val queryOperation = parsed.get(0).asInstanceOf[QueryOperation]
+    val queryOperation = parsed.iterator.next().asInstanceOf[QueryOperation]
     val relNode = context._3.getRelBuilder.tableOperation(queryOperation).build()
 
     val optimized = context._3.optimizer

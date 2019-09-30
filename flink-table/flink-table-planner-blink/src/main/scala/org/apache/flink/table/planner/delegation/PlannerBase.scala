@@ -51,11 +51,11 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.{SqlKind, SqlNode}
 import org.apache.calcite.tools.FrameworkConfig
 
+import java.lang.{Iterable => JIterable}
 import java.util
 import java.util.function.Consumer
 
 import _root_.scala.collection.JavaConversions._
-import _root_.scala.collection.mutable.ArrayBuffer
 
 /**
   * Implementation of [[Planner]] for legacy Flink planner. It supports only streaming use cases.
@@ -124,21 +124,20 @@ abstract class PlannerBase(
 
   override def parse(
       stmt: String,
-      operationPreConsumer: Consumer[Operation]): util.List[Operation] = {
+      operationPreConsumer: Consumer[Operation]): JIterable[Operation] = {
 
     val planner = createFlinkPlanner
     // parse the sql query
     val parsedList = planner.parse(stmt)
 
-    val operations = ArrayBuffer[Operation]()
-
     val parseHelper = (sqlNode: SqlNode) => {
       val operation = SqlToOperationConverter.convert(planner, sqlNode)
-      operations += operation
       operationPreConsumer.accept(operation)
+      operation
     }
 
-    parsedList.foreach {
+    import _root_.scala.collection.JavaConverters._
+    parsedList.map {
       case insert: RichSqlInsert =>
         parseHelper(insert)
       case query if query.getKind.belongsTo(SqlKind.QUERY) =>
@@ -147,9 +146,7 @@ abstract class PlannerBase(
         parseHelper(ddl)
       case _ =>
         throw new TableException(s"Unsupported query: $stmt")
-    }
-
-    operations.toList
+    }.asJava
   }
 
   override def translate(

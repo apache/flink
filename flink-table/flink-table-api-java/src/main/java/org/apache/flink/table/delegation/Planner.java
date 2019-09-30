@@ -65,7 +65,7 @@ public interface Planner {
 	 * @param operationPreConsumer pre consumer for specific operations
 	 * @return parsed queries as trees of relational {@link Operation}s
 	 */
-	List<Operation> parse(String statement, Consumer<Operation> operationPreConsumer);
+	Iterable<Operation> parse(String statement, Consumer<Operation> operationPreConsumer);
 
 	/**
 	 * Converts a relational tree of {@link ModifyOperation}s into a set of runnable

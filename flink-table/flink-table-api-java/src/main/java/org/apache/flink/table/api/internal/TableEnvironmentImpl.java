@@ -64,6 +64,7 @@ import org.apache.flink.table.sources.TableSourceValidation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -287,14 +288,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public Table sqlQuery(String query) {
-		List<Operation> operations = planner.parse(query, (op) -> {});
-
-		if (operations.size() != 1) {
+		Iterator<Operation> operations = planner.parse(query, (op) -> {}).iterator();
+		Operation operation = operations.next();
+		if (operations.hasNext()) {
 			throw new ValidationException(
 				"Unsupported SQL query! sqlQuery() only accepts a single SQL query.");
 		}
-
-		Operation operation = operations.get(0);
 
 		if (operation instanceof QueryOperation && !(operation instanceof ModifyOperation)) {
 			return createTable((QueryOperation) operation);
@@ -339,9 +338,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		};
 
-		List<Operation> operations = planner.parse(stmt, operationPreConsumer);
-
-		for (Operation operation: operations) {
+		Iterable<Operation> operations = planner.parse(stmt, operationPreConsumer);
+		operations.forEach(operation -> {
 			if (operation instanceof ModifyOperation) {
 				List<ModifyOperation> modifyOperations = Collections.singletonList((ModifyOperation) operation);
 				if (isEagerOperationTranslation()) {
@@ -356,7 +354,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
 						"type INSERT, CREATE TABLE, DROP TABLE");
 			}
-		}
+		});
 	}
 
 	@Override

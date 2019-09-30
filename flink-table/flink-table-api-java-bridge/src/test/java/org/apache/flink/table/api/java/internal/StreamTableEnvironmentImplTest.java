@@ -112,7 +112,7 @@ public class StreamTableEnvironmentImplTest {
 		}
 
 		@Override
-		public List<Operation> parse(String statement, Consumer<Operation> operationPreConsumer) {
+		public Iterable<Operation> parse(String statement, Consumer<Operation> operationPreConsumer) {
 			throw new AssertionError("Should not be called");
 		}
 

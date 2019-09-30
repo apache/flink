@@ -32,7 +32,7 @@ import java.util.function.Consumer;
 public class PlannerMock implements Planner {
 
 	@Override
-	public List<Operation> parse(String statement, Consumer<Operation> operationPreConsumer) {
+	public Iterable<Operation> parse(String statement, Consumer<Operation> operationPreConsumer) {
 		return null;
 	}
 

@@ -972,7 +972,7 @@ class TestingTableEnvironment private(
       throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type INSERT.")
     }
-    val operation = operations.get(0)
+    val operation = operations.iterator.next()
     operation match {
       case modifyOperation: ModifyOperation =>
         val modifyOperations = List(modifyOperation)
