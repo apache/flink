@@ -33,8 +33,9 @@ import org.apache.flink.util.XORShiftRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
-import java.util.Optional;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
@@ -76,7 +77,8 @@ public abstract class RecordWriter<T extends IOReadableWritable> {
 	private static final String DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
 
 	/** The thread that periodically flushes the output, to give an upper latency bound. */
-	private final Optional<OutputFlusher> outputFlusher;
+	@Nullable
+	private final OutputFlusher outputFlusher;
 
 	/** To avoid synchronization overhead on the critical path, best-effort error tracking is enough here.*/
 	private Throwable flusherException;
@@ -90,14 +92,14 @@ public abstract class RecordWriter<T extends IOReadableWritable> {
 		checkArgument(timeout >= -1);
 		this.flushAlways = (timeout == 0);
 		if (timeout == -1 || timeout == 0) {
-			outputFlusher = Optional.empty();
+			outputFlusher = null;
 		} else {
 			String threadName = taskName == null ?
 				DEFAULT_OUTPUT_FLUSH_THREAD_NAME :
 				DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " for " + taskName;
 
-			outputFlusher = Optional.of(new OutputFlusher(threadName, timeout));
-			outputFlusher.get().start();
+			outputFlusher = new OutputFlusher(threadName, timeout);
+			outputFlusher.start();
 		}
 	}
 
@@ -235,10 +237,10 @@ public abstract class RecordWriter<T extends IOReadableWritable> {
 	public void close() {
 		clearBuffers();
 		// make sure we terminate the thread in any case
-		if (outputFlusher.isPresent()) {
-			outputFlusher.get().terminate();
+		if (outputFlusher != null) {
+			outputFlusher.terminate();
 			try {
-				outputFlusher.get().join();
+				outputFlusher.join();
 			} catch (InterruptedException e) {
 				// ignore on close
 				// restore interrupt flag to fast exit further blocking calls
