@@ -59,6 +59,7 @@ public class FunctionCatalog implements FunctionLookup {
 	private final CatalogManager catalogManager;
 
 	private final Map<String, FunctionDefinition> tempSystemFunctions = new LinkedHashMap<>();
+	private final Map<ObjectIdentifier, FunctionDefinition> tempFunctions = new LinkedHashMap<>();
 
 	/**
 	 * Temporary utility until the new type inference is fully functional. It needs to be set by the planner.
@@ -75,7 +76,7 @@ public class FunctionCatalog implements FunctionLookup {
 
 	public void registerTemporarySystemScalarFunction(String name, ScalarFunction function) {
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
-		registerFunction(
+		registerTempSystemFunction(
 			name,
 			new ScalarFunctionDefinition(name, function)
 		);
@@ -90,7 +91,7 @@ public class FunctionCatalog implements FunctionLookup {
 		// check if class could be instantiated
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
 
-		registerFunction(
+		registerTempSystemFunction(
 			name,
 			new TableFunctionDefinition(
 				name,
@@ -126,8 +127,67 @@ public class FunctionCatalog implements FunctionLookup {
 			throw new TableException("Unknown function class: " + function.getClass());
 		}
 
-		registerFunction(
+		registerTempSystemFunction(
 			name,
+			definition
+		);
+	}
+
+	public void registerTemporaryScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
+		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+		registerTempFunction(
+			oi,
+			new ScalarFunctionDefinition(oi.getObjectName(), function)
+		);
+	}
+
+	public <T> void registerTemporaryTableFunction(
+		ObjectIdentifier oi,
+		TableFunction<T> function,
+		TypeInformation<T> resultType) {
+		// check if class not Scala object
+		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
+		// check if class could be instantiated
+		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+
+		registerTempFunction(
+			oi,
+			new TableFunctionDefinition(
+				oi.getObjectName(),
+				function,
+				resultType)
+		);
+	}
+
+	public <T, ACC> void registerTemporaryAggregateFunction(
+		ObjectIdentifier oi,
+		UserDefinedAggregateFunction<T, ACC> function,
+		TypeInformation<T> resultType,
+		TypeInformation<ACC> accType) {
+		// check if class not Scala object
+		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
+		// check if class could be instantiated
+		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+
+		final FunctionDefinition definition;
+		if (function instanceof AggregateFunction) {
+			definition = new AggregateFunctionDefinition(
+				oi.getObjectName(),
+				(AggregateFunction<?, ?>) function,
+				resultType,
+				accType);
+		} else if (function instanceof TableAggregateFunction) {
+			definition = new TableAggregateFunctionDefinition(
+				oi.getObjectName(),
+				(TableAggregateFunction<?, ?>) function,
+				resultType,
+				accType);
+		} else {
+			throw new TableException("Unknown function class: " + function.getClass());
+		}
+
+		registerTempFunction(
+			oi,
 			definition
 		);
 	}
@@ -238,13 +298,24 @@ public class FunctionCatalog implements FunctionLookup {
 		return plannerTypeInferenceUtil;
 	}
 
-	private void registerFunction(String name, FunctionDefinition functionDefinition) {
-		// TODO: should register to catalog
+	private void registerTempSystemFunction(String name, FunctionDefinition functionDefinition) {
 		tempSystemFunctions.put(normalizeName(name), functionDefinition);
+	}
+
+	private void registerTempFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
+		tempFunctions.put(normalizeObjectIdentifier(oi), functionDefinition);
 	}
 
 	@VisibleForTesting
 	static String normalizeName(String name) {
 		return name.toUpperCase();
+	}
+
+	@VisibleForTesting
+	static ObjectIdentifier normalizeObjectIdentifier(ObjectIdentifier oi) {
+		return ObjectIdentifier.of(
+			oi.getCatalogName().toUpperCase(),
+			oi.getDatabaseName().toUpperCase(),
+			oi.getObjectName().toUpperCase());
 	}
 }
