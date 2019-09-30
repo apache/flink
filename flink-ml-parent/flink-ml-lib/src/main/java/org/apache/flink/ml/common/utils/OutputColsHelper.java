@@ -37,13 +37,13 @@ import java.util.HashSet;
  * 1) data schema
  * 2) output column names
  * 3) output column types
- * 4) keep column names
+ * 4) reserved column names
  *
  * <p>The following roles are followed:
- * 1)If reserved columns is null, then reserve all columns from the origin dataSet.
+ * 1)If reserved columns is null, then reserve all columns from the origin input dataSet.
  * 2)If some of the reserved column names are the same as output column names, then they are
- * replaced by the output at value and type, but with the kept column names have their order kept.
- * 3)[result columns] = ([reserve columns] subtract [output columns]) + [output columns]
+ * replaced by the output at value and type, but with the reserved column names have their order kept.
+ * 3)[result columns] = ([reserved columns] subtract [output columns]) + [output columns]
  *
  */
 public class OutputColsHelper implements Serializable {
