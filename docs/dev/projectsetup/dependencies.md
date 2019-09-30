@@ -196,7 +196,7 @@ you can use the following shade plugin definition:
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.2.1</version>
+            <version>3.1.0</version>
             <executions>
                 <execution>
                     <phase>package</phase>
