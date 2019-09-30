@@ -140,7 +140,6 @@ public class OutputColsHelperTest {
 	public void testResultRow() {
 		OutputColsHelper helper = new OutputColsHelper(tableSchema, "res", TypeInformation.of(String.class));
 		Row expectRow = Row.of("a", 1L, 1, "b");
-		Assert.assertEquals(helper.getResultRowSingle(row, "b"), expectRow);
 		Assert.assertEquals(helper.getResultRow(row, Row.of("b")), expectRow);
 
 		helper = new OutputColsHelper(tableSchema, new String[] {"res1", "res2"},

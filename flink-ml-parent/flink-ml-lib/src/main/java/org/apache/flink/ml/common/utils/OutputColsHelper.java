@@ -166,25 +166,4 @@ public class OutputColsHelper implements Serializable {
 		}
 		return result;
 	}
-
-	/**
-	 * Get the outputting row, which is a combination of input data and output data.
-	 * The difference with getResultRow is that it's single column output.
-	 *
-	 * @param data   input data
-	 * @param output output data
-	 * @return
-	 */
-	public Row getResultRowSingle(Row data, Object output) {
-		int numOutputs = outputToResultIndices.length;
-		if (1 != numOutputs) {
-			throw new IllegalArgumentException("Invalid output size");
-		}
-		Row result = new Row(resultLength);
-		for (int i = 0; i < reservedColIndices.length; i++) {
-			result.setField(reservedToResultIndices[i], data.getField(reservedColIndices[i]));
-		}
-		result.setField(outputToResultIndices[0], output);
-		return result;
-	}
 }
