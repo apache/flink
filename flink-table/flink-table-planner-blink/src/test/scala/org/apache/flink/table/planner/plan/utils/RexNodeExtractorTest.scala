@@ -696,7 +696,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
   @Test
   def testExtractWithUdf(): Unit = {
-    functionCatalog.registerScalarFunction("myUdf", Func1)
+    functionCatalog.registerTempSystemScalarFunction("myUdf", Func1)
     // amount
     val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
     // my_udf(amount)

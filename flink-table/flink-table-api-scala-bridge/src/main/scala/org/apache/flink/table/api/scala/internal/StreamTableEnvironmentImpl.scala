@@ -137,7 +137,7 @@ class StreamTableEnvironmentImpl (
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
     val typeInfo = UserFunctionsTypeHelper
       .getReturnTypeOfTableFunction(tf, implicitly[TypeInformation[T]])
-    functionCatalog.registerTableFunction(
+    functionCatalog.registerTempSystemTableFunction(
       name,
       tf,
       typeInfo
@@ -152,7 +152,7 @@ class StreamTableEnvironmentImpl (
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserFunctionsTypeHelper
       .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
-    functionCatalog.registerAggregateFunction(
+    functionCatalog.registerTempSystemAggregateFunction(
       name,
       f,
       typeInfo,
@@ -168,7 +168,7 @@ class StreamTableEnvironmentImpl (
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserFunctionsTypeHelper
       .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
-    functionCatalog.registerAggregateFunction(
+    functionCatalog.registerTempSystemAggregateFunction(
       name,
       f,
       typeInfo,

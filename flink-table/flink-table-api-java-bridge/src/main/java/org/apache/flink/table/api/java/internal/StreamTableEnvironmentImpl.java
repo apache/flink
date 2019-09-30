@@ -147,7 +147,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	public <T> void registerFunction(String name, TableFunction<T> tableFunction) {
 		TypeInformation<T> typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction);
 
-		functionCatalog.registerTableFunction(
+		functionCatalog.registerTempSystemTableFunction(
 			name,
 			tableFunction,
 			typeInfo
@@ -160,7 +160,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
 			.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 
-		functionCatalog.registerAggregateFunction(
+		functionCatalog.registerTempSystemAggregateFunction(
 			name,
 			aggregateFunction,
 			typeInfo,
@@ -175,7 +175,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
 			.getAccumulatorTypeOfAggregateFunction(tableAggregateFunction);
 
-		functionCatalog.registerAggregateFunction(
+		functionCatalog.registerTempSystemAggregateFunction(
 			name,
 			tableAggregateFunction,
 			typeInfo,

@@ -58,9 +58,8 @@ public class FunctionCatalog implements FunctionLookup {
 
 	private final CatalogManager catalogManager;
 
-	// For simplicity, currently hold registered Flink functions in memory here
-	// TODO: should move to catalog
-	private final Map<String, FunctionDefinition> userFunctions = new LinkedHashMap<>();
+	private final Map<String, FunctionDefinition> tempSystemFunctions = new LinkedHashMap<>();
+	private final Map<ObjectIdentifier, FunctionDefinition> tempCatalogFunctions = new LinkedHashMap<>();
 
 	/**
 	 * Temporary utility until the new type inference is fully functional. It needs to be set by the planner.
@@ -75,15 +74,15 @@ public class FunctionCatalog implements FunctionLookup {
 		this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
 	}
 
-	public void registerScalarFunction(String name, ScalarFunction function) {
+	public void registerTempSystemScalarFunction(String name, ScalarFunction function) {
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
-		registerFunction(
+		registerTempSystemFunction(
 			name,
 			new ScalarFunctionDefinition(name, function)
 		);
 	}
 
-	public <T> void registerTableFunction(
+	public <T> void registerTempSystemTableFunction(
 			String name,
 			TableFunction<T> function,
 			TypeInformation<T> resultType) {
@@ -92,7 +91,7 @@ public class FunctionCatalog implements FunctionLookup {
 		// check if class could be instantiated
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
 
-		registerFunction(
+		registerTempSystemFunction(
 			name,
 			new TableFunctionDefinition(
 				name,
@@ -101,7 +100,7 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
-	public <T, ACC> void registerAggregateFunction(
+	public <T, ACC> void registerTempSystemAggregateFunction(
 			String name,
 			UserDefinedAggregateFunction<T, ACC> function,
 			TypeInformation<T> resultType,
@@ -128,8 +127,67 @@ public class FunctionCatalog implements FunctionLookup {
 			throw new TableException("Unknown function class: " + function.getClass());
 		}
 
-		registerFunction(
+		registerTempSystemFunction(
 			name,
+			definition
+		);
+	}
+
+	public void registerTempCatalogScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
+		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+		registerTempCatalogFunction(
+			oi,
+			new ScalarFunctionDefinition(oi.getObjectName(), function)
+		);
+	}
+
+	public <T> void registerTempCatalogTableFunction(
+			ObjectIdentifier oi,
+			TableFunction<T> function,
+			TypeInformation<T> resultType) {
+		// check if class not Scala object
+		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
+		// check if class could be instantiated
+		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+
+		registerTempCatalogFunction(
+			oi,
+			new TableFunctionDefinition(
+				oi.getObjectName(),
+				function,
+				resultType)
+		);
+	}
+
+	public <T, ACC> void registerTempCatalogAggregateFunction(
+			ObjectIdentifier oi,
+			UserDefinedAggregateFunction<T, ACC> function,
+			TypeInformation<T> resultType,
+			TypeInformation<ACC> accType) {
+		// check if class not Scala object
+		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
+		// check if class could be instantiated
+		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+
+		final FunctionDefinition definition;
+		if (function instanceof AggregateFunction) {
+			definition = new AggregateFunctionDefinition(
+				oi.getObjectName(),
+				(AggregateFunction<?, ?>) function,
+				resultType,
+				accType);
+		} else if (function instanceof TableAggregateFunction) {
+			definition = new TableAggregateFunctionDefinition(
+				oi.getObjectName(),
+				(TableAggregateFunction<?, ?>) function,
+				resultType,
+				accType);
+		} else {
+			throw new TableException("Unknown function class: " + function.getClass());
+		}
+
+		registerTempCatalogFunction(
+			oi,
 			definition
 		);
 	}
@@ -165,7 +223,7 @@ public class FunctionCatalog implements FunctionLookup {
 
 		// Get functions registered in memory
 		result.addAll(
-			userFunctions.values().stream()
+			tempSystemFunctions.values().stream()
 				.map(FunctionDefinition::toString)
 				.collect(Collectors.toSet()));
 
@@ -204,7 +262,7 @@ public class FunctionCatalog implements FunctionLookup {
 		}
 
 		// If no corresponding function is found in catalog, check in-memory functions
-		userCandidate = userFunctions.get(functionName);
+		userCandidate = tempSystemFunctions.get(functionName);
 
 		final Optional<FunctionDefinition> foundDefinition;
 		if (userCandidate != null) {
@@ -240,13 +298,24 @@ public class FunctionCatalog implements FunctionLookup {
 		return plannerTypeInferenceUtil;
 	}
 
-	private void registerFunction(String name, FunctionDefinition functionDefinition) {
-		// TODO: should register to catalog
-		userFunctions.put(normalizeName(name), functionDefinition);
+	private void registerTempSystemFunction(String name, FunctionDefinition functionDefinition) {
+		tempSystemFunctions.put(normalizeName(name), functionDefinition);
+	}
+
+	private void registerTempCatalogFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
+		tempCatalogFunctions.put(normalizeObjectIdentifier(oi), functionDefinition);
 	}
 
 	@VisibleForTesting
 	static String normalizeName(String name) {
 		return name.toUpperCase();
+	}
+
+	@VisibleForTesting
+	static ObjectIdentifier normalizeObjectIdentifier(ObjectIdentifier oi) {
+		return ObjectIdentifier.of(
+			oi.getCatalogName(),
+			oi.getDatabaseName(),
+			oi.getObjectName().toUpperCase());
 	}
 }
