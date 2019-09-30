@@ -140,7 +140,7 @@ object FlinkStreamProgram {
           .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.JOIN_REORDER_PERPARE_RULES)
+            .add(FlinkStreamRuleSets.JOIN_REORDER_PREPARE_RULES)
             .build(), "merge join into MultiJoin")
           .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
