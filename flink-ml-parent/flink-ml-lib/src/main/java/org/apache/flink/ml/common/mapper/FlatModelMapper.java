@@ -65,8 +65,8 @@ public abstract class FlatModelMapper extends FlatMapper {
 	 * The instance can not deal with real data, but it could be used to get the output result schema.
 	 *
 	 * @param flatModelMapperClassName Name of the FlatModelMapper class
-	 * @param modelScheme              The schema of input Table type model.
-	 * @param dataSchema               The schema of input Table type data.
+	 * @param modelScheme              The model scheme represented in Table format.
+	 * @param dataSchema               The schema of the input data represented in Table format.
 	 * @param params                   The parameters for the instance construction.
 	 * @return The object of {@link FlatModelMapper}
 	 * @throws Exception if flatModelMapperClass is not the class of {@link FlatModelMapper}
@@ -84,8 +84,8 @@ public abstract class FlatModelMapper extends FlatMapper {
 	 * Generate new instance of given FlatModelMapper class with model data.
 	 *
 	 * @param flatModelMapperClassName Name of the FlatModelMapper class
-	 * @param modelScheme              The schema of input Table type model.
-	 * @param dataSchema               The schema of input Table type data.
+	 * @param modelScheme              The model scheme represented in Table format.
+	 * @param dataSchema               The schema of the input data represented in Table format.
 	 * @param params                   The parameters for the instance construction.
 	 * @return The object of {@link FlatModelMapper}
 	 * @throws Exception if flatModelMapperClass is not the class of {@link FlatModelMapper}
@@ -104,8 +104,8 @@ public abstract class FlatModelMapper extends FlatMapper {
 	 * Generate new instance of given FlatModelMapper class with model data.
 	 *
 	 * @param flatModelMapperClass Name of the FlatModelMapper class
-	 * @param modelScheme          The schema of input Table type model.
-	 * @param dataSchema           The schema of input Table type data.
+	 * @param modelScheme          The model scheme represented in Table format.
+	 * @param dataSchema           The schema of the input data represented in Table format.
 	 * @param params               The parameters for the instance construction.
 	 * @return The object of {@link FlatModelMapper}
 	 * @throws Exception if flatModelMapperClass is not the class of {@link FlatModelMapper}

@@ -70,7 +70,7 @@ public abstract class FlatMapper implements Serializable {
 	 * Generate new instance of given FlatMapper class.
 	 *
 	 * @param flatMapperClassName Name of the FlatMapper class
-	 * @param dataSchema          The schema of input Table type data.
+	 * @param dataSchema          The schema of the input data represented in Table format.
 	 * @param params              The parameters for the instance construction.
 	 * @return new instance of given FlatMapper class
 	 * @throws Exception if flatMapperClass is not the class of {@link FlatMapper}
@@ -87,7 +87,7 @@ public abstract class FlatMapper implements Serializable {
 	 * Generate new instance of given FlatMapper class.
 	 *
 	 * @param flatMapperClass FlatMapper class of the new instance
-	 * @param dataSchema      The schema of input Table type data.
+	 * @param dataSchema      The schema of the input data represented in Table format.
 	 * @param params          the parameters for the instance construction.
 	 * @return new instance of given FlatMapper class
 	 * @throws Exception if flatMapperClass is not the class of {@link FlatMapper}
