@@ -34,7 +34,7 @@ Apache Flink 是一个分布式流批一体化的开源平台。Flink 的核心�
   * [实现 DataStream 应用](./getting-started/walkthroughs/datastream_api.html)
   * [书写 Table API 查询](./getting-started/walkthroughs/table_api.html)
 
-* **Docker Playgrounds**: 你只需花几分钟搭建 Flink 沙盒环境，就可以探索和使用 Flink 了。
+* **Docker 游乐场**: 你只需花几分钟搭建 Flink 沙盒环境，就可以探索和使用 Flink 了。
   * [运行与管理 Flink 流处理应用](./getting-started/docker-playgrounds/flink-operations-playground.html)
 
 * **教程**: 在你的本地机器上安装 Flink。
