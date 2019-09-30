@@ -112,13 +112,10 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 					.createTestingLogicalSlot();
 				allocatedSlots.put(slotRequestId, slot);
 				return CompletableFuture.completedFuture(result);
-			}
-			else {
-				if (allowQueued) {
-					return FutureUtils.completedExceptionally(new TimeoutException());
-				} else {
-					return FutureUtils.completedExceptionally(new NoResourceAvailableException());
-				}
+			} else if (allowQueued) {
+				return FutureUtils.completedExceptionally(new TimeoutException());
+			} else {
+				return FutureUtils.completedExceptionally(new NoResourceAvailableException());
 			}
 		}
 	}
