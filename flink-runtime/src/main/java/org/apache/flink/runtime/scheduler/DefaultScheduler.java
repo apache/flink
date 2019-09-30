@@ -375,7 +375,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(failure);
 		if (strippedThrowable instanceof TimeoutException) {
 			return new NoResourceAvailableException("Could not allocate the required slot within slot request timeout. " +
-				"Please make sure that the cluster has enough resources.");
+				"Please make sure that the cluster has enough resources.", failure);
 		} else {
 			return failure;
 		}
