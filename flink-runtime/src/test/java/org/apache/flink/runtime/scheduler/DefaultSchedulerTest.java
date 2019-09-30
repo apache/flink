@@ -61,7 +61,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -71,13 +70,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link DefaultScheduler}.
@@ -249,7 +248,7 @@ public class DefaultSchedulerTest extends TestLogger {
 			.getException()
 			.deserializeError(DefaultSchedulerTest.class.getClassLoader());
 		assertTrue(findThrowable(failureCause, NoResourceAvailableException.class).isPresent());
-		Assert.assertTrue(
+		assertTrue(
 			findThrowableWithMessage(
 				failureCause,
 				"Could not allocate the required slot within slot request timeout.").isPresent());

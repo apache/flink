@@ -371,7 +371,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		};
 	}
 
-	private Throwable maybeWrapWithNoResourceAvailableException(final Throwable failure) {
+	private static Throwable maybeWrapWithNoResourceAvailableException(final Throwable failure) {
 		final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(failure);
 		if (strippedThrowable instanceof TimeoutException) {
 			return new NoResourceAvailableException("Could not allocate the required slot within slot request timeout. " +
