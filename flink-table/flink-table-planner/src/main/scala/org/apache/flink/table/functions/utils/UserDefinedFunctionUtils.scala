@@ -617,6 +617,13 @@ object UserDefinedFunctionUtils {
   }
 
   /**
+    * Prints the first signature of methods with given name in a class and one signature consisting of TypeInformation.
+    */
+  def signaturesToString(signature: Seq[TypeInformation[_]], function: UserDefinedFunction, name: String): String = {
+    signatureToString(getMethodSignatures(function, name)(0).head +: typeInfoToClass(signature))
+  }
+
+  /**
     * Extracts type classes of [[TypeInformation]] in a null-aware way.
     */
   def typeInfoToClass(typeInfos: Seq[TypeInformation[_]]): Array[Class[_]] =

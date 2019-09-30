@@ -121,7 +121,7 @@ object AggSqlFunction {
           .getOrElse(
             throw new ValidationException(
               s"Given parameters of function do not match any signature. \n" +
-                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Actual: ${signaturesToString(operandTypeInfo, aggregateFunction, "accumulate")} \n" +
                 s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
 
         val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
@@ -201,7 +201,7 @@ object AggSqlFunction {
           if (throwOnFailure) {
             throw new ValidationException(
               s"Given parameters of function do not match any signature. \n" +
-                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Actual: ${signaturesToString(operandTypeInfo, aggregateFunction, "accumulate")} \n" +
                 s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}")
           } else {
             false
