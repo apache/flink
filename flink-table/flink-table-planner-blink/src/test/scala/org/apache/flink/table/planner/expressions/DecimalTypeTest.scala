@@ -23,13 +23,10 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, Types}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.DecimalType
 import org.apache.flink.types.Row
 import org.junit.{Ignore, Test}
-import java.math.{BigDecimal => JBigDecimal}
-
 
 class DecimalTypeTest extends ExpressionTestBase {
 
@@ -310,13 +307,45 @@ class DecimalTypeTest extends ExpressionTestBase {
       "f4 < f0",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      12.toExpr < 'f1,
+      "12 < f1",
       "12 < f1",
       "true")
+
+    testAllApis(
+      12.toExpr > 'f1,
+      "12 > f1",
+      "12 > f1",
+      "false")
+
+    testAllApis(
+      12.toExpr - 'f37,
+      "12 - f37",
+      "12 - f37",
+      "10")
+
+    testAllApis(
+      12.toExpr + 'f37,
+      "12 + f37",
+      "12 + f37",
+      "14")
+
+    testAllApis(
+      12.toExpr * 'f37,
+      "12 * f37",
+      "12 * f37",
+      "24")
+
+    testAllApis(
+      12.toExpr / 'f37,
+      "12 / f37",
+      "12 / f37",
+      "6")
   }
 
   @Test
-  def testTableDataSource(): Unit = {
+  def testFieldAcess(): Unit = {
 
     // the most basic case
     testAllApis(
@@ -721,7 +750,7 @@ class DecimalTypeTest extends ExpressionTestBase {
   def testExactionFunctions(): Unit = {
 
     testAllApis(
-      ExpressionBuilder.ifThenElse('f48 > 'f49, 'f48, 'f49),
+      ifThenElse('f48 > 'f49, 'f48, 'f49),
       "ifThenElse(greaterThan(f48, f49), f48, f49)",
       "if(f48 > f49, f48, f49)",
       "3.14")
@@ -943,7 +972,7 @@ class DecimalTypeTest extends ExpressionTestBase {
   }
 
   @Test
-  def testQquality(): Unit = {
+  def testEquality(): Unit = {
 
     // expressions that test equality.
     //   =, CASE, NULLIF, IN, IS DISTINCT FROM
@@ -1272,12 +1301,12 @@ class DecimalTypeTest extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      /* 0 */ BigDecimalTypeInfo.of(30, 18),
-      /* 1 */ BigDecimalTypeInfo.of(30, 0),
+      /* 0 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 18)),
+      /* 1 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 0)),
       /* 2 */ Types.INT(),
       /* 3 */ Types.DOUBLE(),
-      /* 4 */ BigDecimalTypeInfo.of(10, 0),
-      /* 5 */ BigDecimalTypeInfo.of(10, 3),
+      /* 4 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 0)),
+      /* 5 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 3)),
 
       //convert ITCase to unit Test
       /* 6 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 0)),
