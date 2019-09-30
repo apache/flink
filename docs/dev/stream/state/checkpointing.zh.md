@@ -178,7 +178,7 @@ Flink 支持各种各样的途径去存储，检查点状态到其他的 state b
 
 Flink 现在只提供没有 iterations 的 job 的处理保证。在 iterative job 上激活检查点会导致异常。为了在迭代程序中强制进行检查点，用于需要在激活检查点时设置一个特殊的标志： `env.enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE, force = true)`。
 
-请注意在环形边上飞翔的记录（以及与之相关的状态变化）在故障时会丢失。
+请注意在环形边上游走的记录（以及与之相关的状态变化）在故障时会丢失。
 
 {% top %}
 
