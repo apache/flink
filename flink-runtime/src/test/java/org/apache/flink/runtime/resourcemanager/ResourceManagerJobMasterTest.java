@@ -148,7 +148,6 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			haServices,
 			heartbeatServices,
 			slotManager,
-			NoOpMetricRegistry.INSTANCE,
 			jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
 			testingFatalErrorHandler,
