@@ -263,7 +263,7 @@ public class ResourceManagerTest extends TestLogger {
 			slotManager,
 			jobLeaderIdService,
 			testingFatalErrorHandler,
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 
 		resourceManager.start();
 

@@ -160,7 +160,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
 				fatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 				Time.minutes(5L));
 
 		resourceManager.start();

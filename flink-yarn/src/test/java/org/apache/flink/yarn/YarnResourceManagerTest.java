@@ -32,7 +32,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
@@ -177,7 +177,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				@Nullable String webInterfaceUrl,
 				AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient,
 				NMClient mockNMClient,
-				JobManagerMetricGroup jobManagerMetricGroup) {
+				ResourceManagerMetricGroup resourceManagerMetricGroup) {
 			super(
 				rpcService,
 				resourceManagerEndpointId,
@@ -191,7 +191,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				clusterInformation,
 				fatalErrorHandler,
 				webInterfaceUrl,
-				jobManagerMetricGroup);
+				resourceManagerMetricGroup);
 			this.mockNMClient = mockNMClient;
 			this.mockResourceManagerClient = mockResourceManagerClient;
 		}
@@ -248,9 +248,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		@SuppressWarnings("unchecked")
 		public AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient = mock(AMRMClientAsync.class);
 
-		public JobManagerMetricGroup mockJMMetricGroup =
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup();
-
 		/**
 		 * Create mock RM dependencies.
 		 */
@@ -280,7 +277,7 @@ public class YarnResourceManagerTest extends TestLogger {
 							null,
 							mockResourceManagerClient,
 							mockNMClient,
-							mockJMMetricGroup);
+							UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 		}
 
 		/**
