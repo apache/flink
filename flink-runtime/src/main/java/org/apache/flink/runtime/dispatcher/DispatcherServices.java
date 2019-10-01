@@ -33,7 +33,37 @@ import javax.annotation.Nullable;
 /**
  * {@link Dispatcher} services container.
  */
-public class DispatcherServices extends PartialDispatcherServices {
+public class DispatcherServices {
+
+	@Nonnull
+	private final Configuration configuration;
+
+	@Nonnull
+	private final HighAvailabilityServices highAvailabilityServices;
+
+	@Nonnull
+	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+
+	@Nonnull
+	private final BlobServer blobServer;
+
+	@Nonnull
+	private final HeartbeatServices heartbeatServices;
+
+	@Nonnull
+	private final JobManagerMetricGroup jobManagerMetricGroup;
+
+	@Nonnull
+	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
+
+	@Nonnull
+	private final FatalErrorHandler fatalErrorHandler;
+
+	@Nonnull
+	private final HistoryServerArchivist historyServerArchivist;
+
+	@Nullable
+	private final String metricQueryServiceAddress;
 
 	@Nonnull
 	private final JobManagerRunnerFactory jobManagerRunnerFactory;
@@ -50,18 +80,67 @@ public class DispatcherServices extends PartialDispatcherServices {
 			@Nonnull HistoryServerArchivist historyServerArchivist,
 			@Nullable String metricQueryServiceAddress,
 			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
-		super(
-			configuration,
-			highAvailabilityServices,
-			resourceManagerGatewayRetriever,
-			blobServer,
-			heartbeatServices,
-			jobManagerMetricGroup,
-			archivedExecutionGraphStore,
-			fatalErrorHandler,
-			historyServerArchivist,
-			metricQueryServiceAddress);
+		this.configuration = configuration;
+		this.highAvailabilityServices = highAvailabilityServices;
+		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
+		this.blobServer = blobServer;
+		this.heartbeatServices = heartbeatServices;
+		this.jobManagerMetricGroup = jobManagerMetricGroup;
+		this.archivedExecutionGraphStore = archivedExecutionGraphStore;
+		this.fatalErrorHandler = fatalErrorHandler;
+		this.historyServerArchivist = historyServerArchivist;
+		this.metricQueryServiceAddress = metricQueryServiceAddress;
 		this.jobManagerRunnerFactory = jobManagerRunnerFactory;
+	}
+
+	@Nonnull
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
+	@Nonnull
+	public HighAvailabilityServices getHighAvailabilityServices() {
+		return highAvailabilityServices;
+	}
+
+	@Nonnull
+	public GatewayRetriever<ResourceManagerGateway> getResourceManagerGatewayRetriever() {
+		return resourceManagerGatewayRetriever;
+	}
+
+	@Nonnull
+	public BlobServer getBlobServer() {
+		return blobServer;
+	}
+
+	@Nonnull
+	public HeartbeatServices getHeartbeatServices() {
+		return heartbeatServices;
+	}
+
+	@Nonnull
+	public JobManagerMetricGroup getJobManagerMetricGroup() {
+		return jobManagerMetricGroup;
+	}
+
+	@Nonnull
+	public ArchivedExecutionGraphStore getArchivedExecutionGraphStore() {
+		return archivedExecutionGraphStore;
+	}
+
+	@Nonnull
+	public FatalErrorHandler getFatalErrorHandler() {
+		return fatalErrorHandler;
+	}
+
+	@Nonnull
+	public HistoryServerArchivist getHistoryServerArchivist() {
+		return historyServerArchivist;
+	}
+
+	@Nullable
+	public String getMetricQueryServiceAddress() {
+		return metricQueryServiceAddress;
 	}
 
 	@Nonnull
