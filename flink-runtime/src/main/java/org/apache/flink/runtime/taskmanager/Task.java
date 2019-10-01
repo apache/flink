@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import java.util.LinkedHashSet;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.listeners.LocalContextListener;
+import org.apache.flink.api.common.listeners.LocalContextListeners;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -665,41 +668,49 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 				metrics,
 				this);
 
-			// Make sure the user code classloader is accessible thread-locally.
-			// We are setting the correct context class loader before instantiating the invokable
-			// so that it is available to the invokable during its entire lifetime.
-			executingThread.setContextClassLoader(userCodeClassLoader);
+			// Make sure we notify any user supplied listeners before we instantiate the invokable code
+			LocalContextListeners.open(userCodeClassLoader, executionConfig);
+			try {
+				// Make sure the user code classloader is accessible thread-locally.
+				// We are setting the correct context class loader before instantiating the invokable
+				// so that it is available to the invokable during its entire lifetime.
+				executingThread.setContextClassLoader(userCodeClassLoader);
 
-			// now load and instantiate the task's invokable code
-			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env);
+				// now load and instantiate the task's invokable code
+				invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env);
 
-			// ----------------------------------------------------------------
-			//  actual task core work
-			// ----------------------------------------------------------------
+				// ----------------------------------------------------------------
+				//  actual task core work
+				// ----------------------------------------------------------------
 
-			// we must make strictly sure that the invokable is accessible to the cancel() call
-			// by the time we switched to running.
-			this.invokable = invokable;
+				// we must make strictly sure that the invokable is accessible to the cancel() call
+				// by the time we switched to running.
+				this.invokable = invokable;
 
-			// switch to the RUNNING state, if that fails, we have been canceled/failed in the meantime
-			if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
-				throw new CancelTaskException();
+				// switch to the RUNNING state, if that fails, we have been canceled/failed in the meantime
+				if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
+					throw new CancelTaskException();
+				}
+
+				// notify everyone that we switched to running
+				taskManagerActions
+					.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
+
+				// make sure the user code classloader is accessible thread-locally
+				executingThread.setContextClassLoader(userCodeClassLoader);
+
+				// run the invokable
+				invokable.invoke();
+			} finally {
+				// we are done with user code on this thread, so ensure we notify any listeners
+				LocalContextListeners.close(userCodeClassLoader, executionConfig);
 			}
-
-			// notify everyone that we switched to running
-			taskManagerActions.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
-
-			// make sure the user code classloader is accessible thread-locally
-			executingThread.setContextClassLoader(userCodeClassLoader);
-
-			// run the invokable
-			invokable.invoke();
 
 			// make sure, we enter the catch block if the task leaves the invoke() method due
-			// to the fact that it has been canceled
-			if (isCanceledOrFailed()) {
-				throw new CancelTaskException();
-			}
+				// to the fact that it has been canceled
+				if (isCanceledOrFailed()) {
+					throw new CancelTaskException();
+				}
 
 			// ----------------------------------------------------------------
 			//  finalization of a successful execution
