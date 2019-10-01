@@ -46,10 +46,12 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
@@ -120,6 +122,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	@GuardedBy("lock")
 	private MetricRegistryImpl metricRegistry;
+
+	@GuardedBy("lock")
+	private ProcessMetricGroup processMetricGroup;
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
@@ -263,6 +268,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, bindAddress);
 			metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
+			final String hostname = RpcUtils.getHostname(commonRpcService);
+
+			processMetricGroup = MetricUtils.instantiateProcessMetricGroup(
+				metricRegistry,
+				hostname,
+				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
 		}
 	}
@@ -347,6 +359,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				} catch (Throwable t) {
 					exception = ExceptionUtils.firstOrSuppressed(t, exception);
 				}
+			}
+
+			if (processMetricGroup != null) {
+				processMetricGroup.close();
 			}
 
 			if (metricRegistry != null) {

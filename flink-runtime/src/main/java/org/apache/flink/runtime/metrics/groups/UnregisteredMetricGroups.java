@@ -33,6 +33,10 @@ public class UnregisteredMetricGroups {
 	private UnregisteredMetricGroups() {
 	}
 
+	public static ProcessMetricGroup createUnregisteredProcessMetricGroup() {
+		return new UnregisteredProcessMetricGroup();
+	}
+
 	public static JobManagerMetricGroup createUnregisteredJobManagerMetricGroup() {
 		return new UnregisteredJobManagerMetricGroup();
 	}
@@ -55,6 +59,17 @@ public class UnregisteredMetricGroups {
 
 	public static OperatorMetricGroup createUnregisteredOperatorMetricGroup() {
 		return new UnregisteredOperatorMetricGroup();
+	}
+
+	/**
+	 * A safe drop-in replacement for {@link ProcessMetricGroup ProcessMetricGroups}.
+	 */
+	public static class UnregisteredProcessMetricGroup extends ProcessMetricGroup {
+		private static final String UNREGISTERED_HOST = "UnregisteredHost";
+
+		public UnregisteredProcessMetricGroup() {
+			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
+		}
 	}
 
 	/**

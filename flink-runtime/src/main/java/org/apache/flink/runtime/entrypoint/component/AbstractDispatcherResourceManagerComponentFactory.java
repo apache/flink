@@ -20,7 +20,6 @@ package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -160,12 +160,11 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 			log.debug("Starting Dispatcher REST endpoint.");
 			webMonitorEndpoint.start();
 
-			final String hostname = getHostname(rpcService);
+			final String hostname = RpcUtils.getHostname(rpcService);
 
 			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
 				metricRegistry,
-				hostname,
-				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+				hostname);
 
 			resourceManager = resourceManagerFactory.createResourceManager(
 				configuration,
@@ -256,11 +255,6 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 
 			throw new FlinkException("Could not create the DispatcherResourceManagerComponent.", exception);
 		}
-	}
-
-	protected String getHostname(RpcService rpcService) {
-		final String rpcServiceAddress = rpcService.getAddress();
-		return rpcServiceAddress != null && rpcServiceAddress.isEmpty() ? "localhost" : rpcServiceAddress;
 	}
 
 	protected abstract DispatcherResourceManagerComponent<T> createDispatcherResourceManagerComponent(
