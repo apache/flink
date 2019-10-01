@@ -702,7 +702,8 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Prints the first signature of methods with given name in a class and one signature consisting of DataType.
+    * Prints the first signature of methods with given name in a class
+    * and one signature consisting of DataType.
     */
   def signaturesToString(signature: Seq[LogicalType],
                          function: UserDefinedFunction,

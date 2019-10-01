@@ -617,7 +617,8 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Prints the first signature of methods with given name in a class and one signature consisting of TypeInformation.
+    * Prints the first signature of methods with given name in a class
+    * and one signature consisting of TypeInformation.
     */
   def signaturesToString(signature: Seq[TypeInformation[_]],
                          function: UserDefinedFunction,
