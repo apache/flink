@@ -26,6 +26,7 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -55,6 +56,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -132,6 +134,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@GuardedBy("lock")
 	private MetricRegistryImpl metricRegistry;
+
+	@GuardedBy("lock")
+	private ProcessMetricGroup processMetricGroup;
 
 	@GuardedBy("lock")
 	private RpcService commonRpcService;
@@ -291,6 +296,11 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					configuration,
 					commonRpcService.getAddress());
 				metricRegistry.startQueryService(metricQueryServiceRpcService, null);
+
+				processMetricGroup = MetricUtils.instantiateProcessMetricGroup(
+					metricRegistry,
+					RpcUtils.getHostname(commonRpcService),
+					ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
 				ioExecutor = Executors.newFixedThreadPool(
 					Hardware.getNumberCPUCores(),
@@ -461,6 +471,11 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private CompletableFuture<Void> closeMetricSystem() {
 		synchronized (lock) {
 			final ArrayList<CompletableFuture<Void>> terminationFutures = new ArrayList<>(2);
+
+			if (processMetricGroup != null) {
+				processMetricGroup.close();
+				processMetricGroup = null;
+			}
 
 			// metrics shutdown
 			if (metricRegistry != null) {
