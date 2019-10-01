@@ -18,45 +18,15 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
-import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
-import org.apache.flink.runtime.metrics.scope.ScopeFormat;
-
-import java.util.Map;
 
 /**
- * {@link AbstractMetricGroup} implementation for process related metrics.
+ * {@link AbstractImitatingJobManagerMetricGroup} implementation for process related metrics.
  */
-public class ProcessMetricGroup extends AbstractMetricGroup<AbstractMetricGroup<?>> {
-	private final String hostname;
+public class ProcessMetricGroup extends AbstractImitatingJobManagerMetricGroup {
 
 	ProcessMetricGroup(MetricRegistry registry, String hostname) {
-		super(registry, getScope(registry, hostname), null);
-		this.hostname = hostname;
-	}
-
-	private static String[] getScope(MetricRegistry registry, String hostname) {
-		// returning jobmanager scope in order to guarantee backwards compatibility
-		// this can be changed once we introduce a proper scope for the process metric group
-		return registry.getScopeFormats().getJobManagerFormat().formatScope(hostname);
-	}
-
-	@Override
-	protected String getGroupName(CharacterFilter filter) {
-		// returning jobmanager in order to guarantee backwards compatibility
-		// this can be changed once we introduce a proper group name for the process metric group
-		return "jobmanager";
-	}
-
-	@Override
-	protected void putVariables(Map<String, String> variables) {
-		variables.put(ScopeFormat.SCOPE_HOST, hostname);
-	}
-
-	@Override
-	protected QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
-		return new QueryScopeInfo.JobManagerQueryScopeInfo();
+		super(registry, hostname);
 	}
 
 	public static ProcessMetricGroup create(MetricRegistry metricRegistry, String hostname) {
