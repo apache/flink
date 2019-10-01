@@ -212,8 +212,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				resourceManager,
 				dispatcherLeaderRetrievalService,
 				resourceManagerRetrievalService,
-				webMonitorEndpoint,
-				jobManagerMetricGroup);
+				webMonitorEndpoint);
 
 		} catch (Exception exception) {
 			// clean up all started components
@@ -272,6 +271,5 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 		ResourceManager<?> resourceManager,
 		LeaderRetrievalService dispatcherLeaderRetrievalService,
 		LeaderRetrievalService resourceManagerRetrievalService,
-		WebMonitorEndpoint<?> webMonitorEndpoint,
-		JobManagerMetricGroup jobManagerMetricGroup);
+		WebMonitorEndpoint<?> webMonitorEndpoint);
 }
