@@ -49,7 +49,7 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
@@ -132,7 +132,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	private final ClusterInformation clusterInformation;
 
-	private final JobManagerMetricGroup jobManagerMetricGroup;
+	private final ResourceManagerMetricGroup resourceManagerMetricGroup;
 
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
@@ -161,7 +161,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			ResourceManagerMetricGroup resourceManagerMetricGroup) {
 
 		super(rpcService, resourceManagerEndpointId, null);
 
@@ -172,7 +172,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
 		this.clusterInformation = checkNotNull(clusterInformation);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
-		this.jobManagerMetricGroup = checkNotNull(jobManagerMetricGroup);
+		this.resourceManagerMetricGroup = checkNotNull(resourceManagerMetricGroup);
 
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.jmResourceIdRegistrations = new HashMap<>(4);
@@ -256,6 +256,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
+
+		resourceManagerMetricGroup.close();
 
 		clearStateInternal();
 
@@ -728,13 +730,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	private void registerSlotAndTaskExecutorMetrics() {
-		jobManagerMetricGroup.gauge(
+		resourceManagerMetricGroup.gauge(
 			MetricNames.TASK_SLOTS_AVAILABLE,
 			() -> (long) slotManager.getNumberFreeSlots());
-		jobManagerMetricGroup.gauge(
+		resourceManagerMetricGroup.gauge(
 			MetricNames.TASK_SLOTS_TOTAL,
 			() -> (long) slotManager.getNumberRegisteredSlots());
-		jobManagerMetricGroup.gauge(
+		resourceManagerMetricGroup.gauge(
 			MetricNames.NUM_REGISTERED_TASK_MANAGERS,
 			() -> (long) taskExecutors.size());
 	}

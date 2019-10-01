@@ -33,7 +33,6 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -151,7 +150,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
 			testingFatalErrorHandler,
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 			Time.minutes(5L));
 
 		resourceManager.start();
