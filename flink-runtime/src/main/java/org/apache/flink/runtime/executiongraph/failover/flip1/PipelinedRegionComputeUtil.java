@@ -74,9 +74,9 @@ public final class PipelinedRegionComputeUtil {
 					final Set<FailoverVertex> producerRegion = vertexToRegion.get(producerVertex);
 
 					if (producerRegion == null) {
-						throw new IllegalStateException("Producer task " + producerVertex.getExecutionVertexName()
+						throw new IllegalStateException("Producer task " + producerVertex.getExecutionVertexID()
 							+ " failover region is null while calculating failover region for the consumer task "
-							+ vertex.getExecutionVertexName() + ". This should be a failover region building bug.");
+							+ vertex.getExecutionVertexID() + ". This should be a failover region building bug.");
 					}
 
 					// check if it is the same as the producer region, if so skip the merge

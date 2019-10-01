@@ -54,9 +54,7 @@ public class DefaultFailoverTopology implements FailoverTopology {
 		this.failoverVertices = new ArrayList<>();
 		final Map<ExecutionVertex, DefaultFailoverVertex> failoverVertexMap = new IdentityHashMap<>();
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
-			final DefaultFailoverVertex failoverVertex = new DefaultFailoverVertex(
-				vertex.getID(),
-				vertex.getTaskNameWithSubtaskIndex());
+			final DefaultFailoverVertex failoverVertex = new DefaultFailoverVertex(vertex.getID());
 			this.failoverVertices.add(failoverVertex);
 			failoverVertexMap.put(vertex, failoverVertex);
 		}

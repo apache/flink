@@ -32,13 +32,6 @@ public interface FailoverVertex {
 	ExecutionVertexID getExecutionVertexID();
 
 	/**
-	 * Returns the name of this vertex.
-	 *
-	 * @return name of this vertex
-	 */
-	String getExecutionVertexName();
-
-	/**
 	 * Returns all input edges of this vertex.
 	 *
 	 * @return input edges of this vertex
