@@ -623,7 +623,9 @@ object UserDefinedFunctionUtils {
   def signaturesToString(signature: Seq[TypeInformation[_]],
                          function: UserDefinedFunction,
                          name: String): String = {
-    signatureToString(getMethodSignatures(function, name)(0).head +: typeInfoToClass(signature))
+    val signatureArray = getMethodSignatures(function, name)(0).head +:
+                         typeInfoToClass(signature)
+    signatureToString(signatureArray)
   }
 
   /**

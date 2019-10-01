@@ -708,7 +708,9 @@ object UserDefinedFunctionUtils {
   def signaturesToString(signature: Seq[LogicalType],
                          function: UserDefinedFunction,
                          name: String): String = {
-    signatureToString(getMethodSignatures(function, name)(0).head +: internalTypesToClasses(signature))
+    val signatureArray = getMethodSignatures(function, name)(0).head +:
+                         internalTypesToClasses(signature)
+    signatureToString(signatureArray)
   }
 
   /**
