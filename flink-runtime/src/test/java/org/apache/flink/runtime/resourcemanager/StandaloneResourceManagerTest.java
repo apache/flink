@@ -23,7 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerBuilder;
@@ -120,7 +120,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
 			rmServices.jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
 			fatalErrorHandler,
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 			startupPeriod,
 			rmServices);
 
@@ -143,7 +143,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
 				JobLeaderIdService jobLeaderIdService,
 				ClusterInformation clusterInformation,
 				FatalErrorHandler fatalErrorHandler,
-				JobManagerMetricGroup jobManagerMetricGroup,
+				ResourceManagerMetricGroup resourceManagerMetricGroup,
 				Time startupPeriodTime,
 				MockResourceManagerRuntimeServices rmServices) {
 			super(
@@ -156,7 +156,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
 				jobLeaderIdService,
 				clusterInformation,
 				fatalErrorHandler,
-				jobManagerMetricGroup,
+				resourceManagerMetricGroup,
 				startupPeriodTime);
 			this.rmServices = rmServices;
 		}

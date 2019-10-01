@@ -38,6 +38,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
@@ -113,6 +114,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 		WebMonitorEndpoint<U> webMonitorEndpoint = null;
 		ResourceManager<?> resourceManager = null;
 		JobManagerMetricGroup jobManagerMetricGroup = null;
+		ResourceManagerMetricGroup resourceManagerMetricGroup = null;
 		T dispatcher = null;
 
 		try {
@@ -163,10 +165,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 
 			final String hostname = RpcUtils.getHostname(rpcService);
 
-			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
-				metricRegistry,
-				hostname);
-
+			resourceManagerMetricGroup = ResourceManagerMetricGroup.create(metricRegistry, hostname);
 			resourceManager = resourceManagerFactory.createResourceManager(
 				configuration,
 				ResourceID.generate(),
@@ -176,9 +175,13 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				fatalErrorHandler,
 				new ClusterInformation(hostname, blobServer.getPort()),
 				webMonitorEndpoint.getRestBaseUrl(),
-				jobManagerMetricGroup);
+				resourceManagerMetricGroup);
 
 			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
+
+			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
+				metricRegistry,
+				hostname);
 
 			final PartialDispatcherServices partialDispatcherServices = new PartialDispatcherServices(
 				configuration,
@@ -254,6 +257,10 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 
 			if (jobManagerMetricGroup != null) {
 				jobManagerMetricGroup.close();
+			}
+
+			if (resourceManagerMetricGroup != null) {
+				resourceManagerMetricGroup.close();
 			}
 
 			throw new FlinkException("Could not create the DispatcherResourceManagerComponent.", exception);
