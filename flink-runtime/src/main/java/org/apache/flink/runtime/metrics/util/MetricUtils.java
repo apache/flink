@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -79,10 +80,7 @@ public class MetricUtils {
 			metricRegistry,
 			hostname);
 
-		MetricGroup statusGroup = jobManagerMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
-
-		// initialize the JM metrics
-		instantiateStatusMetrics(statusGroup);
+		createAndInitializeStatusMetricGroup(jobManagerMetricGroup);
 
 		if (systemResourceProbeInterval.isPresent()) {
 			instantiateSystemMetrics(jobManagerMetricGroup, systemResourceProbeInterval.get());
@@ -100,15 +98,20 @@ public class MetricUtils {
 			hostName,
 			resourceID.toString());
 
-		MetricGroup statusGroup = taskManagerMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
-
-		// Initialize the TM metrics
-		instantiateStatusMetrics(statusGroup);
+		MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
 
 		if (systemResourceProbeInterval.isPresent()) {
 			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
 		}
 		return Tuple2.of(taskManagerMetricGroup, statusGroup);
+	}
+
+	private static MetricGroup createAndInitializeStatusMetricGroup(AbstractMetricGroup<?> parentMetricGroup) {
+		MetricGroup statusGroup = parentMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
+
+		// Initialize the TM metrics
+		instantiateStatusMetrics(statusGroup);
+		return statusGroup;
 	}
 
 	public static void instantiateStatusMetrics(
