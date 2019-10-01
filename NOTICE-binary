@@ -3379,6 +3379,15 @@ WebSocket and HTTP server:
   * HOMEPAGE:
     * https://github.com/joewalnes/webbit
 
+flink-shaded-zookeeper
+Copyright 2014-2019 The Apache Software Foundation
+
+Apache ZooKeeper - Server
+Copyright 2008-2019 The Apache Software Foundation
+
+Apache ZooKeeper - Jute
+Copyright 2008-2019 The Apache Software Foundation
+
 flink-shaded-curator
 Copyright 2014-2019 The Apache Software Foundation
 
@@ -7920,6 +7929,44 @@ Copyright 2011-2017 The Apache Software Foundation
 
 Curator Recipes
 Copyright 2011-2017 The Apache Software Foundation
+
+Copyright 2011 The Netty Project
+
+This product contains a modified version of 'JZlib', a re-implementation of
+zlib in pure Java, which can be obtained at:
+
+  * LICENSE:
+    * license/LICENSE.jzlib.txt (BSD Style License)
+  * HOMEPAGE:
+    * http://www.jcraft.com/jzlib/
+
+This product contains a modified version of 'Webbit', a Java event based
+WebSocket and HTTP server:
+
+This product optionally depends on 'Protocol Buffers', Google's data
+interchange format, which can be obtained at:
+
+This product optionally depends on 'SLF4J', a simple logging facade for Java,
+which can be obtained at:
+
+This product optionally depends on 'Apache Log4J', a logging framework,
+which can be obtained at:
+
+This product optionally depends on 'JBoss Logging', a logging framework,
+which can be obtained at:
+
+  * LICENSE:
+    * license/LICENSE.jboss-logging.txt (GNU LGPL 2.1)
+  * HOMEPAGE:
+    * http://anonsvn.jboss.org/repos/common/common-logging-spi/
+
+This product optionally depends on 'Apache Felix', an open source OSGi
+framework implementation, which can be obtained at:
+
+  * LICENSE:
+    * license/LICENSE.felix.txt (Apache License 2.0)
+  * HOMEPAGE:
+    * http://felix.apache.org/
 
 Kerb Simple Kdc
 Copyright 2014-2017 The Apache Software Foundation
