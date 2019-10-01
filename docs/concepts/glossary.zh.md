@@ -65,7 +65,7 @@ Logical Graph 是一种描述流处理程序的高阶逻辑有向图。节点是
 
 #### Managed State
 
-Managed State 描述了已在框架中注册的应用程序的托管状态。对于托管状态，Apache Flink 会负责持久化和重伸缩等事=事宜。
+Managed State 描述了已在框架中注册的应用程序的托管状态。对于托管状态，Apache Flink 会负责持久化和重伸缩等事宜。
 
 #### Flink Master
 
