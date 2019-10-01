@@ -77,7 +77,7 @@ Flink Master 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三个�
 
 #### Operator Chain
 
-算子链由两个或多个连续的 [Operator](#operator) 组成，两者之间没有任何的重新分区。同一算子链内的算子可以彼此直接传递 record，而无需通过序列化或 Flink 的网络堆栈。
+算子链由两个或多个连续的 [Operator](#operator) 组成，两者之间没有任何的重新分区。同一算子链内的算子可以彼此直接传递 record，而无需通过序列化或 Flink 的网络栈。
 
 #### Partition
 
