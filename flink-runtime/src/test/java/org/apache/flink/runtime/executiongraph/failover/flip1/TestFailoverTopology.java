@@ -25,7 +25,6 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.UUID;
 
 /**
  * A FailoverTopology implementation for tests.
@@ -58,11 +57,9 @@ public class TestFailoverTopology implements FailoverTopology {
 		private final Collection<FailoverEdge> inputEdges = new ArrayList<>();
 		private final Collection<FailoverEdge> outputEdges = new ArrayList<>();
 		private final ExecutionVertexID id;
-		private final String name;
 
-		public TestFailoverVertex(ExecutionVertexID id, String name) {
+		public TestFailoverVertex(ExecutionVertexID id) {
 			this.id = id;
-			this.name = name;
 		}
 
 		void addInputEdge(FailoverEdge edge) {
@@ -75,11 +72,6 @@ public class TestFailoverTopology implements FailoverTopology {
 
 		public ExecutionVertexID getExecutionVertexID() {
 			return id;
-		}
-
-		@Override
-		public String getExecutionVertexName() {
-			return name;
 		}
 
 		@Override
@@ -139,11 +131,7 @@ public class TestFailoverTopology implements FailoverTopology {
 		private Collection<FailoverVertex> vertices = new ArrayList<>();
 
 		public TestFailoverVertex newVertex() {
-			return newVertex(UUID.randomUUID().toString());
-		}
-
-		public TestFailoverVertex newVertex(String name) {
-			TestFailoverVertex testFailoverVertex = new TestFailoverVertex(new ExecutionVertexID(new JobVertexID(), 0), name);
+			TestFailoverVertex testFailoverVertex = new TestFailoverVertex(new ExecutionVertexID(new JobVertexID(), 0));
 			vertices.add(testFailoverVertex);
 			return testFailoverVertex;
 		}

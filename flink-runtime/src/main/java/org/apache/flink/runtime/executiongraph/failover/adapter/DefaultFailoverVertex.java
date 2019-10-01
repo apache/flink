@@ -34,18 +34,13 @@ class DefaultFailoverVertex implements FailoverVertex {
 
 	private final ExecutionVertexID executionVertexID;
 
-	private final String executionVertexName;
-
 	private final List<DefaultFailoverEdge> inputEdges;
 
 	private final List<DefaultFailoverEdge> outputEdges;
 
-	DefaultFailoverVertex(
-		ExecutionVertexID executionVertexID,
-		String executionVertexName) {
+	DefaultFailoverVertex(ExecutionVertexID executionVertexID) {
 
 		this.executionVertexID = checkNotNull(executionVertexID);
-		this.executionVertexName = checkNotNull(executionVertexName);
 		this.inputEdges = new ArrayList<>();
 		this.outputEdges = new ArrayList<>();
 	}
@@ -53,11 +48,6 @@ class DefaultFailoverVertex implements FailoverVertex {
 	@Override
 	public ExecutionVertexID getExecutionVertexID() {
 		return executionVertexID;
-	}
-
-	@Override
-	public String getExecutionVertexName() {
-		return executionVertexName;
 	}
 
 	@Override
