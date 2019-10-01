@@ -173,7 +173,6 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				rpcService,
 				highAvailabilityServices,
 				heartbeatServices,
-				metricRegistry,
 				fatalErrorHandler,
 				new ClusterInformation(hostname, blobServer.getPort()),
 				webMonitorEndpoint.getRestBaseUrl(),

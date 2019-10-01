@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -53,7 +52,6 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
@@ -64,7 +62,6 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 			rpcService,
 			highAvailabilityServices,
 			heartbeatServices,
-			metricRegistry,
 			fatalErrorHandler,
 			clusterInformation,
 			webInterfaceUrl,
@@ -89,7 +86,6 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler,
 		ClusterInformation clusterInformation,
 		@Nullable String webInterfaceUrl,

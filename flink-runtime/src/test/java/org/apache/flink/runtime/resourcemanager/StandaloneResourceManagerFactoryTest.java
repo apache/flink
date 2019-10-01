@@ -57,7 +57,6 @@ public class StandaloneResourceManagerFactoryTest extends TestLogger {
 				rpcService,
 				new TestingHighAvailabilityServices(),
 				new TestingHeartbeatServices(),
-				NoOpMetricRegistry.INSTANCE,
 				new TestingFatalErrorHandler(),
 				new ClusterInformation("foobar", 1234),
 				null,

@@ -49,7 +49,6 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -125,9 +124,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	private final HeartbeatServices heartbeatServices;
 
-	/** Registry to use for metrics. */
-	private final MetricRegistry metricRegistry;
-
 	/** Fatal error handler. */
 	private final FatalErrorHandler fatalErrorHandler;
 
@@ -162,7 +158,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
-			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
@@ -174,7 +169,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
 		this.heartbeatServices = checkNotNull(heartbeatServices);
 		this.slotManager = checkNotNull(slotManager);
-		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
 		this.clusterInformation = checkNotNull(clusterInformation);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
