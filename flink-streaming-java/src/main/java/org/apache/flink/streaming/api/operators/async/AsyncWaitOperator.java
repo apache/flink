@@ -183,10 +183,6 @@ public class AsyncWaitOperator<IN, OUT>
 		emitterThread.setDaemon(true);
 		emitterThread.start();
 
-		// process stream elements from state, since the Emit thread will start as soon as all
-		// elements from previous state are in the StreamElementQueue, we have to make sure that the
-		// order to open all operators in the operator chain proceeds from the tail operator to the
-		// head operator.
 		if (recoveredStreamElements != null) {
 			for (StreamElement element : recoveredStreamElements.get()) {
 				if (element.isRecord()) {
