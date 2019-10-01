@@ -21,7 +21,6 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 
@@ -38,9 +37,8 @@ class JobDispatcherResourceManagerComponent extends DispatcherResourceManagerCom
 			ResourceManager<?> resourceManager,
 			LeaderRetrievalService dispatcherLeaderRetrievalService,
 			LeaderRetrievalService resourceManagerRetrievalService,
-			WebMonitorEndpoint<?> webMonitorEndpoint,
-			JobManagerMetricGroup jobManagerMetricGroup) {
-		super(dispatcher, resourceManager, dispatcherLeaderRetrievalService, resourceManagerRetrievalService, webMonitorEndpoint, jobManagerMetricGroup);
+			WebMonitorEndpoint<?> webMonitorEndpoint) {
+		super(dispatcher, resourceManager, dispatcherLeaderRetrievalService, resourceManagerRetrievalService, webMonitorEndpoint);
 
 		final CompletableFuture<ApplicationStatus> shutDownFuture = getShutDownFuture();
 

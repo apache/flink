@@ -21,7 +21,6 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.runtime.dispatcher.JobDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
@@ -45,14 +44,12 @@ public class JobDispatcherResourceManagerComponentFactory extends AbstractDispat
 			ResourceManager<?> resourceManager,
 			LeaderRetrievalService dispatcherLeaderRetrievalService,
 			LeaderRetrievalService resourceManagerRetrievalService,
-			WebMonitorEndpoint<?> webMonitorEndpoint,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			WebMonitorEndpoint<?> webMonitorEndpoint) {
 		return new JobDispatcherResourceManagerComponent(
 			dispatcher,
 			resourceManager,
 			dispatcherLeaderRetrievalService,
 			resourceManagerRetrievalService,
-			webMonitorEndpoint,
-			jobManagerMetricGroup);
+			webMonitorEndpoint);
 	}
 }

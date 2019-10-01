@@ -22,7 +22,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
@@ -58,9 +57,6 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 	@Nonnull
 	private final WebMonitorEndpoint<?> webMonitorEndpoint;
 
-	@Nonnull
-	private final JobManagerMetricGroup jobManagerMetricGroup;
-
 	private final CompletableFuture<Void> terminationFuture;
 
 	private final CompletableFuture<ApplicationStatus> shutDownFuture;
@@ -72,14 +68,12 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 			@Nonnull ResourceManager<?> resourceManager,
 			@Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
 			@Nonnull LeaderRetrievalService resourceManagerRetrievalService,
-			@Nonnull WebMonitorEndpoint<?> webMonitorEndpoint,
-			@Nonnull JobManagerMetricGroup jobManagerMetricGroup) {
+			@Nonnull WebMonitorEndpoint<?> webMonitorEndpoint) {
 		this.resourceManager = resourceManager;
 		this.dispatcher = dispatcher;
 		this.dispatcherLeaderRetrievalService = dispatcherLeaderRetrievalService;
 		this.resourceManagerRetrievalService = resourceManagerRetrievalService;
 		this.webMonitorEndpoint = webMonitorEndpoint;
-		this.jobManagerMetricGroup = jobManagerMetricGroup;
 		this.terminationFuture = new CompletableFuture<>();
 		this.shutDownFuture = new CompletableFuture<>();
 
@@ -179,11 +173,7 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 
 		final CompletableFuture<Void> componentTerminationFuture = FutureUtils.completeAll(terminationFutures);
 
-		final CompletableFuture<Void> metricGroupTerminationFuture = FutureUtils.runAfterwards(
-			componentTerminationFuture,
-			jobManagerMetricGroup::close);
-
-		metricGroupTerminationFuture.whenComplete((aVoid, throwable) -> {
+		componentTerminationFuture.whenComplete((aVoid, throwable) -> {
 			if (throwable != null) {
 				terminationFuture.completeExceptionally(throwable);
 			} else {
