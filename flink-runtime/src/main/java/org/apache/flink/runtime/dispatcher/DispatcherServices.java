@@ -74,22 +74,22 @@ public class DispatcherServices {
 			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			@Nonnull BlobServer blobServer,
 			@Nonnull HeartbeatServices heartbeatServices,
-			@Nonnull JobManagerMetricGroup jobManagerMetricGroup,
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
 			@Nullable String metricQueryServiceAddress,
+			@Nonnull JobManagerMetricGroup jobManagerMetricGroup,
 			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
 		this.configuration = configuration;
 		this.highAvailabilityServices = highAvailabilityServices;
 		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
 		this.blobServer = blobServer;
 		this.heartbeatServices = heartbeatServices;
-		this.jobManagerMetricGroup = jobManagerMetricGroup;
 		this.archivedExecutionGraphStore = archivedExecutionGraphStore;
 		this.fatalErrorHandler = fatalErrorHandler;
 		this.historyServerArchivist = historyServerArchivist;
 		this.metricQueryServiceAddress = metricQueryServiceAddress;
+		this.jobManagerMetricGroup = jobManagerMetricGroup;
 		this.jobManagerRunnerFactory = jobManagerRunnerFactory;
 	}
 
@@ -148,18 +148,20 @@ public class DispatcherServices {
 		return jobManagerRunnerFactory;
 	}
 
-	public static DispatcherServices from(@Nonnull PartialDispatcherServices partialDispatcherServices, @Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
+	public static DispatcherServices from(
+		@Nonnull PartialDispatcherServices partialDispatcherServices,
+		@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
 		return new DispatcherServices(
 			partialDispatcherServices.getConfiguration(),
 			partialDispatcherServices.getHighAvailabilityServices(),
 			partialDispatcherServices.getResourceManagerGatewayRetriever(),
 			partialDispatcherServices.getBlobServer(),
 			partialDispatcherServices.getHeartbeatServices(),
-			partialDispatcherServices.getJobManagerMetricGroup(),
 			partialDispatcherServices.getArchivedExecutionGraphStore(),
 			partialDispatcherServices.getFatalErrorHandler(),
 			partialDispatcherServices.getHistoryServerArchivist(),
 			partialDispatcherServices.getMetricQueryServiceAddress(),
+			partialDispatcherServices.getJobManagerMetricGroupFactory().create(),
 			jobManagerRunnerFactory);
 	}
 }

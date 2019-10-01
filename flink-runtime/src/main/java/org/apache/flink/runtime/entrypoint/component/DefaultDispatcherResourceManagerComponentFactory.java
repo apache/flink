@@ -41,7 +41,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.HaServicesJobGraphStoreFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -117,7 +116,6 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 		LeaderRetrievalService resourceManagerRetrievalService = null;
 		WebMonitorEndpoint<?> webMonitorEndpoint = null;
 		ResourceManager<?> resourceManager = null;
-		JobManagerMetricGroup jobManagerMetricGroup = null;
 		ResourceManagerMetricGroup resourceManagerMetricGroup = null;
 		DispatcherRunner dispatcherRunner = null;
 
@@ -183,17 +181,13 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 
 			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
 
-			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
-				metricRegistry,
-				hostname);
-
 			final PartialDispatcherServices partialDispatcherServices = new PartialDispatcherServices(
 				configuration,
 				highAvailabilityServices,
 				resourceManagerGatewayRetriever,
 				blobServer,
 				heartbeatServices,
-				jobManagerMetricGroup,
+				() -> MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, hostname),
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				historyServerArchivist,
@@ -259,10 +253,6 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				terminationFuture.get();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			if (jobManagerMetricGroup != null) {
-				jobManagerMetricGroup.close();
 			}
 
 			if (resourceManagerMetricGroup != null) {

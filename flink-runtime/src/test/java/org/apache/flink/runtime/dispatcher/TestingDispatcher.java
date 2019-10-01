@@ -66,11 +66,11 @@ class TestingDispatcher extends Dispatcher {
 				resourceManagerGatewayRetriever,
 				blobServer,
 				heartbeatServices,
-				jobManagerMetricGroup,
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
 				metricQueryServiceAddress,
+				jobManagerMetricGroup,
 				jobManagerRunnerFactory),
 			highAvailabilityServices.getJobGraphStore());
 
