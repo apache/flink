@@ -31,6 +31,7 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
@@ -63,7 +64,7 @@ import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitia
  */
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
-	private static final String METRIC_GROUP_STATUS_NAME = "Status";
+	public static final String METRIC_GROUP_STATUS_NAME = "Status";
 	private static final String METRICS_ACTOR_SYSTEM_NAME = "flink-metrics";
 
 	static final String METRIC_GROUP_HEAP_NAME = "Heap";
@@ -72,19 +73,26 @@ public class MetricUtils {
 	private MetricUtils() {
 	}
 
-	public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
+	public static ProcessMetricGroup instantiateProcessMetricGroup(
 			final MetricRegistry metricRegistry,
 			final String hostname,
 			final Optional<Time> systemResourceProbeInterval) {
+		final ProcessMetricGroup processMetricGroup = ProcessMetricGroup.create(metricRegistry, hostname);
+
+		createAndInitializeStatusMetricGroup(processMetricGroup);
+
+		systemResourceProbeInterval.ifPresent(interval -> instantiateSystemMetrics(processMetricGroup, interval));
+
+		return processMetricGroup;
+	}
+
+	public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
+			final MetricRegistry metricRegistry,
+			final String hostname) {
 		final JobManagerMetricGroup jobManagerMetricGroup = new JobManagerMetricGroup(
 			metricRegistry,
 			hostname);
 
-		createAndInitializeStatusMetricGroup(jobManagerMetricGroup);
-
-		if (systemResourceProbeInterval.isPresent()) {
-			instantiateSystemMetrics(jobManagerMetricGroup, systemResourceProbeInterval.get());
-		}
 		return jobManagerMetricGroup;
 	}
 
