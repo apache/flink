@@ -87,7 +87,6 @@ public class ResourceManagerHATest extends TestLogger {
 				highAvailabilityServices,
 				heartbeatServices,
 				resourceManagerRuntimeServices.getSlotManager(),
-				NoOpMetricRegistry.INSTANCE,
 				resourceManagerRuntimeServices.getJobLeaderIdService(),
 				new ClusterInformation("localhost", 1234),
 				testingFatalErrorHandler,
