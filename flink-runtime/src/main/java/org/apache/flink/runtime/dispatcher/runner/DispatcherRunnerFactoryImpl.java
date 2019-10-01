@@ -21,6 +21,9 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
+import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.concurrent.Executor;
@@ -38,8 +41,11 @@ public class DispatcherRunnerFactoryImpl implements DispatcherRunnerFactory {
 
 	@Override
 	public DispatcherRunnerImpl createDispatcherRunner(
-			RpcService rpcService,
+			LeaderElectionService leaderElectionService,
+			FatalErrorHandler fatalErrorHandler,
+			JobGraphStoreFactory jobGraphStoreFactory,
 			Executor ioExecutor,
+			RpcService rpcService,
 			PartialDispatcherServices partialDispatcherServices) throws Exception {
 		return new DispatcherRunnerImpl(dispatcherFactory, rpcService, partialDispatcherServices);
 	}
