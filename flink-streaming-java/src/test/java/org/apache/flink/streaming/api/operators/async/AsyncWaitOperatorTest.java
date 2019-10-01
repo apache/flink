@@ -49,9 +49,8 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
-import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
-import org.apache.flink.streaming.api.operators.async.queue.StreamRecordQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
@@ -63,13 +62,16 @@ import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
@@ -99,6 +101,9 @@ import static org.junit.Assert.assertTrue;
  */
 public class AsyncWaitOperatorTest extends TestLogger {
 	private static final long TIMEOUT = 1000L;
+
+	@Rule
+	public Timeout timeoutRule = new Timeout(10, TimeUnit.SECONDS);
 
 	private static class MyAsyncFunction extends RichAsyncFunction<Integer, Integer> {
 		private static final long serialVersionUID = 8522411971886428444L;
@@ -165,7 +170,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * This function is used in the testStateSnapshotAndRestore, ensuring
-	 * that {@link StreamElementQueueEntry} can stay
+	 * that {@link StreamElement} can stay
 	 * in the {@link StreamElementQueue} to be
 	 * snapshotted while checkpointing.
 	 */
@@ -469,7 +474,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		List<Object> expectedOutput = new LinkedList<>();
 		expectedOutput.add(new StreamRecord<>(22, initialTimestamp));
 		expectedOutput.add(new StreamRecord<>(26, initialTimestamp + 1L));
 		expectedOutput.add(new StreamRecord<>(30, initialTimestamp + 2L));
@@ -734,7 +739,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * <p>Note that this test does not enforce the exact strict ordering because with the fix it is no
 	 * longer possible. However, it provokes the described situation without the fix.
 	 */
-	@Test(timeout = 10000L)
+	@Test
 	public void testClosingWithBlockedEmitter() throws Exception {
 
 		JobVertex chainedVertex = createChainedVertex(new MyAsyncFunction(), new EmitterBlockingFunction());
@@ -770,7 +775,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-5652
 	 * Tests that registered timers are properly canceled upon completion of a
-	 * {@link StreamRecordQueueEntry} in order to avoid resource leaks because TriggerTasks hold
+	 * {@link StreamElement} in order to avoid resource leaks because TriggerTasks hold
 	 * a reference on the StreamRecordQueueEntry.
 	 */
 	@Test
@@ -801,7 +806,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * <p>Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
 	 * another StreamElementQueueEntry is properly completed before it is collected.
 	 */
-	@Test(timeout = 2000)
+	@Test
 	public void testOrderedWaitUserExceptionHandling() throws Exception {
 		testUserExceptionHandling(AsyncDataStream.OutputMode.ORDERED);
 	}
@@ -812,7 +817,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * <p>Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
 	 * another StreamElementQueueEntry is properly completed before it is collected.
 	 */
-	@Test(timeout = 2000)
+	@Test
 	public void testUnorderedWaitUserExceptionHandling() throws Exception {
 		testUserExceptionHandling(AsyncDataStream.OutputMode.UNORDERED);
 	}
