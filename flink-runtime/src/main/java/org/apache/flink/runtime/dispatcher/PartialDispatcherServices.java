@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -52,7 +51,7 @@ public class PartialDispatcherServices {
 	private final HeartbeatServices heartbeatServices;
 
 	@Nonnull
-	private final JobManagerMetricGroup jobManagerMetricGroup;
+	private final JobManagerMetricGroupFactory jobManagerMetricGroupFactory;
 
 	@Nonnull
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
@@ -72,7 +71,7 @@ public class PartialDispatcherServices {
 			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			@Nonnull BlobServer blobServer,
 			@Nonnull HeartbeatServices heartbeatServices,
-			@Nonnull JobManagerMetricGroup jobManagerMetricGroup,
+			@Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
@@ -82,7 +81,7 @@ public class PartialDispatcherServices {
 		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
 		this.blobServer = blobServer;
 		this.heartbeatServices = heartbeatServices;
-		this.jobManagerMetricGroup = jobManagerMetricGroup;
+		this.jobManagerMetricGroupFactory = jobManagerMetricGroupFactory;
 		this.archivedExecutionGraphStore = archivedExecutionGraphStore;
 		this.fatalErrorHandler = fatalErrorHandler;
 		this.historyServerArchivist = historyServerArchivist;
@@ -115,8 +114,8 @@ public class PartialDispatcherServices {
 	}
 
 	@Nonnull
-	public JobManagerMetricGroup getJobManagerMetricGroup() {
-		return jobManagerMetricGroup;
+	public JobManagerMetricGroupFactory getJobManagerMetricGroupFactory() {
+		return jobManagerMetricGroupFactory;
 	}
 
 	@Nonnull

@@ -235,11 +235,11 @@ public class MiniDispatcherTest extends TestLogger {
 				() -> CompletableFuture.completedFuture(resourceManagerGateway),
 				blobServer,
 				heartbeatServices,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				archivedExecutionGraphStore,
 				testingFatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
 				null,
+				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				testingJobManagerRunnerFactory),
 			jobGraph,
 			executionMode);
