@@ -101,9 +101,6 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Queue, into which to store the currently in-flight stream elements. */
 	private transient StreamElementQueue<OUT> queue;
 
-	/** Pending stream element which could not yet added to the queue. */
-	private transient StreamElement pendingStreamElement;
-
 	/** Mailbox executor used to yield while waiting for buffers to empty. */
 	private final transient MailboxExecutor mailboxExecutor;
 
@@ -220,11 +217,6 @@ public class AsyncWaitOperator<IN, OUT>
 
 		try {
 			partitionableState.addAll(queue.values());
-
-			// add the pending stream element queue entry if the stream element queue is currently full
-			if (pendingStreamElement != null) {
-				partitionableState.add(pendingStreamElement);
-			}
 		} catch (Exception e) {
 			partitionableState.clear();
 
@@ -271,14 +263,10 @@ public class AsyncWaitOperator<IN, OUT>
 	private ResultFuture<OUT> addToWorkQueue(StreamElement streamElement) throws InterruptedException {
 		assert(Thread.holdsLock(checkpointingLock));
 
-		pendingStreamElement = streamElement;
-
 		Optional<ResultFuture<OUT>> queueEntry;
 		while (!(queueEntry = queue.tryPut(streamElement)).isPresent()) {
 			mailboxExecutor.yield();
 		}
-
-		pendingStreamElement = null;
 
 		return queueEntry.get();
 	}
