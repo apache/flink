@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
 import java.util.concurrent.CompletableFuture;
@@ -35,8 +34,6 @@ public class FailingExecutionVertexOperationsDecorator implements ExecutionVerte
 	private final ExecutionVertexOperations delegate;
 
 	private boolean failDeploy;
-
-	private boolean failCancel;
 
 	public FailingExecutionVertexOperationsDecorator(final ExecutionVertexOperations delegate) {
 		this.delegate = checkNotNull(delegate);
@@ -53,11 +50,7 @@ public class FailingExecutionVertexOperationsDecorator implements ExecutionVerte
 
 	@Override
 	public CompletableFuture<?> cancel(final ExecutionVertex executionVertex) {
-		if (failCancel) {
-			return FutureUtils.completedExceptionally(new RuntimeException("Expected"));
-		} else {
 			return delegate.cancel(executionVertex);
-		}
 	}
 
 	public void enableFailDeploy() {
@@ -68,11 +61,4 @@ public class FailingExecutionVertexOperationsDecorator implements ExecutionVerte
 		failDeploy = false;
 	}
 
-	public void enableFailCancel() {
-		failCancel = true;
-	}
-
-	public void disableFailCancel() {
-		failCancel = false;
-	}
 }
