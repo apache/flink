@@ -59,7 +59,7 @@ public class FunctionCatalog implements FunctionLookup {
 	private final CatalogManager catalogManager;
 
 	private final Map<String, FunctionDefinition> tempSystemFunctions = new LinkedHashMap<>();
-	private final Map<ObjectIdentifier, FunctionDefinition> tempFunctions = new LinkedHashMap<>();
+	private final Map<ObjectIdentifier, FunctionDefinition> tempCatalogFunctions = new LinkedHashMap<>();
 
 	/**
 	 * Temporary utility until the new type inference is fully functional. It needs to be set by the planner.
@@ -74,7 +74,7 @@ public class FunctionCatalog implements FunctionLookup {
 		this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
 	}
 
-	public void registerTemporarySystemScalarFunction(String name, ScalarFunction function) {
+	public void registerTempSystemScalarFunction(String name, ScalarFunction function) {
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
 		registerTempSystemFunction(
 			name,
@@ -82,7 +82,7 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
-	public <T> void registerTemporarySystemTableFunction(
+	public <T> void registerTempSystemTableFunction(
 			String name,
 			TableFunction<T> function,
 			TypeInformation<T> resultType) {
@@ -100,7 +100,7 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
-	public <T, ACC> void registerTemporarySystemAggregateFunction(
+	public <T, ACC> void registerTempSystemAggregateFunction(
 			String name,
 			UserDefinedAggregateFunction<T, ACC> function,
 			TypeInformation<T> resultType,
@@ -133,15 +133,15 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
-	public void registerTemporaryScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
+	public void registerTempCatalogScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
-		registerTempFunction(
+		registerTempCatalogFunction(
 			oi,
 			new ScalarFunctionDefinition(oi.getObjectName(), function)
 		);
 	}
 
-	public <T> void registerTemporaryTableFunction(
+	public <T> void registerTempCatalogTableFunction(
 		ObjectIdentifier oi,
 		TableFunction<T> function,
 		TypeInformation<T> resultType) {
@@ -150,7 +150,7 @@ public class FunctionCatalog implements FunctionLookup {
 		// check if class could be instantiated
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
 
-		registerTempFunction(
+		registerTempCatalogFunction(
 			oi,
 			new TableFunctionDefinition(
 				oi.getObjectName(),
@@ -159,7 +159,7 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
-	public <T, ACC> void registerTemporaryAggregateFunction(
+	public <T, ACC> void registerTempCatalogAggregateFunction(
 		ObjectIdentifier oi,
 		UserDefinedAggregateFunction<T, ACC> function,
 		TypeInformation<T> resultType,
@@ -186,7 +186,7 @@ public class FunctionCatalog implements FunctionLookup {
 			throw new TableException("Unknown function class: " + function.getClass());
 		}
 
-		registerTempFunction(
+		registerTempCatalogFunction(
 			oi,
 			definition
 		);
@@ -302,8 +302,8 @@ public class FunctionCatalog implements FunctionLookup {
 		tempSystemFunctions.put(normalizeName(name), functionDefinition);
 	}
 
-	private void registerTempFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
-		tempFunctions.put(normalizeObjectIdentifier(oi), functionDefinition);
+	private void registerTempCatalogFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
+		tempCatalogFunctions.put(normalizeObjectIdentifier(oi), functionDefinition);
 	}
 
 	@VisibleForTesting
@@ -314,8 +314,8 @@ public class FunctionCatalog implements FunctionLookup {
 	@VisibleForTesting
 	static ObjectIdentifier normalizeObjectIdentifier(ObjectIdentifier oi) {
 		return ObjectIdentifier.of(
-			oi.getCatalogName().toUpperCase(),
-			oi.getDatabaseName().toUpperCase(),
+			oi.getCatalogName(),
+			oi.getDatabaseName(),
 			oi.getObjectName().toUpperCase());
 	}
 }

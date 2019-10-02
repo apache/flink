@@ -163,7 +163,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public void registerFunction(String name, ScalarFunction function) {
-		functionCatalog.registerTemporarySystemScalarFunction(
+		functionCatalog.registerTempSystemScalarFunction(
 			name,
 			function);
 	}
