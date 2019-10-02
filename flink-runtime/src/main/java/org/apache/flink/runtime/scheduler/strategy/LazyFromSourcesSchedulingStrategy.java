@@ -102,6 +102,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 		final Set<SchedulingExecutionVertex> verticesToSchedule = schedulingTopology.getVertexOrThrow(executionVertexId)
 			.getProducedResultPartitions()
 			.stream()
+			.filter(partition -> partition.getPartitionType().isBlocking())
 			.flatMap(partition -> inputConstraintChecker.markSchedulingResultPartitionFinished(partition).stream())
 			.flatMap(partition -> partition.getConsumers().stream())
 			.collect(Collectors.toSet());
