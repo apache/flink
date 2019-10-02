@@ -64,7 +64,7 @@ import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitia
  */
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
-	public static final String METRIC_GROUP_STATUS_NAME = "Status";
+	private static final String METRIC_GROUP_STATUS_NAME = "Status";
 	private static final String METRICS_ACTOR_SYSTEM_NAME = "flink-metrics";
 
 	static final String METRIC_GROUP_HEAP_NAME = "Heap";
@@ -117,7 +117,6 @@ public class MetricUtils {
 	private static MetricGroup createAndInitializeStatusMetricGroup(AbstractMetricGroup<?> parentMetricGroup) {
 		MetricGroup statusGroup = parentMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
 
-		// Initialize the TM metrics
 		instantiateStatusMetrics(statusGroup);
 		return statusGroup;
 	}
