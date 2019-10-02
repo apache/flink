@@ -171,6 +171,11 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<args>
+						<arg>-nobootcp</arg>
+					</args>
+				</configuration>
 			</plugin>
 
 			<!-- Eclipse Scala Integration -->
