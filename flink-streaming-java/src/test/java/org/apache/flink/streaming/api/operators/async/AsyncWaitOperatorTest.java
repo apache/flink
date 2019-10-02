@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -915,7 +914,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final OperatorSubtaskState snapshot;
 
-		final ArrayList<Integer> expectedOutput = new ArrayList<>(capacity + 1);
+		final ArrayList<Integer> expectedOutput = new ArrayList<>(capacity);
 
 		try {
 			synchronized (snapshotHarness.getCheckpointLock()) {
@@ -924,24 +923,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 					expectedOutput.add(i);
 				}
 			}
-
-			expectedOutput.add(capacity);
-
-			final OneShotLatch lastElement = new OneShotLatch();
-
-			final CheckedThread lastElementWriter = new CheckedThread() {
-				@Override
-				public void go() throws Exception {
-					synchronized (snapshotHarness.getCheckpointLock()) {
-						lastElement.trigger();
-						snapshotHarness.processElement(capacity, 0L);
-					}
-				}
-			};
-
-			lastElementWriter.start();
-
-			lastElement.await();
 
 			synchronized (snapshotHarness.getCheckpointLock()) {
 				// execute the snapshot within the checkpoint lock, because then it is guaranteed
