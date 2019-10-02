@@ -16,13 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph;
+package org.apache.flink.runtime.throwable;
 
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.throwable.ThrowableAnnotation;
-import org.apache.flink.runtime.throwable.ThrowableClassifier;
-import org.apache.flink.runtime.throwable.ThrowableType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
