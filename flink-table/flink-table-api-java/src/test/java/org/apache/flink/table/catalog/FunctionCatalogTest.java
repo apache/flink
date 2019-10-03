@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-import org.apache.flink.table.functions.ScalarFunction;
 import org.junit.Test;
 
 import java.util.Collections;
