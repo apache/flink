@@ -247,6 +247,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		// increase batch.size and linger.ms - this tells KafkaProducer to batch produced events instead of flushing them immediately
 		properties.setProperty("batch.size", "10240000");
 		properties.setProperty("linger.ms", "10000");
+		// kafka producer messages guarantee
+		properties.setProperty("retries", "3");
+		properties.setProperty("acks", "all");
 
 		BrokerRestartingMapper.resetState(kafkaServer::blockProxyTraffic);
 
@@ -337,6 +340,8 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		Properties properties = new Properties();
 		properties.putAll(standardProps);
 		properties.putAll(secureProps);
+		// kafka producer messages guarantee
+		properties.setProperty("retries", "0");
 
 		// process exactly failAfterElements number of elements and then shutdown Kafka broker and fail application
 		List<Integer> expectedElements = getIntegersSequence(numElements);
