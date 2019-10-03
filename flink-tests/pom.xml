@@ -594,6 +594,21 @@ under the License.
 							</descriptors>
 						</configuration>
 					</execution>
+
+					<execution>
+						<id>create-user-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>userjar</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-userjar-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 

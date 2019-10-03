@@ -166,6 +166,8 @@ public class StreamingJobGraphGenerator {
 
 		configureCheckpointing();
 
+		JobGraphGenerator.addUserJars(streamGraph.getUserJars(), jobGraph);
+
 		JobGraphGenerator.addUserArtifactEntries(streamGraph.getUserArtifacts(), jobGraph);
 
 		// set the ExecutionConfig last when it has been finalized

@@ -27,16 +27,15 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.state.AbstractStateBackend
-import org.apache.flink.runtime.state.StateBackend
+import org.apache.flink.runtime.state.{AbstractStateBackend, StateBackend}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.util.SplittableIterator
 
-import scala.collection.JavaConverters._
 import _root_.scala.language.implicitConversions
+import scala.collection.JavaConverters._
 
 @Public
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
@@ -55,6 +54,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * Gets cache files.
     */
   def getCachedFiles = javaEnv.getCachedFiles
+
+  /**
+    * Gets user jar files.
+    */
+  def getUserJarFiles = javaEnv.getUserJars
 
   /**
    * Sets the parallelism for operations executed through this environment.
@@ -727,6 +731,16 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     */
   def registerCachedFile(filePath: String, name: String, executable: Boolean): Unit = {
     javaEnv.registerCachedFile(filePath, name, executable)
+  }
+
+  /**
+    * Registers a jar file to load in this Flink job dynamically. This jar file would be shipped along with the job submission,
+    * and then, the jar file is loaded into user code class loader automatically.
+    *
+    * @param jarFile The path of the jar file (e.g., "file:///path/to/jar" or "hdfs://host:port/path/to/jar").
+    */
+  def registerUserJarFile(jarFile: String): Unit = {
+    javaEnv.registerUserJarFile(jarFile)
   }
 }
 

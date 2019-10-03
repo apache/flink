@@ -114,6 +114,8 @@ public abstract class ExecutionEnvironment {
 
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
+	private final List<Path> userJars = new ArrayList<>();
+
 	private final ExecutionConfig config = new ExecutionConfig();
 
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
@@ -826,6 +828,27 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
+	 * Registers a jar file to load in this Flink job dynamically. This jar file would be shipped along with the job submission,
+	 *  and then, the jar file is loaded into user code class loader automatically.
+	 * @param jarFile The path of the jar file (e.g., "file:///path/to/jar" or "hdfs://host:port/path/to/jar").
+	 */
+	public void registerUserJarFile(String jarFile) {
+		Path path = new Path(jarFile);
+		this.userJars.add(path);
+	}
+
+	/**
+	 * Registers all files that were registered at this execution environment's user jar files of the
+	 * given plan's user jar files.
+	 * @param p The plan to register files at.
+	 */
+	protected void registerUserJarFileWithPlan(Plan p) {
+		for (Path jarFile: userJars) {
+			p.registerUserJarFile(jarFile);
+		}
+	}
+
+	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with a
 	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
@@ -918,6 +941,8 @@ public abstract class ExecutionEnvironment {
 		} catch (Exception e) {
 			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
 		}
+
+		registerUserJarFileWithPlan(plan);
 
 		// clear all the sinks such that the next execution does not redo everything
 		if (clearSinks) {

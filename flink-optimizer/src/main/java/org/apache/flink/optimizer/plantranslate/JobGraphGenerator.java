@@ -268,7 +268,9 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			.map(entry -> Tuple2.of(entry.getKey(), entry.getValue()))
 			.collect(Collectors.toList());
 		addUserArtifactEntries(userArtifacts, graph);
-		
+
+		addUserJars(program.getOriginalPlan().getUserJars(), graph);
+
 		// release all references again
 		this.vertices = null;
 		this.chainedTasks = null;
@@ -279,6 +281,12 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
 		// return job graph
 		return graph;
+	}
+
+	public static void addUserJars(List<Path> userJars, JobGraph jobGraph) {
+		for (Path jar: userJars) {
+			jobGraph.addJar(jar);
+		}
 	}
 
 	public static void addUserArtifactEntries(Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts, JobGraph jobGraph) {

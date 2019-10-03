@@ -24,6 +24,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
@@ -131,6 +132,9 @@ public class StreamGraphGenerator {
 
 	// This is used to assign a unique ID to iteration source/sink
 	protected static Integer iterationIdCounter = 0;
+
+	private List<Path> userJars;
+
 	public static int getNewIterationNodeId() {
 		iterationIdCounter--;
 		return iterationIdCounter;
@@ -193,11 +197,17 @@ public class StreamGraphGenerator {
 		return this;
 	}
 
+	public StreamGraphGenerator setUserJar(List<Path> userJars) {
+		this.userJars = userJars;
+		return this;
+	}
+
 	public StreamGraph generate() {
 		streamGraph = new StreamGraph(executionConfig, checkpointConfig);
 		streamGraph.setStateBackend(stateBackend);
 		streamGraph.setChaining(chaining);
 		streamGraph.setScheduleMode(scheduleMode);
+		streamGraph.setUserJars(userJars);
 		streamGraph.setUserArtifacts(userArtifacts);
 		streamGraph.setTimeCharacteristic(timeCharacteristic);
 		streamGraph.setJobName(jobName);
