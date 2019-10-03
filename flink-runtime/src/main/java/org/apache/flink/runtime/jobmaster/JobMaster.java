@@ -238,6 +238,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		final String jobName = jobGraph.getName();
 		final JobID jid = jobGraph.getJobID();
 
+		JobExecutionHistory.getInstance().setJobId(jid.toString());
 		log.info("Initializing job {} ({}).", jobName, jid);
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
@@ -569,6 +570,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 						slotPool.registerTaskManager(taskManagerId);
 						registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
+
+						// register taskmanager location -> taskmanager id mapping in job execution history
+						JobExecutionHistory.getInstance().addTaskManagerLocationToContainerInfo(
+							taskManagerLocation.getHostname() + ":" + taskManagerLocation.dataPort(),
+							taskManagerId.toString());
 
 						// monitor the task manager as heartbeat target
 						taskManagerHeartbeatManager.monitorTarget(taskManagerId, new HeartbeatTarget<AllocatedSlotReport>() {
@@ -1010,6 +1016,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			log.info("Close ResourceManager connection {}: {}.", resourceManagerResourceID, cause.getMessage());
 		}
 
+		JobExecutionHistory.getInstance().saveToArchiveDir();
 		resourceManagerHeartbeatManager.unmonitorTarget(resourceManagerResourceID);
 
 		ResourceManagerGateway resourceManagerGateway = establishedResourceManagerConnection.getResourceManagerGateway();

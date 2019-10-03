@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmaster.JobExecutionHistory;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
@@ -188,8 +190,26 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 		final long now = System.currentTimeMillis();
 
 		final TaskManagerLocation location = execution.getAssignedResourceLocation();
-		final String locationString = location == null ? "(unassigned)" : location.getHostname();
+		String locationString = location == null ? "(unassigned)" : location.getHostname();
 		String taskmanagerId = location == null ? "(unassigned)" : location.getResourceID().toString();
+
+		String containerInfo = JobExecutionHistory.getInstance().getContainerInfo(locationString);
+		String epochStr = "_" + JobExecutionHistory.getInstance().getResourceManagerEpoch();
+		// update container info string to add epoch number if epoch number is not there
+		if (!containerInfo.startsWith("container" + epochStr)) {
+			containerInfo = containerInfo.replace("container", "container" + epochStr);
+		}
+
+		String historyServerUrl = JobExecutionHistory.getInstance().getHistoryServerUrl();
+		if (historyServerUrl.endsWith("/")) {
+			historyServerUrl = historyServerUrl.substring(0, historyServerUrl.length() - 1);
+		}
+		if (!historyServerUrl.startsWith("http")) {
+			historyServerUrl = "http://" + historyServerUrl;
+		}
+		locationString = historyServerUrl + "/jobhistory/logs/" + location.getHostname()
+			+ JobManagerOptions.JOB_MANAGER_HOST_FQDN_SUFFIX
+			+ containerInfo + "/" + containerInfo +  "/" + JobExecutionHistory.hadoopUser;
 
 		long startTime = execution.getStateTimestamp(ExecutionState.DEPLOYING);
 		if (startTime == 0) {

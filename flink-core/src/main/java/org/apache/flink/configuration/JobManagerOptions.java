@@ -180,6 +180,22 @@ public class JobManagerOptions {
 			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery
 			.defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
 			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
+
+	/**
+	 * Hadoop job history server URL.
+	 */
+	public static final ConfigOption<String> JOB_MANAGER_HADOOP_HISTORYSERVER_URL =
+		key("jobmanager.hadoop.historyserver.url")
+			.noDefaultValue()
+			.withDescription("Hadoop history server url.");
+
+	/**
+	 * Hosts FQDN suffix. this information is needed in composing the hadoop history server url for job logs.
+	 */
+	public static final ConfigOption<String> JOB_MANAGER_HOST_FQDN_SUFFIX =
+		key("jobmanager.host.fqdn.suffix")
+			.noDefaultValue()
+			.withDescription("Hosts fqdn suffix");
 	/**
 	 * Config parameter determining the scheduler implementation.
 	 */

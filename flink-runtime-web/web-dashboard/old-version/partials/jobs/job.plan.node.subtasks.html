@@ -43,7 +43,7 @@ limitations under the License.
       <td><span ng-if="subtask.metrics['write-bytes-complete']">{{ subtask.metrics['write-bytes'] | humanizeBytes }}</span><i ng-if="!subtask.metrics['write-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
       <td><span ng-if="subtask.metrics['write-records-complete']">{{ subtask.metrics['write-records'] | number }}</span><i ng-if="!subtask.metrics['write-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
       <td>{{ subtask.attempt + 1 }}</td>
-      <td>{{ subtask.host }}</td>
+      <td><a href="{{ subtask.host }}" target="_blank">{{ subtask.host }}</a></td>
       <td> 
         <bs-label status="{{subtask.status}}">{{subtask.status}}</bs-label>
       </td>

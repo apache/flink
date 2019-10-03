@@ -41,7 +41,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.jobmaster.JobExecutionHistory;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
@@ -365,6 +365,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
 		taskExecutorGatewayFutures.put(taskExecutorResourceId, taskExecutorGatewayFuture);
 
+		log.info("container info: {} --> {}", taskExecutorResourceId.toString(), taskExecutorAddress + "," + dataPort);
+		JobExecutionHistory.getInstance().addContainerInfo(taskExecutorResourceId.toString(), taskExecutorAddress + "," + dataPort);
+		JobExecutionHistory.getInstance().saveToArchiveDir();
+
 		return taskExecutorGatewayFuture.handleAsync(
 			(TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
 				if (taskExecutorGatewayFuture == taskExecutorGatewayFutures.get(taskExecutorResourceId)) {
@@ -493,7 +497,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			final ApplicationStatus finalStatus,
 			@Nullable final String diagnostics) {
 		log.info("Shut down cluster because application is in {}, diagnostics {}.", finalStatus, diagnostics);
-
+		JobExecutionHistory.getInstance().saveToArchiveDir();
 		try {
 			internalDeregisterApplication(finalStatus, diagnostics);
 		} catch (ResourceManagerException e) {
