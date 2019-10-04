@@ -111,7 +111,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final FailoverStrategy.Factory failoverStrategyFactory,
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
 		final ExecutionVertexOperations executionVertexOperations,
-		final ExecutionVertexVersioner executionVertexVersioner) throws Exception {
+		final ExecutionVertexVersioner executionVertexVersioner,
+		final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory) throws Exception {
 
 		super(
 			log,
@@ -140,7 +141,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		this.executionFailureHandler = new ExecutionFailureHandler(failoverStrategyFactory.create(getFailoverTopology()), restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology(), getJobGraph());
-		this.executionSlotAllocator = new DefaultExecutionSlotAllocator(slotProvider, getInputsLocationsRetriever(), slotRequestTimeout);
+		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getInputsLocationsRetriever());
 	}
 
 	// ------------------------------------------------------------------------

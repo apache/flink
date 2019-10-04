@@ -21,36 +21,45 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Allows to fail ExecutionVertex operations for testing.
+ * {@link ExecutionVertexOperations} decorator that enables instrumentation of execution vertex
+ * operations for testing purposes.
  */
-public class FailingExecutionVertexOperationsDecorator implements ExecutionVertexOperations {
+public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOperations {
 
 	private final ExecutionVertexOperations delegate;
 
+	private final List<ExecutionVertexID> deployedVertices = new ArrayList<>();
+
 	private boolean failDeploy;
 
-	public FailingExecutionVertexOperationsDecorator(final ExecutionVertexOperations delegate) {
+	public TestExecutionVertexOperationsDecorator(final ExecutionVertexOperations delegate) {
 		this.delegate = checkNotNull(delegate);
 	}
 
 	@Override
 	public void deploy(final ExecutionVertex executionVertex) throws JobException {
+		deployedVertices.add(executionVertex.getID());
+
 		if (failDeploy) {
 			throw new RuntimeException("Expected");
-		} else {
-			delegate.deploy(executionVertex);
 		}
+
+		delegate.deploy(executionVertex);
 	}
 
 	@Override
 	public CompletableFuture<?> cancel(final ExecutionVertex executionVertex) {
-			return delegate.cancel(executionVertex);
+		return delegate.cancel(executionVertex);
 	}
 
 	public void enableFailDeploy() {
@@ -61,4 +70,7 @@ public class FailingExecutionVertexOperationsDecorator implements ExecutionVerte
 		failDeploy = false;
 	}
 
+	public List<ExecutionVertexID> getDeployedVertices() {
+		return Collections.unmodifiableList(deployedVertices);
+	}
 }

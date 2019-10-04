@@ -98,7 +98,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			new RestartPipelinedRegionStrategy.Factory(),
 			restartBackoffTimeStrategy,
 			new DefaultExecutionVertexOperations(),
-			new ExecutionVertexVersioner());
+			new ExecutionVertexVersioner(),
+			new DefaultExecutionSlotAllocatorFactory(slotProvider, slotRequestTimeout));
 	}
 
 	private SchedulingStrategyFactory createSchedulingStrategyFactory(final ScheduleMode scheduleMode) {
