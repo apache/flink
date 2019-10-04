@@ -57,6 +57,12 @@ under the License.
 			<artifactId>flink-shaded-hadoop-2</artifactId>
 			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -187,6 +193,13 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+			<scope>test</scope>
+			<version>${zookeeper.version}</version>
 		</dependency>
 
 		<dependency>
