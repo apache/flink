@@ -38,6 +38,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
+import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
@@ -269,6 +270,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.establishedResourceManagerConnection = null;
 
 		this.accumulators = new HashMap<>();
+		this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
+		this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 	}
 
 	private SchedulerNG createScheduler(final JobManagerJobMetricGroup jobManagerJobMetricGroup) throws Exception {
@@ -785,15 +788,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void stopHeartbeatServices() {
-		if (taskManagerHeartbeatManager != null) {
-			taskManagerHeartbeatManager.stop();
-			taskManagerHeartbeatManager = null;
-		}
-
-		if (resourceManagerHeartbeatManager != null) {
-			resourceManagerHeartbeatManager.stop();
-			resourceManagerHeartbeatManager = null;
-		}
+		taskManagerHeartbeatManager.stop();
+		resourceManagerHeartbeatManager.stop();
 	}
 
 	private void startHeartbeatServices() {
