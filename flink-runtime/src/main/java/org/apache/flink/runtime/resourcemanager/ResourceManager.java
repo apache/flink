@@ -38,6 +38,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
+import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -178,6 +179,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.jmResourceIdRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
 		this.taskExecutorGatewayFutures = new HashMap<>(8);
+
+		this.jobManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
+		this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 	}
 
 
@@ -972,15 +976,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	private void stopHeartbeatServices() {
-		if (taskManagerHeartbeatManager != null) {
 			taskManagerHeartbeatManager.stop();
-			taskManagerHeartbeatManager = null;
-		}
-
-		if (jobManagerHeartbeatManager != null) {
 			jobManagerHeartbeatManager.stop();
-			jobManagerHeartbeatManager = null;
-		}
 	}
 
 	/**
