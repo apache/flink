@@ -119,7 +119,6 @@ under the License.
 		<scala.version>2.11.12</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
-		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.9.8</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
@@ -582,32 +581,6 @@ under the License.
 				</exclusions>
 			</dependency>
 
-			<dependency>
-				<groupId>org.apache.zookeeper</groupId>
-				<artifactId>zookeeper</artifactId>
-				<version>${zookeeper.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>log4j</groupId>
-						<artifactId>log4j</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.slf4j</groupId>
-						<artifactId>slf4j-log4j12</artifactId>
-					</exclusion>
-					<!-- Netty is only needed for ZK servers, not clients -->
-					<exclusion>
-						<groupId>io.netty</groupId>
-						<artifactId>netty</artifactId>
-					</exclusion>
-					<!-- jline is optional for ZK console shell -->
-					<exclusion>
-						<groupId>jline</groupId>
-						<artifactId>jline</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-
 			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
 			 version is used by the shaded hadoop jars and the flink-yarn-test project because of MNG-5899.
 
@@ -1050,32 +1023,13 @@ under the License.
 			</activation>
 
 			<!--
-				use MapR Hadoop / Zookeeper dependencies appropriate for MapR 5.2.0;
+				use MapR Hadoop dependencies appropriate for MapR 5.2.0;
 				users of different MapR versions should simply override these versions
 				with appropriate values.
 			-->
 			<properties>
 				<hadoop.version>2.7.0-mapr-1607</hadoop.version>
-				<zookeeper.version>3.4.5-mapr-1604</zookeeper.version>
 			</properties>
-
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.zookeeper</groupId>
-					<artifactId>zookeeper</artifactId>
-					<version>${zookeeper.version}</version>
-					<exclusions>
-						<!--
-							exclude netty, because MapR's Zookeeper distribution has
-							a conflicting Netty version with Flink's Netty dependency
-						-->
-						<exclusion>
-							<groupId>org.jboss.netty</groupId>
-							<artifactId>netty</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-			</dependencies>
 		</profile>
 
 		<profile>

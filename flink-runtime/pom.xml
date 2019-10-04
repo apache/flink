@@ -251,6 +251,26 @@ under the License.
 			<groupId>org.apache.zookeeper</groupId>
 			<artifactId>zookeeper</artifactId>
 			<version>${zookeeper.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<!-- Netty is only needed for ZK servers, not clients -->
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty</artifactId>
+				</exclusion>
+				<!-- jline is optional for ZK console shell -->
+				<exclusion>
+					<groupId>jline</groupId>
+					<artifactId>jline</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -337,6 +357,48 @@ under the License.
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
+
+	<profiles>
+		<profile>
+			<!--
+				MapR build profile. This build profile must be used together with "vendor-repos"
+				to be able to locate the MapR Zookeeper dependencies.
+			-->
+			<id>mapr</id>
+			<activation>
+				<property>
+					<name>mapr</name>
+				</property>
+			</activation>
+
+			<!--
+				use MapR Zookeeper dependencies appropriate for MapR 5.2.0;
+				users of different MapR versions should simply override these versions
+				with appropriate values.
+			-->
+			<properties>
+				<zookeeper.version>3.4.5-mapr-1604</zookeeper.version>
+			</properties>
+
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+					<version>${zookeeper.version}</version>
+					<exclusions>
+						<!--
+							exclude netty, because MapR's Zookeeper distribution has
+							a conflicting Netty version with Flink's Netty dependency
+						-->
+						<exclusion>
+							<groupId>org.jboss.netty</groupId>
+							<artifactId>netty</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
