@@ -340,8 +340,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		Properties properties = new Properties();
 		properties.putAll(standardProps);
 		properties.putAll(secureProps);
-		// kafka producer messages guarantee
-		properties.setProperty("retries", "0");
 
 		// process exactly failAfterElements number of elements and then shutdown Kafka broker and fail application
 		List<Integer> expectedElements = getIntegersSequence(numElements);
