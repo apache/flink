@@ -27,6 +27,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -45,8 +47,70 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	private static final MemorySize TOTAL_FLINK_MEM_SIZE = MemorySize.parse("800m");
 	private static final MemorySize TOTAL_PROCESS_MEM_SIZE = MemorySize.parse("1g");
 
+	private static final TaskExecutorResourceSpec TM_RESOURCE_SPEC = new TaskExecutorResourceSpec(
+		MemorySize.parse("1m"),
+		MemorySize.parse("2m"),
+		MemorySize.parse("3m"),
+		MemorySize.parse("4m"),
+		MemorySize.parse("5m"),
+		MemorySize.parse("6m"),
+		MemorySize.parse("7m"),
+		MemorySize.parse("8m"));
+
 	@Test
-	public void testConfigFrameworkHeapMemory() {
+	public void testGenerateDynamicConfigurations() {
+		String dynamicConfigsStr = TaskExecutorResourceUtils.generateDynamicConfigsStr(TM_RESOURCE_SPEC);
+		Map<String, String> configs = new HashMap<>();
+		String[] configStrs = dynamicConfigsStr.split(" ");
+		assertThat(configStrs.length % 2, is(0));
+		for (int i = 0; i < configStrs.length; ++i) {
+			String configStr = configStrs[i];
+			if (i % 2 == 0) {
+				assertThat(configStr, is("-D"));
+			} else {
+				String[] configKV = configStr.split("=");
+				assertThat(configKV.length, is(2));
+				configs.put(configKV[0], configKV[1]);
+			}
+		}
+
+		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key())), is(TM_RESOURCE_SPEC.getFrameworkHeapSize()));
+		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.TASK_HEAP_MEMORY.key())), is(TM_RESOURCE_SPEC.getTaskHeapSize()));
+		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key())), is(TM_RESOURCE_SPEC.getTaskOffHeapSize()));
+		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.SHUFFLE_MEMORY_MAX.key())), is(TM_RESOURCE_SPEC.getShuffleMemSize()));
+		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.SHUFFLE_MEMORY_MIN.key())), is(TM_RESOURCE_SPEC.getShuffleMemSize()));
+		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key())), is(TM_RESOURCE_SPEC.getManagedMemorySize()));
+		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.MANAGED_MEMORY_OFFHEAP_SIZE.key())), is(TM_RESOURCE_SPEC.getOffHeapManagedMemorySize()));
+	}
+
+	@Test
+	public void testGenerateJvmParameters() throws Exception {
+		String jvmParamsStr = TaskExecutorResourceUtils.generateJvmParametersStr(TM_RESOURCE_SPEC);
+		MemorySize heapSizeMax = null;
+		MemorySize heapSizeMin = null;
+		MemorySize directSize = null;
+		MemorySize metaspaceSize = null;
+		for (String paramStr : jvmParamsStr.split(" ")) {
+			if (paramStr.startsWith("-Xmx")) {
+				heapSizeMax = MemorySize.parse(paramStr.substring("-Xmx".length()));
+			} else if (paramStr.startsWith("-Xms")) {
+				heapSizeMin = MemorySize.parse(paramStr.substring("-Xms".length()));
+			} else if (paramStr.startsWith("-XX:MaxDirectMemorySize=")) {
+				directSize = MemorySize.parse(paramStr.substring("-XX:MaxDirectMemorySize=".length()));
+			} else if (paramStr.startsWith("-XX:MaxMetaspaceSize=")) {
+				metaspaceSize = MemorySize.parse(paramStr.substring("-XX:MaxMetaspaceSize=".length()));
+			} else {
+				throw new Exception("Unknown JVM parameter: " + paramStr);
+			}
+		}
+
+		assertThat(heapSizeMax, is(TM_RESOURCE_SPEC.getFrameworkHeapSize().add(TM_RESOURCE_SPEC.getTaskHeapSize()).add(TM_RESOURCE_SPEC.getOnHeapManagedMemorySize())));
+		assertThat(heapSizeMin, is(heapSizeMax));
+		assertThat(directSize, is(TM_RESOURCE_SPEC.getTaskOffHeapSize().add(TM_RESOURCE_SPEC.getShuffleMemSize())));
+		assertThat(metaspaceSize, is(TM_RESOURCE_SPEC.getJvmMetaspaceSize()));
+	}
+
+	@Test public void testConfigFrameworkHeapMemory() {
 		final MemorySize frameworkHeapSize = MemorySize.parse("100m");
 
 		Configuration conf = new Configuration();

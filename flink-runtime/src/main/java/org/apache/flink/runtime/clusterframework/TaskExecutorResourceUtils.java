@@ -25,6 +25,9 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -36,6 +39,48 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TaskExecutorResourceUtils {
 
 	private TaskExecutorResourceUtils() {}
+
+	// ------------------------------------------------------------------------
+	//  Generating JVM Parameters
+	// ------------------------------------------------------------------------
+
+	public static String generateJvmParametersStr(final TaskExecutorResourceSpec taskExecutorResourceSpec) {
+		final MemorySize jvmHeapSize = taskExecutorResourceSpec.getFrameworkHeapSize()
+			.add(taskExecutorResourceSpec.getTaskHeapSize())
+			.add(taskExecutorResourceSpec.getOnHeapManagedMemorySize());
+		final MemorySize jvmDirectSize = taskExecutorResourceSpec.getTaskOffHeapSize()
+			.add(taskExecutorResourceSpec.getShuffleMemSize());
+		final MemorySize jvmMetaspaceSize = taskExecutorResourceSpec.getJvmMetaspaceSize();
+
+		return "-Xmx" + jvmHeapSize.getBytes()
+			+ " -Xms" + jvmHeapSize.getBytes()
+			+ " -XX:MaxDirectMemorySize=" + jvmDirectSize.getBytes()
+			+ " -XX:MaxMetaspaceSize=" + jvmMetaspaceSize.getBytes();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Generating Dynamic Config Options
+	// ------------------------------------------------------------------------
+
+	public static String generateDynamicConfigsStr(final TaskExecutorResourceSpec taskExecutorResourceSpec) {
+		final Map<String, String> configs = new HashMap<>();
+		configs.put(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key(), taskExecutorResourceSpec.getFrameworkHeapSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.TASK_HEAP_MEMORY.key(), taskExecutorResourceSpec.getTaskHeapSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), taskExecutorResourceSpec.getTaskOffHeapSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.SHUFFLE_MEMORY_MIN.key(), taskExecutorResourceSpec.getShuffleMemSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.SHUFFLE_MEMORY_MAX.key(), taskExecutorResourceSpec.getShuffleMemSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), taskExecutorResourceSpec.getManagedMemorySize().getBytes() + "b");
+		configs.put(TaskManagerOptions.MANAGED_MEMORY_OFFHEAP_SIZE.key(), taskExecutorResourceSpec.getOffHeapManagedMemorySize().getBytes() + "b");
+		return assembleDynamicConfigsStr(configs);
+	}
+
+	private static String assembleDynamicConfigsStr(final Map<String, String> configs) {
+		final StringBuilder sb = new StringBuilder();
+		for (Map.Entry<String, String> entry : configs.entrySet()) {
+			sb.append("-D ").append(entry.getKey()).append("=").append(entry.getValue()).append(" ");
+		}
+		return sb.toString();
+	}
 
 	// ------------------------------------------------------------------------
 	//  Memory Configuration Calculations
