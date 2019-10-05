@@ -42,7 +42,7 @@ import java.net.URI;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for adding user jar file with {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment} and {@link org.apache.flink.api.java.ExecutionEnvironment} via HDFS.
+ * Tests for adding user jar file via HDFS.
  */
 public class UserJarDfsTest extends TestLogger {
 
