@@ -30,7 +30,10 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,6 +46,8 @@ public class SqlTableColumn extends SqlCall {
 
 	private SqlIdentifier name;
 	private SqlDataTypeSpec type;
+
+	@Nullable
 	private SqlCharStringLiteral comment;
 
 	public SqlTableColumn(SqlIdentifier name,
@@ -96,8 +101,8 @@ public class SqlTableColumn extends SqlCall {
 		this.type = type;
 	}
 
-	public SqlCharStringLiteral getComment() {
-		return comment;
+	public Optional<SqlCharStringLiteral> getComment() {
+		return Optional.ofNullable(comment);
 	}
 
 	public void setComment(SqlCharStringLiteral comment) {

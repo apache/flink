@@ -42,7 +42,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,37 +98,27 @@ public class SqlToOperationConverter {
 	 */
 	private Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
 		// primary key and unique keys are not supported
-		if ((sqlCreateTable.getPrimaryKeyList() != null
-				&& sqlCreateTable.getPrimaryKeyList().size() > 0)
-			|| (sqlCreateTable.getUniqueKeysList() != null
-				&& sqlCreateTable.getUniqueKeysList().size() > 0)) {
+		if ((sqlCreateTable.getPrimaryKeyList().size() > 0)
+			|| (sqlCreateTable.getUniqueKeysList().size() > 0)) {
 			throw new SqlConversionException("Primary key and unique key are not supported yet.");
 		}
 
 		// set with properties
-		SqlNodeList propertyList = sqlCreateTable.getPropertyList();
 		Map<String, String> properties = new HashMap<>();
-		if (propertyList != null) {
-			propertyList.getList().forEach(p ->
-				properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-					((SqlTableOption) p).getValueString()));
-		}
+		sqlCreateTable.getPropertyList().getList().forEach(p ->
+			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+				((SqlTableOption) p).getValueString()));
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable);
-		String tableComment = "";
-		if (sqlCreateTable.getComment() != null) {
-			tableComment = sqlCreateTable.getComment().getNlsString().getValue();
-		}
+		String tableComment = sqlCreateTable.getComment().map(comment ->
+			comment.getNlsString().getValue()).orElse(null);
 		// set partition key
-		List<String> partitionKeys = new ArrayList<>();
-		SqlNodeList partitionKey = sqlCreateTable.getPartitionKeyList();
-		if (partitionKey != null) {
-			partitionKeys = partitionKey
-				.getList()
-				.stream()
-				.map(p -> ((SqlIdentifier) p).getSimple())
-				.collect(Collectors.toList());
-		}
+		List<String> partitionKeys = sqlCreateTable.getPartitionKeyList()
+			.getList()
+			.stream()
+			.map(p -> ((SqlIdentifier) p).getSimple())
+			.collect(Collectors.toList());
+
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema,
 			partitionKeys,
 			properties,
