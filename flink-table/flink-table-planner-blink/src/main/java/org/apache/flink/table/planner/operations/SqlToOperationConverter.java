@@ -42,7 +42,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,29 +106,21 @@ public class SqlToOperationConverter {
 		}
 
 		// set with properties
-		SqlNodeList propertyList = sqlCreateTable.getPropertyList();
 		Map<String, String> properties = new HashMap<>();
-		if (propertyList != null) {
-			propertyList.getList().forEach(p ->
-				properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-					((SqlTableOption) p).getValueString()));
-		}
+		sqlCreateTable.getPropertyList().getList().forEach(p ->
+			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+				((SqlTableOption) p).getValueString()));
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable);
-		String tableComment = "";
-		if (sqlCreateTable.getComment() != null) {
-			tableComment = sqlCreateTable.getComment().getNlsString().getValue();
-		}
+		String tableComment = sqlCreateTable.getOptionalComment().map(comment ->
+			comment.getNlsString().getValue()).orElse("");
 		// set partition key
-		List<String> partitionKeys = new ArrayList<>();
-		SqlNodeList partitionKey = sqlCreateTable.getPartitionKeyList();
-		if (partitionKey != null) {
-			partitionKeys = partitionKey
-				.getList()
-				.stream()
-				.map(p -> ((SqlIdentifier) p).getSimple())
-				.collect(Collectors.toList());
-		}
+		List<String> partitionKeys = sqlCreateTable.getPartitionKeyList()
+			.getList()
+			.stream()
+			.map(p -> ((SqlIdentifier) p).getSimple())
+			.collect(Collectors.toList());
+
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema,
 			partitionKeys,
 			properties,

@@ -34,6 +34,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * CREATE VIEW DDL sql call.
@@ -44,7 +45,7 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 	private final SqlIdentifier viewName;
 	private final SqlNodeList fieldList;
 	private final SqlNode query;
-	private final SqlCharStringLiteral comment;
+	private final Optional<SqlCharStringLiteral> optionalComment;
 
 	public SqlCreateView(
 			SqlParserPos pos,
@@ -57,7 +58,7 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		this.viewName = viewName;
 		this.fieldList = fieldList;
 		this.query = query;
-		this.comment = comment;
+		this.optionalComment = Optional.ofNullable(comment);
 	}
 
 	@Override
@@ -82,8 +83,8 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		return query;
 	}
 
-	public SqlCharStringLiteral getComment() {
-		return comment;
+	public Optional<SqlCharStringLiteral> getOptionalComment() {
+		return optionalComment;
 	}
 
 	@Override
@@ -97,11 +98,11 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		if (fieldList.size() > 0) {
 			fieldList.unparse(writer, 1, rightPrec);
 		}
-		if (comment != null) {
+		optionalComment.ifPresent(comment -> {
 			writer.newlineAndIndent();
 			writer.keyword("COMMENT");
 			comment.unparse(writer, leftPrec, rightPrec);
-		}
+		});
 		writer.newlineAndIndent();
 		writer.keyword("AS");
 		writer.newlineAndIndent();

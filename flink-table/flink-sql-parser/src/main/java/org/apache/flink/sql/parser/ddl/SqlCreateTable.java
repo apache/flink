@@ -40,6 +40,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
@@ -63,7 +64,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	private final SqlNodeList partitionKeyList;
 
-	private final SqlCharStringLiteral comment;
+	private final Optional<SqlCharStringLiteral> optionalComment;
 
 	public SqlCreateTable(
 			SqlParserPos pos,
@@ -81,7 +82,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		this.uniqueKeysList = uniqueKeysList;
 		this.propertyList = propertyList;
 		this.partitionKeyList = partitionKeyList;
-		this.comment = comment;
+		this.optionalComment = Optional.ofNullable(comment);
 	}
 
 	@Override
@@ -92,7 +93,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	@Override
 	public List<SqlNode> getOperandList() {
 		return ImmutableNullableList.of(tableName, columnList, primaryKeyList,
-			propertyList, partitionKeyList, comment);
+			propertyList, partitionKeyList, optionalComment.orElse(null));
 	}
 
 	public SqlIdentifier getTableName() {
@@ -119,8 +120,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return uniqueKeysList;
 	}
 
-	public SqlCharStringLiteral getComment() {
-		return comment;
+	public Optional<SqlCharStringLiteral> getOptionalComment() {
+		return optionalComment;
 	}
 
 	public boolean isIfNotExists() {
@@ -274,13 +275,13 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		writer.newlineAndIndent();
 		writer.endList(frame);
 
-		if (comment != null) {
+		optionalComment.ifPresent(comment -> {
 			writer.newlineAndIndent();
 			writer.keyword("COMMENT");
 			comment.unparse(writer, leftPrec, rightPrec);
-		}
+		});
 
-		if (this.partitionKeyList != null && this.partitionKeyList.size() > 0) {
+		if (this.partitionKeyList.size() > 0) {
 			writer.newlineAndIndent();
 			writer.keyword("PARTITIONED BY");
 			SqlWriter.Frame withFrame = writer.startList("(", ")");
@@ -289,7 +290,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			writer.newlineAndIndent();
 		}
 
-		if (propertyList != null) {
+		if (this.propertyList.size() > 0) {
 			writer.keyword("WITH");
 			SqlWriter.Frame withFrame = writer.startList("(", ")");
 			for (SqlNode property : propertyList) {

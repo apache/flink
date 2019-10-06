@@ -31,6 +31,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,7 +44,7 @@ public class SqlTableColumn extends SqlCall {
 
 	private SqlIdentifier name;
 	private SqlDataTypeSpec type;
-	private SqlCharStringLiteral comment;
+	private Optional<SqlCharStringLiteral> optionalComment;
 
 	public SqlTableColumn(SqlIdentifier name,
 			SqlDataTypeSpec type,
@@ -52,7 +53,7 @@ public class SqlTableColumn extends SqlCall {
 		super(pos);
 		this.name = requireNonNull(name, "Column name should not be null");
 		this.type = requireNonNull(type, "Column type should not be null");
-		this.comment = comment;
+		this.optionalComment = Optional.ofNullable(comment);
 	}
 
 	@Override
@@ -62,7 +63,7 @@ public class SqlTableColumn extends SqlCall {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(name, type, comment);
+		return ImmutableNullableList.of(name, type, optionalComment.orElse(null));
 	}
 
 	@Override
@@ -74,10 +75,10 @@ public class SqlTableColumn extends SqlCall {
 			// Default is nullable.
 			writer.keyword("NOT NULL");
 		}
-		if (this.comment != null) {
+		optionalComment.ifPresent(comment -> {
 			writer.print(" COMMENT ");
-			this.comment.unparse(writer, leftPrec, rightPrec);
-		}
+			comment.unparse(writer, leftPrec, rightPrec);
+		});
 	}
 
 	public SqlIdentifier getName() {
@@ -96,11 +97,11 @@ public class SqlTableColumn extends SqlCall {
 		this.type = type;
 	}
 
-	public SqlCharStringLiteral getComment() {
-		return comment;
+	public Optional<SqlCharStringLiteral> getOptionalComment() {
+		return optionalComment;
 	}
 
-	public void setComment(SqlCharStringLiteral comment) {
-		this.comment = comment;
+	public void setOptionalComment(Optional<SqlCharStringLiteral> optionalComment) {
+		this.optionalComment = optionalComment;
 	}
 }
