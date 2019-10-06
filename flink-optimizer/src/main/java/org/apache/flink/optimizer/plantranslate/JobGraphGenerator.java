@@ -284,8 +284,10 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	}
 
 	public static void addUserJars(List<Path> userJars, JobGraph jobGraph) {
-		for (Path jar: userJars) {
-			jobGraph.addJar(jar);
+		if(userJars != null) {
+			for (Path jar: userJars) {
+				jobGraph.addJar(jar);
+			}
 		}
 	}
 
