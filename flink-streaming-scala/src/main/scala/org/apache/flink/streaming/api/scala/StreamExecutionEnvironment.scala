@@ -58,7 +58,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
     * Gets user jar files.
     */
-  def getUserJarFiles = javaEnv.getUserJars
+  def getUserJars = javaEnv.getUserJars
 
   /**
    * Sets the parallelism for operations executed through this environment.
