@@ -107,14 +107,10 @@ public class JobManagerOptions {
 	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
 	 *
-	 * <p>The options "individual" and "region-legacy" are intentionally not included
-	 * as they have some known limitations or issues:
-	 * <ul>
-	 *     <li>"individual" strategy only works when all tasks are not connected, in which case the "region"
+	 * <p>The option "individual" is intentionally not included for its known limitations.
+	 * It only works when all tasks are not connected, in which case the "region"
 	 * failover strategy would also restart failed tasks individually.
-	 *     <li>"region-legacy" strategy is not able to backtrack missing input result partitions.
-	 * </ul>
-	 * The new "region" strategy supersedes "individual" and "region-legacy" strategies and should always work.
+	 * The new "region" strategy supersedes "individual" strategy and should always work.
 	 */
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")

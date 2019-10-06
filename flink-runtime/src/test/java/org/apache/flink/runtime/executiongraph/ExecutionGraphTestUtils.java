@@ -33,7 +33,6 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -231,26 +230,6 @@ public class ExecutionGraphTestUtils {
 
 	public static Predicate<AccessExecution> isInExecutionState(ExecutionState executionState) {
 		return (AccessExecution execution) -> execution.getState() == executionState;
-	}
-
-	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
-			throws TimeoutException {
-		checkNotNull(region);
-		checkNotNull(status);
-		checkArgument(maxWaitMillis >= 0);
-
-		// this is a poor implementation - we may want to improve it eventually
-		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
-
-		while (region.getState() != status && System.nanoTime() < deadline) {
-			try {
-				Thread.sleep(2);
-			} catch (InterruptedException ignored) {}
-		}
-
-		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
-		}
 	}
 
 	/**
