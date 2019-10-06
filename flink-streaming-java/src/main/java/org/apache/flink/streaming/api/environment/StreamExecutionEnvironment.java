@@ -80,7 +80,6 @@ import com.esotericsoftware.kryo.Serializer;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;

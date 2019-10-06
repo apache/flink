@@ -18,7 +18,14 @@
 
 package org.apache.flink.hdfstests.userjar;
 
+/**
+ * Simulated function for testing.
+ */
 public class MapFunc {
+	/**
+	 * @param value
+	 * @return "Hello Flink!" always.
+	 */
 	public String eval(String value) {
 		return "Hello Flink!";
 	}

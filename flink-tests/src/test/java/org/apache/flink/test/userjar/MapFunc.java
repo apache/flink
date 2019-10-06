@@ -18,7 +18,14 @@
 
 package org.apache.flink.test.userjar;
 
+/**
+ * Simulated function for testing.
+ */
 public class MapFunc {
+	/**
+	 * @param value
+	 * @return "Hello Flink!" always.
+	 */
 	public String eval(String value) {
 		return "Hello Flink!";
 	}
