@@ -82,12 +82,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 		this.fields = fields.toArray(new PojoField[fields.size()]);
 
-		Arrays.sort(this.fields, new Comparator<PojoField>() {
-			@Override
-			public int compare(PojoField o1, PojoField o2) {
-				return o1.getField().getName().compareTo(o2.getField().getName());
-			}
-		});
+		Arrays.sort(this.fields, Comparator.comparing(o -> o.getField().getName()));
 
 		int counterFields = 0;
 

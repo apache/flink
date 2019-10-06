@@ -167,19 +167,9 @@ public class OuterJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN
 			// ----------------------------------------------------------------
 			// Sort
 			// ----------------------------------------------------------------
-			Collections.sort(leftInput, new Comparator<IN1>() {
-				@Override
-				public int compare(IN1 o1, IN1 o2) {
-					return leftComparator.compare(o1, o2);
-				}
-			});
+			Collections.sort(leftInput, leftComparator::compare);
 
-			Collections.sort(rightInput, new Comparator<IN2>() {
-				@Override
-				public int compare(IN2 o1, IN2 o2) {
-					return rightComparator.compare(o1, o2);
-				}
-			});
+			Collections.sort(rightInput, rightComparator::compare);
 
 		}
 

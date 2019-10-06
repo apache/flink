@@ -43,7 +43,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -184,12 +183,7 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 			checkArgument(sortOrderings.length == 0);
 		} else {
 			final TypeComparator<IN> sortComparator = getTypeComparator(inputType, sortColumns, sortOrderings, executionConfig);
-			Collections.sort(inputData, new Comparator<IN>() {
-				@Override
-				public int compare(IN o1, IN o2) {
-					return sortComparator.compare(o1, o2);
-				}
-			});
+			Collections.sort(inputData, sortComparator::compare);
 		}
 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);

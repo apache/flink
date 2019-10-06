@@ -317,19 +317,9 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 			// ----------------------------------------------------------------
 			// Sort
 			// ----------------------------------------------------------------
-			Collections.sort(input1, new Comparator<IN1>() {
-				@Override
-				public int compare(IN1 o1, IN1 o2) {
-					return inputSortComparator1.compare(o1, o2);
-				}
-			});
+			Collections.sort(input1, inputSortComparator1::compare);
 
-			Collections.sort(input2, new Comparator<IN2>() {
-				@Override
-				public int compare(IN2 o1, IN2 o2) {
-					return inputSortComparator2.compare(o1, o2);
-				}
-			});
+			Collections.sort(input2, inputSortComparator2::compare);
 		}
 
 		private boolean next() throws IOException {

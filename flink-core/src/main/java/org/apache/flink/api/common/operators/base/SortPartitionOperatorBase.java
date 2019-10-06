@@ -78,12 +78,7 @@ public class SortPartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, N
 			throw new UnsupportedOperationException("Partition sorting does not support type "+inputType+" yet.");
 		}
 
-		Collections.sort(inputData, new Comparator<IN>() {
-			@Override
-			public int compare(IN o1, IN o2) {
-				return sortComparator.compare(o1, o2);
-			}
-		});
+		Collections.sort(inputData, sortComparator::compare);
 
 		return inputData;
 	}

@@ -115,12 +115,7 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
 		} else {
 			final TypeComparator<IN> sortComparator = getTypeComparator(inputType, sortColumns, sortOrderings, executionConfig);
 
-			Collections.sort(inputData, new Comparator<IN>() {
-				@Override
-				public int compare(IN o1, IN o2) {
-					return sortComparator.compare(o1, o2);
-				}
-			});
+			Collections.sort(inputData, sortComparator::compare);
 		}
 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);

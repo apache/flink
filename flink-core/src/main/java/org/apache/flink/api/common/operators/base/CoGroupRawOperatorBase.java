@@ -230,12 +230,7 @@ public class CoGroupRawOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN
 			this.values = values;
 			this.serializer = serializer;
 
-			Collections.sort(values, new Comparator<IN>() {
-				@Override
-				public int compare(IN o1, IN o2) {
-					return comparator.compare(o1, o2);
-				}
-			});
+			Collections.sort(values, comparator::compare);
 		}
 
 		@Override
