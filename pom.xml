@@ -156,6 +156,7 @@ under the License.
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<test.scheduler.type></test.scheduler.type>
 		<test.groups></test.groups>
+		<signalfx.version>0.2.0</signalfx.version>
 	</properties>
 
 	<dependencies>
