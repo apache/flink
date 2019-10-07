@@ -301,7 +301,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return failoverTopology;
 	}
 
-	protected SchedulingTopology getSchedulingTopology() {
+	protected final SchedulingTopology getSchedulingTopology() {
 		return schedulingTopology;
 	}
 
