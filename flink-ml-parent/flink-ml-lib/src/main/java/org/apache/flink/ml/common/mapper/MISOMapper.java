@@ -78,6 +78,6 @@ public abstract class MISOMapper extends Mapper {
 		for (int i = 0; i < this.colIndices.length; i++) {
 			input[i] = row.getField(this.colIndices[i]);
 		}
-		return this.outputColsHelper.getResultRowSingle(row, map(input));
+		return this.outputColsHelper.getResultRow(row, Row.of(map(input)));
 	}
 }

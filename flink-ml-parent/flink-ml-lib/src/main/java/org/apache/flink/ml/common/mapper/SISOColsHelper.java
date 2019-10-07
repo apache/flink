@@ -88,7 +88,7 @@ class SISOColsHelper implements Serializable {
 	 */
 	Row handleMap(Row input, FunctionWithException<Object, Object, Exception> func) throws Exception {
 		Object output = func.apply(input.getField(this.colIndex));
-		return this.outputColsHelper.getResultRowSingle(input, output);
+		return this.outputColsHelper.getResultRow(input, Row.of(output));
 	}
 
 	/**
@@ -123,7 +123,7 @@ class SISOColsHelper implements Serializable {
 
 		@Override
 		public void collect(Object record) {
-			Row output = outputColsHelper.getResultRowSingle(row, record);
+			Row output = outputColsHelper.getResultRow(row, Row.of(record));
 			this.proxy.collect(output);
 		}
 
