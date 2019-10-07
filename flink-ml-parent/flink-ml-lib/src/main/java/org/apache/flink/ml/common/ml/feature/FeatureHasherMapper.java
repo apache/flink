@@ -112,7 +112,7 @@ public class FeatureHasherMapper extends Mapper {
 			}
 		}
 
-		return outputColsHelper.getResultRowSingle(row, new SparseVector(numFeature, feature));
+		return outputColsHelper.getResultRow(row, Row.of(new SparseVector(numFeature, feature)));
 	}
 
 	/**
