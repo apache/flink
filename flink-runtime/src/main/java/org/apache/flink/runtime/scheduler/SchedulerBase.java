@@ -305,7 +305,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return schedulingTopology;
 	}
 
-	protected InputsLocationsRetriever getInputsLocationsRetriever() {
+	protected final InputsLocationsRetriever getInputsLocationsRetriever() {
 		return inputsLocationsRetriever;
 	}
 
