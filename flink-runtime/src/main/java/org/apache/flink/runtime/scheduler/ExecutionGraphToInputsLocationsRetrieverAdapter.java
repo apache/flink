@@ -57,7 +57,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapter implements InputsLo
 			List<ExecutionVertexID> producers = new ArrayList<>(inputEdges.length);
 			for (ExecutionEdge inputEdge : inputEdges) {
 				ExecutionVertex producer = inputEdge.getSource().getProducer();
-				producers.add(new ExecutionVertexID(producer.getJobvertexId(), producer.getParallelSubtaskIndex()));
+				producers.add(producer.getID());
 			}
 			resultPartitionProducers.add(producers);
 

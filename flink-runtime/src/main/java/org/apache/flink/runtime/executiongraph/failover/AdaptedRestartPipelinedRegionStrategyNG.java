@@ -268,7 +268,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	}
 
 	private ExecutionVertexID getExecutionVertexID(final ExecutionVertex vertex) {
-		return new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex());
+		return vertex.getID();
 	}
 
 	private List<ExecutionVertex> sortVerticesTopologically(final Set<ExecutionVertex> vertices) {
