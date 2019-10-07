@@ -297,7 +297,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		executionGraph.failJob(cause);
 	}
 
-	protected FailoverTopology getFailoverTopology() {
+	protected final FailoverTopology getFailoverTopology() {
 		return failoverTopology;
 	}
 
