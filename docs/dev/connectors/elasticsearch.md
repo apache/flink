@@ -247,7 +247,7 @@ val httpHosts = new java.util.ArrayList[HttpHost]
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"))
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"))
 
-val esSinkBuilder = new ElasticsearchSink.Builer[String](
+val esSinkBuilder = new ElasticsearchSink.Builder[String](
   httpHosts,
   new ElasticsearchSinkFunction[String] {
     def createIndexRequest(element: String): IndexRequest = {
