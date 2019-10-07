@@ -108,7 +108,7 @@ public abstract class RichModelMapper extends ModelMapper {
 			Tuple2<Object, String> t2 = predictResultDetail(row);
 			return this.outputColsHelper.getResultRow(row, Row.of(t2.f0, t2.f1));
 		} else {
-			return this.outputColsHelper.getResultRowSingle(row, predictResult(row));
+			return this.outputColsHelper.getResultRow(row, Row.of(predictResult(row)));
 		}
 	}
 }
