@@ -31,20 +31,27 @@ import java.util.Arrays;
 import java.util.HashSet;
 
 /**
- * Util for generating output schema.
+ * Util for generating output schema when doing prediction or transformation.
  *
- * <p>Need following information:
- * 1) data schema
- * 2) output column names
- * 3) output column types
- * 4) reserved column names
+ * <p>Input:
+ * 1) Schema of input data being predicted or transformed.
+ * 2) Output column names of the prediction/transformation operator.
+ * 3) Output column types of the prediction/transformation operator.
+ * 4) Reserved column names, which is a subset of input data's column names that we want to preserve.
  *
- * <p>The following roles are followed:
- * 1)If reserved columns is null, then reserve all columns from the origin input dataSet.
- * 2)If some of the reserved column names are the same as output column names, then they are
- * replaced by the output at value and type, but with the reserved column names have their order kept.
- * 3)[result columns] = ([reserved columns] subtract [output columns]) + [output columns]
+ * <p>Output:
+ * 1）The result data schema. The result data is a combination of the preserved columns and the operator's
+ * output columns.
  *
+ * <p>Several rules are followed:
+ * 1) If reserved columns are not given, then all columns of input data is reserved.
+ * 2）The reserved columns are arranged ahead of the operator's output columns in the final output.
+ * 3) If some of the reserved column names overlap with those of operator's output columns, then the operator's
+ * output columns override the conflicting reserved columns.
+ *
+ * <p>For example, if we have input data schema of ["id":INT, "f1":FLOAT, "f2":DOUBLE], and the operator outputs
+ * a column "label" with type STRING, and we want to preserve the column "id", then we get the output
+ * schema of ["id":INT, "label":STRING].
  */
 public class OutputColsHelper implements Serializable {
 	private transient String[] dataColNames;
@@ -70,6 +77,14 @@ public class OutputColsHelper implements Serializable {
 		this(dataSchema, outputColNames, outputColTypes, null);
 	}
 
+	/**
+	 * The constructor.
+	 *
+	 * @param dataSchema       Schema of input data being predicted or transformed.
+	 * @param outputColNames   Output column names of the prediction/transformation operator.
+	 * @param outputColTypes   Output column types of the prediction/transformation operator.
+	 * @param reservedColNames Reserved column names, which is a subset of input data's column names that we want to preserve.
+	 */
 	public OutputColsHelper(TableSchema dataSchema, String[] outputColNames, TypeInformation[] outputColTypes,
 							String[] reservedColNames) {
 		this.dataColNames = dataSchema.getFieldNames();
@@ -114,7 +129,7 @@ public class OutputColsHelper implements Serializable {
 	}
 
 	/**
-	 * Get the reserved colNames, the result is [reserve columns] subtract [output columns].
+	 * Get the reserved columns' names.
 	 *
 	 * @return the reserved colNames.
 	 */
@@ -127,9 +142,10 @@ public class OutputColsHelper implements Serializable {
 	}
 
 	/**
-	 * Get the final table schema. [result columns] = ([reserve columns] subtract [output columns]) + [output columns]
+	 * Get the result table schema. The result data is a combination of the preserved columns and the operator's
+	 * output columns.
 	 *
-	 * @return the table schema.
+	 * @return The result table schema.
 	 */
 	public TableSchema getResultSchema() {
 		String[] resultColNames = new String[resultLength];
@@ -146,11 +162,12 @@ public class OutputColsHelper implements Serializable {
 	}
 
 	/**
-	 * Get the outputting row, which is a combination of input data and output data.
+	 * Get the result row.
 	 *
-	 * @param data   input data
-	 * @param output output data
-	 * @return The outputting row, which is a combination of reserved input data and prediction result.
+	 * @param data   The input row being predicted or transformed.
+	 * @param output The output row of the prediction/transformation operator.
+	 * @return The result row, which is a combination of preserved columns and the operator's
+	 * output columns.
 	 */
 	public Row getResultRow(Row data, Row output) {
 		int numOutputs = outputToResultIndices.length;
