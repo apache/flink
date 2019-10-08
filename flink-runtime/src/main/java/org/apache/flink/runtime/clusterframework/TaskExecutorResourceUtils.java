@@ -346,8 +346,8 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static RangeFraction getManagedMemoryRangeFraction(final Configuration config) {
-		final MemorySize minSize = new MemorySize(0);
-		final MemorySize maxSize = new MemorySize(Long.MAX_VALUE);
+		final MemorySize minSize = MemorySize.ZERO;
+		final MemorySize maxSize = MemorySize.MAX_VALUE;
 		final double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
 		if (fraction >= 1 || fraction < 0) {
 			throw new IllegalConfigurationException("Configured Managed Memory fraction ("

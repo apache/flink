@@ -46,6 +46,10 @@ public class MemorySize implements java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
 
+	public static final MemorySize ZERO = new MemorySize(0L);
+
+	public static final MemorySize MAX_VALUE = new MemorySize(Long.MAX_VALUE);
+
 	// ------------------------------------------------------------------------
 
 	/** The memory size, in bytes. */
