@@ -176,6 +176,7 @@ class HistoryServerArchiveFetcher {
 										json = convertLegacyJobOverview(json);
 										target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
 									} else {
+										// this implicitly writes into webJobDir
 										target = new File(webDir, path + JSON_FILE_ENDING);
 									}
 
