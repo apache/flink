@@ -19,8 +19,12 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
+import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -37,17 +41,25 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -158,7 +170,7 @@ public class PendingCheckpointTest {
 
 		assertFalse(future.isDone());
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
-		assertTrue(pending.isFullyAcknowledged());
+		assertTrue(pending.isTasksFullyAcknowledged());
 		pending.finalizeCheckpoint();
 		assertTrue(future.isDone());
 
@@ -339,13 +351,105 @@ public class PendingCheckpointTest {
 		verify(canceller).cancel(false);
 	}
 
+	@Test
+	public void testMasterState() throws Exception {
+		final TestingMasterTriggerRestoreHook masterHook =
+			new TestingMasterTriggerRestoreHook("master hook");
+		masterHook.addStateContent("state");
+
+		final PendingCheckpoint pending = createPendingCheckpoint(
+			CheckpointProperties.forCheckpoint(
+				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+			Collections.singletonList(masterHook.getIdentifier()));
+
+		final Map<String, MasterState> masterStates = MasterHooks.triggerMasterHooks(
+			Collections.singletonList(masterHook),
+			0,
+			System.currentTimeMillis(),
+			Executors.directExecutor(),
+			Time.milliseconds(1024));
+		assertEquals(1, masterStates.size());
+
+		pending.acknowledgeMasterState(
+			masterHook.getIdentifier(), masterStates.get(masterHook.getIdentifier()));
+		assertTrue(pending.isMasterStatesFullyAcknowledged());
+		assertFalse(pending.isTasksFullyAcknowledged());
+
+		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+		assertTrue(pending.isTasksFullyAcknowledged());
+
+		final List<MasterState> resultMasterStates = pending.getMasterStates();
+		assertEquals(1, resultMasterStates.size());
+		final String deserializedState = masterHook.
+			createCheckpointDataSerializer().
+			deserialize(StringSerializer.VERSION, resultMasterStates.get(0).bytes());
+		assertEquals("state", deserializedState);
+	}
+
+	@Test
+	public void testMasterStateWithNullState() throws Exception {
+		final TestingMasterTriggerRestoreHook masterHook =
+			new TestingMasterTriggerRestoreHook("master hook");
+		masterHook.addStateContent("state");
+
+		final TestingMasterTriggerRestoreHook nullableMasterHook =
+			new TestingMasterTriggerRestoreHook("nullable master hook");
+
+		final List<TestingMasterTriggerRestoreHook> masterHooks = new ArrayList<>();
+		masterHooks.add(masterHook);
+		masterHooks.add(nullableMasterHook);
+
+		final PendingCheckpoint pending = createPendingCheckpoint(
+			CheckpointProperties.forCheckpoint(
+				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+			masterHooks
+				.stream()
+				.map(TestingMasterTriggerRestoreHook::getIdentifier)
+				.collect(Collectors.toList()));
+
+		final Map<String, MasterState> masterStates = MasterHooks.triggerMasterHooks(
+			masterHooks,
+			0,
+			System.currentTimeMillis(),
+			Executors.directExecutor(),
+			Time.milliseconds(1024));
+		assertEquals(2, masterStates.size());
+
+		pending.acknowledgeMasterState(
+			masterHook.getIdentifier(), masterStates.get(masterHook.getIdentifier()));
+		assertFalse(pending.isMasterStatesFullyAcknowledged());
+
+		pending.acknowledgeMasterState(
+			nullableMasterHook.getIdentifier(), masterStates.get(nullableMasterHook.getIdentifier()));
+		assertTrue(pending.isMasterStatesFullyAcknowledged());
+		assertFalse(pending.isTasksFullyAcknowledged());
+
+		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+		assertTrue(pending.isTasksFullyAcknowledged());
+
+		final List<MasterState> resultMasterStates = pending.getMasterStates();
+		assertEquals(1, resultMasterStates.size());
+		final String deserializedState = masterHook.
+			createCheckpointDataSerializer().
+			deserialize(StringSerializer.VERSION, resultMasterStates.get(0).bytes());
+		assertEquals("state", deserializedState);
+	}
+
 	// ------------------------------------------------------------------------
 
 	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props) throws IOException {
-		return createPendingCheckpoint(props, Executors.directExecutor());
+		return createPendingCheckpoint(props, Collections.emptyList(), Executors.directExecutor());
 	}
 
 	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Executor executor) throws IOException {
+		return createPendingCheckpoint(props, Collections.emptyList(), executor);
+	}
+
+	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Collection<String> masterStateIdentifiers) throws IOException {
+		return createPendingCheckpoint(props, masterStateIdentifiers, Executors.directExecutor());
+	}
+
+	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Collection<String> masterStateIdentifiers, Executor executor) throws IOException {
 
 		final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
 		final FsCheckpointStorageLocation location = new FsCheckpointStorageLocation(
@@ -362,6 +466,7 @@ public class PendingCheckpointTest {
 			0,
 			1,
 			ackTasks,
+			masterStateIdentifiers,
 			props,
 			location,
 			executor);
@@ -389,6 +494,42 @@ public class PendingCheckpointTest {
 			for (Runnable runnable : queue) {
 				runnable.run();
 			}
+		}
+	}
+
+	private static final class TestingMasterTriggerRestoreHook implements MasterTriggerRestoreHook<String> {
+
+		private final String identifier;
+		private final ArrayDeque<String> stateContents;
+
+		public TestingMasterTriggerRestoreHook(String identifier) {
+			this.identifier = checkNotNull(identifier);
+			stateContents = new ArrayDeque<>();
+		}
+
+		public void addStateContent(String stateContent) {
+			stateContents.add(stateContent);
+		}
+
+		@Override
+		public String getIdentifier() {
+			return identifier;
+		}
+
+		@Nullable
+		@Override
+		public CompletableFuture<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception {
+			return CompletableFuture.completedFuture(stateContents.poll());
+		}
+
+		@Override
+		public void restoreCheckpoint(long checkpointId, @Nullable String checkpointData) throws Exception {
+
+		}
+
+		@Override
+		public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
+			return new StringSerializer();
 		}
 	}
 }
