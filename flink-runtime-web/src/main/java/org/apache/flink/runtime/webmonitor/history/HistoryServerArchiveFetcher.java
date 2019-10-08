@@ -163,7 +163,7 @@ class HistoryServerArchiveFetcher {
 								refreshDir, jobID, iae);
 							continue;
 						}
-						if (cachedArchives.add(jobID)) {
+						if (!cachedArchives.contains(jobID)) {
 							try {
 								for (ArchivedJson archive : FsJobArchivist.getArchivedJsons(jobArchive.getPath())) {
 									String path = archive.getPath();
@@ -200,11 +200,10 @@ class HistoryServerArchiveFetcher {
 										fw.flush();
 									}
 								}
+								cachedArchives.add(jobID);
 								numFetchedArchives++;
 							} catch (IOException e) {
 								LOG.error("Failure while fetching/processing job archive for job {}.", jobID, e);
-								// Make sure we attempt to fetch the archive again
-								cachedArchives.remove(jobID);
 								// Make sure we do not include this job in the overview
 								try {
 									Files.delete(new File(webOverviewDir, jobID + JSON_FILE_ENDING).toPath());
