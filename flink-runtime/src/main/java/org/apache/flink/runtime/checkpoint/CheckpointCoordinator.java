@@ -596,6 +596,7 @@ public class CheckpointCoordinator {
 			checkpointID,
 			timestamp,
 			ackTasks,
+			masterHooks.keySet(),
 			props,
 			checkpointStorageLocation,
 			executor);
@@ -659,10 +660,10 @@ public class CheckpointCoordinator {
 				}
 
 				// trigger the master hooks for the checkpoint
-				final List<MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
+				final Map<String, MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
 						checkpointID, timestamp, executor, Time.milliseconds(checkpointTimeout));
-				for (MasterState s : masterStates) {
-					checkpoint.addMasterState(s);
+				for (Map.Entry<String, MasterState> entry : masterStates.entrySet()) {
+					checkpoint.acknowledgeMasterState(entry.getKey(), entry.getValue());
 				}
 			}
 			// end of lock scope
@@ -809,7 +810,7 @@ public class CheckpointCoordinator {
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {} at {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob(), taskManagerLocationInfo);
 
-						if (checkpoint.isFullyAcknowledged()) {
+						if (checkpoint.isTasksFullyAcknowledged()) {
 							completePendingCheckpoint(checkpoint);
 						}
 						break;

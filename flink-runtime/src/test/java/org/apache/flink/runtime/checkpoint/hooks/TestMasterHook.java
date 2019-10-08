@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint.hooks;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorMasterHooksTest;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 
 import javax.annotation.Nullable;
@@ -74,7 +74,7 @@ public class TestMasterHook implements MasterTriggerRestoreHook<String> {
 
 	@Override
 	public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
-		return new CheckpointCoordinatorMasterHooksTest.StringSerializer();
+		return new CheckpointCoordinatorTestingUtils.StringSerializer();
 	}
 
 	public int getRestoreCount() {

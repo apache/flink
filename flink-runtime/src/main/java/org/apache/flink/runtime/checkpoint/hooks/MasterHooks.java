@@ -34,8 +34,8 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -114,23 +114,20 @@ public class MasterHooks {
 	 * @throws FlinkException Thrown, if the hooks throw an exception, or the state+
 	 *                        deserialization fails.
 	 */
-	public static List<MasterState> triggerMasterHooks(
-			Collection<MasterTriggerRestoreHook<?>> hooks,
+	public static Map<String, MasterState> triggerMasterHooks(
+			Collection<? extends MasterTriggerRestoreHook<?>> hooks,
 			long checkpointId,
 			long timestamp,
 			Executor executor,
 			Time timeout) throws FlinkException {
 
-		final ArrayList<MasterState> states = new ArrayList<>(hooks.size());
+		final Map<String, MasterState> states = new HashMap<>(hooks.size());
 
 		for (MasterTriggerRestoreHook<?> hook : hooks) {
 			MasterState state = triggerHook(hook, checkpointId, timestamp, executor, timeout);
-			if (state != null) {
-				states.add(state);
-			}
+			states.put(hook.getIdentifier(), state);
 		}
 
-		states.trimToSize();
 		return states;
 	}
 
