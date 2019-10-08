@@ -152,7 +152,6 @@ class HistoryServerArchiveFetcher {
 					if (jobArchives == null) {
 						continue;
 					}
-					boolean updateOverview = false;
 					int numFetchedArchives = 0;
 					for (FileStatus jobArchive : jobArchives) {
 						Path jobArchivePath = jobArchive.getPath();
@@ -200,7 +199,6 @@ class HistoryServerArchiveFetcher {
 										fw.flush();
 									}
 								}
-								updateOverview = true;
 								numFetchedArchives++;
 							} catch (IOException e) {
 								LOG.error("Failure while fetching/processing job archive for job {}.", jobID, e);
@@ -223,7 +221,7 @@ class HistoryServerArchiveFetcher {
 							}
 						}
 					}
-					if (updateOverview) {
+					if (numFetchedArchives > 0) {
 						updateJobOverview(webOverviewDir, webDir);
 						for (int x = 0; x < numFetchedArchives; x++) {
 							numArchivedJobs.countDown();
