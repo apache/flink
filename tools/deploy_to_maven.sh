@@ -85,7 +85,7 @@ echo "detected current version as: '$CURRENT_FLINK_VERSION'"
 
 if [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then
     MVN_SNAPSHOT_OPTS="-B -Pdocs-and-source -DskipTests -Drat.skip=true -Drat.ignoreErrors=true -Dcheckstyle.skip=true \
-        -DretryFailedDeploymentCount=10 clean deploy"
+        -Punsafe-mapr-repo -DretryFailedDeploymentCount=10 clean deploy"
 
     # hadoop2 scala 2.11
     echo "deploy standard version (hadoop2) for scala 2.11"
