@@ -170,7 +170,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 	@Test
 	public void testConfigShuffleMemoryFraction() {
-		final MemorySize shuffleMin = MemorySize.parse("0m");
+		final MemorySize shuffleMin = MemorySize.ZERO;
 		final MemorySize shuffleMax = MemorySize.parse("1t");
 		final float fraction = 0.2f;
 
@@ -364,7 +364,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		conf.setBoolean(legacyOption, true);
 		validateInAllConfigurations(conf, taskExecutorResourceSpec -> {
 			assertThat(taskExecutorResourceSpec.getOffHeapManagedMemorySize(), is(taskExecutorResourceSpec.getManagedMemorySize()));
-			assertThat(taskExecutorResourceSpec.getOnHeapManagedMemorySize(), is(new MemorySize(0L)));
+			assertThat(taskExecutorResourceSpec.getOnHeapManagedMemorySize(), is(MemorySize.ZERO));
 		});
 	}
 
@@ -381,7 +381,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		conf.setBoolean(legacyOption, false);
 		validateInAllConfigurations(conf, taskExecutorResourceSpec -> {
 			assertThat(taskExecutorResourceSpec.getOnHeapManagedMemorySize(), is(taskExecutorResourceSpec.getManagedMemorySize()));
-			assertThat(taskExecutorResourceSpec.getOffHeapManagedMemorySize(), is(new MemorySize(0L)));
+			assertThat(taskExecutorResourceSpec.getOffHeapManagedMemorySize(), is(MemorySize.ZERO));
 		});
 	}
 
@@ -425,7 +425,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 	@Test
 	public void testConfigJvmOverheadFraction() {
-		final MemorySize minSize = MemorySize.parse("0m");
+		final MemorySize minSize = MemorySize.ZERO;
 		final MemorySize maxSize = MemorySize.parse("1t");
 		final float fraction = 0.2f;
 
