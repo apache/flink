@@ -36,7 +36,6 @@ flink-python/dev/.conda/
 flink-python/dev/log/
 flink-python/dev/.stage.txt
 flink-python/.eggs/
-flink-python/pyflink/fn_execution/*_pb2.py
 atlassian-ide-plugin.xml
 out/
 /docs/api

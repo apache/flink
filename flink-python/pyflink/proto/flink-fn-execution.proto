@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// NOTE: File flink_fn_execution_pb2.py is generated from this file. Please re-generate it by calling
+// gen_protos.py whenever this file is changed.
 syntax = "proto3";
 
 package org.apache.flink.fn_execution.v1;

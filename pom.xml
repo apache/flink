@@ -1422,7 +1422,6 @@ under the License.
 						<exclude>flink-python/lib/**</exclude>
 						<exclude>flink-python/dev/download/**</exclude>
 						<exclude>flink-python/docs/_build/**</exclude>
-						<exclude>flink-python/pyflink/fn_execution/*_pb2.py</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

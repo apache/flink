@@ -28,3 +28,11 @@ We can enter the directory where this README.md file is located and run test cas
 ## Python Requirements
 
 PyFlink depends on Py4J (currently version 0.10.8.1) and CloudPickle (currently version 1.2.2).
+
+## Development notices
+
+Protocol buffer is used in this module and file `flink_fn_execution_pb2.py` is generated from `flink-fn-execution.proto`. Whenever `flink-fn-execution.proto` is updated, please re-generate `flink_fn_execution_pb2.py` by executing
+
+```
+python pyflink/gen_protos.py
+```

@@ -27,7 +27,6 @@ from abc import abstractmethod
 from py4j.java_gateway import JavaObject
 from py4j.protocol import Py4JJavaError
 
-from pyflink import gen_protos
 from pyflink.table.sources import CsvTableSource
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
@@ -74,8 +73,6 @@ class PyFlinkTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tempdir = tempfile.mkdtemp()
-
-        gen_protos.generate_proto_files()
 
         os.environ["FLINK_TESTING"] = "1"
         _find_flink_home()
