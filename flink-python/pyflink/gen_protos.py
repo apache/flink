@@ -171,9 +171,9 @@ def _add_license_header(dir, file_name):
 
 
 def _check_grpcio_tools_version():
-    from pkg_resources import parse_version
     try:
-        version = parse_version(pkg_resources.get_distribution("grpcio-tools").version)
+        version = pkg_resources.get_distribution("grpcio-tools").parsed_version
+        from pkg_resources import parse_version
         if version < parse_version('1.3.5') or version > parse_version('1.14.2'):
             raise RuntimeError(
                 "Version of grpcio-tools must be between 1.3.5 and 1.14.2, got %s" % version)
