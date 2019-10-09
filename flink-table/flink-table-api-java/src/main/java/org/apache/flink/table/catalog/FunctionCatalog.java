@@ -142,9 +142,9 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public <T> void registerTempCatalogTableFunction(
-		ObjectIdentifier oi,
-		TableFunction<T> function,
-		TypeInformation<T> resultType) {
+			ObjectIdentifier oi,
+			TableFunction<T> function,
+			TypeInformation<T> resultType) {
 		// check if class not Scala object
 		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
 		// check if class could be instantiated
@@ -160,10 +160,10 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public <T, ACC> void registerTempCatalogAggregateFunction(
-		ObjectIdentifier oi,
-		UserDefinedAggregateFunction<T, ACC> function,
-		TypeInformation<T> resultType,
-		TypeInformation<ACC> accType) {
+			ObjectIdentifier oi,
+			UserDefinedAggregateFunction<T, ACC> function,
+			TypeInformation<T> resultType,
+			TypeInformation<ACC> accType) {
 		// check if class not Scala object
 		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
 		// check if class could be instantiated
