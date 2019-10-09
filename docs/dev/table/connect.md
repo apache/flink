@@ -1096,7 +1096,7 @@ To use this connector, add the following dependency to your project:
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-connector-hbase{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
 
