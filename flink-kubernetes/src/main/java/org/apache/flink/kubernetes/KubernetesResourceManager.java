@@ -119,7 +119,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			fatalErrorHandler,
 			resourceManagerMetricGroup);
 		this.clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
-		this.defaultCpus = flinkConfig.getDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, numSlotsPerTaskManager);
+		this.defaultCpus = taskExecutorResourceSpec.getCpuCores().getValue().doubleValue();
 
 		this.kubeClient = createFlinkKubeClient();
 
@@ -334,5 +334,10 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 
 	protected FlinkKubeClient createFlinkKubeClient() {
 		return KubeClientFactory.fromConfiguration(flinkConfig);
+	}
+
+	@Override
+	protected double getCpuCores(Configuration configuration) {
+		return flinkConfig.getDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, numSlotsPerTaskManager);
 	}
 }

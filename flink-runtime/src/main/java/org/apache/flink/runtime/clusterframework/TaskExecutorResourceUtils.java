@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -63,6 +64,8 @@ public class TaskExecutorResourceUtils {
 
 	public static String generateDynamicConfigsStr(final TaskExecutorResourceSpec taskExecutorResourceSpec) {
 		final Map<String, String> configs = new HashMap<>();
+		configs.put(TaskManagerOptions.CPU_CORES.key(),
+			String.valueOf(taskExecutorResourceSpec.getCpuCores().getValue().doubleValue()));
 		configs.put(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key(), taskExecutorResourceSpec.getFrameworkHeapSize().getBytes() + "b");
 		configs.put(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key(), taskExecutorResourceSpec.getFrameworkOffHeapMemorySize().getBytes() + "b");
 		configs.put(TaskManagerOptions.TASK_HEAP_MEMORY.key(), taskExecutorResourceSpec.getTaskHeapSize().getBytes() + "b");
@@ -164,7 +167,7 @@ public class TaskExecutorResourceUtils {
 		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(config, flinkInternalMemory.getTotalFlinkMemorySize());
 		sanityCheckTotalProcessMemory(config, flinkInternalMemory.getTotalFlinkMemorySize(), jvmMetaspaceAndOverhead);
 
-		return createTaskExecutorResourceSpec(flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return createTaskExecutorResourceSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
 	private static TaskExecutorResourceSpec deriveResourceSpecWithTotalFlinkMemory(final Configuration config) {
@@ -178,7 +181,7 @@ public class TaskExecutorResourceUtils {
 		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(config, totalFlinkMemorySize);
 		sanityCheckTotalProcessMemory(config, totalFlinkMemorySize, jvmMetaspaceAndOverhead);
 
-		return createTaskExecutorResourceSpec(flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return createTaskExecutorResourceSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
 	private static TaskExecutorResourceSpec deriveResourceSpecWithTotalProcessMemory(final Configuration config) {
@@ -201,7 +204,7 @@ public class TaskExecutorResourceUtils {
 
 		final FlinkInternalMemory flinkInternalMemory = deriveInternalMemoryFromTotalFlinkMemory(config, totalFlinkMemorySize);
 
-		return createTaskExecutorResourceSpec(flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return createTaskExecutorResourceSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
 	private static JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
@@ -515,9 +518,35 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
+	public static CPUResource getCpuCoresWithFallback(final Configuration config, double fallback) {
+		return getCpuCores(config, fallback);
+	}
+
+	private static CPUResource getCpuCores(final Configuration config) {
+		return getCpuCores(config, -1.0);
+	}
+
+	private static CPUResource getCpuCores(final Configuration config, double fallback) {
+		double cpuCores;
+		if (config.contains(TaskManagerOptions.CPU_CORES)) {
+			cpuCores = config.getDouble(TaskManagerOptions.CPU_CORES);
+			if (cpuCores < 0) {
+				throw new IllegalConfigurationException("Configured cpu cores must be non-negative.");
+			}
+		} else if (fallback >= 0.0) {
+			cpuCores = fallback;
+		} else {
+			cpuCores = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+		}
+		return new CPUResource(cpuCores);
+	}
+
 	private static TaskExecutorResourceSpec createTaskExecutorResourceSpec(
-		final FlinkInternalMemory flinkInternalMemory, final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
+			final Configuration config,
+			final FlinkInternalMemory flinkInternalMemory,
+			final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
 		return new TaskExecutorResourceSpec(
+			getCpuCores(config),
 			flinkInternalMemory.frameworkHeap,
 			flinkInternalMemory.frameworkOffHeap,
 			flinkInternalMemory.taskHeap,
