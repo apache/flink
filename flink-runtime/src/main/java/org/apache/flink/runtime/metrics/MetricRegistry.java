@@ -28,27 +28,7 @@ import javax.annotation.Nullable;
 /**
  * Interface for a metric registry.
  */
-public interface MetricRegistry {
-
-	/**
-	 * Returns the global delimiter.
-	 *
-	 * @return global delimiter
-	 */
-	char getDelimiter();
-
-	/**
-	 * Returns the configured delimiter for the reporter with the given index.
-	 *
-	 * @param index index of the reporter whose delimiter should be used
-	 * @return configured reporter delimiter, or global delimiter if index is invalid
-	 */
-	char getDelimiter(int index);
-
-	/**
-	 * Returns the number of registered reporters.
-	 */
-	int getNumberReporters();
+public interface MetricRegistry extends DelimiterProvider {
 
 	/**
 	 * Registers a new {@link Metric} with this registry.
