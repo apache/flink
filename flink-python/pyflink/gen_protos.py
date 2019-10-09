@@ -120,8 +120,11 @@ def _install_grpcio_tools_and_generate_proto_files(force, output_dir):
     logging.warning('Installing grpcio-tools into %s', install_path)
     try:
         start = time.time()
+        # since '--prefix' option only supported for pip 8.0+, so here we fallback to
+        # use `--install-option` when the pip version is lower than 8.0.0.
         pip_version = pkg_resources.get_distribution("pip").version
-        if pip_version >= '8.0.0':
+        from pkg_resources import parse_version
+        if parse_version(pip_version) >= parse_version('8.0.0'):
             subprocess.check_call(
                 [sys.executable, '-m', 'pip', 'install',
                  '--prefix', install_path, '--build', build_path,
