@@ -1143,7 +1143,7 @@ CREATE TABLE MyUserTable (
   'connector.write.buffer-flush.max-size' = '10mb', -- optional: writing option, determines how many size in memory of buffered rows to insert per round trip. This can help performance on writing to JDBC database. The default value is "2mb".
                                                        -- based on the memory size of rows currently added.
 
-  'connector.write.buffer-flush.max-rows' = '1', -- optional: Write option, sets when to flush buffered 
+  'connector.write.buffer-flush.max-rows' = '1000', -- optional: writing option, determines how many rows to insert per round trip. This can help performance on writing to JDBC database. No default value, i.e. the default flushing is not depends on the number of buffered rows.
                                                     -- request based on the number of rows currently added.
 
   'connector.write.buffer-flush.interval' = '1', -- optional: Write option, sets a flush interval flushing buffered 
