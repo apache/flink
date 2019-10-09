@@ -236,7 +236,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 					TestingUtils.defaultExecutor()));
 
 			CompletableFuture<RegistrationResponse> firstFuture =
-				rmGateway.registerTaskExecutor(taskExecutorGateway.getAddress(), taskExecutorResourceID, dataPort, hardwareDescription, fastTimeout);
+				rmGateway.registerTaskExecutor(taskExecutorGateway.getAddress(), taskExecutorResourceID, dataPort, hardwareDescription, ResourceProfile.ZERO, fastTimeout);
 			try {
 				firstFuture.get();
 				fail("Should have failed because connection to taskmanager is delayed beyond timeout");
@@ -249,7 +249,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 			// second registration after timeout is with no delay, expecting it to be succeeded
 			rpcService.resetRpcGatewayFutureFunction();
 			CompletableFuture<RegistrationResponse> secondFuture =
-				rmGateway.registerTaskExecutor(taskExecutorGateway.getAddress(), taskExecutorResourceID, dataPort, hardwareDescription, TIMEOUT);
+				rmGateway.registerTaskExecutor(taskExecutorGateway.getAddress(), taskExecutorResourceID, dataPort, hardwareDescription, ResourceProfile.ZERO, TIMEOUT);
 			RegistrationResponse response = secondFuture.get();
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
@@ -339,6 +339,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 			taskExecutorResourceID,
 			dataPort,
 			hardwareDescription,
+			ResourceProfile.ZERO,
 			TIMEOUT);
 	}
 }

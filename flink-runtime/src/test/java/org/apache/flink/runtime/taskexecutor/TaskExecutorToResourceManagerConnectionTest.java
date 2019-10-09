@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -107,7 +108,8 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 			RESOURCE_MANAGER_ADDRESS,
 			RESOURCE_MANAGER_ID,
 			Executors.directExecutor(),
-			new TestRegistrationConnectionListener<>());
+			new TestRegistrationConnectionListener<>(),
+			ResourceProfile.ZERO);
 	}
 
 	private static TaskExecutorRegistrationSuccess successfulRegistration() {

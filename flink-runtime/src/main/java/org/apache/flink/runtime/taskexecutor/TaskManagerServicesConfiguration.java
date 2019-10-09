@@ -25,7 +25,6 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -196,7 +195,8 @@ public class TaskManagerServicesConfiguration {
 			Configuration configuration,
 			ResourceID resourceID,
 			InetAddress remoteAddress,
-			boolean localCommunicationOnly) {
+			boolean localCommunicationOnly,
+			TaskExecutorResourceSpec taskExecutorResourceSpec) {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
 		if (localStateRootDir.length == 0) {
@@ -212,7 +212,6 @@ public class TaskManagerServicesConfiguration {
 
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
-		final TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 		return new TaskManagerServicesConfiguration(
 			configuration,
 			resourceID,

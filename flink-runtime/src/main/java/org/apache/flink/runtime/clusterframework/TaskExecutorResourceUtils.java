@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -25,6 +26,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -82,6 +84,29 @@ public class TaskExecutorResourceUtils {
 			sb.append("-D ").append(entry.getKey()).append("=").append(entry.getValue()).append(" ");
 		}
 		return sb.toString();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Generating Default Slot Resource Profiles
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	public static ResourceProfile generateDefaultSlotResourceProfile(Configuration configuration) {
+		return generateDefaultSlotResourceProfile(
+			resourceSpecFromConfig(configuration),
+			configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS));
+	}
+
+	public static ResourceProfile generateDefaultSlotResourceProfile(
+			TaskExecutorResourceSpec taskExecutorResourceSpec,
+			int numberOfSlots) {
+		return ResourceProfile.newBuilder()
+			.setCpuCores(taskExecutorResourceSpec.getCpuCores().divide(numberOfSlots))
+			.setTaskHeapMemory(taskExecutorResourceSpec.getTaskHeapSize().divide(numberOfSlots))
+			.setTaskOffHeapMemory(taskExecutorResourceSpec.getTaskOffHeapSize().divide(numberOfSlots))
+			.setManagedMemory(taskExecutorResourceSpec.getManagedMemorySize().divide(numberOfSlots))
+			.setShuffleMemory(taskExecutorResourceSpec.getShuffleMemSize().divide(numberOfSlots))
+			.build();
 	}
 
 	// ------------------------------------------------------------------------

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -62,6 +63,16 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		MemorySize.parse("6m"),
 		MemorySize.parse("7m"),
 		MemorySize.parse("8m"));
+
+	private static final int NUMBER_OF_SLOTS = 2;
+
+	private static final ResourceProfile DEFAULT_RESOURCE_PROFILE = ResourceProfile.newBuilder()
+		.setCpuCores(new CPUResource(0.5))
+		.setTaskHeapMemory(MemorySize.parse("3m").divide(NUMBER_OF_SLOTS))
+		.setTaskOffHeapMemory(MemorySize.parse("2m"))
+		.setShuffleMemory(MemorySize.parse("5m").divide(NUMBER_OF_SLOTS))
+		.setManagedMemory(MemorySize.parse("3m"))
+		.build();
 
 	private static Map<String, String> oldEnvVariables;
 
@@ -500,6 +511,13 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		conf.setString(TaskManagerOptions.JVM_OVERHEAD_MAX, jvmOverhead.getMebiBytes() + "m");
 
 		validateFail(conf);
+	}
+
+	@Test
+	public void testGenerateDefaultSlotProfile() {
+		assertThat(
+			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(TM_RESOURCE_SPEC, NUMBER_OF_SLOTS),
+			is(DEFAULT_RESOURCE_PROFILE));
 	}
 
 	private void validateInAllConfigurations(final Configuration customConfig, Consumer<TaskExecutorResourceSpec> validateFunc) {
