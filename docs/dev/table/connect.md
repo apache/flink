@@ -1137,7 +1137,7 @@ CREATE TABLE MyUserTable (
 
 **Temporary join:** Lookup join against HBase do not use any caching; data is always queired directly through the HBase client.
 
-**Rowkey:** User should confirm rowkey should not be empty string. (waiting for support)
+**Rowkey:** Empty string rowkey values are currently unsupported.
 
 {% top %}
 
