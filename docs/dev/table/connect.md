@@ -49,6 +49,7 @@ The following tables list all available connectors and formats. Their mutual com
 | Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| HBase             | 1.4.3               | `flink-hbase`                | [Download](http://central.maven.org/maven2/org/apache/flink/flink-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) |
 
 ### Formats
 
@@ -1089,16 +1090,6 @@ The connector can operate in [upsert mode](#update-modes) for exchanging UPSERT/
 
 For append-only queries, the connector can also operate in [append mode](#update-modes) for exchanging only INSERT messages with the external system.
 
-To use this connector, add the following dependency to your project:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hbase{{ site.scala_version_suffix }}</artifactId>
-  <version>{{ site.version }}</version>
-</dependency>
-{% endhighlight %}
-
 The connector can be defined as follows:
 
 <div class="codetabs" markdown="1">
@@ -1115,12 +1106,15 @@ connector:
     znode.parent: "/test"        # required: the root dir in Zookeeper for HBase cluster
     
   write.buffer-flush:
-    max-size: 1048576            # optional: Write option, sets when to flush a buffered request
-                                 # based on the memory size of rows currently added.
-    max-rows: 1                  # optional: Write option, sets when to flush buffered 
-                                 # request based on the number of rows currently added.
-    interval: 1                  # optional: Write option, sets a flush interval flushing buffered 
-                                 # requesting if the interval passes, in milliseconds.
+    max-size: 1048576            # optional: writing option, determines how many size in memory of buffered
+                                 # rows to insert per round trip. This can help performance on writing to JDBC
+                                 # database. The default value is "2mb".
+    max-rows: 1                  # optional: writing option, determines how many rows to insert per round trip.
+                                 #This can help performance on writing to JDBC database. No default value,
+                                 # i.e. the default flushing is not depends on the number of buffered rows.
+    interval: 1                  # optional: writing option, sets a flush interval flushing buffered requesting
+                                 # if the interval passes, in milliseconds. Default value is "0s", which means
+                                 # no asynchronous flush thread will be scheduled.
 {% endhighlight %}
 </div>
 
@@ -1138,16 +1132,19 @@ CREATE TABLE MyUserTable (
   'connector.table-name' = 'hbase_table_name',  -- required: hbase table name
   
   'connector.zookeeper.quorum' = 'localhost:2181', -- required: HBase Zookeeper quorum configuration
-  'connector.zookeeper.znode.parent' = '/test',  -- required: the root dir in Zookeeper for HBase cluster
+  'connector.zookeeper.znode.parent' = '/test',    -- required: the root dir in Zookeeper for HBase cluster
 
-  'connector.write.buffer-flush.max-size' = '10mb', -- optional: writing option, determines how many size in memory of buffered rows to insert per round trip. This can help performance on writing to JDBC database. The default value is "2mb".
-                                                       -- based on the memory size of rows currently added.
+  'connector.write.buffer-flush.max-size' = '10mb', -- optional: writing option, determines how many size in memory of buffered
+                                                    -- rows to insert per round trip. This can help performance on writing to JDBC
+                                                    -- database. The default value is "2mb".
 
-  'connector.write.buffer-flush.max-rows' = '1000', -- optional: writing option, determines how many rows to insert per round trip. This can help performance on writing to JDBC database. No default value, i.e. the default flushing is not depends on the number of buffered rows.
-                                                    -- request based on the number of rows currently added.
+  'connector.write.buffer-flush.max-rows' = '1000', -- optional: writing option, determines how many rows to insert per round trip.
+                                                    -- This can help performance on writing to JDBC database. No default value,
+                                                    -- i.e. the default flushing is not depends on the number of buffered rows.
 
-  'connector.write.buffer-flush.interval' = '1', -- optional: Write option, sets a flush interval flushing buffered 
-                                                 -- requesting if the interval passes, in milliseconds.
+  'connector.write.buffer-flush.interval' = '2s',   -- optional: writing option, sets a flush interval flushing buffered requesting
+                                                    -- if the interval passes, in milliseconds. Default value is "0s", which means
+                                                    -- no asynchronous flush thread will be scheduled.
 )
 {% endhighlight %}
 </div>
