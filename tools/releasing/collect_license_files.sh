@@ -49,15 +49,14 @@ do
 	(cd "${DIR}" && jar xf ${JAR} META-INF/NOTICE META-INF/licenses)
 done
 
-NOTICE="${DST}/NOTICE-binary"
+NOTICE="${DST}/NOTICE"
 [ -f "${NOTICE}" ] && rm "${NOTICE}"
 cp "${NOTICE_BINARY_PREAMBLE}" "${NOTICE}"
 (export LC_ALL=C; find "${TMP}" -name "NOTICE" | sort | xargs cat >> "${NOTICE}")
 
-LICENSES="${DST}/licenses-binary"
+LICENSES="${DST}/licenses"
 [ -f "${LICENSES}" ] && rm -r "${LICENSES}"
 find "${TMP}" -name "licenses" -type d -exec cp -r -- "{}" "${DST}" \;
-mv "${DST}/licenses" "${LICENSES}"
 cp "${SLF4J_LICENSE}" "${LICENSES}"
 
 rm -r "${TMP}"
