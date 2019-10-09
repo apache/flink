@@ -45,10 +45,13 @@ import org.apache.curator.framework.api.ACLProvider;
 import org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -69,6 +72,22 @@ public class ZooKeeperUtils {
 
 	/** The prefix of the completed checkpoint file. */
 	public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
+
+	private static final String REGISTRY_PATH = "registry";
+	private static final String INFO_PATH = "info";
+	private static final String STORE_PATH = "store";
+
+	public static String getLeaderRegistryPath(@Nonnull String basePath) {
+		return ZKPaths.makePath(basePath, REGISTRY_PATH);
+	}
+
+	public static String getLeaderInfoPath(@Nonnull String basePath) {
+		return ZKPaths.makePath(basePath, INFO_PATH);
+	}
+
+	public static String getLeaderStorePath(@Nonnull String basePath) {
+		return ZKPaths.makePath(basePath, STORE_PATH);
+	}
 
 	/**
 	 * Starts a {@link CuratorFramework} instance and connects it to the given ZooKeeper
