@@ -81,6 +81,7 @@ make_binary_release() {
   $MVN clean package $FLAGS -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
 
   cd flink-dist/target/flink-${RELEASE_VERSION}-bin
+  ${FLINK_DIR}/tools/releasing/collect_license_files.sh ./flink-${RELEASE_VERSION} ./flink-${RELEASE_VERSION}
   tar czf "${dir_name}.tgz" flink-*
 
   cp flink-*.tgz ${RELEASE_DIR}
