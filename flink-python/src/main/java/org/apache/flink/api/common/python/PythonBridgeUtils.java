@@ -20,7 +20,9 @@ package org.apache.flink.api.common.python;
 import org.apache.flink.api.common.python.pickle.ArrayConstructor;
 import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
 
+import net.razorvine.pickle.Pickler;
 import net.razorvine.pickle.Unpickler;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -35,6 +37,8 @@ import java.util.List;
  * a file which contains Python objects.
  */
 public final class PythonBridgeUtils {
+
+	private static Pickler pickler = new Pickler();
 
 	private static Object[] getObjectArrayFromUnpickledData(Object input) {
 		if (input.getClass().isArray()) {
@@ -68,6 +72,50 @@ public final class PythonBridgeUtils {
 			}
 		}
 		return unpickledData;
+	}
+
+	public static byte[] rexLiteralToPythonObject(Object o, SqlTypeName typeName) {
+		byte type;
+		switch (typeName) {
+			case DATE:
+				type = 1;
+				break;
+			case TIME:
+			case TIME_WITH_LOCAL_TIME_ZONE:
+			case TIMESTAMP:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				type = 2;
+				break;
+			case INTERVAL_YEAR:
+			case INTERVAL_YEAR_MONTH:
+			case INTERVAL_MONTH:
+				type = 3;
+				break;
+			case INTERVAL_DAY:
+			case INTERVAL_DAY_HOUR:
+			case INTERVAL_DAY_MINUTE:
+			case INTERVAL_DAY_SECOND:
+			case INTERVAL_HOUR:
+			case INTERVAL_HOUR_MINUTE:
+			case INTERVAL_HOUR_SECOND:
+			case INTERVAL_MINUTE:
+			case INTERVAL_MINUTE_SECOND:
+			case INTERVAL_SECOND:
+				type = 4;
+				break;
+			default:
+				type = 0;
+		}
+		byte[] pickledData;
+		try {
+			pickledData = pickler.dumps(o);
+		} catch (IOException e) {
+			throw new RuntimeException("Pickle Java object failed", e);
+		}
+		byte[] typePickledData = new byte[pickledData.length + 1];
+		typePickledData[0] = type;
+		System.arraycopy(pickledData, 0, typePickledData, 1, pickledData.length);
+		return typePickledData;
 	}
 
 	private static List<byte[]> readPickledBytes(final String fileName) throws IOException {

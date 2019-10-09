@@ -16,13 +16,16 @@
 # limitations under the License.
 ################################################################################
 
+import datetime
 from abc import abstractmethod, ABCMeta
+from dateutil.relativedelta import relativedelta
 
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker.operations import Operation
 
 from pyflink.fn_execution import flink_fn_execution_pb2
+from pyflink.serializers import PickleSerializer
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 
@@ -79,6 +82,34 @@ class ScalarFunctionInputGetter(InputGetter):
         return self.scalar_function_invoker.invoke_eval(value)
 
 
+serializer = PickleSerializer()
+
+
+class ConstantInputGetter(InputGetter):
+    """
+    InputGetter for the input argument which is the constant value.
+
+    :param constant_value: the constant value of the column in the input row
+    """
+
+    def __init__(self, constant_value):
+        j_type = constant_value.value[0]
+        pickled_data = serializer.loads(constant_value.value[1:])
+        if j_type == '\x00':
+            self._constant_value = pickled_data
+        elif j_type == '\x01':
+            self._constant_value = datetime.date(year=0, month=0, day=pickled_data)
+        elif j_type == '\x02':
+            self._constant_value = datetime.time(microsecond=pickled_data * 1000)
+        elif j_type == '\x03':
+            self._constant_value = relativedelta(months=pickled_data)
+        elif j_type == '\x04':
+            self._constant_value = datetime.timedelta(seconds=pickled_data)
+
+    def get(self, value):
+        return self._constant_value
+
+
 class ScalarFunctionInvoker(object):
     """
     An abstraction that can be used to execute :class:`ScalarFunction` methods.
@@ -97,9 +128,12 @@ class ScalarFunctionInvoker(object):
             if input.HasField("udf"):
                 # for chaining Python UDF input: the input argument is a Python ScalarFunction
                 self.input_getters.append(ScalarFunctionInputGetter(input.udf))
-            else:
+            elif input.HasField("inputOffset"):
                 # the input argument is a column of the input row
                 self.input_getters.append(OffsetInputGetter(input.inputOffset))
+            else:
+                # the input argument is a constant value
+                self.input_getters.append(ConstantInputGetter(input.inputConstant))
 
     def invoke_open(self):
         """

@@ -183,8 +183,13 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
 			if (input instanceof PythonFunctionInfo) {
 				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
-			} else {
+			} else if (input instanceof Integer) {
 				inputProto.setInputOffset((Integer) input);
+			} else {
+				FlinkFnApi.UserDefinedFunction.Constant.Builder constantBuilder =
+					FlinkFnApi.UserDefinedFunction.Constant.newBuilder();
+				constantBuilder.setValue(ByteString.copyFrom((byte[]) input));
+				inputProto.setInputConstant(constantBuilder.build());
 			}
 			builder.addInputs(inputProto);
 		}
