@@ -1101,6 +1101,29 @@ To use this connector, add the following dependency to your project:
 
 The connector can be defined as follows:
 
+<div class="codetabs" markdown="1">
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+connector:
+  type: hbase
+  version: 1.4.3                 # required: valid connector versions are "1.4.3"
+  
+  table-name: "hbase_table_name" # required: hbase table name
+  
+  zookeeper:
+    quorum: "localhost:2181"     # required: HBase Zookeeper quorum configuration
+    znode.parent: "/test"        # required: the root dir in Zookeeper for HBase cluster
+    
+  write.buffer-flush:
+    max-size: 1048576            # optional: Write option, sets when to flush a buffered request
+                                 # based on the memory size of rows currently added.
+    max-rows: 1                  # optional: Write option, sets when to flush buffered 
+                                 # request based on the number of rows currently added.
+    interval: 1                  # optional: Write option, sets a flush interval flushing buffered 
+                                 # requesting if the interval passes, in milliseconds.
+{% endhighlight %}
+</div>
+
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
@@ -1115,7 +1138,7 @@ CREATE TABLE MyUserTable (
   'connector.table-name' = 'hbase_table_name',  -- required: hbase table name
   
   'connector.zookeeper.quorum' = 'localhost:2181', -- required: HBase Zookeeper quorum configuration
-  'connector.zookeeper.znode.parent' = '/test',  -- rquired: the root dir in Zookeeper for HBase cluster
+  'connector.zookeeper.znode.parent' = '/test',  -- required: the root dir in Zookeeper for HBase cluster
 
   'connector.write.buffer-flush.max-size' = '1048576', -- optional: Write option, sets when to flush a buffered request
                                                        -- based on the memory size of rows currently added.
@@ -1132,11 +1155,11 @@ CREATE TABLE MyUserTable (
 
 **Columns:** All the column families in HBase table must be declared as `ROW` type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what's necessary. Except the `ROW` type fields, the only one field of atomic type (e.g. `STRING`, `BIGINT`) will be recognized as row key of the table. There's no constraints on the name of row key field. 
 
-**HBase config:** If need to configure Config for HBase, create default configuration from current runtime env (`hbase-site.xml` in classpath) first, and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
-
 **Temporary join:** Lookup join against HBase do not use any caching; data is always queired directly through the HBase client.
 
 **Rowkey:** Empty string rowkey values are currently unsupported.
+
+**Java/Scala/Python API:** Java/Scala/Python APIs are not supported yet.
 
 {% top %}
 
