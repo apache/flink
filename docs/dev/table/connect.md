@@ -1130,7 +1130,7 @@ CREATE TABLE MyUserTable (
 </div>
 </div>
 
-**Column family:** Values other than `rowKey` must be declared as column families, and all column family values must be wrapped with the SQL ROW function before being inserted into HBase table.
+**Columns:** All the column families in HBase table must be declared as `ROW` type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what's necessary. Except the `ROW` type fields, the only one field of atomic type (e.g. `STRING`, `BIGINT`) will be recognized as row key of the table. There's no constraints on the name of row key field. 
 
 **HBase config:** If need to configure Config for HBase, create default configuration from current runtime env (`hbase-site.xml` in classpath) first, and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
 
