@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -56,7 +55,6 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
@@ -362,16 +360,13 @@ public class PendingCheckpointTest {
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			Collections.singletonList(masterHook.getIdentifier()));
 
-		final Map<String, MasterState> masterStates = MasterHooks.triggerMasterHooks(
-			Collections.singletonList(masterHook),
+		final MasterState masterState = MasterHooks.triggerHook(
+			masterHook,
 			0,
 			System.currentTimeMillis(),
-			Executors.directExecutor(),
-			Time.milliseconds(1024));
-		assertEquals(1, masterStates.size());
+			Executors.directExecutor()).get();
 
-		pending.acknowledgeMasterState(
-			masterHook.getIdentifier(), masterStates.get(masterHook.getIdentifier()));
+		pending.acknowledgeMasterState(masterHook.getIdentifier(), masterState);
 		assertTrue(pending.isMasterStatesFullyAcknowledged());
 		assertFalse(pending.isTasksFullyAcknowledged());
 
@@ -395,32 +390,30 @@ public class PendingCheckpointTest {
 		final TestingMasterTriggerRestoreHook nullableMasterHook =
 			new TestingMasterTriggerRestoreHook("nullable master hook");
 
-		final List<TestingMasterTriggerRestoreHook> masterHooks = new ArrayList<>();
-		masterHooks.add(masterHook);
-		masterHooks.add(nullableMasterHook);
+		final List<String> masterIdentifiers = new ArrayList<>(2);
+		masterIdentifiers.add(masterHook.getIdentifier());
+		masterIdentifiers.add(nullableMasterHook.getIdentifier());
 
 		final PendingCheckpoint pending = createPendingCheckpoint(
 			CheckpointProperties.forCheckpoint(
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			masterHooks
-				.stream()
-				.map(TestingMasterTriggerRestoreHook::getIdentifier)
-				.collect(Collectors.toList()));
+				masterIdentifiers);
 
-		final Map<String, MasterState> masterStates = MasterHooks.triggerMasterHooks(
-			masterHooks,
+		final MasterState masterStateNormal = MasterHooks.triggerHook(
+			masterHook,
 			0,
 			System.currentTimeMillis(),
-			Executors.directExecutor(),
-			Time.milliseconds(1024));
-		assertEquals(2, masterStates.size());
+			Executors.directExecutor()).get();
 
-		pending.acknowledgeMasterState(
-			masterHook.getIdentifier(), masterStates.get(masterHook.getIdentifier()));
+		pending.acknowledgeMasterState(masterHook.getIdentifier(), masterStateNormal);
 		assertFalse(pending.isMasterStatesFullyAcknowledged());
 
-		pending.acknowledgeMasterState(
-			nullableMasterHook.getIdentifier(), masterStates.get(nullableMasterHook.getIdentifier()));
+		final MasterState masterStateNull = MasterHooks.triggerHook(
+			nullableMasterHook,
+			0,
+			System.currentTimeMillis(),
+			Executors.directExecutor()).get();
+		pending.acknowledgeMasterState(nullableMasterHook.getIdentifier(), masterStateNull);
 		assertTrue(pending.isMasterStatesFullyAcknowledged());
 		assertFalse(pending.isTasksFullyAcknowledged());
 
