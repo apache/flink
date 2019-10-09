@@ -1131,7 +1131,7 @@ CREATE TABLE MyUserTable (
 </div>
 </div>
 
-**Column family:** Values other than rowKey must be declared by column families. So need to wrap values with the SQL ROW function before inserting into hbase table.
+**Column family:** Values other than `rowKey` must be declared as column families, and all column family values must be wrapped with the SQL ROW function before being inserted into HBase table.
 
 **HBase config:** If need to configure Config for HBase, create default configuration from current runtime env (`hbase-site.xml` in classpath) first, and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
 
