@@ -1135,7 +1135,7 @@ CREATE TABLE MyUserTable (
 
 **HBase config:** If need to configure Config for HBase, create default configuration from current runtime env (`hbase-site.xml` in classpath) first, and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
 
-**Temporary join:** The Lookup Join of HBase does not use any caching, and every time the data is accessed directly to the client Api of HBase.
+**Temporary join:** Lookup join against HBase do not use any caching; data is always queired directly through the HBase client.
 
 **Rowkey:** User should confirm rowkey should not be empty string. (waiting for support)
 
