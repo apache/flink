@@ -70,7 +70,7 @@ public class MetricOptions {
 
 	/** The delimiter used to assemble the metric identifier. */
 	public static final ConfigOption<String> SCOPE_DELIMITER =
-		key("metrics.scope.delimiter")
+		key("metrics." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER)
 			.defaultValue(".")
 			.withDescription("Delimiter used to assemble the metric identifier.");
 
