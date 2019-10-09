@@ -19,6 +19,10 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.metrics.MetricScope;
+import org.apache.flink.runtime.metrics.scope.InternalMetricScope;
+
+import java.util.Map;
 
 /**
  * Metric group which forwards all registration calls to a variable parent metric group that injects a variable reporter
@@ -30,21 +34,21 @@ import org.apache.flink.metrics.CharacterFilter;
  */
 public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMetricGroup<P> {
 
-	protected int reporterIndex;
+	private final ReporterIndexInjectingMetricScope scope;
 
 	public FrontMetricGroup(int reporterIndex, P reference) {
 		super(reference);
-		this.reporterIndex = reporterIndex;
+		this.scope = new ReporterIndexInjectingMetricScope(reporterIndex, this.parentMetricGroup.getScope());
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName) {
-		return parentMetricGroup.getMetricIdentifier(metricName, null, this.reporterIndex);
+		return scope.getMetricIdentifier(metricName);
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, filter, this.reporterIndex);
+		return scope.getMetricIdentifier(metricName, filter);
 	}
 
 	public String getLogicalScope(CharacterFilter filter) {
@@ -52,6 +56,32 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
 	}
 
 	public String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return parentMetricGroup.getLogicalScope(filter, delimiter, this.reporterIndex);
+		return parentMetricGroup.getLogicalScope(filter, delimiter);
+	}
+
+	private static final class ReporterIndexInjectingMetricScope implements MetricScope {
+
+		private final int reporterIndex;
+		private final InternalMetricScope scope;
+
+		private ReporterIndexInjectingMetricScope(int reporterIndex, InternalMetricScope scope) {
+			this.reporterIndex = reporterIndex;
+			this.scope = scope;
+		}
+
+		@Override
+		public Map<String, String> getAllVariables() {
+			return scope.getAllVariables();
+		}
+
+		@Override
+		public String getMetricIdentifier(String metricName) {
+			return scope.getMetricIdentifier(metricName, s -> s, reporterIndex);
+		}
+
+		@Override
+		public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+			return scope.getMetricIdentifier(metricName, filter, reporterIndex);
+		}
 	}
 }

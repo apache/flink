@@ -24,7 +24,7 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricScope;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -61,12 +61,12 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public static final String TAGS = "tags";
 
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		final String name = group.getMetricIdentifier(metricName);
+	public void notifyOfAddedMetric(Metric metric, String metricName, MetricScope scope) {
+		final String name = scope.getMetricIdentifier(metricName);
 
 		List<String> tags = new ArrayList<>(configTags);
-		tags.addAll(getTagsFromMetricGroup(group));
-		String host = getHostFromMetricGroup(group);
+		tags.addAll(getTagsFromMetricGroup(scope));
+		String host = getHostFromMetricGroup(scope);
 
 		if (metric instanceof Counter) {
 			Counter c = (Counter) metric;
@@ -87,7 +87,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricScope scope) {
 		if (metric instanceof Counter) {
 			counters.remove(metric);
 		} else if (metric instanceof Gauge) {
@@ -174,10 +174,10 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	/**
 	 * Get tags from MetricGroup#getAllVariables(), excluding 'host'.
 	 */
-	private List<String> getTagsFromMetricGroup(MetricGroup metricGroup) {
+	private List<String> getTagsFromMetricGroup(MetricScope scope) {
 		List<String> tags = new ArrayList<>();
 
-		for (Map.Entry<String, String> entry: metricGroup.getAllVariables().entrySet()) {
+		for (Map.Entry<String, String> entry: scope.getAllVariables().entrySet()) {
 			if (!entry.getKey().equals(HOST_VARIABLE)) {
 				tags.add(getVariableName(entry.getKey()) + ":" + entry.getValue());
 			}
@@ -186,8 +186,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		return tags;
 	}
 
-	private String getHostFromMetricGroup(MetricGroup metricGroup) {
-		return metricGroup.getAllVariables().get(HOST_VARIABLE);
+	private String getHostFromMetricGroup(MetricScope scope) {
+		return scope.getAllVariables().get(HOST_VARIABLE);
 	}
 
 	/**

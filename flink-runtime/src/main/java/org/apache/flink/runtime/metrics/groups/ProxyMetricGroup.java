@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricScope;
 
 import java.util.Map;
 
@@ -114,16 +115,21 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 
 	@Override
 	public Map<String, String> getAllVariables() {
-		return parentMetricGroup.getAllVariables();
+		return parentMetricGroup.getScope().getAllVariables();
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName) {
-		return parentMetricGroup.getMetricIdentifier(metricName);
+		return parentMetricGroup.getScope().getMetricIdentifier(metricName);
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, filter);
+		return parentMetricGroup.getScope().getMetricIdentifier(metricName, filter);
+	}
+
+	@Override
+	public MetricScope getScope() {
+		return parentMetricGroup.getScope();
 	}
 }

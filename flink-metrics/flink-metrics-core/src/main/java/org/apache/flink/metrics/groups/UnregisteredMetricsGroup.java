@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricScope;
 import org.apache.flink.metrics.SimpleCounter;
 
 import java.util.Collections;
@@ -118,5 +119,29 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
 		return metricName;
+	}
+
+	@Override
+	public MetricScope getScope() {
+		return DummyScope.INSTANCE;
+	}
+
+	private enum DummyScope implements MetricScope {
+		INSTANCE;
+
+		@Override
+		public Map<String, String> getAllVariables() {
+			return Collections.emptyMap();
+		}
+
+		@Override
+		public String getMetricIdentifier(String metricName) {
+			return metricName;
+		}
+
+		@Override
+		public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+			return metricName;
+		}
 	}
 }

@@ -18,13 +18,9 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -88,42 +84,6 @@ public class AbstractMetricGroupTest {
 	};
 
 	@Test
-	public void testScopeCachingForMultipleReporters() throws Exception {
-		Configuration config = new Configuration();
-		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
-
-		MetricConfig metricConfig1 = new MetricConfig();
-		metricConfig1.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
-
-		MetricConfig metricConfig2 = new MetricConfig();
-		metricConfig2.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "!");
-
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "!");
-
-		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
-			MetricRegistryConfiguration.fromConfiguration(config),
-			Arrays.asList(
-				ReporterSetup.forReporter("test1", metricConfig1, new TestReporter1()),
-				ReporterSetup.forReporter("test2", metricConfig2, new TestReporter2())));
-		try {
-			MetricGroup tmGroup = new TaskManagerMetricGroup(testRegistry, "host", "id");
-			tmGroup.counter("1");
-			assertEquals("Reporters were not properly instantiated", 2, testRegistry.getReporters().size());
-			for (MetricReporter reporter : testRegistry.getReporters()) {
-				ScopeCheckingTestReporter typedReporter = (ScopeCheckingTestReporter) reporter;
-				if (typedReporter.failureCause != null) {
-					throw typedReporter.failureCause;
-				}
-			}
-		} finally {
-			testRegistry.shutdown().get();
-		}
-	}
-
-	@Test
 	public void testLogicalScopeCachingForMultipleReporters() throws Exception {
 		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
@@ -166,58 +126,6 @@ public class AbstractMetricGroupTest {
 	}
 
 	/**
-	 * Reporter that verifies the scope caching behavior.
-	 */
-	public static class TestReporter1 extends ScopeCheckingTestReporter {
-		@Override
-		public String filterCharacters(String input) {
-			return FILTER_B.filterCharacters(input);
-		}
-
-		@Override
-		public void checkScopes(Metric metric, String metricName, MetricGroup group) {
-			// the first call determines which filter is applied to all future calls; in this case no filter is used at all
-			assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName));
-			// from now on the scope string is cached and should not be reliant on the given filter
-			assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName, FILTER_C));
-			assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName, this));
-			// the metric name however is still affected by the filter as it is not cached
-			assertEquals("A-B-C-D-4", group.getMetricIdentifier(metricName, new CharacterFilter() {
-				@Override
-				public String filterCharacters(String input) {
-					return input.replace("B", "X").replace("1", "4");
-				}
-			}));
-		}
-	}
-
-	/**
-	 * Reporter that verifies the scope caching behavior.
-	 */
-	public static class TestReporter2 extends ScopeCheckingTestReporter {
-		@Override
-		public String filterCharacters(String input) {
-			return FILTER_C.filterCharacters(input);
-		}
-
-		@Override
-		public void checkScopes(Metric metric, String metricName, MetricGroup group) {
-			// the first call determines which filter is applied to all future calls
-			assertEquals("A!B!X!D!1", group.getMetricIdentifier(metricName, this));
-			// from now on the scope string is cached and should not be reliant on the given filter
-			assertEquals("A!B!X!D!1", group.getMetricIdentifier(metricName));
-			assertEquals("A!B!X!D!1", group.getMetricIdentifier(metricName, FILTER_C));
-			// the metric name however is still affected by the filter as it is not cached
-			assertEquals("A!B!X!D!3", group.getMetricIdentifier(metricName, new CharacterFilter() {
-				@Override
-				public String filterCharacters(String input) {
-					return input.replace("A", "X").replace("1", "3");
-				}
-			}));
-		}
-	}
-
-	/**
 	 * Reporter that verifies the logical-scope caching behavior.
 	 */
 	public static final class LogicalScopeReporter1 extends ScopeCheckingTestReporter {
@@ -246,29 +154,6 @@ public class AbstractMetricGroupTest {
 		public void checkScopes(Metric metric, String metricName, MetricGroup group) {
 			final String logicalScope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(this, ',');
 			assertEquals("taskmanager,B,X", logicalScope);
-		}
-	}
-
-	@Test
-	public void testScopeGenerationWithoutReporters() throws Exception {
-		Configuration config = new Configuration();
-		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
-		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
-			MetricRegistryConfiguration.fromConfiguration(config));
-
-		try {
-			TaskManagerMetricGroup group = new TaskManagerMetricGroup(testRegistry, "host", "id");
-			assertEquals("MetricReporters list should be empty", 0, testRegistry.getReporters().size());
-
-			// default delimiter should be used
-			assertEquals("A.B.X.D.1", group.getMetricIdentifier("1", FILTER_C));
-			// no caching should occur
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B));
-			// invalid reporter indices do not throw errors
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1));
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
-		} finally {
-			testRegistry.shutdown().get();
 		}
 	}
 

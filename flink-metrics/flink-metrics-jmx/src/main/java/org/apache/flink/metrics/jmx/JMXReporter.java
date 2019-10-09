@@ -159,7 +159,7 @@ public class JMXReporter implements MetricReporter {
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 		final String domain = generateJmxDomain(metricName, group);
-		final Hashtable<String, String> table = generateJmxTable(group.getAllVariables());
+		final Hashtable<String, String> table = generateJmxTable(group.getScope().getAllVariables());
 
 		AbstractBean jmxMetric;
 		ObjectName jmxName;

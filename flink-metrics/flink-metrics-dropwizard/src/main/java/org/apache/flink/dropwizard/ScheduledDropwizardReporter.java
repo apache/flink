@@ -33,7 +33,7 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricScope;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -122,8 +122,8 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		final String fullName = group.getMetricIdentifier(metricName, this);
+	public void notifyOfAddedMetric(Metric metric, String metricName, MetricScope scope) {
+		final String fullName = scope.getMetricIdentifier(metricName, this);
 
 		synchronized (this) {
 			if (metric instanceof Counter) {
@@ -159,7 +159,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricScope scope) {
 		synchronized (this) {
 			String fullName;
 

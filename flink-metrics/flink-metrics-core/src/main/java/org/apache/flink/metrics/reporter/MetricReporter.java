@@ -21,6 +21,7 @@ package org.apache.flink.metrics.reporter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricScope;
 
 /**
  * Reporters are used to export {@link Metric Metrics} to an external backend.
@@ -59,21 +60,37 @@ public interface MetricReporter {
 	//  adding / removing metrics
 	// ------------------------------------------------------------------------
 
+	/**  @deprecated use {@link #notifyOfAddedMetric(Metric, String, MetricScope)} instead */
+	@Deprecated
+	default void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+		notifyOfAddedMetric(metric, metricName, group.getScope());
+	}
+
 	/**
 	 * Called when a new {@link Metric} was added.
 	 *
 	 * @param metric      the metric that was added
 	 * @param metricName  the name of the metric
-	 * @param group       the group that contains the metric
+	 * @param scope       the scope of the metric
 	 */
-	void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group);
+	default void notifyOfAddedMetric(Metric metric, String metricName, MetricScope scope) {
+		// empty implementation to not break existing reporters
+	}
+
+	/** @deprecated use {@link #notifyOfRemovedMetric(Metric, String, MetricScope)} instead */
+	@Deprecated
+	default void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+		notifyOfRemovedMetric(metric, metricName, group.getScope());
+	}
 
 	/**
 	 * Called when a {@link Metric} was should be removed.
 	 *
 	 * @param metric      the metric that should be removed
 	 * @param metricName  the name of the metric
-	 * @param group       the group that contains the metric
+	 * @param scope       the scope of the metric
 	 */
-	void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group);
+	default void notifyOfRemovedMetric(Metric metric, String metricName, MetricScope scope) {
+		// empty implementation to not break existing reporters
+	}
 }

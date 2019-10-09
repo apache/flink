@@ -29,7 +29,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
-import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.runtime.metrics.scope.InternalMetricScope;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,14 +82,6 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	/** All metric subgroups of this group. */
 	private final Map<String, AbstractMetricGroup> groups = new HashMap<>();
 
-	/** The metrics scope represented by this group.
-	 *  For example ["host-7", "taskmanager-2", "window_word_count", "my-mapper" ]. */
-	private final String[] scopeComponents;
-
-	/** Array containing the metrics scope represented by this group for each reporter, as a concatenated string, lazily computed.
-	 * For example: "host-7.taskmanager-2.window_word_count.my-mapper" */
-	private final String[] scopeStrings;
-
 	/** The logical metrics scope represented by this group for each reporter, as a concatenated string, lazily computed.
 	 * For example: "taskmanager.job.task" */
 	private String[] logicalScopeStrings;
@@ -100,14 +92,24 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	/** Flag indicating whether this group has been closed. */
 	private volatile boolean closed;
 
+	private final InternalMetricScope scope;
+
 	// ------------------------------------------------------------------------
 
 	public AbstractMetricGroup(MetricRegistry registry, String[] scope, A parent) {
 		this.registry = checkNotNull(registry);
-		this.scopeComponents = checkNotNull(scope);
 		this.parent = parent;
-		this.scopeStrings = new String[registry.getNumberReporters()];
 		this.logicalScopeStrings = new String[registry.getNumberReporters()];
+		this.scope = new InternalMetricScope(
+			registry,
+			scope,
+			this::getAllVariables
+		);
+	}
+
+	@Override
+	public InternalMetricScope getScope() {
+		return scope;
 	}
 
 	public Map<String, String> getAllVariables() {
@@ -194,7 +196,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @see #getMetricIdentifier(String)
 	 */
 	public String[] getScopeComponents() {
-		return scopeComponents;
+		return scope.geScopeComponents();
 	}
 
 	/**
@@ -219,62 +221,19 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	protected abstract QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter);
 
 	/**
-	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
-	 *
-	 * @param metricName metric name
-	 * @return fully qualified metric name
+	 * @deprecated use {@link org.apache.flink.metrics.MetricScope#getMetricIdentifier(String)} instead
 	 */
+	@Deprecated
 	public String getMetricIdentifier(String metricName) {
-		return getMetricIdentifier(metricName, null);
+		return scope.getMetricIdentifier(metricName);
 	}
 
 	/**
-	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
-	 *
-	 * @param metricName metric name
-	 * @param filter character filter which is applied to the scope components if not null.
-	 * @return fully qualified metric name
+	 * @deprecated use {@link org.apache.flink.metrics.MetricScope#getMetricIdentifier(String, CharacterFilter)} instead
 	 */
+	@Deprecated
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return getMetricIdentifier(metricName, filter, -1);
-	}
-
-	/**
-	 * Returns the fully qualified metric name using the configured delimiter for the reporter with the given index, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
-	 *
-	 * @param metricName metric name
-	 * @param filter character filter which is applied to the scope components if not null.
-	 * @param reporterIndex index of the reporter whose delimiter should be used
-	 * @return fully qualified metric name
-	 */
-	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex) {
-		if (scopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= scopeStrings.length)) {
-			char delimiter = registry.getDelimiter();
-			String newScopeString;
-			if (filter != null) {
-				newScopeString = ScopeFormat.concat(filter, delimiter, scopeComponents);
-				metricName = filter.filterCharacters(metricName);
-			} else {
-				newScopeString = ScopeFormat.concat(delimiter, scopeComponents);
-			}
-			return newScopeString + delimiter + metricName;
-		} else {
-			char delimiter = registry.getDelimiter(reporterIndex);
-			if (scopeStrings[reporterIndex] == null) {
-				if (filter != null) {
-					scopeStrings[reporterIndex] = ScopeFormat.concat(filter, delimiter, scopeComponents);
-				} else {
-					scopeStrings[reporterIndex] = ScopeFormat.concat(delimiter, scopeComponents);
-				}
-			}
-			if (filter != null) {
-				metricName = filter.filterCharacters(metricName);
-			}
-			return scopeStrings[reporterIndex] + delimiter + metricName;
-		}
+		return scope.getMetricIdentifier(metricName, filter);
 	}
 
 	// ------------------------------------------------------------------------
@@ -390,7 +349,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 						// we warn here, rather than failing, because metrics are tools that should not fail the
 						// program when used incorrectly
 						LOG.warn("Name collision: Adding a metric with the same name as a metric subgroup: '" +
-								name + "'. Metric might not get properly reported. " + Arrays.toString(scopeComponents));
+								name + "'. Metric might not get properly reported. " + Arrays.toString(getScopeComponents()));
 					}
 
 					registry.register(metric, name, this);
@@ -402,7 +361,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 					// we warn here, rather than failing, because metrics are tools that should not fail the
 					// program when used incorrectly
 					LOG.warn("Name collision: Group already contains a Metric with the name '" +
-							name + "'. Metric will not be reported." + Arrays.toString(scopeComponents));
+							name + "'. Metric will not be reported." + Arrays.toString(getScopeComponents()));
 				}
 			}
 		}
@@ -435,7 +394,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 				// program when used incorrectly
 				if (metrics.containsKey(name)) {
 					LOG.warn("Name collision: Adding a metric subgroup with the same name as an existing metric: '" +
-							name + "'. Metric might not get properly reported. " + Arrays.toString(scopeComponents));
+							name + "'. Metric might not get properly reported. " + Arrays.toString(getScopeComponents()));
 				}
 
 				AbstractMetricGroup newGroup = createChildGroup(name, childType);

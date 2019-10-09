@@ -24,7 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricScope;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,8 +44,8 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 	protected final Map<Meter, String> meters = new HashMap<>();
 
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		final String name = group.getMetricIdentifier(metricName, this);
+	public void notifyOfAddedMetric(Metric metric, String metricName, MetricScope scope) {
+		final String name = scope.getMetricIdentifier(metricName, this);
 
 		synchronized (this) {
 			if (metric instanceof Counter) {
@@ -64,7 +64,7 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricScope scope) {
 		synchronized (this) {
 			if (metric instanceof Counter) {
 				counters.remove(metric);

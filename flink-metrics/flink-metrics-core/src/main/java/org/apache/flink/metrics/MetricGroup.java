@@ -167,39 +167,26 @@ public interface MetricGroup {
 	// Scope
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Gets the scope as an array of the scope components, for example
-	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}.
-	 *
-	 * @see #getMetricIdentifier(String)
-	 * @see #getMetricIdentifier(String, CharacterFilter)
-	 */
+	/** @deprecated Will be removed in a future version */
+	@Deprecated
 	String[] getScopeComponents();
 
-	/**
-	 * Returns a map of all variables and their associated value, for example
-	 * {@code {"<host>"="host-7", "<tm_id>"="taskmanager-2"}}.
-	 *
-	 * @return map of all variables and their associated value
-     */
+	/** @deprecated use {@link MetricScope#getAllVariables()} instead */
+	@Deprecated
 	Map<String, String> getAllVariables();
 
-	/**
-	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
-	 *
-	 * @param metricName metric name
-	 * @return fully qualified metric name
-	 */
+	/** @deprecated use {@link MetricScope#getMetricIdentifier(String)} instead */
+	@Deprecated
 	String getMetricIdentifier(String metricName);
 
-	/**
-	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
-	 *
-	 * @param metricName metric name
-	 * @param filter character filter which is applied to the scope components if not null.
-	 * @return fully qualified metric name
-	 */
+	/** @deprecated use {@link MetricScope#getMetricIdentifier(String, CharacterFilter)} instead */
+	@Deprecated
 	String getMetricIdentifier(String metricName, CharacterFilter filter);
+
+	/**
+	 * Returns the scope of this metric group.
+	 *
+	 * @return scope of this metric group
+	 */
+	MetricScope getScope();
 }
