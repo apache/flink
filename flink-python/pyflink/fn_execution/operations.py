@@ -95,15 +95,15 @@ class ConstantInputGetter(InputGetter):
     def __init__(self, constant_value):
         j_type = constant_value.value[0]
         pickled_data = serializer.loads(constant_value.value[1:])
-        if j_type == '\x00':
+        if j_type == '\x00' or j_type == 0:
             self._constant_value = pickled_data
-        elif j_type == '\x01':
+        elif j_type == '\x01' or j_type == 1:
             self._constant_value = datetime.date(year=0, month=0, day=pickled_data)
-        elif j_type == '\x02':
+        elif j_type == '\x02' or j_type == 2:
             self._constant_value = datetime.time(microsecond=pickled_data * 1000)
-        elif j_type == '\x03':
+        elif j_type == '\x03' or j_type == 3:
             self._constant_value = relativedelta(months=pickled_data)
-        elif j_type == '\x04':
+        elif j_type == '\x04' or j_type == 4:
             self._constant_value = datetime.timedelta(seconds=pickled_data)
 
     def get(self, value):
