@@ -74,7 +74,6 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 	protected List<ColumnFamilyDescriptor> columnFamilyDescriptors;
 	protected final StateSerializerProvider<K> keySerializerProvider;
 	protected final RocksDBNativeMetricOptions nativeMetricOptions;
-	protected final Boolean columnFamilyAsVariable;
 	protected final MetricGroup metricGroup;
 	protected final Collection<KeyedStateHandle> restoreStateHandles;
 	// Current places to set compact filter into column family options:
@@ -107,8 +106,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		@Nonnull Boolean columnFamilyAsVariable) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		this.keyGroupRange = keyGroupRange;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.numberOfTransferringThreads = numberOfTransferringThreads;
@@ -127,7 +125,6 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
 		this.columnFamilyHandles = new ArrayList<>(1);
 		this.columnFamilyDescriptors = Collections.emptyList();
-		this.columnFamilyAsVariable = columnFamilyAsVariable;
 	}
 
 	void openDB() throws IOException {
@@ -141,7 +138,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		defaultColumnFamilyHandle = columnFamilyHandles.remove(0);
 		// init native metrics monitor if configured
 		nativeMetricMonitor = nativeMetricOptions.isEnabled() ?
-			new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db, columnFamilyAsVariable) : null;
+			new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db) : null;
 	}
 
 	public RocksDB getDb() {

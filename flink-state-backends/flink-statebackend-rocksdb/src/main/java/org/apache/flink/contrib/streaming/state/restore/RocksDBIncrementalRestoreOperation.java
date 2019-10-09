@@ -105,8 +105,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		@Nonnull Boolean columnFamilyAsVariable) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		super(keyGroupRange,
 			keyGroupPrefixBytes,
 			numberOfTransferringThreads,
@@ -121,8 +120,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,
-			ttlCompactFiltersManager,
-			columnFamilyAsVariable);
+			ttlCompactFiltersManager);
 		this.operatorIdentifier = operatorIdentifier;
 		this.restoredSstFiles = new TreeMap<>();
 		this.lastCompletedCheckpointId = -1L;

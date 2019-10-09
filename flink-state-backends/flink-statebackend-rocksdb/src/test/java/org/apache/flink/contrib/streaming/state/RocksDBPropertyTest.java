@@ -40,7 +40,9 @@ public class RocksDBPropertyTest {
 
 		for (RocksDBProperty property : RocksDBProperty.values()) {
 			try {
-				db.getLongProperty(handle, property.getRocksDBProperty());
+				if (!RocksDBProperty.ColumnFamilyAsVariable.equals(property)) {
+					db.getLongProperty(handle, property.getRocksDBProperty());
+				}
 			} catch (RocksDBException e) {
 				throw new AssertionError(String.format("Invalid RocksDB property %s", property.getRocksDBProperty()), e);
 			}

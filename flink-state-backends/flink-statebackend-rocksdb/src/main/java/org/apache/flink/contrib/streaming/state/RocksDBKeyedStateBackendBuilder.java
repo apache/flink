@@ -104,9 +104,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
 	private final MetricGroup metricGroup;
 
-	/** Is use column family as variable in rocksdb metrics group . */
-	private Boolean columnFamilyAsVariable;
-
 	/** True if incremental checkpointing is enabled. */
 	private boolean enableIncrementalCheckpointing;
 	/** True if ttl compaction filter is enabled. */
@@ -160,7 +157,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		this.enableIncrementalCheckpointing = false;
 		this.nativeMetricOptions = new RocksDBNativeMetricOptions();
 		this.numberOfTransferingThreads = RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue();
-		this.columnFamilyAsVariable = false;
 	}
 
 	@VisibleForTesting
@@ -222,11 +218,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		return this;
 	}
 
-	RocksDBKeyedStateBackendBuilder<K> setColumnFamilyAsVariable(boolean isVariable) {
-		this.columnFamilyAsVariable = isVariable;
-		return this;
-	}
-
 	RocksDBKeyedStateBackendBuilder<K> setNumberOfTransferingThreads(int numberOfTransferingThreads) {
 		this.numberOfTransferingThreads = numberOfTransferingThreads;
 		return this;
@@ -271,11 +262,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				db = injectedTestDB;
 				defaultColumnFamilyHandle = injectedDefaultColumnFamilyHandle;
 				nativeMetricMonitor = nativeMetricOptions.isEnabled() ?
-					new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db, columnFamilyAsVariable) : null;
+					new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db) : null;
 			} else {
 				prepareDirectories();
 				restoreOperation = getRocksDBRestoreOperation(
-					keyGroupPrefixBytes, cancelStreamRegistry, kvStateInformation, ttlCompactFiltersManager, columnFamilyAsVariable);
+					keyGroupPrefixBytes, cancelStreamRegistry, kvStateInformation, ttlCompactFiltersManager);
 				RocksDBRestoreResult restoreResult = restoreOperation.restore();
 				db = restoreResult.getDb();
 				defaultColumnFamilyHandle = restoreResult.getDefaultColumnFamilyHandle();
@@ -369,8 +360,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		int keyGroupPrefixBytes,
 		CloseableRegistry cancelStreamRegistry,
 		LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
-		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		Boolean columnFamilyAsVariable) {
+		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		if (restoreStateHandles.isEmpty()) {
 			return new RocksDBNoneRestoreOperation<>(
 				keyGroupRange,
@@ -387,8 +377,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager,
-				columnFamilyAsVariable);
+				ttlCompactFiltersManager);
 		}
 		KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
 		if (firstStateHandle instanceof IncrementalKeyedStateHandle) {
@@ -408,8 +397,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager,
-				columnFamilyAsVariable);
+				ttlCompactFiltersManager);
 		} else {
 			return new RocksDBFullRestoreOperation<>(
 				keyGroupRange,
@@ -426,8 +414,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager,
-				columnFamilyAsVariable);
+				ttlCompactFiltersManager);
 		}
 	}
 

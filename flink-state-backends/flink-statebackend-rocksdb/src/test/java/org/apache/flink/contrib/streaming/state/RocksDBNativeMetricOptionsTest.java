@@ -32,8 +32,13 @@ public class RocksDBNativeMetricOptionsTest {
 		for (RocksDBProperty property : RocksDBProperty.values()) {
 			Configuration config = new Configuration();
 			config.setBoolean(property.getConfigKey(), true);
-
 			RocksDBNativeMetricOptions options = RocksDBNativeMetricOptions.fromConfig(config);
+			if (RocksDBProperty.ColumnFamilyAsVariable.equals(property)) {
+				Assert.assertTrue(
+					String.format("Failed to enable column family as variable with property %s", property.getConfigKey()),
+					options.isEnableColumnFaminlyAsVariable());
+				continue;
+			}
 
 			Assert.assertTrue(
 				String.format("Failed to enable native metrics with property %s", property.getConfigKey()),

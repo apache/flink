@@ -28,6 +28,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static java.util.stream.Collectors.toSet;
+
 /**
  * Enable which RocksDB metrics to forward to Flink's metrics reporter.
  * All metrics report at the column family level and return unsigned long values.
@@ -149,6 +151,13 @@ public class RocksDBNativeMetricOptions implements Serializable {
 		.key(RocksDBProperty.ActualDelayedWriteRate.getConfigKey())
 		.defaultValue(false)
 		.withDescription("Monitor the current actual delayed write rate. 0 means no delay.");
+
+	public static final ConfigOption<Boolean> COLUMN_FAMILY_AS_VARIABLE = ConfigOptions
+		.key(RocksDBProperty.ColumnFamilyAsVariable.getConfigKey())
+		.defaultValue(false)
+		.withDescription(String.format("The column family as variable for RocksDB metrics to use column family as variable or not, when create metric group. " +
+			"The default column family as variable is %s", false));
+
 	/**
 	 * Creates a {@link RocksDBNativeMetricOptions} based on an
 	 * external configuration.
@@ -237,6 +246,10 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
 		if (config.getBoolean(MONITOR_ACTUAL_DELAYED_WRITE_RATE)) {
 			options.enableActualDelayedWriteRate();
+		}
+
+		if (config.getBoolean(COLUMN_FAMILY_AS_VARIABLE)) {
+			options.enableColumnFamilyAsVariable();
 		}
 
 		return options;
@@ -402,10 +415,17 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	}
 
 	/**
+	 * Returns the column family as variable.
+	 */
+	public void enableColumnFamilyAsVariable() {
+		this.properties.add(RocksDBProperty.ColumnFamilyAsVariable.getRocksDBProperty());
+	}
+
+	/**
 	 * @return the enabled RocksDB metrics
 	 */
 	public Collection<String> getProperties() {
-		return Collections.unmodifiableCollection(properties);
+		return Collections.unmodifiableCollection(properties.stream().filter(str -> !str.equals(RocksDBProperty.ColumnFamilyAsVariable.getRocksDBProperty())).collect(toSet()));
 	}
 
 	/**
@@ -414,6 +434,15 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	 * @return true if {{RocksDBNativeMetricMonitor}} should be enabled, false otherwise.
 	 */
 	public boolean isEnabled() {
-		return !properties.isEmpty();
+		return properties.stream().anyMatch(str -> !str.equals(RocksDBProperty.ColumnFamilyAsVariable.getRocksDBProperty()));
+	}
+
+	/**
+	 *  {{@link RocksDBNativeMetricMonitor}} is enabled column family as variable.
+	 *
+	 * @return true is ColumnFamilyAsVariable should be enalbed, false otherwise.
+	 */
+	public boolean isEnableColumnFaminlyAsVariable() {
+		return properties.stream().anyMatch(str -> str.equals(RocksDBProperty.ColumnFamilyAsVariable.getRocksDBProperty()));
 	}
 }

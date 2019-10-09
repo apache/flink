@@ -152,9 +152,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/** The default rocksdb metrics options. */
 	private final RocksDBNativeMetricOptions defaultMetricOptions;
 
-	/** Is use column family as variable in rocksdb metrics group . */
-	private Boolean columnFamilyAsVariable;
-
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
 	/** Base paths for RocksDB directory, as initialized. */
@@ -272,7 +269,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
-		this.columnFamilyAsVariable = false;
 	}
 
 	/**
@@ -344,9 +340,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		// configure metric options
 		this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
-
-		// configure metric group is column family as variable
-		this.columnFamilyAsVariable = config.getBoolean(RocksDBOptions.COLUMN_FAMILY_AS_VARIABLE);
 
 		// configure RocksDB predefined options
 		this.predefinedOptions = original.predefinedOptions == null ?
@@ -523,8 +516,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		).setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferingThreads())
-			.setNativeMetricOptions(getMemoryWatcherOptions())
-			.setColumnFamilyAsVariable(this.columnFamilyAsVariable);
+			.setNativeMetricOptions(getMemoryWatcherOptions());
 		return builder.build();
 	}
 

@@ -102,8 +102,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		@Nonnull Boolean columnFamilyAsVariable) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		super(
 			keyGroupRange,
 			keyGroupPrefixBytes,
@@ -119,8 +118,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,
-			ttlCompactFiltersManager,
-			columnFamilyAsVariable);
+			ttlCompactFiltersManager);
 	}
 
 	/**

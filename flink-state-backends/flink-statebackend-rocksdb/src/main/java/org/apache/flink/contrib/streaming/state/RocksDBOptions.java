@@ -86,13 +86,4 @@ public class RocksDBOptions {
 				"The default options factory is %s, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.",
 				DefaultConfigurableOptionsFactory.class.getName()));
 
-	/**
-	 * The column family as variable for RocksDB metrics to use column family as variable or not when create metric group.
-	 */
-	public static final ConfigOption<Boolean> COLUMN_FAMILY_AS_VARIABLE = ConfigOptions
-		.key("state.backend.rocksdb.column-family-as-variable")
-		.defaultValue(false)
-		.withDescription(String.format("The column family as variable for RocksDB metrics to use column family as variable or not, when create metric group. " +
-				"The default column family as variable is %s", false));
-
 }
