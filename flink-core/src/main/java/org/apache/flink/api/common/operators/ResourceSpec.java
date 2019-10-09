@@ -228,6 +228,9 @@ public final class ResourceSpec implements Serializable {
 	 * @return True if current resource is less than or equal with the other resource, otherwise return false.
 	 */
 	public boolean lessThanOrEqual(@Nonnull ResourceSpec other) {
+		if (this.equals(UNKNOWN) || other.equals(UNKNOWN)) {
+			throw new IllegalArgumentException("UNKNOWN ResourceSpecs cannot be numerically compared.");
+		}
 		int cmp1 = Double.compare(this.cpuCores, other.cpuCores);
 		int cmp2 = Integer.compare(this.heapMemoryInMB, other.heapMemoryInMB);
 		int cmp3 = Integer.compare(this.directMemoryInMB, other.directMemoryInMB);
