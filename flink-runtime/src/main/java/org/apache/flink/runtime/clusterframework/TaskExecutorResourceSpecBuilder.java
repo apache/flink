@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -37,6 +38,15 @@ public class TaskExecutorResourceSpecBuilder {
 
 	static TaskExecutorResourceSpecBuilder newBuilder(final Configuration configuration) {
 		return new TaskExecutorResourceSpecBuilder(configuration);
+	}
+
+	public TaskExecutorResourceSpecBuilder withCpuCores(double cpuCores) {
+		return withCpuCores(new CPUResource(cpuCores));
+	}
+
+	public TaskExecutorResourceSpecBuilder withCpuCores(CPUResource cpuCores) {
+		configuration.setDouble(TaskManagerOptions.CPU_CORES, cpuCores.getValue().doubleValue());
+		return this;
 	}
 
 	public TaskExecutorResourceSpecBuilder withTotalProcessMemory(MemorySize totalProcessMemory) {

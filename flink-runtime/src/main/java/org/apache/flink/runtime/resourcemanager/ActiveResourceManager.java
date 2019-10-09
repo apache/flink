@@ -96,7 +96,11 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 		this.env = env;
 
 		this.numSlotsPerTaskManager = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
-		this.taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(flinkConfig);
+		double defaultCpus = getCpuCores(flinkConfig);
+		this.taskExecutorResourceSpec = TaskExecutorResourceUtils
+			.newResourceSpecBuilder(flinkConfig)
+			.withCpuCores(defaultCpus)
+			.build();
 		this.defaultMemoryMB = taskExecutorResourceSpec.getTotalProcessMemorySize().getMebiBytes();
 
 		this.resourceProfilesPerWorker = createWorkerSlotProfiles(flinkConfig);
@@ -117,4 +121,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	}
 
 	protected abstract Configuration loadClientConfiguration();
+
+	protected abstract double getCpuCores(final Configuration configuration);
 }
