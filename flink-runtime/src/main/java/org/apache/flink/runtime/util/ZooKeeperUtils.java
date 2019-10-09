@@ -31,8 +31,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
-import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
-import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
@@ -183,72 +181,6 @@ public class ZooKeeperUtils {
 		zkQuorum = zkQuorum.replaceAll("\\s+", "");
 
 		return zkQuorum;
-	}
-
-	/**
-	 * Creates a {@link ZooKeeperLeaderRetrievalService} instance.
-	 *
-	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
-	 * @param configuration {@link Configuration} object containing the configuration values
-	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
-	 */
-	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
-		final CuratorFramework client,
-		final Configuration configuration) {
-		return createLeaderRetrievalService(client, configuration, "");
-	}
-
-	/**
-	 * Creates a {@link ZooKeeperLeaderRetrievalService} instance.
-	 *
-	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
-	 * @param configuration {@link Configuration} object containing the configuration values
-	 * @param pathSuffix    The path suffix which we want to append
-	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
-	 * @throws Exception
-	 */
-	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
-		final CuratorFramework client,
-		final Configuration configuration,
-		final String pathSuffix) {
-		String leaderPath = configuration.getString(
-			HighAvailabilityOptions.HA_ZOOKEEPER_LEADER_PATH) + pathSuffix;
-
-		return new ZooKeeperLeaderRetrievalService(client, leaderPath);
-	}
-
-	/**
-	 * Creates a {@link ZooKeeperLeaderElectionService} instance.
-	 *
-	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
-	 * @param configuration {@link Configuration} object containing the configuration values
-	 * @return {@link ZooKeeperLeaderElectionService} instance.
-	 */
-	public static ZooKeeperLeaderElectionService createLeaderElectionService(
-			CuratorFramework client,
-			Configuration configuration) throws Exception {
-
-		return createLeaderElectionService(client, configuration, "");
-	}
-
-	/**
-	 * Creates a {@link ZooKeeperLeaderElectionService} instance.
-	 *
-	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
-	 * @param configuration {@link Configuration} object containing the configuration values
-	 * @param pathSuffix    The path suffix which we want to append
-	 * @return {@link ZooKeeperLeaderElectionService} instance.
-	 */
-	public static ZooKeeperLeaderElectionService createLeaderElectionService(
-			final CuratorFramework client,
-			final Configuration configuration,
-			final String pathSuffix) {
-		final String latchPath = configuration.getString(
-			HighAvailabilityOptions.HA_ZOOKEEPER_LATCH_PATH) + pathSuffix;
-		final String leaderPath = configuration.getString(
-			HighAvailabilityOptions.HA_ZOOKEEPER_LEADER_PATH) + pathSuffix;
-
-		return new ZooKeeperLeaderElectionService(client, latchPath, leaderPath);
 	}
 
 	/**

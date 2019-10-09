@@ -29,7 +29,9 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -88,13 +90,13 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperHaServices.class);
 
-	private static final String RESOURCE_MANAGER_LEADER_PATH = "/resource_manager_lock";
+	private static final String RESOURCE_MANAGER_BASE_PATH = "/resource-manager";
 
-	private static final String DISPATCHER_LEADER_PATH = "/dispatcher_lock";
+	private static final String DISPATCHER_BASE_PATH = "/dispatcher";
 
-	private static final String JOB_MANAGER_LEADER_PATH = "/job_manager_lock";
+	private static final String JOB_MANAGER_BASE_PATH = "/job-manager";
 
-	private static final String REST_SERVER_LEADER_PATH = "/rest_server_lock";
+	private static final String REST_SERVER_BASE_PATH = "/rest-server";
 
 	// ------------------------------------------------------------------------
 
@@ -132,17 +134,17 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, RESOURCE_MANAGER_LEADER_PATH);
+		return new ZooKeeperLeaderRetrievalService(client, RESOURCE_MANAGER_BASE_PATH);
 	}
 
 	@Override
 	public LeaderRetrievalService getDispatcherLeaderRetriever() {
-		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, DISPATCHER_LEADER_PATH);
+		return new ZooKeeperLeaderRetrievalService(client, DISPATCHER_BASE_PATH);
 	}
 
 	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, getPathForJobManager(jobID));
+		return new ZooKeeperLeaderRetrievalService(client, getPathForJobManager(jobID));
 	}
 
 	@Override
@@ -152,27 +154,27 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, REST_SERVER_LEADER_PATH);
+		return new ZooKeeperLeaderRetrievalService(client, REST_SERVER_BASE_PATH);
 	}
 
 	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
-		return ZooKeeperUtils.createLeaderElectionService(client, configuration, RESOURCE_MANAGER_LEADER_PATH);
+		return new ZooKeeperLeaderElectionService(client, RESOURCE_MANAGER_BASE_PATH);
 	}
 
 	@Override
 	public LeaderElectionService getDispatcherLeaderElectionService() {
-		return ZooKeeperUtils.createLeaderElectionService(client, configuration, DISPATCHER_LEADER_PATH);
+		return new ZooKeeperLeaderElectionService(client, DISPATCHER_BASE_PATH);
 	}
 
 	@Override
 	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
-		return ZooKeeperUtils.createLeaderElectionService(client, configuration, getPathForJobManager(jobID));
+		return new ZooKeeperLeaderElectionService(client, getPathForJobManager(jobID));
 	}
 
 	@Override
 	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
-		return ZooKeeperUtils.createLeaderElectionService(client, configuration, REST_SERVER_LEADER_PATH);
+		return new ZooKeeperLeaderElectionService(client, REST_SERVER_BASE_PATH);
 	}
 
 	@Override
@@ -319,6 +321,6 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	// ------------------------------------------------------------------------
 
 	private static String getPathForJobManager(final JobID jobID) {
-		return "/" + jobID + JOB_MANAGER_LEADER_PATH;
+		return "/" + jobID + JOB_MANAGER_BASE_PATH;
 	}
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -36,6 +37,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Objects;
 import java.util.UUID;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The counterpart to the {@link org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService}.
@@ -77,12 +80,12 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	 * Creates a leader retrieval service which uses ZooKeeper to retrieve the leader information.
 	 *
 	 * @param client Client which constitutes the connection to the ZooKeeper quorum
-	 * @param retrievalPath Path of the ZooKeeper node which contains the leader information
+	 * @param basePath Path of the ZooKeeper node which contains the leader information
 	 */
-	public ZooKeeperLeaderRetrievalService(CuratorFramework client, String retrievalPath) {
-		this.client = Preconditions.checkNotNull(client, "CuratorFramework client");
+	public ZooKeeperLeaderRetrievalService(CuratorFramework client, String basePath) {
+		this.client = checkNotNull(client, "CuratorFramework client");
+		this.retrievalPath = ZooKeeperUtils.getLeaderInfoPath(checkNotNull(basePath));
 		this.cache = new NodeCache(client, retrievalPath);
-		this.retrievalPath = Preconditions.checkNotNull(retrievalPath);
 
 		this.leaderListener = null;
 		this.lastLeaderAddress = null;
@@ -93,7 +96,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 
 	@Override
 	public void start(LeaderRetrievalListener listener) throws Exception {
-		Preconditions.checkNotNull(listener, "Listener must not be null.");
+		checkNotNull(listener, "Listener must not be null.");
 		Preconditions.checkState(leaderListener == null, "ZooKeeperLeaderRetrievalService can " +
 				"only be started once.");
 
