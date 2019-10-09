@@ -58,7 +58,8 @@ trait CommonPythonCalc {
           inputs.append(argPythonInfo)
 
         case literal: RexLiteral =>
-          inputs.append(rexLiteralToPythonObject.invoke(null, literal.getValue3, literal.getTypeName))
+          inputs.append(
+            rexLiteralToPythonObject.invoke(null, literal.getValue3, literal.getTypeName))
 
         case argNode: RexNode =>
           // For input arguments of RexInputRef, it's replaced with an offset into the input row
