@@ -34,26 +34,22 @@ import pkg_resources
 
 # latest grpcio-tools incompatible with latest protobuf 3.6.1.
 GRPC_TOOLS = 'grpcio-tools>=1.3.5,<=1.14.2'
-
-PROTO_PATHS = [
-    os.path.join('proto'),
-]
-
-
-PYFLINK_ROOT = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_PYTHON_OUTPUT_PATH = os.path.join(PYFLINK_ROOT, 'fn_execution')
+PROTO_PATHS = ['proto']
+PYFLINK_ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_PYTHON_OUTPUT_PATH = os.path.join(PYFLINK_ROOT_PATH, 'fn_execution')
 
 
 def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
     try:
         import grpc_tools  # noqa  # pylint: disable=unused-import
+        _check_grpcio_tools_version()
     except ImportError:
         warnings.warn('Installing grpcio-tools is recommended for development.')
 
-    proto_dirs = [os.path.join(PYFLINK_ROOT, path) for path in PROTO_PATHS]
+    proto_dirs = [os.path.join(PYFLINK_ROOT_PATH, path) for path in PROTO_PATHS]
     proto_files = sum(
         [glob.glob(os.path.join(d, '*.proto')) for d in proto_dirs], [])
-    out_dir = os.path.join(PYFLINK_ROOT, output_dir)
+    out_dir = os.path.join(PYFLINK_ROOT_PATH, output_dir)
     out_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
 
     if out_files and not proto_files and not force:
@@ -117,7 +113,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
 # directory and add it to the path as needed.
 # See https://github.com/pypa/setuptools/issues/377
 def _install_grpcio_tools_and_generate_proto_files(force, output_dir):
-    install_path = os.path.join(PYFLINK_ROOT, '..', '.eggs', 'grpcio-wheels')
+    install_path = os.path.join(PYFLINK_ROOT_PATH, '..', '.eggs', 'grpcio-wheels')
     build_path = install_path + '-build'
     if os.path.exists(build_path):
         shutil.rmtree(build_path)
@@ -172,6 +168,19 @@ def _add_license_header(dir, file_name):
             )
             tmp_file.write(original_data)
             os.rename(os.path.join(dir, tmp_file_name), os.path.join(dir, file_name))
+
+
+def _check_grpcio_tools_version():
+    from pkg_resources import parse_version
+    try:
+        version = parse_version(pkg_resources.get_distribution("grpcio-tools").version)
+        if version < parse_version('1.3.5') or version > parse_version('1.14.2'):
+            raise RuntimeError(
+                "Version of grpcio-tools must be between 1.3.5 and 1.14.2, got %s" % version)
+    except pkg_resources.DistributionNotFound:
+        # in this case, grpcio-tools is installed via _install_grpcio_tools_and_generate_proto_files
+        # and the version is always correct
+        pass
 
 
 if __name__ == '__main__':

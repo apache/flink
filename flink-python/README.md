@@ -36,3 +36,8 @@ Protocol buffer is used in this module and file `flink_fn_execution_pb2.py` is g
 ```
 python pyflink/gen_protos.py
 ```
+
+PyFlink depends on the following libraries to execute the above script:
+grpcio-tools (>=1.3.5,<=1.14.2)
+setuptools (>=37.0.0)
+pip (>=8.0.0)

@@ -184,7 +184,7 @@ run sdist.
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Flink Developers',
         author_email='dev@flink.apache.org',
-        install_requires=['py4j==0.10.8.1', 'python-dateutil', 'apache-beam==2.15.0',
+        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.15.0',
                           'cloudpickle==1.2.2'],
         tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
