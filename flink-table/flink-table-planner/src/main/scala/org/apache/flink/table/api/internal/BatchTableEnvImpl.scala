@@ -44,6 +44,7 @@ import org.apache.flink.table.sources.{BatchTableSource, InputFormatTableSource,
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, validateInputTypeInfo}
+import org.apache.flink.table.util.GlobalJobParametersMerger
 import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
 
@@ -297,6 +298,8 @@ abstract class BatchTableEnvImpl(
       logicalPlan: RelNode,
       logicalType: TableSchema)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     validateInputTypeInfo(tpe)
+
+    GlobalJobParametersMerger.mergeParameters(execEnv.getConfig, config)
 
     logicalPlan match {
       case node: DataSetRel =>

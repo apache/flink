@@ -203,6 +203,22 @@ class TableEnvironmentITCase(
     val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
+
+  @Test
+  def testMergeParameters(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+
+    tEnv.getConfig.getConfiguration.setString("testConf", "1")
+
+    assertEquals(null, env.getConfig.getGlobalJobParameters.toMap.get("testConf"))
+
+    t.select('a).toDataSet[Int]
+
+    assertEquals("1", env.getConfig.getGlobalJobParameters.toMap.get("testConf"))
+  }
 }
 
 object TableEnvironmentITCase {

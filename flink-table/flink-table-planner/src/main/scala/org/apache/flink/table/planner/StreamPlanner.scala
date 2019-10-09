@@ -41,7 +41,7 @@ import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.table.util.{GlobalJobParametersMerger, JavaScalaConversionUtil}
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -124,6 +124,14 @@ class StreamPlanner(
 
   override def translate(tableOperations: util.List[ModifyOperation])
     : util.List[Transformation[_]] = {
+    executor match {
+      case e: StreamExecutor =>
+        GlobalJobParametersMerger.mergeParameters(e.getExecutionEnvironment.getConfig, config)
+
+      case otherExecutor =>
+        throw new TableException(
+          s"Unsupported executor: ${otherExecutor.getClass.getCanonicalName}.");
+    }
     tableOperations.asScala.map(translate).filter(Objects.nonNull).asJava
   }
 
