@@ -28,6 +28,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.FunctionLanguage
+import org.apache.flink.table.plan.util.PythonUtil.FunctionFinder
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
@@ -48,7 +50,13 @@ class ExpressionReducer(config: TableConfig)
 
     val typeFactory = rexBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
+    val pythonFunctionFinder = new FunctionFinder(FunctionLanguage.PYTHON, true)
+
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
+
+      // if contains python function
+      case (_, e) if e.accept(pythonFunctionFinder) =>
+        None
 
       // we need to cast here for RexBuilder.makeLiteral
       case (SqlTypeName.DATE, e) =>
@@ -114,34 +122,38 @@ class ExpressionReducer(config: TableConfig)
     var reducedIdx = 0
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
-      unreduced.getType.getSqlTypeName match {
-        // we insert the original expression for object literals
-        case SqlTypeName.ANY |
-             SqlTypeName.ROW |
-             SqlTypeName.ARRAY |
-             SqlTypeName.MAP |
-             SqlTypeName.MULTISET =>
-          reducedValues.add(unreduced)
+      if (unreduced.accept(pythonFunctionFinder)) {
+        reducedValues.add(unreduced)
+      } else {
+        unreduced.getType.getSqlTypeName match {
+          // we insert the original expression for object literals
+          case SqlTypeName.ANY |
+               SqlTypeName.ROW |
+               SqlTypeName.ARRAY |
+               SqlTypeName.MAP |
+               SqlTypeName.MULTISET =>
+            reducedValues.add(unreduced)
 
-        case _ =>
-          val reducedValue = reduced.getField(reducedIdx)
-          // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
-          val value = if (unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
-            if (reducedValue == null) {
-              reducedValue
+          case _ =>
+            val reducedValue = reduced.getField(reducedIdx)
+            // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
+            val value = if (unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
+              if (reducedValue == null) {
+                reducedValue
+              } else {
+                new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+              }
             } else {
-              new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+              reducedValue
             }
-          } else {
-            reducedValue
-          }
 
-          val literal = rexBuilder.makeLiteral(
-            value,
-            unreduced.getType,
-            true)
-          reducedValues.add(literal)
-          reducedIdx += 1
+            val literal = rexBuilder.makeLiteral(
+              value,
+              unreduced.getType,
+              true)
+            reducedValues.add(literal)
+            reducedIdx += 1
+        }
       }
       i += 1
     }
