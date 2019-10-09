@@ -190,7 +190,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	private TaskSlotTable generateTaskSlotTable(int numSlot) {
 		Collection<ResourceProfile> resourceProfiles = new ArrayList<>();
 		for (int i = 0; i < numSlot; i++) {
-			resourceProfiles.add(ResourceProfile.UNKNOWN);
+			resourceProfiles.add(ResourceProfile.ANY);
 		}
 		return new TaskSlotTable(resourceProfiles, timerService);
 	}

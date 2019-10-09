@@ -448,7 +448,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	private static TaskSlotTable createTaskSlotTable() {
 		return new TaskSlotTable(
-			Collections.singletonList(ResourceProfile.UNKNOWN),
+			Collections.singletonList(ResourceProfile.ANY),
 			new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds()));
 
 	}
