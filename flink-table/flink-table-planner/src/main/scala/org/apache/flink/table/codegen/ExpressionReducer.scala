@@ -54,7 +54,7 @@ class ExpressionReducer(config: TableConfig)
 
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
 
-      // if contains python function
+      // skip expressions that contain python functions
       case (_, e) if e.accept(pythonFunctionFinder) =>
         None
 
@@ -123,6 +123,7 @@ class ExpressionReducer(config: TableConfig)
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
       if (unreduced.accept(pythonFunctionFinder)) {
+        // if contains python function then just insert the original expression.
         reducedValues.add(unreduced)
       } else {
         unreduced.getType.getSqlTypeName match {
