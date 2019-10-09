@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -659,12 +658,14 @@ public class CheckpointCoordinator {
 					cancellerHandle.cancel(false);
 				}
 
-				// trigger the master hooks for the checkpoint
-				final Map<String, MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
-						checkpointID, timestamp, executor, Time.milliseconds(checkpointTimeout));
-				for (Map.Entry<String, MasterState> entry : masterStates.entrySet()) {
-					checkpoint.acknowledgeMasterState(entry.getKey(), entry.getValue());
+				// TODO, asynchronously snapshots master hook without waiting here
+				for (MasterTriggerRestoreHook<?> masterHook : masterHooks.values()) {
+					final MasterState masterState =
+						MasterHooks.triggerHook(masterHook, checkpointID, timestamp, executor)
+							.get(checkpointTimeout, TimeUnit.MILLISECONDS);
+					checkpoint.acknowledgeMasterState(masterHook.getIdentifier(), masterState);
 				}
+				Preconditions.checkState(checkpoint.isMasterStatesFullyAcknowledged());
 			}
 			// end of lock scope
 
