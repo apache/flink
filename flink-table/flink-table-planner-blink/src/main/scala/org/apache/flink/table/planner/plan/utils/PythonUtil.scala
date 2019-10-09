@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.plan.util
+
+package org.apache.flink.table.planner.plan.utils
 
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.flink.table.functions.FunctionLanguage
-import org.apache.flink.table.functions.utils.ScalarSqlFunction
+import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 
 import scala.collection.JavaConversions._
 
 object PythonUtil {
-
   /**
     * Checks whether it contains the specified kind of function in the specified node.
     *
@@ -51,7 +51,7 @@ object PythonUtil {
 
     override def visitCall(call: RexCall): Boolean = {
       call.getOperator match {
-        case sfc: ScalarSqlFunction if sfc.getScalarFunction.getLanguage ==
+        case sfc: ScalarSqlFunction if sfc.scalarFunction.getLanguage ==
           FunctionLanguage.PYTHON =>
           findInternal(FunctionLanguage.PYTHON, call)
         case _ =>

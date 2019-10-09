@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction}
 import org.apache.flink.table.planner.expressions.utils.{Func1, RichFunc1}
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -46,4 +47,19 @@ class ExpressionReductionRulesTest extends TableTestBase {
     util.verifyPlan("SELECT myUdf(1) FROM MyTable")
   }
 
+  @Test
+  def testExpressionReductionWithPythonUDF(): Unit = {
+    util.addFunction("PyUdf", DeterministicPythonFunc)
+    util.addFunction("MyUdf", Func1)
+    util.verifyPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
+  }
+}
+
+object DeterministicPythonFunc extends ScalarFunction {
+
+  override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
+
+  def eval(): Long = 1
+
+  override def isDeterministic = true
 }

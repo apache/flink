@@ -21,7 +21,7 @@ package org.apache.flink.table.plan
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.{Ignore, Test}
@@ -499,6 +499,24 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testReduceDeterministicPythonUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val result = table
+      .select('a, 'b, 'c, DeterministicPythonFunc() as 'd, DeterministicNullFunc() as 'e)
+
+    val expected: String = unaryNode(
+      "DataStreamPythonCalc",
+      streamTableNode(table),
+      term("select", "a", "b", "c", "DeterministicPythonFunc$() AS d",
+        "null:VARCHAR(65536) AS e")
+    )
+
+    util.verifyTable(result, expected)
+  }
 }
 
 object NonDeterministicNullFunc extends ScalarFunction {
@@ -508,5 +526,14 @@ object NonDeterministicNullFunc extends ScalarFunction {
 
 object DeterministicNullFunc extends ScalarFunction {
   def eval(): String = null
+  override def isDeterministic = true
+}
+
+object DeterministicPythonFunc extends ScalarFunction {
+
+  override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
+
+  def eval(): Long = 1L
+
   override def isDeterministic = true
 }
