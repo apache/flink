@@ -813,7 +813,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		// Setup jar for ApplicationMaster
 		Path remotePathJar = setupSingleLocalResource(
-				"flink.jar",
+				flinkJarPath.getName(),
 				fs,
 				appId,
 				flinkJarPath,
@@ -846,7 +846,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				"");
 
 		paths.add(remotePathJar);
-		classPathBuilder.append("flink.jar").append(File.pathSeparator);
+		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
 		paths.add(remotePathConf);
 		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 

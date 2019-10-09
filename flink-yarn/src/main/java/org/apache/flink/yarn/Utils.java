@@ -482,10 +482,12 @@ public final class Utils {
 		}
 
 		// register Flink Jar with remote HDFS
+		final String flinkJarPath;
 		final LocalResource flinkJar;
 		{
 			Path remoteJarPath = new Path(remoteFlinkJarPath);
 			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
+			flinkJarPath = remoteJarPath.getName();
 			flinkJar = registerLocalResource(fs, remoteJarPath);
 		}
 
@@ -521,7 +523,8 @@ public final class Utils {
 		}
 
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
-		taskManagerLocalResources.put("flink.jar", flinkJar);
+
+		taskManagerLocalResources.put(flinkJarPath, flinkJar);
 		taskManagerLocalResources.put("flink-conf.yaml", flinkConf);
 
 		//To support Yarn Secure Integration Test Scenario
