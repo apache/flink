@@ -1140,7 +1140,7 @@ CREATE TABLE MyUserTable (
   'connector.zookeeper.quorum' = 'localhost:2181', -- required: HBase Zookeeper quorum configuration
   'connector.zookeeper.znode.parent' = '/test',  -- required: the root dir in Zookeeper for HBase cluster
 
-  'connector.write.buffer-flush.max-size' = '1048576', -- optional: Write option, sets when to flush a buffered request
+  'connector.write.buffer-flush.max-size' = '10mb', -- optional: writing option, determines how many size in memory of buffered rows to insert per round trip. This can help performance on writing to JDBC database. The default value is "2mb".
                                                        -- based on the memory size of rows currently added.
 
   'connector.write.buffer-flush.max-rows' = '1', -- optional: Write option, sets when to flush buffered 
