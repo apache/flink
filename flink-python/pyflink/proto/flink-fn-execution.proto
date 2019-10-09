@@ -32,6 +32,7 @@ message UserDefinedFunction {
     oneof input {
       UserDefinedFunction udf = 1;
       int32 inputOffset = 2;
+      bytes inputConstant = 3;
     }
   }
 
@@ -41,6 +42,7 @@ message UserDefinedFunction {
   // The input arguments of the user-defined function, it could be one of the following:
   // 1. A column from the input row
   // 2. The result of another user-defined function
+  // 3. The constant value of the column
   repeated Input inputs = 2;
 }
 

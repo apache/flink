@@ -18,6 +18,7 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode}
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.table.functions.FunctionLanguage
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo, SimplePythonFunction}
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
@@ -27,18 +28,21 @@ import scala.collection.mutable
 
 trait CommonPythonCalc {
 
+  private lazy val convertLiteralToPython = {
+    val clazz = Class.forName("org.apache.flink.api.common.python.PythonBridgeUtils")
+    clazz.getMethod("convertLiteralToPython", classOf[RexLiteral], classOf[SqlTypeName])
+  }
+
   private[flink] def extractPythonScalarFunctionInfos(
       rexCalls: Array[RexCall]): (Array[Int], Array[PythonFunctionInfo]) = {
     // using LinkedHashMap to keep the insert order
     val inputNodes = new mutable.LinkedHashMap[RexNode, Integer]()
     val pythonFunctionInfos = rexCalls.map(createPythonScalarFunctionInfo(_, inputNodes))
 
-    val udfInputOffsets = inputNodes.toArray.map(_._1).map {
-      case inputRef: RexInputRef => inputRef.getIndex
-      case _: RexLiteral => throw new Exception(
-        "Constants cannot be used as parameters of Python UDF for now. " +
-        "It will be supported in FLINK-14208")
-    }
+    val udfInputOffsets = inputNodes.toArray
+      .map(_._1)
+      .filter(_.isInstanceOf[RexInputRef])
+      .map(_.asInstanceOf[RexInputRef].getIndex)
     (udfInputOffsets, pythonFunctionInfos)
   }
 
@@ -53,6 +57,10 @@ trait CommonPythonCalc {
           // Continuous Python UDFs can be chained together
           val argPythonInfo = createPythonScalarFunctionInfo(pythonRexCall, inputNodes)
           inputs.append(argPythonInfo)
+
+        case literal: RexLiteral =>
+          inputs.append(
+            convertLiteralToPython.invoke(null, literal, literal.getType.getSqlTypeName))
 
         case argNode: RexNode =>
           // For input arguments of RexInputRef, it's replaced with an offset into the input row

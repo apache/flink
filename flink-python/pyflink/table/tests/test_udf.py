@@ -112,6 +112,112 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,Hi,2,Flink"])
 
+    def test_udf_with_constant_params(self):
+        def udf_with_constant_params(p, null_param, tinyint_param, smallint_param, int_param,
+                                     bigint_param, decimal_param, float_param, double_param,
+                                     boolean_param, str_param,
+                                     date_param, time_param, timestamp_param):
+            # decide whether two floats are equal
+            def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
+                return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+
+            from decimal import Decimal
+            import datetime
+
+            assert null_param is None, 'null_param is wrong value %s' % null_param
+
+            assert isinstance(tinyint_param, int), 'tinyint_param of wrong type %s !' \
+                                                   % type(tinyint_param)
+            p += tinyint_param
+            assert isinstance(smallint_param, int), 'smallint_param of wrong type %s !' \
+                                                    % type(smallint_param)
+            p += smallint_param
+            assert isinstance(int_param, int), 'int_param of wrong type %s !' \
+                                               % type(int_param)
+            p += int_param
+            assert isinstance(bigint_param, int), 'bigint_param of wrong type %s !' \
+                                                  % type(bigint_param)
+            p += bigint_param
+            assert decimal_param == Decimal('1.05'), \
+                'decimal_param is wrong value %s ' % decimal_param
+
+            p += int(decimal_param)
+
+            assert isinstance(float_param, float) and float_equal(float_param, 1.23, 1e-06), \
+                'float_param is wrong value %s ' % float_param
+
+            p += int(float_param)
+            assert isinstance(double_param, float) and float_equal(double_param, 1.98932, 1e-07), \
+                'double_param is wrong value %s ' % double_param
+
+            p += int(double_param)
+
+            assert boolean_param is True, 'boolean_param is wrong value %s' % boolean_param
+
+            assert str_param == 'flink', 'str_param is wrong value %s' % str_param
+
+            assert date_param == datetime.date(year=2014, month=9, day=13), \
+                'date_param is wrong value %s' % date_param
+
+            assert time_param == datetime.time(hour=12, minute=0, second=0), \
+                'time_param is wrong value %s' % time_param
+
+            assert timestamp_param == datetime.datetime(1999, 9, 10, 5, 20, 10), \
+                'timestamp_param is wrong value %s' % timestamp_param
+
+            return p
+
+        self.t_env.register_function("udf_with_constant_params",
+                                     udf(udf_with_constant_params,
+                                         input_types=[DataTypes.BIGINT(),
+                                                      DataTypes.BIGINT(),
+                                                      DataTypes.TINYINT(),
+                                                      DataTypes.SMALLINT(),
+                                                      DataTypes.INT(),
+                                                      DataTypes.BIGINT(),
+                                                      DataTypes.DECIMAL(20, 10),
+                                                      DataTypes.FLOAT(),
+                                                      DataTypes.DOUBLE(),
+                                                      DataTypes.BOOLEAN(),
+                                                      DataTypes.STRING(),
+                                                      DataTypes.DATE(),
+                                                      DataTypes.TIME(),
+                                                      DataTypes.TIMESTAMP()],
+                                         result_type=DataTypes.BIGINT()))
+
+        self.t_env.register_function(
+            "udf_with_all_constant_params", udf(lambda i, j: i + j,
+                                                [DataTypes.BIGINT(), DataTypes.BIGINT()],
+                                                DataTypes.BIGINT()))
+
+        table_sink = source_sink_utils.TestAppendSink(['a', 'b'],
+                                                      [DataTypes.BIGINT(), DataTypes.BIGINT()])
+        self.t_env.register_table_sink("Results", table_sink)
+
+        t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
+        self.t_env.register_table("test_table", t)
+        self.t_env.sql_query("select udf_with_all_constant_params("
+                             "cast (1 as BIGINT),"
+                             "cast (2 as BIGINT)), "
+                             "udf_with_constant_params(a, "
+                             "cast (null as BIGINT),"
+                             "cast (1 as TINYINT),"
+                             "cast (1 as SMALLINT),"
+                             "cast (1 as INT),"
+                             "cast (1 as BIGINT),"
+                             "cast (1.05 as DECIMAL),"
+                             "cast (1.23 as FLOAT),"
+                             "cast (1.98932 as DOUBLE),"
+                             "true,"
+                             "'flink',"
+                             "cast ('2014-09-13' as DATE),"
+                             "cast ('12:00:00' as TIME),"
+                             "cast ('1999-9-10 05:20:10' as TIMESTAMP))"
+                             " from test_table").insert_into("Results")
+        self.t_env.execute("test")
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["3,8", "3,9", "3,10"])
+
     def test_overwrite_builtin_function(self):
         self.t_env.register_function(
             "plus", udf(lambda i, j: i + j - 1,

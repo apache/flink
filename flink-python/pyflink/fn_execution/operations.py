@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+import datetime
 from abc import abstractmethod, ABCMeta
 
 from apache_beam.runners.worker import operation_specs
@@ -23,6 +24,7 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker.operations import Operation
 
 from pyflink.fn_execution import flink_fn_execution_pb2
+from pyflink.serializers import PickleSerializer
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 
@@ -79,6 +81,44 @@ class ScalarFunctionInputGetter(InputGetter):
         return self.scalar_function_invoker.invoke_eval(value)
 
 
+class ConstantInputGetter(InputGetter):
+    """
+    InputGetter for the input argument which is a constant value.
+
+    :param constant_value: the constant value of the column
+    """
+
+    def __init__(self, constant_value):
+        j_type = constant_value[0]
+        serializer = PickleSerializer()
+        pickled_data = serializer.loads(constant_value[1:])
+        # the type set contains
+        # TINYINT,SMALLINT,INTEGER,BIGINT,FLOAT,DOUBLE,DECIMAL,CHAR,VARCHAR,NULL,BOOLEAN
+        # the pickled_data doesn't need to transfer to anther python object
+        if j_type == '\x00' or j_type == 0:
+            self._constant_value = pickled_data
+        # the type is DATE
+        elif j_type == '\x01' or j_type == 1:
+            self._constant_value = \
+                datetime.date(year=1970, month=1, day=1) + datetime.timedelta(days=pickled_data)
+        # the type is TIME
+        elif j_type == '\x02' or j_type == 2:
+            seconds, milliseconds = divmod(pickled_data, 1000)
+            minutes, seconds = divmod(seconds, 60)
+            hours, minutes = divmod(minutes, 60)
+            self._constant_value = datetime.time(hours, minutes, seconds, milliseconds * 1000)
+        # the type is TIMESTAMP
+        elif j_type == '\x03' or j_type == 3:
+            self._constant_value = \
+                datetime.datetime(year=1970, month=1, day=1, hour=0, minute=0, second=0) \
+                + datetime.timedelta(milliseconds=pickled_data)
+        else:
+            raise Exception("Unknown type %s, should never happen" % str(j_type))
+
+    def get(self, value):
+        return self._constant_value
+
+
 class ScalarFunctionInvoker(object):
     """
     An abstraction that can be used to execute :class:`ScalarFunction` methods.
@@ -97,9 +137,12 @@ class ScalarFunctionInvoker(object):
             if input.HasField("udf"):
                 # for chaining Python UDF input: the input argument is a Python ScalarFunction
                 self.input_getters.append(ScalarFunctionInputGetter(input.udf))
-            else:
+            elif input.HasField("inputOffset"):
                 # the input argument is a column of the input row
                 self.input_getters.append(OffsetInputGetter(input.inputOffset))
+            else:
+                # the input argument is a constant value
+                self.input_getters.append(ConstantInputGetter(input.inputConstant))
 
     def invoke_open(self):
         """
