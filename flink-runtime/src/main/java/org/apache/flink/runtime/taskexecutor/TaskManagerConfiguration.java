@@ -27,6 +27,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -48,6 +49,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerConfiguration.class);
 
 	private final int numberSlots;
+
+	private final ResourceProfile defaultSlotResourceProfile;
 
 	private final String[] tmpDirectories;
 
@@ -79,6 +82,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public TaskManagerConfiguration(
 			int numberSlots,
+			ResourceProfile defaultSlotResourceProfile,
 			String[] tmpDirectories,
 			Time timeout,
 			@Nullable Time maxRegistrationDuration,
@@ -94,6 +98,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
 		this.numberSlots = numberSlots;
+		this.defaultSlotResourceProfile = defaultSlotResourceProfile;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.maxRegistrationDuration = maxRegistrationDuration;
@@ -111,6 +116,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public int getNumberSlots() {
 		return numberSlots;
+	}
+
+	public ResourceProfile getDefaultSlotResourceProfile() {
+		return defaultSlotResourceProfile;
 	}
 
 	public Time getTimeout() {
@@ -176,7 +185,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	//  Static factory methods
 	// --------------------------------------------------------------------------------------------
 
-	public static TaskManagerConfiguration fromConfiguration(Configuration configuration) {
+	public static TaskManagerConfiguration fromConfiguration(Configuration configuration, ResourceProfile defaultSlotResourceProfile) {
 		int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
 		if (numberSlots == -1) {
@@ -259,6 +268,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		return new TaskManagerConfiguration(
 			numberSlots,
+			defaultSlotResourceProfile,
 			tmpDirPaths,
 			timeout,
 			finiteRegistrationDuration,

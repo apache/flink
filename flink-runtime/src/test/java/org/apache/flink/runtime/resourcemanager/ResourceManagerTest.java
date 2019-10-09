@@ -169,6 +169,7 @@ public class ResourceManagerTest extends TestLogger {
 			taskExecutorId,
 			dataPort,
 			hardwareDescription,
+			ResourceProfile.ZERO,
 			TestingUtils.TIMEOUT());
 
 		assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));

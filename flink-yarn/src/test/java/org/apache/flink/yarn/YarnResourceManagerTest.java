@@ -413,6 +413,7 @@ public class YarnResourceManagerTest extends TestLogger {
 						taskManagerResourceId,
 						dataPort,
 						hardwareDescription,
+						ResourceProfile.ZERO,
 						Time.seconds(10L))
 					.thenCompose(
 						(RegistrationResponse response) -> {
