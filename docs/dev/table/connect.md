@@ -1083,8 +1083,7 @@ CREATE TABLE MyUserTable (
 <span class="label label-primary">Sink: Streaming Upsert Mode</span>
 <span class="label label-primary">Temporal Join: Sync Mode</span>
 
-The HBase connector allows for reading from an HBase cluster.
-The HBase connector allows for writing into an HBase cluster.
+The HBase connector allows for reading from and writing to an HBase cluster.
 
 The connector can operate in [upsert mode](#update-modes) for exchanging UPSERT/DELETE messages with the external system using a [key defined by the query](./streaming/dynamic_tables.html#table-to-stream-conversion).
 
