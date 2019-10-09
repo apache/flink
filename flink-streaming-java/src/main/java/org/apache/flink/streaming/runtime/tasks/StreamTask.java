@@ -1115,6 +1115,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						checkpointMetaData.getCheckpointId());
 				}
 			} catch (Exception e) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("{} - asynchronous part of checkpoint {} could not be completed.",
+						owner.getName(),
+						checkpointMetaData.getCheckpointId(),
+						e);
+				}
 				handleExecutionException(e);
 			} finally {
 				owner.cancelables.unregisterCloseable(this);
