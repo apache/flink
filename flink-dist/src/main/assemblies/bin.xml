@@ -64,21 +64,9 @@ under the License.
 			<outputDirectory/>
 			<fileMode>0644</fileMode>
 		</file>
-
-		<file>
-			<source>../NOTICE-binary</source>
-			<outputDirectory/>
-			<destName>NOTICE</destName>
-			<fileMode>0644</fileMode>
-		</file>
 	</files>
 
 	<fileSets>
-		<fileSet>
-			<directory>../licenses-binary</directory>
-			<outputDirectory>licenses</outputDirectory>
-			<fileMode>0644</fileMode>
-		</fileSet>
 		<!-- copy start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/bin</directory>
