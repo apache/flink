@@ -42,7 +42,6 @@ DEFAULT_PYTHON_OUTPUT_PATH = os.path.join(PYFLINK_ROOT_PATH, 'fn_execution')
 def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
     try:
         import grpc_tools  # noqa  # pylint: disable=unused-import
-        _check_grpcio_tools_version()
     except ImportError:
         warnings.warn('Installing grpcio-tools is recommended for development.')
 
@@ -87,6 +86,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
             if p.exitcode:
                 raise ValueError("Proto generation failed (see log for details).")
         else:
+            _check_grpcio_tools_version()
             logging.info('Regenerating out-of-date Python proto definitions.')
             builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
             args = (
@@ -134,8 +134,10 @@ def _install_grpcio_tools_and_generate_proto_files(force, output_dir):
         sys.stderr.flush()
         shutil.rmtree(build_path, ignore_errors=True)
     sys.path.append(install_obj.install_purelib)
+    pkg_resources.working_set.add_entry(install_obj.install_purelib)
     if install_obj.install_purelib != install_obj.install_platlib:
         sys.path.append(install_obj.install_platlib)
+        pkg_resources.working_set.add_entry(install_obj.install_platlib)
     try:
         generate_proto_files(force, output_dir)
     finally:
@@ -171,16 +173,11 @@ def _add_license_header(dir, file_name):
 
 
 def _check_grpcio_tools_version():
-    try:
-        version = pkg_resources.get_distribution("grpcio-tools").parsed_version
-        from pkg_resources import parse_version
-        if version < parse_version('1.3.5') or version > parse_version('1.14.2'):
-            raise RuntimeError(
-                "Version of grpcio-tools must be between 1.3.5 and 1.14.2, got %s" % version)
-    except pkg_resources.DistributionNotFound:
-        # in this case, grpcio-tools is installed via _install_grpcio_tools_and_generate_proto_files
-        # and the version is always correct
-        pass
+    version = pkg_resources.get_distribution("grpcio-tools").parsed_version
+    from pkg_resources import parse_version
+    if version < parse_version('1.3.5') or version > parse_version('1.14.2'):
+        raise RuntimeError(
+            "Version of grpcio-tools must be between 1.3.5 and 1.14.2, got %s" % version)
 
 
 if __name__ == '__main__':
