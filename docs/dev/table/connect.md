@@ -1115,7 +1115,7 @@ CREATE TABLE MyUserTable (
   'connector.table-name' = 'hbase_table_name',  -- required: hbase table name
   
   'connector.zookeeper.quorum' = 'localhost:2181', -- required: HBase Zookeeper quorum configuration
-  'connector.zookeeper.znode.parent' = 'znode',
+  'connector.zookeeper.znode.parent' = '/test',  -- rquired: the root dir in Zookeeper for HBase cluster
 
   'connector.write.buffer-flush.max-size' = '1048576', -- optional: Write option, sets when to flush a buffered request
                                                        -- based on the memory size of rows currently added.
