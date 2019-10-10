@@ -23,6 +23,7 @@ import java.util
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
@@ -208,16 +209,10 @@ class TableEnvironmentITCase(
   def testMergeParameters(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
-
     val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
 
     tEnv.getConfig.getConfiguration.setString("testConf", "1")
-
-    assertEquals(null, env.getConfig.getGlobalJobParameters.toMap.get("testConf"))
-
-    t.select('a).toDataSet[Int]
-
-    assertEquals("1", env.getConfig.getGlobalJobParameters.toMap.get("testConf"))
+    t.select(JobParametersReader('a)).toDataSet[Int].collect()
   }
 }
 
@@ -233,4 +228,14 @@ object TableEnvironmentITCase {
 
 case class SomeCaseClass(name: String, age: Int, salary: Double, department: String) {
   def this() { this("", 0, 0.0, "") }
+}
+
+object JobParametersReader extends ScalarFunction {
+
+  override def open(context: FunctionContext): Unit = {
+    assertEquals("1", context.getJobParameter("testConf", ""))
+    super.open(context)
+  }
+
+  def eval(a: Int): Int = a
 }

@@ -26,9 +26,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, Types}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
+import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.CommonTestData
 
@@ -38,50 +39,45 @@ class TableEnvironmentITCase {
   def testMergeParametersInStreamTableEnvironment(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
-
     val t = env.fromCollection(Seq(1, 2, 3)).toTable(tEnv, 'a)
+    t.select(JobParametersReader('a)).toAppendStream[Int].print()
 
     tEnv.getConfig.getConfiguration.setString("testConf", "1")
-
-    assertEquals(null, env.getConfig.getGlobalJobParameters.toMap.get("testConf"))
-
-    t.select('a).toAppendStream[Int]
-
-    assertEquals("1", env.getConfig.getGlobalJobParameters.toMap.get("testConf"))
+    tEnv.execute("test")
   }
 
   @Test
   def testMergeParametersInUnifiedTableEnvironment(): Unit = {
     val tEnv = TableEnvironment.create(
       EnvironmentSettings.newInstance().inStreamingMode().useOldPlanner().build())
-
-    val csvTable = CommonTestData.getCsvTableSource
+    val env = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner
+      .asInstanceOf[StreamPlanner].getExecutionEnvironment
+    env.setParallelism(1)
 
     val tmpFile = File.createTempFile("flink-table-environment-test", ".tmp")
     tmpFile.deleteOnExit()
     tmpFile.delete()
     val path = tmpFile.toURI.toString
-    println(path)
-
     tEnv.connect(new FileSystem().path(path))
       .withFormat(new OldCsv().field("id", "INT"))
       .withSchema(new Schema().field("id", "INT"))
       .inAppendMode()
       .registerTableSink("sink")
 
-    tEnv.fromTableSource(csvTable).select('id).insertInto("sink")
-
-    val env = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner
-      .asInstanceOf[StreamPlanner].getExecutionEnvironment
-
-    env.setParallelism(1)
+    val csvTable = CommonTestData.getCsvTableSource
+    tEnv.fromTableSource(csvTable).select(JobParametersReader('id)).insertInto("sink")
 
     tEnv.getConfig.getConfiguration.setString("testConf", "1")
-
-    assertEquals(null, env.getConfig.getGlobalJobParameters.toMap.get("testConf"))
-
     tEnv.execute("test")
-
-    assertEquals("1", env.getConfig.getGlobalJobParameters.toMap.get("testConf"))
   }
+}
+
+object JobParametersReader extends ScalarFunction {
+
+  override def open(context: FunctionContext): Unit = {
+    assertEquals("1", context.getJobParameter("testConf", ""))
+    super.open(context)
+  }
+
+  def eval(a: Int): Int = a
 }
