@@ -115,7 +115,7 @@ Nevertheless please make sure that code you add/modify in these modules still co
 
 ### Checkstyle For Scala
 
-Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle_config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
+Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle-config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
 
 ## Eclipse
 
