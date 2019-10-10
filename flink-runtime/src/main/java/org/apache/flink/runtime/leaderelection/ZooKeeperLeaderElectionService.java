@@ -32,7 +32,6 @@ import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,7 +175,6 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Un
 		try {
 			checkArgument(leaderSessionID.equals(issuedLeaderSessionID));
 			String localLeaderLatchPath = getLeaderLatchPathForModification();
-			Stat stat = client.checkExists().forPath(leaderInfoPath);
 
 			byte[] leaderInfo;
 			try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -186,21 +184,31 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Un
 				leaderInfo = byteArrayOutputStream.toByteArray();
 			}
 
-			if (stat != null) {
+			try {
 				client.inTransaction()
 					.check().forPath(localLeaderLatchPath).and()
-					.setData().forPath(leaderInfoPath, leaderInfo).and()
+					.delete().forPath(leaderInfoPath).and()
 					.commit();
-			} else {
-				client.inTransaction()
-					.check().forPath(localLeaderLatchPath).and()
-					.create().withMode(CreateMode.PERSISTENT).forPath(leaderInfoPath, leaderInfo).and()
-					.commit();
+
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Delete previous leader info znode {}. Reported by {}", leaderInfoPath, listener);
+				}
+			} catch (KeeperException.NoNodeException ignore) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("There is no leader info left by the previous leader. Reported by {}", listener);
+				}
 			}
+
+			client.inTransaction()
+				.check().forPath(localLeaderLatchPath).and()
+				.create().withMode(CreateMode.EPHEMERAL).forPath(leaderInfoPath, leaderInfo).and()
+				.commit();
 		} catch (Exception e) {
 			listener.handleError(e);
 		}
 	}
+
+
 
 	public void concealLeaderInfo() throws Exception {
 		String localLeaderLatchPath = getLeaderLatchPathForModification();
