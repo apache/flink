@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.util.TimeUtils;
 
@@ -36,6 +37,7 @@ import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_ZK_QUO
 /**
  * Connector descriptor for Apache HBase.
  */
+@PublicEvolving
 public class HBase extends ConnectorDescriptor {
 	private DescriptorProperties properties = new DescriptorProperties();
 
