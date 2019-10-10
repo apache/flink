@@ -22,12 +22,14 @@ import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
 
 import net.razorvine.pickle.Pickler;
 import net.razorvine.pickle.Unpickler;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -37,8 +39,6 @@ import java.util.List;
  * a file which contains Python objects.
  */
 public final class PythonBridgeUtils {
-
-	private static Pickler pickler = new Pickler();
 
 	private static Object[] getObjectArrayFromUnpickledData(Object input) {
 		if (input.getClass().isArray()) {
@@ -74,41 +74,90 @@ public final class PythonBridgeUtils {
 		return unpickledData;
 	}
 
-	public static byte[] rexLiteralToPythonObject(Object o, SqlTypeName typeName) {
+	public static byte[] literalToPythonObject(RexLiteral o, SqlTypeName typeName) {
 		byte type;
-		switch (typeName) {
-			case DATE:
-				type = 1;
-				break;
-			case TIME:
-			case TIME_WITH_LOCAL_TIME_ZONE:
-			case TIMESTAMP:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				type = 2;
-				break;
-			case INTERVAL_YEAR:
-			case INTERVAL_YEAR_MONTH:
-			case INTERVAL_MONTH:
-				type = 3;
-				break;
-			case INTERVAL_DAY:
-			case INTERVAL_DAY_HOUR:
-			case INTERVAL_DAY_MINUTE:
-			case INTERVAL_DAY_SECOND:
-			case INTERVAL_HOUR:
-			case INTERVAL_HOUR_MINUTE:
-			case INTERVAL_HOUR_SECOND:
-			case INTERVAL_MINUTE:
-			case INTERVAL_MINUTE_SECOND:
-			case INTERVAL_SECOND:
-				type = 4;
-				break;
-			default:
-				type = 0;
+		Object value;
+		Pickler pickler = new Pickler();
+		if (o.getValue3() == null) {
+			type = 0;
+			value = null;
+		} else {
+			switch (typeName) {
+				case TINYINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).byteValueExact();
+					break;
+				case SMALLINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).shortValueExact();
+					break;
+				case INTEGER:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).intValueExact();
+					break;
+				case BIGINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).longValueExact();
+					break;
+				case FLOAT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).floatValue();
+					break;
+				case DOUBLE:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).doubleValue();
+					break;
+				case DECIMAL:
+					type = 0;
+					value = o.getValue3();
+					break;
+				case CHAR:
+				case VARCHAR:
+					type = 0;
+					value = o.getValue3().toString();
+					break;
+				case BOOLEAN:
+					type = 1;
+					value = o.getValue3().toString();
+					break;
+				case DATE:
+					type = 2;
+					value = o.getValue3();
+					break;
+				case TIME:
+					type = 3;
+					value = o.getValue3();
+					break;
+				case TIMESTAMP:
+					type = 4;
+					value = o.getValue3();
+					break;
+				case INTERVAL_YEAR:
+				case INTERVAL_YEAR_MONTH:
+				case INTERVAL_MONTH:
+					type = 5;
+					value = ((BigDecimal) o.getValue3()).intValueExact();
+					break;
+				case INTERVAL_DAY:
+				case INTERVAL_DAY_HOUR:
+				case INTERVAL_DAY_MINUTE:
+				case INTERVAL_DAY_SECOND:
+				case INTERVAL_HOUR:
+				case INTERVAL_HOUR_MINUTE:
+				case INTERVAL_HOUR_SECOND:
+				case INTERVAL_MINUTE:
+				case INTERVAL_MINUTE_SECOND:
+				case INTERVAL_SECOND:
+					type = 6;
+					value = ((BigDecimal) o.getValue3()).longValueExact();
+					break;
+				default:
+					throw new RuntimeException("Unsupported type " + typeName);
+			}
 		}
 		byte[] pickledData;
 		try {
-			pickledData = pickler.dumps(o);
+			pickledData = pickler.dumps(value);
 		} catch (IOException e) {
 			throw new RuntimeException("Pickle Java object failed", e);
 		}

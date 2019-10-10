@@ -186,10 +186,7 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 			} else if (input instanceof Integer) {
 				inputProto.setInputOffset((Integer) input);
 			} else {
-				FlinkFnApi.UserDefinedFunction.Constant.Builder constantBuilder =
-					FlinkFnApi.UserDefinedFunction.Constant.newBuilder();
-				constantBuilder.setValue(ByteString.copyFrom((byte[]) input));
-				inputProto.setInputConstant(constantBuilder.build());
+				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
 			}
 			builder.addInputs(inputProto);
 		}

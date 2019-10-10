@@ -28,9 +28,9 @@ import scala.collection.mutable
 
 trait CommonPythonCalc {
 
-  private[flink] lazy val rexLiteralToPythonObject = {
+  private[flink] lazy val literalToPythonObject = {
     val clazz = Class.forName("org.apache.flink.api.common.python.PythonBridgeUtils")
-    clazz.getMethod("rexLiteralToPythonObject", classOf[Object], classOf[SqlTypeName])
+    clazz.getMethod("literalToPythonObject", classOf[RexLiteral], classOf[SqlTypeName])
   }
 
   private[flink] def extractPythonScalarFunctionInfos(
@@ -40,7 +40,8 @@ trait CommonPythonCalc {
     val pythonFunctionInfos = rexCalls.map(createPythonScalarFunctionInfo(_, inputNodes))
 
     val udfInputOffsets = inputNodes.toArray
-      .map(_._1).filter(_.isInstanceOf[RexInputRef])
+      .map(_._1)
+      .filter(_.isInstanceOf[RexInputRef])
       .map(_.asInstanceOf[RexInputRef].getIndex)
     (udfInputOffsets, pythonFunctionInfos)
   }
@@ -59,7 +60,7 @@ trait CommonPythonCalc {
 
         case literal: RexLiteral =>
           inputs.append(
-            rexLiteralToPythonObject.invoke(null, literal.getValue3, literal.getTypeName))
+            literalToPythonObject.invoke(null, literal, literal.getType.getSqlTypeName))
 
         case argNode: RexNode =>
           // For input arguments of RexInputRef, it's replaced with an offset into the input row

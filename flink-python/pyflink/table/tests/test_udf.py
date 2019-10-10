@@ -97,16 +97,87 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, ["2,Hi,2,Flink"])
 
     def test_udf_with_constant_param(self):
-        self.t_env.register_function("add", add)
+        def func_constant_param(p, null_param, tinyint_param, smallint_param, int_param,
+                                bigint_param, decimal_param, float_param, double_param,
+                                boolean_param, str_param,
+                                date_param, time_param, timestamp_param):
+            from decimal import Decimal
+            import datetime
+            if null_param is None:
+                p += 1
+
+            if isinstance(tinyint_param, int):
+                p += tinyint_param
+            if isinstance(smallint_param, int):
+                p += smallint_param
+            if isinstance(int_param, int):
+                p += int_param
+            if isinstance(bigint_param, int):
+                p += bigint_param
+            if isinstance(decimal_param, Decimal):
+                p += int(decimal_param)
+            if isinstance(float_param, float):
+                p += int(float_param)
+            if isinstance(double_param, float):
+                p += float(double_param)
+
+            if boolean_param is True:
+                p += 1
+
+            p += len(str_param)
+
+            if date_param == datetime.date(year=2014, month=9, day=13):
+                p += 1
+
+            if time_param == datetime.time(hour=12, minute=0, second=0):
+                p += 1
+
+            if timestamp_param == datetime.datetime(1999, 9, 10, 5, 20, 10):
+                p += 1
+
+            return p
+
+        self.t_env.register_function("func_constant_param",
+                                     udf(func_constant_param,
+                                         input_types=[DataTypes.BIGINT(),
+                                                      DataTypes.BIGINT(),
+                                                      DataTypes.TINYINT(),
+                                                      DataTypes.SMALLINT(),
+                                                      DataTypes.INT(),
+                                                      DataTypes.BIGINT(),
+                                                      DataTypes.DECIMAL(20, 10),
+                                                      DataTypes.FLOAT(),
+                                                      DataTypes.DOUBLE(),
+                                                      DataTypes.BOOLEAN(),
+                                                      DataTypes.STRING(),
+                                                      DataTypes.DATE(),
+                                                      DataTypes.TIME(),
+                                                      DataTypes.TIMESTAMP()],
+                                         result_type=DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(['a'], [DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t.select("add(a, 20l)").insert_into("Results")
+        self.t_env.register_table("test_table", t)
+        self.t_env.sql_query("select func_constant_param(a, "
+                             "cast (null as BIGINT),"
+                             "cast (1 as TINYINT),"
+                             "cast (1 as SMALLINT),"
+                             "cast (1 as INT),"
+                             "cast (1 as BIGINT),"
+                             "cast (1 as DECIMAL),"
+                             "cast (1.0 as FLOAT),"
+                             "cast (1.00 as DOUBLE),"
+                             "true,"
+                             "'flink',"
+                             "cast ('2014-09-13' as DATE),"
+                             "cast ('12:00:00' as TIME),"
+                             "cast ('1999-9-10 05:20:10' as TIMESTAMP))"
+                             " from test_table").insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["21", "22", "23"])
+        self.assert_equals(actual, ["18", "19", "20"])
 
     def test_udf_in_join_condition_2(self):
         t1 = self.t_env.from_elements([(1, "Hi"), (2, "Hi")], ['a', 'b'])
