@@ -29,6 +29,7 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputGateUtil;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
@@ -40,7 +41,6 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import javax.annotation.Nullable;
@@ -145,14 +145,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	 * The network data output implementation used for processing stream elements
 	 * from {@link StreamTaskNetworkInput} in one input processor.
 	 */
-	private static class StreamTaskNetworkOutput<IN> implements DataOutput<IN> {
+	private static class StreamTaskNetworkOutput<IN> extends AbstractDataOutput<IN> {
 
 		private final OneInputStreamOperator<IN, ?> operator;
-
-		/** The maintainer toggles the current stream status. */
-		private final StreamStatusMaintainer streamStatusMaintainer;
-
-		private final Object lock;
 
 		private final WatermarkGauge watermarkGauge;
 		private final Counter numRecordsIn;
@@ -163,10 +158,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 				Object lock,
 				WatermarkGauge watermarkGauge,
 				Counter numRecordsIn) {
+			super(streamStatusMaintainer, lock);
 
 			this.operator = checkNotNull(operator);
-			this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
-			this.lock = checkNotNull(lock);
 			this.watermarkGauge = checkNotNull(watermarkGauge);
 			this.numRecordsIn = checkNotNull(numRecordsIn);
 		}
@@ -192,13 +186,6 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
 			synchronized (lock) {
 				operator.processLatencyMarker(latencyMarker);
-			}
-		}
-
-		@Override
-		public void emitStreamStatus(StreamStatus streamStatus) {
-			synchronized (lock) {
-				streamStatusMaintainer.toggleStreamStatus(streamStatus);
 			}
 		}
 	}

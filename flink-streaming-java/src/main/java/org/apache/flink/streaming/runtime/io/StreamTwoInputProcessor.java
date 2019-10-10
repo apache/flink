@@ -332,17 +332,12 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	 * The network data output implementation used for processing stream elements
 	 * from {@link StreamTaskNetworkInput} in two input selective processor.
 	 */
-	private class StreamTaskNetworkOutput<T> implements DataOutput<T> {
+	private class StreamTaskNetworkOutput<T> extends AbstractDataOutput<T> {
 
 		private final TwoInputStreamOperator<IN1, IN2, ?> operator;
 
 		/** The function way is only used for frequent record processing as for JIT optimization. */
 		private final ThrowingConsumer<StreamRecord<T>, Exception> recordConsumer;
-
-		private final Object lock;
-
-		/** The maintainer toggles the current stream status as well as retrieves it. */
-		private final StreamStatusMaintainer streamStatusMaintainer;
 
 		private final WatermarkGauge inputWatermarkGauge;
 
@@ -356,11 +351,10 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 				StreamStatusMaintainer streamStatusMaintainer,
 				WatermarkGauge inputWatermarkGauge,
 				int inputIndex) {
+			super(streamStatusMaintainer, lock);
 
 			this.operator = checkNotNull(operator);
 			this.recordConsumer = checkNotNull(recordConsumer);
-			this.lock = checkNotNull(lock);
-			this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 			this.inputWatermarkGauge = checkNotNull(inputWatermarkGauge);
 			this.inputIndex = inputIndex;
 		}
