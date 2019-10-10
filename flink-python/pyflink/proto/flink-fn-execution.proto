@@ -28,7 +28,6 @@ option java_outer_classname = "FlinkFnApi";
 // User-defined function definition. It supports chaining functions, that's, the execution
 // result of one user-defined function as the input of another user-defined function.
 message UserDefinedFunction {
-
   message Input {
     oneof input {
       UserDefinedFunction udf = 1;

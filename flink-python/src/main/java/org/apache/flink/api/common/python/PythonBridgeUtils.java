@@ -74,7 +74,7 @@ public final class PythonBridgeUtils {
 		return unpickledData;
 	}
 
-	public static byte[] literalToPythonObject(RexLiteral o, SqlTypeName typeName) {
+	public static byte[] convertLiteralToPython(RexLiteral o, SqlTypeName typeName) {
 		byte type;
 		Object value;
 		Pickler pickler = new Pickler();
@@ -108,6 +108,7 @@ public final class PythonBridgeUtils {
 					value = ((BigDecimal) o.getValue3()).doubleValue();
 					break;
 				case DECIMAL:
+				case BOOLEAN:
 					type = 0;
 					value = o.getValue3();
 					break;
@@ -116,26 +117,22 @@ public final class PythonBridgeUtils {
 					type = 0;
 					value = o.getValue3().toString();
 					break;
-				case BOOLEAN:
-					type = 1;
-					value = o.getValue3().toString();
-					break;
 				case DATE:
-					type = 2;
+					type = 1;
 					value = o.getValue3();
 					break;
 				case TIME:
-					type = 3;
+					type = 2;
 					value = o.getValue3();
 					break;
 				case TIMESTAMP:
-					type = 4;
+					type = 3;
 					value = o.getValue3();
 					break;
 				case INTERVAL_YEAR:
 				case INTERVAL_YEAR_MONTH:
 				case INTERVAL_MONTH:
-					type = 5;
+					type = 4;
 					value = ((BigDecimal) o.getValue3()).intValueExact();
 					break;
 				case INTERVAL_DAY:
@@ -148,7 +145,7 @@ public final class PythonBridgeUtils {
 				case INTERVAL_MINUTE:
 				case INTERVAL_MINUTE_SECOND:
 				case INTERVAL_SECOND:
-					type = 6;
+					type = 5;
 					value = ((BigDecimal) o.getValue3()).longValueExact();
 					break;
 				default:
