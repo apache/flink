@@ -1,0 +1,26 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>execution.attached</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>A flag indicating if we want the job to be executed in detached mode.If set to true, the client will wait for the result of the execution of the pipeline.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.parallelism</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>The desired parallelism for the job. By default, this is set to 1.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.shutdown-on-attached-exit</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>If the job is submitted in attached mode, perform a best-effort cluster shutdown when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.</td>
+        </tr>
+    </tbody>
+</table>

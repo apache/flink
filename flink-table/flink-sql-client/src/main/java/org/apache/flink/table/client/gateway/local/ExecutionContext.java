@@ -24,7 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.client.cli.RunOptions;
+//import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
@@ -114,7 +114,7 @@ public class ExecutionContext<T> {
 	private final Configuration flinkConfig;
 	private final CommandLine commandLine;
 	private final CustomCommandLine<T> activeCommandLine;
-	private final RunOptions runOptions;
+	private final ExecutionPa runOptions;
 	private final T clusterId;
 	private final ClusterSpecification clusterSpec;
 

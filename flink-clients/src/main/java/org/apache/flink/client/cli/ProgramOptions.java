@@ -44,7 +44,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION
 /**
  * Base class for command line options that refer to a JAR file program.
  */
-public abstract class ProgramOptions extends CommandLineOptions {
+public class ProgramOptions extends CommandLineOptions {
 
 	private final String jarFilePath;
 
@@ -67,7 +67,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	 */
 	private final boolean isPython;
 
-	protected ProgramOptions(CommandLine line) throws CliArgsException {
+	public ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
 
 		String[] args = line.hasOption(ARGS_OPTION.getOpt()) ?
@@ -168,8 +168,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 		}
 
-		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(
-			YARN_DETACHED_OPTION.getOpt());
+		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(YARN_DETACHED_OPTION.getOpt());
 		shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
 
 		this.savepointSettings = CliFrontendParser.createSavepointRestoreSettings(line);

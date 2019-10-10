@@ -85,6 +85,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
+
 /**
  * Implementation of a simple command line frontend for executing programs.
  */
@@ -174,17 +176,17 @@ public class CliFrontend {
 
 		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, true);
 
-		final RunOptions runOptions = new RunOptions(commandLine);
+		final ExecutionParameterProvider executionParameters = ExecutionParameterProviderBuilder.fromCommandLine(commandLine);
 
 		// evaluate help flag
-		if (runOptions.isPrintHelp()) {
+		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForRun(customCommandLines);
 			return;
 		}
 
-		if (!runOptions.isPython()) {
+		if (!executionParameters.isPython()) {
 			// Java program should be specified a JAR file
-			if (runOptions.getJarFilePath() == null) {
+			if (executionParameters.getJarFilePath() == null) {
 				throw new CliArgsException("Java program should be specified a JAR file.");
 			}
 		}
@@ -192,16 +194,16 @@ public class CliFrontend {
 		final PackagedProgram program;
 		try {
 			LOG.info("Building program from JAR file");
-			program = buildProgram(runOptions);
+			program = buildProgram(executionParameters);
 		}
 		catch (FileNotFoundException e) {
 			throw new CliArgsException("Could not build the program from JAR file.", e);
 		}
 
 		final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
-
+		final Configuration executionConfig = executionParameters.getConfiguration();
 		try {
-			runProgram(customCommandLine, commandLine, runOptions, program);
+			runProgram(customCommandLine, commandLine, executionConfig, program);
 		} finally {
 			program.deleteExtractedLibraries();
 		}
@@ -210,18 +212,19 @@ public class CliFrontend {
 	private <T> void runProgram(
 			CustomCommandLine<T> customCommandLine,
 			CommandLine commandLine,
-			RunOptions runOptions,
+			Configuration executionConfig,
 			PackagedProgram program) throws ProgramInvocationException, FlinkException {
 		final ClusterDescriptor<T> clusterDescriptor = customCommandLine.createClusterDescriptor(commandLine);
 
 		try {
 			final T clusterId = customCommandLine.getClusterId(commandLine);
-
+			final ExecutionParameterProvider executionParameters =
+					ExecutionParameterProviderBuilder.fromConfiguration(executionConfig);
 			final ClusterClient<T> client;
 
 			// directly deploy the job if the cluster is started in job mode and detached
-			if (clusterId == null && runOptions.getDetachedMode()) {
-				int parallelism = runOptions.getParallelism() == -1 ? defaultParallelism : runOptions.getParallelism();
+			if (clusterId == null && executionParameters.getDetachedMode()) {
+				int parallelism = executionParameters.getParallelism() == -1 ? defaultParallelism : executionParameters.getParallelism();
 
 				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(program, configuration, parallelism);
 
@@ -229,7 +232,7 @@ public class CliFrontend {
 				client = clusterDescriptor.deployJobCluster(
 					clusterSpecification,
 					jobGraph,
-					runOptions.getDetachedMode());
+					executionParameters.getDetachedMode());
 
 				logAndSysout("Job has been submitted with JobID " + jobGraph.getJobID());
 
@@ -250,7 +253,7 @@ public class CliFrontend {
 					client = clusterDescriptor.deploySessionCluster(clusterSpecification);
 					// if not running in detached mode, add a shutdown hook to shut down cluster if client exits
 					// there's a race-condition here if cli is killed before shutdown hook is installed
-					if (!runOptions.getDetachedMode() && runOptions.isShutdownOnAttachedExit()) {
+					if (!executionParameters.getDetachedMode() && executionParameters.isShutdownOnAttachedExit()) {
 						shutdownHook = ShutdownHookUtil.addShutdownHook(client::shutDownCluster, client.getClass().getSimpleName(), LOG);
 					} else {
 						shutdownHook = null;
@@ -258,11 +261,11 @@ public class CliFrontend {
 				}
 
 				try {
-					client.setDetached(runOptions.getDetachedMode());
+					client.setDetached(executionParameters.getDetachedMode());
 
-					LOG.debug("{}", runOptions.getSavepointRestoreSettings());
+					LOG.debug("{}", executionParameters.getSavepointRestoreSettings());
 
-					int userParallelism = runOptions.getParallelism();
+					int userParallelism = executionParameters.getParallelism();
 					LOG.debug("User parallelism is set to {}", userParallelism);
 					if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
 						userParallelism = defaultParallelism;
@@ -310,25 +313,25 @@ public class CliFrontend {
 
 		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
 
-		InfoOptions infoOptions = new InfoOptions(commandLine);
+		ExecutionParameterProvider executionParameters = ExecutionParameterProviderBuilder.fromCommandLine(commandLine);
 
 		// evaluate help flag
-		if (infoOptions.isPrintHelp()) {
+		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForInfo();
 			return;
 		}
 
-		if (infoOptions.getJarFilePath() == null) {
+		if (executionParameters.getJarFilePath() == null) {
 			throw new CliArgsException("The program JAR file was not specified.");
 		}
 
 		// -------- build the packaged program -------------
 
 		LOG.info("Building program from JAR file");
-		final PackagedProgram program = buildProgram(infoOptions);
+		final PackagedProgram program = buildProgram(executionParameters);
 
 		try {
-			int parallelism = infoOptions.getParallelism();
+			int parallelism = executionParameters.getParallelism();
 			if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
 				parallelism = defaultParallelism;
 			}
@@ -768,15 +771,15 @@ public class CliFrontend {
 	 *
 	 * @return A PackagedProgram (upon success)
 	 */
-	PackagedProgram buildProgram(ProgramOptions options) throws FileNotFoundException, ProgramInvocationException {
-		String[] programArgs = options.getProgramArgs();
-		String jarFilePath = options.getJarFilePath();
-		List<URL> classpaths = options.getClasspaths();
+	PackagedProgram buildProgram(ExecutionParameterProvider executionParameters) throws FileNotFoundException, ProgramInvocationException {
+		String[] programArgs = executionParameters.getProgramArgs();
+		String jarFilePath = executionParameters.getJarFilePath();
+		List<URL> classpaths = executionParameters.getClasspaths();
 
 		// Get assembler class
-		String entryPointClass = options.getEntryPointClassName();
+		String entryPointClass = executionParameters.getEntryPointClassName();
 		File jarFile = null;
-		if (options.isPython()) {
+		if (executionParameters.isPython()) {
 			// If the job is specified a jar file
 			if (jarFilePath != null) {
 				jarFile = getJarFile(jarFilePath);
@@ -798,7 +801,7 @@ public class CliFrontend {
 				new PackagedProgram(jarFile, classpaths, programArgs) :
 				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
 
-		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
+		program.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 
 		return program;
 	}

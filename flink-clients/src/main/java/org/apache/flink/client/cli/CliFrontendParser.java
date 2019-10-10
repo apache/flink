@@ -445,11 +445,11 @@ public class CliFrontendParser {
 	//  Line Parsing
 	// --------------------------------------------------------------------------------------------
 
-	public static RunOptions parseRunCommand(String[] args) throws CliArgsException {
+	public static ExecutionParameterProvider parseRunCommand(String[] args) throws CliArgsException {
 		try {
 			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(RUN_OPTIONS, args, true);
-			return new RunOptions(line);
+			return ExecutionParameterProviderBuilder.fromCommandLine(line);
 		}
 		catch (ParseException e) {
 			throw new CliArgsException(e.getMessage());
