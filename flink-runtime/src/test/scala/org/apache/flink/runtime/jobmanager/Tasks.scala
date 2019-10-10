@@ -35,8 +35,8 @@ object Tasks {
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
       
-      val writer = new RecordWriterBuilder().build(
-        getEnvironment.getWriter(0)).asInstanceOf[RecordWriter[IntValue]]
+      val writer = new RecordWriterBuilder[IntValue]().build(
+        getEnvironment.getWriter(0))
 
       try {
         while (true) {

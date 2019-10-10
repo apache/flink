@@ -146,7 +146,7 @@ public class FileBufferReaderITCase extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			final RecordWriter<ByteArrayType> writer = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
+			final RecordWriter<ByteArrayType> writer = new RecordWriterBuilder<ByteArrayType>().build(getEnvironment().getWriter(0));
 
 			final ByteArrayType bytes = new ByteArrayType(dataSource);
 			int counter = 0;
