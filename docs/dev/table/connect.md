@@ -1104,15 +1104,15 @@ connector:
   zookeeper:
     quorum: "localhost:2181"     # required: HBase Zookeeper quorum configuration
     znode.parent: "/test"        # required: the root dir in Zookeeper for HBase cluster
-    
+  
   write.buffer-flush:
-    max-size: 1048576            # optional: writing option, determines how many size in memory of buffered
+    max-size: "10mb"             # optional: writing option, determines how many size in memory of buffered
                                  # rows to insert per round trip. This can help performance on writing to JDBC
                                  # database. The default value is "2mb".
-    max-rows: 1                  # optional: writing option, determines how many rows to insert per round trip.
-                                 #This can help performance on writing to JDBC database. No default value,
+    max-rows: 1000               # optional: writing option, determines how many rows to insert per round trip.
+                                 # This can help performance on writing to JDBC database. No default value,
                                  # i.e. the default flushing is not depends on the number of buffered rows.
-    interval: 1                  # optional: writing option, sets a flush interval flushing buffered requesting
+    interval: "2s"               # optional: writing option, sets a flush interval flushing buffered requesting
                                  # if the interval passes, in milliseconds. Default value is "0s", which means
                                  # no asynchronous flush thread will be scheduled.
 {% endhighlight %}
