@@ -24,19 +24,19 @@ import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.BinaryStringUtil.safeToString
 import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
-import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.functions.{FunctionContext, FunctionLanguage, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.commons.lang3.StringEscapeUtils
-
 import java.io.File
 import java.util.TimeZone
+
+import org.apache.flink.table.planner.plan.utils.PythonUtil.FunctionFinder
 
 import scala.collection.JavaConverters._
 
@@ -60,7 +60,12 @@ class ExpressionReducer(
       constExprs: java.util.List[RexNode],
       reducedValues: java.util.List[RexNode]): Unit = {
 
+    val pythonFunctionFinder = new FunctionFinder(FunctionLanguage.PYTHON, true)
+
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
+
+      // skip expressions that contain python functions
+      case (_, e) if e.accept(pythonFunctionFinder) => None
 
       // we don't support object literals yet, we skip those constant expressions
       case (SqlTypeName.ANY, _) |
@@ -120,59 +125,64 @@ class ExpressionReducer(
     var reducedIdx = 0
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
-      unreduced.getType.getSqlTypeName match {
-        // we insert the original expression for object literals
-        case SqlTypeName.ANY |
-             SqlTypeName.ROW |
-             SqlTypeName.ARRAY |
-             SqlTypeName.MAP |
-             SqlTypeName.MULTISET =>
-          reducedValues.add(unreduced)
-        case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
-          val escapeVarchar = StringEscapeUtils
-            .escapeJava(safeToString(reduced.getField(reducedIdx).asInstanceOf[BinaryString]))
-          reducedValues.add(maySkipNullLiteralReduce(rexBuilder, escapeVarchar, unreduced))
-          reducedIdx += 1
-        case SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
-          val reducedValue = reduced.getField(reducedIdx)
-          val value = if (null != reducedValue) {
-            new ByteString(reduced.getField(reducedIdx).asInstanceOf[Array[Byte]])
-          } else {
-            reducedValue
-          }
-          reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-          reducedIdx += 1
-        case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-          val value = if (!reduced.isNullAt(reducedIdx)) {
-            val mills = reduced.getField(reducedIdx).asInstanceOf[Long]
-            Long.box(SqlDateTimeUtils.timestampWithLocalZoneToTimestamp(
-              mills, TimeZone.getTimeZone(config.getLocalTimeZone)))
-          } else {
-            null
-          }
-          reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-          reducedIdx += 1
-        case SqlTypeName.DECIMAL =>
-          val reducedValue = reduced.getField(reducedIdx)
-          val value = if (reducedValue != null) {
-            reducedValue.asInstanceOf[Decimal].toBigDecimal
-          } else {
-            reducedValue
-          }
-          reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-          reducedIdx += 1
-        case _ =>
-          val reducedValue = reduced.getField(reducedIdx)
-          // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
-          val value = if (reducedValue != null &&
-            unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
-            new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
-          } else {
-            reducedValue
-          }
+      if (unreduced.accept(pythonFunctionFinder)) {
+        // if contains python function then just insert the original expression.
+        reducedValues.add(unreduced)
+      } else {
+        unreduced.getType.getSqlTypeName match {
+          // we insert the original expression for object literals
+          case SqlTypeName.ANY |
+               SqlTypeName.ROW |
+               SqlTypeName.ARRAY |
+               SqlTypeName.MAP |
+               SqlTypeName.MULTISET =>
+            reducedValues.add(unreduced)
+          case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
+            val escapeVarchar = StringEscapeUtils
+              .escapeJava(safeToString(reduced.getField(reducedIdx).asInstanceOf[BinaryString]))
+            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, escapeVarchar, unreduced))
+            reducedIdx += 1
+          case SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
+            val reducedValue = reduced.getField(reducedIdx)
+            val value = if (null != reducedValue) {
+              new ByteString(reduced.getField(reducedIdx).asInstanceOf[Array[Byte]])
+            } else {
+              reducedValue
+            }
+            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+            reducedIdx += 1
+          case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+            val value = if (!reduced.isNullAt(reducedIdx)) {
+              val mills = reduced.getField(reducedIdx).asInstanceOf[Long]
+              Long.box(SqlDateTimeUtils.timestampWithLocalZoneToTimestamp(
+                mills, TimeZone.getTimeZone(config.getLocalTimeZone)))
+            } else {
+              null
+            }
+            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+            reducedIdx += 1
+          case SqlTypeName.DECIMAL =>
+            val reducedValue = reduced.getField(reducedIdx)
+            val value = if (reducedValue != null) {
+              reducedValue.asInstanceOf[Decimal].toBigDecimal
+            } else {
+              reducedValue
+            }
+            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+            reducedIdx += 1
+          case _ =>
+            val reducedValue = reduced.getField(reducedIdx)
+            // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
+            val value = if (reducedValue != null &&
+              unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
+              new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+            } else {
+              reducedValue
+            }
 
-          reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-          reducedIdx += 1
+            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+            reducedIdx += 1
+        }
       }
       i += 1
     }

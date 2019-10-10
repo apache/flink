@@ -55,8 +55,7 @@ class ExpressionReducer(config: TableConfig)
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
 
       // skip expressions that contain python functions
-      case (_, e) if e.accept(pythonFunctionFinder) =>
-        None
+      case (_, e) if e.accept(pythonFunctionFinder) => None
 
       // we need to cast here for RexBuilder.makeLiteral
       case (SqlTypeName.DATE, e) =>

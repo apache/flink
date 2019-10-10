@@ -204,25 +204,27 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
             self.t_env.register_function(
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
-    def test_no_argument_deterministic_udf(self):
-        @udf(input_types=[], result_type=DataTypes.BIGINT())
+    def test_udf_without_arguments(self):
+        @udf(input_types=[], result_type=DataTypes.BIGINT(), deterministic=True)
         def one():
             return 1
 
-        self.t_env.register_function(
-            "one", one)
-        self.t_env.register_function("add", add)
+        @udf(input_types=[], result_type=DataTypes.BIGINT(), deterministic=False)
+        def two():
+            return 2
+
+        self.t_env.register_function("one", one)
+        self.t_env.register_function("two", two)
 
         table_sink = source_sink_utils.TestAppendSink(['a', 'b'],
                                                       [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("one(), add(a, b)") \
-            .insert_into("Results")
+        t.select("one(), two()").insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,3", "1,7", "1,4"])
+        self.assert_equals(actual, ["1,2", "1,2", "1,2"])
 
 
 @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
