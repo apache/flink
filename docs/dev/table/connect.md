@@ -1094,6 +1094,23 @@ For append-only queries, the connector can also operate in [append mode](#update
 The connector can be defined as follows:
 
 <div class="codetabs" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+.connect(
+  new HBase()
+    .version("1.4.3")                      // required: valid connector versions are "1.4.3"
+    .tableName("hbase_table_name")         // required: HBase table to connect to
+    .zookeeperQuorum("localhost:2181")     // required: Zookeeper quorum address of HBase
+    .zookeeperNodeParent("/test")          // optional: zookeeper node parent path of HBase
+    .writeBufferFlushMaxSize("10mb")       // optional: threshold when to flush buffered request based on
+                                           // the memory byte size of rows currently added.
+    .writeBufferFlushMaxRows(1000)         // optional: threshold when to flush buffered request based on
+                                           // the number of rows currently added.
+    .writeBufferFlushInterval("2s")        // optional: an interval when to flushing buffered requesting
+                                           // if the interval passes, in milliseconds.
+)
+{% endhighlight %}
+</div>
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 connector:
@@ -1156,8 +1173,6 @@ CREATE TABLE MyUserTable (
 **Columns:** All the column families in HBase table must be declared as `ROW` type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what's necessary. Except the `ROW` type fields, the only one field of atomic type (e.g. `STRING`, `BIGINT`) will be recognized as row key of the table. There's no constraints on the name of row key field. 
 
 **Temporary join:** Lookup join against HBase do not use any caching; data is always queired directly through the HBase client.
-
-**Java/Scala/Python API:** Java/Scala/Python APIs are not supported yet.
 
 {% top %}
 
