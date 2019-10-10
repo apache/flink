@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -57,6 +58,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public abstract class RecordWriter<T extends IOReadableWritable> {
 
+	/** Default name for the output flush thread, if no name with a task reference is given. */
+	@VisibleForTesting
+	public static final String DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
+
 	private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
 
 	protected final ResultPartitionWriter targetPartition;
@@ -72,9 +77,6 @@ public abstract class RecordWriter<T extends IOReadableWritable> {
 	private Counter numBuffersOut = new SimpleCounter();
 
 	private final boolean flushAlways;
-
-	/** Default name for teh output flush thread, if no name with a task reference is given. */
-	private static final String DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
 
 	/** The thread that periodically flushes the output, to give an upper latency bound. */
 	@Nullable
