@@ -49,7 +49,7 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 			.tableName("testNs:table1")
 			.zookeeperQuorum("localhost:2181")
 			.zookeeperNodeParent("/hbase/root")
-			.writeBufferFlushInterval(2 * 1000L)
+			.writeBufferFlushInterval("2s")
 			.writeBufferFlushMaxRows(100)
 			.writeBufferFlushMaxSize("1mb");
 

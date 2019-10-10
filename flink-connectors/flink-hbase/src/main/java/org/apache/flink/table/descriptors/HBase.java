@@ -19,7 +19,9 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.util.TimeUtils;
 
+import java.time.Duration;
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
@@ -64,7 +66,8 @@ public class HBase extends ConnectorDescriptor {
 	/**
 	 * Set the zookeeper quorum address to connect the HBase cluster. Required.
 	 *
-	 * @param zookeeperQuorum zookeeper quorum address to connect the HBase cluster. E.g., "localhost:2181,localhost:2182,localhost:2183".
+	 * @param zookeeperQuorum zookeeper quorum address to connect the HBase cluster.
+	 *                        E.g., "localhost:2181,localhost:2182,localhost:2183".
 	 */
 	public HBase zookeeperQuorum(String zookeeperQuorum) {
 		properties.putString(CONNECTOR_ZK_QUORUM, zookeeperQuorum);
@@ -72,7 +75,7 @@ public class HBase extends ConnectorDescriptor {
 	}
 
 	/**
-	 * Set the zookeeper node parent path of HBase cluster. Optional.
+	 * Set the zookeeper node parent path of HBase cluster. Default to use "/hbase", Optional.
 	 *
 	 * @param zookeeperNodeParent zookeeper node path of hbase cluster. E.g, "/hbase/example-root-znode".
 	 */
@@ -82,9 +85,10 @@ public class HBase extends ConnectorDescriptor {
 	}
 
 	/**
-	 * Set threshold when to flush buffered request based on the memory byte size of rows currently added . Default to <code>2mb</code>. Optional.
+	 * Set threshold when to flush buffered request based on the memory byte size of rows currently added.
+	 * Default to <code>2mb</code>. Optional.
 	 *
-	 * @param maxSize threshold (Byte size) to flush a buffered request. E.g, "2097152", "2mb", "4kb".
+	 * @param maxSize the maximum size (using the syntax of {@link MemorySize}).
 	 */
 	public HBase writeBufferFlushMaxSize(String maxSize) {
 		properties.putMemorySize(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE, MemorySize.parse(maxSize, MemorySize.MemoryUnit.BYTES));
@@ -106,10 +110,14 @@ public class HBase extends ConnectorDescriptor {
 	 * Set a flush interval flushing buffered requesting if the interval passes, in milliseconds.
 	 * Defaults to not set, i.e. won't flush based on flush interval. Optional.
 	 *
-	 * @param writeBufferFlushInterval flush interval in milliseconds.
+	 * @param interval flush interval. The string should be in format "{length value}{time unit label}"
+	 *                 E.g, "123ms", "1 s", If no time unit label is specified, it will be considered as
+	 *                 milliseconds. For more details about the format, please see
+	 *                 {@link TimeUtils#parseDuration(String)}}.
 	 */
-	public HBase writeBufferFlushInterval(long writeBufferFlushInterval) {
-		properties.putLong(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL, writeBufferFlushInterval);
+	public HBase writeBufferFlushInterval(String interval) {
+		Duration duration = TimeUtils.parseDuration(interval);
+		properties.putLong(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL, duration.toMillis());
 		return this;
 	}
 
