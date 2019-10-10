@@ -49,13 +49,13 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
   @Test
   def testExpressionReductionWithPythonUDF(): Unit = {
-    util.addFunction("PyUdf", MockedPythonUDFWithoutArgument)
+    util.addFunction("PyUdf", MockedPythonUDFWithoutArguments)
     util.addFunction("MyUdf", Func1)
     util.verifyPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
   }
 }
 
-object MockedPythonUDFWithoutArgument extends ScalarFunction {
+object MockedPythonUDFWithoutArguments extends ScalarFunction {
 
   override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
 
