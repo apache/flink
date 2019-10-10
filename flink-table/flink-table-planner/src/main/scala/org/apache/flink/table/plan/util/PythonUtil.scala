@@ -46,7 +46,7 @@ object PythonUtil {
     * @param expectedLanguage the expected kind of function to find
     * @param recursive whether check the inputs
     */
-  class FunctionFinder(expectedLanguage: FunctionLanguage, recursive: Boolean)
+  private class FunctionFinder(expectedLanguage: FunctionLanguage, recursive: Boolean)
     extends RexDefaultVisitor[Boolean] {
 
     override def visitCall(call: RexCall): Boolean = {

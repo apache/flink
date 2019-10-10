@@ -26,12 +26,27 @@ import scala.collection.JavaConversions._
 
 object PythonUtil {
   /**
+    * Checks whether it contains the specified kind of function in the specified node.
+    *
+    * @param node the RexNode to check
+    * @param language the expected kind of function to find
+    * @param recursive whether check the inputs of the specified node
+    * @return true if it contains the specified kind of function in the specified node.
+    */
+  def containsFunctionOf(
+      node: RexNode,
+      language: FunctionLanguage,
+      recursive: Boolean = true): Boolean = {
+    node.accept(new FunctionFinder(language, recursive))
+  }
+
+  /**
     * Checks whether it contains the specified kind of function in a RexNode.
     *
     * @param expectedLanguage the expected kind of function to find
     * @param recursive whether check the inputs
     */
-  class FunctionFinder(expectedLanguage: FunctionLanguage, recursive: Boolean)
+  private class FunctionFinder(expectedLanguage: FunctionLanguage, recursive: Boolean)
     extends RexDefaultVisitor[Boolean] {
 
     override def visitCall(call: RexCall): Boolean = {

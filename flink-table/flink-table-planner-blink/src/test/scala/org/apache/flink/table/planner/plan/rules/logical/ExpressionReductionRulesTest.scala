@@ -23,6 +23,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction}
 import org.apache.flink.table.planner.expressions.utils.{Func1, RichFunc1}
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 /**
@@ -48,13 +49,13 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
   @Test
   def testExpressionReductionWithPythonUDF(): Unit = {
-    util.addFunction("PyUdf", MockedPythonScalarFunction)
+    util.addFunction("PyUdf", MockedPythonUDFWithoutArgument)
     util.addFunction("MyUdf", Func1)
     util.verifyPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
   }
 }
 
-object MockedPythonScalarFunction extends ScalarFunction {
+object MockedPythonUDFWithoutArgument extends ScalarFunction {
 
   override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
 

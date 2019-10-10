@@ -29,7 +29,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.FunctionLanguage
-import org.apache.flink.table.plan.util.PythonUtil.FunctionFinder
+import org.apache.flink.table.plan.util.PythonUtil
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
@@ -50,12 +50,10 @@ class ExpressionReducer(config: TableConfig)
 
     val typeFactory = rexBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    val pythonFunctionFinder = new FunctionFinder(FunctionLanguage.PYTHON, true)
-
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
 
       // skip expressions that contain python functions
-      case (_, e) if e.accept(pythonFunctionFinder) => None
+      case (_, e) if PythonUtil.containsFunctionOf(e, FunctionLanguage.PYTHON) => None
 
       // we need to cast here for RexBuilder.makeLiteral
       case (SqlTypeName.DATE, e) =>
@@ -121,7 +119,7 @@ class ExpressionReducer(config: TableConfig)
     var reducedIdx = 0
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
-      if (unreduced.accept(pythonFunctionFinder)) {
+      if (PythonUtil.containsFunctionOf(unreduced, FunctionLanguage.PYTHON)) {
         // if contains python function then just insert the original expression.
         reducedValues.add(unreduced)
       } else {

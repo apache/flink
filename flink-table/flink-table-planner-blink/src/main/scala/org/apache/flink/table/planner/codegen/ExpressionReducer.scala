@@ -27,6 +27,7 @@ import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
 import org.apache.flink.table.functions.{FunctionContext, FunctionLanguage, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
+import org.apache.flink.table.planner.plan.utils.PythonUtil
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.types.logical.RowType
 import org.apache.calcite.avatica.util.ByteString
@@ -35,8 +36,6 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.commons.lang3.StringEscapeUtils
 import java.io.File
 import java.util.TimeZone
-
-import org.apache.flink.table.planner.plan.utils.PythonUtil.FunctionFinder
 
 import scala.collection.JavaConverters._
 
@@ -60,12 +59,10 @@ class ExpressionReducer(
       constExprs: java.util.List[RexNode],
       reducedValues: java.util.List[RexNode]): Unit = {
 
-    val pythonFunctionFinder = new FunctionFinder(FunctionLanguage.PYTHON, true)
-
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
 
       // skip expressions that contain python functions
-      case (_, e) if e.accept(pythonFunctionFinder) => None
+      case (_, e) if PythonUtil.containsFunctionOf(e, FunctionLanguage.PYTHON) => None
 
       // we don't support object literals yet, we skip those constant expressions
       case (SqlTypeName.ANY, _) |
@@ -125,7 +122,7 @@ class ExpressionReducer(
     var reducedIdx = 0
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
-      if (unreduced.accept(pythonFunctionFinder)) {
+      if (PythonUtil.containsFunctionOf(unreduced, FunctionLanguage.PYTHON)) {
         // if contains python function then just insert the original expression.
         reducedValues.add(unreduced)
       } else {

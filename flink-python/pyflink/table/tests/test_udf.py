@@ -205,16 +205,10 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
     def test_udf_without_arguments(self):
-        @udf(input_types=[], result_type=DataTypes.BIGINT(), deterministic=True)
-        def one():
-            return 1
-
-        @udf(input_types=[], result_type=DataTypes.BIGINT(), deterministic=False)
-        def two():
-            return 2
-
-        self.t_env.register_function("one", one)
-        self.t_env.register_function("two", two)
+        self.t_env.register_function("one", udf(
+            lambda: 1, input_types=[], result_type=DataTypes.BIGINT(), deterministic=True))
+        self.t_env.register_function("two", udf(
+            lambda: 2, input_types=[], result_type=DataTypes.BIGINT(), deterministic=False))
 
         table_sink = source_sink_utils.TestAppendSink(['a', 'b'],
                                                       [DataTypes.BIGINT(), DataTypes.BIGINT()])
