@@ -1176,6 +1176,16 @@ The connector can operate in [upsert mode](#update-modes) for exchanging UPSERT/
 
 For append-only queries, the connector can also operate in [append mode](#update-modes) for exchanging only INSERT messages with the external system.
 
+To use JDBC connector, need to choose an actual driver to use. Here are drivers currently supported:
+
+### Drivers
+
+| Name        |      Group Id      |      Artifact Id     |      JAR         |
+| :-----------| :------------------| :--------------------| :----------------|
+| MySQL       |        mysql       | mysql-connector-java | [Download](http://central.maven.org/maven2/mysql/mysql-connector-java/) |
+| PostgreSQL  |   org.postgresql   |      postgresql      | [Download](https://jdbc.postgresql.org/download.html) |
+| Derby       |  org.apache.derby  |        derby         | [Download](http://db.apache.org/derby/derby_downloads.html) |
+
 The connector can be defined as follows:
 
 <div class="codetabs" markdown="1">
