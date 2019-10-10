@@ -25,6 +25,7 @@ import org.apache.flink.table.descriptors.DescriptorTestBase;
 import org.apache.flink.table.descriptors.DescriptorValidator;
 import org.apache.flink.table.descriptors.HBase;
 import org.apache.flink.table.descriptors.HBaseValidator;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -50,7 +51,7 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 			.zookeeperNodeParent("/hbase/root")
 			.writeBufferFlushInterval(2 * 1000L)
 			.writeBufferFlushMaxRows(100)
-			.writeBufferFlushMaxSize(1024 * 1024L);
+			.writeBufferFlushMaxSize("1mb");
 
 		return Arrays.asList(hbaseDesc0, hbaseDesc1);
 	}
@@ -74,7 +75,7 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 		prop1.put("connector.property-version", "1");
 		prop1.put("connector.write.buffer-flush.interval", "2000");
 		prop1.put("connector.write.buffer-flush.max-rows", "100");
-		prop1.put("connector.write.buffer-flush.max-size", "1048576");
+		prop1.put("connector.write.buffer-flush.max-size", "1048576 bytes");
 
 		return Arrays.asList(prop0, prop1);
 	}

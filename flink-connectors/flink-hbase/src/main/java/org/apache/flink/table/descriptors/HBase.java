@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.configuration.MemorySize;
+
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
@@ -40,7 +42,7 @@ public class HBase extends ConnectorDescriptor {
 	}
 
 	/**
-	 * Set the Apache HBase version to be used. Optional.
+	 * Set the Apache HBase version to be used. Required.
 	 *
 	 * @param version HBase version. E.g., "1.4.3".
 	 */
@@ -82,10 +84,10 @@ public class HBase extends ConnectorDescriptor {
 	/**
 	 * Set threshold when to flush buffered request based on the memory byte size of rows currently added . Default to <code>2mb</code>. Optional.
 	 *
-	 * @param writeBufferFlushMaxSize threshold (Byte size) to flush a buffered request. E.g, 2097152 (2MB).
+	 * @param maxSize threshold (Byte size) to flush a buffered request. E.g, "2097152", "2mb", "4kb".
 	 */
-	public HBase writeBufferFlushMaxSize(long writeBufferFlushMaxSize) {
-		properties.putLong(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE, writeBufferFlushMaxSize);
+	public HBase writeBufferFlushMaxSize(String maxSize) {
+		properties.putMemorySize(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE, MemorySize.parse(maxSize, MemorySize.MemoryUnit.BYTES));
 		return this;
 	}
 
@@ -95,14 +97,14 @@ public class HBase extends ConnectorDescriptor {
 	 *
 	 * @param writeBufferFlushMaxRows number of added rows when begin the request flushing.
 	 */
-	public HBase writeBufferFlushMaxRows(long writeBufferFlushMaxRows) {
-		properties.putLong(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS, writeBufferFlushMaxRows);
+	public HBase writeBufferFlushMaxRows(int writeBufferFlushMaxRows) {
+		properties.putInt(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS, writeBufferFlushMaxRows);
 		return this;
 	}
 
 	/**
 	 * Set a flush interval flushing buffered requesting if the interval passes, in milliseconds.
-	 * Defaults to not set, i.e. won't flush based on flush interval. Optionla.
+	 * Defaults to not set, i.e. won't flush based on flush interval. Optional.
 	 *
 	 * @param writeBufferFlushInterval flush interval in milliseconds.
 	 */
