@@ -22,14 +22,13 @@ import java.io.File
 
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
-import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
+import org.apache.flink.table.expressions.utils.UDFWithJobParameterChecking
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.CommonTestData
 
@@ -40,7 +39,8 @@ class TableEnvironmentITCase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
     val t = env.fromCollection(Seq(1, 2, 3)).toTable(tEnv, 'a)
-    t.select(JobParametersReader('a)).toAppendStream[Int].print()
+    val udfForChecking = new UDFWithJobParameterChecking(Map("testConf" -> "1"))
+    t.select(udfForChecking('a)).toAppendStream[Int].print()
 
     tEnv.getConfig.getConfiguration.setString("testConf", "1")
     tEnv.execute("test")
@@ -65,19 +65,10 @@ class TableEnvironmentITCase {
       .registerTableSink("sink")
 
     val csvTable = CommonTestData.getCsvTableSource
-    tEnv.fromTableSource(csvTable).select(JobParametersReader('id)).insertInto("sink")
+    val udfForChecking = new UDFWithJobParameterChecking(Map("testConf" -> "1"))
+    tEnv.fromTableSource(csvTable).select(udfForChecking('id)).insertInto("sink")
 
     tEnv.getConfig.getConfiguration.setString("testConf", "1")
     tEnv.execute("test")
   }
-}
-
-object JobParametersReader extends ScalarFunction {
-
-  override def open(context: FunctionContext): Unit = {
-    assertEquals("1", context.getJobParameter("testConf", ""))
-    super.open(context)
-  }
-
-  def eval(a: Int): Int = a
 }

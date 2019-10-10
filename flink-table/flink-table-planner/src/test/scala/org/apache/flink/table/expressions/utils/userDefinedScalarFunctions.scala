@@ -28,6 +28,7 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.types.Row
 import org.junit.Assert
+import org.junit.Assert.assertEquals
 
 import scala.annotation.varargs
 import scala.collection.mutable
@@ -381,3 +382,15 @@ class People(val name: String)
 class Student(name: String) extends People(name)
 
 class GraduatedStudent(name: String) extends Student(name)
+
+class UDFWithJobParameterChecking(expected: Map[String, String]) extends ScalarFunction {
+
+  override def open(context: FunctionContext): Unit = {
+    expected.foreach { case (key, expectedValue) =>
+      assertEquals(expectedValue, context.getJobParameter(key, "")) }
+
+    super.open(context)
+  }
+
+  def eval(a: Int): Int = a
+}
