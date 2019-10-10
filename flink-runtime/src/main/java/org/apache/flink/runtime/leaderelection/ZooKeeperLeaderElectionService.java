@@ -71,7 +71,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * 	    |                                  /info
  * 	    |                                  /store/
  * 	    +/cluster-id-2/
- *  * </pre>
+ * </pre>
  */
 public class ZooKeeperLeaderElectionService implements LeaderElectionService, UnhandledErrorListener, ConnectionStateListener {
 

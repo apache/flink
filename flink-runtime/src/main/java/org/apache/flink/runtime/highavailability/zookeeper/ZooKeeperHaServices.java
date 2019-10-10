@@ -53,29 +53,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The services store data in ZooKeeper's nodes as illustrated by the following tree structure:
  *
  * <pre>
- * /flink
- *      +/cluster_id_1/resource_manager_lock
- *      |            |
- *      |            +/job-id-1/job_manager_lock
- *      |            |         /checkpoints/latest
- *      |            |                     /latest-1
- *      |            |                     /latest-2
- *      |            |
- *      |            +/job-id-2/job_manager_lock
- *      |
- *      +/cluster_id_2/resource_manager_lock
- *                   |
- *                   +/job-id-1/job_manager_lock
- *                            |/checkpoints/latest
- *                            |            /latest-1
- *                            |/persisted_job_graph
+ * /flink/cluster-id-1/dispatcher/registry/latch-1
+ * 	    |            |          |         /latch-2
+ * 	    |            |          |         /latch-3
+ * 	    |            |          +/info
+ * 	    |            |          +/store/
+ * 	    |            +/resource-manager/registry/latch-1
+ * 	    |            |                          /latch-2
+ * 	    |            +/job-id-1/job-manager/registry/latch-1
+ * 	    |                                  /info
+ * 	    |                                  /store/
+ * 	    +/cluster-id-2/
  * </pre>
  *
  * <p>The root path "/flink" is configurable via the option {@link HighAvailabilityOptions#HA_ZOOKEEPER_ROOT}.
  * This makes sure Flink stores its data under specific subtrees in ZooKeeper, for example to
  * accommodate specific permission.
  *
- * <p>The "cluster_id" part identifies the data stored for a specific Flink "cluster".
+ * <p>The "cluster-id" part identifies the data stored for a specific Flink "cluster".
  * This "cluster" can be either a standalone or containerized Flink cluster, or it can be job
  * on a framework like YARN or Mesos (in a "per-job-cluster" mode).
  *
