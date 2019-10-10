@@ -215,7 +215,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			private final RecordWriter<LongValue> recordWriter;
 
 			public ProducerThread(ResultPartitionWriter partitionWriter) {
-				this.recordWriter = new RecordWriterBuilder().build(partitionWriter);
+				this.recordWriter = new RecordWriterBuilder<LongValue>().build(partitionWriter);
 			}
 
 			@Override
