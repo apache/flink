@@ -34,20 +34,19 @@ object GlobalJobParametersMerger {
     * and set the merged result to GlobalJobParameters.
     */
   def mergeParameters(executionConfig: ExecutionConfig, tableConfig: TableConfig): Unit = {
-
-      if (executionConfig != null) {
-        val parameters = new Configuration()
-        if (tableConfig != null && tableConfig.getConfiguration != null) {
-          parameters.addAll(tableConfig.getConfiguration)
-        }
-
-        if (executionConfig.getGlobalJobParameters != null) {
-          executionConfig.getGlobalJobParameters.toMap.foreach {
-            kv => parameters.setString(kv._1, kv._2)
-          }
-        }
-
-        executionConfig.setGlobalJobParameters(parameters)
+    if (executionConfig != null) {
+      val parameters = new Configuration()
+      if (tableConfig != null && tableConfig.getConfiguration != null) {
+        parameters.addAll(tableConfig.getConfiguration)
       }
+
+      if (executionConfig.getGlobalJobParameters != null) {
+        executionConfig.getGlobalJobParameters.toMap.foreach {
+          kv => parameters.setString(kv._1, kv._2)
+        }
+      }
+
+      executionConfig.setGlobalJobParameters(parameters)
+    }
   }
 }
