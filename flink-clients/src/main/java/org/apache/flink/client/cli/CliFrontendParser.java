@@ -192,7 +192,7 @@ public class CliFrontendParser {
 		PYMODULE_OPTION.setArgName("pyModule");
 	}
 
-	private static final Options RUN_OPTIONS = getRunCommandOptions();
+	static final Options RUN_OPTIONS = getRunCommandOptions();
 
 	private static Options buildGeneralOptions(Options options) {
 		options.addOption(HELP_OPTION);
@@ -444,17 +444,6 @@ public class CliFrontendParser {
 	// --------------------------------------------------------------------------------------------
 	//  Line Parsing
 	// --------------------------------------------------------------------------------------------
-
-	public static RunOptions parseRunCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(RUN_OPTIONS, args, true);
-			return new RunOptions(line);
-		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
 
 	public static CommandLine parse(Options options, String[] args, boolean stopAtNonOptions) throws CliArgsException {
 		final DefaultParser parser = new DefaultParser();

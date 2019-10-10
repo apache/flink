@@ -23,24 +23,27 @@ import org.apache.flink.annotation.PublicEvolving;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * The {@link ConfigOption configuration options} relevant for all Executors.
+ * The {@link ConfigOption configuration options} for job execution.
  */
 @PublicEvolving
-public class DeploymentOptions {
+public class PipelineOptions {
 
-	public static final ConfigOption<String> TARGET =
-			key("execution.target")
+	public static final String LIST_SEPARATOR = ";";
+
+	/**
+	 * A list of jar files that contain the user-defined function (UDF) classes and all classes used from within the UDFs.
+	 */
+	public static final ConfigOption<String> JARS =
+			key("pipeline.jars")
 					.noDefaultValue()
-					.withDescription("The deployment target for the execution, e.g. \"local\" for local execution.");
+					.withDescription("A semicolon-separated list of the jars to package with the job jars to be sent to the cluster. These have to be valid paths.");
 
-	public static final ConfigOption<Boolean> ATTACHED =
-			key("execution.attached")
-					.defaultValue(false)
-					.withDescription("Specifies if the pipeline is submitted in attached or detached mode.");
-
-	public static final ConfigOption<Boolean> SHUTDOWN_IF_ATTACHED =
-			key("execution.shutdown-on-attached-exit")
-					.defaultValue(false)
-					.withDescription("If the job is submitted in attached mode, perform a best-effort cluster shutdown " +
-							"when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.");
+	/**
+	 * A list of URLs that are added to the classpath of each user code classloader of the program.
+	 * Paths must specify a protocol (e.g. file://) and be accessible on all nodes
+	 */
+	public static final ConfigOption<String> CLASSPATHS =
+			key("pipeline.classpaths")
+					.noDefaultValue()
+					.withDescription("A semicolon-separated list of the classpaths to package with the job jars to be sent to the cluster. These have to be valid URLs.");
 }

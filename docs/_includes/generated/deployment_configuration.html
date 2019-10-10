@@ -13,6 +13,11 @@
             <td>Specifies if the pipeline is submitted in attached or detached mode.</td>
         </tr>
         <tr>
+            <td><h5>execution.shutdown-on-attached-exit</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>If the job is submitted in attached mode, perform a best-effort cluster shutdown when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.</td>
+        </tr>
+        <tr>
             <td><h5>execution.target</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>The deployment target for the execution, e.g. "local" for local execution.</td>

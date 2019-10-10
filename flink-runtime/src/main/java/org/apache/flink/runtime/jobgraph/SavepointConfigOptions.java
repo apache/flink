@@ -16,31 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.configuration;
+package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigOption;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * The {@link ConfigOption configuration options} relevant for all Executors.
+ * The {@link ConfigOption configuration options} used when restoring from a savepoint.
  */
 @PublicEvolving
-public class DeploymentOptions {
+public class SavepointConfigOptions {
 
-	public static final ConfigOption<String> TARGET =
-			key("execution.target")
+	/**
+	 * The path to a savepoint that will be used to bootstrap the pipeline's state.
+	 */
+	public static final ConfigOption<String> SAVEPOINT_PATH =
+			key("execution.savepoint.path")
 					.noDefaultValue()
-					.withDescription("The deployment target for the execution, e.g. \"local\" for local execution.");
+					.withDescription("Path to a savepoint to restore the job from (for example hdfs:///flink/savepoint-1537).");
 
-	public static final ConfigOption<Boolean> ATTACHED =
-			key("execution.attached")
+	/**
+	 * A flag indicating if we allow Flink to skip savepoint state that cannot be restored,
+	 * e.g. because the corresponding operator has been removed.
+	 */
+	public static final ConfigOption<Boolean> SAVEPOINT_IGNORE_UNCLAIMED_STATE =
+			key("execution.savepoint.ignore-unclaimed-state")
 					.defaultValue(false)
-					.withDescription("Specifies if the pipeline is submitted in attached or detached mode.");
-
-	public static final ConfigOption<Boolean> SHUTDOWN_IF_ATTACHED =
-			key("execution.shutdown-on-attached-exit")
-					.defaultValue(false)
-					.withDescription("If the job is submitted in attached mode, perform a best-effort cluster shutdown " +
-							"when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.");
+					.withDescription("Allow to skip savepoint state that cannot be restored. " +
+							"Allow this if you removed an operator from your pipeline after the savepoint was triggered.");
 }

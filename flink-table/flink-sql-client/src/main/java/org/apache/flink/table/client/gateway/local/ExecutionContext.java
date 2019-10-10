@@ -27,7 +27,8 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.client.cli.RunOptions;
+import org.apache.flink.client.cli.ExecutionConfigAccessor;
+import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
@@ -119,7 +120,7 @@ public class ExecutionContext<T> {
 	private final Configuration flinkConfig;
 	private final Configuration executorConfig;
 	private final ClusterClientFactory<T> clusterClientFactory;
-	private final RunOptions runOptions;
+	private final ExecutionConfigAccessor executionParameters;
 	private final T clusterId;
 	private final ClusterSpecification clusterSpec;
 
@@ -174,7 +175,7 @@ public class ExecutionContext<T> {
 		clusterClientFactory = serviceLoader.getClusterClientFactory(executorConfig);
 		checkState(clusterClientFactory != null);
 
-		runOptions = createRunOptions(commandLine);
+		executionParameters = createExecutionParameterProvider(commandLine);
 		clusterId = clusterClientFactory.getClusterId(executorConfig);
 		clusterSpec = clusterClientFactory.getClusterSpecification(executorConfig);
 	}
@@ -252,9 +253,10 @@ public class ExecutionContext<T> {
 		throw new SqlExecutionException("Could not find a matching deployment.");
 	}
 
-	private static RunOptions createRunOptions(CommandLine commandLine) {
+	private static ExecutionConfigAccessor createExecutionParameterProvider(CommandLine commandLine) {
 		try {
-			return new RunOptions(commandLine);
+			final ProgramOptions programOptions = new ProgramOptions(commandLine);
+			return ExecutionConfigAccessor.fromProgramOptions(programOptions);
 		} catch (CliArgsException e) {
 			throw new SqlExecutionException("Invalid deployment run options.", e);
 		}
@@ -464,8 +466,8 @@ public class ExecutionContext<T> {
 					parallelism);
 
 			ClientUtils.addJarFiles(jobGraph, dependencies);
-			jobGraph.setClasspaths(runOptions.getClasspaths());
-			jobGraph.setSavepointRestoreSettings(runOptions.getSavepointRestoreSettings());
+			jobGraph.setClasspaths(executionParameters.getClasspaths());
+			jobGraph.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 
 			return jobGraph;
 		}
