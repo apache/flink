@@ -1077,6 +1077,7 @@ CREATE TABLE MyUserTable (
 
 {% top %}
 
+<<<<<<< HEAD
 ### HBase Connector
 
 <span class="label label-primary">Source: Batch</span>
