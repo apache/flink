@@ -951,7 +951,7 @@ The CSV format can be used as follows:
 
     .fieldDelimiter(';')         // optional: field delimiter character (',' by default)
     .lineDelimiter("\r\n")       // optional: line delimiter ("\n" by default;
-                                 //   otherwise "\r" or "\r\n" are allowed)
+                                 //   otherwise "\r", "" or "\r\n" are allowed)
     .quoteCharacter('\'')        // optional: quote character for enclosing field values ('"' by default)
     .allowComments()             // optional: ignores comment lines that start with '#' (disabled by default);
                                  //   if enabled, make sure to also ignore parse errors to allow empty rows
@@ -1006,7 +1006,7 @@ format:
   derive-schema: true
 
   field-delimiter: ";"         # optional: field delimiter character (',' by default)
-  line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed)
+  line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default; otherwise "\r", "" or "\r\n" are allowed)
   quote-character: "'"         # optional: quote character for enclosing field values ('"' by default)
   allow-comments: true         # optional: ignores comment lines that start with "#" (disabled by default);
                                #   if enabled, make sure to also ignore parse errors to allow empty rows
