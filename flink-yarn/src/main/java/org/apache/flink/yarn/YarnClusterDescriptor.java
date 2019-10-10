@@ -952,7 +952,16 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		if (UserGroupInformation.isSecurityEnabled()) {
 			// set HDFS delegation tokens when security is enabled
 			LOG.info("Adding delegation token to the AM container..");
-			Utils.setTokensFor(amContainer, paths, yarnConfiguration);
+			String[] nameNodes = StringUtils.getStrings(flinkConfiguration.getString(ClusterOptions.CLUSTER_FS_SERVERS));
+			if (nameNodes != null && nameNodes.length > 0) {
+				List<Path> ps = new ArrayList<>();
+				for (int i = 0; i < nameNodes.length; i++) {
+					ps.add(new Path(nameNodes[i]));
+				}
+				Utils.setTokensFor(amContainer, ps, yarnConfiguration);
+			} else {
+				Utils.setTokensFor(amContainer, paths, yarnConfiguration);
+			}
 		}
 
 		amContainer.setLocalResources(localResources);

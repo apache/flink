@@ -686,6 +686,15 @@ public final class ConfigConstants {
 	public static final String FILESYSTEM_SCHEME = "fs.default-scheme";
 
 	/**
+	 * Key to specify a comma-separated list of the hdfs namespaces to
+	 * obtain their namenodes' delegation tokens.
+	 *
+	 * @deprecated Use {@link ClusterOptions#CLUSTER_FS_SERVERS} instead.
+	 */
+	@Deprecated
+    public static final String CLUSTER_FS_SERVERS = "cluster.fs-servers";
+
+	/**
 	 * Key to specify whether the file systems should simply overwrite existing files.
 	 *
 	 * @deprecated Use {@link CoreOptions#FILESYTEM_DEFAULT_OVERRIDE} instead.

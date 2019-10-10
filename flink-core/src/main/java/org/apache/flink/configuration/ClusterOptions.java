@@ -50,4 +50,10 @@ public class ClusterOptions {
 		.key("cluster.services.shutdown-timeout")
 		.defaultValue(30000L)
 		.withDescription("The shutdown timeout for cluster services like executors in milliseconds.");
+
+	public static final ConfigOption<String> CLUSTER_FS_SERVERS = ConfigOptions
+		.key("cluster.fs-servers")
+		.noDefaultValue()
+        .withDescription("Multi filesystem list to obtain hdfs delegation tokens.");
+
 }
