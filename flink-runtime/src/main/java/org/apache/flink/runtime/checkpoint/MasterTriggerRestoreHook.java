@@ -95,13 +95,16 @@ public interface MasterTriggerRestoreHook<T> {
 	 * the checkpoint metadata under the hooks identifier (see {@link #getIdentifier()}).
 	 *
 	 * <p>If the action by this hook needs to be executed synchronously, then this method should
-	 * directly execute the action synchronously and block until it is complete. The returned future
-	 * (if any) would typically be a completed future.
+	 * directly execute the action synchronously. The returned future (if any) would typically be a
+	 * completed future.
 	 *
 	 * <p>If the action should be executed asynchronously and only needs to complete before the
 	 * checkpoint is considered completed, then the method may use the given executor to execute the
 	 * actual action and would signal its completion by completing the future. For hooks that do not
 	 * need to store data, the future would be completed with null.
+	 *
+	 * <p>Please note that this method should be non-blocking. Any heavy operation like IO operation
+	 * should be executed asynchronously with given executor.
 	 *
 	 * @param checkpointId The ID (logical timestamp, monotonously increasing) of the checkpoint
 	 * @param timestamp The wall clock timestamp when the checkpoint was triggered, for
