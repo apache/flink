@@ -38,13 +38,18 @@ public final class FlinkPipelineTranslationUtil {
 			Configuration optimizerConfiguration,
 			int defaultParallelism) {
 
+		FlinkPipelineTranslator pipelineTranslator = getPipelineTranslator(pipeline);
+
+		return pipelineTranslator.translate(pipeline,
+				optimizerConfiguration,
+				defaultParallelism);
+	}
+
+	private static FlinkPipelineTranslator getPipelineTranslator(Pipeline pipeline) {
 		PlanTranslator planToJobGraphTransmogrifier = new PlanTranslator();
 
 		if (planToJobGraphTransmogrifier.canTranslate(pipeline)) {
-			// we have a DataSet program
-			return planToJobGraphTransmogrifier.translate(pipeline,
-					optimizerConfiguration,
-					defaultParallelism);
+			return planToJobGraphTransmogrifier;
 		}
 
 		FlinkPipelineTranslator streamGraphTranslator = reflectStreamGraphTranslator();
@@ -53,10 +58,7 @@ public final class FlinkPipelineTranslationUtil {
 			throw new RuntimeException("Translator " + streamGraphTranslator + " cannot translate "
 					+ "the given pipeline " + pipeline + ".");
 		}
-
-		return streamGraphTranslator.translate(pipeline,
-				optimizerConfiguration,
-				defaultParallelism);
+		return streamGraphTranslator;
 	}
 
 	private static FlinkPipelineTranslator reflectStreamGraphTranslator() {
