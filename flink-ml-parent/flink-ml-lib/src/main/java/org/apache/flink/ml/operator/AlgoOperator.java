@@ -25,6 +25,7 @@ import org.apache.flink.ml.api.misc.param.WithParams;
 import org.apache.flink.ml.params.shared.HasMLEnvironmentId;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
@@ -140,6 +141,30 @@ public abstract class AlgoOperator<T extends AlgoOperator<T>>
 	}
 
 	/**
+	 * Get the column names of the specified side-output table.
+	 *
+	 * @param index the index of the table.
+	 * @return the column types of the table.
+	 */
+	public String[] getSideOutputColNames(int index) {
+		checkSideOutputAccessibility(index);
+
+		return sideOutputs[index].getSchema().getFieldNames();
+	}
+
+	/**
+	 * Get the column types of the specified side-output table.
+	 *
+	 * @param index the index of the table.
+	 * @return the column types of the table.
+	 */
+	public TypeInformation<?>[] getSideOutputColTypes(int index) {
+		checkSideOutputAccessibility(index);
+
+		return sideOutputs[index].getSchema().getFieldTypes();
+	}
+
+	/**
 	 * Returns the schema of the output table.
 	 */
 	public TableSchema getSchema() {
@@ -149,5 +174,26 @@ public abstract class AlgoOperator<T extends AlgoOperator<T>>
 	@Override
 	public String toString() {
 		return getOutput().toString();
+	}
+
+	protected static void checkOpSize(int size, AlgoOperator<?>... inputs) {
+		Preconditions.checkNotNull(inputs, "Operators should not be null.");
+		Preconditions.checkState(inputs.length == size, "The size of operators should be equal to "
+			+ size + ", current: " + inputs.length);
+	}
+
+	protected static void checkMinOpSize(int size, AlgoOperator<?>... inputs) {
+		Preconditions.checkNotNull(inputs, "Operators should not be null.");
+		Preconditions.checkState(inputs.length >= size, "The size of operators should be equal or greater than "
+			+ size + ", current: " + inputs.length);
+	}
+
+	private void checkSideOutputAccessibility(int index) {
+		Preconditions.checkNotNull(sideOutputs,
+			"There is not side-outputs in this AlgoOperator.");
+		Preconditions.checkState(index >= 0 && index < sideOutputs.length,
+			String.format("The index(%s) of side-outputs is out of bound.", index));
+		Preconditions.checkNotNull(sideOutputs[index],
+			String.format("The %snd of side-outputs is null. Maybe the operator has not been linked.", index));
 	}
 }

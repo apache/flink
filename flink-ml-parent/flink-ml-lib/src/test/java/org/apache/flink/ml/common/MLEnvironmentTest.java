@@ -45,7 +45,7 @@ public class MLEnvironmentTest {
 		ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(executionEnvironment);
 
-		MLEnvironment mlEnvironment = new MLEnvironment(executionEnvironment, batchTableEnvironment, null, null);
+		MLEnvironment mlEnvironment = new MLEnvironment(executionEnvironment, batchTableEnvironment);
 
 		Assert.assertSame(mlEnvironment.getExecutionEnvironment(), executionEnvironment);
 		Assert.assertSame(mlEnvironment.getBatchTableEnvironment(), batchTableEnvironment);
@@ -56,7 +56,7 @@ public class MLEnvironmentTest {
 		StreamExecutionEnvironment streamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment streamTableEnvironment = StreamTableEnvironment.create(streamExecutionEnvironment);
 
-		MLEnvironment mlEnvironment = new MLEnvironment(null, null, streamExecutionEnvironment, streamTableEnvironment);
+		MLEnvironment mlEnvironment = new MLEnvironment(streamExecutionEnvironment, streamTableEnvironment);
 
 		Assert.assertSame(mlEnvironment.getStreamExecutionEnvironment(), streamExecutionEnvironment);
 		Assert.assertSame(mlEnvironment.getStreamTableEnvironment(), streamTableEnvironment);

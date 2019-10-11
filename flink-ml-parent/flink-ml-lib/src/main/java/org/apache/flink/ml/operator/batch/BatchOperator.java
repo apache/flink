@@ -23,7 +23,6 @@ import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.operator.AlgoOperator;
 import org.apache.flink.ml.operator.batch.source.TableSourceBatchOp;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.util.Preconditions;
 
 /**
  * Base class of batch algorithm operators.
@@ -112,19 +111,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 		return new TableSourceBatchOp(table);
 	}
 
-	protected void checkOpSize(int size, BatchOperator<?>... inputs) {
-		Preconditions.checkNotNull(inputs, "Operators should not be null.");
-		Preconditions.checkState(inputs.length == size, "The size of operators should be equal to "
-			+ size + ", current: " + inputs.length);
-	}
-
-	protected void checkMinOpSize(int size, BatchOperator<?>... inputs) {
-		Preconditions.checkNotNull(inputs, "Operators should not be null.");
-		Preconditions.checkState(inputs.length >= size, "The size of operators should be equal or greater than "
-			+ size + ", current: " + inputs.length);
-	}
-
-	protected BatchOperator<?> checkAndGetFirst(BatchOperator<?> ... inputs) {
+	protected static BatchOperator<?> checkAndGetFirst(BatchOperator<?> ... inputs) {
 		checkOpSize(1, inputs);
 		return inputs[0];
 	}

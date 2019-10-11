@@ -40,9 +40,10 @@ public class MLEnvironmentFactory {
 	public static final Long DEFAULT_ML_ENVIRONMENT_ID = 0L;
 
 	/**
-	 * A 'id' is a unique identifier of a MLEnvironment.
+	 * A monotonically increasing id for the MLEnvironments.
+	 * Each id uniquely identifies an MLEnvironment.
 	 */
-	private static Long id = 1L;
+	private static Long nextId = 1L;
 
 	/**
 	 * Map that hold the MLEnvironment and use the MLEnvironmentId as its key.
@@ -62,8 +63,9 @@ public class MLEnvironmentFactory {
 			if (mlEnvId.equals(DEFAULT_ML_ENVIRONMENT_ID)) {
 				setDefault(new MLEnvironment());
 			} else {
-				throw new IllegalArgumentException("There is no Environment in factory. " +
-					"Maybe you could call `getNewMLEnvironmentId` to create a new MLEnvironmentId");
+				throw new IllegalArgumentException(
+					String.format("Cannot find MLEnvironment for MLEnvironmentId %s." +
+						" Did you get the MLEnvironmentId by calling getNewMLEnvironmentId?", mlEnvId));
 			}
 		}
 
@@ -109,8 +111,8 @@ public class MLEnvironmentFactory {
 	 * @return the MLEnvironment id.
 	 */
 	public static synchronized Long registerMLEnvironment(MLEnvironment env) {
-		map.put(id, env);
-		return id++;
+		map.put(nextId, env);
+		return nextId++;
 	}
 
 	/**

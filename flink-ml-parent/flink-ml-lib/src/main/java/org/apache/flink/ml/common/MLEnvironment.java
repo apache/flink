@@ -51,6 +51,34 @@ public class MLEnvironment {
 	}
 
 	/**
+	 * Construct with the batch environment and the the batch table environment given by user.
+	 *
+	 * <p>The env can be null which will be loaded in the `get` method.
+	 *
+	 * @param batchEnv the ExecutionEnvironment
+	 * @param batchTableEnv the BatchTableEnvironment
+	 */
+	public MLEnvironment(
+		ExecutionEnvironment batchEnv,
+		BatchTableEnvironment batchTableEnv) {
+		this(batchEnv, batchTableEnv, null, null);
+	}
+
+	/**
+	 * Construct with the stream environment and the the stream table environment given by user.
+	 *
+	 * <p>The env can be null which will be loaded in the `get` method.
+	 *
+	 * @param streamEnv the StreamExecutionEnvironment
+	 * @param streamTableEnv the StreamTableEnvironment
+	 */
+	public MLEnvironment(
+		StreamExecutionEnvironment streamEnv,
+		StreamTableEnvironment streamTableEnv) {
+		this(null, null, streamEnv, streamTableEnv);
+	}
+
+	/**
 	 * Construct with env given by user.
 	 *
 	 * <p>The env can be null which will be loaded in the `get` method.

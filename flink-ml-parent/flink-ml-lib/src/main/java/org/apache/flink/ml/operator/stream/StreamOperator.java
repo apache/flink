@@ -23,7 +23,6 @@ import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.operator.AlgoOperator;
 import org.apache.flink.ml.operator.stream.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.util.Preconditions;
 
 /**
  * Base class of stream algorithm operators.
@@ -115,19 +114,7 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 		return new TableSourceStreamOp(table);
 	}
 
-	protected void checkOpSize(int size, StreamOperator<?>... inputs) {
-		Preconditions.checkNotNull(inputs, "Operators should not be null.");
-		Preconditions.checkState(inputs.length == size, "The size of operators should be equal to "
-			+ size + ", current: " + inputs.length);
-	}
-
-	protected void checkMinOpSize(int size, StreamOperator<?>... inputs) {
-		Preconditions.checkNotNull(inputs, "Operators should not be null.");
-		Preconditions.checkState(inputs.length >= size, "The size of operators should be equal or greater than "
-			+ size + ", current: " + inputs.length);
-	}
-
-	protected StreamOperator<?> checkAndGetFirst(StreamOperator<?>... inputs) {
+	protected static StreamOperator<?> checkAndGetFirst(StreamOperator<?>... inputs) {
 		checkOpSize(1, inputs);
 		return inputs[0];
 	}
