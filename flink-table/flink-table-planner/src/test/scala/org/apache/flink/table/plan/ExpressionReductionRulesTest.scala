@@ -506,12 +506,12 @@ class ExpressionReductionRulesTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val result = table
-      .select('a, 'b, 'c, MockedPythonUDFWithoutArguments() as 'd, DeterministicNullFunc() as 'e)
+      .select('a, 'b, 'c, DeterministicPythonFunc() as 'd, DeterministicNullFunc() as 'e)
 
     val expected: String = unaryNode(
       "DataStreamPythonCalc",
       streamTableNode(table),
-      term("select", "a", "b", "c", "MockedPythonUDFWithoutArguments$() AS d",
+      term("select", "a", "b", "c", "DeterministicPythonFunc$() AS d",
         "null:VARCHAR(65536) AS e")
     )
 
@@ -529,13 +529,11 @@ object DeterministicNullFunc extends ScalarFunction {
   override def isDeterministic = true
 }
 
-object MockedPythonUDFWithoutArguments extends ScalarFunction {
+object DeterministicPythonFunc extends ScalarFunction {
 
   override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
 
-  def eval(): Long = {
-    throw new RuntimeException("This method should not be called!")
-  }
+  def eval(): Long = 1L
 
   override def isDeterministic = true
 }

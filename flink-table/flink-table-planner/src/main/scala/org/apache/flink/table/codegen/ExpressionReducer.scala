@@ -33,6 +33,7 @@ import org.apache.flink.table.plan.util.PythonUtil
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Evaluates constant expressions using Flink's [[FunctionCodeGenerator]].
@@ -50,10 +51,15 @@ class ExpressionReducer(config: TableConfig)
 
     val typeFactory = rexBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
+    val pythonUDFExprs = mutable.Set[RexNode]()
+
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
 
-      // skip expressions that contain python functions
-      case (_, e) if PythonUtil.containsFunctionOf(e, FunctionLanguage.PYTHON) => None
+      // Skip expressions that contain python functions because it's quite expensive to
+      // call Python UDFs during optimization phase. They will be optimized during the runtime.
+      case (_, e) if PythonUtil.containsFunctionOf(e, FunctionLanguage.PYTHON) =>
+        pythonUDFExprs.add(e)
+        None
 
       // we need to cast here for RexBuilder.makeLiteral
       case (SqlTypeName.DATE, e) =>
@@ -119,7 +125,7 @@ class ExpressionReducer(config: TableConfig)
     var reducedIdx = 0
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
-      if (PythonUtil.containsFunctionOf(unreduced, FunctionLanguage.PYTHON)) {
+      if (pythonUDFExprs.contains(unreduced)) {
         // if contains python function then just insert the original expression.
         reducedValues.add(unreduced)
       } else {

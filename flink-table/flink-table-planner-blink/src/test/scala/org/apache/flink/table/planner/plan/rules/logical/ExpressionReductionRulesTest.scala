@@ -49,19 +49,17 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
   @Test
   def testExpressionReductionWithPythonUDF(): Unit = {
-    util.addFunction("PyUdf", MockedPythonUDFWithoutArguments)
+    util.addFunction("PyUdf", DeterministicPythonFunc)
     util.addFunction("MyUdf", Func1)
     util.verifyPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
   }
 }
 
-object MockedPythonUDFWithoutArguments extends ScalarFunction {
+object DeterministicPythonFunc extends ScalarFunction {
 
   override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
 
-  def eval(): Long = {
-    throw new RuntimeException("This method should not be called!")
-  }
+  def eval(): Long = 1
 
   override def isDeterministic = true
 }
