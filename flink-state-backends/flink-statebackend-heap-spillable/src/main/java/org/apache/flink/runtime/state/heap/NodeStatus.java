@@ -25,7 +25,7 @@ public enum NodeStatus {
 
 	PUT((byte) 0), REMOVE((byte) 1);
 
-	private byte value;
+	private final byte value;
 
 	NodeStatus(byte value) {
 		this.value = value;
@@ -42,7 +42,7 @@ public enum NodeStatus {
 			case 1:
 				return REMOVE;
 			default:
-				throw new RuntimeException("Unknown type: " + value);
+				throw new IllegalArgumentException("Unknown type: " + value);
 		}
 	}
 }

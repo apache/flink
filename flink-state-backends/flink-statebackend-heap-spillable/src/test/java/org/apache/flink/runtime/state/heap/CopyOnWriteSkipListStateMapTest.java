@@ -1424,7 +1424,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		ByteBuffer keyByteBuffer = ByteBuffer.wrap(constructedKeyBytes);
 		int keyLen = keyBytes.length;
 		byte[] value = skipListValueSerializer.serialize(valueString);
-		stateMap.putNode(keyByteBuffer, 1, keyLen, value, false);
+		stateMap.putValue(keyByteBuffer, 1, keyLen, value, false);
 		String state = stateMap.getNode(keyByteBuffer, 1, keyLen);
 		assertThat(state, is(valueString));
 	}
