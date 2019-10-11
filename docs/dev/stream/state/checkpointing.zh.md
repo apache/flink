@@ -29,7 +29,7 @@ Flink 中的每个方法或算子都能够是**有状态的**（阅读 [working 
 状态化的方法在处理单个 元素/事件 的时候存储数据，让状态成为使各个类型的算子更加精细的重要部分。
 为了让状态容错，Flink 需要为状态添加**Checkpoint（检查点）**。Checkpoint 使得 Flink 能够恢复状态和在流中的位置，从而向应用提供和无故障执行时一样的语义。
 
-[Documentation on streaming fault tolerance]({{ site.baseurl }}/zh/internals/stream_checkpointing.html) 介绍了 Flink 流计算容错机制的内部技术原理。
+[Documentation on streaming fault tolerance]({{ site.baseurl }}/zh/internals/stream_checkpointing.html) 介绍了 Flink 流计算容错机制内部的技术原理。
 
 
 ## 前提条件
@@ -75,7 +75,7 @@ Checkpoint 其他的属性包括：
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-// 每 1000 ms 开始一个 checkpoint
+// 每 1000ms 开始一次 checkpoint
 env.enableCheckpointing(1000);
 
 // 高级选项：
@@ -86,7 +86,7 @@ env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
 // 确认 checkpoint 之间的时间会进行 500 ms
 env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);
 
-// Checkpoint 必须在一分钟内完成，否则就会被丢弃
+// Checkpoint 必须在一分钟内完成，否则就会被放弃
 env.getCheckpointConfig().setCheckpointTimeout(60000);
 
 // 同一时间只允许一个 checkpoint 进行
@@ -103,7 +103,7 @@ env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-// 每 1000 ms 开始一个 checkpoint
+// 每 1000ms 开始一次 checkpoint
 env.enableCheckpointing(1000)
 
 // 高级选项：
@@ -114,7 +114,7 @@ env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
 // 确认 checkpoint 之间的时间会进行 500 ms
 env.getCheckpointConfig.setMinPauseBetweenCheckpoints(500)
 
-// Checkpoint 必须在一分钟内完成，否则就会被丢弃
+// Checkpoint 必须在一分钟内完成，否则就会被放弃
 env.getCheckpointConfig.setCheckpointTimeout(60000)
 
 // 如果 task 的 checkpoint 发生错误，会阻止 task 失败，checkpoint 仅仅会被丢弃
@@ -128,7 +128,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 {% highlight python %}
 env = StreamExecutionEnvironment.get_execution_environment()
 
-# 每 1000 ms 开始一个 checkpoint
+# 每 1000ms 开始一次 checkpoint
 env.enable_checkpointing(1000)
 
 # 高级选项：
@@ -139,7 +139,7 @@ env.get_checkpoint_config().set_checkpointing_mode(CheckpointingMode.EXACTLY_ONC
 # 确认 checkpoint 之间的时间会进行 500 ms
 env.get_checkpoint_config().set_min_pause_between_checkpoints(500)
 
-# Checkpoint 必须在一分钟内完成，否则就会被丢弃
+# Checkpoint 必须在一分钟内完成，否则就会被放弃
 env.get_checkpoint_config().set_checkpoint_timeout(60000)
 
 # 同一时间只允许一个 checkpoint 进行
