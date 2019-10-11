@@ -1385,13 +1385,28 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 			}
 		}
 		verifyState(referenceStates, stateMap);
+		stateMap.close();
+	}
 
-		// validates that visitor will be invalid after state map is closed
+	/**
+	 * Test StateIncrementalVisitor with closed state map.
+	 */
+	@Test
+	public void testStateIncrementalVisitorWithClosedStateMap() {
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		// put some states
+		for (long namespace = 0;  namespace < 15; namespace++) {
+			for (int key = 0; key < 20; key++) {
+				String state = String.valueOf(namespace * key);
+				stateMap.put(key, namespace, state);
+			}
+		}
 		InternalKvState.StateIncrementalVisitor<Integer, Long, String> closedVisitor =
 			stateMap.getStateIncrementalVisitor(5);
 		assertTrue(closedVisitor.hasNext());
 
 		stateMap.close();
+		// the visitor will be invalid after state map is closed
 		assertFalse(closedVisitor.hasNext());
 	}
 
