@@ -212,6 +212,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private CompletableFuture<?> cancelExecutionVertex(final ExecutionVertexID executionVertexId) {
+		executionSlotAllocator.cancel(executionVertexId);
 		return executionVertexOperations.cancel(getExecutionVertex(executionVertexId));
 	}
 
@@ -254,13 +255,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private void prepareToDeployVertices(final Set<ExecutionVertexID> verticesToDeploy) {
-		cancelSlotAssignments(verticesToDeploy);
 		resetForNewExecutionIfInTerminalState(verticesToDeploy);
 		transitionToScheduled(verticesToDeploy);
-	}
-
-	private void cancelSlotAssignments(final Collection<ExecutionVertexID> vertices) {
-		vertices.forEach(executionSlotAllocator::cancel);
 	}
 
 	private Collection<SlotExecutionVertexAssignment> allocateSlots(final Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
