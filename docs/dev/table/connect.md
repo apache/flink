@@ -1098,16 +1098,20 @@ The connector can be defined as follows:
 {% highlight java %}
 .connect(
   new HBase()
-    .version("1.4.3")                      // required: valid connector versions are "1.4.3"
-    .tableName("hbase_table_name")         // required: HBase table to connect to
-    .zookeeperQuorum("localhost:2181")     // required: Zookeeper quorum address of HBase
-    .zookeeperNodeParent("/test")          // optional: zookeeper node parent path of HBase
-    .writeBufferFlushMaxSize("10mb")       // optional: threshold when to flush buffered request based on
-                                           // the memory byte size of rows currently added.
-    .writeBufferFlushMaxRows(1000)         // optional: threshold when to flush buffered request based on
-                                           // the number of rows currently added.
-    .writeBufferFlushInterval("2s")        // optional: an interval when to flushing buffered requesting
-                                           // if the interval passes, in milliseconds.
+    .version("1.4.3")                      // required: currently only support "1.4.3"
+    .tableName("hbase_table_name")         // required: HBase table name
+    .zookeeperQuorum("localhost:2181")     // required: HBase Zookeeper quorum configuration
+    .zookeeperNodeParent("/test")          // optional: the root dir in Zookeeper for HBase cluster.
+                                           // The default value is "/hbase".
+    .writeBufferFlushMaxSize("10mb")       // optional: writing option, determines how many size in memory of buffered
+                                           // rows to insert per round trip. This can help performance on writing to JDBC
+                                           // database. The default value is "2mb".
+    .writeBufferFlushMaxRows(1000)         // optional: writing option, determines how many rows to insert per round trip.
+                                           // This can help performance on writing to JDBC database. No default value,
+                                           // i.e. the default flushing is not depends on the number of buffered rows.
+    .writeBufferFlushInterval("2s")        // optional: writing option, sets a flush interval flushing buffered requesting
+                                           // if the interval passes, in milliseconds. Default value is "0s", which means
+                                           // no asynchronous flush thread will be scheduled.
 )
 {% endhighlight %}
 </div>
@@ -1115,7 +1119,7 @@ The connector can be defined as follows:
 {% highlight yaml %}
 connector:
   type: hbase
-  version: "1.4.3"                 # required: currently only support "1.4.3"
+  version: "1.4.3"               # required: currently only support "1.4.3"
   
   table-name: "hbase_table_name" # required: HBase table name
   

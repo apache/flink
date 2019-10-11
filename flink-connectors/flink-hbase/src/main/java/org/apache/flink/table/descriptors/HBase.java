@@ -118,8 +118,7 @@ public class HBase extends ConnectorDescriptor {
 	 *                 {@link TimeUtils#parseDuration(String)}}.
 	 */
 	public HBase writeBufferFlushInterval(String interval) {
-		Duration duration = TimeUtils.parseDuration(interval);
-		properties.putLong(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL, duration.toMillis());
+		properties.putString(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL, interval);
 		return this;
 	}
 
