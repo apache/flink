@@ -127,7 +127,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		assertEquals(0, stateMap.totalSize());
 		assertEquals(0, stateMap.getRequestCount());
 		assertTrue(stateMap.getLogicallyRemovedNodes().isEmpty());
-		assertEquals(0, stateMap.getHighestRequiredSnapshotVersion());
+		assertEquals(0, stateMap.getHighestRequiredSnapshotVersionPlusOne());
 		assertEquals(0, stateMap.getHighestFinishedSnapshotVersion());
 		assertTrue(stateMap.getSnapshotVersions().isEmpty());
 		assertTrue(stateMap.getPruningValueNodes().isEmpty());
@@ -546,7 +546,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		// take snapshot on an empty state map
 		Map<Long, Map<Integer, String>> expectedSnapshot = snapshotReferenceStates(referenceStates);
 		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMap.stateSnapshot();
-		assertEquals(1, stateMap.getHighestRequiredSnapshotVersion());
+		assertEquals(1, stateMap.getHighestRequiredSnapshotVersionPlusOne());
 		assertEquals(1, stateMap.getSnapshotVersions().size());
 		assertThat(stateMap.getSnapshotVersions(), contains(1));
 		assertEquals(1, stateMap.getResourceGuard().getLeaseCount());
@@ -572,7 +572,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 			CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMap.stateSnapshot();
 			expectedSnapshotVersion++;
 			snapshot.release();
-			assertEquals(0, stateMap.getHighestRequiredSnapshotVersion());
+			assertEquals(0, stateMap.getHighestRequiredSnapshotVersionPlusOne());
 			assertTrue(stateMap.getSnapshotVersions().isEmpty());
 			assertEquals(0, stateMap.getResourceGuard().getLeaseCount());
 		}
@@ -596,7 +596,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		Map<Long, Map<Integer, String>> expectedSnapshot = snapshotReferenceStates(referenceStates);
 		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 = stateMap.stateSnapshot();
 		assertEquals(2, stateMap.getStateMapVersion());
-		assertEquals(2, stateMap.getHighestRequiredSnapshotVersion());
+		assertEquals(2, stateMap.getHighestRequiredSnapshotVersionPlusOne());
 		assertEquals(1, stateMap.getSnapshotVersions().size());
 		assertThat(stateMap.getSnapshotVersions(), contains(2));
 		assertEquals(1, stateMap.getResourceGuard().getLeaseCount());
@@ -916,99 +916,109 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that remove states physically when get, put and remove.
+	 * Tests that remove states physically when get is invoked.
 	 */
 	@Test
-	public void testPhysicallyRemoveWhenGetPutAndRemove() throws IOException {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting(2, 1.0f);
+	public void testPhysicallyRemoveWithGet() throws IOException {
+		testPhysicallyRemoveWithFunction(
+			(map, reference, i) -> {
+				map.get(i, (long) i);
+				return 0;
+			});
+	}
 
+	/**
+	 * Tests that remove states physically when contains is invoked.
+	 */
+	@Test
+	public void testPhysicallyRemoveWithContains() throws IOException {
+		testPhysicallyRemoveWithFunction(
+			(map, reference, i) -> {
+				assertFalse(map.containsKey(i, (long) i));
+				return 0;
+			});
+	}
+
+	/**
+	 * Tests that remove states physically when remove is invoked.
+	 */
+	@Test
+	public void testPhysicallyRemoveWithRemove() throws IOException {
+		testPhysicallyRemoveWithFunction(
+			(map, reference, i) -> {
+				map.remove(i, (long) i);
+				return 0;
+			});
+	}
+
+	/**
+	 * Tests that remove states physically when removeAndGetOld is invoked.
+	 */
+	@Test
+	public void testPhysicallyRemoveWithRemoveAndGetOld() throws IOException {
+		testPhysicallyRemoveWithFunction(
+			(map, reference, i) -> {
+				assertNull(map.removeAndGetOld(i, (long) i));
+				return 0;
+			});
+	}
+
+	/**
+	 * Tests that remove states physically when put is invoked.
+	 */
+	@Test
+	public void testPhysicallyRemoveWithPut() throws IOException {
+		testPhysicallyRemoveWithFunction(
+			(map, reference, i) -> {
+				map.put(i, (long) i, String.valueOf(i));
+				addToReferenceState(reference, i, (long) i, String.valueOf(i));
+				return 1;
+			});
+	}
+
+	/**
+	 * Tests that remove states physically when putAndGetOld is invoked.
+	 */
+	@Test
+	public void testPhysicallyRemoveWithPutAndGetOld() throws IOException {
+		testPhysicallyRemoveWithFunction(
+			(map, reference, i) -> {
+				assertNull(map.putAndGetOld(i, (long) i, String.valueOf(i)));
+				addToReferenceState(reference, i, (long) i, String.valueOf(i));
+				return 1;
+			});
+	}
+
+	/**
+	 * Tests remove states physically when the given function is applied.
+	 *
+	 * @param f the function to apply for each test iteration, with [stateMap, referenceStates, testRoundIndex] as input
+	 *          and returns the delta size caused by applying function.
+	 * @throws IOException if unexpected error occurs.
+	 */
+	private void testPhysicallyRemoveWithFunction(
+		TriFunction<
+			CopyOnWriteSkipListStateMap<Integer, Long, String>,
+			Map<Long, Map<Integer, String>>,
+			Integer,
+			Integer> f) throws IOException {
+
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting(2, 1.0f);
 		// map to store expected states, namespace -> key -> state
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
 
 		// here we use a trick that put all odd namespace to state map, and get/put/remove even namespace
 		// so that all logically removed nodes can be accessed
-
-		// validates get
 		prepareLogicallyRemovedStates(
 			referenceStates, stateMap, keySerializer, namespaceSerializer, stateSerializer);
+		int expectedSize = 0;
 		for (int i = 0; i <= 100; i += 2) {
-			stateMap.get(i, (long) i);
+			expectedSize += f.apply(stateMap, referenceStates, i);
 		}
-		assertEquals(0, stateMap.size());
-		assertEquals(0, stateMap.totalSize());
-		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
+		assertEquals(expectedSize, stateMap.size());
+		assertEquals(expectedSize, stateMap.totalSize());
+		assertEquals(expectedSize * 2, spaceAllocator.getTotalSpaceNumber());
 		verifyState(referenceStates, stateMap);
-
-		// validates containsKey
-		prepareLogicallyRemovedStates(
-			referenceStates, stateMap, keySerializer, namespaceSerializer, stateSerializer);
-		for (int i = 0; i <= 100; i += 2) {
-			assertFalse(stateMap.containsKey(i, (long) i));
-		}
-		assertEquals(0, stateMap.size());
-		assertEquals(0, stateMap.totalSize());
-		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		// validates remove
-		prepareLogicallyRemovedStates(
-			referenceStates, stateMap, keySerializer, namespaceSerializer, stateSerializer);
-		for (int i = 0; i <= 100; i += 2) {
-			stateMap.remove(i, (long) i);
-		}
-		assertEquals(0, stateMap.size());
-		assertEquals(0, stateMap.totalSize());
-		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		// validates removeAndGetOld
-		prepareLogicallyRemovedStates(
-			referenceStates, stateMap, keySerializer, namespaceSerializer, stateSerializer);
-		for (int i = 0; i <= 100; i += 2) {
-			assertNull(stateMap.removeAndGetOld(i, (long) i));
-		}
-		assertEquals(0, stateMap.size());
-		assertEquals(0, stateMap.totalSize());
-		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		// validates put
-		prepareLogicallyRemovedStates(
-			referenceStates, stateMap, keySerializer, namespaceSerializer, stateSerializer);
-		int putSize = 0;
-		for (int i = 0; i <= 100; i += 2) {
-			putSize++;
-			stateMap.put(i, (long) i, String.valueOf(i));
-			addToReferenceState(referenceStates, i, (long) i, String.valueOf(i));
-		}
-		assertEquals(putSize, stateMap.size());
-		assertEquals(putSize, stateMap.totalSize());
-		assertEquals(putSize * 2, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		for (int i = 0; i <= 100; i += 2) {
-			assertEquals(String.valueOf(i), stateMap.removeAndGetOld(i, (long) i));
-			removeFromReferenceState(referenceStates, i, (long) i);
-		}
-		assertEquals(0, stateMap.size());
-		assertEquals(0, stateMap.totalSize());
-		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		// validates putAndGetOld
-		prepareLogicallyRemovedStates(
-			referenceStates, stateMap, keySerializer, namespaceSerializer, stateSerializer);
-		int putAndGetOldSize = 0;
-		for (int i = 0; i <= 100; i += 2) {
-			putAndGetOldSize++;
-			assertNull(stateMap.putAndGetOld(i, (long) i, String.valueOf(i)));
-			addToReferenceState(referenceStates, i, (long) i, String.valueOf(i));
-		}
-		assertEquals(putAndGetOldSize, stateMap.size());
-		assertEquals(putAndGetOldSize, stateMap.totalSize());
-		assertEquals(putAndGetOldSize * 2, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
 		stateMap.close();
 	}
 
@@ -1139,7 +1149,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot6 = stateMap.stateSnapshot();
 
 		assertEquals(6, stateMap.getStateMapVersion());
-		assertEquals(6, stateMap.getHighestRequiredSnapshotVersion());
+		assertEquals(6, stateMap.getHighestRequiredSnapshotVersionPlusOne());
 		assertEquals(6, stateMap.getSnapshotVersions().size());
 		assertEquals(5, spaceAllocator.getTotalSpaceNumber());
 		assertEquals(referenceValues, getAllValuesOfNode(stateMap, spaceAllocator, node));

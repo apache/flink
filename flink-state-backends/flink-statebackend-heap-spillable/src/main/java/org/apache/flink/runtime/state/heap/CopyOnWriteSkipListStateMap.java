@@ -112,9 +112,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	private volatile int stateMapVersion;
 
 	/**
-	 * The highest version of this map that is still required by any unreleased snapshot.
+	 * Any version less than this value is still required by some unreleased snapshot. 0 means no snapshot ongoing.
 	 */
-	private volatile int highestRequiredSnapshotVersion;
+	private volatile int highestRequiredSnapshotVersionPlusOne;
 
 	/**
 	 * Snapshots no more than this version must have been finished, but there may be some
@@ -191,7 +191,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		this.randomSeed = ThreadLocalRandom.current().nextInt() | 0x0100;
 
 		this.stateMapVersion = 0;
-		this.highestRequiredSnapshotVersion = 0;
+		this.highestRequiredSnapshotVersionPlusOne = 0;
 		this.highestFinishedSnapshotVersion = 0;
 		this.snapshotVersions = new TreeSet<>();
 
@@ -328,7 +328,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			(tuple3, isRemoved) -> {
 				long currentNode = tuple3.f1;
 				int version = SkipListUtils.helpGetNodeLatestVersion(currentNode, spaceAllocator);
-				boolean needCopyOnWrite = version < highestRequiredSnapshotVersion;
+				boolean needCopyOnWrite = version < highestRequiredSnapshotVersionPlusOne;
 				long oldValuePointer;
 
 				if (needCopyOnWrite) {
@@ -404,14 +404,14 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 				long nextNode = tuple3.f2;
 				// if the node has been logically removed, and can not be physically
 				// removed here, just return null
-				if (isRemoved && highestRequiredSnapshotVersion != 0) {
+				if (isRemoved && highestRequiredSnapshotVersionPlusOne != 0) {
 					return null;
 				}
 
 				long oldValuePointer;
 				boolean oldValueNeedFree;
 
-				if (highestRequiredSnapshotVersion == 0) {
+				if (highestRequiredSnapshotVersionPlusOne == 0) {
 					// do physically remove only when there is no snapshot running
 					oldValuePointer = doPhysicalRemoveAndGetValue(currentNode, prevNode, nextNode);
 					// the node has been logically removed, and remove it from the set
@@ -421,7 +421,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 					oldValueNeedFree = true;
 				} else {
 					int version = SkipListUtils.helpGetNodeLatestVersion(currentNode, spaceAllocator);
-					if (version < highestRequiredSnapshotVersion) {
+					if (version < highestRequiredSnapshotVersionPlusOne) {
 						// the newest-version value may be used by snapshots, and update it with copy-on-write
 						oldValuePointer = updateValueWithCopyOnWrite(currentNode, null);
 						oldValueNeedFree = false;
@@ -478,7 +478,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			// with the cost of an additional remove-then-add operation if the to-be-removed node has the same key
 			// with the to-be-put one.
 			boolean isRemoved = isNodeRemoved(currentNode);
-			if (isRemoved && highestRequiredSnapshotVersion == 0 && deleteCount < numKeysToDeleteOneTime) {
+			if (isRemoved && highestRequiredSnapshotVersionPlusOne == 0 && deleteCount < numKeysToDeleteOneTime) {
 				doPhysicalRemove(currentNode, prevNode, nextNode);
 				logicallyRemovedNodes.remove(currentNode);
 				currentNode = nextNode;
@@ -816,7 +816,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Try to delete some nodes that has been logically removed.
 	 */
 	private void tryToDeleteNodesPhysically() {
-		if (highestRequiredSnapshotVersion != 0) {
+		if (highestRequiredSnapshotVersionPlusOne != 0) {
 			return;
 		}
 
@@ -1201,8 +1201,8 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 				throw new IllegalStateException("Version count overflow. Enforcing restart.");
 			}
 
-			highestRequiredSnapshotVersion = stateMapVersion;
-			snapshotVersions.add(highestRequiredSnapshotVersion);
+			highestRequiredSnapshotVersionPlusOne = stateMapVersion;
+			snapshotVersions.add(highestRequiredSnapshotVersionPlusOne);
 		}
 
 		return new CopyOnWriteSkipListStateMapSnapshot<>(this, lease);
@@ -1219,7 +1219,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 
 		synchronized (snapshotVersions) {
 			Preconditions.checkState(snapshotVersions.remove(snapshotVersion), "Attempt to release unknown snapshot version");
-			highestRequiredSnapshotVersion = snapshotVersions.isEmpty() ? 0 : snapshotVersions.last();
+			highestRequiredSnapshotVersionPlusOne = snapshotVersions.isEmpty() ? 0 : snapshotVersions.last();
 			highestFinishedSnapshotVersion = snapshotVersions.isEmpty() ? stateMapVersion : snapshotVersions.first() - 1;
 		}
 	}
@@ -1233,8 +1233,8 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	}
 
 	@VisibleForTesting
-	int getHighestRequiredSnapshotVersion() {
-		return highestRequiredSnapshotVersion;
+	int getHighestRequiredSnapshotVersionPlusOne() {
+		return highestRequiredSnapshotVersionPlusOne;
 	}
 
 	@VisibleForTesting
