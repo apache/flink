@@ -195,7 +195,8 @@ public class ClientTest extends TestLogger {
 		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-		OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);
+		Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, 1);
+		OptimizedPlan op = optimizer.compile(plan);
 		assertNotNull(op);
 
 		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

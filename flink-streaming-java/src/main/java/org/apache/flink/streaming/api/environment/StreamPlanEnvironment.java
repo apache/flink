@@ -57,7 +57,7 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		transformations.clear();
 
 		if (env instanceof OptimizerPlanEnvironment) {
-			((OptimizerPlanEnvironment) env).setPlan(streamGraph);
+			((OptimizerPlanEnvironment) env).setPipeline(streamGraph);
 		}
 
 		throw new OptimizerPlanEnvironment.ProgramAbortException();

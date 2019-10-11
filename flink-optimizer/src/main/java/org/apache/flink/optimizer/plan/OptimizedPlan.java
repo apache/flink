@@ -32,7 +32,7 @@ import org.apache.flink.util.Visitor;
  * all operator strategies (sorting-merge join, hash join, sorted grouping, ...),
  * and the data exchange modes (batched, pipelined).</p>
  */
-public class OptimizedPlan implements FlinkPlan, Visitable<PlanNode>  {
+public class OptimizedPlan implements Visitable<PlanNode>  {
 	
 	/** The data sources in the plan. */
 	private final Collection<SourcePlanNode> dataSources;

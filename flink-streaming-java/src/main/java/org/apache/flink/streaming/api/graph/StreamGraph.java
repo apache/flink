@@ -31,7 +31,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
-import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -73,7 +72,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  */
 @Internal
-public class StreamGraph extends StreamingPlan implements Pipeline {
+public class StreamGraph implements Pipeline {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
@@ -727,14 +726,19 @@ public class StreamGraph extends StreamingPlan implements Pipeline {
 	}
 
 	/**
-	 * Gets the assembled {@link JobGraph} with a given job id.
+	 * Gets the assembled {@link JobGraph} with a random {@link JobID}.
 	 */
-	@Override
+	public JobGraph getJobGraph() {
+		return getJobGraph(null);
+	}
+
+	/**
+	 * Gets the assembled {@link JobGraph} with a specified {@link JobID}.
+	 */
 	public JobGraph getJobGraph(@Nullable JobID jobID) {
 		return StreamingJobGraphGenerator.createJobGraph(this, jobID);
 	}
 
-	@Override
 	public String getStreamingPlanAsJSON() {
 		try {
 			return new JSONGenerator(this).getJSON();
