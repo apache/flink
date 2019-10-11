@@ -55,5 +55,4 @@ public class ClusterOptions {
 		.key("cluster.fs-servers")
 		.noDefaultValue()
         .withDescription("Multi filesystem list to obtain hdfs delegation tokens.");
-
 }
