@@ -267,8 +267,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
 		}
 		catch (Exception e) {
-			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(),
-				streamGraph.getJobGraph().getJobID(), e);
+			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(), e);
 		}
 
 		if (savepointRestoreSettings != null) {
@@ -288,8 +287,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 		catch (Exception e) {
 			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
-			throw new ProgramInvocationException("The program execution failed" + term,
-				streamGraph.getJobGraph().getJobID(), e);
+			throw new ProgramInvocationException("The program execution failed" + term, e);
 		}
 		finally {
 			try {
