@@ -24,6 +24,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
@@ -40,13 +42,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
-import org.apache.flink.optimizer.plan.FlinkPlan;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.StreamingPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -335,15 +330,8 @@ public class CliFrontend {
 
 			LOG.info("Creating program plan dump");
 
-			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
-			FlinkPlan flinkPlan = ClusterClient.getOptimizedPlan(compiler, program, parallelism);
-
-			String jsonPlan = null;
-			if (flinkPlan instanceof OptimizedPlan) {
-				jsonPlan = new PlanJSONDumpGenerator().getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
-			} else if (flinkPlan instanceof StreamingPlan) {
-				jsonPlan = ((StreamingPlan) flinkPlan).getStreamingPlanAsJSON();
-			}
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism);
+			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 
 			if (jsonPlan != null) {
 				System.out.println("----------------------- Execution Plan -----------------------");

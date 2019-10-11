@@ -19,27 +19,20 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.plan.FlinkPlan;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 
 /**
- * An {@link ExecutionEnvironment} that never executes a job but only creates the optimized plan.
+ * An {@link ExecutionEnvironment} that never executes a job but only extracts the {@link
+ * org.apache.flink.api.dag.Pipeline}.
  */
 public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
-	private final Optimizer compiler;
-
-	private FlinkPlan optimizerPlan;
-
-	public OptimizerPlanEnvironment(Optimizer compiler) {
-		this.compiler = compiler;
-	}
+	private Pipeline pipeline;
 
 	// ------------------------------------------------------------------------
 	//  Execution Environment methods
@@ -47,14 +40,13 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan plan = createProgramPlan(jobName);
-		this.optimizerPlan = compiler.compile(plan);
+		this.pipeline = createProgramPlan();
 
 		// do not go on with anything now!
 		throw new ProgramAbortException();
 	}
 
-	public FlinkPlan getOptimizedPlan(PackagedProgram prog) throws ProgramInvocationException {
+	public Pipeline getPipeline(PackagedProgram prog) throws ProgramInvocationException {
 
 		// temporarily write syserr and sysout to a byte array.
 		PrintStream originalOut = System.out;
@@ -73,8 +65,8 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		}
 		catch (Throwable t) {
 			// the invocation gets aborted with the preview plan
-			if (optimizerPlan != null) {
-				return optimizerPlan;
+			if (pipeline != null) {
+				return pipeline;
 			} else {
 				throw new ProgramInvocationException("The program caused an error: ", t);
 			}
@@ -112,8 +104,8 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	// ------------------------------------------------------------------------
 
-	public void setPlan(FlinkPlan plan){
-		this.optimizerPlan = plan;
+	public void setPipeline(Pipeline pipeline){
+		this.pipeline = pipeline;
 	}
 
 	/**
