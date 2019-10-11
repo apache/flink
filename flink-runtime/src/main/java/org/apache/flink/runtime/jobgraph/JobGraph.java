@@ -68,7 +68,7 @@ public class JobGraph implements Serializable {
 	private final Configuration jobConfiguration = new Configuration();
 
 	/** ID of this job. May be set if specific job id is desired (e.g. session management) */
-	private final JobID jobID;
+	private JobID jobID;
 
 	/** Name of this job. */
 	private final String jobName;
@@ -187,6 +187,13 @@ public class JobGraph implements Serializable {
 	 */
 	public JobID getJobID() {
 		return this.jobID;
+	}
+
+	/**
+	 * Sets the ID of the job.
+	 */
+	public void setJobID(JobID jobID) {
+		this.jobID = jobID;
 	}
 
 	/**
