@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Default {@link ExecutionSlotAllocator} which will use {@link SlotProvider} to allocate slots and
@@ -85,6 +86,8 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 	@Override
 	public Collection<SlotExecutionVertexAssignment> allocateSlotsFor(
 			Collection<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
+
+		validateSchedulingRequirements(executionVertexSchedulingRequirements);
 
 		List<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
 				new ArrayList<>(executionVertexSchedulingRequirements.size());
@@ -134,6 +137,14 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 		}
 
 		return slotExecutionVertexAssignments;
+	}
+
+	private void validateSchedulingRequirements(Collection<ExecutionVertexSchedulingRequirements> schedulingRequirements) {
+		schedulingRequirements.stream()
+			.map(ExecutionVertexSchedulingRequirements::getExecutionVertexId)
+			.forEach(id -> checkState(
+				!pendingSlotAssignments.containsKey(id),
+				"BUG: vertex %s tries to allocate a slot when its previous slot request is still pending", id));
 	}
 
 	@Override

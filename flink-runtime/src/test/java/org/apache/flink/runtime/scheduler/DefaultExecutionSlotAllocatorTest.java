@@ -254,6 +254,25 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		assertThat(allPriorAllocationIds, containsInAnyOrder(expectAllocationIds.toArray()));
 	}
 
+	@Test
+	public void testDuplicatedSlotAllocationIsNotAllowed() {
+		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
+
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
+		slotProvider.disableSlotAllocation();
+
+		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
+			createSchedulingRequirements(executionVertexId);
+		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+
+		try {
+			executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+			fail("exception should happen");
+		} catch (IllegalStateException e) {
+			// IllegalStateException is expected
+		}
+	}
+
 	private DefaultExecutionSlotAllocator createExecutionSlotAllocator() {
 		return createExecutionSlotAllocator(new TestingInputsLocationsRetriever.Builder().build());
 	}
