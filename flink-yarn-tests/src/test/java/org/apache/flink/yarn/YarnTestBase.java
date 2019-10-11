@@ -126,6 +126,9 @@ public abstract class YarnTestBase extends TestLogger {
 		"Remote connection to [null] failed with java.nio.channels.NotYetConnectedException",
 		"java.io.IOException: Connection reset by peer",
 
+		// filter out expected ResourceManagerException caused by intended shutdown request
+		YarnResourceManager.ERROR_MASSAGE_ON_SHUTDOWN_REQUEST,
+
 		// this can happen in Akka 2.4 on shutdown.
 		"java.util.concurrent.RejectedExecutionException: Worker has already been shutdown",
 
