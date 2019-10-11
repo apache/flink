@@ -41,7 +41,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraphTranslator.class);
 
 	@Override
-	public JobGraph translate(
+	public JobGraph translateToJobGraph(
 			Pipeline pipeline,
 			Configuration optimizerConfiguration,
 			int defaultParallelism) {
@@ -49,7 +49,17 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
 				"Given pipeline is not a DataStream StreamGraph.");
 
 		StreamGraph streamGraph = (StreamGraph) pipeline;
-		return streamGraph.getJobGraph();
+		return streamGraph.getJobGraph(null);
+	}
+
+	@Override
+	public String translateToJSONExecutionPlan(Pipeline pipeline) {
+		checkArgument(pipeline instanceof StreamGraph,
+				"Given pipeline is not a DataStream StreamGraph.");
+
+		StreamGraph streamGraph = (StreamGraph) pipeline;
+
+		return streamGraph.getStreamingPlanAsJSON();
 	}
 
 	@Override

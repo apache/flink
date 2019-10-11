@@ -24,7 +24,9 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
@@ -41,7 +43,7 @@ public class PlanTranslator implements FlinkPipelineTranslator {
 	private static final Logger LOG = LoggerFactory.getLogger(PlanTranslator.class);
 
 	@Override
-	public JobGraph translate(
+	public JobGraph translateToJobGraph(
 			Pipeline pipeline,
 			Configuration optimizerConfiguration,
 			int defaultParallelism) {
@@ -65,6 +67,21 @@ public class PlanTranslator implements FlinkPipelineTranslator {
 				"Set parallelism {}, plan default parallelism {}",
 				defaultParallelism,
 				plan.getDefaultParallelism());
+	}
+
+	@Override
+	public String translateToJSONExecutionPlan(Pipeline pipeline) {
+		checkArgument(pipeline instanceof Plan, "Given pipeline is not a DataSet Plan.");
+
+		Plan plan = (Plan) pipeline;
+
+		Optimizer opt = new Optimizer(
+				new DataStatistics(),
+				new DefaultCostEstimator(),
+				new Configuration());
+		OptimizedPlan optPlan = opt.compile(plan);
+
+		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
 	}
 
 	private JobGraph compilePlan(Plan plan, Configuration optimizerConfiguration) {
