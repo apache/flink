@@ -46,7 +46,7 @@ Flink 的 Checkpoint 机制会和持久化存储进行交互，交换流与状�
 Checkpoint 其他的属性包括：
 
   - *精确一次（exactly-once） 对比 至少一次（at-least-once）*：你可以选择向 `enableCheckpointing(n)` 方法中传入一个模式来选择使用两种保证等级中的哪一种。
-    对于大多数应用来说，仅仅一次是较好的选择。至少一次可能与某些延迟超低（始终只有几毫秒）的应用的关联较大。
+    对于大多数应用来说，精确一次是较好的选择。至少一次可能与某些延迟超低（始终只有几毫秒）的应用的关联较大。
   
   - *Checkpoint超时（checkpoint timeout）*：如果过了这个时间，还在进行中的 checkpoint 操作就会被抛弃。
   
