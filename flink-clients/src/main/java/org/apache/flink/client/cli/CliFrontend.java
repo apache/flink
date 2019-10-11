@@ -49,6 +49,7 @@ import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -254,6 +255,13 @@ public class CliFrontend {
 						shutdownHook = ShutdownHookUtil.addShutdownHook(client::shutDownCluster, client.getClass().getSimpleName(), LOG);
 					} else {
 						shutdownHook = null;
+						client.getTerminationFuture().whenComplete((result, throwable) -> {
+							if (result != null) {
+								client.shutDownCluster(result.f0, result.f1);
+							} else {
+								client.shutDownCluster(ApplicationStatus.UNKNOWN, ExceptionUtils.stringifyException(throwable));
+							}
+						});
 					}
 				}
 
@@ -269,6 +277,7 @@ public class CliFrontend {
 					}
 
 					executeProgram(program, client, userParallelism);
+				} catch (Exception e) {
 				} finally {
 					if (clusterId == null && !client.isDetached()) {
 						// terminate the cluster only if we have started it before and if it's not detached

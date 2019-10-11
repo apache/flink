@@ -126,11 +126,11 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 	public void postStop() throws Exception {
 		super.postStop();
 
-		if (rpcEndpointTerminationResult.isSuccess()) {
-			terminationFuture.complete(null);
-		} else {
-			terminationFuture.completeExceptionally(rpcEndpointTerminationResult.getFailureCause());
-		}
+//		if (rpcEndpointTerminationResult.isSuccess()) {
+//			terminationFuture.complete(null);
+//		} else {
+//			terminationFuture.completeExceptionally(rpcEndpointTerminationResult.getFailureCause());
+//		}
 
 		state = state.finishTermination();
 	}

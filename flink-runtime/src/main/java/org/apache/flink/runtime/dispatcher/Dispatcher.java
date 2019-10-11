@@ -135,7 +135,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private CompletableFuture<Void> recoveryOperation = CompletableFuture.completedFuture(null);
 
-	protected final CompletableFuture<ApplicationStatus> shutDownFuture;
+	protected final CompletableFuture<Tuple2<ApplicationStatus, String>> shutDownFuture;
 
 	public Dispatcher(
 			RpcService rpcService,
@@ -180,7 +180,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	// Getters
 	//------------------------------------------------------
 
-	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+	public CompletableFuture<Tuple2<ApplicationStatus, String>> getShutDownFuture() {
 		return shutDownFuture;
 	}
 
@@ -615,8 +615,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> shutDownCluster() {
-		shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
+	public CompletableFuture<Acknowledge> shutDownCluster(ApplicationStatus status, String diagnostics) {
+		CompletableFuture<Void> terminationFuture = closeAsync();
+		terminationFuture.whenComplete((aVoid, throwable) -> {
+			shutDownFuture.complete(Tuple2.of(status, diagnostics));
+		});
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
@@ -553,7 +554,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public void shutDownCluster() {
+	public void shutDownCluster(ApplicationStatus status, String diagnostics) {
 		try {
 			sendRequest(ShutdownHeaders.getInstance()).get();
 		} catch (InterruptedException e) {

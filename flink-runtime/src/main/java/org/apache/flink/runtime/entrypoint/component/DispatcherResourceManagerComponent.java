@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -60,7 +61,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
 	private final CompletableFuture<Void> terminationFuture;
 
-	private final CompletableFuture<ApplicationStatus> shutDownFuture;
+	private final CompletableFuture<Tuple2<ApplicationStatus, String>> shutDownFuture;
 
 	private final AtomicBoolean isRunning = new AtomicBoolean(true);
 
@@ -85,7 +86,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 		FutureUtils.forward(dispatcherRunner.getShutDownFuture(), shutDownFuture);
 	}
 
-	public final CompletableFuture<ApplicationStatus> getShutDownFuture() {
+	public final CompletableFuture<Tuple2<ApplicationStatus, String>> getShutDownFuture() {
 		return shutDownFuture;
 	}
 

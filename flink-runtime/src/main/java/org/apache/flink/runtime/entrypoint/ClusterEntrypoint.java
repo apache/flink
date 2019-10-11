@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -224,7 +225,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				this);
 
 			clusterComponent.getShutDownFuture().whenComplete(
-				(ApplicationStatus applicationStatus, Throwable throwable) -> {
+				(Tuple2<ApplicationStatus, String> applicationStatusWithDiagnostics, Throwable throwable) -> {
+					ApplicationStatus status = applicationStatusWithDiagnostics.f0;
+					String diagnostics = applicationStatusWithDiagnostics.f1;
 					if (throwable != null) {
 						shutDownAsync(
 							ApplicationStatus.UNKNOWN,
@@ -234,8 +237,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 						// This is the general shutdown path. If a separate more specific shutdown was
 						// already triggered, this will do nothing
 						shutDownAsync(
-							applicationStatus,
-							null,
+							status,
+							diagnostics,
 							true);
 					}
 				});

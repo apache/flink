@@ -24,12 +24,13 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
+import org.apache.flink.runtime.rest.messages.ShutdownMessageParameters;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * Message headers for {@link org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler}.
  */
-public class ShutdownHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+public class ShutdownHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, ShutdownMessageParameters> {
 
 	private static final ShutdownHeaders INSTANCE = new ShutdownHeaders();
 
@@ -49,8 +50,8 @@ public class ShutdownHeaders implements MessageHeaders<EmptyRequestBody, EmptyRe
 	}
 
 	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
+	public ShutdownMessageParameters getUnresolvedMessageParameters() {
+		return new ShutdownMessageParameters();
 	}
 
 	@Override

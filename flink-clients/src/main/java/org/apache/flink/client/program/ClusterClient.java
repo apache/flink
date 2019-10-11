@@ -34,6 +34,7 @@ import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -388,7 +389,7 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	 */
 	public abstract CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId);
 
-	public void shutDownCluster() {
+	public void shutDownCluster(ApplicationStatus status, String diagnostics) {
 		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");
 	}
 }
