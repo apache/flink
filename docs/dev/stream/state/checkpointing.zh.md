@@ -95,7 +95,7 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 // 激活在 job 中止后仍然保留的外部 checkpoint
 env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-// 允许在有更近保存点时回退到 checkpoint
+// 允许在有更近 savepoint 时回退到 checkpoint
 env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
 {% endhighlight %}
 </div>
@@ -148,7 +148,7 @@ env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 # 激活在 job 中止后仍然保留的外部 checkpoint
 env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
-# 允许在有更近保存点时回退到 checkpoint
+# 允许在有更近 savepoint 时回退到 checkpoint
 env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 {% endhighlight %}
 </div>
