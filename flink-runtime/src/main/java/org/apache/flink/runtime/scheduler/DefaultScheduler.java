@@ -199,6 +199,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	private Runnable restartTasks(final Set<ExecutionVertexVersion> executionVertexVersions) {
 		return () -> {
 			final Set<ExecutionVertexID> verticesToRestart = executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
+
+			resetForNewExecutionIfInTerminalState(verticesToRestart);
+
 			schedulingStrategy.restartTasks(verticesToRestart);
 		};
 	}
@@ -231,7 +234,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Set<ExecutionVertexID> verticesToDeploy = deploymentOptionsByVertex.keySet();
 		final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex = executionVertexVersioner.recordVertexModifications(verticesToDeploy);
 
-		prepareToDeployVertices(verticesToDeploy);
+		transitionToScheduled(verticesToDeploy);
 
 		final Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments = allocateSlots(executionVertexDeploymentOptions);
 
@@ -252,11 +255,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		return executionVertexDeploymentOptions.stream().collect(Collectors.toMap(
 				ExecutionVertexDeploymentOption::getExecutionVertexId,
 				Function.identity()));
-	}
-
-	private void prepareToDeployVertices(final Set<ExecutionVertexID> verticesToDeploy) {
-		resetForNewExecutionIfInTerminalState(verticesToDeploy);
-		transitionToScheduled(verticesToDeploy);
 	}
 
 	private Collection<SlotExecutionVertexAssignment> allocateSlots(final Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {

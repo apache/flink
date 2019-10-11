@@ -47,6 +47,10 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressur
 import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStrategy;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.scheduler.strategy.TestSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -61,6 +65,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -72,6 +77,7 @@ import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -279,6 +285,30 @@ public class DefaultSchedulerTest extends TestLogger {
 		assertThat(scheduler.requestJob().getState(), is(equalTo(JobStatus.RUNNING)));
 	}
 
+	@Test
+	public void vertexIsResetBeforeRestarted() throws Exception {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+
+		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
+		final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
+		final SchedulingTopology topology = schedulingStrategy.getSchedulingTopology();
+
+		startScheduling(scheduler);
+
+		final SchedulingExecutionVertex onlySchedulingVertex = Iterables.getOnlyElement(topology.getVertices());
+		schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertex.getId()));
+
+		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
+		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.FAILED));
+
+		taskRestartExecutor.triggerScheduledTasks();
+
+		assertThat(schedulingStrategy.getReceivedVerticesToRestart(), hasSize(1));
+		assertThat(onlySchedulingVertex.getState(), is(equalTo(ExecutionState.CREATED)));
+	}
+
 	private void waitForTermination(final DefaultScheduler scheduler) throws Exception {
 		scheduler.getTerminationFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
 	}
@@ -316,8 +346,13 @@ public class DefaultSchedulerTest extends TestLogger {
 	}
 
 	private DefaultScheduler createSchedulerAndStartScheduling(final JobGraph jobGraph) {
+		final SchedulingStrategyFactory schedulingStrategyFactory =
+			jobGraph.getScheduleMode() == ScheduleMode.LAZY_FROM_SOURCES ?
+				new LazyFromSourcesSchedulingStrategy.Factory() :
+				new EagerSchedulingStrategy.Factory();
+
 		try {
-			final DefaultScheduler scheduler = createScheduler(jobGraph);
+			final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
 			startScheduling(scheduler);
 			return scheduler;
 		} catch (Exception e) {
@@ -325,7 +360,10 @@ public class DefaultSchedulerTest extends TestLogger {
 		}
 	}
 
-	private DefaultScheduler createScheduler(final JobGraph jobGraph) throws Exception {
+	private DefaultScheduler createScheduler(
+			final JobGraph jobGraph,
+			final SchedulingStrategyFactory schedulingStrategyFactory) throws Exception {
+
 		return new DefaultScheduler(
 			log,
 			jobGraph,
@@ -343,9 +381,7 @@ public class DefaultSchedulerTest extends TestLogger {
 			Time.seconds(300),
 			NettyShuffleMaster.INSTANCE,
 			NoOpPartitionTracker.INSTANCE,
-			jobGraph.getScheduleMode() == ScheduleMode.LAZY_FROM_SOURCES ?
-				new LazyFromSourcesSchedulingStrategy.Factory() :
-				new EagerSchedulingStrategy.Factory(),
+			schedulingStrategyFactory,
 			new RestartPipelinedRegionStrategy.Factory(),
 			testRestartBackoffTimeStrategy,
 			testExecutionVertexOperations,
