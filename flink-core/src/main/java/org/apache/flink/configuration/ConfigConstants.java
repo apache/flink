@@ -692,7 +692,7 @@ public final class ConfigConstants {
 	 * @deprecated Use {@link ClusterOptions#CLUSTER_FS_SERVERS} instead.
 	 */
 	@Deprecated
-    public static final String CLUSTER_FS_SERVERS = "cluster.fs-servers";
+	public static final String CLUSTER_FS_SERVERS = "cluster.fs-servers";
 
 	/**
 	 * Key to specify whether the file systems should simply overwrite existing files.
