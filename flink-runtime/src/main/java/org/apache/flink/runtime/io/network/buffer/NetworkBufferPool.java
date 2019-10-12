@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -263,11 +262,19 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 	@Override
 	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException {
-		return createBufferPool(numRequiredBuffers, maxUsedBuffers, Optional.empty());
+		return internalCreateBufferPool(numRequiredBuffers, maxUsedBuffers, null);
 	}
 
 	@Override
-	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers, Optional<BufferPoolOwner> owner) throws IOException {
+	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers, BufferPoolOwner bufferPoolOwner) throws IOException {
+		return internalCreateBufferPool(numRequiredBuffers, maxUsedBuffers, bufferPoolOwner);
+	}
+
+	private BufferPool internalCreateBufferPool(
+			int numRequiredBuffers,
+			int maxUsedBuffers,
+			@Nullable BufferPoolOwner bufferPoolOwner) throws IOException {
+
 		// It is necessary to use a separate lock from the one used for buffer
 		// requests to ensure deadlock freedom for failure cases.
 		synchronized (factoryLock) {
@@ -290,7 +297,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 			// We are good to go, create a new buffer pool and redistribute
 			// non-fixed size buffers.
 			LocalBufferPool localBufferPool =
-				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers, owner);
+				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers, bufferPoolOwner);
 
 			allBufferPools.add(localBufferPool);
 
