@@ -364,9 +364,10 @@ class TestFilterableTableSource(
 
   override def explainSource(): String = {
     if (filterPredicates.nonEmpty) {
+      s"filterPushedDown=[$filterPushedDown], " +
       s"filter=[${filterPredicates.reduce((l, r) => unresolvedCall(AND, l, r)).toString}]"
     } else {
-      ""
+      s"filterPushedDown=[$filterPushedDown], filter=[]"
     }
   }
 

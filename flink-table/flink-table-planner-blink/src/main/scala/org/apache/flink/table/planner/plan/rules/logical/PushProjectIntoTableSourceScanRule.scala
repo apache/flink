@@ -67,13 +67,23 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     val relOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
     val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
     val oldTableSource = tableSourceTable.tableSource
-    val newTableSource = oldTableSource match {
+    val (newTableSource, isProjectSuccess) = oldTableSource match {
       case nested: NestedFieldsProjectableTableSource[_] =>
         val nestedFields = RexNodeExtractor.extractRefNestedInputFields(
           project.getProjects, usedFields)
-        nested.projectNestedFields(usedFields, nestedFields)
+        (nested.projectNestedFields(usedFields, nestedFields), true)
       case projecting: ProjectableTableSource[_] =>
-        projecting.projectFields(usedFields)
+        (projecting.projectFields(usedFields), true)
+      case nonProjecting: TableSource[_] =>
+        // projection cannot be pushed to TableSource
+        (nonProjecting, false)
+    }
+
+    if (isProjectSuccess
+      && newTableSource.explainSource().equals(oldTableSource.explainSource())) {
+      throw new TableException("Failed to push project into table source! "
+        + "table source with pushdown capability must override and change "
+        + "explainSource() API to explain the pushdown applied!")
     }
 
     // check that table schema of the new table source is identical to original
