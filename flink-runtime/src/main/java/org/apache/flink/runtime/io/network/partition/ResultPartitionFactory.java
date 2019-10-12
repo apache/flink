@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Optional;
 
 /**
  * Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}.
@@ -183,14 +182,14 @@ public class ResultPartitionFactory {
 	FunctionWithException<BufferPoolOwner, BufferPool, IOException> createBufferPoolFactory(
 			int numberOfSubpartitions,
 			ResultPartitionType type) {
-		return p -> {
+		return bufferPoolOwner -> {
 			int maxNumberOfMemorySegments = type.isBounded() ?
 				numberOfSubpartitions * networkBuffersPerChannel + floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
 			// If the partition type is back pressure-free, we register with the buffer pool for
 			// callbacks to release memory.
 			return bufferPoolFactory.createBufferPool(numberOfSubpartitions,
 				maxNumberOfMemorySegments,
-				type.hasBackPressure() ? Optional.empty() : Optional.of(p));
+				type.hasBackPressure() ? null : bufferPoolOwner);
 		};
 	}
 

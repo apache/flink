@@ -32,7 +32,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -317,9 +316,9 @@ public class NetworkBufferPoolTest extends TestLogger {
 		List<MemorySegment> memorySegments = Collections.emptyList();
 		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
 			// make releaseMemory calls always fail:
-			Optional.of(numBuffersToRecycle -> {
+			numBuffersToRecycle -> {
 				throw new TestIOException();
-		}));
+		});
 
 		try {
 			// take all but one buffer
@@ -356,9 +355,9 @@ public class NetworkBufferPoolTest extends TestLogger {
 
 		final List<Buffer> buffers = new ArrayList<>(numBuffers);
 		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
-			Optional.of(numBuffersToRecycle -> {
+			numBuffersToRecycle -> {
 				throw new TestIOException();
-		}));
+		});
 
 		try {
 

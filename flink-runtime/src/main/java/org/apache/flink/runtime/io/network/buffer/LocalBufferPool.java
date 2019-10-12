@@ -25,9 +25,10 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -86,7 +87,8 @@ class LocalBufferPool implements BufferPool {
 
 	private boolean isDestroyed;
 
-	private final Optional<BufferPoolOwner> owner;
+	@Nullable
+	private final BufferPoolOwner bufferPoolOwner;
 
 	/**
 	 * Local buffer pool based on the given <tt>networkBufferPool</tt> with a minimal number of
@@ -98,7 +100,7 @@ class LocalBufferPool implements BufferPool {
 	 * 		minimum number of network buffers
 	 */
 	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
-		this(networkBufferPool, numberOfRequiredMemorySegments, Integer.MAX_VALUE, Optional.empty());
+		this(networkBufferPool, numberOfRequiredMemorySegments, Integer.MAX_VALUE, null);
 	}
 
 	/**
@@ -114,7 +116,7 @@ class LocalBufferPool implements BufferPool {
 	 */
 	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments,
 			int maxNumberOfMemorySegments) {
-		this(networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, Optional.empty());
+		this(networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, null);
 	}
 
 	/**
@@ -127,14 +129,14 @@ class LocalBufferPool implements BufferPool {
 	 * 		minimum number of network buffers
 	 * @param maxNumberOfMemorySegments
 	 * 		maximum number of network buffers to allocate
-	 * 	@param owner
-	 * 		the optional owner of this buffer pool to release memory when needed
+	 * 	@param bufferPoolOwner
+	 * 		the owner of this buffer pool to release memory when needed
 	 */
 	LocalBufferPool(
 		NetworkBufferPool networkBufferPool,
 		int numberOfRequiredMemorySegments,
 		int maxNumberOfMemorySegments,
-		Optional<BufferPoolOwner> owner) {
+		@Nullable BufferPoolOwner bufferPoolOwner) {
 		checkArgument(maxNumberOfMemorySegments >= numberOfRequiredMemorySegments,
 			"Maximum number of memory segments (%s) should not be smaller than minimum (%s).",
 			maxNumberOfMemorySegments, numberOfRequiredMemorySegments);
@@ -150,7 +152,7 @@ class LocalBufferPool implements BufferPool {
 		this.numberOfRequiredMemorySegments = numberOfRequiredMemorySegments;
 		this.currentPoolSize = numberOfRequiredMemorySegments;
 		this.maxNumberOfMemorySegments = maxNumberOfMemorySegments;
-		this.owner = owner;
+		this.bufferPoolOwner = bufferPoolOwner;
 	}
 
 	// ------------------------------------------------------------------------
@@ -231,8 +233,6 @@ class LocalBufferPool implements BufferPool {
 		synchronized (availableMemorySegments) {
 			returnExcessMemorySegments();
 
-			boolean askToRecycle = owner.isPresent();
-
 			// fill availableMemorySegments with at least one element, wait if required
 			while (availableMemorySegments.isEmpty()) {
 				if (isDestroyed) {
@@ -248,8 +248,8 @@ class LocalBufferPool implements BufferPool {
 					}
 				}
 
-				if (askToRecycle) {
-					owner.get().releaseMemory(1);
+				if (bufferPoolOwner != null) {
+					bufferPoolOwner.releaseMemory(1);
 				}
 
 				if (isBlocking) {
@@ -366,8 +366,8 @@ class LocalBufferPool implements BufferPool {
 
 		// If there is a registered owner and we have still requested more buffers than our
 		// size, trigger a recycle via the owner.
-		if (owner.isPresent() && numExcessBuffers > 0) {
-			owner.get().releaseMemory(numExcessBuffers);
+		if (bufferPoolOwner != null && numExcessBuffers > 0) {
+			bufferPoolOwner.releaseMemory(numExcessBuffers);
 		}
 	}
 
