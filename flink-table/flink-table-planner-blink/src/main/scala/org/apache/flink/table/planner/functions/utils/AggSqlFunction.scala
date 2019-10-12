@@ -118,17 +118,10 @@ object AggSqlFunction {
           returnType: RelDataType,
           operandTypes: Array[RelDataType]): Unit = {
 
-        val operandTypeInfo = getOperandType(callBinding)
+        val operandLogicalType = getOperandType(callBinding)
+        val actualSignature = externalAccType.getLogicalType +: operandLogicalType
 
-        val actualSignature = {
-          if (externalAccType == null) {
-            null +: operandTypeInfo
-          } else {
-            externalAccType.getLogicalType +: operandTypeInfo
-          }
-        }
-
-        val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
+        val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandLogicalType)
             .getOrElse(
               throw new ValidationException(
                 s"Given parameters of function '$name' do not match any signature. \n" +
@@ -204,17 +197,11 @@ object AggSqlFunction {
       override def checkOperandTypes(
           callBinding: SqlCallBinding,
           throwOnFailure: Boolean): Boolean = {
-        val operandTypeInfo = getOperandType(callBinding)
 
-        val actualSignature = {
-          if (externalAccType == null) {
-            null +: operandTypeInfo
-          } else {
-            externalAccType.getLogicalType +: operandTypeInfo
-          }
-        }
+        val operandLogicalType = getOperandType(callBinding)
+        val actualSignature = externalAccType.getLogicalType +: operandLogicalType
 
-        val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
+        val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandLogicalType)
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
