@@ -36,6 +36,11 @@ export class AppComponent implements OnInit {
     fromEvent(window, 'online').pipe(map(() => true))
   ).pipe(startWith(true));
 
+  webSubmitDisabled =
+    (this.statusService.configuration &&
+      this.statusService.configuration.features &&
+      this.statusService.configuration.features['web-submit']) === false;
+
   showMessage() {
     if (this.statusService.listOfErrorMessage.length) {
       this.visible = true;
