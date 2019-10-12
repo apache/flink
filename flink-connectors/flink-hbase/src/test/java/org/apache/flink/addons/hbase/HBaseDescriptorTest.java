@@ -34,6 +34,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Test case for {@link HBase} descriptor.
+ */
 public class HBaseDescriptorTest extends DescriptorTestBase {
 
 	@Override
