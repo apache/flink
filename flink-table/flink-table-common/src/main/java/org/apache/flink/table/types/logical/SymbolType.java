@@ -19,7 +19,6 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.util.Preconditions;
 
@@ -32,8 +31,6 @@ import java.util.Objects;
  * and only serves as a helper type within the expression stack.
  *
  * <p>A symbol type only accepts conversions from and to its enum class.
- *
- * <p>This type has no serializable string representation.
  *
  * @param <T> table symbol
  */
@@ -65,7 +62,7 @@ public final class SymbolType<T extends TableSymbol> extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
-		throw new TableException("A symbol type has no serializable string representation.");
+		return withNullability(FORMAT, symbolClass.getName());
 	}
 
 	@Override

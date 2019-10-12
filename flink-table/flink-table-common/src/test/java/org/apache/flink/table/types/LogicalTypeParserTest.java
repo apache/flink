@@ -21,6 +21,7 @@ package org.apache.flink.table.types;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -41,6 +42,7 @@ import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -419,6 +421,10 @@ public class LogicalTypeParserTest {
 						new UnresolvedUserDefinedType("c", "d", "t"))
 				),
 
+			TestSpec
+				.forString("SYMBOL('org.apache.flink.table.expressions.TimeIntervalUnit')")
+				.expectType(new SymbolType<>(TimeIntervalUnit.class)),
+
 			// error message testing
 
 			TestSpec
@@ -443,7 +449,11 @@ public class LogicalTypeParserTest {
 
 			TestSpec
 				.forString("ANY('unknown.class', '')")
-				.expectErrorMessage("Unable to restore the ANY type")
+				.expectErrorMessage("Unable to restore the ANY type"),
+
+			TestSpec
+				.forString("SYMBOL('unknown.class')")
+				.expectErrorMessage("Unable to restore the SYMBOL type")
 		);
 	}
 

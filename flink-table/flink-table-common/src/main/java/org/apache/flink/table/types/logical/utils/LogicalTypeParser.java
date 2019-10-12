@@ -42,6 +42,7 @@ import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -300,7 +301,8 @@ public final class LogicalTypeParser {
 		ROW,
 		NULL,
 		ANY,
-		NOT
+		NOT,
+		SYMBOL
 	}
 
 	private static final Set<String> KEYWORDS = Stream.of(Keyword.values())
@@ -534,6 +536,8 @@ public final class LogicalTypeParser {
 					return parseMapType();
 				case ROW:
 					return parseRowType();
+				case SYMBOL:
+					return parseSymbolType();
 				case NULL:
 					return new NullType();
 				case ANY:
@@ -869,6 +873,22 @@ public final class LogicalTypeParser {
 				}
 			}
 			return fields;
+		}
+
+		@SuppressWarnings("unchecked")
+		private LogicalType parseSymbolType() {
+			nextToken(TokenType.BEGIN_PARAMETER);
+			nextToken(TokenType.LITERAL_STRING);
+			final String className = tokenAsString();
+			nextToken(TokenType.END_PARAMETER);
+
+			try {
+				final Class<?> clazz = Class.forName(className, true, classLoader);
+				return new SymbolType(clazz);
+			} catch (Throwable t) {
+				throw parsingError(
+					"Unable to restore the SYMBOL type of class '" + className + "'.", t);
+			}
 		}
 
 		@SuppressWarnings("unchecked")
