@@ -50,23 +50,21 @@ public class MLEnvironmentFactory {
 	 */
 	private static final HashMap<Long, MLEnvironment> map = new HashMap<>();
 
+	static {
+		map.put(DEFAULT_ML_ENVIRONMENT_ID, new MLEnvironment());
+	}
+
 	/**
 	 * Get the MLEnvironment using a MLEnvironmentId.
-	 * The default MLEnvironment will be set a new MLEnvironment
-	 * when there is no default MLEnvironment.
 	 *
 	 * @param mlEnvId the MLEnvironmentId
 	 * @return the MLEnvironment
 	 */
 	public static synchronized MLEnvironment get(Long mlEnvId) {
 		if (!map.containsKey(mlEnvId)) {
-			if (mlEnvId.equals(DEFAULT_ML_ENVIRONMENT_ID)) {
-				setDefault(new MLEnvironment());
-			} else {
-				throw new IllegalArgumentException(
-					String.format("Cannot find MLEnvironment for MLEnvironmentId %s." +
-						" Did you get the MLEnvironmentId by calling getNewMLEnvironmentId?", mlEnvId));
-			}
+			throw new IllegalArgumentException(
+				String.format("Cannot find MLEnvironment for MLEnvironmentId %s." +
+					" Did you get the MLEnvironmentId by calling getNewMLEnvironmentId?", mlEnvId));
 		}
 
 		return map.get(mlEnvId);
@@ -79,20 +77,6 @@ public class MLEnvironmentFactory {
 	 */
 	public static synchronized MLEnvironment getDefault() {
 		return get(DEFAULT_ML_ENVIRONMENT_ID);
-	}
-
-	/**
-	 * Set the default MLEnvironment.
-	 * The default MLEnvironment should be set only once.
-	 *
-	 * @param env the MLEnvironment
-	 */
-	public static synchronized void setDefault(MLEnvironment env) {
-		if (map.containsKey(DEFAULT_ML_ENVIRONMENT_ID)) {
-			throw new IllegalArgumentException("The default MLEnvironment should be set only once.");
-		}
-
-		map.put(DEFAULT_ML_ENVIRONMENT_ID, env);
 	}
 
 	/**
