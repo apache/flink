@@ -82,6 +82,10 @@ public class SpillableStateBackend extends AbstractStateBackend implements Confi
 		return new SpillableStateBackend(this, config, classLoader);
 	}
 
+	public StateBackend getCheckpointBackend() {
+		return checkpointStreamBackend;
+	}
+
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 		Environment env,

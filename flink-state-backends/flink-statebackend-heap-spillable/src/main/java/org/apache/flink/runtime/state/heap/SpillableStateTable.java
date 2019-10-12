@@ -53,17 +53,24 @@ public class SpillableStateTable<K, N, S> extends StateTable<K, N, S> implements
 		) {
 		super(keyContext, metaInfo, keySerializer);
 		this.spaceAllocator = spaceAllocator;
+		for (int i = 0; i < this.keyGroupedStateMaps.length; i++) {
+			if (keyGroupedStateMaps[i] == null) {
+				this.keyGroupedStateMaps[i] = createStateMap();
+			}
+		}
 	}
 
 	@Override
 	protected CopyOnWriteSkipListStateMap<K, N, S> createStateMap() {
-		return new CopyOnWriteSkipListStateMap<>(
-			getKeySerializer(),
-			getNamespaceSerializer(),
-			getStateSerializer(),
-			spaceAllocator,
-			DEFAULT_NUM_KEYS_TO_DELETED_ONE_TIME,
-			DEFAULT_LOGICAL_REMOVE_KEYS_RATIO);
+		// TODO how to deal with this
+		return spaceAllocator == null ? null :
+			new CopyOnWriteSkipListStateMap<>(
+				getKeySerializer(),
+				getNamespaceSerializer(),
+				getStateSerializer(),
+				spaceAllocator,
+				DEFAULT_NUM_KEYS_TO_DELETED_ONE_TIME,
+				DEFAULT_LOGICAL_REMOVE_KEYS_RATIO);
 	}
 
 	// Snapshotting ----------------------------------------------------------------------------------------------------
