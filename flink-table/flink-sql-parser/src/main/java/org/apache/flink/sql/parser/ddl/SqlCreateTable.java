@@ -37,6 +37,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -58,13 +60,16 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	private final SqlNodeList propertyList;
 
+	@Nullable
 	private final SqlNodeList primaryKeyList;
 
+	@Nullable
 	private final List<SqlNodeList> uniqueKeysList;
 
 	private final SqlNodeList partitionKeyList;
 
-	private final Optional<SqlCharStringLiteral> optionalComment;
+	@Nullable
+	private final SqlCharStringLiteral comment;
 
 	public SqlCreateTable(
 			SqlParserPos pos,
@@ -77,12 +82,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			SqlCharStringLiteral comment) {
 		super(OPERATOR, pos, false, false);
 		this.tableName = requireNonNull(tableName, "Table name is missing");
-		this.columnList = requireNonNull(columnList, "Column list should not be null");
+		this.columnList = columnList;
 		this.primaryKeyList = primaryKeyList;
 		this.uniqueKeysList = uniqueKeysList;
 		this.propertyList = propertyList;
 		this.partitionKeyList = partitionKeyList;
-		this.optionalComment = Optional.ofNullable(comment);
+		this.comment = comment;
 	}
 
 	@Override
@@ -93,7 +98,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	@Override
 	public List<SqlNode> getOperandList() {
 		return ImmutableNullableList.of(tableName, columnList, primaryKeyList,
-			propertyList, partitionKeyList, optionalComment.orElse(null));
+			propertyList, partitionKeyList, comment);
 	}
 
 	public SqlIdentifier getTableName() {
@@ -120,8 +125,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return uniqueKeysList;
 	}
 
-	public Optional<SqlCharStringLiteral> getOptionalComment() {
-		return optionalComment;
+	public Optional<SqlCharStringLiteral> getComment() {
+		return Optional.ofNullable(comment);
 	}
 
 	public boolean isIfNotExists() {
@@ -130,7 +135,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	public void validate() throws SqlValidateException {
 		Set<String> columnNames = new HashSet<>();
-		if (columnList != null) {
+		if (columnList.size() > 0) {
 			for (SqlNode column : columnList) {
 				String columnName = null;
 				if (column instanceof SqlTableColumn) {
@@ -175,7 +180,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			}
 		}
 
-		if (this.partitionKeyList != null) {
+		if (this.partitionKeyList.size() > 0) {
 			for (SqlNode partitionKeyNode : this.partitionKeyList.getList()) {
 				String partitionKey = ((SqlIdentifier) partitionKeyNode).getSimple();
 				if (!columnNames.contains(partitionKey)) {
@@ -275,11 +280,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		writer.newlineAndIndent();
 		writer.endList(frame);
 
-		optionalComment.ifPresent(comment -> {
+		if (comment != null) {
 			writer.newlineAndIndent();
 			writer.keyword("COMMENT");
 			comment.unparse(writer, leftPrec, rightPrec);
-		});
+		}
 
 		if (this.partitionKeyList.size() > 0) {
 			writer.newlineAndIndent();

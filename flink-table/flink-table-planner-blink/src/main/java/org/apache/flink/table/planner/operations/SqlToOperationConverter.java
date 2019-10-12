@@ -112,7 +112,7 @@ public class SqlToOperationConverter {
 				((SqlTableOption) p).getValueString()));
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable);
-		String tableComment = sqlCreateTable.getOptionalComment().map(comment ->
+		String tableComment = sqlCreateTable.getComment().map(comment ->
 			comment.getNlsString().getValue()).orElse("");
 		// set partition key
 		List<String> partitionKeys = sqlCreateTable.getPartitionKeyList()

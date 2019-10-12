@@ -107,14 +107,13 @@ public class SqlToOperationConverter {
 		}
 
 		// set with properties
-		SqlNodeList propertyList = sqlCreateTable.getPropertyList();
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateTable.getPropertyList().getList().forEach(p ->
 			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
 				((SqlTableOption) p).getValueString()));
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable);
-		String tableComment = sqlCreateTable.getOptionalComment().map(comment ->
+		String tableComment = sqlCreateTable.getComment().map(comment ->
 			comment.getNlsString().getValue()).orElse("");
 		// set partition key
 		List<String> partitionKeys = sqlCreateTable.getPartitionKeyList()

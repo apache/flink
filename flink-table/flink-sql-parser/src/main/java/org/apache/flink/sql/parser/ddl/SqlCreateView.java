@@ -32,6 +32,8 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,7 +47,9 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 	private final SqlIdentifier viewName;
 	private final SqlNodeList fieldList;
 	private final SqlNode query;
-	private final Optional<SqlCharStringLiteral> optionalComment;
+
+	@Nullable
+	private final SqlCharStringLiteral comment;
 
 	public SqlCreateView(
 			SqlParserPos pos,
@@ -58,7 +62,7 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		this.viewName = viewName;
 		this.fieldList = fieldList;
 		this.query = query;
-		this.optionalComment = Optional.ofNullable(comment);
+		this.comment = comment;
 	}
 
 	@Override
@@ -83,8 +87,8 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		return query;
 	}
 
-	public Optional<SqlCharStringLiteral> getOptionalComment() {
-		return optionalComment;
+	public Optional<SqlCharStringLiteral> getComment() {
+		return Optional.ofNullable(comment);
 	}
 
 	@Override
@@ -98,11 +102,11 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		if (fieldList.size() > 0) {
 			fieldList.unparse(writer, 1, rightPrec);
 		}
-		optionalComment.ifPresent(comment -> {
+		if (comment != null) {
 			writer.newlineAndIndent();
 			writer.keyword("COMMENT");
 			comment.unparse(writer, leftPrec, rightPrec);
-		});
+		}
 		writer.newlineAndIndent();
 		writer.keyword("AS");
 		writer.newlineAndIndent();
