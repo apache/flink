@@ -44,12 +44,12 @@ Scalar Functions
 
 If a required scalar function is not contained in the built-in functions, it is possible to define custom, user-defined scalar functions for both the Table API and SQL. A user-defined scalar functions maps zero, one, or multiple scalar values to a new scalar value.
 
-In order to define a scalar function one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. Evaluation methods can also support variable arguments, such as `eval(String... strs)`.
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+In order to define a scalar function, one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. Evaluation methods can also support variable arguments, such as `eval(String... strs)`.
 
 The following example shows how to define your own hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 {% highlight java %}
 public class HashCode extends ScalarFunction {
   private int factor = 12;
@@ -74,9 +74,29 @@ myTable.select("string, string.hashCode(), hashCode(string)");
 // use the function in SQL API
 tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable");
 {% endhighlight %}
+
+By default the result type of an evaluation method is determined by Flink's type extraction facilities. This is sufficient for basic types or simple POJOs but might be wrong for more complex, custom, or composite types. In these cases `TypeInformation` of the result type can be manually defined by overriding `ScalarFunction#getResultType()`.
+
+The following example shows an advanced example which takes the internal timestamp representation and also returns the internal timestamp representation as a long value. By overriding `ScalarFunction#getResultType()` we define that the returned long value should be interpreted as a `Types.TIMESTAMP` by the code generation.
+
+{% highlight java %}
+public static class TimestampModifier extends ScalarFunction {
+  public long eval(long t) {
+    return t % 1000;
+  }
+
+  public TypeInformation<?> getResultType(Class<?>[] signature) {
+    return Types.SQL_TIMESTAMP;
+  }
+}
+{% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
+In order to define a scalar function, one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. Evaluation methods can also support variable arguments, such as `eval(String... strs)`.
+
+The following example shows how to define your own hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
+
 {% highlight scala %}
 // must be defined in static/object context
 class HashCode(factor: Int) extends ScalarFunction {
@@ -95,57 +115,11 @@ myTable.select('string, hashCode('string))
 tableEnv.registerFunction("hashCode", new HashCode(10))
 tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
 {% endhighlight %}
-</div>
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
-'''
-Java code:
-
-// The java class must have a public no-argument constructor and can be founded in current java classloader.
-public class HashCode extends ScalarFunction {
-  private int factor = 12;
-
-  public int eval(String s) {
-      return s.hashCode() * factor;
-  }
-}
-'''
-
-table_env = BatchTableEnvironment.create(env)
-
-# register the java function
-table_env.register_java_function("hashCode", "my.java.function.HashCode")
-
-# use the function in Python Table API
-my_table.select("string, string.hashCode(), hashCode(string)")
-
-# use the function in SQL API
-table_env.sql_query("SELECT string, hashCode(string) FROM MyTable")
-{% endhighlight %}
-</div>
-</div>
 
 By default the result type of an evaluation method is determined by Flink's type extraction facilities. This is sufficient for basic types or simple POJOs but might be wrong for more complex, custom, or composite types. In these cases `TypeInformation` of the result type can be manually defined by overriding `ScalarFunction#getResultType()`.
 
 The following example shows an advanced example which takes the internal timestamp representation and also returns the internal timestamp representation as a long value. By overriding `ScalarFunction#getResultType()` we define that the returned long value should be interpreted as a `Types.TIMESTAMP` by the code generation.
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-public static class TimestampModifier extends ScalarFunction {
-  public long eval(long t) {
-    return t % 1000;
-  }
-
-  public TypeInformation<?> getResultType(Class<?>[] signature) {
-    return Types.SQL_TIMESTAMP;
-  }
-}
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
 {% highlight scala %}
 object TimestampModifier extends ScalarFunction {
   def eval(t: Long): Long = {
@@ -156,6 +130,76 @@ object TimestampModifier extends ScalarFunction {
     Types.TIMESTAMP
   }
 }
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+It supports to use both Java/Scala scalar functions and Python scalar functions in Python Table API and SQL. In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method. An evaluation method must be named `eval`. Evaluation method can also support variable arguments, such as `eval(*args)`.
+
+The following example shows how to define your own Java and Python hash code functions, register them in the TableEnvironment, and call them in a query. Note that you can configure your scalar function via a constructor before it is registered:
+
+{% highlight python %}
+'''
+Java code:
+
+// The Java class must have a public no-argument constructor and can be founded in current Java classloader.
+public class HashCode extends ScalarFunction {
+  private int factor = 12;
+
+  public int eval(String s) {
+      return s.hashCode() * factor;
+  }
+}
+'''
+
+class HashCode(ScalarFunction):
+  def eval(self, s):
+    return hash(s) * factor
+
+table_env = BatchTableEnvironment.create(env)
+
+# register the Java function
+table_env.register_java_function("hashCode", "my.java.function.HashCode")
+
+# register the Python function
+table_env.register_function("py_hash_code", udf(HashCode(), DataTypes.STRING(), DataTypes.BIGINT()))
+
+# use the function in Python Table API
+my_table.select("string, string.hashCode(), hashCode(string), string.py_hash_code(), py_hash_code(string)")
+
+# use the function in SQL API
+table_env.sql_query("SELECT string, hashCode(string), py_hash_code(string) FROM MyTable")
+{% endhighlight %}
+
+There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`. The following example shows the different ways to define a Python scalar function which takes two columns of bigint as input parameters and returns the sum of them as the result.
+
+{% highlight python %}
+# option 1: extending the base class `ScalarFunction`
+class Add(ScalarFunction):
+  def eval(self, i, j):
+    return i + j
+
+add = udf(Add(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
+
+# option 2: Python function
+@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
+def add(i, j):
+  return i + j
+
+# option 3: lambda function
+udf(lambda i, j: i + j, [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
+
+# option 4: callable function
+class CallableAdd(object):
+  def __call__(self, i, j):
+    return i + j
+
+udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
+
+# option 5: partial function
+def partial_add(i, j):
+  return i + j
+udf(functools.partial(partial_add, j=1), DataTypes.BIGINT(), DataTypes.BIGINT())
 {% endhighlight %}
 </div>
 </div>
@@ -271,6 +315,8 @@ table_env.register_java_function("split", "my.java.function.Split")
 # Use the table function in the Python Table API. "as" specifies the field names of the table.
 my_table.join_lateral("split(a) as (word, length)").select("a, word, length")
 my_table.left_outer_join_lateral("split(a) as (word, length)").select("a, word, length")
+
+# Register the python function.
 
 # Use the table function in SQL with LATERAL and TABLE keywords.
 # CROSS JOIN a table function (equivalent to "join" in Table API).
