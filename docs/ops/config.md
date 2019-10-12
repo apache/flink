@@ -215,7 +215,6 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 ## Background
 
-
 ### Configuring the Network Buffers
 
 If you ever see the Exception `java.io.IOException: Insufficient number of network buffers`, you
@@ -302,5 +301,13 @@ Each Flink TaskManager provides processing slots in the cluster. The number of s
 When starting a Flink application, users can supply the default number of slots to use for that job. The command line value therefore is called `-p` (for parallelism). In addition, it is possible to [set the number of slots in the programming APIs]({{site.baseurl}}/dev/parallel.html) for the whole application and for individual operators.
 
 <img src="{{ site.baseurl }}/fig/slots_parallelism.svg" class="img-responsive" />
+
+### Configuration Runtime Environment Variables
+You have to set config with prefix `containerized.master.env.` and `containerized.taskmanager.env.` in order to set redefined environment variable in ApplicationMaster and TaskManager.
+
+- `containerized.master.env.`: Prefix for passing custom environment variables to Flink's master process. 
+   For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+    in the flink-conf.yaml.
+- `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
 
 {% top %}
