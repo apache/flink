@@ -40,7 +40,7 @@ import java.io.File
 import java.util.TimeZone
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * Evaluates constant expressions with code generator.
@@ -62,14 +62,14 @@ class ExpressionReducer(
       constExprs: java.util.List[RexNode],
       reducedValues: java.util.List[RexNode]): Unit = {
 
-    val pythonUDFExprs = mutable.Set[RexNode]()
+    val pythonUDFExprs = new ListBuffer[RexNode]()
 
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
 
       // Skip expressions that contain python functions because it's quite expensive to
       // call Python UDFs during optimization phase. They will be optimized during the runtime.
       case (_, e) if PythonUtil.containsFunctionOf(e, FunctionLanguage.PYTHON) =>
-        pythonUDFExprs.add(e)
+        pythonUDFExprs += e
         None
 
       // we don't support object literals yet, we skip those constant expressions
@@ -130,7 +130,8 @@ class ExpressionReducer(
     var reducedIdx = 0
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
-      if (pythonUDFExprs.contains(unreduced)) {
+      // use eq to compare reference
+      if (pythonUDFExprs.exists(_ eq unreduced)) {
         // if contains python function then just insert the original expression.
         reducedValues.add(unreduced)
       } else {
