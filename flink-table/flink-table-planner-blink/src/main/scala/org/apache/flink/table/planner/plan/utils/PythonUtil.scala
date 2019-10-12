@@ -51,7 +51,7 @@ object PythonUtil {
 
     override def visitCall(call: RexCall): Boolean = {
       call.getOperator match {
-        case sfc: ScalarSqlFunction if sfc.getScalarFunction.getLanguage ==
+        case sfc: ScalarSqlFunction if sfc.scalarFunction.getLanguage ==
           FunctionLanguage.PYTHON =>
           findInternal(FunctionLanguage.PYTHON, call)
         case _ =>

@@ -47,7 +47,7 @@ import scala.collection.JavaConverters._
 class ScalarSqlFunction(
     name: String,
     displayName: String,
-    scalarFunction: ScalarFunction,
+    val scalarFunction: ScalarFunction,
     typeFactory: FlinkTypeFactory,
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlFunction(
@@ -60,8 +60,6 @@ class ScalarSqlFunction(
 
   def makeFunction(constants: Array[AnyRef], argTypes: Array[LogicalType]): ScalarFunction =
     scalarFunction
-
-  def getScalarFunction: ScalarFunction = scalarFunction
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
 
