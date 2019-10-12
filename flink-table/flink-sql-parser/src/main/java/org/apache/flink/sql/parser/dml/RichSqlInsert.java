@@ -20,7 +20,7 @@ package org.apache.flink.sql.parser.dml;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.SqlProperty;
-import org.apache.flink.sql.parser.error.SqlParseException;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlInsertKeyword;
@@ -142,7 +142,7 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 	}
 
 	@Override
-	public void validate() throws SqlParseException {
+	public void validate() throws SqlValidateException {
 		// no-op
 	}
 }

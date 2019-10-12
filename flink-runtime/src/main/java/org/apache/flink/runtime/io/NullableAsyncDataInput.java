@@ -22,12 +22,12 @@ import org.apache.flink.annotation.Internal;
 import javax.annotation.Nullable;
 
 /**
- * The variant of {@link AsyncDataInput} that for performance reasons returns {@code null} from
- * {@link #pollNextNullable()} instead returning {@code Optional.empty()} from
- * {@link AsyncDataInput#pollNext()}.
+ * The variant of {@link PullingAsyncDataInput} that for performance reasons returns {@code null}
+ * from {@link #pollNextNullable()} instead returning {@code Optional.empty()} from
+ * {@link PullingAsyncDataInput#pollNext()}.
  */
 @Internal
-public interface NullableAsyncDataInput<T> extends AvailabilityListener {
+public interface NullableAsyncDataInput<T> extends AvailabilityProvider {
 	/**
 	 * Poll the next element. This method should be non blocking.
 	 *

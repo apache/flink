@@ -43,7 +43,7 @@ import java.util.UUID;
  *     <li>Naming of RPC endpoints</li>
  * </ul>
  */
-public interface HighAvailabilityServices extends AutoCloseable {
+public interface HighAvailabilityServices extends ClientHighAvailabilityServices {
 
 	// ------------------------------------------------------------------------
 	//  Constants
@@ -79,7 +79,7 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	LeaderRetrievalService getDispatcherLeaderRetriever();
 
 	/**
-	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
+	 * Gets the leader retriever for the job JobMaster which is responsible for the given job.
 	 *
 	 * @param jobID The identifier of the job.
 	 * @return Leader retrieval service to retrieve the job manager for the given job
@@ -89,7 +89,7 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID);
 
 	/**
-	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
+	 * Gets the leader retriever for the job JobMaster which is responsible for the given job.
 	 *
 	 * @param jobID The identifier of the job.
 	 * @param defaultJobManagerAddress JobManager address which will be returned by
@@ -98,7 +98,23 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 */
 	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress);
 
-	LeaderRetrievalService getWebMonitorLeaderRetriever();
+	/**
+	 * This retriever should no longer be used on the cluster side. The web monitor retriever
+	 * is only required on the client-side and we have a dedicated high-availability services
+	 * for the client, named {@link ClientHighAvailabilityServices}. See also FLINK-13750.
+	 *
+	 * @return the leader retriever for web monitor
+	 * @deprecated just use {@link #getClusterRestEndpointLeaderRetriever()} instead of this method.
+	 */
+	@Deprecated
+	default LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		throw new UnsupportedOperationException(
+			"getWebMonitorLeaderRetriever should no longer be used. Instead use " +
+				"#getClusterRestEndpointLeaderRetriever to instantiate the cluster " +
+				"rest endpoint leader retriever. If you called this method, then " +
+				"make sure that #getClusterRestEndpointLeaderRetriever has been " +
+				"implemented by your HighAvailabilityServices implementation.");
+	}
 
 	/**
 	 * Gets the leader election service for the cluster's resource manager.
@@ -122,17 +138,31 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 */
 	LeaderElectionService getJobManagerLeaderElectionService(JobID jobID);
 
-	LeaderElectionService getWebMonitorLeaderElectionService();
+	/**
+	 * Gets the leader election service for the cluster's rest endpoint.
+	 *
+	 * @return the leader election service used by the cluster's rest endpoint
+	 * @deprecated Use {@link #getClusterRestEndpointLeaderElectionService()} instead.
+	 */
+	@Deprecated
+	default LeaderElectionService getWebMonitorLeaderElectionService() {
+		throw new UnsupportedOperationException(
+			"getWebMonitorLeaderElectionService should no longer be used. Instead use " +
+				"#getClusterRestEndpointLeaderElectionService to instantiate the cluster " +
+				"rest endpoint's leader election service. If you called this method, then " +
+				"make sure that #getClusterRestEndpointLeaderElectionService has been " +
+				"implemented by your HighAvailabilityServices implementation.");
+	}
 
 	/**
-	 * Gets the checkpoint recovery factory for the job manager
+	 * Gets the checkpoint recovery factory for the job manager.
 	 *
 	 * @return Checkpoint recovery factory
 	 */
 	CheckpointRecoveryFactory getCheckpointRecoveryFactory();
 
 	/**
-	 * Gets the submitted job graph store for the job manager
+	 * Gets the submitted job graph store for the job manager.
 	 *
 	 * @return Submitted job graph store
 	 * @throws Exception if the submitted job graph store could not be created
@@ -153,6 +183,24 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 * @throws IOException if the blob store could not be created
 	 */
 	BlobStore createBlobStore() throws IOException;
+
+	/**
+	 * Gets the leader election service for the cluster's rest endpoint.
+	 *
+	 * @return the leader election service used by the cluster's rest endpoint
+	 */
+	default LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+		// for backwards compatibility we delegate to getWebMonitorLeaderElectionService
+		// all implementations of this interface should override getClusterRestEndpointLeaderElectionService, though
+		return getWebMonitorLeaderElectionService();
+	}
+
+	@Override
+	default LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+		// for backwards compatibility we delegate to getWebMonitorLeaderRetriever
+		// all implementations of this interface should override getClusterRestEndpointLeaderRetriever, though
+		return getWebMonitorLeaderRetriever();
+	}
 
 	// ------------------------------------------------------------------------
 	//  Shutdown and Cleanup

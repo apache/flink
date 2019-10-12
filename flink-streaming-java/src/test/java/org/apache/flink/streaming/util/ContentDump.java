@@ -124,7 +124,7 @@ public class ContentDump {
 	/**
 	 * Exception thrown for an attempt to write into read-only {@link ContentDump}.
 	 */
-	public class NotWritableException extends RuntimeException {
+	public static class NotWritableException extends RuntimeException {
 		public NotWritableException(String name) {
 			super(String.format("File [%s] is not writable", name));
 		}

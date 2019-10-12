@@ -196,7 +196,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 					assertThat((int) (taskManagerInfo.getHardwareDescription().getSizeOfManagedMemory() >> 20), is(expectedManagedMemoryMB));
 				} finally {
 					restClient.shutdown(TIMEOUT);
-					clusterClient.shutdown();
+					clusterClient.close();
 				}
 
 				clusterDescriptor.killCluster(clusterId);

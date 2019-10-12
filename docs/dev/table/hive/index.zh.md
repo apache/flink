@@ -48,8 +48,7 @@ example, you want to use Flink to integrate `2.3.1` hive version in sql client, 
 hive-version to `2.3.4` in YAML config. Similarly pass the version string when creating 
 HiveCatalog instance via Table API.
 
-Users are welcome to try out different versions with this workaround. Since only `2.3.4` and `1.2
-.1` have been tested, there might be unexpected issues. We will test and support more versions in future releases.
+Users are welcome to try out different versions with this workaround. Since only `2.3.4` and `1.2.1` have been tested, there might be unexpected issues. We will test and support more versions in future releases.
 
 ### Depedencies 
 
@@ -69,7 +68,7 @@ To integrate with Hive, users need the following dependencies in their project.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-hadoop-compatibility_{{site.version}}</artifactId>
+  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -79,7 +78,7 @@ To integrate with Hive, users need the following dependencies in their project.
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-shaded-hadoop-2-uber</artifactId>
-  <version>2.7.5-{{site.version}}</version>
+  <version>2.7.5-{{ site.shaded_version }}</version>
   <scope>provided</scope>
 </dependency>
 
@@ -105,7 +104,7 @@ To integrate with Hive, users need the following dependencies in their project.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-hadoop-compatibility_{{site.version}}</artifactId>
+  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -115,7 +114,7 @@ To integrate with Hive, users need the following dependencies in their project.
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-shaded-hadoop-2-uber</artifactId>
-  <version>2.6.5-{{site.version}}</version>
+  <version>2.6.5-{{ site.shaded_version }}</version>
   <scope>provided</scope>
 </dependency>
 

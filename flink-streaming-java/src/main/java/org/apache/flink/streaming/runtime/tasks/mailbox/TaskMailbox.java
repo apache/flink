@@ -24,8 +24,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A task mailbox wraps the basic {@link Mailbox} interface with a lifecycle of closed -> open -> (quiesced) ->
- * closed.
+ * A task mailbox wraps the basic {@link Mailbox} interface with a lifecycle of open -> (quiesced) -> closed.
+ * In the open state, the mailbox supports put and take operations.
+ * In the quiesced state, the mailbox supports only take operations.
  *
  * <p>Additionally, letters have a priority that can be used to retrieve only relevant letters.
  */
@@ -46,11 +47,6 @@ public interface TaskMailbox {
 	enum State {
 		OPEN, QUIESCED, CLOSED
 	}
-
-	/**
-	 * Open the mailbox. In this state, the mailbox supports put and take operations.
-	 */
-	void open();
 
 	/**
 	 * Quiesce the mailbox. In this state, the mailbox supports only take operations and all pending and future put
@@ -74,6 +70,13 @@ public interface TaskMailbox {
 	 */
 	@Nonnull
 	State getState();
+
+	/**
+	 * Returns a mailbox view bound to all mails.
+	 *
+	 * @return the mailbox
+	 */
+	Mailbox getMainMailbox();
 
 	/**
 	 * Returns a mailbox view bound to the given priority.

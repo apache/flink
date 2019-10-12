@@ -21,7 +21,6 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -32,9 +31,9 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 /**
  * Factory for the {@link DispatcherResourceManagerComponent}.
  */
-public interface DispatcherResourceManagerComponentFactory<T extends Dispatcher> {
+public interface DispatcherResourceManagerComponentFactory {
 
-	DispatcherResourceManagerComponent<T> create(
+	DispatcherResourceManagerComponent create(
 		Configuration configuration,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,

@@ -115,6 +115,13 @@ under the License.
 			<fileMode>755</fileMode>
 		</fileSet>
 
+		<!-- copy python scripts -->
+		<fileSet>
+			<directory>../flink-python/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 		<!-- copy SQL client -->
 		<fileSet>
 			<directory>../flink-table/flink-sql-client/bin/</directory>
@@ -230,17 +237,6 @@ under the License.
 		</fileSet>
 		<fileSet>
 			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-state-machine/target</directory>
-			<outputDirectory>examples/streaming</outputDirectory>
-			<fileMode>0644</fileMode>
-			<includes>
-				<include>*.jar</include>
-			</includes>
-			<excludes>
-				<exclude>original-*.jar</exclude>
-			</excludes>
-		</fileSet>
-		<fileSet>
-			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-click-event-count/target</directory>
 			<outputDirectory>examples/streaming</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>

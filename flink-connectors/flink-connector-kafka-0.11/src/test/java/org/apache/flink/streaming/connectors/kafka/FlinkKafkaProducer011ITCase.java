@@ -49,7 +49,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic;
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic.AT_LEAST_ONCE;
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic.EXACTLY_ONCE;
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
@@ -160,7 +160,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBaseWithFlink {
 		}
 		catch (Exception ex) {
 			// testHarness1 will be fenced off after creating and closing testHarness2
-			if (!findThrowable(ex, ProducerFencedException.class).isPresent()) {
+			if (!findSerializedThrowable(ex, ProducerFencedException.class, ClassLoader.getSystemClassLoader()).isPresent()) {
 				throw ex;
 			}
 		}
@@ -664,7 +664,8 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBaseWithFlink {
 	}
 
 	private boolean isCausedBy(FlinkKafka011ErrorCode expectedErrorCode, Throwable ex) {
-		Optional<FlinkKafka011Exception> cause = findThrowable(ex, FlinkKafka011Exception.class);
+		// Extract the root cause kafka exception (if any) from the serialized throwable.
+		Optional<FlinkKafka011Exception> cause = findSerializedThrowable(ex, FlinkKafka011Exception.class, ClassLoader.getSystemClassLoader());
 		if (cause.isPresent()) {
 			return cause.get().getErrorCode().equals(expectedErrorCode);
 		}

@@ -1060,7 +1060,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>mode</code> (optional): String value that specifies the termination mode. Supported values are: "cancel, stop".</li>
+<li><code>mode</code> (optional): String value that specifies the termination mode. The only supported value is: "cancel".</li>
         </ul>
       </td>
     </tr>
@@ -2516,7 +2516,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "array",
       "items" : {
         "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo:VertexTaskDetail",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:SubtaskExecutionAttemptDetailsInfo",
         "properties" : {
           "subtask" : {
             "type" : "integer"
@@ -2572,6 +2572,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           },
           "start_time" : {
             "type" : "integer"
+          },
+          "taskmanager-id" : {
+            "type" : "string"
           }
         }
       }
@@ -3049,6 +3052,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "boolean"
         }
       }
+    },
+    "taskmanager-id" : {
+      "type" : "string"
     }
   }
 }            </code>
@@ -3155,6 +3161,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "boolean"
         }
       }
+    },
+    "taskmanager-id" : {
+      "type" : "string"
     }
   }
 }            </code>
@@ -3500,6 +3509,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "additionalProperties" : {
               "type" : "integer"
             }
+          },
+          "taskmanager-id" : {
+            "type" : "string"
           }
         }
       }

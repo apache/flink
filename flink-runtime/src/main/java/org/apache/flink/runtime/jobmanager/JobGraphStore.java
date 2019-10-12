@@ -28,7 +28,7 @@ import java.util.Collection;
 /**
  * {@link JobGraph} instances for recovery.
  */
-public interface JobGraphStore {
+public interface JobGraphStore extends JobGraphWriter {
 
 	/**
 	 * Starts the {@link JobGraphStore} service.
@@ -46,29 +46,6 @@ public interface JobGraphStore {
 	 */
 	@Nullable
 	JobGraph recoverJobGraph(JobID jobId) throws Exception;
-
-	/**
-	 * Adds the {@link JobGraph} instance.
-	 *
-	 * <p>If a job graph with the same {@link JobID} exists, it is replaced.
-	 */
-	void putJobGraph(JobGraph jobGraph) throws Exception;
-
-	/**
-	 * Removes the {@link JobGraph} with the given {@link JobID} if it exists.
-	 */
-	void removeJobGraph(JobID jobId) throws Exception;
-
-	/**
-	 * Releases the locks on the specified {@link JobGraph}.
-	 *
-	 * Releasing the locks allows that another instance can delete the job from
-	 * the {@link JobGraphStore}.
-	 *
-	 * @param jobId specifying the job to release the locks for
-	 * @throws Exception if the locks cannot be released
-	 */
-	void releaseJobGraph(JobID jobId) throws Exception;
 
 	/**
 	 * Get all job ids of submitted job graphs to the submitted job graph store.

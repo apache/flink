@@ -39,7 +39,6 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
-import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -128,7 +127,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	private final Option flinkJar;
 	private final Option jmMemory;
 	private final Option tmMemory;
-	private final Option container;
 	private final Option slots;
 	private final Option zookeeperNamespace;
 	private final Option nodeLabel;
@@ -191,7 +189,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		flinkJar = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
 		jmMemory = new Option(shortPrefix + "jm", longPrefix + "jobManagerMemory", true, "Memory for JobManager Container with optional unit (default: MB)");
 		tmMemory = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true, "Memory per TaskManager Container with optional unit (default: MB)");
-		container = new Option(shortPrefix + "n", longPrefix + "container", true, "Number of YARN container to allocate (=Number of Task Managers)");
 		slots = new Option(shortPrefix + "s", longPrefix + "slots", true, "Number of slots per TaskManager");
 		dynamicproperties = Option.builder(shortPrefix + "D")
 			.argName("property=value")
@@ -210,7 +207,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		allOptions.addOption(flinkJar);
 		allOptions.addOption(jmMemory);
 		allOptions.addOption(tmMemory);
-		allOptions.addOption(container);
 		allOptions.addOption(queue);
 		allOptions.addOption(query);
 		allOptions.addOption(shipPath);
@@ -266,13 +262,13 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		this.yarnConfiguration = new YarnConfiguration();
 	}
 
-	private AbstractYarnClusterDescriptor createDescriptor(
+	private YarnClusterDescriptor createDescriptor(
 			Configuration configuration,
 			YarnConfiguration yarnConfiguration,
 			String configurationDirectory,
 			CommandLine cmd) {
 
-		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
+		YarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
 			configuration,
 			yarnConfiguration,
 			configurationDirectory);
@@ -335,6 +331,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		final Properties properties = cmd.getOptionProperties(dynamicproperties.getOpt());
 
+		for (String key : properties.stringPropertyNames()) {
+			LOG.info("Dynamic Property set: {}={}", key, GlobalConfiguration.isSensitive(key) ? GlobalConfiguration.HIDDEN_CONTENT : properties.getProperty(key));
+		}
+
 		String[] dynamicProperties = properties.stringPropertyNames().stream()
 			.flatMap(
 				(String key) -> {
@@ -378,19 +378,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	private ClusterSpecification createClusterSpecification(Configuration configuration, CommandLine cmd) {
-		if (cmd.hasOption(container.getOpt())) { // number of containers is required option!
-			LOG.info("The argument {} is deprecated in will be ignored.", container.getOpt());
-		}
-
-		// TODO: The number of task manager should be deprecated soon
-		final int numberTaskManagers;
-
-		if (cmd.hasOption(container.getOpt())) {
-			numberTaskManagers = Integer.valueOf(cmd.getOptionValue(container.getOpt()));
-		} else {
-			numberTaskManagers = 1;
-		}
-
 		// JobManager Memory
 		final int jobManagerMemoryMB = ConfigurationUtils.getJobManagerHeapMemory(configuration).getMebiBytes();
 
@@ -402,7 +389,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(jobManagerMemoryMB)
 			.setTaskManagerMemoryMB(taskManagerMemoryMB)
-			.setNumberTaskManagers(numberTaskManagers)
 			.setSlotsPerTaskManager(slotsPerTaskManager)
 			.createClusterSpecification();
 	}
@@ -412,10 +398,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setWidth(200);
 		formatter.setLeftPadding(5);
-		formatter.setSyntaxPrefix("   Required");
-		Options req = new Options();
-		req.addOption(container);
-		formatter.printHelp(" ", req);
 
 		formatter.setSyntaxPrefix("   Optional");
 		Options options = new Options();
@@ -453,7 +435,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	@Override
-	public AbstractYarnClusterDescriptor createClusterDescriptor(CommandLine commandLine) throws FlinkException {
+	public YarnClusterDescriptor createClusterDescriptor(CommandLine commandLine) throws FlinkException {
 		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
 		return createDescriptor(
@@ -593,7 +575,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			return 0;
 		}
 
-		final AbstractYarnClusterDescriptor yarnClusterDescriptor = createClusterDescriptor(cmd);
+		final YarnClusterDescriptor yarnClusterDescriptor = createClusterDescriptor(cmd);
 
 		try {
 			// Query cluster for metrics
@@ -626,7 +608,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 							yarnClusterDescriptor.getDynamicPropertiesEncoded());
 					} catch (Exception e) {
 						try {
-							clusterClient.shutdown();
+							clusterClient.close();
 						} catch (Exception ex) {
 							LOG.info("Could not properly shutdown cluster client.", ex);
 						}
@@ -705,7 +687,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		clusterClient.shutDownCluster();
 
 		try {
-			clusterClient.shutdown();
+			clusterClient.close();
 		} catch (Exception e) {
 			LOG.info("Could not properly shutdown cluster client.", e);
 		}
@@ -979,7 +961,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
 	}
 
-	private AbstractYarnClusterDescriptor getClusterDescriptor(
+	private YarnClusterDescriptor getClusterDescriptor(
 			Configuration configuration,
 			YarnConfiguration yarnConfiguration,
 			String configurationDirectory) {

@@ -83,6 +83,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 	public FileArchivedExecutionGraphStore(
 			File rootDir,
 			Time expirationTime,
+			int maximumCapacity,
 			long maximumCacheSizeBytes,
 			ScheduledExecutor scheduledExecutor,
 			Ticker ticker) throws IOException {
@@ -102,6 +103,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 			"The storage directory must exist and be a directory.");
 		this.jobDetailsCache = CacheBuilder.newBuilder()
 			.expireAfterWrite(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS)
+			.maximumSize(maximumCapacity)
 			.removalListener(
 				(RemovalListener<JobID, JobDetails>) notification -> deleteExecutionGraphFile(notification.getKey()))
 			.ticker(ticker)

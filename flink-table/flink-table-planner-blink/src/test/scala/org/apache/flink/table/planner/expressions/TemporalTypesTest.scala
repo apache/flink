@@ -645,7 +645,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   private def timestampTz(str: String) = {
-    s"CAST(TIMESTAMP '$str' AS TIMESTAMP_WITH_LOCAL_TIME_ZONE)"
+    s"CAST(TIMESTAMP '$str' AS TIMESTAMP WITH LOCAL TIME ZONE)"
   }
 
   @Test
@@ -803,7 +803,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     cases.foreach {
       caseExpr =>
-        testSqlNullable(caseExpr)
+        testSqlApi(caseExpr, "null")
     }
   }
 

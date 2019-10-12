@@ -53,6 +53,7 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	private final SlotRequestId slotRequestId;
 
+	@Nullable
 	private final SlotSharingGroupId slotSharingGroupId;
 
 	TestingLogicalSlot(
@@ -61,7 +62,7 @@ public class TestingLogicalSlot implements LogicalSlot {
 			int slotNumber,
 			AllocationID allocationId,
 			SlotRequestId slotRequestId,
-			SlotSharingGroupId slotSharingGroupId,
+			@Nullable SlotSharingGroupId slotSharingGroupId,
 			boolean automaticallyCompleteReleaseFuture,
 			SlotOwner slotOwner) {
 
@@ -71,10 +72,10 @@ public class TestingLogicalSlot implements LogicalSlot {
 		this.slotNumber = slotNumber;
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
-		this.slotSharingGroupId = Preconditions.checkNotNull(slotSharingGroupId);
+		this.slotSharingGroupId = slotSharingGroupId;
 		this.releaseFuture = new CompletableFuture<>();
 		this.automaticallyCompleteReleaseFuture = automaticallyCompleteReleaseFuture;
-		this.slotOwner = slotOwner;
+		this.slotOwner = Preconditions.checkNotNull(slotOwner);
 	}
 
 	@Override

@@ -710,7 +710,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	@Override
 	public void grantLeadership(final UUID leaderSessionID) {
 		log.info("{} was granted leadership with leaderSessionID={}", getRestBaseUrl(), leaderSessionID);
-		leaderElectionService.confirmLeaderSessionID(leaderSessionID);
+		leaderElectionService.confirmLeadership(leaderSessionID, getRestBaseUrl());
 	}
 
 	@Override
@@ -719,7 +719,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	}
 
 	@Override
-	public String getAddress() {
+	public String getDescription() {
 		return getRestBaseUrl();
 	}
 

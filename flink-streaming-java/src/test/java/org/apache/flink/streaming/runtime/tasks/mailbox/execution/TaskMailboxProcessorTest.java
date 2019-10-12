@@ -39,6 +39,7 @@ public class TaskMailboxProcessorTest {
 	@Test
 	public void testRejectIfNotOpen() {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
+		mailboxProcessor.prepareClose();
 		try {
 			mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {});
 			Assert.fail("Should not be able to accept runnables if not opened.");
@@ -50,7 +51,6 @@ public class TaskMailboxProcessorTest {
 	public void testShutdown() {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
 		FutureTask<Void> testRunnableFuture = new FutureTask<>(() -> {}, null);
-		mailboxProcessor.open();
 		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(testRunnableFuture);
 		mailboxProcessor.prepareClose();
 
@@ -164,7 +164,6 @@ public class TaskMailboxProcessorTest {
 
 		mailboxThread.start();
 		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
-		mailboxProcessor.open();
 
 		final Thread asyncUnblocker = new Thread(() -> {
 			int count = 0;
@@ -206,7 +205,6 @@ public class TaskMailboxProcessorTest {
 	private static MailboxProcessor start(MailboxThread mailboxThread) {
 		mailboxThread.start();
 		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
-		mailboxProcessor.open();
 		mailboxThread.signalStart();
 		return mailboxProcessor;
 	}

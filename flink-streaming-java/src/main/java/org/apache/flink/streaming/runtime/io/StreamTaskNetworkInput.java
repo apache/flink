@@ -31,22 +31,33 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
-
-import javax.annotation.Nullable;
+import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Implementation of {@link StreamTaskInput} that wraps an input from network taken from {@link CheckpointedInputGate}.
+ *
+ * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
+ * {@link StreamStatus} events, and forwards them to event subscribers once the
+ * {@link StatusWatermarkValve} determines the {@link Watermark} from all inputs has advanced, or
+ * that a {@link StreamStatus} needs to be propagated downstream to denote a status change.
+ *
+ * <p>Forwarding elements, watermarks, or status status elements must be protected by synchronizing
+ * on the given lock object. This ensures that we don't call methods on a
+ * {@link StreamInputProcessor} concurrently with the timer callback or other things.
  */
 @Internal
-public final class StreamTaskNetworkInput implements StreamTaskInput {
+public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
 	private final CheckpointedInputGate checkpointedInputGate;
 
@@ -54,19 +65,21 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
+	/** Valve that controls how watermarks and stream statuses are forwarded. */
+	private final StatusWatermarkValve statusWatermarkValve;
+
 	private final int inputIndex;
 
 	private int lastChannel = UNSPECIFIED;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer = null;
 
-	private boolean isFinished = false;
-
 	@SuppressWarnings("unchecked")
 	public StreamTaskNetworkInput(
 			CheckpointedInputGate checkpointedInputGate,
 			TypeSerializer<?> inputSerializer,
 			IOManager ioManager,
+			StatusWatermarkValve statusWatermarkValve,
 			int inputIndex) {
 		this.checkpointedInputGate = checkpointedInputGate;
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(
@@ -79,6 +92,7 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 				ioManager.getSpillingDirectoriesPaths());
 		}
 
+		this.statusWatermarkValve = checkNotNull(statusWatermarkValve);
 		this.inputIndex = inputIndex;
 	}
 
@@ -86,7 +100,7 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 	StreamTaskNetworkInput(
 		CheckpointedInputGate checkpointedInputGate,
 		TypeSerializer<?> inputSerializer,
-		IOManager ioManager,
+		StatusWatermarkValve statusWatermarkValve,
 		int inputIndex,
 		RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers) {
 
@@ -94,12 +108,12 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(
 			new StreamElementSerializer<>(inputSerializer));
 		this.recordDeserializers = recordDeserializers;
+		this.statusWatermarkValve = statusWatermarkValve;
 		this.inputIndex = inputIndex;
 	}
 
 	@Override
-	@Nullable
-	public StreamElement pollNextNullable() throws Exception {
+	public InputStatus emitNext(DataOutput<T> output) throws Exception {
 
 		while (true) {
 			// get the stream element from the deserializer
@@ -111,7 +125,8 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 				}
 
 				if (result.isFullRecord()) {
-					return deserializationDelegate.getInstance();
+					processElement(deserializationDelegate.getInstance(), output);
+					return InputStatus.MORE_AVAILABLE;
 				}
 			}
 
@@ -120,20 +135,35 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 				processBufferOrEvent(bufferOrEvent.get());
 			} else {
 				if (checkpointedInputGate.isFinished()) {
-					isFinished = true;
 					checkState(checkpointedInputGate.isAvailable().isDone(), "Finished BarrierHandler should be available");
 					if (!checkpointedInputGate.isEmpty()) {
 						throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
 					}
+					return InputStatus.END_OF_INPUT;
 				}
-				return null;
+				return InputStatus.NOTHING_AVAILABLE;
 			}
+		}
+	}
+
+	private void processElement(StreamElement recordOrMark, DataOutput<T> output) throws Exception {
+		if (recordOrMark.isRecord()){
+			output.emitRecord(recordOrMark.asRecord());
+		} else if (recordOrMark.isWatermark()) {
+			statusWatermarkValve.inputWatermark(recordOrMark.asWatermark(), lastChannel);
+		} else if (recordOrMark.isLatencyMarker()) {
+			output.emitLatencyMarker(recordOrMark.asLatencyMarker());
+		} else if (recordOrMark.isStreamStatus()) {
+			statusWatermarkValve.inputStreamStatus(recordOrMark.asStreamStatus(), lastChannel);
+		} else {
+			throw new UnsupportedOperationException("Unknown type of StreamElement");
 		}
 	}
 
 	private void processBufferOrEvent(BufferOrEvent bufferOrEvent) throws IOException {
 		if (bufferOrEvent.isBuffer()) {
 			lastChannel = bufferOrEvent.getChannelIndex();
+			checkState(lastChannel != StreamTaskInput.UNSPECIFIED);
 			currentRecordDeserializer = recordDeserializers[lastChannel];
 			checkState(currentRecordDeserializer != null,
 				"currentRecordDeserializer has already been released");
@@ -155,18 +185,8 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 	}
 
 	@Override
-	public int getLastChannel() {
-		return lastChannel;
-	}
-
-	@Override
 	public int getInputIndex() {
 		return inputIndex;
-	}
-
-	@Override
-	public boolean isFinished() {
-		return isFinished;
 	}
 
 	@Override

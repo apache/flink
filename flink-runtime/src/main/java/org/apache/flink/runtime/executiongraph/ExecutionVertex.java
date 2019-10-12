@@ -58,6 +58,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
@@ -515,6 +516,18 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	/**
+	 * Gets the preferred location to execute the current task execution attempt, based on the state
+	 * that the execution attempt will resume.
+	 */
+	public Optional<TaskManagerLocation> getPreferredLocationBasedOnState() {
+		if (currentExecution.getTaskRestore() != null) {
+			return Optional.ofNullable(getLatestPriorLocation());
+		}
+
+		return Optional.empty();
+	}
+
+	/**
 	 * Gets the location preferences of the vertex's current task execution, as determined by the locations
 	 * of the predecessors from which it receives input data.
 	 * If there are more than MAX_DISTINCT_LOCATIONS_TO_CONSIDER different locations of source data, this
@@ -599,61 +612,75 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				throw new GlobalModVersionMismatch(originatingGlobalModVersion, actualModVersion);
 			}
 
-			final Execution oldExecution = currentExecution;
-			final ExecutionState oldState = oldExecution.getState();
+			return resetForNewExecutionInternal(timestamp, originatingGlobalModVersion);
+		}
+	}
 
-			if (oldState.isTerminal()) {
-				if (oldState == FINISHED) {
-					// pipelined partitions are released in Execution#cancel(), covering both job failures and vertex resets
-					// do not release pipelined partitions here to save RPC calls
-					oldExecution.handlePartitionCleanup(false, true);
-					getExecutionGraph().getPartitionReleaseStrategy().vertexUnfinished(executionVertexId);
-				}
+	public void resetForNewExecutionIfInTerminalState() {
+		if (isExecutionInTerminalState()) {
+			resetForNewExecutionInternal(System.currentTimeMillis(), getExecutionGraph().getGlobalModVersion());
+		}
+	}
 
-				priorExecutions.add(oldExecution.archive());
+	private boolean isExecutionInTerminalState() {
+		return currentExecution.getState().isTerminal();
+	}
 
-				final Execution newExecution = new Execution(
-					getExecutionGraph().getFutureExecutor(),
-					this,
-					oldExecution.getAttemptNumber() + 1,
-					originatingGlobalModVersion,
-					timestamp,
-					timeout);
+	private Execution resetForNewExecutionInternal(final long timestamp, final long originatingGlobalModVersion) {
+		final Execution oldExecution = currentExecution;
+		final ExecutionState oldState = oldExecution.getState();
 
-				currentExecution = newExecution;
-
-				synchronized (inputSplits) {
-					InputSplitAssigner assigner = jobVertex.getSplitAssigner();
-					if (assigner != null) {
-						assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
-						inputSplits.clear();
-					}
-				}
-
-				CoLocationGroup grp = jobVertex.getCoLocationGroup();
-				if (grp != null) {
-					locationConstraint = grp.getLocationConstraint(subTaskIndex);
-				}
-
-				// register this execution at the execution graph, to receive call backs
-				getExecutionGraph().registerExecution(newExecution);
-
-				// if the execution was 'FINISHED' before, tell the ExecutionGraph that
-				// we take one step back on the road to reaching global FINISHED
-				if (oldState == FINISHED) {
-					getExecutionGraph().vertexUnFinished();
-				}
-
-				// reset the intermediate results
-				for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
-					resultPartition.resetForNewExecution();
-				}
-
-				return newExecution;
+		if (oldState.isTerminal()) {
+			if (oldState == FINISHED) {
+				// pipelined partitions are released in Execution#cancel(), covering both job failures and vertex resets
+				// do not release pipelined partitions here to save RPC calls
+				oldExecution.handlePartitionCleanup(false, true);
+				getExecutionGraph().getPartitionReleaseStrategy().vertexUnfinished(executionVertexId);
 			}
-			else {
-				throw new IllegalStateException("Cannot reset a vertex that is in non-terminal state " + oldState);
+
+			priorExecutions.add(oldExecution.archive());
+
+			final Execution newExecution = new Execution(
+				getExecutionGraph().getFutureExecutor(),
+				this,
+				oldExecution.getAttemptNumber() + 1,
+				originatingGlobalModVersion,
+				timestamp,
+				timeout);
+
+			currentExecution = newExecution;
+
+			synchronized (inputSplits) {
+				InputSplitAssigner assigner = jobVertex.getSplitAssigner();
+				if (assigner != null) {
+					assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
+					inputSplits.clear();
+				}
 			}
+
+			CoLocationGroup grp = jobVertex.getCoLocationGroup();
+			if (grp != null) {
+				locationConstraint = grp.getLocationConstraint(subTaskIndex);
+			}
+
+			// register this execution at the execution graph, to receive call backs
+			getExecutionGraph().registerExecution(newExecution);
+
+			// if the execution was 'FINISHED' before, tell the ExecutionGraph that
+			// we take one step back on the road to reaching global FINISHED
+			if (oldState == FINISHED) {
+				getExecutionGraph().vertexUnFinished();
+			}
+
+			// reset the intermediate results
+			for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
+				resultPartition.resetForNewExecution();
+			}
+
+			return newExecution;
+		}
+		else {
+			throw new IllegalStateException("Cannot reset a vertex that is in non-terminal state " + oldState);
 		}
 	}
 
@@ -677,7 +704,17 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			allPreviousExecutionGraphAllocationIds);
 	}
 
-	@VisibleForTesting
+	public void tryAssignResource(LogicalSlot slot) {
+		if (!currentExecution.tryAssignResource(slot)) {
+			throw new IllegalStateException("Could not assign resource " + slot + " to current execution " +
+				currentExecution + '.');
+		}
+	}
+
+	public void deploy() throws JobException {
+		currentExecution.deploy();
+	}
+
 	public void deployToSlot(LogicalSlot slot) throws JobException {
 		if (currentExecution.tryAssignResource(slot)) {
 			currentExecution.deploy();
@@ -829,5 +866,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	@Override
 	public ArchivedExecutionVertex archive() {
 		return new ArchivedExecutionVertex(this);
+	}
+
+	public boolean isLegacyScheduling() {
+		return getExecutionGraph().isLegacyScheduling();
 	}
 }

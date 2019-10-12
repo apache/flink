@@ -23,8 +23,8 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<artifactId>flink-parent</artifactId>
 		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-parent</artifactId>
 		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
@@ -62,13 +62,44 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Beam dependencies -->
+
+		<dependency>
+			<groupId>org.apache.beam</groupId>
+			<artifactId>beam-runners-java-fn-execution</artifactId>
+		</dependency>
+
+		<!-- Protobuf dependencies -->
+
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+		</dependency>
 
 		<!-- Python API dependencies -->
 
 		<dependency>
 			<groupId>net.sf.py4j</groupId>
 			<artifactId>py4j</artifactId>
-			<version>${py4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.razorvine</groupId>
@@ -81,7 +112,82 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+
+		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>net.sf.py4j</groupId>
+				<artifactId>py4j</artifactId>
+				<version>${py4j.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.beam</groupId>
+				<artifactId>beam-runners-java-fn-execution</artifactId>
+				<version>${beam.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.google.protobuf</groupId>
+				<artifactId>protobuf-java</artifactId>
+				<version>${protoc.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>2.9.9</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>2.9.9</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>2.9.9</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
@@ -97,9 +203,15 @@ under the License.
 						</goals>
 						<configuration>
 							<target>
-								<delete>
+								<delete includeEmptyDirs="true">
 									<fileset dir="${project.basedir}/pyflink"
-											 includes="**/*.pyc"/>
+											 includes="**/*.pyc,**/__pycache__"/>
+									<fileset dir="${project.basedir}/pyflink">
+										<and>
+											<size value="0"/>
+											<type type="dir"/>
+										</and>
+									</fileset>
 								</delete>
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<delete dir="${project.basedir}/target"/>
@@ -117,9 +229,15 @@ under the License.
 						</goals>
 						<configuration>
 							<target>
-								<delete>
+								<delete includeEmptyDirs="true">
 									<fileset dir="${project.basedir}/pyflink"
-											 includes="**/*.pyc"/>
+											 includes="**/*.pyc,**/__pycache__"/>
+									<fileset dir="${project.basedir}/pyflink">
+										<and>
+											<size value="0"/>
+											<type type="dir"/>
+										</and>
+									</fileset>
 								</delete>
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<zip destfile="${project.basedir}/lib/pyflink.zip">
@@ -131,7 +249,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -143,12 +260,28 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>net.razorvine:*</include>
 									<include>net.sf.py4j:*</include>
+									<include>org.apache.beam:*</include>
+									<include>com.fasterxml.jackson.core:*</include>
+									<include>joda-time:*</include>
+									<inculde>com.google.protobuf:*</inculde>
 								</includes>
 							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
+									<excludes>
+										<exclude>org/apache/beam/repackaged/core/net/bytebuddy/**</exclude>
+										<exclude>org/apache/beam/repackaged/core/org/antlr/**</exclude>
+										<exclude>org/apache/beam/repackaged/core/org/apache/commons/compress/**</exclude>
+										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<relocations combine.children="append">
 								<relocation>
 									<pattern>py4j</pattern>
@@ -158,7 +291,38 @@ under the License.
 									<pattern>net.razorvine</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.net.razorvine</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.joda.time</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.org.joda.time</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google.protobuf</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.com.google.protobuf</shadedPattern>
+								</relocation>
 							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.github.os72</groupId>
+				<artifactId>protoc-jar-maven-plugin</artifactId>
+				<version>${protoc.version}</version>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<protocVersion>${protoc.version}</protocVersion>
+							<inputDirectories>
+								<include>pyflink/proto</include>
+							</inputDirectories>
 						</configuration>
 					</execution>
 				</executions>

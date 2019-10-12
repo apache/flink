@@ -22,20 +22,15 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, F
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 import org.apache.flink.table.planner.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
 
-import com.google.common.collect.Lists
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
-import org.apache.calcite.rel.`type`.RelDataTypeField
-import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.{RelFieldCollation, RelNode}
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil, RexVisitorImpl}
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.tools.RelBuilder
-import org.apache.calcite.util.mapping.Mappings
-import org.apache.calcite.util.{ImmutableBitSet, Pair, Util}
+import org.apache.calcite.util.ImmutableBitSet
 import org.apache.commons.math3.util.ArithmeticUtils
 
 import java.io.{PrintWriter, StringWriter}
@@ -185,169 +180,6 @@ object FlinkRelOptUtil {
       }
     }
   }
-
-  /**
-    * Pushes down expressions in "equal" join condition.
-    *
-    * NOTES: This method should be deleted when CALCITE-3171 is fixed.
-    *
-    * <p>For example, given
-    * "emp JOIN dept ON emp.deptno + 1 = dept.deptno", adds a project above
-    * "emp" that computes the expression
-    * "emp.deptno + 1". The resulting join condition is a simple combination
-    * of AND, equals, and input fields, plus the remaining non-equal conditions.
-    *
-    * @param originalJoin Join whose condition is to be pushed down
-    * @param relBuilder Factory to create project operator
-    */
-  def pushDownJoinConditions(originalJoin: Join, relBuilder: RelBuilder): RelNode = {
-    var joinCond: RexNode = originalJoin.getCondition
-    val joinType: JoinRelType = originalJoin.getJoinType
-
-    val extraLeftExprs: util.List[RexNode] = new util.ArrayList[RexNode]
-    val extraRightExprs: util.List[RexNode] = new util.ArrayList[RexNode]
-    val leftCount: Int = originalJoin.getLeft.getRowType.getFieldCount
-    val rightCount: Int = originalJoin.getRight.getRowType.getFieldCount
-
-    // You cannot push a 'get' because field names might change.
-    //
-    // Pushing sub-queries is OK in principle (if they don't reference both
-    // sides of the join via correlating variables) but we'd rather not do it
-    // yet.
-    if (!containsGet(joinCond) && RexUtil.SubQueryFinder.find(joinCond) == null) {
-      joinCond = pushDownEqualJoinConditions(
-        joinCond, leftCount, rightCount, extraLeftExprs, extraRightExprs)
-    }
-    relBuilder.push(originalJoin.getLeft)
-    if (!extraLeftExprs.isEmpty) {
-      val fields: util.List[RelDataTypeField] = relBuilder.peek.getRowType.getFieldList
-      val pairs: util.List[Pair[RexNode, String]] = new util.AbstractList[Pair[RexNode, String]]() {
-        override def size: Int = leftCount + extraLeftExprs.size
-
-        override def get(index: Int): Pair[RexNode, String] = if (index < leftCount) {
-          val field: RelDataTypeField = fields.get(index)
-          Pair.of(new RexInputRef(index, field.getType), field.getName)
-        }
-        else Pair.of(extraLeftExprs.get(index - leftCount), null)
-      }
-      relBuilder.project(Pair.left(pairs), Pair.right(pairs))
-    }
-
-    relBuilder.push(originalJoin.getRight)
-    if (!extraRightExprs.isEmpty) {
-      val fields: util.List[RelDataTypeField] = relBuilder.peek.getRowType.getFieldList
-      val newLeftCount: Int = leftCount + extraLeftExprs.size
-      val pairs: util.List[Pair[RexNode, String]] = new util.AbstractList[Pair[RexNode, String]]() {
-        override def size: Int = rightCount + extraRightExprs.size
-
-        override def get(index: Int): Pair[RexNode, String] = if (index < rightCount) {
-          val field: RelDataTypeField = fields.get(index)
-          Pair.of(new RexInputRef(index, field.getType), field.getName)
-        }
-        else Pair.of(RexUtil.shift(extraRightExprs.get(index - rightCount), -newLeftCount), null)
-      }
-      relBuilder.project(Pair.left(pairs), Pair.right(pairs))
-    }
-
-    val right: RelNode = relBuilder.build
-    val left: RelNode = relBuilder.build
-    relBuilder.push(originalJoin.copy(originalJoin.getTraitSet, joinCond, left, right, joinType,
-      originalJoin.isSemiJoinDone))
-
-    // handle SEMI/ANTI join here
-    var mapping: Mappings.TargetMapping = null
-    if (!originalJoin.getJoinType.projectsRight()) {
-      if (!extraLeftExprs.isEmpty) {
-        mapping = Mappings.createShiftMapping(leftCount + extraLeftExprs.size, 0, 0, leftCount)
-      }
-    } else {
-      if (!extraLeftExprs.isEmpty || !extraRightExprs.isEmpty) {
-        mapping = Mappings.createShiftMapping(
-          leftCount + extraLeftExprs.size + rightCount + extraRightExprs.size,
-          0, 0, leftCount, leftCount, leftCount + extraLeftExprs.size, rightCount)
-      }
-    }
-
-    if (mapping != null) {
-      relBuilder.project(relBuilder.fields(mapping.inverse))
-    }
-    relBuilder.build
-  }
-
-  private def containsGet(node: RexNode) = try {
-    node.accept(new RexVisitorImpl[Void](true) {
-      override def visitCall(call: RexCall): Void = {
-        if (call.getOperator eq RexBuilder.GET_OPERATOR) {
-          throw Util.FoundOne.NULL
-        }
-        super.visitCall(call)
-      }
-    })
-    false
-  } catch {
-    case _: Util.FoundOne =>
-      true
-  }
-
-  /**
-    * Pushes down parts of a join condition.
-    *
-    * <p>For example, given
-    * "emp JOIN dept ON emp.deptno + 1 = dept.deptno", adds a project above
-    * "emp" that computes the expression
-    * "emp.deptno + 1". The resulting join condition is a simple combination
-    * of AND, equals, and input fields.
-    */
-  private def pushDownEqualJoinConditions(
-      node: RexNode,
-      leftCount: Int,
-      rightCount: Int,
-      extraLeftExprs: util.List[RexNode],
-      extraRightExprs: util.List[RexNode]): RexNode =
-    node.getKind match {
-      case AND | EQUALS =>
-        val call = node.asInstanceOf[RexCall]
-        val list = new util.ArrayList[RexNode]
-        val operands = Lists.newArrayList(call.getOperands)
-        // do not use `operands.zipWithIndex.foreach`
-        operands.indices.foreach { i =>
-          val operand = operands.get(i)
-          val left2 = leftCount + extraLeftExprs.size
-          val right2 = rightCount + extraRightExprs.size
-          val e = pushDownEqualJoinConditions(
-            operand, leftCount, rightCount, extraLeftExprs, extraRightExprs)
-          val remainingOperands = Util.skip(operands, i + 1)
-          val left3 = leftCount + extraLeftExprs.size
-          fix(remainingOperands, left2, left3)
-          fix(list, left2, left3)
-          list.add(e)
-        }
-
-        if (!(list == call.getOperands)) {
-          call.clone(call.getType, list)
-        } else {
-          call
-        }
-      case OR | INPUT_REF | LITERAL | NOT => node
-      case _ =>
-        if (node.accept(new TimeIndicatorExprFinder)) {
-          node
-        } else {
-          val bits = RelOptUtil.InputFinder.bits(node)
-          val mid = leftCount + extraLeftExprs.size
-          Side.of(bits, mid) match {
-            case Side.LEFT =>
-              fix(extraRightExprs, mid, mid + 1)
-              extraLeftExprs.add(node)
-              new RexInputRef(mid, node.getType)
-            case Side.RIGHT =>
-              val index2 = mid + rightCount + extraRightExprs.size
-              extraRightExprs.add(node)
-              new RexInputRef(index2, node.getType)
-            case _ => node
-          }
-        }
-    }
 
   private def fix(operands: util.List[RexNode], before: Int, after: Int): Unit = {
     if (before == after) {

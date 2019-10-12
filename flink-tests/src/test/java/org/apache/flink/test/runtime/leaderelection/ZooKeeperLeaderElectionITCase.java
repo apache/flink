@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -57,6 +58,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -123,7 +125,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 			miniCluster.submitJob(jobGraph).get();
 
-			Collection<DispatcherResourceManagerComponent<?>> dispatcherResourceManagerComponents = miniCluster.getDispatcherResourceManagerComponents();
+			Collection<DispatcherResourceManagerComponent> dispatcherResourceManagerComponents = miniCluster.getDispatcherResourceManagerComponents();
 
 			final NewLeaderRetriever newLeaderRetriever = new NewLeaderRetriever();
 			final HighAvailabilityServices highAvailabilityServices = miniCluster.getHighAvailabilityServices();
@@ -131,22 +133,30 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 			dispatcherLeaderRetriever.start(newLeaderRetriever);
 
 			for (int i = 0; i < numDispatchers - 1; i++) {
-				final DispatcherResourceManagerComponent<?> leadingDispatcherResourceManagerComponent = getLeadingDispatcherResourceManagerComponent(
+				final DispatcherResourceManagerComponent leadingDispatcherResourceManagerComponent = getLeadingDispatcherResourceManagerComponent(
 					dispatcherResourceManagerComponents,
 					newLeaderRetriever);
 
-				final Dispatcher dispatcher = leadingDispatcherResourceManagerComponent.getDispatcher();
+				final DispatcherRunner dispatcherRunner = leadingDispatcherResourceManagerComponent.getDispatcherRunner();
+				final Dispatcher dispatcher = dispatcherRunner.getDispatcher();
+
+				assertThat(dispatcher, is(notNullValue()));
 
 				CommonTestUtils.waitUntilCondition(() -> dispatcher.requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT).get() == JobStatus.RUNNING, timeout, 50L);
 
 				leadingDispatcherResourceManagerComponent.closeAsync();
 			}
 
-			final DispatcherResourceManagerComponent<?> leadingDispatcherResourceManagerComponent = getLeadingDispatcherResourceManagerComponent(
+			final DispatcherResourceManagerComponent leadingDispatcherResourceManagerComponent = getLeadingDispatcherResourceManagerComponent(
 				dispatcherResourceManagerComponents,
 				newLeaderRetriever);
 
-			CompletableFuture<JobResult> jobResultFuture = leadingDispatcherResourceManagerComponent.getDispatcher().requestJobResult(jobGraph.getJobID(), RPC_TIMEOUT);
+			final DispatcherRunner dispatcherRunner = leadingDispatcherResourceManagerComponent.getDispatcherRunner();
+			final Dispatcher dispatcher = dispatcherRunner.getDispatcher();
+
+			assertThat(dispatcher, is(notNullValue()));
+
+			CompletableFuture<JobResult> jobResultFuture = dispatcher.requestJobResult(jobGraph.getJobID(), RPC_TIMEOUT);
 			BlockingOperator.unblock();
 
 			assertThat(jobResultFuture.get().isSuccess(), is(true));
@@ -158,8 +168,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 	}
 
 	@Nonnull
-	protected DispatcherResourceManagerComponent<?> getLeadingDispatcherResourceManagerComponent(
-			Collection<DispatcherResourceManagerComponent<?>> dispatcherResourceManagerComponents,
+	protected DispatcherResourceManagerComponent getLeadingDispatcherResourceManagerComponent(
+			Collection<DispatcherResourceManagerComponent> dispatcherResourceManagerComponents,
 			NewLeaderRetriever newLeaderRetriever) throws Exception {
 		final Tuple2<String, UUID> leaderInformation = newLeaderRetriever.waitUntilNewLeader().get();
 
@@ -171,9 +181,12 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 	}
 
 	@Nonnull
-	private static Optional<DispatcherResourceManagerComponent<?>> findLeadingDispatcherResourceManagerComponent(Collection<DispatcherResourceManagerComponent<?>> dispatcherResourceManagerComponents, String address) {
-		for (DispatcherResourceManagerComponent<?> dispatcherResourceManagerComponent : dispatcherResourceManagerComponents) {
-			if (dispatcherResourceManagerComponent.getDispatcher().getAddress().equals(address)) {
+	private static Optional<DispatcherResourceManagerComponent> findLeadingDispatcherResourceManagerComponent(Collection<DispatcherResourceManagerComponent> dispatcherResourceManagerComponents, String address) {
+		for (DispatcherResourceManagerComponent dispatcherResourceManagerComponent : dispatcherResourceManagerComponents) {
+			final DispatcherRunner dispatcherRunner = dispatcherResourceManagerComponent.getDispatcherRunner();
+			final Dispatcher dispatcher = dispatcherRunner.getDispatcher();
+
+			if (dispatcher != null && dispatcher.getAddress().equals(address)) {
 				return Optional.of(dispatcherResourceManagerComponent);
 			}
 		}

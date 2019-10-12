@@ -30,40 +30,6 @@ under the License.
 The Apache Flink project supports multiple [file systems]({{ site.baseurl }}/ops/filesystems/index.html) that can be used as backing stores
 for input and output connectors. 
 
-### Using Hadoop file system implementations
-
-Apache Flink allows users to use any file system implementing the `org.apache.hadoop.fs.FileSystem`
-interface. There are Hadoop `FileSystem` implementations for
-
-- [S3](https://aws.amazon.com/s3/) (tested)
-- [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
-- [Alluxio](http://alluxio.org/) (tested)
-- [XtreemFS](http://www.xtreemfs.org/) (tested)
-- FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
-- and many more.
-
-In order to use a Hadoop file system with Flink, make sure that
-
-- the `flink-conf.yaml` has set the `fs.hdfs.hadoopconf` property to the Hadoop configuration directory. For automated testing or running from an IDE the directory containing `flink-conf.yaml` can be set by defining the `FLINK_CONF_DIR` environment variable.
-- the Hadoop configuration (in that directory) has an entry for the required file system in a file `core-site.xml`. Examples for S3 and Alluxio are linked/shown below.
-- the required classes for using the file system are available in the `lib/` folder of the Flink installation (on all machines running Flink). If putting the files into the directory is not possible, Flink also respects the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
-
-#### Amazon S3
-
-See [Deployment & Operations - Deployment - AWS - S3: Simple Storage Service]({{ site.baseurl }}/ops/deployment/aws.html) for available S3 file system implementations, their configuration and required libraries.
-
-#### Alluxio
-
-For Alluxio support add the following entry into the `core-site.xml` file:
-
-{% highlight xml %}
-<property>
-  <name>fs.alluxio.impl</name>
-  <value>alluxio.hadoop.FileSystem</value>
-</property>
-{% endhighlight %}
-
-
 ## Connecting to other systems using Input/OutputFormat wrappers for Hadoop
 
 Apache Flink allows users to access many different systems as data sources or sinks.

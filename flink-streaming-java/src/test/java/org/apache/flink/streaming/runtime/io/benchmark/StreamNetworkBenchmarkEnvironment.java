@@ -27,8 +27,6 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
@@ -80,7 +78,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	protected NettyShuffleEnvironment receiverEnv;
 
 	protected int channels;
-	protected boolean broadcastMode = false;
 	protected boolean localMode = false;
 
 	protected ResultPartitionID[] partitionIds;
@@ -98,7 +95,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		setUp(
 			writers,
 			channels,
-			false,
 			localMode,
 			senderBufferPoolSize,
 			receiverBufferPoolSize,
@@ -122,12 +118,10 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	public void setUp(
 			int writers,
 			int channels,
-			boolean broadcastMode,
 			boolean localMode,
 			int senderBufferPoolSize,
 			int receiverBufferPoolSize,
 			Configuration config) throws Exception {
-		this.broadcastMode = broadcastMode;
 		this.localMode = localMode;
 		this.channels = channels;
 		this.partitionIds = new ResultPartitionID[writers];
@@ -178,9 +172,25 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		return receiver;
 	}
 
-	public RecordWriter<T> createRecordWriter(int partitionIndex, long flushTimeout) throws Exception {
-		ResultPartitionWriter sender = createResultPartition(jobId, partitionIds[partitionIndex], senderEnv, channels);
-		return new RecordWriterBuilder().setTimeout(flushTimeout).build(sender);
+	public ResultPartitionWriter createResultPartitionWriter(int partitionIndex) throws Exception {
+
+		ResultPartitionWriter resultPartitionWriter = new ResultPartitionBuilder()
+			.setResultPartitionId(partitionIds[partitionIndex])
+			.setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
+			.setNumberOfSubpartitions(channels)
+			.setResultPartitionManager(senderEnv.getResultPartitionManager())
+			.setupBufferPoolFactoryFromNettyShuffleEnvironment(senderEnv)
+			.build();
+
+		ResultPartitionWriter consumableNotifyingPartitionWriter = new ConsumableNotifyingResultPartitionWriterDecorator(
+			new NoOpTaskActions(),
+			jobId,
+			resultPartitionWriter,
+			new NoOpResultPartitionConsumableNotifier());
+
+		consumableNotifyingPartitionWriter.setup();
+
+		return consumableNotifyingPartitionWriter;
 	}
 
 	private void generatePartitionIds() throws Exception {
@@ -203,31 +213,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			.setNumNetworkBuffers(bufferPoolSize)
 			.setNettyConfig(nettyConfig)
 			.build();
-	}
-
-	protected ResultPartitionWriter createResultPartition(
-			JobID jobId,
-			ResultPartitionID partitionId,
-			NettyShuffleEnvironment environment,
-			int channels) throws Exception {
-
-		ResultPartitionWriter resultPartitionWriter = new ResultPartitionBuilder()
-			.setResultPartitionId(partitionId)
-			.setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
-			.setNumberOfSubpartitions(channels)
-			.setResultPartitionManager(environment.getResultPartitionManager())
-			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
-			.build();
-
-		ResultPartitionWriter consumableNotifyingPartitionWriter = new ConsumableNotifyingResultPartitionWriterDecorator(
-			new NoOpTaskActions(),
-			jobId,
-			resultPartitionWriter,
-			new NoOpResultPartitionConsumableNotifier());
-
-		consumableNotifyingPartitionWriter.setup();
-
-		return consumableNotifyingPartitionWriter;
 	}
 
 	private InputGate createInputGate(TaskManagerLocation senderLocation) throws Exception {

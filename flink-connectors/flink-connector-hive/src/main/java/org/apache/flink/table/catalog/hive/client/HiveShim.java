@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -36,6 +37,7 @@ import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A shim layer to support different versions of Hive.
@@ -109,4 +111,52 @@ public interface HiveShim {
 	 */
 	SimpleGenericUDAFParameterInfo createUDAFParameterInfo(ObjectInspector[] params, boolean isWindowing,
 			boolean distinct, boolean allColumns);
+
+	/**
+	 * Get the class of Hive's MetaStoreUtils because its package name was changed in Hive 3.1.0.
+	 *
+	 * @return MetaStoreUtils class
+	 */
+	Class<?> getMetaStoreUtilsClass();
+
+	/**
+	 * Get the class of Hive's HiveMetaStoreUtils as it was split from MetaStoreUtils class in Hive 3.1.0.
+	 *
+	 * @return HiveMetaStoreUtils class
+	 */
+	Class<?> getHiveMetaStoreUtilsClass();
+
+	/**
+	 * Hive Date data type class was changed in Hive 3.1.0.
+	 *
+	 * @return Hive's Date class
+	 */
+	Class<?> getDateDataTypeClass();
+
+	/**
+	 * Hive Timestamp data type class was changed in Hive 3.1.0.
+	 *
+	 * @return Hive's Timestamp class
+	 */
+	Class<?> getTimestampDataTypeClass();
+
+	/**
+	 * The return type of HiveStatsUtils.getFileStatusRecurse was changed from array to List in Hive 3.1.0.
+	 *
+	 * @param path the path of the directory
+	 * @param level the level of recursion
+	 * @param fs the file system of the directory
+	 * @return an array of the entries
+	 * @throws IOException in case of any io error
+	 */
+	FileStatus[] getFileStatusRecurse(Path path, int level, FileSystem fs) throws IOException;
+
+	/**
+	 * The signature of HiveStatsUtils.makeSpecFromName() was changed in Hive 3.1.0.
+	 *
+	 * @param partSpec partition specs
+	 * @param currPath the current path
+	 */
+	void makeSpecFromName(Map<String, String> partSpec, Path currPath);
+
 }

@@ -24,7 +24,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverVertex;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -56,7 +55,7 @@ public class DefaultFailoverTopology implements FailoverTopology {
 		final Map<ExecutionVertex, DefaultFailoverVertex> failoverVertexMap = new IdentityHashMap<>();
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
 			final DefaultFailoverVertex failoverVertex = new DefaultFailoverVertex(
-				new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex()),
+				vertex.getID(),
 				vertex.getTaskNameWithSubtaskIndex());
 			this.failoverVertices.add(failoverVertex);
 			failoverVertexMap.put(vertex, failoverVertex);

@@ -28,10 +28,8 @@ from py4j.java_gateway import JavaObject
 from py4j.protocol import Py4JJavaError
 
 from pyflink.table.sources import CsvTableSource
-
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
-
 from pyflink.find_flink_home import _find_flink_home
 from pyflink.table import BatchTableEnvironment, StreamTableEnvironment
 from pyflink.java_gateway import get_gateway

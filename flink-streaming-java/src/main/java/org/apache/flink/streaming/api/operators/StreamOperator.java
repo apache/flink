@@ -54,6 +54,10 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	 * This method is called immediately before any elements are processed, it should contain the
 	 * operator's initialization logic.
 	 *
+	 * @implSpec In case of recovery, this method needs to ensure that all recovered data is processed before passing
+	 * back control, so that the order of elements is ensured during the recovery of an operator chain (operators
+	 * are opened from the tail operator to the head operator).
+	 *
 	 * @throws java.lang.Exception An exception in this method causes the operator to fail.
 	 */
 	void open() throws Exception;

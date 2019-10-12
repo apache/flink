@@ -118,7 +118,7 @@ public class TestingContender implements LeaderContender {
 
 			this.leaderSessionID = leaderSessionID;
 
-			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
+			leaderElectionService.confirmLeadership(leaderSessionID, address);
 
 			leader = true;
 
@@ -139,7 +139,7 @@ public class TestingContender implements LeaderContender {
 	}
 
 	@Override
-	public String getAddress() {
+	public String getDescription() {
 		return address;
 	}
 

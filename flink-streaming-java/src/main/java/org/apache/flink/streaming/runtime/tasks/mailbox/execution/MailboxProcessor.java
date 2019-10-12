@@ -68,6 +68,9 @@ public class MailboxProcessor {
 	/** The thread that executes the mailbox letters. */
 	private final Thread mailboxThread;
 
+	/** A pre-created instance of mailbox executor that executes all letters. */
+	private final MailboxExecutor mainMailboxExecutor;
+
 	/** Control flag to terminate the mailbox loop. Must only be accessed from mailbox thread. */
 	private boolean mailboxLoopRunning;
 
@@ -85,9 +88,17 @@ public class MailboxProcessor {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.mailbox = new TaskMailboxImpl();
 		this.mailboxThread = Thread.currentThread();
+		this.mainMailboxExecutor = new MailboxExecutorImpl(mailbox.getMainMailbox(), mailboxThread);
 		this.mailboxPoisonLetter = () -> mailboxLoopRunning = false;
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
+	}
+
+	/**
+	 * Returns a pre-created executor service that executes all mails.
+	 */
+	public MailboxExecutor getMainMailboxExecutor() {
+		return mainMailboxExecutor;
 	}
 
 	/**
@@ -96,13 +107,6 @@ public class MailboxProcessor {
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
 		return new MailboxExecutorImpl(mailbox.getDownstreamMailbox(priority), mailboxThread);
-	}
-
-	/**
-	 * Lifecycle method to open the mailbox for action submission.
-	 */
-	public void open() {
-		mailbox.open();
 	}
 
 	/**

@@ -114,6 +114,10 @@ public class TableEnvHiveConnectorTest {
 	public void testDifferentFormats() throws Exception {
 		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv"};
 		for (String format : formats) {
+			if (format.equals("orc") && hmsClient.getHiveVersion().startsWith("2.0")) {
+				// Ignore orc test for Hive version 2.0.x for now due to FLINK-13998
+				continue;
+			}
 			readWriteFormat(format);
 		}
 	}
@@ -177,6 +181,7 @@ public class TableEnvHiveConnectorTest {
 	public void testInsertOverwrite() throws Exception {
 		hiveShell.execute("create database db1");
 		try {
+			// non-partitioned
 			hiveShell.execute("create table db1.dest (x int, y string)");
 			hiveShell.insertInto("db1", "dest").addRow(1, "a").addRow(2, "b").commit();
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
@@ -184,6 +189,21 @@ public class TableEnvHiveConnectorTest {
 			tableEnv.sqlUpdate("insert overwrite db1.dest values (3,'c')");
 			tableEnv.execute("test insert overwrite");
 			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("3\tc"));
+
+			// static partition
+			hiveShell.execute("create table db1.part(x int) partitioned by (y int)");
+			hiveShell.insertInto("db1", "part").addRow(1, 1).addRow(2, 2).commit();
+			tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert overwrite db1.part partition (y=1) select 100");
+			tableEnv.execute("insert overwrite static partition");
+			verifyHiveQueryResult("select * from db1.part", Arrays.asList("100\t1", "2\t2"));
+
+			// dynamic partition
+			tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert overwrite db1.part values (200,2),(3,3)");
+			tableEnv.execute("insert overwrite dynamic partition");
+			// only overwrite dynamically matched partitions, other existing partitions remain intact
+			verifyHiveQueryResult("select * from db1.part", Arrays.asList("100\t1", "200\t2", "3\t3"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}

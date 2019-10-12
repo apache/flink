@@ -49,6 +49,7 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -479,11 +480,14 @@ public class LocalExecutorITCase extends TestLogger {
 	@Test
 	public void testUseCatalogAndUseDatabase() throws Exception {
 		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
-		final URL url = getClass().getClassLoader().getResource("test-data.csv");
-		Objects.requireNonNull(url);
+		final URL url1 = getClass().getClassLoader().getResource("test-data.csv");
+		final URL url2 = getClass().getClassLoader().getResource("test-data-1.csv");
+		Objects.requireNonNull(url1);
+		Objects.requireNonNull(url2);
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_PLANNER", planner);
-		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH1", url1.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH2", url2.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -501,7 +505,8 @@ public class LocalExecutorITCase extends TestLogger {
 				Arrays.asList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, HiveCatalog.DEFAULT_DB),
 				executor.listDatabases(session));
 
-			assertEquals(Collections.emptyList(), executor.listTables(session));
+			assertEquals(Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES),
+					executor.listTables(session));
 
 			executor.useDatabase(session, DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
 
@@ -527,6 +532,36 @@ public class LocalExecutorITCase extends TestLogger {
 
 		exception.expect(SqlExecutionException.class);
 		executor.useCatalog(session, "nonexistingcatalog");
+	}
+
+	@Test
+	public void testParameterizedTypes() throws Exception {
+		// only blink planner supports parameterized types
+		Assume.assumeTrue(planner.equals("blink"));
+		final URL url1 = getClass().getClassLoader().getResource("test-data.csv");
+		final URL url2 = getClass().getClassLoader().getResource("test-data-1.csv");
+		Objects.requireNonNull(url1);
+		Objects.requireNonNull(url2);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url1.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH2", url2.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+
+		final Executor executor = createModifiedExecutor(CATALOGS_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		executor.useCatalog(session, "hivecatalog");
+		String resultID = executor.executeQuery(session,
+				"select * from " + DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES).getResultId();
+		retrieveTableResult(executor, session, resultID);
+
+		// make sure legacy types still work
+		executor.useCatalog(session, "default_catalog");
+		resultID = executor.executeQuery(session, "select * from TableNumber3").getResultId();
+		retrieveTableResult(executor, session, resultID);
 	}
 
 	private void executeStreamQueryTable(

@@ -316,7 +316,7 @@ public static class ComplexNestedClass {
 <div data-lang="scala" markdown="1">
 
 下例中，我们有一个包含“word”和“count”两个字段的 POJO：`WC`。要用 `word` 字段分组，我们只需要把它的名字传给 `keyBy()` 函数即可。
-{% highlight java %}
+{% highlight scala %}
 // 普通的 POJO（简单的 Java 对象）
 class WC(var word: String, var count: Int) {
   def this() { this("", 0L) }
@@ -535,7 +535,7 @@ data.map (new RichMapFunction[String, Int] {
 
 Flink 对于 DataSet 或 DataStream 中可以包含的元素类型做了一些限制。这么做是为了使系统能够分析类型以确定有效的执行策略。
 
-有六种不同的数据类型：
+有七种不同的数据类型：
 
 1. **Java Tuple** 和 **Scala Case Class**
 2. **Java POJO**

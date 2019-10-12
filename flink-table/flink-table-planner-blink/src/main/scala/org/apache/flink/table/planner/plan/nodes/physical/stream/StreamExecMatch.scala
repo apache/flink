@@ -105,7 +105,7 @@ class StreamExecMatch(
     val fieldNames = inputRowType.getFieldNames.toList
     super.explainTerms(pw)
       .itemIf("partitionBy",
-        fieldToString(getPartitionKeyIndexes, inputRowType),
+        fieldToString(logicalMatch.partitionKeys.toArray, inputRowType),
         !logicalMatch.partitionKeys.isEmpty)
       .itemIf("orderBy",
         collationToString(logicalMatch.orderKeys, inputRowType),
@@ -307,16 +307,12 @@ class StreamExecMatch(
     (timestampedInputTransform, eventComparator)
   }
 
-  private def getPartitionKeyIndexes: Array[Int] = {
-    logicalMatch.partitionKeys.map {
-      case inputRef: RexInputRef => inputRef.getIndex
-    }.toArray
-  }
-
   private def setKeySelector(
       transform: OneInputTransformation[BaseRow, _],
       inputTypeInfo: BaseRowTypeInfo): Unit = {
-    val selector = KeySelectorUtil.getBaseRowSelector(getPartitionKeyIndexes, inputTypeInfo)
+    val selector = KeySelectorUtil.getBaseRowSelector(
+      logicalMatch.partitionKeys.toArray,
+      inputTypeInfo)
     transform.setStateKeySelector(selector)
     transform.setStateKeyType(selector.getProducedType)
   }

@@ -181,7 +181,7 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 				// since deep equality is verified later in the main loop
 				// this DOES rely on an implicit assumption that the vertices objects returned by the topology are
 				// identical to those stored in the partition
-				ExecutionVertexID originalId = new ExecutionVertexID(originalConsumer.getJobvertexId(), originalConsumer.getParallelSubtaskIndex());
+				ExecutionVertexID originalId = originalConsumer.getID();
 				assertTrue(adaptedConsumers.stream().anyMatch(adaptedConsumer -> adaptedConsumer.getId().equals(originalId)));
 			}
 		}
@@ -203,7 +203,7 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 		ExecutionVertex originalVertex,
 		SchedulingExecutionVertex adaptedVertex) {
 		assertEquals(
-			new ExecutionVertexID(originalVertex.getJobvertexId(), originalVertex.getParallelSubtaskIndex()),
+			originalVertex.getID(),
 			adaptedVertex.getId());
 		assertEquals(originalVertex.getInputDependencyConstraint(), adaptedVertex.getInputDependencyConstraint());
 	}

@@ -144,6 +144,13 @@ object FlinkRuleSets {
   )
 
   /**
+    * RuleSet to do rewrite on FlinkLogicalRel
+    */
+  val LOGICAL_REWRITE_RULES: RuleSet = RuleSets.ofList(
+    PythonScalarFunctionSplitRule.INSTANCE
+  )
+
+  /**
     * RuleSet to normalize plans for batch / DataSet execution
     */
   val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
@@ -233,7 +240,8 @@ object FlinkRuleSets {
     StreamTableSourceScanRule.INSTANCE,
     DataStreamMatchRule.INSTANCE,
     DataStreamTableAggregateRule.INSTANCE,
-    DataStreamGroupWindowTableAggregateRule.INSTANCE
+    DataStreamGroupWindowTableAggregateRule.INSTANCE,
+    DataStreamPythonCalcRule.INSTANCE
   )
 
   /**

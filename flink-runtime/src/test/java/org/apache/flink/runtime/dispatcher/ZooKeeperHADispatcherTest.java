@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -62,6 +62,7 @@ import org.junit.rules.TestName;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -153,7 +154,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 
 			final TestingDispatcher dispatcher = createDispatcher(
 				testingHighAvailabilityServices,
-				new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null)));
+				new TestingJobManagerRunnerFactory());
 
 			dispatcher.start();
 
@@ -218,15 +219,14 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 			final TestingLeaderElectionService leaderElectionService2 = new TestingLeaderElectionService();
 			haServices2.setDispatcherLeaderElectionService(leaderElectionService2);
 
-			final CompletableFuture<JobGraph> jobGraphFuture = new CompletableFuture<>();
-			final CompletableFuture<ArchivedExecutionGraph> resultFuture = new CompletableFuture<>();
+			final TestingJobManagerRunnerFactory jobManagerRunnerFactory = new TestingJobManagerRunnerFactory();
 			final TestingDispatcher dispatcher1 = createDispatcher(
 				haServices1,
-				new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture, CompletableFuture.completedFuture(null)));
+				jobManagerRunnerFactory);
 
 			final TestingDispatcher dispatcher2 = createDispatcher(
 				haServices2,
-				new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null)));
+				new TestingJobManagerRunnerFactory());
 
 			try {
 				dispatcher1.start();
@@ -241,10 +241,10 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 
 				final CompletableFuture<JobResult> jobResultFuture = dispatcherGateway1.requestJobResult(jobGraph.getJobID(), TIMEOUT);
 
-				jobGraphFuture.get();
+				final TestingJobManagerRunner testingJobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
 
 				// complete the job
-				resultFuture.complete(new ArchivedExecutionGraphBuilder().setJobID(jobGraph.getJobID()).setState(JobStatus.FINISHED).build());
+				testingJobManagerRunner.completeResultFuture(new ArchivedExecutionGraphBuilder().setJobID(jobGraph.getJobID()).setState(JobStatus.FINISHED).build());
 
 				final JobResult jobResult = jobResultFuture.get();
 
@@ -281,32 +281,37 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 			try {
 				haServices = new ZooKeeperHaServices(curatorFramework, rpcService.getExecutor(), configuration, new VoidBlobStore());
 
-				final CompletableFuture<JobGraph> jobGraphFuture1 = new CompletableFuture<>();
+				final TestingJobManagerRunnerFactory jobManagerRunnerFactory = new TestingJobManagerRunnerFactory();
 				dispatcher1 = createDispatcher(
 					haServices,
-					new TestingJobManagerRunnerFactory(jobGraphFuture1, new CompletableFuture<>(), CompletableFuture.completedFuture(null)));
-				final CompletableFuture<JobGraph> jobGraphFuture2 = new CompletableFuture<>();
+					jobManagerRunnerFactory);
 				dispatcher2 = createDispatcher(
 					haServices,
-					new TestingJobManagerRunnerFactory(jobGraphFuture2, new CompletableFuture<>(), CompletableFuture.completedFuture(null)));
+					jobManagerRunnerFactory);
 
 				dispatcher1.start();
 				dispatcher2.start();
 
-				final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(haServices.getDispatcherLeaderRetriever(), TIMEOUT);
+				final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+					haServices.getDispatcherLeaderRetriever(),
+					Duration.ofMillis(TIMEOUT.toMilliseconds()));
 
-				final DispatcherGateway dispatcherGateway = rpcService.connect(leaderConnectionInfo.getAddress(), DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionID()), DispatcherGateway.class).get();
+				final DispatcherGateway dispatcherGateway = rpcService.connect(leaderConnectionInfo.getAddress(), DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionId()), DispatcherGateway.class).get();
 
 				final JobGraph nonEmptyJobGraph = DispatcherHATest.createNonEmptyJobGraph();
 				dispatcherGateway.submitJob(nonEmptyJobGraph, TIMEOUT).get();
 
+				// pop first job manager runner
+				jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+
 				if (dispatcher1.getAddress().equals(leaderConnectionInfo.getAddress())) {
 					dispatcher1.closeAsync();
-					assertThat(jobGraphFuture2.get().getJobID(), is(equalTo(nonEmptyJobGraph.getJobID())));
 				} else {
 					dispatcher2.closeAsync();
-					assertThat(jobGraphFuture1.get().getJobID(), is(equalTo(nonEmptyJobGraph.getJobID())));
 				}
+
+				final TestingJobManagerRunner testingJobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+				assertThat(testingJobManagerRunner.getJobID(), is(equalTo(nonEmptyJobGraph.getJobID())));
 			} finally {
 				if (dispatcher1 != null) {
 					RpcUtils.terminateRpcEndpoint(dispatcher1, TIMEOUT);

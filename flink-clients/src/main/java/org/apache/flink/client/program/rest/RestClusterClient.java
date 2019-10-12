@@ -26,17 +26,20 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.NewClusterClient;
+import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -106,6 +109,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -125,9 +129,12 @@ import java.util.stream.Collectors;
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
-public class RestClusterClient<T> extends ClusterClient<T> implements NewClusterClient {
+public class RestClusterClient<T> extends ClusterClient<T> {
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
+
+	/** Timeout for futures. */
+	private final Duration timeout;
 
 	private final RestClient restClient;
 
@@ -136,6 +143,8 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	private final WaitStrategy waitStrategy;
 
 	private final T clusterId;
+
+	private final ClientHighAvailabilityServices clientHAServices;
 
 	private final LeaderRetrievalService webMonitorRetrievalService;
 
@@ -149,30 +158,19 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L),
-			null);
-	}
-
-	public RestClusterClient(
-			Configuration config,
-			T clusterId,
-			LeaderRetrievalService webMonitorRetrievalService) throws Exception {
-		this(
-			config,
-			null,
-			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L),
-			webMonitorRetrievalService);
+			new ExponentialWaitStrategy(10L, 2000L));
 	}
 
 	@VisibleForTesting
 	RestClusterClient(
-			Configuration configuration,
-			@Nullable RestClient restClient,
-			T clusterId,
-			WaitStrategy waitStrategy,
-			@Nullable LeaderRetrievalService webMonitorRetrievalService) throws Exception {
+		Configuration configuration,
+		@Nullable RestClient restClient,
+		T clusterId,
+		WaitStrategy waitStrategy) throws Exception {
 		super(configuration);
+
+		this.timeout = AkkaUtils.getClientTimeout(configuration);
+
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 
 		if (restClient != null) {
@@ -184,11 +182,9 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		this.waitStrategy = Preconditions.checkNotNull(waitStrategy);
 		this.clusterId = Preconditions.checkNotNull(clusterId);
 
-		if (webMonitorRetrievalService == null) {
-			this.webMonitorRetrievalService = highAvailabilityServices.getWebMonitorLeaderRetriever();
-		} else {
-			this.webMonitorRetrievalService = webMonitorRetrievalService;
-		}
+		this.clientHAServices = HighAvailabilityServicesUtils.createClientHAService(configuration);
+
+		this.webMonitorRetrievalService = clientHAServices.getClusterRestEndpointLeaderRetriever();
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
 		startLeaderRetrievers();
 	}
@@ -198,7 +194,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	}
 
 	@Override
-	public void shutdown() {
+	public void close() {
 		ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
 
 		this.restClient.shutdown(Time.seconds(5));
@@ -207,14 +203,19 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		try {
 			webMonitorRetrievalService.stop();
 		} catch (Exception e) {
-			log.error("An error occurred during stopping the webMonitorRetrievalService", e);
+			log.error("An error occurred during stopping the WebMonitorRetrievalService", e);
 		}
 
 		try {
-			// we only call this for legacy reasons to shutdown components that are started in the ClusterClient constructor
-			super.shutdown();
+			clientHAServices.close();
 		} catch (Exception e) {
-			log.error("An error occurred during the client shutdown.", e);
+			log.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+		}
+
+		try {
+			super.close();
+		} catch (Exception e) {
+			log.error("Error while closing the Cluster Client", e);
 		}
 	}
 
@@ -226,7 +227,12 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 		if (isDetached()) {
 			try {
-				return jobSubmissionFuture.get();
+				final JobSubmissionResult jobSubmissionResult = jobSubmissionFuture.get();
+
+				log.warn("Job was executed in detached mode, the results will be available on completion.");
+
+				this.lastJobExecutionResult = new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
+				return lastJobExecutionResult;
 			} catch (Exception e) {
 				throw new ProgramInvocationException("Could not submit job",
 					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));

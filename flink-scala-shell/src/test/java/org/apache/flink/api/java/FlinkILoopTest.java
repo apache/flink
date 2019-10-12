@@ -128,27 +128,7 @@ public class FlinkILoopTest extends TestLogger {
 		private List<String> globalClasspaths;
 
 		@Override
-		public void start() throws Exception {
-
-		}
-
-		@Override
-		public void stop() throws Exception {
-
-		}
-
-		@Override
-		public boolean isRunning() {
-			return false;
-		}
-
-		@Override
 		public JobExecutionResult executePlan(Plan plan) throws Exception {
-			return null;
-		}
-
-		@Override
-		public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
 			return null;
 		}
 

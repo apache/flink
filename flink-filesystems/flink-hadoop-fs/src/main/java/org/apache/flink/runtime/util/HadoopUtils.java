@@ -47,7 +47,7 @@ public class HadoopUtils {
 	@SuppressWarnings("deprecation")
 	public static Configuration getHadoopConfiguration(org.apache.flink.configuration.Configuration flinkConfiguration) {
 
-		// Instantiate a HdfsConfiguration to load the hdfs-site.xml and hdfs-default.xml
+		// Instantiate an HdfsConfiguration to load the hdfs-site.xml and hdfs-default.xml
 		// from the classpath
 		Configuration result = new HdfsConfiguration();
 		boolean foundHadoopConfiguration = false;

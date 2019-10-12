@@ -134,7 +134,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 
 	private static void writeBuffers(ResultSubpartition partition, int numberOfBuffers) throws IOException {
 		for (int i = 0; i < numberOfBuffers; i++) {
-			partition.add(BufferBuilderTestUtils.createFilledBufferConsumer(BUFFER_SIZE, BUFFER_SIZE));
+			partition.add(BufferBuilderTestUtils.createFilledFinishedBufferConsumer(BUFFER_SIZE));
 		}
 	}
 

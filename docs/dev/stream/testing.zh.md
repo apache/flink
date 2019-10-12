@@ -44,7 +44,7 @@ public class IncrementMapFunction implements MapFunction<Long, Long> {
 
     @Override
     public Long map(Long record) throws Exception {
-        return record +1 ;
+        return record + 1;
     }
 }
 {% endhighlight %}
@@ -112,7 +112,7 @@ public class IncrementFlatMapFunctionTest {
         Collector<Integer> collector = mock(Collector.class);
 
         // call the methods that you have implemented
-        incrementer.flatMap(2L, collector)
+        incrementer.flatMap(2L, collector);
 
         //verify collector was called with the right output
         Mockito.verify(collector, times(1)).collect(3L);
@@ -216,7 +216,7 @@ public class StatefulFlatMapTest {
         testHarness.setProcessingTime(100L);
 
         //retrieve list of emitted records for assertions
-        assertThat(testHarness.getOutput(), containsInExactlyThisOrder(3L))
+        assertThat(testHarness.getOutput(), containsInExactlyThisOrder(3L));
 
         //retrieve list of records emitted to a specific side output for assertions (ProcessFunction only)
         //assertThat(testHarness.getSideOutput(new OutputTag<>("invalidRecords")), hasSize(0))
@@ -358,7 +358,7 @@ public class IncrementMapFunction implements MapFunction<Long, Long> {
 
     @Override
     public Long map(Long record) throws Exception {
-        return record +1 ;
+        return record + 1;
     }
 }
 {% endhighlight %}
@@ -410,7 +410,7 @@ public class ExampleIntegrationTest {
         env.execute();
 
         // verify your results
-        assertEquals(Lists.newArrayList(2L, 42L, 44L), CollectSink.values);
+        assertTrue(CollectSink.values.containsAll(2L, 22L, 23L));
     }
 
     // create a testing sink
@@ -465,7 +465,7 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
     env.execute()
 
     // verify your results
-    CollectSink.values should contain allOf (1,22,23)
+    CollectSink.values should contain allOf (2, 22, 23)
     }
 }
 // create a testing sink

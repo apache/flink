@@ -22,8 +22,8 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.operators.ProcessOperator
-import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory
+import org.apache.flink.streaming.api.operators.{ProcessOperator, SimpleOperatorFactory}
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException, TableSchema}
@@ -188,7 +188,7 @@ abstract class CommonLookupJoin(
     val lookupableTableSource = tableSource.asInstanceOf[LookupableTableSource[_]]
     val leftOuterJoin = joinType == JoinRelType.LEFT
 
-    val operator = if (lookupableTableSource.isAsyncEnabled) {
+    val operatorFactory = if (lookupableTableSource.isAsyncEnabled) {
       val asyncBufferCapacity= config.getConfiguration
         .getInteger(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY)
       val asyncTimeout = getMillisecondFromConfigDuration(config,
@@ -269,7 +269,7 @@ abstract class CommonLookupJoin(
 
       // force ORDERED output mode currently, optimize it to UNORDERED
       // when the downstream do not need orderness
-      new AsyncWaitOperator(asyncFunc, asyncTimeout, asyncBufferCapacity, OutputMode.ORDERED)
+      new AsyncWaitOperatorFactory(asyncFunc, asyncTimeout, asyncBufferCapacity, OutputMode.ORDERED)
     } else {
       // sync join
       val lookupFunction = lookupableTableSource.getLookupFunction(lookupFieldNamesInOrder)
@@ -340,13 +340,13 @@ abstract class CommonLookupJoin(
           leftOuterJoin,
           rightRowType.getFieldCount)
       }
-      new ProcessOperator(processFunc)
+      SimpleOperatorFactory.of(new ProcessOperator(processFunc))
     }
 
     new OneInputTransformation(
       inputTransformation,
       getRelDetailedDescription,
-      operator,
+      operatorFactory,
       BaseRowTypeInfo.of(resultRowType),
       inputTransformation.getParallelism)
   }

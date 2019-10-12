@@ -107,7 +107,7 @@ To build against Hadoop 2.4.1, 2.6.5, 2.7.5 or 2.8.3, it is sufficient to run (e
 mvn clean install -DskipTests -Dhadoop.version=2.6.5
 {% endhighlight %}
 
-To package a shaded pre-packaged Hadoop jar into the distributions `/lib` directory, activate the `include-hadoop` profile`:
+To package a shaded pre-packaged Hadoop jar into the distributions `/lib` directory, activate the `include-hadoop` profile:
 
 {% highlight bash %}
 mvn clean install -DskipTests -Pinclude-hadoop
@@ -127,8 +127,7 @@ mvn clean install -Dhadoop.version=2.6.5-custom
 
 After this step is complete, follow the steps for [Pre-bundled versions](#pre-bundled-versions).
 
-To build Flink against a vendor specific Hadoop version, additionally activate -Pvendor-repos` profile when building
-`flink-shaded`.
+To build Flink against a vendor specific Hadoop version, additionally activate `-Pvendor-repos` profile when building flink-shaded:
 
 {% highlight bash %}
 mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.0-cdh5.16.1

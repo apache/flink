@@ -35,6 +35,7 @@ flink-python/dev/download
 flink-python/dev/.conda/
 flink-python/dev/log/
 flink-python/dev/.stage.txt
+flink-python/.eggs/
 atlassian-ide-plugin.xml
 out/
 /docs/api

@@ -25,7 +25,9 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 
 import java.util.Collections;
@@ -42,29 +44,36 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamConfigChainer {
 	private final StreamConfig headConfig;
 	private final Map<Integer, StreamConfig> chainedConfigs = new HashMap<>();
+	private final long bufferTimeout;
 
 	private StreamConfig tailConfig;
 	private int chainIndex = 0;
 
 	public StreamConfigChainer(OperatorID headOperatorID, StreamOperator<?> headOperator, StreamConfig headConfig) {
-		this.headConfig = checkNotNull(headConfig);
-		this.tailConfig = checkNotNull(headConfig);
-
-		head(headOperator, headOperatorID);
+		this(headOperatorID, SimpleOperatorFactory.of(headOperator), headConfig);
 	}
 
-	private void head(StreamOperator<?> headOperator, OperatorID headOperatorID) {
-		headConfig.setStreamOperator(headOperator);
+	public StreamConfigChainer(OperatorID headOperatorID, StreamOperatorFactory<?> headOperatorFactory, StreamConfig headConfig) {
+		this.headConfig = checkNotNull(headConfig);
+		this.tailConfig = checkNotNull(headConfig);
+		this.bufferTimeout = headConfig.getBufferTimeout();
+
+		head(headOperatorID, headOperatorFactory);
+	}
+
+	private void head(OperatorID headOperatorID, StreamOperatorFactory<?> headOperatorFactory) {
+		headConfig.setStreamOperatorFactory(headOperatorFactory);
 		headConfig.setOperatorID(headOperatorID);
 		headConfig.setChainStart();
 		headConfig.setChainIndex(chainIndex);
+		headConfig.setBufferTimeout(bufferTimeout);
 	}
 
 	public <T> StreamConfigChainer chain(
-		OperatorID operatorID,
-		OneInputStreamOperator<T, T> operator,
-		TypeSerializer<T> typeSerializer,
-		boolean createKeyedStateBackend) {
+			OperatorID operatorID,
+			OneInputStreamOperator<T, T> operator,
+			TypeSerializer<T> typeSerializer,
+			boolean createKeyedStateBackend) {
 		return chain(operatorID, operator, typeSerializer, typeSerializer, createKeyedStateBackend);
 	}
 
@@ -76,16 +85,30 @@ public class StreamConfigChainer {
 	}
 
 	public <IN, OUT> StreamConfigChainer chain(
-		OperatorID operatorID,
-		OneInputStreamOperator<IN, OUT> operator,
-		TypeSerializer<IN> inputSerializer,
-		TypeSerializer<OUT> outputSerializer) {
+			OperatorID operatorID,
+			OneInputStreamOperator<IN, OUT> operator,
+			TypeSerializer<IN> inputSerializer,
+			TypeSerializer<OUT> outputSerializer) {
 		return chain(operatorID, operator, inputSerializer, outputSerializer, false);
 	}
 
 	public <IN, OUT> StreamConfigChainer chain(
 			OperatorID operatorID,
 			OneInputStreamOperator<IN, OUT> operator,
+			TypeSerializer<IN> inputSerializer,
+			TypeSerializer<OUT> outputSerializer,
+			boolean createKeyedStateBackend) {
+		return chain(
+			operatorID,
+			SimpleOperatorFactory.of(operator),
+			inputSerializer,
+			outputSerializer,
+			createKeyedStateBackend);
+	}
+
+	public <IN, OUT> StreamConfigChainer chain(
+			OperatorID operatorID,
+			StreamOperatorFactory<OUT> operatorFactory,
 			TypeSerializer<IN> inputSerializer,
 			TypeSerializer<OUT> outputSerializer,
 			boolean createKeyedStateBackend) {
@@ -100,7 +123,7 @@ public class StreamConfigChainer {
 				null,
 				null)));
 		tailConfig = new StreamConfig(new Configuration());
-		tailConfig.setStreamOperator(checkNotNull(operator));
+		tailConfig.setStreamOperatorFactory(checkNotNull(operatorFactory));
 		tailConfig.setOperatorID(checkNotNull(operatorID));
 		tailConfig.setTypeSerializerIn1(inputSerializer);
 		tailConfig.setTypeSerializerOut(outputSerializer);
@@ -109,6 +132,7 @@ public class StreamConfigChainer {
 			tailConfig.setStateKeySerializer(inputSerializer);
 		}
 		tailConfig.setChainIndex(chainIndex);
+		tailConfig.setBufferTimeout(bufferTimeout);
 
 		chainedConfigs.put(chainIndex, tailConfig);
 
@@ -116,7 +140,6 @@ public class StreamConfigChainer {
 	}
 
 	public void finish() {
-
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
 		outEdgesInOrder.add(
 			new StreamEdge(
@@ -127,7 +150,6 @@ public class StreamConfigChainer {
 				new BroadcastPartitioner<Object>(),
 				null));
 
-		tailConfig.setBufferTimeout(0);
 		tailConfig.setChainEnd();
 		tailConfig.setOutputSelectors(Collections.emptyList());
 		tailConfig.setNumberOfOutputs(1);

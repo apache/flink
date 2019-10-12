@@ -179,7 +179,7 @@ public class YarnFileStageTest extends TestLogger {
 		try {
 			List<Path> remotePaths = new ArrayList<>();
 			HashMap<String, LocalResource> localResources = new HashMap<>();
-			final List<String> classpath = AbstractYarnClusterDescriptor.uploadAndRegisterFiles(
+			final List<String> classpath = YarnClusterDescriptor.uploadAndRegisterFiles(
 				Collections.singletonList(new File(srcPath.toUri().getPath())),
 				targetFileSystem,
 				targetDir,

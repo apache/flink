@@ -20,7 +20,7 @@ package org.apache.flink.streaming.examples.statemachine;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorSource;
 import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializer;
 
@@ -46,7 +46,7 @@ public class KafkaEventsGeneratorJob {
 
 		env
 			.addSource(new EventsGeneratorSource(errorRate, sleep))
-			.addSink(new FlinkKafkaProducer<>(brokers, kafkaTopic, new EventDeSerializer()));
+			.addSink(new FlinkKafkaProducer010<>(brokers, kafkaTopic, new EventDeSerializer()));
 
 		// trigger program execution
 		env.execute("State machine example Kafka events generator job");

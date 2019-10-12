@@ -28,7 +28,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -37,6 +36,7 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.NetUtils;
@@ -48,7 +48,6 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.net.URL;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -66,7 +65,7 @@ public class ClientTest extends TestLogger {
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
 		new MiniClusterResource(new MiniClusterResourceConfiguration.Builder().build());
 
-	private JobWithJars jobWithJars;
+	private Plan plan;
 
 	private Configuration config;
 
@@ -78,10 +77,8 @@ public class ClientTest extends TestLogger {
 	public void setUp() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.generateSequence(1, 1000).output(new DiscardingOutputFormat<Long>());
-
-		Plan plan = env.createProgramPlan();
-		jobWithJars = new JobWithJars(plan, Collections.<URL>emptyList(),  Collections.<URL>emptyList());
+		env.generateSequence(1, 1000).output(new DiscardingOutputFormat<>());
+		plan = env.createProgramPlan();
 
 		final int freePort = NetUtils.getAvailablePort();
 		config = new Configuration();
@@ -129,16 +126,6 @@ public class ClientTest extends TestLogger {
 		}
 
 		try {
-			PackagedProgram prg = new PackagedProgram(TestGetJobID.class);
-			clusterClient.run(prg, 1);
-			fail(FAIL_MESSAGE);
-		} catch (ProgramInvocationException e) {
-			assertEquals(
-					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
-					e.getCause().getMessage());
-		}
-
-		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
 			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
@@ -166,7 +153,13 @@ public class ClientTest extends TestLogger {
 	public void shouldSubmitToJobClient() throws Exception {
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 		clusterClient.setDetached(true);
-		JobSubmissionResult result = clusterClient.run(jobWithJars, 1);
+		JobSubmissionResult result = clusterClient.run(
+			plan,
+			Collections.emptyList(),
+			Collections.emptyList(),
+			getClass().getClassLoader(),
+			1,
+			SavepointRestoreSettings.none());
 
 		assertNotNull(result);
 	}
@@ -200,7 +193,6 @@ public class ClientTest extends TestLogger {
 	@Test
 	public void testGetExecutionPlan() throws ProgramInvocationException {
 		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
-		assertNotNull(prg.getPreviewPlan());
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 		OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);

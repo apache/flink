@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.util.TimeUtils;
 
-import static org.apache.flink.configuration.RestartBackoffTimeStrategyOptions.RESTART_BACKOFF_TIME_STRATEGY_FIXED_DELAY_ATTEMPTS;
-import static org.apache.flink.configuration.RestartBackoffTimeStrategyOptions.RESTART_BACKOFF_TIME_STRATEGY_FIXED_DELAY_BACKOFF_TIME;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -57,6 +57,10 @@ public class FixedDelayRestartBackoffTimeStrategy implements RestartBackoffTimeS
 		return backoffTimeMS;
 	}
 
+	public int getMaxNumberRestartAttempts() {
+		return maxNumberRestartAttempts;
+	}
+
 	@Override
 	public void notifyFailure(Throwable cause) {
 		currentRestartAttempt++;
@@ -79,9 +83,19 @@ public class FixedDelayRestartBackoffTimeStrategy implements RestartBackoffTimeS
 	}
 
 	public static FixedDelayRestartBackoffTimeStrategyFactory createFactory(final Configuration configuration) {
-		return new FixedDelayRestartBackoffTimeStrategyFactory(
-				configuration.getInteger(RESTART_BACKOFF_TIME_STRATEGY_FIXED_DELAY_ATTEMPTS),
-				configuration.getLong(RESTART_BACKOFF_TIME_STRATEGY_FIXED_DELAY_BACKOFF_TIME));
+		int maxAttempts = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
+		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY);
+
+		long delay;
+		try {
+			delay = TimeUtils.parseDuration(delayString).toMillis();
+		} catch (IllegalArgumentException ex) {
+			throw new IllegalArgumentException("Invalid config value for " +
+				RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key() + ": " + delayString +
+				". Value must be a valid duration (such as '100 milli' or '10 s')", ex);
+		}
+
+		return new FixedDelayRestartBackoffTimeStrategyFactory(maxAttempts, delay);
 	}
 
 	/**

@@ -407,8 +407,8 @@ val transformation = OperatorTransformation
 </div>
 </div>
 
-The 'KeyedStateBootstrapFunction` supports setting event time and processing time timers.
-The timers will not fire insde the bootstrap function and only become active once restored within a `DataStream` application.
+The `KeyedStateBootstrapFunction` supports setting event time and processing time timers.
+The timers will not fire inside the bootstrap function and only become active once restored within a `DataStream` application.
 If a processing time timer is set but the state is not restored until after that time has passed, the timer will fire immediatly upon start.
 
 Once one or more transformations have been created they may be combined into a single `Savepoint`. 

@@ -24,9 +24,9 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
  */
 public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
 
-	private final boolean canRestart;
+	private boolean canRestart;
 
-	private final long backoffTime;
+	private long backoffTime;
 
 	public TestRestartBackoffTimeStrategy(boolean canRestart, long backoffTime) {
 		this.canRestart = canRestart;
@@ -46,5 +46,13 @@ public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrateg
 	@Override
 	public void notifyFailure(Throwable cause) {
 		// ignore
+	}
+
+	public void setCanRestart(final boolean canRestart) {
+		this.canRestart = canRestart;
+	}
+
+	public void setBackoffTime(final long backoffTime) {
+		this.backoffTime = backoffTime;
 	}
 }

@@ -136,11 +136,16 @@ public class StreamTaskTestHarness<OUT> {
 		this.executionConfig = new ExecutionConfig();
 
 		streamConfig = new StreamConfig(taskConfig);
+		streamConfig.setBufferTimeout(0);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
 
 		this.taskStateManager = new TestTaskStateManager(localRecoveryConfig);
+	}
+
+	public StreamMockEnvironment getEnvironment() {
+		return mockEnv;
 	}
 
 	public ProcessingTimeService getProcessingTimeService() {
@@ -180,7 +185,6 @@ public class StreamTaskTestHarness<OUT> {
 		Preconditions.checkState(!setupCalled, "This harness was already setup.");
 		setupCalled = true;
 		streamConfig.setChainStart();
-		streamConfig.setBufferTimeout(0);
 		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
 		streamConfig.setNumberOfOutputs(1);

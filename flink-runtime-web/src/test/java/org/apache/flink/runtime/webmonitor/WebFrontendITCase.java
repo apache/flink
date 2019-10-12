@@ -52,15 +52,13 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -257,13 +255,13 @@ public class WebFrontendITCase extends TestLogger {
 		// wait for tasks to be properly running
 		BlockingInvokable.latch.await();
 
-		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
-		final Deadline deadline = testTimeout.fromNow();
+		final Duration testTimeout = Duration.ofMinutes(2);
+		final LocalTime deadline = LocalTime.now().plus(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// cancel the job
-			client.sendPatchRequest("/jobs/" + jid + "/", deadline.timeLeft());
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
+			client.sendPatchRequest("/jobs/" + jid + "/", getTimeLeft(deadline));
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -277,7 +275,7 @@ public class WebFrontendITCase extends TestLogger {
 
 		// ensure we can access job details when its finished (FLINK-4011)
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
-			FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
+			Duration timeout = Duration.ofSeconds(30);
 			client.sendGetRequest("/jobs/" + jid + "/config", timeout);
 			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
 
@@ -316,15 +314,14 @@ public class WebFrontendITCase extends TestLogger {
 		// wait for tasks to be properly running
 		BlockingInvokable.latch.await();
 
-		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
-		final Deadline deadline = testTimeout.fromNow();
+		final Duration testTimeout = Duration.ofMinutes(2);
+		final LocalTime deadline = LocalTime.now().plus(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// Request the file from the web server
-			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", deadline.timeLeft());
+			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", getTimeLeft(deadline));
 
-			HttpTestClient.SimpleHttpResponse response = client
-				.getNextResponse(deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -345,6 +342,10 @@ public class WebFrontendITCase extends TestLogger {
 			.filter(status -> !status.getJobState().isGloballyTerminalState())
 			.map(JobStatusMessage::getJobId)
 			.collect(Collectors.toList());
+	}
+
+	private static Duration getTimeLeft(LocalTime deadline) {
+		return Duration.between(LocalTime.now(), deadline);
 	}
 
 	/**

@@ -27,9 +27,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -69,11 +67,10 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
 				rpcService,
 				new TestingHighAvailabilityServices(),
 				new TestingHeartbeatServices(),
-				NoOpMetricRegistry.INSTANCE,
 				new TestingFatalErrorHandler(),
 				new ClusterInformation("foobar", 1234),
 				null,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 		} finally {
 			RpcUtils.terminateRpcService(rpcService, Time.seconds(10L));
 		}
@@ -88,11 +85,10 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
 				RpcService rpcService,
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
-				MetricRegistry metricRegistry,
 				FatalErrorHandler fatalErrorHandler,
 				ClusterInformation clusterInformation,
 				@Nullable String webInterfaceUrl,
-				JobManagerMetricGroup jobManagerMetricGroup) {
+				ResourceManagerMetricGroup resourceManagerMetricGroup) {
 			assertThat(configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE), is(true));
 
 			return null;

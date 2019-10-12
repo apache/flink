@@ -19,7 +19,7 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlParseException;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
@@ -127,7 +127,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return ifNotExists;
 	}
 
-	public void validate() throws SqlParseException {
+	public void validate() throws SqlValidateException {
 		Set<String> columnNames = new HashSet<>();
 		if (columnList != null) {
 			for (SqlNode column : columnList) {
@@ -141,7 +141,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				}
 
 				if (!columnNames.add(columnName)) {
-					throw new SqlParseException(
+					throw new SqlValidateException(
 						column.getParserPosition(),
 						"Duplicate column name [" + columnName + "], at " +
 							column.getParserPosition());
@@ -153,7 +153,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			for (SqlNode primaryKeyNode : this.primaryKeyList) {
 				String primaryKey = ((SqlIdentifier) primaryKeyNode).getSimple();
 				if (!columnNames.contains(primaryKey)) {
-					throw new SqlParseException(
+					throw new SqlValidateException(
 						primaryKeyNode.getParserPosition(),
 						"Primary key [" + primaryKey + "] not defined in columns, at " +
 							primaryKeyNode.getParserPosition());
@@ -166,7 +166,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				for (SqlNode uniqueKeyNode : uniqueKeys) {
 					String uniqueKey = ((SqlIdentifier) uniqueKeyNode).getSimple();
 					if (!columnNames.contains(uniqueKey)) {
-						throw new SqlParseException(
+						throw new SqlValidateException(
 								uniqueKeyNode.getParserPosition(),
 								"Unique key [" + uniqueKey + "] not defined in columns, at " + uniqueKeyNode.getParserPosition());
 					}
@@ -178,7 +178,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			for (SqlNode partitionKeyNode : this.partitionKeyList.getList()) {
 				String partitionKey = ((SqlIdentifier) partitionKeyNode).getSimple();
 				if (!columnNames.contains(partitionKey)) {
-					throw new SqlParseException(
+					throw new SqlValidateException(
 						partitionKeyNode.getParserPosition(),
 						"Partition column [" + partitionKey + "] not defined in columns, at "
 							+ partitionKeyNode.getParserPosition());

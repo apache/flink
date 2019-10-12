@@ -168,7 +168,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		final ArchivedExecutionGraph expectedExecutionGraph2 = new ArchivedExecutionGraphBuilder().build();
 
 		final AtomicInteger requestJobCalls = new AtomicInteger(0);
-		final TestingRestfulGateway restfulGateway = TestingRestfulGateway.newBuilder()
+		final TestingRestfulGateway restfulGateway = new TestingRestfulGateway.Builder()
 			.setRequestJobFunction(
 				jobId -> {
 					requestJobCalls.incrementAndGet();

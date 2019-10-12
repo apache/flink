@@ -215,10 +215,6 @@ abstract class ExpressionTestBase {
     addTableApiTestExpr(expr, expected)
     addTableApiTestExpr(exprString, expected)
     addSqlTestExpr(sqlExpr, expected)
-    if (expected == nullable) {
-      testTableNullable(expr, exprString)
-      testSqlNullable(sqlExpr)
-    }
   }
 
   def testTableApi(
@@ -227,9 +223,6 @@ abstract class ExpressionTestBase {
       expected: String): Unit = {
     addTableApiTestExpr(expr, expected)
     addTableApiTestExpr(exprString, expected)
-    if (expected == nullable) {
-      testTableNullable(expr, exprString)
-    }
   }
 
   private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {
@@ -240,29 +233,14 @@ abstract class ExpressionTestBase {
     // create RelNode from Table API expression
     val relNode = relBuilder
         .queryOperation(tEnv.scan(tableName).select(tableApiExpr).getQueryOperation).build()
-    addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
-  }
 
-  def testSqlNullable(nullUdf: String): Unit = {
-    addSqlTestExpr(
-      s"CASE WHEN ($nullUdf) is null THEN '$nullable' ELSE '$notNullable' END", nullable)
+    addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
   }
 
   def testSqlApi(
       sqlExpr: String,
       expected: String): Unit = {
     addSqlTestExpr(sqlExpr, expected)
-    if (expected == nullable) {
-      testSqlNullable(sqlExpr)
-    }
-  }
-
-  def testTableNullable(nullExpr: Expression, nullExprString: String): Unit = {
-    val retExpr = ExpressionBuilder.ifThenElse(nullExpr.isNull, nullable, notNullable)
-    addTableApiTestExpr(retExpr, nullable)
-    val retStrExpr = ifThenElse(
-      ExpressionParser.parseExpression(nullExprString).isNull, nullable, notNullable)
-    addTableApiTestExpr(retStrExpr, nullable)
   }
 
   def testData: Row
