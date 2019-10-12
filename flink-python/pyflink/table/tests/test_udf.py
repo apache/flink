@@ -117,6 +117,10 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
                                      bigint_param, decimal_param, float_param, double_param,
                                      boolean_param, str_param,
                                      date_param, time_param, timestamp_param):
+            # decide two float whether equals
+            def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
+                return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+
             from decimal import Decimal
             import datetime
 
@@ -134,16 +138,19 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
             assert isinstance(bigint_param, int), 'bigint_param of wrong type %s !' \
                                                   % type(bigint_param)
             p += bigint_param
-            assert isinstance(decimal_param, Decimal), 'decimal_param of wrong type %s !' \
-                                                       % type(decimal_param)
+            assert decimal_param == Decimal('1.05'), \
+                'decimal_param is wrong value %s ' % decimal_param
+
             p += int(decimal_param)
 
-            assert isinstance(float_param, float), 'float_param of wrong type %s !' \
-                                                   % type(float_param)
-            p += float_param
-            assert isinstance(double_param, float), 'double_param of wrong type %s !' \
-                                                    % type(double_param)
-            p += double_param
+            assert isinstance(float_param, float) and float_equal(float_param, 1.23, 1e-06), \
+                'float_param is wrong value %s ' % float_param
+
+            p += int(float_param)
+            assert isinstance(double_param, float) and float_equal(double_param, 1.98932, 1e-07), \
+                'double_param is wrong value %s ' % double_param
+
+            p += int(double_param)
 
             assert boolean_param is True, 'boolean_param is wrong value %s' % boolean_param
 
@@ -189,9 +196,9 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
                              "cast (1 as SMALLINT),"
                              "cast (1 as INT),"
                              "cast (1 as BIGINT),"
-                             "cast (1 as DECIMAL),"
-                             "cast (1.0 as FLOAT),"
-                             "cast (1.00 as DOUBLE),"
+                             "cast (1.05 as DECIMAL),"
+                             "cast (1.23 as FLOAT),"
+                             "cast (1.98932 as DOUBLE),"
                              "true,"
                              "'flink',"
                              "cast ('2014-09-13' as DATE),"

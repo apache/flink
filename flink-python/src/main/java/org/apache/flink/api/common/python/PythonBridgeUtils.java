@@ -129,25 +129,6 @@ public final class PythonBridgeUtils {
 					type = 3;
 					value = o.getValue3();
 					break;
-				case INTERVAL_YEAR:
-				case INTERVAL_YEAR_MONTH:
-				case INTERVAL_MONTH:
-					type = 4;
-					value = ((BigDecimal) o.getValue3()).intValueExact();
-					break;
-				case INTERVAL_DAY:
-				case INTERVAL_DAY_HOUR:
-				case INTERVAL_DAY_MINUTE:
-				case INTERVAL_DAY_SECOND:
-				case INTERVAL_HOUR:
-				case INTERVAL_HOUR_MINUTE:
-				case INTERVAL_HOUR_SECOND:
-				case INTERVAL_MINUTE:
-				case INTERVAL_MINUTE_SECOND:
-				case INTERVAL_SECOND:
-					type = 5;
-					value = ((BigDecimal) o.getValue3()).longValueExact();
-					break;
 				default:
 					throw new RuntimeException("Unsupported type " + typeName);
 			}

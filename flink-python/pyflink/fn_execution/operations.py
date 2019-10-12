@@ -18,7 +18,6 @@
 
 import datetime
 from abc import abstractmethod, ABCMeta
-from dateutil.relativedelta import relativedelta
 
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import bundle_processor
@@ -113,12 +112,6 @@ class ConstantInputGetter(InputGetter):
             self._constant_value = \
                 datetime.datetime(year=1970, month=1, day=1, hour=0, minute=0, second=0) \
                 + datetime.timedelta(milliseconds=pickled_data)
-        # the type is YearMonthInterval
-        elif j_type == '\x04' or j_type == 4:
-            self._constant_value = relativedelta(months=pickled_data)
-        # the type is DayTimeInterval
-        elif j_type == '\x05' or j_type == 5:
-            self._constant_value = datetime.timedelta(milliseconds=pickled_data)
         else:
             raise Exception("Unknown type %s, should never happen" % str(j_type))
 
