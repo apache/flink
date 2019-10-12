@@ -35,7 +35,9 @@ import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.heap.space.Allocator;
+import org.apache.flink.runtime.state.heap.space.Chunk;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunction;
@@ -73,6 +75,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link CopyOnWriteSkipListStateMap}.
@@ -1427,6 +1430,45 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		stateMap.putValue(keyByteBuffer, 1, keyLen, value, false);
 		String state = stateMap.getNode(keyByteBuffer, 1, keyLen);
 		assertThat(state, is(valueString));
+	}
+
+	@Test
+	public void testPutWithAllocationFailure() {
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap =
+			new CopyOnWriteSkipListStateMap<>(
+				keySerializer,
+				namespaceSerializer,
+				stateSerializer,
+				new Allocator() {
+					@Override
+					public long allocate(int size) throws Exception {
+						throw new RuntimeException("Exception on purpose");
+					}
+
+					@Override
+					public void free(long address) {
+
+					}
+
+					@Override
+					public Chunk getChunkById(int chunkId) {
+						return null;
+					}
+
+					@Override
+					public void close() throws IOException {
+
+					}
+				},
+				DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME,
+				DEFAULT_LOGICAL_REMOVED_KEYS_RATIO
+			);
+		try {
+			stateMap.put(1, 1L, "test-value");
+			fail("Should have thrown exception when space allocation fails");
+		} catch (FlinkRuntimeException e) {
+			// expected
+		}
 	}
 
 	private void prepareLogicallyRemovedStates(
