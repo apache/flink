@@ -33,7 +33,7 @@ import org.junit.Test;
 /**
  * Test for {@link EstimatorBase}.
  */
-public class EstimatorBaseTest {
+public class EstimatorBaseTest extends PipelineStageTestBase {
 
 	/**
 	 * This fake estimator simply record which fit method is invoked.
@@ -56,14 +56,9 @@ public class EstimatorBaseTest {
 		}
 	}
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testFitNullTable() {
-		Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
-		MLEnvironment env = MLEnvironmentFactory.get(id);
-
-		FakeEstimator estimator = new FakeEstimator();
-		estimator.setMLEnvironmentId(id);
-		estimator.fit(env.getBatchTableEnvironment(), null);
+	@Override
+	protected PipelineStageBase createPipelineStage() {
+		return new FakeEstimator();
 	}
 
 	@Test

@@ -22,6 +22,9 @@ package org.apache.flink.ml.pipeline;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.api.misc.param.WithParams;
 import org.apache.flink.ml.params.shared.HasMLEnvironmentId;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.internal.TableImpl;
 
 /**
  * The base class for a stage in a pipeline, either an [[EstimatorBase]] or a [[TransformerBase]].
@@ -61,5 +64,9 @@ public abstract class PipelineStageBase<S extends PipelineStageBase<S>>
 		PipelineStageBase result = (PipelineStageBase) super.clone();
 		result.params = this.params.clone();
 		return (S) result;
+	}
+
+	protected static TableEnvironment tableEnvOf(Table table) {
+		return ((TableImpl) table).getTableEnvironment();
 	}
 }
