@@ -34,7 +34,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Validation tests for ddl nullable fields.
+ * Validation tests for ddl fields.
  */
 public class FlinkDDLValidationTest {
 
