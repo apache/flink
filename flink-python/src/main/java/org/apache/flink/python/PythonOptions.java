@@ -34,9 +34,10 @@ public class PythonOptions {
 	public static final ConfigOption<Integer> MAX_BUNDLE_SIZE = ConfigOptions
 		.key("python.fn-execution.bundle.size")
 		.defaultValue(1000)
-		.withDescription("The maximum number of elements to include in a bundle. The elements " +
-			"are processed asynchronously. One bundle of elements are processed before " +
-			"processing the next bundle of elements");
+		.withDescription("The maximum number of elements to include in a bundle for Python " +
+			"user-defined function execution. The elements are processed asynchronously. " +
+			"One bundle of elements are processed before processing the next bundle of elements. " +
+			"A larger value can improve the throughput, but at the cost of more memory usage and higher latency.");
 
 	/**
 	 * The maximum time to wait before finalising a bundle (in milliseconds).
@@ -44,5 +45,7 @@ public class PythonOptions {
 	public static final ConfigOption<Long> MAX_BUNDLE_TIME_MILLS = ConfigOptions
 		.key("python.fn-execution.bundle.time")
 		.defaultValue(1000L)
-		.withDescription("The maximum time to wait before finishing a bundle (in milliseconds).");
+		.withDescription("Sets the waiting timeout(in milliseconds) before processing a bundle for " +
+			"Python user-defined function execution. The timeout defines how long the elements of a bundle will be " +
+			"buffered before being processed. Lower timeouts lead to lower tail latencies, but may affect throughput.");
 }
