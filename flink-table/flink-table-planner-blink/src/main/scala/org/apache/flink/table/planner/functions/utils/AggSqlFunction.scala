@@ -61,8 +61,8 @@ class AggSqlFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     returnTypeInfer.getOrElse(createReturnTypeInference(
       fromDataTypeToLogicalType(externalResultType), typeFactory)),
-    createOperandTypeInference(name, aggregateFunction, typeFactory),
-    createOperandTypeChecker(name, aggregateFunction),
+    createOperandTypeInference(name, aggregateFunction, typeFactory, externalAccType),
+    createOperandTypeChecker(name, aggregateFunction, externalAccType),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
@@ -107,7 +107,8 @@ object AggSqlFunction {
   private[flink] def createOperandTypeInference(
       name: String,
       aggregateFunction: UserDefinedAggregateFunction[_, _],
-      typeFactory: FlinkTypeFactory): SqlOperandTypeInference = {
+      typeFactory: FlinkTypeFactory,
+      externalAccType: DataType): SqlOperandTypeInference = {
     /**
       * Operand type inference based on [[AggregateFunction]] given information.
       */
@@ -119,12 +120,19 @@ object AggSqlFunction {
 
         val operandTypeInfo = getOperandType(callBinding)
 
+        val actualSignature = {
+          if (externalAccType == null) {
+            null +: operandTypeInfo
+          } else {
+            externalAccType.getLogicalType +: operandTypeInfo
+          }
+        }
+
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
             .getOrElse(
               throw new ValidationException(
                 s"Given parameters of function '$name' do not match any signature. \n" +
-                    s"Actual: ${signaturesToString(operandTypeInfo,
-                                                   aggregateFunction, "accumulate")} \n" +
+                    s"Actual: ${signatureInternalToString(actualSignature)} \n" +
                     s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
 
         val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
@@ -157,7 +165,8 @@ object AggSqlFunction {
 
   private[flink] def createOperandTypeChecker(
       name: String,
-      aggregateFunction: UserDefinedAggregateFunction[_, _]): SqlOperandTypeChecker = {
+      aggregateFunction: UserDefinedAggregateFunction[_, _],
+      externalAccType: DataType): SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
@@ -197,14 +206,21 @@ object AggSqlFunction {
           throwOnFailure: Boolean): Boolean = {
         val operandTypeInfo = getOperandType(callBinding)
 
+        val actualSignature = {
+          if (externalAccType == null) {
+            null +: operandTypeInfo
+          } else {
+            externalAccType.getLogicalType +: operandTypeInfo
+          }
+        }
+
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
               s"Given parameters of function '$name' do not match any signature. \n" +
-                  s"Actual: ${signaturesToString(operandTypeInfo,
-                                                 aggregateFunction, "accumulate")} \n" +
+                  s"Actual: ${signatureInternalToString(actualSignature)} \n" +
                   s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}")
           } else {
             false

@@ -702,18 +702,6 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Prints the first signature of methods with given name in a class
-    * and one signature consisting of DataType.
-    */
-  def signaturesToString(signature: Seq[LogicalType],
-                         function: UserDefinedFunction,
-                         name: String): String = {
-    val signatureArray = getMethodSignatures(function, name)(0).head +:
-                         internalTypesToClasses(signature)
-    signatureToString(signatureArray)
-  }
-
-  /**
     * Extracts type classes of [[DataType]] in a null-aware way.
     */
   def typesToClasses(types: Seq[DataType]): Array[Class[_]] =
