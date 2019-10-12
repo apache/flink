@@ -117,7 +117,7 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
                                      bigint_param, decimal_param, float_param, double_param,
                                      boolean_param, str_param,
                                      date_param, time_param, timestamp_param):
-            # decide two float whether equals
+            # decide whether two floats are equal
             def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
                 return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
@@ -185,12 +185,21 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
                                                       DataTypes.TIMESTAMP()],
                                          result_type=DataTypes.BIGINT()))
 
-        table_sink = source_sink_utils.TestAppendSink(['a'], [DataTypes.BIGINT()])
+        self.t_env.register_function(
+            "udf_with_all_constant_params", udf(lambda i, j: i + j,
+                                                [DataTypes.BIGINT(), DataTypes.BIGINT()],
+                                                DataTypes.BIGINT()))
+
+        table_sink = source_sink_utils.TestAppendSink(['a', 'b'],
+                                                      [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         self.t_env.register_table("test_table", t)
-        self.t_env.sql_query("select udf_with_constant_params(a, "
+        self.t_env.sql_query("select udf_with_all_constant_params("
+                             "cast (1 as BIGINT),"
+                             "cast (2 as BIGINT)), "
+                             "udf_with_constant_params(a, "
                              "cast (null as BIGINT),"
                              "cast (1 as TINYINT),"
                              "cast (1 as SMALLINT),"
@@ -207,7 +216,7 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
                              " from test_table").insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["8", "9", "10"])
+        self.assert_equals(actual, ["3,8", "3,9", "3,10"])
 
     def test_overwrite_builtin_function(self):
         self.t_env.register_function(
