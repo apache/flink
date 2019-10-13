@@ -62,8 +62,9 @@ LogicalProject(EXPR$0=[PyUdf()], EXPR$1=[MyUdf(1)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[PyUdf() AS EXPR$0, CAST(2) AS EXPR$1])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[f0 AS EXPR$0, CAST(2) AS EXPR$1])
++- PythonCalc(select=[PyUdf() AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
