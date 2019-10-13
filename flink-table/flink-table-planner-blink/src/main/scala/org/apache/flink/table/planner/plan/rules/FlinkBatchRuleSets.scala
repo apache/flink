@@ -352,7 +352,9 @@ object FlinkBatchRuleSets {
     // transpose calc past snapshot
     CalcSnapshotTransposeRule.INSTANCE,
     // merge calc after calc transpose
-    FlinkCalcMergeRule.INSTANCE
+    FlinkCalcMergeRule.INSTANCE,
+    // Rule that splits calc into multiple calcs
+    PythonScalarFunctionSplitRule.INSTANCE
   )
 
   /**
@@ -367,6 +369,7 @@ object FlinkBatchRuleSets {
     BatchExecValuesRule.INSTANCE,
     // calc
     BatchExecCalcRule.INSTANCE,
+    BatchExecPythonCalcRule.INSTANCE,
     // union
     BatchExecUnionRule.INSTANCE,
     // sort

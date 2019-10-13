@@ -15,13 +15,22 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from abc import ABCMeta
+
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+    PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase
 
 
-class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
+class UserDefinedFunctionTests:
+    """
+    The abstract base class for PyFlinkStreamUserDefinedFunctionTests,
+    PyFlinkBatchUserDefinedFunctionTests, PyFlinkBlinkStreamUserDefinedFunctionTests
+    and PyFlinkBlinkBatchUserDefinedFunctionTests
+    """
+    __metaclass__ = ABCMeta
 
     def test_scalar_function(self):
         # test lambda function
@@ -325,6 +334,21 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,2", "1,2", "1,2"])
+
+
+class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
+                                            PyFlinkStreamTableTestCase):
+    pass
+
+
+class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
+                                                 PyFlinkBlinkStreamTableTestCase):
+    pass
+
+
+class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
+                                                PyFlinkBlinkBatchTableTestCase):
+    pass
 
 
 @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
