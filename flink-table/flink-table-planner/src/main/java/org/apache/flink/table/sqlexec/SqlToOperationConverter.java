@@ -99,10 +99,8 @@ public class SqlToOperationConverter {
 	 */
 	private Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
 		// primary key and unique keys are not supported
-		if ((sqlCreateTable.getPrimaryKeyList() != null
-				&& sqlCreateTable.getPrimaryKeyList().size() > 0)
-			|| (sqlCreateTable.getUniqueKeysList() != null
-				&& sqlCreateTable.getUniqueKeysList().size() > 0)) {
+		if ((sqlCreateTable.getPrimaryKeyList().size() > 0)
+			|| (sqlCreateTable.getUniqueKeysList().size() > 0)) {
 			throw new SqlConversionException("Primary key and unique key are not supported yet.");
 		}
 
@@ -114,7 +112,7 @@ public class SqlToOperationConverter {
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable);
 		String tableComment = sqlCreateTable.getComment().map(comment ->
-			comment.getNlsString().getValue()).orElse("");
+			comment.getNlsString().getValue()).orElse(null);
 		// set partition key
 		List<String> partitionKeys = sqlCreateTable.getPartitionKeyList()
 			.getList()

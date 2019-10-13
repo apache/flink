@@ -60,10 +60,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	private final SqlNodeList propertyList;
 
-	@Nullable
 	private final SqlNodeList primaryKeyList;
 
-	@Nullable
 	private final List<SqlNodeList> uniqueKeysList;
 
 	private final SqlNodeList partitionKeyList;
@@ -155,7 +153,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			}
 		}
 
-		if (this.primaryKeyList != null) {
+		if (this.primaryKeyList.size() > 0) {
 			for (SqlNode primaryKeyNode : this.primaryKeyList) {
 				String primaryKey = ((SqlIdentifier) primaryKeyNode).getSimple();
 				if (!columnNames.contains(primaryKey)) {
@@ -167,7 +165,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			}
 		}
 
-		if (this.uniqueKeysList != null) {
+		if (this.uniqueKeysList.size() > 0) {
 			for (SqlNodeList uniqueKeys: this.uniqueKeysList) {
 				for (SqlNode uniqueKeyNode : uniqueKeys) {
 					String uniqueKey = ((SqlIdentifier) uniqueKeyNode).getSimple();
@@ -260,14 +258,14 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				column.unparse(writer, leftPrec, rightPrec);
 			}
 		}
-		if (primaryKeyList != null && primaryKeyList.size() > 0) {
+		if (primaryKeyList.size() > 0) {
 			printIndent(writer);
 			writer.keyword("PRIMARY KEY");
 			SqlWriter.Frame keyFrame = writer.startList("(", ")");
 			primaryKeyList.unparse(writer, leftPrec, rightPrec);
 			writer.endList(keyFrame);
 		}
-		if (uniqueKeysList != null && uniqueKeysList.size() > 0) {
+		if (uniqueKeysList.size() > 0) {
 			printIndent(writer);
 			for (SqlNodeList uniqueKeyList : uniqueKeysList) {
 				writer.keyword("UNIQUE");
@@ -318,7 +316,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	 */
 	public static class TableCreationContext {
 		public List<SqlNode> columnList = new ArrayList<>();
-		public SqlNodeList primaryKeyList;
+		public SqlNodeList primaryKeyList = SqlNodeList.EMPTY;
 		public List<SqlNodeList> uniqueKeysList = new ArrayList<>();
 	}
 

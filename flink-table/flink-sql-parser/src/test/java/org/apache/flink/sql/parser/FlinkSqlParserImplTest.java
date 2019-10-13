@@ -687,6 +687,18 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"CAST(`A` AS ROW(`F0` VARCHAR NOT NULL, `F1` TIMESTAMP) MULTISET)");
 	}
 
+	@Test
+	public void testValidateSqlCreateTable() {
+		String sql = "CREATE TABLE tbl1";
+		sql(sql).node(new ValidationMatcher());
+	}
+
+	@Test
+	public void testValidateSqlCreateView() {
+		String sql = "CREATE VIEW v1 AS SELECT 1";
+		sql(sql).node(new ValidationMatcher());
+	}
+
 	/** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. **/
 	private static class ValidationMatcher extends BaseMatcher<SqlNode> {
 		private String expectedColumnSql;
