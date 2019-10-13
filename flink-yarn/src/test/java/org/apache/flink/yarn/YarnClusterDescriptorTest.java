@@ -525,7 +525,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		yarnClusterDescriptor = new YarnClusterDescriptor(
 			new Configuration(),
 			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
 			closableYarnClient,
 			false);
 
@@ -542,7 +541,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		return new YarnClusterDescriptor(
 			configuration,
 			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
 			yarnClient,
 			true);
 	}

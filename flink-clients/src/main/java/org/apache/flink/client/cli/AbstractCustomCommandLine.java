@@ -69,13 +69,8 @@ public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<
 		baseOptions.addOption(zookeeperNamespaceOption);
 	}
 
-	/**
-	 * Override configuration settings by specified command line options.
-	 *
-	 * @param commandLine containing the overriding values
-	 * @return Effective configuration with the overridden configuration settings
-	 */
-	protected Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+	@Override
+	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
 		final Configuration resultingConfiguration = new Configuration(configuration);
 
 		if (commandLine.hasOption(addressOption.getOpt())) {

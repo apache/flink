@@ -307,7 +307,6 @@ public abstract class YarnTestBase extends TestLogger {
 		final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
 			flinkConfiguration,
 			YARN_CONFIGURATION,
-			CliFrontend.getConfigurationDirectoryFromEnv(),
 			yarnClient,
 			true);
 		yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.toURI()));

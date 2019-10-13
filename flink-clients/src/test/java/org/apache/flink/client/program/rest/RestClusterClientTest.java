@@ -554,10 +554,10 @@ public class RestClusterClientTest extends TestLogger {
 		final String[] args = {"-m", manualHostname + ':' + manualPort};
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+		final Configuration executorConfig = defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
-		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
-
-		final RestClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
+		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(executorConfig);
+		final RestClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(executorConfig));
 
 		URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
 		assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));
