@@ -64,6 +64,19 @@ class TtlMapStateAllEntriesTestContext extends
 
 	@Override
 	public Object getOriginal() throws Exception {
-		return ttlState.original.entries() == null ? Collections.emptySet() : ttlState.original.entries();
+		Iterable<Map.Entry<Integer, TtlValue<String>>> iterable = ttlState.original.entries();
+		if (iterable == null) {
+			return Collections.emptySet();
+		}
+
+		if (iterable instanceof Set) {
+			return iterable;
+		}
+
+		Map<Integer, TtlValue<String>> map = new HashMap<>();
+		for (Map.Entry<Integer, TtlValue<String>> entry : iterable) {
+			map.put(entry.getKey(), entry.getValue());
+		}
+		return map.entrySet();
 	}
 }
