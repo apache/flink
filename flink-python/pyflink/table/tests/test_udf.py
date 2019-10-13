@@ -18,10 +18,11 @@
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+    PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase
 
 
-class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
+class UserDefinedFunctionTests(object):
 
     def test_scalar_function(self):
         # test lambda function
@@ -49,19 +50,19 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
             udf(functools.partial(partial_func, param=1), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e'],
+            ['a', 'b', 'c', 'd', 'e', 'f'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT(),
-             DataTypes.BIGINT()])
+             DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.where("add_one(b) <= 3") \
             .select("add_one(a), subtract_one(b), add(a, c), add_one_callable(a), "
-                    "add_one_partial(a)") \
+                    "add_one_partial(a), a") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2,1,4,2,2", "4,0,12,4,4"])
+        self.assert_equals(actual, ["2,1,4,2,2,1", "4,0,12,4,4,3"])
 
     def test_chaining_scalar_function(self):
         self.t_env.register_function(
@@ -325,6 +326,21 @@ class UserDefinedFunctionTests(PyFlinkStreamTableTestCase):
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,2", "1,2", "1,2"])
+
+
+class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
+                                            PyFlinkStreamTableTestCase):
+    pass
+
+
+class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
+                                                 PyFlinkBlinkStreamTableTestCase):
+    pass
+
+
+class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
+                                                PyFlinkBlinkBatchTableTestCase):
+    pass
 
 
 @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())

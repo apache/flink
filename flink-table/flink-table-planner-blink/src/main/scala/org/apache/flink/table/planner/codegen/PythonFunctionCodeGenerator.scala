@@ -15,25 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.codegen
+package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.codegen.CodeGenUtils.{primitiveDefaultValue, primitiveTypeTermForTypeInfo, newName}
-import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.functions.{UserDefinedFunction, FunctionLanguage, ScalarFunction}
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
-import org.apache.flink.table.utils.EncodingUtils
+import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction, UserDefinedFunction}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, primitiveDefaultValue, primitiveTypeTermForType}
+import org.apache.flink.table.planner.codegen.Indenter.toISC
+import org.apache.flink.table.runtime.generated.GeneratedFunction
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 
 /**
   * A code generator for generating Python [[UserDefinedFunction]]s.
   */
-object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
+object PythonFunctionCodeGenerator {
 
   private val PYTHON_SCALAR_FUNCTION_NAME = "PythonScalarFunction"
 
   /**
     * Generates a [[ScalarFunction]] for the specified Python user-defined function.
     *
+    * @param ctx The context of the code generator
     * @param name name of the user-defined function
     * @param serializedScalarFunction serialized Python scalar function
     * @param inputTypes input data types
@@ -43,6 +45,7 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
     * @return instance of generated ScalarFunction
     */
   def generateScalarFunction(
+      ctx: CodeGeneratorContext,
       name: String,
       serializedScalarFunction: Array[Byte],
       inputTypes: Array[TypeInformation[_]],
@@ -50,31 +53,37 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
       deterministic: Boolean,
       pythonEnv: PythonEnv): ScalarFunction = {
     val funcName = newName(PYTHON_SCALAR_FUNCTION_NAME)
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
-    val defaultResultValue = primitiveDefaultValue(resultType)
+    val resultLogicType = TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType(resultType)
+    val resultTypeTerm = primitiveTypeTermForType(resultLogicType)
+    val defaultResultValue = primitiveDefaultValue(resultLogicType)
     val inputParamCode = inputTypes.zipWithIndex.map { case (inputType, index) =>
-      s"${primitiveTypeTermForTypeInfo(inputType)} in$index"
+      s"${primitiveTypeTermForType(
+        TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType(inputType))} in$index"
     }.mkString(", ")
 
-    val encodingUtilsTypeTerm = classOf[EncodingUtils].getCanonicalName
     val typeInfoTypeTerm = classOf[TypeInformation[_]].getCanonicalName
-    val inputTypesCode = inputTypes.map(EncodingUtils.encodeObjectToString).map { inputType =>
-      s"""
-         |($typeInfoTypeTerm) $encodingUtilsTypeTerm.decodeStringToObject(
-         |  "$inputType", $typeInfoTypeTerm.class)
-         |""".stripMargin
-    }.mkString(", ")
-
-    val encodedResultType = EncodingUtils.encodeObjectToString(resultType)
-    val encodedScalarFunction = EncodingUtils.encodeBytesToBase64(serializedScalarFunction)
-    val encodedPythonEnv = EncodingUtils.encodeObjectToString(pythonEnv)
     val pythonEnvTypeTerm = classOf[PythonEnv].getCanonicalName
+
+    val resultTypeNameTerm =
+      ctx.addReusableObject(resultType, "resultType", typeInfoTypeTerm)
+    val serializedScalarFunctionNameTerm =
+      ctx.addReusableObject(serializedScalarFunction, "serializedScalarFunction", "byte[]")
+    val pythonEnvNameTerm = ctx.addReusableObject(pythonEnv, "pythonEnv", pythonEnvTypeTerm)
+    val inputTypesCode = inputTypes
+      .map(ctx.addReusableObject(_, "inputType", typeInfoTypeTerm))
+      .mkString(", ")
 
     val funcCode = j"""
       |public class $funcName extends ${classOf[ScalarFunction].getCanonicalName}
       |  implements ${classOf[PythonFunction].getCanonicalName} {
       |
       |  private static final long serialVersionUID = 1L;
+      |
+      |  ${ctx.reuseMemberCode()}
+      |
+      |  public $funcName(Object[] references) throws Exception {
+      |     ${ctx.reuseInitCode()}
+      |  }
       |
       |  public $resultTypeTerm eval($inputParamCode) {
       |    return $defaultResultValue;
@@ -87,8 +96,7 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
       |
       |  @Override
       |  public $typeInfoTypeTerm getResultType(Class<?>[] signature) {
-      |    return ($typeInfoTypeTerm) $encodingUtilsTypeTerm.decodeStringToObject(
-      |      "$encodedResultType", $typeInfoTypeTerm.class);
+      |    return $resultTypeNameTerm;
       |  }
       |
       |  @Override
@@ -98,13 +106,12 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
       |
       |  @Override
       |  public byte[] getSerializedPythonFunction() {
-      |    return $encodingUtilsTypeTerm.decodeBase64ToBytes("$encodedScalarFunction");
+      |    return $serializedScalarFunctionNameTerm;
       |  }
       |
       |  @Override
       |  public $pythonEnvTypeTerm getPythonEnv() {
-      |    return ($pythonEnvTypeTerm) $encodingUtilsTypeTerm.decodeStringToObject(
-      |      "$encodedPythonEnv", $pythonEnvTypeTerm.class);
+      |    return $pythonEnvNameTerm;
       |  }
       |
       |  @Override
@@ -118,11 +125,7 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
       |  }
       |}
       |""".stripMargin
-
-    val clazz = compile(
-      Thread.currentThread().getContextClassLoader,
-      funcName,
-      funcCode)
-    clazz.newInstance().asInstanceOf[ScalarFunction]
+    new GeneratedFunction(funcName, funcCode, ctx.references.toArray)
+      .newInstance(Thread.currentThread().getContextClassLoader)
   }
 }

@@ -16,49 +16,49 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.rules.physical.stream
+package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecCalc
-import org.apache.flink.table.planner.plan.utils.PythonUtil.containsFunctionOf
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.functions.FunctionLanguage
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonCalc
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsFunctionOf
 
 import scala.collection.JavaConverters._
 
 /**
-  * Rule that converts [[FlinkLogicalCalc]] to [[StreamExecCalc]].
+  * Rule that converts [[FlinkLogicalCalc]] to [[BatchExecPythonCalc]].
   */
-class StreamExecCalcRule
+class BatchExecPythonCalcRule
   extends ConverterRule(
     classOf[FlinkLogicalCalc],
     FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecCalcRule") {
+    FlinkConventions.BATCH_PHYSICAL,
+    "BatchExecPythonCalcRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
     val program = calc.getProgram
-    !program.getExprList.asScala.exists(containsFunctionOf(_, FunctionLanguage.PYTHON))
+    program.getExprList.asScala.exists(containsFunctionOf(_, FunctionLanguage.PYTHON))
   }
 
   def convert(rel: RelNode): RelNode = {
-    val calc: FlinkLogicalCalc = rel.asInstanceOf[FlinkLogicalCalc]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val newInput = RelOptRule.convert(calc.getInput, FlinkConventions.STREAM_PHYSICAL)
+    val calc = rel.asInstanceOf[FlinkLogicalCalc]
+    val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    val newInput = RelOptRule.convert(calc.getInput, FlinkConventions.BATCH_PHYSICAL)
 
-    new StreamExecCalc(
+    new BatchExecPythonCalc(
       rel.getCluster,
-      traitSet,
+      newTrait,
       newInput,
       calc.getProgram,
       rel.getRowType)
   }
 }
 
-object StreamExecCalcRule {
-  val INSTANCE: RelOptRule = new StreamExecCalcRule
+object BatchExecPythonCalcRule {
+  val INSTANCE: RelOptRule = new BatchExecPythonCalcRule
 }

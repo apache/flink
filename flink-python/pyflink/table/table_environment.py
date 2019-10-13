@@ -47,8 +47,9 @@ class TableEnvironment(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, j_tenv, serializer=PickleSerializer()):
+    def __init__(self, j_tenv, is_blink_planner, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
+        self._is_blink_planner = is_blink_planner
         self._serializer = serializer
 
     def from_table_source(self, table_source):
@@ -570,7 +571,8 @@ class TableEnvironment(object):
         :param function: The python user-defined function to register.
         :type function: UserDefinedFunctionWrapper
         """
-        self._j_tenv.registerFunction(name, function._judf)
+        self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
+                                                           self.get_config()._j_table_config))
 
     def execute(self, job_name):
         """
@@ -712,9 +714,17 @@ class TableEnvironment(object):
             execution_config = self._get_execution_config(temp_file.name, schema)
             gateway = get_gateway()
             j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
-            j_input_format = gateway.jvm.PythonTableUtils.getInputFormat(
+            if self._is_blink_planner:
+                PythonTableUtils = gateway.jvm \
+                    .org.apache.flink.table.planner.utils.python.PythonTableUtils
+                PythonInputFormatTableSource = gateway.jvm \
+                    .org.apache.flink.table.planner.utils.python.PythonInputFormatTableSource
+            else:
+                PythonTableUtils = gateway.jvm.PythonTableUtils
+                PythonInputFormatTableSource = gateway.jvm.PythonInputFormatTableSource
+            j_input_format = PythonTableUtils.getInputFormat(
                 j_objs, row_type_info, execution_config)
-            j_table_source = gateway.jvm.PythonInputFormatTableSource(
+            j_table_source = PythonInputFormatTableSource(
                 j_input_format, row_type_info)
 
             return Table(self._j_tenv.fromTableSource(j_table_source))
@@ -728,9 +738,9 @@ class TableEnvironment(object):
 
 class StreamTableEnvironment(TableEnvironment):
 
-    def __init__(self, j_tenv):
+    def __init__(self, j_tenv, is_blink_planner):
         self._j_tenv = j_tenv
-        super(StreamTableEnvironment, self).__init__(j_tenv)
+        super(StreamTableEnvironment, self).__init__(j_tenv, is_blink_planner)
 
     def _get_execution_config(self, filename, schema):
         return self._j_tenv.execEnv().getConfig()
@@ -832,14 +842,18 @@ class StreamTableEnvironment(TableEnvironment):
         else:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment)
-        return StreamTableEnvironment(j_tenv)
+        j_planner_class = j_tenv.getPlanner().getClass()
+        j_blink_planner_class = get_java_class(
+            get_gateway().jvm.org.apache.flink.table.planner.delegation.PlannerBase)
+        is_blink_planner = j_blink_planner_class.isAssignableFrom(j_planner_class)
+        return StreamTableEnvironment(j_tenv, is_blink_planner)
 
 
 class BatchTableEnvironment(TableEnvironment):
 
-    def __init__(self, j_tenv):
+    def __init__(self, j_tenv, is_blink_planner):
         self._j_tenv = j_tenv
-        super(BatchTableEnvironment, self).__init__(j_tenv)
+        super(BatchTableEnvironment, self).__init__(j_tenv, is_blink_planner)
 
     def _get_execution_config(self, filename, schema):
         gateway = get_gateway()
@@ -966,7 +980,7 @@ class BatchTableEnvironment(TableEnvironment):
             else:
                 j_tenv = gateway.jvm.BatchTableEnvironment.create(
                     execution_environment._j_execution_environment)
-            return BatchTableEnvironment(j_tenv)
+            return BatchTableEnvironment(j_tenv, False)
         elif environment_settings is not None and \
                 execution_environment is None and \
                 table_config is None:
@@ -975,4 +989,8 @@ class BatchTableEnvironment(TableEnvironment):
                                  "set to batch mode.")
             j_tenv = gateway.jvm.TableEnvironment.create(
                 environment_settings._j_environment_settings)
-            return BatchTableEnvironment(j_tenv)
+            j_planner_class = j_tenv.getPlanner().getClass()
+            j_blink_planner_class = get_java_class(
+                get_gateway().jvm.org.apache.flink.table.planner.delegation.PlannerBase)
+            is_blink_planner = j_blink_planner_class.isAssignableFrom(j_planner_class)
+            return BatchTableEnvironment(j_tenv, is_blink_planner)
