@@ -55,7 +55,7 @@ public class SpillableKeyedStateBackend<K> extends HeapKeyedStateBackend<K> {
 	private static final Map<Class<? extends StateDescriptor>, StateFactory> SPILLABLE_STATE_FACTORIES =
 		Stream.of(
 			Tuple2.of(ValueStateDescriptor.class, (StateFactory) HeapValueState::create),
-			Tuple2.of(ListStateDescriptor.class, (StateFactory) HeapListState::create),
+			Tuple2.of(ListStateDescriptor.class, (StateFactory) SpillableListState::create),
 			Tuple2.of(MapStateDescriptor.class, (StateFactory) SpillableMapState::create),
 			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) HeapAggregatingState::create),
 			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) HeapReducingState::create),
