@@ -64,7 +64,7 @@ public class SpaceAllocator implements Allocator {
 	 */
 	private final ChunkAllocator chunkAllocator;
 
-	SpaceAllocator(SpaceConfiguration configuration) {
+	public SpaceAllocator(SpaceConfiguration configuration) {
 		this.spaceConfiguration = Preconditions.checkNotNull(configuration);
 		this.chunkAllocator = ChunkAllocator.createChunkAllocator(spaceConfiguration);
 		if (spaceConfiguration.isPreAllocate()) {

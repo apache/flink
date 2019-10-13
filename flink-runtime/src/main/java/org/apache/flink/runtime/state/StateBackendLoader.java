@@ -51,6 +51,9 @@ public class StateBackendLoader {
 	/** The shortcut configuration name for the FileSystem State backend */
 	public static final String FS_STATE_BACKEND_NAME = "filesystem";
 
+	/** The shortcut configuration name for the Spillable State Backend */
+	public static final String SPILLABLE_STATE_BACKEND_NAME = "spillable";
+
 	/** The shortcut configuration name for the RocksDB State Backend */
 	public static final String ROCKSDB_STATE_BACKEND_NAME = "rocksdb";
 
@@ -99,9 +102,6 @@ public class StateBackendLoader {
 			return null;
 		}
 
-		// by default the factory class is the backend name 
-		String factoryClassName = backendName;
-
 		switch (backendName.toLowerCase()) {
 			case MEMORY_STATE_BACKEND_NAME:
 				MemoryStateBackend memBackend = new MemoryStateBackendFactory().createFromConfig(config, classLoader);
@@ -121,13 +121,8 @@ public class StateBackendLoader {
 							fsBackend.getCheckpointPath());
 				}
 				return fsBackend;
-
-			case ROCKSDB_STATE_BACKEND_NAME:
-				factoryClassName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
-				// fall through to the 'default' case that uses reflection to load the backend
-				// that way we can keep RocksDB in a separate module
-
 			default:
+				String factoryClassName = getStateBackendFactoryClassName(backendName);
 				if (logger != null) {
 					logger.info("Loading state backend via factory {}", factoryClassName);
 				}
@@ -153,6 +148,26 @@ public class StateBackendLoader {
 
 				return factory.createFromConfig(config, classLoader);
 		}
+	}
+
+	/**
+	 * TODO add comments and UT
+	 */
+	public static String getStateBackendFactoryClassName(String backendName) {
+		String factoryClassName;
+
+		switch (backendName.toLowerCase()) {
+			case SPILLABLE_STATE_BACKEND_NAME:
+				factoryClassName = "org.apache.flink.runtime.state.heap.SpillableStateBackendFactory";
+				break;
+			case ROCKSDB_STATE_BACKEND_NAME:
+				factoryClassName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
+				break;
+			default:
+				// by default the factory class is the backend name
+				factoryClassName = backendName;
+		}
+		return factoryClassName;
 	}
 
 	/**

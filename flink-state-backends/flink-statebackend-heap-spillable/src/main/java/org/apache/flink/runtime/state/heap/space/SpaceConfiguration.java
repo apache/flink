@@ -25,7 +25,7 @@ import org.apache.flink.util.Preconditions;
 /**
  * Space-related configurations.
  */
-class SpaceConfiguration {
+public class SpaceConfiguration {
 
 	/** Size of chunk. */
 	private final int chunkSize;
@@ -36,7 +36,7 @@ class SpaceConfiguration {
 	/** Whether to preallocate space. */
 	private final boolean preAllocate;
 
-	SpaceConfiguration(
+	public SpaceConfiguration(
 		int chunkSize,
 		boolean preAllocate,
 		ChunkAllocator.SpaceType spaceType) {

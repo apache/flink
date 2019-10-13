@@ -29,9 +29,10 @@ public interface Allocator extends Closeable {
 	 * Allocate space with the given size.
 	 *
 	 * @param size size of space to allocate.
-	 * @return address of the allocated space, or -1 when allocation is failed.
+	 * @return address of the allocated space.
+	 * @throws Exception This method will throw exception if failed to allocate space.
 	 */
-	long allocate(int size);
+	long allocate(int size) throws Exception;
 
 	/**
 	 * Free the space with the given address.

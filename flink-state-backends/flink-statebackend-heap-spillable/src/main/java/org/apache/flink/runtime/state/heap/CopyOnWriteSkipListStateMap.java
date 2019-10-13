@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.heap.space.Allocator;
 import org.apache.flink.runtime.state.heap.space.Chunk;
 import org.apache.flink.runtime.state.heap.space.SpaceUtils;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 
@@ -366,10 +367,10 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		levelIndexHeader.updateLevel(level);
 
 		int totalMetaKeyLen = SkipListUtils.getKeyMetaLen(level) + keyLen;
-		long node = this.spaceAllocator.allocate(totalMetaKeyLen);
+		long node = allocateSpace(totalMetaKeyLen);
 
 		int totalValueLen = SkipListUtils.getValueMetaLen() + value.length;
-		long valuePointer = spaceAllocator.allocate(totalValueLen);
+		long valuePointer = allocateSpace(totalValueLen);
 
 		doWriteKey(node, level, keyByteBuffer, keyOffset, keyLen, valuePointer, currentNode);
 		doWriteValue(valuePointer, value, stateMapVersion, node, NIL_VALUE_POINTER);
@@ -447,6 +448,14 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 				return oldState;
 			});
 		return result.f2 ? result.f3 : null;
+	}
+
+	private long allocateSpace(int size) {
+		try {
+			return spaceAllocator.allocate(size);
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Failed to allocate space in CopyOnWriteSkipListStateMap", e);
+		}
 	}
 
 	/**
@@ -565,7 +574,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		// a null value indicates this is a removed node
 		int valueSize = value == null ? 0 : value.length;
 		int totalValueLen = SkipListUtils.getValueMetaLen() + valueSize;
-		long valuePointer = spaceAllocator.allocate(totalValueLen);
+		long valuePointer = allocateSpace(totalValueLen);
 
 		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
 		ByteBuffer nodeByteBuffer = tuple2.f0;
@@ -594,7 +603,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		// a null value indicates this is a removed node
 		int valueSize = value == null ? 0 : value.length;
 		int totalValueLen = SkipListUtils.getValueMetaLen() + valueSize;
-		long valuePointer = spaceAllocator.allocate(totalValueLen);
+		long valuePointer = allocateSpace(totalValueLen);
 
 		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
 		ByteBuffer nodeByteBuffer = tuple2.f0;
