@@ -213,7 +213,7 @@ public class AllWindowedStream<T, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 
 		String callLocation = Utils.getCallLocationName();
-		String udfName = "AllWindowedStream." + callLocation;
+		String udfName = this.getUdfName(callLocation);
 
 		return reduce(function, new PassThroughAllWindowFunction<W, T>());
 	}
@@ -267,7 +267,7 @@ public class AllWindowedStream<T, W extends Window> {
 		reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
 		String callLocation = Utils.getCallLocationName();
-		String udfName = "AllWindowedStream." + callLocation;
+		String udfName = this.getUdfName(callLocation);
 
 		String opName;
 		KeySelector<T, Byte> keySel = input.getKeySelector();
@@ -1568,5 +1568,9 @@ public class AllWindowedStream<T, W extends Window> {
 
 	public TypeInformation<T> getInputType() {
 		return input.getType();
+	}
+	
+	private String getUdfName(String callLocation){
+		return "AllWindowedStream." + callLocation;
 	}
 }
