@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
@@ -60,8 +59,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_LOGICAL_REMOVED_KEYS_RATIO;
@@ -82,12 +79,13 @@ import static org.junit.Assert.fail;
  */
 public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
-	private TestAllocator spaceAllocator;
 	private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 	private final TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
 	private final TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 	private final ThreadLocalRandom random = ThreadLocalRandom.current();
 	private final int initNamespaceNumber = 10;
+	private final int initKeyNumber = 100;
+	private final int initTotalSize = initNamespaceNumber * initKeyNumber;
 	private final StateSnapshotTransformer<String> transformer = new StateSnapshotTransformer<String>() {
 		@Nullable
 		@Override
@@ -107,14 +105,37 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		}
 	};
 
+	/**
+	 * We always create a space allocator and state map with some states. Note that Any test case need to test
+	 * a state map from empty state should not use these pre-created instances.
+	 */
+	private TestAllocator spaceAllocator;
+	private CopyOnWriteSkipListStateMap<Integer, Long, String> stateMapWithStates;
+	private Map<Long, Map<Integer, String>> referenceStates;
+
 	@Before
 	public void setUp() {
 		int maxAllocateSize = 256;
 		spaceAllocator = new TestAllocator(maxAllocateSize);
+		// do not remove states physically when get, put, remove and snapshot
+		stateMapWithStates = createStateMapForTesting(0, 1.0f, spaceAllocator);
+		referenceStates = new HashMap<>();
+		// put some states
+		for (long namespace = 0; namespace < initNamespaceNumber; namespace++) {
+			for (int key = 0; key < initKeyNumber; key++) {
+				String state = String.valueOf(key * namespace);
+				stateMapWithStates.put(key, namespace, state);
+				if (referenceStates != null) {
+					referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
+				}
+			}
+		}
 	}
 
 	@After
 	public void tearDown() {
+		stateMapWithStates.close();
+		referenceStates.clear();
 		IOUtils.closeQuietly(spaceAllocator);
 	}
 
@@ -123,8 +144,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testInitStateMap() {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
-
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 		assertTrue(stateMap.isEmpty());
 		assertEquals(0, stateMap.size());
 		assertEquals(0, stateMap.totalSize());
@@ -153,371 +173,15 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 * Test state put operation.
 	 */
 	@Test
-	public void testPutState() {
-		testWithFunction((totalSize, stateMap, referenceStates) -> getDefaultSizes(totalSize));
-	}
-
-	/**
-	 * Test remove existing state.
-	 */
-	@Test
-	public void testRemoveExistingState() {
-		testRemoveState(false, false);
-	}
-
-	/**
-	 * Test remove and get existing state.
-	 */
-	@Test
-	public void testRemoveAndGetExistingState() {
-		testRemoveState(false, true);
-	}
-
-	/**
-	 * Test remove absent state.
-	 */
-	@Test
-	public void testRemoveAbsentState() {
-		testRemoveState(true, true);
-	}
-
-	/**
-	 * Test remove previously removed state.
-	 */
-	@Test
-	public void testPutPreviouslyRemovedState() {
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> applyFunctionAfterRemove(stateMap, referenceStates,
-				(removedCnt, removedStates) -> {
-					int size = totalSize - removedCnt;
-					for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
-						long namespace = entry.getKey();
-						for (int key : entry.getValue()) {
-							size++;
-							String state = String.valueOf(key * namespace);
-							assertNull(stateMap.putAndGetOld(key, namespace, state));
-							referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, String.valueOf(state));
-						}
-					}
-					return getDefaultSizes(size);
-				}
-			)
-		);
-	}
-
-	private void testRemoveState(boolean removeAbsent, boolean getOld) {
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				if (removeAbsent) {
-					totalSize -= removeAbsentState(stateMap, referenceStates);
-				} else {
-					totalSize -= removeExistingState(stateMap, referenceStates, getOld);
-				}
-				return getDefaultSizes(totalSize);
-			});
-	}
-
-	private int removeExistingState(
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
-		@Nonnull Map<Long, Map<Integer, String>> referenceStates,
-		boolean getOld) {
-		int removedCnt = 0;
-		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
-			long namespace = namespaceEntry.getKey();
-			Map<Integer, String> kvMap = namespaceEntry.getValue();
-			Iterator<Map.Entry<Integer, String>> kvIterator = kvMap.entrySet().iterator();
-			while (kvIterator.hasNext()) {
-				Map.Entry<Integer, String> keyEntry = kvIterator.next();
-				if (random.nextBoolean()) {
-					int key = keyEntry.getKey();
-					String state = keyEntry.getValue();
-					removedCnt++;
-					// remove from state map
-					if (getOld) {
-						assertEquals(state, stateMap.removeAndGetOld(key, namespace));
-					} else {
-						stateMap.remove(key, namespace);
-					}
-					// remove from reference to keep in accordance
-					kvIterator.remove();
-				}
-			}
-		}
-		return removedCnt;
-	}
-
-	private int removeAbsentState(
-			CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
-			Map<Long, Map<Integer, String>> referenceStates) {
-		return applyFunctionAfterRemove(
-			stateMap,
-			referenceStates,
-			(removedCnt, removedStates) -> {
-				// remove the same keys again, which would be absent already
-				for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
-					long namespace = entry.getKey();
-					for (int key : entry.getValue()) {
-						assertNull(stateMap.removeAndGetOld(key, namespace));
-					}
-				}
-				return removedCnt;
-			}
-		);
-	}
-
-	/**
-	 * Apply the given function after removing some states.
-	 *
-	 * @param stateMap the state map to test against.
-	 * @param referenceStates the reference of states for correctness verfication.
-	 * @param function a {@link BiFunction} which takes [removedCnt, removedStates] as input parameters.
-	 * @param <R> The type of the result returned by the function.
-	 * @return The result of applying the given function.
-	 */
-	private <R> R applyFunctionAfterRemove(
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
-		@Nonnull Map<Long, Map<Integer, String>> referenceStates,
-		BiFunction<Integer, Map<Long, Set<Integer>>, R> function) {
-		int removedCnt = 0;
-		Map<Long, Set<Integer>> removedStates = new HashMap<>();
-		// remove some state
-		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
-			long namespace = namespaceEntry.getKey();
-			Map<Integer, String> kvMap = namespaceEntry.getValue();
-			Iterator<Map.Entry<Integer, String>> kvIterator = kvMap.entrySet().iterator();
-			while (kvIterator.hasNext()) {
-				Map.Entry<Integer, String> keyEntry = kvIterator.next();
-				if (random.nextBoolean()) {
-					int key = keyEntry.getKey();
-					removedCnt++;
-					removedStates.computeIfAbsent(namespace, (none) -> new HashSet<>()).add(key);
-					// remove from state map
-					stateMap.remove(key, namespace);
-					// remove from reference to keep in accordance
-					kvIterator.remove();
-				}
-			}
-		}
-		return function.apply(removedCnt, removedStates);
-	}
-
-	/**
-	 * Test state update operation.
-	 */
-	@Test
-	public void testUpdateState() {
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				// update some states
-				for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
-					long namespace = namespaceEntry.getKey();
-					for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
-						if (random.nextBoolean()) {
-							int key = keyEntry.getKey();
-							String state = keyEntry.getValue();
-							String newState = state + "-update";
-							keyEntry.setValue(newState);
-							if (random.nextBoolean()) {
-								stateMap.put(key, namespace, newState);
-							} else {
-								assertEquals(state, stateMap.putAndGetOld(key, namespace, newState));
-							}
-						}
-					}
-				}
-				return getDefaultSizes(totalSize);
-			});
-	}
-
-	/**
-	 * Test transform existing state.
-	 */
-	@Test
-	public void testTransformExistingState() throws Exception {
-		final AtomicReference<Exception> exceptionRef = new AtomicReference<>(null);
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				StateTransformationFunction<String, Integer> function =
-					(String prevState, Integer value) -> prevState == null ? String.valueOf(value) : prevState + value;
-				// transform existing states
-				for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
-					long namespace = namespaceEntry.getKey();
-					try {
-						for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
-							if (random.nextBoolean()) {
-								int key = keyEntry.getKey();
-								String state = keyEntry.getValue();
-								int delta = random.nextInt();
-								String newState = function.apply(state, delta);
-								keyEntry.setValue(newState);
-								stateMap.transform(key, namespace, delta, function);
-							}
-						}
-					} catch (Exception e) {
-						exceptionRef.set(e);
-					}
-				}
-				return getDefaultSizes(totalSize);
-			});
-		Exception e = exceptionRef.get();
-		if (e != null) {
-			throw e;
-		}
-	}
-
-	/**
-	 * Test transform with previous absent state.
-	 */
-	@Test
-	public void testTransformNewState() throws Exception {
-		final AtomicReference<Exception> exceptionRef = new AtomicReference<>(null);
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				StateTransformationFunction<String, Integer> function =
-					(String prevState, Integer value) -> prevState == null ? String.valueOf(value) : prevState + value;
-				// transform some new states
-				for (long namespace = initNamespaceNumber; namespace < initNamespaceNumber + 5; namespace++) {
-					for (int key = 0; key < 100; key++) {
-						totalSize++;
-						int value = (int) (key * namespace);
-						try {
-							stateMap.transform(key, namespace, value, function);
-							String state = function.apply(null, value);
-							referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
-						} catch (Exception e) {
-							exceptionRef.set(e);
-						}
-					}
-				}
-				return getDefaultSizes(totalSize);
-			});
-		Exception e = exceptionRef.get();
-		if (e != null) {
-			throw e;
-		}
-	}
-
-	/**
-	 * Test remove namespace.
-	 */
-	@Test
-	public void testPurgeNamespace() {
-		testPurgeNamespace(false);
-	}
-
-	/**
-	 * Test remove namespace.
-	 */
-	@Test
-	public void testPurgeNamespaceWithSnapshot() {
-		testPurgeNamespace(true);
-	}
-
-	private void testPurgeNamespace(boolean withSnapshot) {
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = null;
-				int totalSizeIncludingLogicalRemove = totalSize;
-				int totalSpaceSize = totalSize * 2;
-				if (withSnapshot) {
-					snapshot = stateMap.stateSnapshot();
-				}
-				// empty some namespaces
-				Set<Long> removedNamespaces = new HashSet<>();
-				for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
-					if (random.nextBoolean()) {
-						long namespace = namespaceEntry.getKey();
-						removedNamespaces.add(namespace);
-						for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
-							int key = keyEntry.getKey();
-							if (random.nextBoolean()) {
-								stateMap.remove(key, namespace);
-							} else {
-								assertEquals(keyEntry.getValue(), stateMap.removeAndGetOld(key, namespace));
-							}
-							totalSize--;
-							if (withSnapshot) {
-								// logical remove with copy-on-write
-								totalSpaceSize++;
-							} else {
-								// physical remove
-								totalSizeIncludingLogicalRemove--;
-								totalSpaceSize -= 2;
-							}
-						}
-					}
-				}
-
-				for (long namespace : removedNamespaces) {
-					referenceStates.remove(namespace);
-					// verify namespace related stuff.
-					assertEquals(0, stateMap.sizeOfNamespace(namespace));
-					assertFalse(stateMap.getKeys(namespace).iterator().hasNext());
-				}
-				if (withSnapshot) {
-					snapshot.release();
-				}
-				return new Tuple3<>(totalSize, totalSizeIncludingLogicalRemove, totalSpaceSize);
-			}
-		);
-	}
-
-	/**
-	 * Test close operation.
-	 */
-	@Test
-	public void testClose() {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
-		putStates(stateMap, null);
-		stateMap.close();
-		assertTrue(stateMap.isClosed());
-		assertEquals(0, stateMap.size());
-		assertEquals(0, stateMap.totalSize());
-		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
-	}
-
-	/**
-	 * Test with the given function.
-	 *
-	 * @param function a {@link TriFunction} with [totalSizeBeforeFunction, stateMap, referenceStates] as input
-	 *                 parameters and returns the [totalSize, totalSizeIncludingLogicalRemovedKey, totalSpaceSize]
-	 *                 tuple after applying the function.
-	 */
-	private void testWithFunction(
-		@Nonnull TriFunction<
-			Integer,
-			CopyOnWriteSkipListStateMap<Integer, Long, String>,
-			Map<Long, Map<Integer, String>>,
-			Tuple3<Integer, Integer, Integer>> function) {
-		// do not remove states physically when get, put, remove and snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting(0, 1.0f);
-		// map to store expected states, namespace -> key -> state
-		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
-		int totalSize = putStates(stateMap, referenceStates);
-		Tuple3 tuple3 = function.apply(totalSize, stateMap, referenceStates);
-		totalSize = (int) tuple3.f0;
-		int totalSizeIncludingLogicalRemove = (int) tuple3.f1;
-		int totalSpaceSize = (int) tuple3.f2;
-		assertEquals(totalSize, stateMap.size());
-		assertEquals(totalSizeIncludingLogicalRemove, stateMap.totalSize());
-		assertEquals(totalSpaceSize, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-		stateMap.close();
-	}
-
-	private int putStates(
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
-		Map<Long, Map<Integer, String>> referenceStates) {
+	public void testPutNewState() {
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 		int totalSize = 0;
+		// test put new state
 		for (long namespace = 0; namespace < initNamespaceNumber; namespace++) {
-			for (int key = 0; key < 100; key++) {
+			for (int key = 0; key < initKeyNumber; key++) {
 				totalSize++;
 				String state = String.valueOf(key * namespace);
-				if (random.nextBoolean()) {
-					stateMap.put(key, namespace, state);
-				} else {
-					assertNull(stateMap.putAndGetOld(key, namespace, state));
-				}
+				stateMap.put(key, namespace, state);
 				if (referenceStates != null) {
 					referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
 				}
@@ -525,17 +189,308 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		}
 		assertEquals(totalSize, stateMap.size());
 		assertEquals(totalSize, stateMap.totalSize());
-		return totalSize;
 	}
 
 	/**
-	 * By default there's no remove/copy-on-write, so space cost would be two times (for key and value) of entry number.
-	 *
-	 * @param totalSize the total number of valid entries in state map.
-	 * @return the default tuple3 of [entry_number, entry_number_including_logical_remove, space_size]
+	 * Test state update operation.
 	 */
-	private Tuple3<Integer, Integer, Integer> getDefaultSizes(int totalSize) {
-		return new Tuple3<>(totalSize, totalSize, totalSize * 2);
+	@Test
+	public void testUpdateState() {
+		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
+			long namespace = namespaceEntry.getKey();
+			for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
+				int key = keyEntry.getKey();
+				String state = keyEntry.getValue();
+				String newState = state + "-update";
+				keyEntry.setValue(newState);
+				stateMapWithStates.put(key, namespace, newState);
+			}
+		}
+		verify(new TestExecutionResult(initTotalSize, initTotalSize, initTotalSize * 2));
+	}
+
+	/**
+	 * Test state putAndGetOld operation.
+	 */
+	@Test
+	public void testPutAndGetOldState() {
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
+		int totalSize = 0;
+		for (long namespace = 0; namespace < initNamespaceNumber; namespace++) {
+			for (int key = 0; key < initKeyNumber; key++) {
+				totalSize++;
+				String state = String.valueOf(key * namespace);
+				// put and get non-existing state
+				assertNull(stateMap.putAndGetOld(key, namespace, state));
+				// put and get existing state
+				String newState = state + "-new";
+				assertThat(stateMap.putAndGetOld(key, namespace, newState), is(state));
+				if (referenceStates != null) {
+					referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
+				}
+			}
+		}
+		assertEquals(totalSize, stateMap.size());
+		assertEquals(totalSize, stateMap.totalSize());
+	}
+
+	/**
+	 * Test remove existing state.
+	 */
+	@Test
+	public void testRemoveExistingState() {
+		Map<Long, Set<Integer>> removedStates = removeExistingState(false);
+		int removedCnt = removedStates.values().stream().mapToInt(Set::size).sum();
+		int totalSize = initTotalSize - removedCnt;
+		int totalSpaceSize = totalSize * 2;
+		verify(new TestExecutionResult(totalSize, totalSize, totalSpaceSize));
+	}
+
+	/**
+	 * Test remove and get existing state.
+	 */
+	@Test
+	public void testRemoveAndGetExistingState() {
+		Map<Long, Set<Integer>> removedStates = removeExistingState(true);
+		int removedCnt = removedStates.values().stream().mapToInt(Set::size).sum();
+		int totalSize = initTotalSize - removedCnt;
+		int totalSpaceSize = totalSize * 2;
+		verify(new TestExecutionResult(totalSize, totalSize, totalSpaceSize));
+	}
+
+	/**
+	 * Test remove absent state.
+	 */
+	@Test
+	public void testRemoveAbsentState() {
+		int totalSize = initTotalSize - removeAbsentState();
+		int totalSpaceSize = totalSize * 2;
+		verify(new TestExecutionResult(totalSize, totalSize, totalSpaceSize));
+	}
+
+	/**
+	 * Test remove previously removed state.
+	 */
+	@Test
+	public void testPutPreviouslyRemovedState() {
+		int totalSize = initTotalSize;
+		Map<Long, Set<Integer>> removedStates = removeExistingState(false);
+		int removedCnt = removedStates.values().stream().mapToInt(Set::size).sum();
+		totalSize -= removedCnt;
+		// put previously removed states again
+		for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
+			long namespace = entry.getKey();
+			for (int key : entry.getValue()) {
+				totalSize++;
+				String state = String.valueOf(key * namespace);
+				assertNull(stateMapWithStates.putAndGetOld(key, namespace, state));
+				referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, String.valueOf(state));
+			}
+		}
+		int totalSizeIncludingLogicalRemove = totalSize;
+		int totalSpaceSize = totalSize * 2;
+		verify(new TestExecutionResult(totalSize, totalSizeIncludingLogicalRemove, totalSpaceSize));
+	}
+
+	/**
+	 * Remove half of the states from the state map.
+	 *
+	 * @param getOld whether to get the old value and check during remove.
+	 * @return The removed states, in format of a (namespace -> keySet) map.
+	 */
+	private Map<Long, Set<Integer>> removeExistingState(boolean getOld) {
+		Map<Long, Set<Integer>> removedStates = new HashMap<>();
+		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
+			long namespace = namespaceEntry.getKey();
+			Map<Integer, String> kvMap = namespaceEntry.getValue();
+			Iterator<Map.Entry<Integer, String>> kvIterator = kvMap.entrySet().iterator();
+			boolean removeNext = true;
+			while (kvIterator.hasNext()) {
+				Map.Entry<Integer, String> keyEntry = kvIterator.next();
+				if (removeNext) {
+					int key = keyEntry.getKey();
+					removedStates.computeIfAbsent(namespace, (none) -> new HashSet<>()).add(key);
+					// remove from state map
+					if (getOld) {
+						assertThat(stateMapWithStates.removeAndGetOld(key, namespace), is(keyEntry.getValue()));
+					} else {
+						stateMapWithStates.remove(key, namespace);
+					}
+					// remove from reference to keep in accordance
+					kvIterator.remove();
+					removeNext = false;
+				} else {
+					removeNext = true;
+				}
+			}
+		}
+		return removedStates;
+	}
+
+	private int removeAbsentState() {
+		Map<Long, Set<Integer>> removedStates = removeExistingState(false);
+		int removedCnt = removedStates.values().stream().mapToInt(Set::size).sum();
+		// remove the same keys again, which would be absent already
+		for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
+			long namespace = entry.getKey();
+			for (int key : entry.getValue()) {
+				assertNull(stateMapWithStates.removeAndGetOld(key, namespace));
+			}
+		}
+		return removedCnt;
+	}
+
+	/**
+	 * Test transform existing state.
+	 */
+	@Test
+	public void testTransformExistingState() throws Exception {
+		verify(transformExistingState());
+	}
+
+	private TestExecutionResult transformExistingState() throws Exception {
+		int totalSize = initTotalSize;
+		StateTransformationFunction<String, Integer> function =
+			(String prevState, Integer value) -> prevState == null ? String.valueOf(value) : prevState + value;
+		// transform existing states
+		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
+			long namespace = namespaceEntry.getKey();
+				for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
+					if (random.nextBoolean()) {
+						int key = keyEntry.getKey();
+						String state = keyEntry.getValue();
+						int delta = random.nextInt();
+						String newState = function.apply(state, delta);
+						keyEntry.setValue(newState);
+						stateMapWithStates.transform(key, namespace, delta, function);
+					}
+				}
+		}
+		int totalSpaceSize = totalSize * 2;
+		return new TestExecutionResult(totalSize, totalSize, totalSpaceSize);
+	}
+
+	/**
+	 * Test transform with previous absent state.
+	 */
+	@Test
+	public void testTransformNewState() throws Exception {
+		verify(transformNewState());
+	}
+
+	private TestExecutionResult transformNewState() throws Exception {
+		int totalSize = initTotalSize;
+		StateTransformationFunction<String, Integer> function =
+			(String prevState, Integer value) -> prevState == null ? String.valueOf(value) : prevState + value;
+		// transform some new states
+		for (long namespace = initNamespaceNumber; namespace < initNamespaceNumber + 5; namespace++) {
+			for (int key = 0; key < 100; key++) {
+				totalSize++;
+				int value = (int) (key * namespace);
+				stateMapWithStates.transform(key, namespace, value, function);
+				String state = function.apply(null, value);
+				referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
+			}
+		}
+		int totalSizeIncludingLogicalRemove = totalSize;
+		int totalSpaceSize = totalSize * 2;
+		return new TestExecutionResult(totalSize, totalSizeIncludingLogicalRemove, totalSpaceSize);
+	}
+
+	/**
+	 * Test remove namespace.
+	 */
+	@Test
+	public void testPurgeNamespace() {
+		verify(purgeNamespace(false));
+	}
+
+	/**
+	 * Test remove namespace.
+	 */
+	@Test
+	public void testPurgeNamespaceWithSnapshot() {
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMapWithStates.stateSnapshot();
+		TestExecutionResult result = purgeNamespace(true);
+		snapshot.release();
+		verify(result);
+	}
+
+	private TestExecutionResult purgeNamespace(boolean withSnapshot) {
+		int totalSize = initTotalSize;
+		int totalSizeIncludingLogicalRemove = totalSize;
+		int totalSpaceSize = totalSize * 2;
+		// empty some namespaces
+		Set<Long> removedNamespaces = new HashSet<>();
+		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
+			if (random.nextBoolean()) {
+				long namespace = namespaceEntry.getKey();
+				removedNamespaces.add(namespace);
+				for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
+					int key = keyEntry.getKey();
+					if (random.nextBoolean()) {
+						stateMapWithStates.remove(key, namespace);
+					} else {
+						assertEquals(keyEntry.getValue(), stateMapWithStates.removeAndGetOld(key, namespace));
+					}
+					totalSize--;
+					if (withSnapshot) {
+						// logical remove with copy-on-write
+						totalSpaceSize++;
+					} else {
+						// physical remove
+						totalSizeIncludingLogicalRemove--;
+						totalSpaceSize -= 2;
+					}
+				}
+			}
+		}
+
+		for (long namespace : removedNamespaces) {
+			referenceStates.remove(namespace);
+			// verify namespace related stuff.
+			assertEquals(0, stateMapWithStates.sizeOfNamespace(namespace));
+			assertFalse(stateMapWithStates.getKeys(namespace).iterator().hasNext());
+		}
+
+		return new TestExecutionResult(totalSize, totalSizeIncludingLogicalRemove, totalSpaceSize);
+	}
+
+	/**
+	 * Test close operation.
+	 */
+	@Test
+	public void testClose() {
+		stateMapWithStates.close();
+		assertTrue(stateMapWithStates.isClosed());
+		assertEquals(0, stateMapWithStates.size());
+		assertEquals(0, stateMapWithStates.totalSize());
+		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
+		// make sure double close won't cause problem
+		stateMapWithStates.close();
+	}
+
+	private void verify(TestExecutionResult result) {
+		assertEquals(result.totalSize, stateMapWithStates.size());
+		assertEquals(result.totalSizeIncludingLogicalRemove, stateMapWithStates.totalSize());
+		assertEquals(result.totalSpaceSize, spaceAllocator.getTotalSpaceNumber());
+		verifyState(referenceStates, stateMapWithStates);
+	}
+
+	private class TestExecutionResult {
+		final int totalSize;
+		final int totalSizeIncludingLogicalRemove;
+		final int totalSpaceSize;
+
+		private TestExecutionResult(
+			int totalSize,
+			int totalSizeIncludingLogicalRemove,
+			int totalSpaceSize) {
+
+			this.totalSize = totalSize;
+			this.totalSizeIncludingLogicalRemove = totalSizeIncludingLogicalRemove;
+			this.totalSpaceSize = totalSpaceSize;
+		}
 	}
 
 	/**
@@ -543,7 +498,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testSnapshotEmptyStateMap() throws IOException {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 		// map to store expected states, namespace -> key -> state
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
 		// take snapshot on an empty state map
@@ -566,7 +521,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testReleaseSnapshot() {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 		int expectedSnapshotVersion = 0;
 		int round = 10;
 		for (int i = 0; i < round; i++) {
@@ -587,14 +542,20 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testBasicSnapshot() throws IOException {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
-		// map to store expected states, namespace -> key -> state
+		// create an empty state map
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
 		// take an empty snapshot
 		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMap.stateSnapshot();
 		snapshot.release();
 		// put some states
-		putStates(stateMap, referenceStates);
+		for (long namespace = 0; namespace < initNamespaceNumber; namespace++) {
+			for (int key = 0; key < initKeyNumber; key++) {
+				String state = String.valueOf(key * namespace);
+				stateMap.put(key, namespace, state);
+				referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
+			}
+		}
 		// take the 2nd snapshot with data
 		Map<Long, Map<Integer, String>> expectedSnapshot = snapshotReferenceStates(referenceStates);
 		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 = stateMap.stateSnapshot();
@@ -615,7 +576,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testPutAndPut() {
-		testPutAndPut(false);
+		verify(testPutAndPut(false));
 	}
 
 	/**
@@ -623,37 +584,28 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testPutAndPutWithSnapshot() {
-		testPutAndPut(true);
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMapWithStates.stateSnapshot();
+		TestExecutionResult result = testPutAndPut(true);
+		snapshot.release();
+		verify(result);
 	}
 
-	private void testPutAndPut(boolean withSnapshot) {
+	private TestExecutionResult testPutAndPut(boolean withSnapshot) {
 		final int key = 1;
 		final long namespace = 1L;
 		final String value = "11";
 		final String newValue = "111";
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = null;
-				if (withSnapshot) {
-					// take a snapshot
-					snapshot = stateMap.stateSnapshot();
-				}
-				// put (key 1, namespace 1)
-				int totalSpaceNumber =
-					putExistingKey(totalSize, stateMap, referenceStates,
-						totalSize * 2, key, namespace, value, withSnapshot);
+		int totalSize = initTotalSize;
+		// put (key 1, namespace 1)
+		int totalSpaceNumber =
+			putExistingKey(totalSize, totalSize * 2, key, namespace, value, withSnapshot);
 
-				// put (key 1, namespace 1) again, old value should be replaced and space will not increase
-				assertEquals("11", stateMap.putAndGetOld(key, namespace, newValue));
-				addToReferenceState(referenceStates, key, namespace, newValue);
-				assertEquals("111", stateMap.get(key, namespace));
-				assertTrue(stateMap.containsKey(key, namespace));
-				if (withSnapshot) {
-					snapshot.release();
-				}
-				return new Tuple3<>(totalSize, totalSize, totalSpaceNumber);
-			}
-		);
+		// put (key 1, namespace 1) again, old value should be replaced and space will not increase
+		assertEquals("11", stateMapWithStates.putAndGetOld(key, namespace, newValue));
+		addToReferenceState(referenceStates, key, namespace, newValue);
+		assertEquals("111", stateMapWithStates.get(key, namespace));
+		assertTrue(stateMapWithStates.containsKey(key, namespace));
+		return new TestExecutionResult(totalSize, totalSize, totalSpaceNumber);
 	}
 
 	/**
@@ -661,7 +613,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testPutAndRemove() {
-		testPutAndRemove(false);
+		verify(testPutAndRemove(false));
 	}
 
 	/**
@@ -669,72 +621,64 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testPutAndRemoveWithSnapshot() {
-		testPutAndRemove(true);
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMapWithStates.stateSnapshot();
+		TestExecutionResult result = testPutAndRemove(true);
+		snapshot.release();
+		verify(result);
 	}
 
-	private void testPutAndRemove(boolean withSnapshot) {
+	private TestExecutionResult testPutAndRemove(boolean withSnapshot) {
 		final int key = 6;
 		final long namespace = 6L;
 		final String value = "66";
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				int totalLogicallyRemovedKey = 0;
-				int totalSizeIncludingLogicalRemovedKey = totalSize;
-				CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = null;
-				if (withSnapshot) {
-					// take a snapshot
-					snapshot = stateMap.stateSnapshot();
-				}
-				// put (key 6, namespace 6)
-				int totalSpaceNumber =
-					putExistingKey(totalSize, stateMap, referenceStates,
-						totalSize * 2, key, namespace, value, withSnapshot);
+		int totalSize = initTotalSize;
+		int totalLogicallyRemovedKey = 0;
+		int totalSizeIncludingLogicalRemovedKey = totalSize;
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = null;
 
-				// remove (key 6, namespace 6), and it should be logically removed
-				assertEquals(value, stateMap.removeAndGetOld(key, namespace));
-				removeFromReferenceState(referenceStates, key, namespace);
-				totalSize--;
-				if (withSnapshot) {
-					// with snapshot, it should be a logical remove
-					totalLogicallyRemovedKey++;
-				} else {
-					// without snapshot, it should be a physical remove
-					totalSizeIncludingLogicalRemovedKey--;
-					totalSpaceNumber -= 2;
-				}
-				assertNull(stateMap.get(key, namespace));
-				assertFalse(stateMap.containsKey(key, namespace));
-				assertEquals(totalLogicallyRemovedKey, stateMap.getLogicallyRemovedNodes().size());
+		// put (key 6, namespace 6)
+		int totalSpaceNumber =
+			putExistingKey(totalSize, totalSize * 2, key, namespace, value, withSnapshot);
 
-				if (withSnapshot) {
-					snapshot.release();
-				}
-				return new Tuple3<>(totalSize, totalSizeIncludingLogicalRemovedKey, totalSpaceNumber);
-			}
-		);
+		// remove (key 6, namespace 6), and it should be logically removed
+		assertEquals(value, stateMapWithStates.removeAndGetOld(key, namespace));
+		removeFromReferenceState(referenceStates, key, namespace);
+		totalSize--;
+		if (withSnapshot) {
+			// with snapshot, it should be a logical remove
+			totalLogicallyRemovedKey++;
+		} else {
+			// without snapshot, it should be a physical remove
+			totalSizeIncludingLogicalRemovedKey--;
+			totalSpaceNumber -= 2;
+		}
+		assertNull(stateMapWithStates.get(key, namespace));
+		assertFalse(stateMapWithStates.containsKey(key, namespace));
+		assertEquals(totalLogicallyRemovedKey, stateMapWithStates.getLogicallyRemovedNodes().size());
+
+		return new TestExecutionResult(totalSize, totalSizeIncludingLogicalRemovedKey, totalSpaceNumber);
 	}
 
 	private int putExistingKey(
 		int totalSize,
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
-		Map<Long, Map<Integer, String>> referenceStates,
 		int initTotalSpaceSize,
 		int key,
 		long namespace,
 		String value,
 		boolean withSnapshot) {
+
 		int totalSpaceNumber = initTotalSpaceSize;
-		stateMap.put(key, namespace, value);
+		stateMapWithStates.put(key, namespace, value);
 		addToReferenceState(referenceStates, key, namespace, value);
 		if (withSnapshot) {
 			// copy-on-write should happen, a space for new value should be allocated
 			totalSpaceNumber += 1;
 		}
 		assertEquals(totalSpaceNumber, spaceAllocator.getTotalSpaceNumber());
-		assertEquals(value, stateMap.get(key, namespace));
-		assertTrue(stateMap.containsKey(key, namespace));
-		assertThat(stateMap.size(), is(totalSize));
-		verifyState(referenceStates, stateMap);
+		assertEquals(value, stateMapWithStates.get(key, namespace));
+		assertTrue(stateMapWithStates.containsKey(key, namespace));
+		assertThat(stateMapWithStates.size(), is(totalSize));
+		verifyState(referenceStates, stateMapWithStates);
 		return totalSpaceNumber;
 	}
 
@@ -743,7 +687,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testRemoveAndPut() {
-		testRemoveAndPut(false);
+		verify(testRemoveAndPut(false));
 	}
 
 	/**
@@ -751,48 +695,40 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testRemoveAndPutWithSnapshot() {
-		testRemoveAndPut(true);
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMapWithStates.stateSnapshot();
+		TestExecutionResult result = testRemoveAndPut(true);
+		snapshot.release();
+		verify(result);
 	}
 
-	private void testRemoveAndPut(boolean withSnapshot) {
+	private TestExecutionResult testRemoveAndPut(boolean withSnapshot) {
 		final int key = 8;
 		final long namespace = 8L;
 		final String value = "64";
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = null;
-				if (withSnapshot) {
-					// take a snapshot
-					snapshot = stateMap.stateSnapshot();
-				}
-				// remove (key 8, namespace 8)
-				Tuple3<Integer, Integer, Integer> tuple3 =
-					removeExistingKey(totalSize, stateMap, referenceStates,
-						totalSize * 2, key, namespace, value, withSnapshot);
-				totalSize--;
-				int totalLogicallyRemovedKey = tuple3.f0;
-				int totalSizeIncludingLogicalRemovedKey = tuple3.f1;
-				int totalSpaceNumber = tuple3.f2;
+		int totalSize = initTotalSize;
+		// remove (key 8, namespace 8)
+		RemoveResult result =
+			removeExistingKey(totalSize, stateMapWithStates, referenceStates,
+				totalSize * 2, key, namespace, value, withSnapshot);
+		totalSize--;
+		int totalLogicallyRemovedKey = result.totalLogicallyRemovedKey;
+		int totalSizeIncludingLogicalRemovedKey = result.totalSizeIncludingLogicalRemovedKey;
+		int totalSpaceNumber = result.totalSpaceNumber;
 
-				// put (key 8, namespace 8) again
-				assertNull(stateMap.putAndGetOld(key, namespace, value));
-				addToReferenceState(referenceStates, key, namespace, value);
-				totalSize++;
-				if (withSnapshot) {
-					totalLogicallyRemovedKey--;
-				} else {
-					totalSpaceNumber += 2;
-					totalSizeIncludingLogicalRemovedKey++;
-				}
-				assertEquals(value, stateMap.get(key, namespace));
-				assertTrue(stateMap.containsKey(key, namespace));
-				assertEquals(totalLogicallyRemovedKey, stateMap.getLogicallyRemovedNodes().size());
-				if (withSnapshot) {
-					snapshot.release();
-				}
-				return new Tuple3<>(totalSize, totalSizeIncludingLogicalRemovedKey, totalSpaceNumber);
-			}
-		);
+		// put (key 8, namespace 8) again
+		assertNull(stateMapWithStates.putAndGetOld(key, namespace, value));
+		addToReferenceState(referenceStates, key, namespace, value);
+		totalSize++;
+		if (withSnapshot) {
+			totalLogicallyRemovedKey--;
+		} else {
+			totalSpaceNumber += 2;
+			totalSizeIncludingLogicalRemovedKey++;
+		}
+		assertEquals(value, stateMapWithStates.get(key, namespace));
+		assertTrue(stateMapWithStates.containsKey(key, namespace));
+		assertEquals(totalLogicallyRemovedKey, stateMapWithStates.getLogicallyRemovedNodes().size());
+		return new TestExecutionResult(totalSize, totalSizeIncludingLogicalRemovedKey, totalSpaceNumber);
 	}
 
 	/**
@@ -800,7 +736,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testRemoveAndRemove() {
-		testRemoveAndRemove(false);
+		verify(testRemoveAndRemove(null));
 	}
 
 	/**
@@ -808,47 +744,42 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testRemoveAndRemoveWithSnapshot() {
-		testRemoveAndRemove(true);
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMapWithStates.stateSnapshot();
+		verify(testRemoveAndRemove(snapshot));
 	}
 
-	private void testRemoveAndRemove(boolean withSnapshot) {
+	private TestExecutionResult testRemoveAndRemove(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot) {
 		final int key = 4;
 		final long namespace = 4L;
 		final String value = "16";
-		testWithFunction(
-			(totalSize, stateMap, referenceStates) -> {
-				CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = null;
-				if (withSnapshot) {
-					// take a snapshot
-					snapshot = stateMap.stateSnapshot();
-				}
-				// remove (key 4, namespace 4)
-				Tuple3<Integer, Integer, Integer> tuple3 =
-					removeExistingKey(totalSize, stateMap, referenceStates,
-						totalSize * 2, key, namespace, value, withSnapshot);
-				totalSize--;
-				int totalLogicallyRemovedKey = tuple3.f0;
-				int totalSizeIncludingLogicalRemovedKey = tuple3.f1;
-				int totalSpaceNumber = tuple3.f2;
+		int totalSize = initTotalSize;
+		boolean withSnapshot = (snapshot != null);
 
-				// remove (key 4, namespace 4) again, and nothing should happen
-				assertNull(stateMap.removeAndGetOld(key, namespace));
-				assertEquals(totalLogicallyRemovedKey, stateMap.getLogicallyRemovedNodes().size());
-				if (withSnapshot) {
-					snapshot.release();
-					// remove (key 4, namespace 4) again after snapshot released, should be physically removed
-					assertNull(stateMap.removeAndGetOld(key, namespace));
-					totalLogicallyRemovedKey--;
-					totalSizeIncludingLogicalRemovedKey--;
-					totalSpaceNumber -= 3; // key, value and one copy-on-write by remove
-					assertEquals(totalLogicallyRemovedKey, stateMap.getLogicallyRemovedNodes().size());
-				}
-				return new Tuple3<>(totalSize, totalSizeIncludingLogicalRemovedKey, totalSpaceNumber);
-			}
-		);
+		// remove (key 4, namespace 4)
+		RemoveResult result =
+			removeExistingKey(totalSize, stateMapWithStates, referenceStates,
+				totalSize * 2, key, namespace, value, withSnapshot);
+		totalSize--;
+		int totalLogicallyRemovedKey = result.totalLogicallyRemovedKey;
+		int totalSizeIncludingLogicalRemovedKey = result.totalSizeIncludingLogicalRemovedKey;
+		int totalSpaceNumber = result.totalSpaceNumber;
+
+		// remove (key 4, namespace 4) again, and nothing should happen
+		assertNull(stateMapWithStates.removeAndGetOld(key, namespace));
+		assertEquals(totalLogicallyRemovedKey, stateMapWithStates.getLogicallyRemovedNodes().size());
+		if (withSnapshot) {
+			snapshot.release();
+			// remove (key 4, namespace 4) again after snapshot released, should be physically removed
+			assertNull(stateMapWithStates.removeAndGetOld(key, namespace));
+			totalLogicallyRemovedKey--;
+			totalSizeIncludingLogicalRemovedKey--;
+			totalSpaceNumber -= 3; // key, value and one copy-on-write by remove
+			assertEquals(totalLogicallyRemovedKey, stateMapWithStates.getLogicallyRemovedNodes().size());
+		}
+		return new TestExecutionResult(totalSize, totalSizeIncludingLogicalRemovedKey, totalSpaceNumber);
 	}
 
-	private Tuple3<Integer, Integer, Integer> removeExistingKey(
+	private RemoveResult removeExistingKey(
 		int totalSize,
 		@Nonnull CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
 		Map<Long, Map<Integer, String>> referenceStates,
@@ -857,6 +788,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		long namespace,
 		String value,
 		boolean withSnapshot) {
+
 		int totalLogicallyRemovedKey = 0;
 		int totalSpaceNumber = initTotalSpaceSize;
 		int totalSizeIncludingLogicalRemovedKey = totalSize;
@@ -879,7 +811,19 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		assertEquals(totalSpaceNumber, spaceAllocator.getTotalSpaceNumber());
 		assertEquals(totalSizeIncludingLogicalRemovedKey, stateMap.totalSize());
 		verifyState(referenceStates, stateMap);
-		return new Tuple3<>(totalLogicallyRemovedKey, totalSizeIncludingLogicalRemovedKey, totalSpaceNumber);
+		return new RemoveResult(totalLogicallyRemovedKey, totalSizeIncludingLogicalRemovedKey, totalSpaceNumber);
+	}
+
+	private class RemoveResult {
+		final int totalLogicallyRemovedKey;
+		final int totalSizeIncludingLogicalRemovedKey;
+		final int totalSpaceNumber;
+
+		private RemoveResult(int totalLogicallyRemovedKey, int totalSizeIncludingLogicalRemovedKey, int totalSpaceNumber) {
+			this.totalLogicallyRemovedKey = totalLogicallyRemovedKey;
+			this.totalSpaceNumber = totalSpaceNumber;
+			this.totalSizeIncludingLogicalRemovedKey = totalSizeIncludingLogicalRemovedKey;
+		}
 	}
 
 	/**
@@ -892,20 +836,16 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		final long namespace = 1L;
 		final long newNamespace = initNamespaceNumber + 1;
 		final String newValue = "11";
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
-		// map to store expected states, namespace -> key -> state
-		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
-		putStates(stateMap, referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot = stateMapWithStates.stateSnapshot();
 		Map<Long, Map<Integer, String>> expectedSnapshot = snapshotReferenceStates(referenceStates);
 		// make sure update existing key won't change snapshot
-		processAndVerifySnapshot(expectedSnapshot, snapshot, stateMap, map -> map.put(key, namespace, newValue));
+		processAndVerifySnapshot(expectedSnapshot, snapshot, stateMapWithStates, map -> map.put(key, namespace, newValue));
 		// make sure insert new key won't change snapshot
-		processAndVerifySnapshot(expectedSnapshot, snapshot, stateMap, map -> map.put(newKey, newNamespace, newValue));
+		processAndVerifySnapshot(expectedSnapshot, snapshot, stateMapWithStates, map -> map.put(newKey, newNamespace, newValue));
 		// make sure remove existing key won't change snapshot
-		processAndVerifySnapshot(expectedSnapshot, snapshot, stateMap, map -> map.remove(key, namespace));
+		processAndVerifySnapshot(expectedSnapshot, snapshot, stateMapWithStates, map -> map.remove(key, namespace));
 		snapshot.release();
-		stateMap.close();
+		stateMapWithStates.close();
 	}
 
 	private void processAndVerifySnapshot(
@@ -1006,7 +946,9 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 			Integer,
 			Integer> f) throws IOException {
 
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting(2, 1.0f);
+		TestAllocator spaceAllocator = new TestAllocator(256);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap =
+			createEmptyStateMap(2, 1.0f, spaceAllocator);
 		// map to store expected states, namespace -> key -> state
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
 
@@ -1030,8 +972,10 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testPhysicallyRemoveDuringSyncPartOfSnapshot() throws IOException {
+		TestAllocator spaceAllocator = new TestAllocator(256);
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting(0, 0.0f);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap =
+			createEmptyStateMap(0, 0.0f, spaceAllocator);
 
 		// map to store expected states, namespace -> key -> state
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
@@ -1102,7 +1046,9 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	@Test
 	public void testSnapshotPruneValues() throws IOException {
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		TestAllocator spaceAllocator = new TestAllocator(256);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap =
+			createEmptyStateMap(DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME, 0.0f, spaceAllocator);
 
 		// firstly build value chain and snapshots as follows
 		//  ------      ------      ------      ------
@@ -1232,7 +1178,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	@Test
 	public void testConcurrentSnapshots() throws IOException {
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 
 		StateSnapshotTransformer<String> transformer = new StateSnapshotTransformer<String>() {
 			@Nullable
@@ -1347,7 +1293,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	@Test
 	public void testStateIncrementalVisitor() {
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 
 		// map to store expected states, namespace -> key -> state
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
@@ -1396,7 +1342,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testStateIncrementalVisitorWithClosedStateMap() {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 		// put some states
 		for (long namespace = 0;  namespace < 15; namespace++) {
 			for (int key = 0; key < 20; key++) {
@@ -1415,7 +1361,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 	@Test
 	public void testPutAndGetNodeWithNoneZeroOffset() {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
 		final int key = 10;
 		final long namespace = 0L;
 		final String valueString = "test";
@@ -1708,15 +1654,27 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		return values;
 	}
 
-	private CopyOnWriteSkipListStateMap<Integer, Long, String> createStateMapForTesting() {
+	private CopyOnWriteSkipListStateMap<Integer, Long, String> createEmptyStateMap(
+		int keysToDelete,
+		float logicalKeysRemoveRatio,
+		Allocator spaceAllocator) {
+		return createStateMapForTesting(
+			keysToDelete,
+			logicalKeysRemoveRatio,
+			spaceAllocator);
+	}
+
+	private CopyOnWriteSkipListStateMap<Integer, Long, String> createEmptyStateMap() {
 		return createStateMapForTesting(
 			DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME,
-			DEFAULT_LOGICAL_REMOVED_KEYS_RATIO);
+			DEFAULT_LOGICAL_REMOVED_KEYS_RATIO,
+			new TestAllocator(256));
 	}
 
 	private CopyOnWriteSkipListStateMap<Integer, Long, String> createStateMapForTesting(
 			int keysToDelete,
-			float logicalKeysRemoveRatio) {
+			float logicalKeysRemoveRatio,
+			Allocator spaceAllocator) {
 		return new CopyOnWriteSkipListStateMap<>(
 			keySerializer,
 			namespaceSerializer,
