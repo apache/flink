@@ -238,9 +238,11 @@ This means if an operator contains a stateful process function such as:
 public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Integer, Void> {
  
    ValueState<Integer> state;
- 
+   ValueStateDescriptor<Integer> stateDescriptor;
+   
    @Override
    public void open(Configuration parameters) {
+	  stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
       state = getRuntimeContext().getState(stateDescriptor);
    }
  
@@ -256,9 +258,11 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
 public class StatefulFunctionWithTime extends KeyedProcessFunction[Integer, Integer, Void] {
  
   var state: ValueState[Integer];
+  var stateDescriptor: ValueStateDescriptor[Integer];
  
    @throws[Exception]
-   override def open(Configuration parameters) {
+   override def open(parameters: Configuration) {
+      stateDescriptor = new ValueStateDescriptor("state", Types.INT);
       state = getRuntimeContext().getState(stateDescriptor);
    }
  
@@ -283,9 +287,11 @@ class KeyedState {
  
 class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState> {
   ValueState<Integer> state;
- 
+  ValueStateDescriptor<Integer> stateDescriptor;
+  
   @Override
   public void open(Configuration parameters) {
+     stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
      state = getRuntimeContext().getState(stateDescriptor);
   }
  
@@ -310,9 +316,11 @@ DataSet<KeyedState> keyedState = savepoint.readKeyedState("my-uid", new ReaderFu
 case class KeyedState(key: Int, value: Int)
  
 class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
-  var state ValueState[Integer];
+  var state: ValueState[Integer];
+  var stateDescriptor: ValueStateDescriptor[Integer]
  
-  override def open(Configuration parameters) {
+  override def open(parameters: Configuration) {
+     stateDescriptor = new ValueStateDescriptor("state", Types.INT);
      state = getRuntimeContext().getState(stateDescriptor);
   }
  
