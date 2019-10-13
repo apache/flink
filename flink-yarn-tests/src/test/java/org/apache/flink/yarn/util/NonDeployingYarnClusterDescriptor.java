@@ -40,10 +40,9 @@ public class NonDeployingYarnClusterDescriptor extends YarnClusterDescriptor {
 	public NonDeployingYarnClusterDescriptor(
 			Configuration flinkConfiguration,
 			YarnConfiguration yarnConfiguration,
-			String configurationDirectory,
 			YarnClient yarnClient,
 			ClusterClient<ApplicationId> clusterClient) {
-		super(flinkConfiguration, yarnConfiguration, configurationDirectory, yarnClient, true);
+		super(flinkConfiguration, yarnConfiguration, yarnClient, true);
 
 		this.clusterClient = Preconditions.checkNotNull(clusterClient);
 	}

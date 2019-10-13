@@ -20,6 +20,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -59,37 +60,40 @@ public interface CustomCommandLine<T> {
 	void addGeneralOptions(Options baseOptions);
 
 	/**
-	 * Create a {@link ClusterDescriptor} from the given configuration, configuration directory
-	 * and the command line.
+	 * Override configuration settings by specified command line options.
 	 *
-	 * @param commandLine containing command line options relevant for the ClusterDescriptor
-	 * @return ClusterDescriptor
-	 * @throws FlinkException if the ClusterDescriptor could not be created
+	 * @param commandLine containing the overriding values
+	 * @return the effective configuration with the overridden configuration settings
 	 */
-	ClusterDescriptor<T> createClusterDescriptor(CommandLine commandLine) throws FlinkException;
+	Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException;
 
 	/**
-	 * Returns the cluster id if a cluster id was specified on the command line, otherwise it
-	 * returns null.
+	 * Create a {@link ClusterDescriptor} from the given configuration.
 	 *
-	 * <p>A cluster id identifies a running cluster, e.g. the Yarn application id for a Flink
-	 * cluster running on Yarn.
+	 * @param configuration containing the configuration options relevant for the {@link ClusterDescriptor}
+	 * @return the corresponding {@link ClusterDescriptor}.
+	 */
+	ClusterDescriptor<T> createClusterDescriptor(Configuration configuration);
+
+	/**
+	 * Returns the cluster id if a cluster id is specified in the provided configuration, otherwise it returns {@code null}.
 	 *
-	 * @param commandLine containing command line options relevant for the cluster id retrieval
+	 * <p>A cluster id identifies a running cluster, e.g. the Yarn application id for a Flink cluster running on Yarn.
+	 *
+	 * @param configuration containing the configuration options relevant for the cluster id retrieval
 	 * @return Cluster id identifying the cluster to deploy jobs to or null
 	 */
 	@Nullable
-	T getClusterId(CommandLine commandLine);
+	T getClusterId(Configuration configuration);
 
 	/**
 	 * Returns the {@link ClusterSpecification} specified by the configuration and the command
 	 * line options. This specification can be used to deploy a new Flink cluster.
 	 *
-	 * @param commandLine containing command line options relevant for the ClusterSpecification
-	 * @return ClusterSpecification for a new Flink cluster
-	 * @throws FlinkException if the ClusterSpecification could not be created
+	 * @param configuration containing the configuration options relevant for the {@link ClusterSpecification}
+	 * @return the corresponding {@link ClusterSpecification} for a new Flink cluster
 	 */
-	ClusterSpecification getClusterSpecification(CommandLine commandLine) throws FlinkException;
+	ClusterSpecification getClusterSpecification(Configuration configuration);
 
 	default CommandLine parseCommandLineOptions(String[] args, boolean stopAtNonOptions) throws CliArgsException {
 		final Options options = new Options();

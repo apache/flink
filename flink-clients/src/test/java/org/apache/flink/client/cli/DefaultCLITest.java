@@ -64,11 +64,10 @@ public class DefaultCLITest extends CliFrontendTestBase {
 		final String[] args = {};
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+		final Configuration executorConfig = defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
-		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
-			defaultCLI.createClusterDescriptor(commandLine);
-
-		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor = defaultCLI.createClusterDescriptor(executorConfig);
+		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(executorConfig));
 
 		final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
 
@@ -97,11 +96,10 @@ public class DefaultCLITest extends CliFrontendTestBase {
 		final String[] args = {"-m", manualHostname + ':' + manualPort};
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+		final Configuration executorConfig = defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
-		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
-			defaultCLI.createClusterDescriptor(commandLine);
-
-		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor = defaultCLI.createClusterDescriptor(executorConfig);
+		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(executorConfig));
 
 		final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
 

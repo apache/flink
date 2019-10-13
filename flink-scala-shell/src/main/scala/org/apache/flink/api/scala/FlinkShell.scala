@@ -258,10 +258,11 @@ object FlinkShell {
     val commandLine = CliFrontendParser.parse(commandLineOptions, args.toArray, true)
 
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
+    val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
-    val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)
+    val clusterDescriptor = customCLI.createClusterDescriptor(executorConfig)
 
-    val clusterSpecification = customCLI.getClusterSpecification(commandLine)
+    val clusterSpecification = customCLI.getClusterSpecification(executorConfig)
 
     val cluster = clusterDescriptor.deploySessionCluster(clusterSpecification)
 
@@ -288,12 +289,13 @@ object FlinkShell {
       configuration,
       CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
+    val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
     val clusterDescriptor = customCLI
-      .createClusterDescriptor(commandLine)
+      .createClusterDescriptor(executorConfig)
       .asInstanceOf[ClusterDescriptor[Any]]
 
-    val clusterId = customCLI.getClusterId(commandLine)
+    val clusterId = customCLI.getClusterId(executorConfig)
 
     val cluster = clusterDescriptor.retrieve(clusterId)
 

@@ -204,6 +204,54 @@ public class YarnConfigOptions {
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
+	// ----------------------- YARN CLI OPTIONS ------------------------------------
+
+	public static final ConfigOption<String> APPLICATION_LOG_CONFIG_FILES =
+			key("yarn.log-config-file")
+				.noDefaultValue()
+				.withDescription("The location of the log config file, e.g. the path to your log4j.properties for log4j.");
+
+	public static final ConfigOption<String> DYNAMIC_PROPERTIES =
+			key("$internal.yarn.dynamic-properties")
+				.noDefaultValue()
+				.withDescription("**DO NOT USE** Specify YARN dynamic properties.");
+
+	public static final ConfigOption<String> SHIP_DIRECTORIES =
+			key("yarn.ship-directories")
+				.noDefaultValue()
+				.withDescription("A semicolon-separated list of directories to be shipped to the YARN cluster.");
+
+	public static final ConfigOption<String> FLINK_DIST_JAR =
+			key("yarn.flink-dist-jar")
+				.noDefaultValue()
+				.withDescription("The location of the Flink dist jar.");
+
+	public static final ConfigOption<String> APPLICATION_ID =
+			key("yarn.application.id")
+				.noDefaultValue()
+				.withDescription("The YARN application id of the running yarn cluster." +
+						" This is the YARN cluster where the pipeline is going to be executed.");
+
+	public static final ConfigOption<String> APPLICATION_QUEUE =
+			key("yarn.application.queue")
+				.noDefaultValue()
+				.withDescription("The YARN queue on which to put the current pipeline.");
+
+	public static final ConfigOption<String> APPLICATION_NAME =
+			key("yarn.application.name")
+				.noDefaultValue()
+				.withDescription("A custom name for your YARN application.");
+
+	public static final ConfigOption<String> APPLICATION_TYPE =
+			key("yarn.application.type")
+				.noDefaultValue()
+				.withDescription("A custom type for your YARN application..");
+
+	public static final ConfigOption<String> NODE_LABEL =
+			key("yarn.application.node-label")
+				.noDefaultValue()
+				.withDescription("Specify YARN node label for the YARN application.");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */

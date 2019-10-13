@@ -111,14 +111,14 @@ public class ExecutionContext<T> {
 	private final Map<String, TableSink<?>> tableSinks;
 	private final Map<String, UserDefinedFunction> functions;
 	private final Configuration flinkConfig;
-	private final CommandLine commandLine;
+	private final Configuration executorConfig;
 	private final CustomCommandLine<T> activeCommandLine;
 	private final RunOptions runOptions;
 	private final T clusterId;
 	private final ClusterSpecification clusterSpec;
 
 	public ExecutionContext(Environment defaultEnvironment, SessionContext sessionContext, List<URL> dependencies,
-			Configuration flinkConfig, Options commandLineOptions, List<CustomCommandLine<?>> availableCommandLines) {
+			Configuration flinkConfig, Options commandLineOptions, List<CustomCommandLine<?>> availableCommandLines) throws FlinkException {
 		this.sessionContext = sessionContext.copy(); // create internal copy because session context is mutable
 		this.mergedEnv = Environment.merge(defaultEnvironment, sessionContext.getEnvironment());
 		this.dependencies = dependencies;
@@ -155,11 +155,12 @@ public class ExecutionContext<T> {
 		});
 
 		// convert deployment options into command line options that describe a cluster
-		commandLine = createCommandLine(mergedEnv.getDeployment(), commandLineOptions);
+		final CommandLine commandLine = createCommandLine(mergedEnv.getDeployment(), commandLineOptions);
 		activeCommandLine = findActiveCommandLine(availableCommandLines, commandLine);
+		executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
 		runOptions = createRunOptions(commandLine);
-		clusterId = activeCommandLine.getClusterId(commandLine);
-		clusterSpec = createClusterSpecification(activeCommandLine, commandLine);
+		clusterId = activeCommandLine.getClusterId(executorConfig);
+		clusterSpec = activeCommandLine.getClusterSpecification(executorConfig);
 	}
 
 	public SessionContext getSessionContext() {
@@ -182,8 +183,8 @@ public class ExecutionContext<T> {
 		return clusterId;
 	}
 
-	public ClusterDescriptor<T> createClusterDescriptor() throws Exception {
-		return activeCommandLine.createClusterDescriptor(commandLine);
+	public ClusterDescriptor<T> createClusterDescriptor() {
+		return activeCommandLine.createClusterDescriptor(executorConfig);
 	}
 
 	public EnvironmentInstance createEnvironmentInstance() {
@@ -241,14 +242,6 @@ public class ExecutionContext<T> {
 			return new RunOptions(commandLine);
 		} catch (CliArgsException e) {
 			throw new SqlExecutionException("Invalid deployment run options.", e);
-		}
-	}
-
-	private static ClusterSpecification createClusterSpecification(CustomCommandLine<?> activeCommandLine, CommandLine commandLine) {
-		try {
-			return activeCommandLine.getClusterSpecification(commandLine);
-		} catch (FlinkException e) {
-			throw new SqlExecutionException("Could not create cluster specification for the given deployment.", e);
 		}
 	}
 

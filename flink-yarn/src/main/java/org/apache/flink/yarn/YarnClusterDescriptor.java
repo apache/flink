@@ -47,6 +47,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.yarn.cli.YarnConfigUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
@@ -130,8 +131,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 	private String yarnQueue;
 
-	private String configurationDirectory;
-
 	private Path flinkJarPath;
 
 	private String dynamicPropertiesEncoded;
@@ -153,7 +152,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	public YarnClusterDescriptor(
 			Configuration flinkConfiguration,
 			YarnConfiguration yarnConfiguration,
-			String configurationDirectory,
 			YarnClient yarnClient,
 			boolean sharedYarnClient) {
 
@@ -163,8 +161,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
 		this.userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
-
-		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 	}
 
 	@VisibleForTesting
@@ -235,9 +231,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 		if (this.flinkJarPath == null) {
 			throw new YarnDeploymentException("The Flink jar path is null");
-		}
-		if (this.configurationDirectory == null) {
-			throw new YarnDeploymentException("Configuration directory not set");
 		}
 		if (this.flinkConfiguration == null) {
 			throw new YarnDeploymentException("Flink configuration object has not been set");
@@ -710,22 +703,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			systemShipFiles.add(file.getAbsoluteFile());
 		}
 
-		//check if there is a logback or log4j file
-		File logbackFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOGBACK_NAME);
-		final boolean hasLogback = logbackFile.exists();
-		if (hasLogback) {
-			systemShipFiles.add(logbackFile);
-		}
-
-		File log4jFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME);
-		final boolean hasLog4j = log4jFile.exists();
-		if (hasLog4j) {
-			systemShipFiles.add(log4jFile);
-			if (hasLogback) {
-				// this means there is already a logback configuration file --> fail
-				LOG.warn("The configuration directory ('" + configurationDirectory + "') contains both LOG4J and " +
-						"Logback configuration files. Please delete or rename one of them.");
-			}
+		final List<File> logConfigFiles = YarnConfigUtils
+				.decodeListFromConfig(configuration, YarnConfigOptions.APPLICATION_LOG_CONFIG_FILES, File::new);
+		if (logConfigFiles != null) {
+			systemShipFiles.addAll(logConfigFiles);
 		}
 
 		addEnvironmentFoldersToShipFiles(systemShipFiles);
@@ -945,8 +926,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(
 				yarnClusterEntrypoint,
-				hasLogback,
-				hasLog4j,
+				containsFileWithEnding(systemShipFiles, CONFIG_FILE_LOGBACK_NAME),
+				containsFileWithEnding(systemShipFiles, CONFIG_FILE_LOG4J_NAME),
 				hasKrb5,
 				clusterSpecification.getMasterMemoryMB());
 

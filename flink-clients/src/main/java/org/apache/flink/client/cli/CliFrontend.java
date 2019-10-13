@@ -195,9 +195,9 @@ public class CliFrontend {
 		}
 
 		final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
-
+		final Configuration executorConfig = customCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
 		try {
-			runProgram(customCommandLine, commandLine, runOptions, program);
+			runProgram(customCommandLine, executorConfig, runOptions, program);
 		} finally {
 			program.deleteExtractedLibraries();
 		}
@@ -205,13 +205,13 @@ public class CliFrontend {
 
 	private <T> void runProgram(
 			CustomCommandLine<T> customCommandLine,
-			CommandLine commandLine,
+			Configuration executorConfig,
 			RunOptions runOptions,
 			PackagedProgram program) throws ProgramInvocationException, FlinkException {
-		final ClusterDescriptor<T> clusterDescriptor = customCommandLine.createClusterDescriptor(commandLine);
+		final ClusterDescriptor<T> clusterDescriptor = customCommandLine.createClusterDescriptor(executorConfig);
 
 		try {
-			final T clusterId = customCommandLine.getClusterId(commandLine);
+			final T clusterId = customCommandLine.getClusterId(executorConfig);
 
 			final ClusterClient<T> client;
 
@@ -221,7 +221,7 @@ public class CliFrontend {
 
 				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(program, configuration, parallelism);
 
-				final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(commandLine);
+				final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(executorConfig);
 				client = clusterDescriptor.deployJobCluster(
 					clusterSpecification,
 					jobGraph,
@@ -242,7 +242,7 @@ public class CliFrontend {
 				} else {
 					// also in job mode we have to deploy a session cluster because the job
 					// might consist of multiple parts (e.g. when using collect)
-					final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(commandLine);
+					final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(executorConfig);
 					client = clusterDescriptor.deploySessionCluster(clusterSpecification);
 					// if not running in detached mode, add a shutdown hook to shut down cluster if client exits
 					// there's a race-condition here if cli is killed before shutdown hook is installed
@@ -912,9 +912,10 @@ public class CliFrontend {
 	 * @throws FlinkException if something goes wrong
 	 */
 	private <T> void runClusterAction(CustomCommandLine<T> activeCommandLine, CommandLine commandLine, ClusterAction<T> clusterAction) throws FlinkException {
-		final ClusterDescriptor<T> clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
+		final Configuration executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
+		final ClusterDescriptor<T> clusterDescriptor = activeCommandLine.createClusterDescriptor(executorConfig);
 
-		final T clusterId = activeCommandLine.getClusterId(commandLine);
+		final T clusterId = activeCommandLine.getClusterId(executorConfig);
 
 		if (clusterId == null) {
 			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +

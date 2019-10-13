@@ -23,12 +23,10 @@ import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.util.FakeClusterClient;
 import org.apache.flink.yarn.util.NonDeployingYarnClusterDescriptor;
 
-import org.apache.commons.cli.CommandLine;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
@@ -90,7 +88,6 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 
 	private static class TestingFlinkYarnSessionCli extends FlinkYarnSessionCli {
 		private final ClusterClient<ApplicationId> clusterClient;
-		private final String configurationDirectory;
 
 		private TestingFlinkYarnSessionCli(
 				Configuration configuration,
@@ -99,18 +96,15 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 				String longPrefix) throws Exception {
 			super(configuration, configurationDirectory, shortPrefix, longPrefix);
 
-			this.clusterClient = new FakeClusterClient();
-			this.configurationDirectory = configurationDirectory;
+			this.clusterClient = new FakeClusterClient(configuration);
 		}
 
 		@Override
-		public YarnClusterDescriptor createClusterDescriptor(CommandLine commandLine)
-			throws FlinkException {
-			YarnClusterDescriptor parent = super.createClusterDescriptor(commandLine);
+		public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
+			YarnClusterDescriptor parent = super.createClusterDescriptor(configuration);
 			return new NonDeployingYarnClusterDescriptor(
 					parent.getFlinkConfiguration(),
 					(YarnConfiguration) parent.getYarnClient().getConfig(),
-					configurationDirectory,
 					parent.getYarnClient(),
 					clusterClient);
 		}
