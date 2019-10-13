@@ -1571,6 +1571,7 @@ public class AllWindowedStream<T, W extends Window> {
 	}
 	
 	private String getUdfName(String callLocation){
+		// takes callLocation and return the formatted udfName
 		return "AllWindowedStream." + callLocation;
 	}
 }
