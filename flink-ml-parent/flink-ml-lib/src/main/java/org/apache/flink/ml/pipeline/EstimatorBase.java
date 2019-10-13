@@ -29,6 +29,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.util.Preconditions;
 
 /**
  * The base class for estimator implementations.
@@ -50,6 +51,10 @@ public abstract class EstimatorBase<E extends EstimatorBase<E, M>, M extends Mod
 
 	@Override
 	public M fit(TableEnvironment tEnv, Table input) {
+		Preconditions.checkArgument(input != null, "Input CAN NOT BE null!");
+		Preconditions.checkArgument(
+				tableEnvOf(input) == tEnv,
+				"The input table is not in the specified table environment.");
 		return fit(input);
 	}
 
@@ -60,9 +65,7 @@ public abstract class EstimatorBase<E extends EstimatorBase<E, M>, M extends Mod
 	 * @return a model trained to fit on the given Table.
 	 */
 	public M fit(Table input) {
-		if (null == input) {
-			throw new IllegalArgumentException("Input CAN NOT BE null!");
-		}
+		Preconditions.checkArgument(input != null, "Input CAN NOT BE null!");
 		if (((TableImpl) input).getTableEnvironment() instanceof StreamTableEnvironment) {
 			TableSourceStreamOp source = new TableSourceStreamOp(input);
 			if (this.params.contains(ML_ENVIRONMENT_ID)) {

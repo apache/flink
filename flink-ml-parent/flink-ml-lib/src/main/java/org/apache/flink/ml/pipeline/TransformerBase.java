@@ -27,8 +27,8 @@ import org.apache.flink.ml.operator.stream.StreamOperator;
 import org.apache.flink.ml.operator.stream.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.util.Preconditions;
 
 /**
  * The base class for transformer implementations.
@@ -49,6 +49,10 @@ public abstract class TransformerBase<T extends TransformerBase<T>>
 
 	@Override
 	public Table transform(TableEnvironment tEnv, Table input) {
+		Preconditions.checkArgument(input != null, "Input CAN NOT BE null!");
+		Preconditions.checkArgument(
+				tableEnvOf(input) == tEnv,
+				"The input table is not in the specified table environment.");
 		return transform(input);
 	}
 
@@ -59,10 +63,8 @@ public abstract class TransformerBase<T extends TransformerBase<T>>
 	 * @return the transformed table
 	 */
 	public Table transform(Table input) {
-		if (null == input) {
-			throw new IllegalArgumentException("Input CAN NOT BE null!");
-		}
-		if (((TableImpl) input).getTableEnvironment() instanceof StreamTableEnvironment) {
+		Preconditions.checkArgument(input != null, "Input CAN NOT BE null!");
+		if (tableEnvOf(input) instanceof StreamTableEnvironment) {
 			TableSourceStreamOp source = new TableSourceStreamOp(input);
 			if (this.params.contains(ML_ENVIRONMENT_ID)) {
 				source.setMLEnvironmentId(this.params.get(ML_ENVIRONMENT_ID));

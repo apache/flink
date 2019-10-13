@@ -21,6 +21,7 @@ package org.apache.flink.ml.operator.batch.source;
 
 import org.apache.flink.ml.operator.batch.BatchOperator;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Transform the Table to SourceBatchOp.
@@ -29,9 +30,7 @@ public final class TableSourceBatchOp extends BatchOperator<TableSourceBatchOp> 
 
 	public TableSourceBatchOp(Table table) {
 		super(null);
-		if (null == table) {
-			throw new RuntimeException();
-		}
+		Preconditions.checkArgument(table != null, "The source table cannot be null.");
 		this.setOutput(table);
 	}
 
