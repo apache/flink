@@ -200,7 +200,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return priorityQueue;
 	}
 
-	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
+	<N, V> StateTable<K, N, V> tryRegisterStateTable(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<?, V> stateDesc,
 		@Nonnull StateSnapshotTransformFactory<V> snapshotTransformFactory) throws StateMigrationException {
@@ -276,7 +276,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <SV, SEV> StateSnapshotTransformFactory<SV> getStateSnapshotTransformFactory(
+	<SV, SEV> StateSnapshotTransformFactory<SV> getStateSnapshotTransformFactory(
 		StateDescriptor<?, SV> stateDesc,
 		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
 		if (stateDesc instanceof ListStateDescriptor) {
