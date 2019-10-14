@@ -213,7 +213,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	/**
 	 * Returns total size of this map, including logically removed state.
 	 */
-	public int totalSize() {
+	int totalSize() {
 		return totalSize;
 	}
 
@@ -703,6 +703,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 
 	/**
 	 * Return a random level for new node.
+	 * <p/>
+	 * The implementation refers to the {@code randomLevel} method of JDK7's ConcurrentSkipListMap. See
+	 * https://github.com/openjdk-mirror/jdk7u-jdk/blob/master/src/share/classes/java/util/concurrent/ConcurrentSkipListMap.java#L899
 	 */
 	private int getRandomIndexLevel() {
 		int x = randomSeed;
