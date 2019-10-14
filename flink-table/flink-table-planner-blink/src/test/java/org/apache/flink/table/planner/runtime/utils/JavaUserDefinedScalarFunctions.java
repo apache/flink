@@ -23,8 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
-import org.apache.flink.table.functions.FunctionLanguage;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.table.functions.python.PythonFunction;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -160,7 +161,7 @@ public class JavaUserDefinedScalarFunctions {
 	/**
 	 * Test for Python Scalar Function.
 	 */
-	public static class PythonScalarFunction extends ScalarFunction {
+	public static class PythonScalarFunction extends ScalarFunction implements PythonFunction  {
 		private final String name;
 
 		public PythonScalarFunction(String name) {
@@ -177,20 +178,25 @@ public class JavaUserDefinedScalarFunctions {
 		}
 
 		@Override
-		public FunctionLanguage getLanguage() {
-			return FunctionLanguage.PYTHON;
+		public String toString() {
+			return name;
 		}
 
 		@Override
-		public String toString() {
-			return name;
+		public byte[] getSerializedPythonFunction() {
+			return new byte[0];
+		}
+
+		@Override
+		public PythonEnv getPythonEnv() {
+			return null;
 		}
 	}
 
 	/**
 	 * Test for Python Scalar Function.
 	 */
-	public static class BooleanPythonScalarFunction extends ScalarFunction {
+	public static class BooleanPythonScalarFunction extends ScalarFunction implements PythonFunction {
 		private final String name;
 
 		public BooleanPythonScalarFunction(String name) {
@@ -207,13 +213,18 @@ public class JavaUserDefinedScalarFunctions {
 		}
 
 		@Override
-		public FunctionLanguage getLanguage() {
-			return FunctionLanguage.PYTHON;
+		public String toString() {
+			return name;
 		}
 
 		@Override
-		public String toString() {
-			return name;
+		public byte[] getSerializedPythonFunction() {
+			return new byte[0];
+		}
+
+		@Override
+		public PythonEnv getPythonEnv() {
+			return null;
 		}
 	}
 }
