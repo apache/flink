@@ -29,6 +29,7 @@ public interface SchedulerOperations {
 
 	/**
 	 * Allocate slots and deploy the vertex when slots are returned.
+	 * Only vertices in CREATED state will be accepted. Errors will happen if scheduling Non-CREATED vertices.
 	 *
 	 * @param executionVertexDeploymentOptions The tasks to be deployed and deployment options
 	 */
