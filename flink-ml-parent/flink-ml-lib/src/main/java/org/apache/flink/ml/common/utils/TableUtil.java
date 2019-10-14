@@ -25,6 +25,8 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -412,5 +414,16 @@ public class TableUtil {
 		}
 
 		return sbd.toString();
+	}
+
+	/**
+	 * which method Convert column names array to SQL clause. For example, columns {a, b, c} will be converted
+	 * into "`a`,`b`,`c`".
+	 *
+	 * @param colNames columns to convert
+	 * @return converted SQL clause.
+	 */
+	public static String columnsToSqlClause(String[] colNames) {
+		return Joiner.on("`,`").appendTo(new StringBuilder("`"), colNames).append("`").toString();
 	}
 }
