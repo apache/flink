@@ -1399,6 +1399,7 @@ under the License.
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
+						<exclude>flink-end-to-end-tests/test-scripts/docker-hive-hadoop-cluster/test-data/*</exclude>
 						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-0.11/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
