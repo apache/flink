@@ -27,9 +27,13 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types}
+import org.apache.flink.table.catalog.{CatalogTableImpl, ObjectPath}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -44,7 +48,7 @@ import org.apache.flink.types.Row
 
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
-import java.util.{Collections, List => JList, Map => JMap}
+import java.util.{Collections, function, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -670,4 +674,77 @@ class TestFileInputFormatTableSource(
   override def getReturnType: TypeInformation[Row] = tableSchema.toRowType
 
   override def getTableSchema: TableSchema = tableSchema
+}
+
+class TestPartitionableSourceFactory extends TableSourceFactory[Row] {
+
+  override def requiredContext(): util.Map[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "TestPartitionableSource")
+    context
+  }
+
+  override def supportedProperties(): util.List[String] = {
+    val supported = new util.ArrayList[String]()
+    supported.add("*")
+    supported
+  }
+
+  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
+    val dp = new DescriptorProperties()
+    dp.putProperties(properties)
+
+    val isBounded = dp.getBoolean("is-bounded")
+    val remainingPartitions = dp.getOptionalArray("remaining-partition",
+      new function.Function[String, util.Map[String, String]] {
+      override def apply(t: String): util.Map[String, String] = {
+        dp.getString(t).split(",")
+            .map(kv => kv.split(":"))
+            .map(a => (a(0), a(1)))
+            .toMap[String, String]
+      }
+    })
+    new TestPartitionableTableSource(
+      isBounded,
+      remainingPartitions.orElse(null))
+  }
+}
+
+object TestPartitionableSourceFactory {
+
+  def registerTableSource(
+      tEnv: TableEnvironment,
+      tableName: String,
+      isBounded: Boolean,
+      remainingPartitions: JList[JMap[String, String]] = null): Unit = {
+    val properties = new DescriptorProperties()
+    properties.putString("is-bounded", isBounded.toString)
+    properties.putString(CONNECTOR_TYPE, "TestPartitionableSource")
+    if (remainingPartitions != null) {
+      remainingPartitions.zipWithIndex.foreach { case (part, i) =>
+        properties.putString(
+          "remaining-partition." + i,
+          part.map {case (k, v) => s"$k:$v"}.reduce {(kv1, kv2) =>
+            s"$kv1,:$kv2"
+          }
+        )
+      }
+    }
+
+    val fieldTypes: Array[TypeInformation[_]] = Array(
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO)
+    val fieldNames = Array("id", "name", "part1", "part2")
+
+    val table = new CatalogTableImpl(
+      new TableSchema(fieldNames, fieldTypes),
+      util.Arrays.asList[String]("part1", "part2"),
+      properties.asMap(),
+      ""
+    )
+    tEnv.getCatalog(tEnv.getCurrentCatalog).get()
+        .createTable(new ObjectPath(tEnv.getCurrentDatabase, tableName), table, false)
+  }
 }

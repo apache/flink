@@ -24,13 +24,13 @@ import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
+import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
-import java.io.{File, FileWriter}
+import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
 class TableSourceITCase extends BatchTestBase {
@@ -154,7 +154,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithPartitionable(): Unit = {
-    tEnv.registerTableSource("PartitionableTable", new TestPartitionableTableSource(true))
+    TestPartitionableSourceFactory.registerTableSource(tEnv, "PartitionableTable", true)
     checkResult(
       "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'",
       Seq(row(3, "John", "A", 2), row(4, "nosharp", "A", 2))
