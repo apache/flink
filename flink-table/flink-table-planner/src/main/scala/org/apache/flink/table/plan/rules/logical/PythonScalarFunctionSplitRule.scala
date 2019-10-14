@@ -22,11 +22,10 @@ import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
-import org.apache.flink.table.functions.FunctionLanguage
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc
-import org.apache.flink.table.plan.util.PythonUtil.{containsFunctionOf, isPythonFunction}
+import org.apache.flink.table.plan.util.PythonUtil.{FunctionLanguage, containsFunctionOf, isPythonFunction}
 import org.apache.flink.table.plan.util.{InputRefVisitor, RexDefaultVisitor}
 
 import scala.collection.JavaConverters._

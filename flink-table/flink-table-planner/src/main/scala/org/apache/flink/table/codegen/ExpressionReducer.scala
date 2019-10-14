@@ -28,8 +28,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.FunctionLanguage
 import org.apache.flink.table.plan.util.PythonUtil
+import org.apache.flink.table.plan.util.PythonUtil.FunctionLanguage
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._

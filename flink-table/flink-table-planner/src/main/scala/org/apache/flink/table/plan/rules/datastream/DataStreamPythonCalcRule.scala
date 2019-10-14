@@ -21,12 +21,11 @@ package org.apache.flink.table.plan.rules.datastream
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.functions.FunctionLanguage
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamPythonCalc
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.plan.util.PythonUtil.containsFunctionOf
+import org.apache.flink.table.plan.util.PythonUtil.{FunctionLanguage, containsFunctionOf}
 
 import scala.collection.JavaConverters._
 

@@ -18,9 +18,10 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.flink.table.functions.{FunctionLanguage, UserDefinedFunction}
+import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.python.PythonFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
+import org.apache.flink.table.plan.util.PythonUtil.FunctionLanguage.FunctionLanguage
 
 import scala.collection.JavaConversions._
 
@@ -48,7 +49,7 @@ object PythonUtil {
     * @return true if it is python function.
     */
   def isPythonFunction(function: UserDefinedFunction): Boolean =
-    function != null && function.isInstanceOf[PythonFunction]
+    function.isInstanceOf[PythonFunction]
 
   /**
     * Checks whether it contains the specified kind of function in a RexNode.
@@ -73,5 +74,13 @@ object PythonUtil {
     private def findInternal(actualLanguage: FunctionLanguage, call: RexCall): Boolean =
       actualLanguage == expectedLanguage ||
         (recursive && call.getOperands.exists(_.accept(this)))
+  }
+
+  /**
+    * Categorizes the language of a user-defined function.
+    */
+  object FunctionLanguage extends Enumeration {
+    type FunctionLanguage = Value
+    val JVM, PYTHON = Value
   }
 }
