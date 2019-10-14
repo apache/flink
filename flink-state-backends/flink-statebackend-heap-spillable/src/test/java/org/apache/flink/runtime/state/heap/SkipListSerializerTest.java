@@ -38,52 +38,67 @@ import static org.junit.Assert.assertEquals;
  * Tests for {@link SkipListKeySerializer}.
  */
 public class SkipListSerializerTest extends TestLogger {
+	private static final TypeSerializer<String> keySerializer = StringSerializer.INSTANCE;
+	private static final TypeSerializer<String> namespaceSerializer = StringSerializer.INSTANCE;
+	private static final SkipListKeySerializer<String, String> skipListKeySerializer =
+		new SkipListKeySerializer<>(keySerializer, namespaceSerializer);
+	private static final TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
+	private static final SkipListValueSerializer<String> skipListValueSerializer =
+		new SkipListValueSerializer<>(stateSerializer);
 
 	@Test
-	public void testSkipListKeySerializer() throws IOException {
-		TypeSerializer<String> keySerializer = StringSerializer.INSTANCE;
-		TypeSerializer<String> namespaceSerializer = StringSerializer.INSTANCE;
-
-		SkipListKeySerializer<String, String> skipListKeySerializer =
-			new SkipListKeySerializer<>(keySerializer, namespaceSerializer);
-
-		for (int i = 0; i < 10; i++) {
-			String key = "key-abcdedg" + i;
-			String namespace = "namespace-dfsfdafd" + i;
-
-			byte[] skipListKey = skipListKeySerializer.serialize(key, namespace);
-			int offset = 10;
-			byte[] data = new byte[10 + skipListKey.length];
-			System.arraycopy(skipListKey, 0, data, offset, skipListKey.length);
-			ByteBuffer skipListKeyByteBuffer = ByteBuffer.wrap(data);
-			assertEquals(key, skipListKeySerializer.deserializeKey(skipListKeyByteBuffer, offset, skipListKey.length));
-			assertEquals(namespace, skipListKeySerializer.deserializeNamespace(skipListKeyByteBuffer, offset, skipListKey.length));
-
-			Tuple2<byte[], byte[]> serializedKeyAndNamespace =
-				skipListKeySerializer.getSerializedKeyAndNamespace(skipListKeyByteBuffer, offset);
-			assertEquals(key, deserialize(keySerializer, serializedKeyAndNamespace.f0));
-			assertEquals(namespace, deserialize(namespaceSerializer, serializedKeyAndNamespace.f1));
-
-			byte[] serializedNamespace = skipListKeySerializer.serializeNamespace(namespace);
-			assertEquals(namespace, deserialize(namespaceSerializer, serializedNamespace));
-		}
+	public void testSkipListKeySerializerBasicOp() throws IOException {
+			testSkipListKeySerializer(0);
 	}
 
 	@Test
-	public void testSkipListValueSerializer() throws IOException {
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
-		SkipListValueSerializer<String> skipListValueSerializer =
-			new SkipListValueSerializer<>(stateSerializer);
-
+	public void testSkipListKeySerializerStateless() throws IOException {
 		for (int i = 0; i < 10; i++) {
-			String state = "value-" + i;
-			byte[] value = skipListValueSerializer.serialize(state);
-			int offset = 10;
-			byte[] data = new byte[10 + value.length];
-			System.arraycopy(value, 0, data, offset, value.length);
-			assertEquals(state, deserialize(stateSerializer, value));
-			assertEquals(state, skipListValueSerializer.deserializeState(ByteBuffer.wrap(data), offset, value.length));
+			testSkipListKeySerializer(i);
 		}
+	}
+
+	private void testSkipListKeySerializer(int delta) throws IOException {
+		String key = "key-abcdedg" + delta;
+		String namespace = "namespace-dfsfdafd" + delta;
+
+		byte[] skipListKey = skipListKeySerializer.serialize(key, namespace);
+		int offset = 10;
+		byte[] data = new byte[10 + skipListKey.length];
+		System.arraycopy(skipListKey, 0, data, offset, skipListKey.length);
+		ByteBuffer skipListKeyByteBuffer = ByteBuffer.wrap(data);
+		assertEquals(key, skipListKeySerializer.deserializeKey(skipListKeyByteBuffer, offset, skipListKey.length));
+		assertEquals(namespace, skipListKeySerializer.deserializeNamespace(skipListKeyByteBuffer, offset, skipListKey.length));
+
+		Tuple2<byte[], byte[]> serializedKeyAndNamespace =
+			skipListKeySerializer.getSerializedKeyAndNamespace(skipListKeyByteBuffer, offset);
+		assertEquals(key, deserialize(keySerializer, serializedKeyAndNamespace.f0));
+		assertEquals(namespace, deserialize(namespaceSerializer, serializedKeyAndNamespace.f1));
+
+		byte[] serializedNamespace = skipListKeySerializer.serializeNamespace(namespace);
+		assertEquals(namespace, deserialize(namespaceSerializer, serializedNamespace));
+	}
+
+	@Test
+	public void testSkipListValueSerializerBasicOp() throws IOException {
+			testSkipListValueSerializer(0);
+	}
+
+	@Test
+	public void testSkipListValueSerializerStateless() throws IOException {
+		for (int i = 0; i < 10; i++) {
+			testSkipListValueSerializer(i);
+		}
+	}
+
+	private void testSkipListValueSerializer(int i) throws IOException {
+		String state = "value-" + i;
+		byte[] value = skipListValueSerializer.serialize(state);
+		int offset = 10;
+		byte[] data = new byte[10 + value.length];
+		System.arraycopy(value, 0, data, offset, value.length);
+		assertEquals(state, deserialize(stateSerializer, value));
+		assertEquals(state, skipListValueSerializer.deserializeState(ByteBuffer.wrap(data), offset, value.length));
 	}
 
 	private <T> T deserialize(TypeSerializer<T> serializer, byte[] data) throws IOException {

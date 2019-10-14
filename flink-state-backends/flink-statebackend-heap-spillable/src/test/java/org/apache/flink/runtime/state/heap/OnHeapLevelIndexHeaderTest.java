@@ -23,6 +23,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -35,12 +36,17 @@ import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
  * Tests for {@link OnHeapLevelIndexHeader}.
  */
 public class OnHeapLevelIndexHeaderTest extends TestLogger {
+	private static final ThreadLocalRandom random = ThreadLocalRandom.current();
+
+	private OnHeapLevelIndexHeader heapHeadIndex;
+
+	@Before
+	public void setUp() {
+		heapHeadIndex = new OnHeapLevelIndexHeader();
+	}
 
 	@Test
-	public void testNormal() {
-		OnHeapLevelIndexHeader heapHeadIndex = new OnHeapLevelIndexHeader();
-		ThreadLocalRandom random = ThreadLocalRandom.current();
-
+	public void testInitStatus() {
 		Assert.assertEquals(1, heapHeadIndex.getLevel());
 		Assert.assertEquals(DEFAULT_LEVEL, heapHeadIndex.getLevelIndex().length);
 		for (long node : heapHeadIndex.getLevelIndex()) {
@@ -49,110 +55,79 @@ public class OnHeapLevelIndexHeaderTest extends TestLogger {
 		for (int level = 0; level <= heapHeadIndex.getLevel(); level++) {
 			Assert.assertEquals(NIL_NODE, heapHeadIndex.getNextNode(level));
 		}
-
-		// 1. update level 0
-		long nextNode = random.nextLong(Long.MAX_VALUE);
-		heapHeadIndex.updateNextNode(0, nextNode);
-		Assert.assertEquals(nextNode, heapHeadIndex.getNextNode(0));
-
-		// 2. update level 1 multiple times
-		heapHeadIndex.updateLevel(1);
-		Assert.assertEquals(1, heapHeadIndex.getLevel());
-		Assert.assertEquals(DEFAULT_LEVEL, heapHeadIndex.getLevelIndex().length);
-
-		long node1 = random.nextLong(Long.MAX_VALUE);
-		heapHeadIndex.updateNextNode(1, node1);
-		Assert.assertEquals(nextNode, heapHeadIndex.getNextNode(0));
-		for (int i = 1; i <= heapHeadIndex.getLevel(); i++) {
-			if (i == 1) {
-				Assert.assertEquals(node1, heapHeadIndex.getNextNode(i));
-			} else {
-				Assert.assertEquals(NIL_NODE, heapHeadIndex.getNextNode(i));
-			}
-		}
-
-		long node2 = random.nextLong(Long.MAX_VALUE);
-		heapHeadIndex.updateNextNode(1, node2);
-		Assert.assertEquals(1, heapHeadIndex.getLevel());
-		Assert.assertEquals(DEFAULT_LEVEL, heapHeadIndex.getLevelIndex().length);
-		Assert.assertEquals(nextNode, heapHeadIndex.getNextNode(0));
-		for (int i = 1; i <= heapHeadIndex.getLevel(); i++) {
-			if (i == 1) {
-				Assert.assertEquals(node2, heapHeadIndex.getNextNode(i));
-			} else {
-				Assert.assertEquals(NIL_NODE, heapHeadIndex.getNextNode(i));
-			}
-		}
-
-		long node3 = random.nextLong(Long.MAX_VALUE);
-		heapHeadIndex.updateNextNode(1, node3);
-		Assert.assertEquals(1, heapHeadIndex.getLevel());
-		Assert.assertEquals(DEFAULT_LEVEL, heapHeadIndex.getLevelIndex().length);
-		Assert.assertEquals(nextNode, heapHeadIndex.getNextNode(0));
-		for (int i = 1; i <= heapHeadIndex.getLevel(); i++) {
-			if (i == 1) {
-				Assert.assertEquals(node3, heapHeadIndex.getNextNode(i));
-			} else {
-				Assert.assertEquals(NIL_NODE, heapHeadIndex.getNextNode(i));
-			}
-		}
-
-		// 3. try to grow by one level
-		long node4 = random.nextLong(Long.MAX_VALUE);
-		heapHeadIndex.updateLevel(2);
-		heapHeadIndex.updateNextNode(2, node4);
-		Assert.assertEquals(2, heapHeadIndex.getLevel());
-		Assert.assertEquals(DEFAULT_LEVEL, heapHeadIndex.getLevelIndex().length);
-		Assert.assertEquals(nextNode, heapHeadIndex.getNextNode(0));
-		for (int i = 1; i <= heapHeadIndex.getLevel(); i++) {
-			if (i == 1) {
-				Assert.assertEquals(node3, heapHeadIndex.getNextNode(i));
-			} else if (i == 2) {
-				Assert.assertEquals(node4, heapHeadIndex.getNextNode(i));
-			} else {
-				Assert.assertEquals(NIL_NODE, heapHeadIndex.getNextNode(i));
-			}
-		}
-
-		// 4. update multiple levels
-		for (int i = 1; i < 34; i++) {
-			heapHeadIndex.updateLevel(i);
-		}
-		Assert.assertEquals(33, heapHeadIndex.getLevel());
-		Assert.assertEquals(DEFAULT_LEVEL * 2, heapHeadIndex.getLevelIndex().length);
-		Assert.assertEquals(nextNode, heapHeadIndex.getNextNode(0));
-		for (int i = 1; i <= heapHeadIndex.getLevel(); i++) {
-			if (i == 1) {
-				Assert.assertEquals(node3, heapHeadIndex.getNextNode(i));
-			} else if (i == 2) {
-				Assert.assertEquals(node4, heapHeadIndex.getNextNode(i));
-			} else {
-				Assert.assertEquals(NIL_NODE, heapHeadIndex.getNextNode(i));
-			}
-		}
 	}
 
 	@Test
-	public void testException() {
-		OnHeapLevelIndexHeader heapHeadIndex = new OnHeapLevelIndexHeader();
+	public void testNormallyUpdateLevel() {
+		int level = heapHeadIndex.getLevel();
+		// update level to no more than init max level
+		for (; level <= DEFAULT_LEVEL; level++) {
+			heapHeadIndex.updateLevel(level);
+			Assert.assertEquals(level, heapHeadIndex.getLevel());
+			Assert.assertEquals(DEFAULT_LEVEL, heapHeadIndex.getLevelIndex().length);
+		}
+		// update level to trigger scale up
+		heapHeadIndex.updateLevel(level);
+		Assert.assertEquals(level, heapHeadIndex.getLevel());
+		Assert.assertEquals(DEFAULT_LEVEL * 2, heapHeadIndex.getLevelIndex().length);
+	}
 
-		// test that update level by level
+	/**
+	 * Test update to current level is allowed.
+	 */
+	@Test
+	public void testUpdateToCurrentLevel() {
+		heapHeadIndex.updateLevel(heapHeadIndex.getLevel());
+	}
+
+	/**
+	 * Test update to current level is allowed.
+	 */
+	@Test
+	public void testUpdateLevelToLessThanCurrentLevel() {
+		int level = heapHeadIndex.getLevel();
+		// update level 10 times
+		for (int i = 0; i < 10; i++) {
+			heapHeadIndex.updateLevel(++level);
+		}
+		// check update level to values less than current top level
+		for (int i = level - 1; i >= 0; i--) {
+			heapHeadIndex.updateLevel(i);
+			Assert.assertEquals(level, heapHeadIndex.getLevel());
+		}
+	}
+
+	/**
+	 * Test once update more than one level is not allowed.
+	 */
+	@Test
+	public void testOnceUpdateMoreThanOneLevel() {
 		try {
-			heapHeadIndex.updateLevel(3);
-			Assert.fail("Should throw exception");
+			heapHeadIndex.updateLevel(heapHeadIndex.getLevel() + 2);
+			Assert.fail("Should have thrown exception");
 		} catch (Exception e) {
 			Assert.assertTrue(e instanceof IllegalArgumentException);
 		}
+	}
 
-		// test that update a negative level
+	/**
+	 * Test update to negative level is not allowed.
+	 */
+	@Test
+	public void testUpdateToNegativeLevel() {
 		try {
 			heapHeadIndex.updateLevel(-1);
 			Assert.fail("Should throw exception");
 		} catch (Exception e) {
 			Assert.assertTrue(e instanceof IllegalArgumentException);
 		}
+	}
 
-		// test that update max level
+	/**
+	 * Test update to more than max level is not allowed.
+	 */
+	@Test
+	public void testUpdateToMoreThanMaximumAllowed() {
 		try {
 			heapHeadIndex.updateLevel(MAX_LEVEL + 1);
 			Assert.fail("Should throw exception");
@@ -160,4 +135,35 @@ public class OnHeapLevelIndexHeaderTest extends TestLogger {
 			Assert.assertTrue(e instanceof IllegalArgumentException);
 		}
 	}
+
+	@Test
+	public void testUpdateNextNode() {
+		// test update next node of level 0
+		int level = 0;
+		long node1 = random.nextLong(Long.MAX_VALUE);
+		heapHeadIndex.updateNextNode(level, node1);
+		Assert.assertEquals(node1, heapHeadIndex.getNextNode(level));
+		// Increase one level and make sure everything still works
+		heapHeadIndex.updateLevel(++level);
+		long node2 = random.nextLong(Long.MAX_VALUE);
+		heapHeadIndex.updateNextNode(level, node2);
+		Assert.assertEquals(node2, heapHeadIndex.getNextNode(level));
+		Assert.assertEquals(node1, heapHeadIndex.getNextNode(level - 1));
+	}
+
+	@Test
+	public void testUpdateNextNodeAfterScale() {
+		int level = 0;
+		for (; level <= DEFAULT_LEVEL; level++) {
+			heapHeadIndex.updateLevel(level);
+		}
+		heapHeadIndex.updateLevel(level);
+		long node = random.nextLong(Long.MAX_VALUE);
+		heapHeadIndex.updateNextNode(level, node);
+		Assert.assertEquals(node, heapHeadIndex.getNextNode(level));
+		for (int i = 0; i < level; i++) {
+			Assert.assertEquals(NIL_NODE, heapHeadIndex.getNextNode(i));
+		}
+	}
+
 }

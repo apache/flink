@@ -20,7 +20,6 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -31,137 +30,196 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link SkipListKeyComparator}.
  */
 public class SkipListKeyComparatorTest extends TestLogger {
+	private static final SkipListKeySerializer<Long, Integer> skipListKeySerializerForPrimitive =
+		new SkipListKeySerializer<>(LongSerializer.INSTANCE, IntSerializer.INSTANCE);
+	private static final SkipListKeySerializer<byte[], byte[]> skipListKeySerializerForByteArray =
+		new SkipListKeySerializer<>(ByteArraySerializer.INSTANCE, ByteArraySerializer.INSTANCE);
+	private static final SkipListKeySerializer<byte[], byte[]> skipListKeySerializerForNamespaceCompare =
+		new SkipListKeySerializer<>(ByteArraySerializer.INSTANCE, ByteArraySerializer.INSTANCE);
 
 	@Test
-	public void testCompareSkipListKeyForPrimitive() {
-		// The comparison of the serialized forms are identical to that of
-		// the values only when the numbers to compare are both not negative.
-		TypeSerializer<Long> keySerializer = LongSerializer.INSTANCE;
-		TypeSerializer<Integer> namespaceSerializer = IntSerializer.INSTANCE;
-
-		SkipListKeySerializer<Long, Integer> skipListKeySerializer =
-			new SkipListKeySerializer<>(keySerializer, namespaceSerializer);
-
+	public void testPrimitiveEqualKeyAndEqualNamespace() {
 		// verify equal namespace and key
-		verifySkipListKey(skipListKeySerializer, 0L, 0, 0L, 0, 0);
+		assertThat(compareSkipListKeyOfPrimitive(0L, 0, 0L, 0), is(0));
+	}
 
+	@Test
+	public void testPrimitiveDiffKeyAndEqualNamespace() {
 		// verify equal namespace and unequal key
-		verifySkipListKey(skipListKeySerializer, 0L, 5, 1L, 5, -1);
-		verifySkipListKey(skipListKeySerializer, 192L, 90, 87L, 90, 1);
+		assertThat(compareSkipListKeyOfPrimitive(0L, 5, 1L, 5), lessThan(0));
+		assertThat(compareSkipListKeyOfPrimitive(192L, 90, 87L, 90), greaterThan(0));
+	}
 
+	@Test
+	public void testPrimitiveEqualKeyAndDiffNamespace() {
 		// verify unequal namespace and equal key
-		verifySkipListKey(skipListKeySerializer, 8374L, 73, 8374L, 1212, -1);
-		verifySkipListKey(skipListKeySerializer, 839L, 23231, 839L, 2, 1);
+		assertThat(compareSkipListKeyOfPrimitive(8374L, 2, 8374L, 3), lessThan(0));
+		assertThat(compareSkipListKeyOfPrimitive(839L, 3, 839L, 2), greaterThan(0));
+	}
 
+	@Test
+	public void testPrimitiveDiffKeyAndDiffNamespace() {
 		// verify unequal namespace and unequal key
-		verifySkipListKey(skipListKeySerializer, 1L, 2, 3L, 4, -1);
-		verifySkipListKey(skipListKeySerializer, 1L, 4, 3L, 2, 1);
-		verifySkipListKey(skipListKeySerializer, 3L, 2, 1L, 4, -1);
-		verifySkipListKey(skipListKeySerializer, 3L, 4, 1L, 2, 1);
+		assertThat(compareSkipListKeyOfPrimitive(1L, 2, 3L, 4), lessThan(0));
+		assertThat(compareSkipListKeyOfPrimitive(1L, 4, 3L, 2), greaterThan(0));
+		assertThat(compareSkipListKeyOfPrimitive(3L, 2, 1L, 4), lessThan(0));
+		assertThat(compareSkipListKeyOfPrimitive(3L, 4, 1L, 2), greaterThan(0));
 	}
 
 	@Test
-	public void testCompareSkipListKeyForByteArray() {
-		TypeSerializer<byte[]> keySerializer = ByteArraySerializer.INSTANCE;
-		TypeSerializer<byte[]> namespaceSerializer = ByteArraySerializer.INSTANCE;
-
-		SkipListKeySerializer<byte[], byte[]> skipListKeySerializer =
-			new SkipListKeySerializer<>(keySerializer, namespaceSerializer);
-
+	public void testByteArrayEqualKeyAndEqualNamespace() {
 		// verify equal namespace and key
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "25", "34", "25", 0);
-
-		// verify larger namespace
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "27", "34", "25", 1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "27", "34", "25,34", 1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "27,28", "34", "25", 1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "27,28", "34", "25,34", 1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "27,28", "34", "27,3", 1);
-
-		// verify smaller namespace
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "25", "34", "27", -1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "25", "34", "27,34", -1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "25,28", "34", "27", -1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "25,28", "34", "27,34", -1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "25,28", "34", "25,34", -1);
-
-		// verify larger key
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "25", "30", "25", 1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34", "25", "30,38", "25", 1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34,22", "25", "30", "25", 1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34,22", "25", "30,38", "25", 1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "34,82", "25", "34,38", "25", 1);
-
-		// verify smaller key
-		verifySkipListKeyForByteArray(skipListKeySerializer, "30", "25", "34", "25", -1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "30,38", "25", "34", "25", -1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "30", "25", "34,22", "25", -1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "30,38", "25", "34,22", "25", -1);
-		verifySkipListKeyForByteArray(skipListKeySerializer, "30,38", "25", "30,72", "25", -1);
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "25", "34", "25"),
+			is(0));
 	}
 
 	@Test
-	public void testCompareNamespace() {
-		TypeSerializer<byte[]> keySerializer = ByteArraySerializer.INSTANCE;
-		TypeSerializer<byte[]> namespaceSerializer = ByteArraySerializer.INSTANCE;
+	public void testByteArrayEqualKeyAndLargerNamespace() {
+		// verify larger namespace
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "27", "34", "25"),
+			greaterThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "27", "34", "25,34"),
+			greaterThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "27,28", "34", "25"),
+			greaterThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "27,28", "34", "25,34"),
+			greaterThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "27,28", "34", "27,3"),
+			greaterThan(0));
+	}
 
-		SkipListKeySerializer<byte[], byte[]> skipListKeySerializer =
-			new SkipListKeySerializer<>(keySerializer, namespaceSerializer);
+	@Test
+	public void testByteArrayEqualKeyAndSmallerNamespace() {
+		// verify smaller namespace
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "25", "34", "27"),
+			lessThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "25", "34", "27,34"),
+			lessThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "25,28", "34", "27"),
+			lessThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "25,28", "34", "27,34"),
+			lessThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "25,28", "34", "25,34"),
+			lessThan(0));
+	}
 
+	@Test
+	public void testByteArrayLargerKeyAndEqualNamespace() {
+		// verify larger key
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "25", "30", "25"),
+			greaterThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34", "25", "30,38", "25"),
+			greaterThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34,22", "25", "30", "25"),
+			greaterThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34,22", "25", "30,38", "25"),
+			greaterThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("34,82", "25", "34,38", "25"),
+			greaterThan(0));
+	}
+
+	@Test
+	public void testByteArraySmallerKeyAndEqualNamespace() {
+		// verify smaller key
+		assertThat(
+			compareSkipListKeyOfByteArray("30", "25", "34", "25"),
+			lessThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("30,38", "25", "34", "25"),
+			lessThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("30", "25", "34,22", "25"),
+			lessThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("30,38", "25", "34,22", "25"),
+			lessThan(0));
+		assertThat(
+			compareSkipListKeyOfByteArray("30,38", "25", "30,72", "25"),
+			lessThan(0));
+	}
+
+	@Test
+	public void testEqualNamespace() {
 		// test equal namespace
-		verifyNamespaceCompare(skipListKeySerializer, "23", "34", "23", 0);
+		assertThat(compareNamespace("23", "23"), is(0));
+	}
 
+	@Test
+	public void testSmallerNamespace() {
 		// test smaller namespace
-		verifyNamespaceCompare(skipListKeySerializer, "23", "34", "24", -1);
-		verifyNamespaceCompare(skipListKeySerializer, "23", "34", "24,35", -1);
-		verifyNamespaceCompare(skipListKeySerializer, "23,25", "34", "24", -1);
-		verifyNamespaceCompare(skipListKeySerializer, "23,20", "34", "24,45", -1);
-		verifyNamespaceCompare(skipListKeySerializer, "23,20", "34", "23,45", -1);
+		assertThat(compareNamespace("23", "24"), lessThan(0));
+		assertThat(compareNamespace("23", "24,35"), lessThan(0));
+		assertThat(compareNamespace("23,25", "24"), lessThan(0));
+		assertThat(compareNamespace("23,20", "24,45"), lessThan(0));
+		assertThat(compareNamespace("23,20", "23,45"), lessThan(0));
+	}
 
+	@Test
+	public void testLargerNamespace() {
 		// test larger namespace
-		verifyNamespaceCompare(skipListKeySerializer, "26", "34", "14", 1);
-		verifyNamespaceCompare(skipListKeySerializer, "26", "34", "14,73", 1);
-		verifyNamespaceCompare(skipListKeySerializer, "26,25", "34", "14", 1);
-		verifyNamespaceCompare(skipListKeySerializer, "26,20", "34", "14,45", 1);
-		verifyNamespaceCompare(skipListKeySerializer, "26,90", "34", "26,45", 1);
+		assertThat(compareNamespace("26", "14"), greaterThan(0));
+		assertThat(compareNamespace("26", "14,73"), greaterThan(0));
+		assertThat(compareNamespace("26,25", "14"), greaterThan(0));
+		assertThat(compareNamespace("26,20", "14,45"), greaterThan(0));
+		assertThat(compareNamespace("26,90", "26,45"), greaterThan(0));
 	}
 
-	private void verifySkipListKeyForByteArray(
-		SkipListKeySerializer<byte[], byte[]> keySerializer,
-		String key1, String namespace1, String key2, String namespace2, int result) {
-		verifySkipListKey(keySerializer, convertByteString(key1), convertByteString(namespace1),
-			convertByteString(key2), convertByteString(namespace2), result);
+	private int compareSkipListKeyOfByteArray(String key1, String namespace1, String key2, String namespace2) {
+		return compareSkipListKey(skipListKeySerializerForByteArray, convertStringToByteArray(key1), convertStringToByteArray(namespace1),
+			convertStringToByteArray(key2), convertStringToByteArray(namespace2));
 	}
 
-	private <K, N> void verifySkipListKey(
-		SkipListKeySerializer<K, N> keySerializer,
-		K key1, N namespace1, K key2, N namespace2, int result) {
+	private int compareSkipListKeyOfPrimitive(long key1, int namespace1, long key2, int namespace2) {
+		return compareSkipListKey(skipListKeySerializerForPrimitive, key1, namespace1, key2, namespace2);
+	}
+
+	private <K, N> int compareSkipListKey(
+		@Nonnull SkipListKeySerializer<K, N> keySerializer,
+		K key1, N namespace1, K key2, N namespace2) {
 		ByteBuffer b1 = ByteBuffer.wrap(keySerializer.serialize(key1, namespace1));
 		ByteBuffer b2 = ByteBuffer.wrap(keySerializer.serialize(key2, namespace2));
-		int actual = SkipListKeyComparator.compareTo(b1, 0, b2, 0);
-		assertTrue((result == 0 && actual == 0) || (result * actual > 0));
+		return SkipListKeyComparator.compareTo(b1, 0, b2, 0);
 	}
 
-	private void verifyNamespaceCompare(
-		SkipListKeySerializer<byte[], byte[]> keySerializer,
-		String namespace, String targetKey, String targetNamespace, int result) {
-		byte[] n = keySerializer.serializeNamespace(convertByteString(namespace));
-		byte[] k = keySerializer.serialize(convertByteString(targetKey), convertByteString(targetNamespace));
-		int actual = SkipListKeyComparator.compareNamespaceAndNode(
+	private int compareNamespace(String namespace, String targetNamespace) {
+		final byte[] key = convertStringToByteArray("34");
+		byte[] n = skipListKeySerializerForNamespaceCompare.serializeNamespace(convertStringToByteArray(namespace));
+		byte[] k = skipListKeySerializerForNamespaceCompare.serialize(key, convertStringToByteArray(targetNamespace));
+		return SkipListKeyComparator.compareNamespaceAndNode(
 			ByteBuffer.wrap(n), 0, n.length, ByteBuffer.wrap(k), 0);
-		assertTrue((result == 0 && actual == 0) || (result * actual > 0));
 	}
 
-	private byte[] convertByteString(String str) {
+	private byte[] convertStringToByteArray(@Nonnull String str) {
 		String[] subStr = str.split(",");
 		byte[] value = new byte[subStr.length];
 		for (int i = 0; i < subStr.length; i++) {
@@ -178,7 +236,7 @@ public class SkipListKeyComparatorTest extends TestLogger {
 
 		private static final byte[] EMPTY = new byte[0];
 
-		public static final ByteArraySerializer INSTANCE = new ByteArraySerializer();
+		static final ByteArraySerializer INSTANCE = new ByteArraySerializer();
 
 		@Override
 		public boolean isImmutableType() {
