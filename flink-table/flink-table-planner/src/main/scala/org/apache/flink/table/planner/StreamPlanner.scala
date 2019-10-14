@@ -161,9 +161,7 @@ class StreamPlanner(
               sink)
             // set static partitions if it is a partitioned sink
             sink match {
-              case partitionableSink: PartitionableTableSink
-                if partitionableSink.getPartitionFieldNames != null
-                  && partitionableSink.getPartitionFieldNames.nonEmpty =>
+              case partitionableSink: PartitionableTableSink =>
                 partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
               case _ =>
             }
@@ -273,8 +271,7 @@ class StreamPlanner(
     val resultSink = sink match {
       case retractSink: RetractStreamTableSink[T] =>
         retractSink match {
-          case partitionableSink: PartitionableTableSink
-            if partitionableSink.getPartitionFieldNames.nonEmpty =>
+          case _: PartitionableTableSink =>
             throw new TableException("Partitionable sink in retract stream mode " +
               "is not supported yet!")
           case _ =>
@@ -283,8 +280,7 @@ class StreamPlanner(
 
       case upsertSink: UpsertStreamTableSink[T] =>
         upsertSink match {
-          case partitionableSink: PartitionableTableSink
-            if partitionableSink.getPartitionFieldNames.nonEmpty =>
+          case _: PartitionableTableSink =>
             throw new TableException("Partitionable sink in upsert stream mode " +
               "is not supported yet!")
           case _ =>
@@ -351,7 +347,7 @@ class StreamPlanner(
         streamQueryConfig,
         withChangeFlag = false)
     // Give the DataStream to the TableSink to emit it.
-    sink.consumeDataStream(shuffleByPartitionFieldsIfNeeded(sink, result))
+    sink.consumeDataStream(result)
   }
 
   private def writeToUpsertSink[T](
@@ -387,26 +383,6 @@ class StreamPlanner(
         withChangeFlag = true)
     // Give the DataStream to the TableSink to emit it.
     sink.consumeDataStream(result)
-  }
-
-  /**
-    * Key by the partition fields if the sink is a [[PartitionableTableSink]].
-    * @param sink       the table sink
-    * @param dataStream the data stream
-    * @tparam R         the data stream record type
-    * @return a data stream that maybe keyed by.
-    */
-  private def shuffleByPartitionFieldsIfNeeded[R](
-      sink: TableSink[_],
-      dataStream: DataStream[R]): DataStream[R] = {
-    sink match {
-      case partitionableSink: PartitionableTableSink
-        if partitionableSink.getPartitionFieldNames.nonEmpty =>
-        val fieldNames = sink.getTableSchema.getFieldNames
-        val indices = partitionableSink.getPartitionFieldNames.map(fieldNames.indexOf(_))
-        dataStream.keyBy(indices:_*)
-      case _ => dataStream
-    }
   }
 
   private def translateToType[A](
