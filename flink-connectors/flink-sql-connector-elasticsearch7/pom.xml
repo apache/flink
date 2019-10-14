@@ -122,6 +122,9 @@ under the License.
 									<exclude>joda-time:joda-time</exclude>
 									<exclude>net.sf.jopt-simple:jopt-simple</exclude>
 									<exclude>org.elasticsearch:jna</exclude>
+									<exclude>org.elasticsearch:elasticsearch-geo</exclude>
+									<exclude>org.elasticsearch.plugin:lang-mustache-client</exclude>
+									<exclude>com.github.spullara.mustache.java:compiler</exclude>
 									<exclude>org.hdrhistogram:HdrHistogram</exclude>
 									<exclude>org.yaml:snakeyaml</exclude>
 								</excludes>
