@@ -18,21 +18,19 @@
 
 package org.apache.flink.table.runtime.stream.table
 
-import java.io.File
-
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.junit.Test
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
 import org.apache.flink.table.expressions.utils.UDFWithJobParameterChecking
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.CommonTestData
+import org.apache.flink.test.util.AbstractTestBase
 
-class TableEnvironmentITCase {
+class TableEnvironmentITCase extends AbstractTestBase {
 
   @Test
   def testMergeParametersInStreamTableEnvironment(): Unit = {
@@ -54,15 +52,8 @@ class TableEnvironmentITCase {
       .asInstanceOf[StreamPlanner].getExecutionEnvironment
     env.setParallelism(1)
 
-    val tmpFile = File.createTempFile("flink-table-environment-test", ".tmp")
-    tmpFile.deleteOnExit()
-    tmpFile.delete()
-    val path = tmpFile.toURI.toString
-    tEnv.connect(new FileSystem().path(path))
-      .withFormat(new OldCsv().field("id", "INT"))
-      .withSchema(new Schema().field("id", "INT"))
-      .inAppendMode()
-      .registerTableSink("sink")
+    tEnv.registerTableSink("sink",
+      new TestAppendSink().configure(Array("a"), Array(Types.INT())))
 
     val csvTable = CommonTestData.getCsvTableSource
     val udfForChecking = new UDFWithJobParameterChecking(Map("testConf" -> "1"))
@@ -70,5 +61,8 @@ class TableEnvironmentITCase {
 
     tEnv.getConfig.getConfiguration.setString("testConf", "1")
     tEnv.execute("test")
+
+    // clear the result stored in RowCollector
+    RowCollector.getAndClearValues
   }
 }
