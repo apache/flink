@@ -36,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -108,7 +107,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 									new SlotProfile(
 										schedulingRequirements.getResourceProfile(),
 										preferredLocations,
-										Arrays.asList(schedulingRequirements.getPreviousAllocationId()),
+										Collections.singletonList(schedulingRequirements.getPreviousAllocationId()),
 										allPreviousAllocationIds)));
 
 			SlotExecutionVertexAssignment slotExecutionVertexAssignment =
