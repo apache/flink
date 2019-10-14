@@ -222,8 +222,17 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		return requestCount;
 	}
 
+	/**
+	 * TODO queryable state will call get(K, N) asynchronously, but there are race conditions:
+	 * 1. serializer is not thread safe which will fail StateBackendTestBase#testValueStateRace
+	 * 2. public interfaces in StateMap such as get, put and removed are not thread safe
+	 * Currently we just use synchronized to solve the problem 1, but this is not the final solution.
+	 * And we will use the safe serializers provided by InternalKvState#getSerializedValue for
+	 * serialization/deserialization later. Problem 2 also exists for original heap state, and we
+	 * should discuss it separately.
+	 */
 	@Override
-	public S get(K key, N namespace) {
+	public synchronized S get(K key, N namespace) {
 		updateStat();
 
 		return getNodeInternal(key, namespace);
