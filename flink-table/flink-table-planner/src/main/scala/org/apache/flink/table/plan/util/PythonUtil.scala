@@ -18,7 +18,8 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.flink.table.functions.FunctionLanguage
+import org.apache.flink.table.functions.{FunctionLanguage, UserDefinedFunction}
+import org.apache.flink.table.functions.python.PythonFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 
 import scala.collection.JavaConversions._
@@ -41,6 +42,15 @@ object PythonUtil {
   }
 
   /**
+    * Checks whether the specified function is python function.
+    *
+    * @param function the function to check.
+    * @return true if it is python function.
+    */
+  def isPythonFunction(function: UserDefinedFunction): Boolean =
+    function != null && function.isInstanceOf[PythonFunction]
+
+  /**
     * Checks whether it contains the specified kind of function in a RexNode.
     *
     * @param expectedLanguage the expected kind of function to find
@@ -51,8 +61,7 @@ object PythonUtil {
 
     override def visitCall(call: RexCall): Boolean = {
       call.getOperator match {
-        case sfc: ScalarSqlFunction if sfc.getScalarFunction.getLanguage ==
-          FunctionLanguage.PYTHON =>
+        case sfc: ScalarSqlFunction if isPythonFunction(sfc.getScalarFunction) =>
           findInternal(FunctionLanguage.PYTHON, call)
         case _ =>
           findInternal(FunctionLanguage.JVM, call)

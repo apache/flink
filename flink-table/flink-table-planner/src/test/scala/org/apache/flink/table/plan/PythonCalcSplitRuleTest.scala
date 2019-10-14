@@ -21,7 +21,8 @@ package org.apache.flink.table.plan
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction}
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
@@ -269,24 +270,28 @@ class PythonCalcSplitRuleTest extends TableTestBase {
   }
 }
 
-class PythonScalarFunction(name: String) extends ScalarFunction {
+class PythonScalarFunction(name: String) extends ScalarFunction with PythonFunction {
   def eval(i: Int, j: Int): Int = i + j
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
     BasicTypeInfo.INT_TYPE_INFO
 
-  override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
-
   override def toString: String = name
+
+  override def getSerializedPythonFunction: Array[Byte] = null
+
+  override def getPythonEnv: PythonEnv = null
 }
 
-class BooleanPythonScalarFunction(name: String) extends ScalarFunction {
+class BooleanPythonScalarFunction(name: String) extends ScalarFunction with PythonFunction {
   def eval(i: Int, j: Int): Boolean = i + j > 1
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
     BasicTypeInfo.BOOLEAN_TYPE_INFO
 
-  override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
-
   override def toString: String = name
+
+  override def getSerializedPythonFunction: Array[Byte] = null
+
+  override def getPythonEnv: PythonEnv = null
 }
