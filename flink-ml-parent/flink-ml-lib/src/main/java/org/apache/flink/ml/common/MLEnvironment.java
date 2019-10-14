@@ -20,6 +20,10 @@
 package org.apache.flink.ml.common;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.ml.operator.batch.BatchOperator;
+import org.apache.flink.ml.operator.batch.source.TableSourceBatchOp;
+import org.apache.flink.ml.operator.stream.StreamOperator;
+import org.apache.flink.ml.operator.stream.source.TableSourceStreamOp;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -153,6 +157,26 @@ public class MLEnvironment {
 			streamTableEnv = StreamTableEnvironment.create(getStreamExecutionEnvironment());
 		}
 		return streamTableEnv;
+	}
+
+	/**
+	 * Evaluates a SQL query on registered tables and retrieves the result as a <code>BatchOperator</code>.
+	 *
+	 * @param query The SQL query to evaluate.
+	 * @return The result of the query as <code>BatchOperator</code>.
+	 */
+	public BatchOperator<?> batchSQL(String query) {
+		return new TableSourceBatchOp(getBatchTableEnvironment().sqlQuery(query));
+	}
+
+	/**
+	 * Evaluates a SQL query on registered tables and retrieves the result as a <code>StreamOperator</code>.
+	 *
+	 * @param query The SQL query to evaluate.
+	 * @return The result of the query as <code>StreamOperator</code>.
+	 */
+	public StreamOperator streamSQL(String query) {
+		return new TableSourceStreamOp(getStreamTableEnvironment().sqlQuery(query));
 	}
 }
 
