@@ -29,7 +29,7 @@ import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
-import java.io.File
+import java.io.{File, FileWriter}
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
 class TableSourceITCase extends BatchTestBase {
@@ -253,9 +253,11 @@ class TableSourceITCase extends BatchTestBase {
   def testMultiPaths(): Unit = {
     val tmpFile1 = File.createTempFile("flink-table-sink-test", ".tmp")
     tmpFile1.deleteOnExit()
+    new FileWriter(tmpFile1).append("t1\n").append("t2\n").close()
 
     val tmpFile2 = File.createTempFile("flink-table-sink-test", ".tmp")
     tmpFile2.deleteOnExit()
+    new FileWriter(tmpFile2).append("t3\n").append("t4\n").close()
 
     val schema = new TableSchema(Array("a"), Array(Types.STRING))
 
@@ -265,7 +267,12 @@ class TableSourceITCase extends BatchTestBase {
 
     checkResult(
       "select * from MyMultiPathTable",
-      Seq()
+      Seq(
+        row("t1"),
+        row("t2"),
+        row("t3"),
+        row("t4")
+      )
     )
   }
 }
