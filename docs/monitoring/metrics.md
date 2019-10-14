@@ -1041,17 +1041,17 @@ Thus, in order to infer the metric identifier:
     </tr>
     <tr>
       <td>inPoolUsage</td>
-      <td>An estimate of the input buffers usage.</td>
+      <td>An estimate of the input buffers usage. (ignores LocalInputChannels)</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td>inputFloatingBuffersUsage</td>
-      <td>An estimate of the floating input buffers usage, dediciated for credit-based mode.</td>
+      <td>An estimate of the floating input buffers usage, dediciated for credit-based mode. (ignores LocalInputChannels)</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td>inputExclusiveBuffersUsage</td>
-      <td>An estimate of the exclusive input buffers usage, dediciated for credit-based mode.</td>
+      <td>An estimate of the exclusive input buffers usage, dediciated for credit-based mode. (ignores LocalInputChannels)</td>
       <td>Gauge</td>
     </tr>
     <tr>
