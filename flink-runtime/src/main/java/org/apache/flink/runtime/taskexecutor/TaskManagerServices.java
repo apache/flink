@@ -51,7 +51,9 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -330,6 +332,19 @@ public class TaskManagerServices {
 	 */
 	private static MemoryManager createMemoryManager(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration) {
+		if (taskManagerServicesConfiguration.getOnHeapManagedMemorySize() != null &&
+			taskManagerServicesConfiguration.getOffHeapManagedMemorySize() != null) {
+			// flip49 enabled
+
+			final Map<MemoryType, Long> memorySizeByType = new HashMap<>();
+			memorySizeByType.put(MemoryType.HEAP, taskManagerServicesConfiguration.getOnHeapManagedMemorySize().getBytes());
+			memorySizeByType.put(MemoryType.OFF_HEAP, taskManagerServicesConfiguration.getOffHeapManagedMemorySize().getBytes());
+
+			return new MemoryManager(memorySizeByType,
+				taskManagerServicesConfiguration.getNumberOfSlots(),
+				taskManagerServicesConfiguration.getPageSize());
+		}
+
 		// computing the amount of memory to use depends on how much memory is available
 		// it strictly needs to happen AFTER the network stack has been initialized
 

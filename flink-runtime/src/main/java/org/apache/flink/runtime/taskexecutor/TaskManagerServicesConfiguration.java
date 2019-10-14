@@ -222,6 +222,16 @@ public class TaskManagerServicesConfiguration {
 		return taskExecutorResourceSpec == null ? null : taskExecutorResourceSpec.getShuffleMemSize();
 	}
 
+	@Nullable // should only be null when flip49 is disabled
+	public MemorySize getOnHeapManagedMemorySize() {
+		return taskExecutorResourceSpec == null ? null : taskExecutorResourceSpec.getOnHeapManagedMemorySize();
+	}
+
+	@Nullable // should only be null when flip49 is disabled
+	public MemorySize getOffHeapManagedMemorySize() {
+		return taskExecutorResourceSpec == null ? null : taskExecutorResourceSpec.getOffHeapManagedMemorySize();
+	}
+
 	long getTimerServiceShutdownTimeout() {
 		return timerServiceShutdownTimeout;
 	}
