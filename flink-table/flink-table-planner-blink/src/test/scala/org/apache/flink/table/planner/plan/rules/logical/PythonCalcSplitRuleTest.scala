@@ -29,9 +29,9 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[PythonScalarFunctionSplitRule]].
+  * Test for [[PythonCalcSplitRule]].
   */
-class PythonScalarFunctionSplitRuleTest extends TableTestBase {
+class PythonCalcSplitRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -106,6 +106,18 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
   def testFieldNameUniquify(): Unit = {
     util.addTableSource[(Int, Int, Int)]("MyTable2", 'f0, 'f1, 'f2)
     val sqlQuery = "SELECT pyFunc1(f1, f2), f0 + 1 FROM MyTable2"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLiteral(): Unit = {
+    val sqlQuery = "SELECT a, b, pyFunc1(a, c), 1 FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testReorderPythonCalc(): Unit = {
+    val sqlQuery = "SELECT a, pyFunc1(a, c), b FROM MyTable"
     util.verifyPlan(sqlQuery)
   }
 }

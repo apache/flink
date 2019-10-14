@@ -41,8 +41,7 @@ trait CommonPythonCalc {
 
     val udfInputOffsets = inputNodes.toArray
       .map(_._1)
-      .filter(_.isInstanceOf[RexInputRef])
-      .map(_.asInstanceOf[RexInputRef].getIndex)
+      .collect { case inputRef: RexInputRef => inputRef.getIndex }
     (udfInputOffsets, pythonFunctionInfos)
   }
 

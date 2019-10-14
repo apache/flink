@@ -25,10 +25,8 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 
 /**
   * Stream physical RelNode for Python ScalarFunctions.
@@ -55,18 +53,15 @@ class StreamExecPythonCalc(
       planner: StreamPlanner): Transformation[BaseRow] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val config = planner.getTableConfig
-    val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
-      classOf[AbstractProcessStreamOperator[BaseRow]])
-    createOneInputTransformation(
+    val ret = createPythonOneInputTransformation(
       inputTransform,
-      inputsContainSingleton(),
       calcProgram,
-      getRelDetailedDescription,
-      config,
-      ctx,
-      cluster,
-      getRowType,
       "StreamExecCalc")
+
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
+    }
+    ret
   }
 }

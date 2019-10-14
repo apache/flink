@@ -509,10 +509,13 @@ class ExpressionReductionRulesTest extends TableTestBase {
       .select('a, 'b, 'c, DeterministicPythonFunc() as 'd, DeterministicNullFunc() as 'e)
 
     val expected: String = unaryNode(
-      "DataStreamPythonCalc",
-      streamTableNode(table),
-      term("select", "a", "b", "c", "DeterministicPythonFunc$() AS d",
-        "null:VARCHAR(65536) AS e")
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "a", "b", "c", "DeterministicPythonFunc$() AS f0")
+      ),
+      term("select", "a", "b", "c", "f0 AS d", "null:VARCHAR(65536) AS e")
     )
 
     util.verifyTable(result, expected)

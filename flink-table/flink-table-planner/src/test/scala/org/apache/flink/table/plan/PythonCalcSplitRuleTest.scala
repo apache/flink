@@ -26,7 +26,7 @@ import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
-class PythonScalarFunctionSplitRuleTest extends TableTestBase {
+class PythonCalcSplitRuleTest extends TableTestBase {
 
   @Test
   def testPythonFunctionAsInputOfJavaFunction(): Unit = {
@@ -87,12 +87,20 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamPythonCalc",
-        streamTableNode(table),
-        term("select", "c", "pyFunc1(a, b) AS f0", "pyFunc2(a, c) AS f1")
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamPythonCalc",
+            streamTableNode(table),
+            term("select", "a", "b", "c", "pyFunc2(a, c) AS f0")
+          ),
+          term("select", "c", "a", "b"),
+          term("where", ">(f0, 0)")
         ),
-      term("select", "f0 AS _c0", "+(c, 1) AS _c1"),
-      term("where", ">(f1, 0)")
-      )
+        term("select", "c", "pyFunc1(a, b) AS f0")
+      ),
+      term("select", "f0 AS _c0", "+(c, 1) AS _c1")
+    )
 
     util.verifyTable(resultTable, expected)
   }
@@ -109,14 +117,18 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
       .select("pyFunc1(a, b)")
 
     val expected = unaryNode(
-      "DataStreamCalc",
+      "DataStreamPythonCalc",
       unaryNode(
-        "DataStreamPythonCalc",
-        streamTableNode(table),
-        term("select", "pyFunc1(a, b) AS f0", "pyFunc2(a, c) AS f1")
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamPythonCalc",
+          streamTableNode(table),
+          term("select", "a", "b", "pyFunc2(a, c) AS f0")
+        ),
+        term("select", "a", "b"),
+        term("where", "f0")
       ),
-      term("select", "f0 AS _c0"),
-      term("where", "f1")
+      term("select", "pyFunc1(a, b) AS _c0")
     )
 
     util.verifyTable(resultTable, expected)
@@ -210,6 +222,48 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
         ),
       term("select", "f00 AS _c0", "+(f0, 1) AS _c1")
       )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testLiteral(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new BooleanPythonScalarFunction("pyFunc1"))
+
+    val resultTable = table.select("a, b, pyFunc1(a, c), 1")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "a", "b", "pyFunc1(a, c) AS f0")
+      ),
+      term("select", "a", "b", "f0 AS _c2", "1 AS _c3")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testReorderPythonCalc(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new BooleanPythonScalarFunction("pyFunc1"))
+
+    val resultTable = table.select("a, pyFunc1(a, c), b")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "a", "b", "pyFunc1(a, c) AS f0")
+      ),
+      term("select", "a", "f0 AS _c1", "b")
+    )
 
     util.verifyTable(resultTable, expected)
   }

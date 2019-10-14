@@ -354,7 +354,10 @@ object FlinkBatchRuleSets {
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions
-    PythonScalarFunctionSplitRule.INSTANCE
+    PythonCalcSplitRule.SPLIT_FILTER,
+    PythonCalcSplitRule.SPLIT_PROJECT,
+    PythonCalcSplitRule.PUSH_FILTER,
+    PythonCalcSplitRule.REWRITE_PROJECT
   )
 
   /**
