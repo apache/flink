@@ -38,6 +38,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * CREATE VIEW DDL sql call.
  */
@@ -59,9 +61,9 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 			boolean replace,
 			SqlCharStringLiteral comment) {
 		super(OPERATOR, pos, replace, false);
-		this.viewName = viewName;
-		this.fieldList = fieldList;
-		this.query = query;
+		this.viewName = requireNonNull(viewName, "View name is missing");
+		this.fieldList = requireNonNull(fieldList, "FieldList should not be null");
+		this.query = requireNonNull(query, "Query is missing");
 		this.comment = comment;
 	}
 

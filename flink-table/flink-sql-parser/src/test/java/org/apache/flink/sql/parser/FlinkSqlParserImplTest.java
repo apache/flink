@@ -688,13 +688,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
-	public void testValidateSqlCreateTable() {
+	public void testValidateEmptySqlCreateTable() {
 		String sql = "CREATE TABLE tbl1";
 		sql(sql).node(new ValidationMatcher());
 	}
 
 	@Test
-	public void testValidateSqlCreateView() {
+	public void testValidateEmptySqlCreateView() {
 		String sql = "CREATE VIEW v1 AS SELECT 1";
 		sql(sql).node(new ValidationMatcher());
 	}

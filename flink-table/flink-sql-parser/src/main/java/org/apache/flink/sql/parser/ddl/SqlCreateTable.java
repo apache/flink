@@ -80,11 +80,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			SqlCharStringLiteral comment) {
 		super(OPERATOR, pos, false, false);
 		this.tableName = requireNonNull(tableName, "Table name is missing");
-		this.columnList = columnList;
-		this.primaryKeyList = primaryKeyList;
-		this.uniqueKeysList = uniqueKeysList;
-		this.propertyList = propertyList;
-		this.partitionKeyList = partitionKeyList;
+		this.columnList = requireNonNull(columnList, "ColumnList should not be null");
+		this.primaryKeyList = requireNonNull(primaryKeyList, "PrimayKeyList should not be null");
+		this.uniqueKeysList = requireNonNull(uniqueKeysList, "UniqueKeysList should not be null");
+		this.propertyList = requireNonNull(propertyList, "PropertyList should not be null");
+		this.partitionKeyList = requireNonNull(partitionKeyList, "PartitionKeyList should not be null");
 		this.comment = comment;
 	}
 
