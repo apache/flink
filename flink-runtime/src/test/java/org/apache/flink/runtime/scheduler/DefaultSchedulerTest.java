@@ -82,6 +82,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link DefaultScheduler}.
@@ -307,6 +308,31 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		assertThat(schedulingStrategy.getReceivedVerticesToRestart(), hasSize(1));
 		assertThat(onlySchedulingVertex.getState(), is(equalTo(ExecutionState.CREATED)));
+	}
+
+	@Test
+	public void scheduleOnlyIfVertexIsCreated() throws Exception {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+
+		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
+		final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
+		final SchedulingTopology topology = schedulingStrategy.getSchedulingTopology();
+
+		startScheduling(scheduler);
+
+		final ExecutionVertexID onlySchedulingVertexId = Iterables.getOnlyElement(topology.getVertices()).getId();
+
+		// Schedule the vertex to get it to a non-CREATED state
+		schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertexId));
+
+		// The scheduling of a non-CREATED vertex will result in IllegalStateException
+		try {
+			schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertexId));
+			fail("IllegalStateException should happen");
+		} catch (IllegalStateException e) {
+			// expected exception
+		}
 	}
 
 	private void waitForTermination(final DefaultScheduler scheduler) throws Exception {

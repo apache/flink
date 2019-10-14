@@ -230,13 +230,19 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	@Override
 	public void allocateSlotsAndDeploy(final Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
-		final Map<ExecutionVertexID, ExecutionVertexDeploymentOption> deploymentOptionsByVertex = groupDeploymentOptionsByVertexId(executionVertexDeploymentOptions);
+		validateDeploymentOptions(executionVertexDeploymentOptions);
+
+		final Map<ExecutionVertexID, ExecutionVertexDeploymentOption> deploymentOptionsByVertex =
+			groupDeploymentOptionsByVertexId(executionVertexDeploymentOptions);
+
 		final Set<ExecutionVertexID> verticesToDeploy = deploymentOptionsByVertex.keySet();
-		final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex = executionVertexVersioner.recordVertexModifications(verticesToDeploy);
+		final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex =
+			executionVertexVersioner.recordVertexModifications(verticesToDeploy);
 
 		transitionToScheduled(verticesToDeploy);
 
-		final Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments = allocateSlots(executionVertexDeploymentOptions);
+		final Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
+			allocateSlots(executionVertexDeploymentOptions);
 
 		final Collection<DeploymentHandle> deploymentHandles = createDeploymentHandles(
 			requiredVersionByVertex,
@@ -248,6 +254,15 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		} else {
 			waitForAllSlotsAndDeploy(deploymentHandles);
 		}
+	}
+
+	private void validateDeploymentOptions(final Collection<ExecutionVertexDeploymentOption> deploymentOptions) {
+		deploymentOptions.stream()
+			.map(ExecutionVertexDeploymentOption::getExecutionVertexId)
+			.map(this::getExecutionVertex)
+			.forEach(v -> checkState(
+				v.getExecutionState() == ExecutionState.CREATED,
+				"expected vertex %s to be in CREATED state, was: %s", v.getID(), v.getExecutionState()));
 	}
 
 	private static Map<ExecutionVertexID, ExecutionVertexDeploymentOption> groupDeploymentOptionsByVertexId(
