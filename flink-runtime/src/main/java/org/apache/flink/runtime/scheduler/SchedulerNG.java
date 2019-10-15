@@ -77,6 +77,8 @@ public interface SchedulerNG {
 
 	CompletableFuture<Void> getTerminationFuture();
 
+	void handleGlobalFailure(Throwable cause);
+
 	boolean updateTaskExecutionState(TaskExecutionState taskExecutionState);
 
 	SerializedInputSplit requestNextInputSplit(JobVertexID vertexID, ExecutionAttemptID executionAttempt) throws IOException;

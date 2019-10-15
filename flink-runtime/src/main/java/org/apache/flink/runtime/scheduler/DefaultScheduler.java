@@ -176,6 +176,13 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		maybeRestartTasks(failureHandlingResult);
 	}
 
+	@Override
+	public void handleGlobalFailure(final Throwable error) {
+		log.info("Trying to recover from a global failure.", error);
+		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getGlobalFailureHandlingResult(error);
+		maybeRestartTasks(failureHandlingResult);
+	}
+
 	private void maybeRestartTasks(final FailureHandlingResult failureHandlingResult) {
 		if (failureHandlingResult.canRestart()) {
 			restartTasksWithDelay(failureHandlingResult);
