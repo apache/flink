@@ -83,7 +83,14 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org.apache.hadoop.hbase</pattern>
-									<shadedPattern>org.apache.flink.hbase.shaded01.org.apache.hadoop.hbase</shadedPattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.org.apache.hadoop.hbase</shadedPattern>
+									<excludes>
+										<exclude>org.apache.hadoop.hbase.codec.*</exclude>
+									</excludes>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.zookeeper</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.org.apache.zookeeper</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

@@ -118,7 +118,7 @@ under the License.
 		<!-- TODO implement bulk output format for HBase -->
 		<dependency>
 			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-server</artifactId>
+			<artifactId>hbase-shaded-server</artifactId>
 			<version>${hbase.version}</version>
 			<exclusions>
 				<!-- Remove unneeded dependency, which is conflicting with our jetty-util version. -->

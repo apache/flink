@@ -135,16 +135,6 @@ possible configurations would overwhelm and obscure the important.
 		</description>
 	</property>
 	<property>
-		<name>hbase.master.logcleaner.plugins</name>
-		<value>org.apache.hadoop.hbase.master.cleaner.TimeToLiveLogCleaner</value>
-		<description>A comma-separated list of BaseLogCleanerDelegate invoked by
-			the LogsCleaner service. These WAL cleaners are called in order,
-			so put the cleaner that prunes the most files in front. To
-			implement your own BaseLogCleanerDelegate, just put it in HBase's classpath
-			and add the fully qualified class name here. Always add the above
-			default log cleaners in the list.</description>
-	</property>
-	<property>
 		<name>hbase.master.logcleaner.ttl</name>
 		<value>600000</value>
 		<description>Maximum time a WAL can stay in the .oldlogdir directory,
@@ -1063,16 +1053,6 @@ possible configurations would overwhelm and obscure the important.
 			version is X.X.X-SNAPSHOT"</description>
 	</property>
 	<property>
-		<name>hbase.coprocessor.master.classes</name>
-		<value></value>
-		<description>A comma-separated list of
-			org.apache.hadoop.hbase.coprocessor.MasterObserver coprocessors that are
-			loaded by default on the active HMaster process. For any implemented
-			coprocessor methods, the listed classes will be called in order. After
-			implementing your own MasterObserver, just put it in HBase's classpath
-			and add the fully qualified class name here.</description>
-	</property>
-	<property>
 		<name>hbase.coprocessor.abortonerror</name>
 		<value>true</value>
 		<description>Set to true to cause the hosting server (master or regionserver)
@@ -1293,13 +1273,6 @@ possible configurations would overwhelm and obscure the important.
 			When a region server dies and its recovery starts, the master will push this information
 			to the client application, to let them cut the connection immediately instead of waiting
 			for a timeout.
-		</description>
-	</property>
-	<property>
-		<name>hbase.status.listener.class</name>
-		<value>org.apache.flink.hbase.shaded01.org.apache.hadoop.hbase.client.ClusterStatusListener$MulticastListener</value>
-		<description>
-			Implementation of the status listener with a multicast message.
 		</description>
 	</property>
 	<property>
