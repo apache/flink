@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A TaskManagerSlot represents a slot located in a TaskManager. It has a unique identification and
  * resource profile associated.
  */
-public class TaskManagerSlot {
+public class TaskManagerSlot implements TaskManagerSlotInformation {
 
 	/** The unique identification of this slot. */
 	private final SlotID slotId;
@@ -76,10 +76,12 @@ public class TaskManagerSlot {
 		return state;
 	}
 
+	@Override
 	public SlotID getSlotId() {
 		return slotId;
 	}
 
+	@Override
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
 	}
@@ -101,6 +103,7 @@ public class TaskManagerSlot {
 		return assignedSlotRequest;
 	}
 
+	@Override
 	public InstanceID getInstanceId() {
 		return taskManagerConnection.getInstanceID();
 	}
@@ -153,6 +156,7 @@ public class TaskManagerSlot {
 	 * @param required The required resource profile
 	 * @return true if requirement can be matched
 	 */
+	@Override
 	public boolean isMatchingRequirement(ResourceProfile required) {
 		return resourceProfile.isMatching(required);
 	}
