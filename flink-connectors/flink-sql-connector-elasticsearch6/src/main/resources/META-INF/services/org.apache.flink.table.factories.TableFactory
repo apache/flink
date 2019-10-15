@@ -13,4 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.streaming.connectors.elasticsearch6.Elasticsearch6UpsertTableSinkFactory
+org.apache.flink.streaming.sql.connectors.elasticsearch6.Elasticsearch6UpsertTableSinkFactory

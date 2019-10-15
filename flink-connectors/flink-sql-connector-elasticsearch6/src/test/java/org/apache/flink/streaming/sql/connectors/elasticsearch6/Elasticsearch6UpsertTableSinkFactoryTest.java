@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch6;
+package org.apache.flink.streaming.sql.connectors.elasticsearch6;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -37,7 +37,7 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTa
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkFactoryTestBase;
-import org.apache.flink.streaming.connectors.elasticsearch6.Elasticsearch6UpsertTableSink.DefaultRestClientFactory;
+import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
@@ -65,11 +65,11 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		final TestElasticsearch6UpsertTableSink testSink = new TestElasticsearch6UpsertTableSink(
 			false,
 			schema,
-			Collections.singletonList(new Host(HOSTNAME, PORT, SCHEMA)),
-			INDEX,
-			DOC_TYPE,
-			KEY_DELIMITER,
-			KEY_NULL_LITERAL,
+			Collections.singletonList(new Host(ElasticsearchUpsertTableSinkFactoryTestBase.HOSTNAME, ElasticsearchUpsertTableSinkFactoryTestBase.PORT, ElasticsearchUpsertTableSinkFactoryTestBase.SCHEMA)),
+			ElasticsearchUpsertTableSinkFactoryTestBase.INDEX,
+			ElasticsearchUpsertTableSinkFactoryTestBase.DOC_TYPE,
+			ElasticsearchUpsertTableSinkFactoryTestBase.KEY_DELIMITER,
+			ElasticsearchUpsertTableSinkFactoryTestBase.KEY_NULL_LITERAL,
 			new JsonRowSerializationSchema(schema.toRowType()),
 			XContentType.JSON,
 			new DummyFailureHandler(),
@@ -82,12 +82,12 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		testSink.emitDataStream(dataStreamMock);
 
 		final ElasticsearchSink.Builder<Tuple2<Boolean, Row>> expectedBuilder = new ElasticsearchSink.Builder<>(
-			Collections.singletonList(new HttpHost(HOSTNAME, PORT, SCHEMA)),
+			Collections.singletonList(new HttpHost(ElasticsearchUpsertTableSinkFactoryTestBase.HOSTNAME, ElasticsearchUpsertTableSinkFactoryTestBase.PORT, ElasticsearchUpsertTableSinkFactoryTestBase.SCHEMA)),
 			new ElasticsearchUpsertSinkFunction(
-				INDEX,
-				DOC_TYPE,
-				KEY_DELIMITER,
-				KEY_NULL_LITERAL,
+				ElasticsearchUpsertTableSinkFactoryTestBase.INDEX,
+				ElasticsearchUpsertTableSinkFactoryTestBase.DOC_TYPE,
+				ElasticsearchUpsertTableSinkFactoryTestBase.KEY_DELIMITER,
+				ElasticsearchUpsertTableSinkFactoryTestBase.KEY_NULL_LITERAL,
 				new JsonRowSerializationSchema(schema.toRowType()),
 				XContentType.JSON,
 				Elasticsearch6UpsertTableSink.UPDATE_REQUEST_FACTORY,
@@ -100,7 +100,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		expectedBuilder.setBulkFlushInterval(100);
 		expectedBuilder.setBulkFlushMaxActions(1000);
 		expectedBuilder.setBulkFlushMaxSizeMb(1);
-		expectedBuilder.setRestClientFactory(new DefaultRestClientFactory(100, "/myapp"));
+		expectedBuilder.setRestClientFactory(new Elasticsearch6UpsertTableSink.DefaultRestClientFactory(100, "/myapp"));
 
 		assertEquals(expectedBuilder, testSink.builder);
 	}
