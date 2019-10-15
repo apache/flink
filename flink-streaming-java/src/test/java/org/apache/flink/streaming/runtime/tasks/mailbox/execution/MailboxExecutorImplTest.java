@@ -51,7 +51,7 @@ public class MailboxExecutorImplTest {
 	@Before
 	public void setUp() throws Exception {
 		this.mailbox = new TaskMailboxImpl();
-		this.mailboxExecutor = new MailboxExecutorImpl(mailbox.getDownstreamMailbox(DEFAULT_PRIORITY));
+		this.mailboxExecutor = new MailboxExecutorImpl(mailbox, DEFAULT_PRIORITY);
 		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
 	}
 
@@ -75,11 +75,13 @@ public class MailboxExecutorImplTest {
 	public void testOperations() throws Exception {
 		final TestRunnable testRunnable = new TestRunnable();
 		mailboxExecutor.execute(testRunnable, "testRunnable");
-		Assert.assertEquals(testRunnable, mailbox.tryTakeMail(DEFAULT_PRIORITY).get());
+		Assert.assertEquals(testRunnable, mailbox.take(DEFAULT_PRIORITY).getRunnable());
+
 		CompletableFuture.runAsync(
 			() -> mailboxExecutor.execute(testRunnable, "testRunnable"),
 			otherThreadExecutor).get();
-		Assert.assertEquals(testRunnable, mailbox.takeMail(DEFAULT_PRIORITY));
+		Assert.assertEquals(testRunnable, mailbox.take(DEFAULT_PRIORITY).getRunnable());
+
 		final TestRunnable yieldRun = new TestRunnable();
 		final TestRunnable leftoverRun = new TestRunnable();
 		mailboxExecutor.execute(yieldRun, "yieldRun");
@@ -118,7 +120,7 @@ public class MailboxExecutorImplTest {
 			otherThreadExecutor)
 			.get();
 		assertTrue(mailboxExecutor.tryYield());
-		assertFalse(mailbox.tryTakeMail(DEFAULT_PRIORITY).isPresent());
+		assertFalse(mailboxExecutor.tryYield());
 		Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
 	}
 
