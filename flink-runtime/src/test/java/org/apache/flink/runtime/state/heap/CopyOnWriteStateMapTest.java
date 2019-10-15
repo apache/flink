@@ -29,6 +29,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Matchers;
+import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -392,6 +394,30 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		stateMap.releaseSnapshot(snapshot1);
 		// no copy-on-write is active
 		Assert.assertTrue(originalState5 == stateMap.get(5, 1));
+	}
+
+	/**
+	 * This tests that snapshot can be released correctly.
+	 */
+	@Test
+	public void testSnapshotRelease() {
+		final CopyOnWriteStateMap<Integer, Integer, Integer> stateMap =
+			Mockito.spy(new CopyOnWriteStateMap<>(IntSerializer.INSTANCE));
+
+		for (int i = 0; i < 10; i++) {
+			stateMap.put(i, i, i);
+		}
+
+		CopyOnWriteStateMapSnapshot<Integer, Integer, Integer> snapshot = stateMap.stateSnapshot();
+		Assert.assertFalse(snapshot.isReleased());
+
+		snapshot.release();
+		Assert.assertTrue(snapshot.isReleased());
+		Mockito.verify(stateMap, Mockito.times(1)).releaseSnapshot(Matchers.same(snapshot));
+
+		// verify that snapshot will release itself only once
+		snapshot.release();
+		Mockito.verify(stateMap, Mockito.times(1)).releaseSnapshot(Matchers.same(snapshot));
 	}
 
 	@SuppressWarnings("unchecked")
