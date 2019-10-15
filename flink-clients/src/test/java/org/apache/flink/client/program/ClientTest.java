@@ -39,12 +39,14 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -59,6 +61,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Simple and maybe stupid test to check the {@link ClusterClient} class.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class ClientTest extends TestLogger {
 
 	@ClassRule

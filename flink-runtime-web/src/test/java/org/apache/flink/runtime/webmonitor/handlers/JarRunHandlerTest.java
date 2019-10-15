@@ -28,11 +28,13 @@ import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
@@ -46,6 +48,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the {@link JarRunHandler}.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class JarRunHandlerTest extends TestLogger {
 
 	@ClassRule
