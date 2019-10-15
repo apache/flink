@@ -1155,9 +1155,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 */
 	public void failGlobal(Throwable t) {
 		if (!isLegacyScheduling()) {
-			// Implementation does not work for new generation scheduler.
-			// Will be fixed with FLINK-14232.
-			ExceptionUtils.rethrow(t);
+			internalTaskFailuresListener.notifyGlobalFailure(t);
+			return;
 		}
 
 		assertRunningInJobMasterMainThread();
