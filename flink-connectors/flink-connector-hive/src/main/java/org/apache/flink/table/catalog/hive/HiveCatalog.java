@@ -56,11 +56,13 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.util.StringUtils;
 
@@ -200,6 +202,11 @@ public class HiveCatalog extends AbstractCatalog {
 	@Override
 	public Optional<TableFactory> getTableFactory() {
 		return Optional.of(new HiveTableFactory(hiveConf));
+	}
+
+	@Override
+	public Optional<FunctionDefinitionFactory> getFunctionDefinitionFactory() {
+		return Optional.of(new HiveFunctionDefinitionFactory(hiveConf));
 	}
 
 	// ------ databases ------
