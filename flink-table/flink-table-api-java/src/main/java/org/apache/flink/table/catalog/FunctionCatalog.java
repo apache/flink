@@ -25,7 +25,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
-import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -242,21 +241,13 @@ public class FunctionCatalog implements FunctionLookup {
 			CatalogFunction catalogFunction = catalog.getFunction(
 				new ObjectPath(catalogManager.getCurrentDatabase(), functionName));
 
-			if (catalog.getTableFactory().isPresent() &&
-				catalog.getTableFactory().get() instanceof FunctionDefinitionFactory) {
+			userCandidate = catalog.getFunctionDefinitionFactory().createFunctionDefinition(functionName, catalogFunction);
 
-				FunctionDefinitionFactory factory = (FunctionDefinitionFactory) catalog.getTableFactory().get();
-
-				userCandidate = factory.createFunctionDefinition(functionName, catalogFunction);
-
-				return Optional.of(
-					new FunctionLookup.Result(
-						ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), name),
-						userCandidate)
-				);
-			} else {
-				// TODO: should go through function definition discover service
-			}
+			return Optional.of(
+				new FunctionLookup.Result(
+					ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), name),
+					userCandidate)
+			);
 		} catch (FunctionNotExistException e) {
 			// Ignore
 		}

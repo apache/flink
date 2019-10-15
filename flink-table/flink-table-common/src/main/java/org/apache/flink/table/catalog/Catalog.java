@@ -34,6 +34,8 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.factories.DefaultFunctionDefinitionFactory;
+import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 
 import java.util.List;
@@ -48,12 +50,21 @@ public interface Catalog {
 
 	/**
 	 * Get an optional {@link TableFactory} instance that's responsible for generating table-related
-	 * instances stored in this catalog, instances such as source/sink and function definitions.
+	 * instances stored in this catalog, instances such as source/sink.
 	 *
 	 * @return an optional TableFactory instance
 	 */
 	default Optional<TableFactory> getTableFactory() {
 		return Optional.empty();
+	}
+
+	/**
+	 * Get a {@link FunctionDefinitionFactory} instance that's responsible for instantiating function definitions.
+	 *
+	 * @return a FunctionDefinitionFactory instance
+	 */
+	default FunctionDefinitionFactory getFunctionDefinitionFactory() {
+		return DefaultFunctionDefinitionFactory.INSTANCE;
 	}
 
 	/**
