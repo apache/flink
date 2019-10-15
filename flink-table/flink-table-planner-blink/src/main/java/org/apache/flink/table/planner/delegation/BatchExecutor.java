@@ -67,6 +67,7 @@ public class BatchExecutor extends ExecutorBase {
 		if (isShuffleModeAllBatch()) {
 			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
 		}
+		executionConfig.disableAllVerticesInSameSlotSharingGroupByDefault();
 	}
 
 	@Override
