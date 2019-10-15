@@ -53,4 +53,48 @@ public interface AvailabilityProvider {
 	 * the input is finished.
 	 */
 	CompletableFuture<?> isAvailable();
+
+	/**
+	 * A availability implementation for providing the helpful functions of resetting the
+	 * available/unavailable states.
+	 */
+	final class AvailabilityHelper implements AvailabilityProvider {
+
+		private CompletableFuture<?> isAvailable = new CompletableFuture<>();
+
+		/**
+		 * Judges to reset the current available state as unavailable.
+		 */
+		public void resetUnavailable() {
+			// try to avoid volatile access in isDone()}
+			if (isAvailable == AVAILABLE || isAvailable.isDone()) {
+				isAvailable = new CompletableFuture<>();
+			}
+		}
+
+		/**
+		 * Resets the constant completed {@link #AVAILABLE} as the current state.
+		 */
+		public void resetAvailable() {
+			isAvailable = AVAILABLE;
+		}
+
+		/**
+		 *  Returns the previously not completed future and resets the constant completed
+		 *  {@link #AVAILABLE} as the current state.
+		 */
+		public CompletableFuture<?> getUnavailableToResetAvailable() {
+			CompletableFuture<?> toNotify = isAvailable;
+			isAvailable = AVAILABLE;
+			return toNotify;
+		}
+
+		/**
+		 * @return a future that is completed if the respective provider is available.
+		 */
+		@Override
+		public CompletableFuture<?> isAvailable() {
+			return isAvailable;
+		}
+	}
 }

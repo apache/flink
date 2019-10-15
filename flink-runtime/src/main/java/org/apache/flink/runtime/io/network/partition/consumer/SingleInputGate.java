@@ -516,7 +516,7 @@ public class SingleInputGate extends InputGate {
 				}
 
 				if (inputChannelsWithData.isEmpty()) {
-					resetIsAvailable();
+					availabilityHelper.resetUnavailable();
 				}
 
 				if (result.isPresent()) {
@@ -567,12 +567,11 @@ public class SingleInputGate extends InputGate {
 	}
 
 	private void markAvailable() {
-		CompletableFuture<?> toNotfiy;
+		CompletableFuture<?> toNotify;
 		synchronized (inputChannelsWithData) {
-			toNotfiy = isAvailable;
-			isAvailable = AVAILABLE;
+			toNotify = availabilityHelper.getUnavailableToResetAvailable();
 		}
-		toNotfiy.complete(null);
+		toNotify.complete(null);
 	}
 
 	@Override
@@ -629,8 +628,7 @@ public class SingleInputGate extends InputGate {
 
 			if (availableChannels == 0) {
 				inputChannelsWithData.notifyAll();
-				toNotify = isAvailable;
-				isAvailable = AVAILABLE;
+				toNotify = availabilityHelper.getUnavailableToResetAvailable();
 			}
 		}
 
@@ -650,7 +648,7 @@ public class SingleInputGate extends InputGate {
 					inputChannelsWithData.wait();
 				}
 				else {
-					resetIsAvailable();
+					availabilityHelper.resetUnavailable();
 					return Optional.empty();
 				}
 			}

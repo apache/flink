@@ -118,7 +118,7 @@ public class UnionInputGate extends InputGate {
 			}
 
 			if (!inputGatesWithData.isEmpty()) {
-				isAvailable = AVAILABLE;
+				availabilityHelper.resetAvailable();
 			}
 		}
 
@@ -189,7 +189,7 @@ public class UnionInputGate extends InputGate {
 				}
 
 				if (inputGatesWithData.isEmpty()) {
-					resetIsAvailable();
+					availabilityHelper.resetUnavailable();
 				}
 
 				if (bufferOrEvent.isPresent()) {
@@ -232,12 +232,11 @@ public class UnionInputGate extends InputGate {
 	}
 
 	private void markAvailable() {
-		CompletableFuture<?> toNotfiy;
+		CompletableFuture<?> toNotify;
 		synchronized (inputGatesWithData) {
-			toNotfiy = isAvailable;
-			isAvailable = AVAILABLE;
+			toNotify = availabilityHelper.getUnavailableToResetAvailable();
 		}
-		toNotfiy.complete(null);
+		toNotify.complete(null);
 	}
 
 	@Override
@@ -271,8 +270,7 @@ public class UnionInputGate extends InputGate {
 
 			if (availableInputGates == 0) {
 				inputGatesWithData.notifyAll();
-				toNotify = isAvailable;
-				isAvailable = AVAILABLE;
+				toNotify = availabilityHelper.getUnavailableToResetAvailable();
 			}
 		}
 
@@ -287,7 +285,7 @@ public class UnionInputGate extends InputGate {
 				if (blocking) {
 					inputGatesWithData.wait();
 				} else {
-					resetIsAvailable();
+					availabilityHelper.resetUnavailable();
 					return Optional.empty();
 				}
 			}
