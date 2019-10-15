@@ -40,6 +40,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -78,7 +79,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 			fail("This program execution should have failed.");
 		}
 		catch (JobExecutionException e) {
-			assertTrue(e.getCause().getMessage().contains("Insufficient number of network buffers"));
+			assertTrue(findThrowableWithMessage(e, "Insufficient number of network buffers").isPresent());
 		}
 
 		runConnectedComponents(env);
