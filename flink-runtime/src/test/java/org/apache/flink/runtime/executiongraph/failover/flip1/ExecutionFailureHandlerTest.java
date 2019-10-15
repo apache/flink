@@ -28,6 +28,8 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -42,6 +44,8 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 	private static final long restartDelayMs = 1234L;
 
+	private FailoverTopology failoverTopology;
+
 	private TestFailoverStrategy failoverStrategy;
 
 	private TestRestartBackoffTimeStrategy restartStrategy;
@@ -50,9 +54,13 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 	@Before
 	public void setUp() {
+		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+		topologyBuilder.newVertex();
+		failoverTopology = topologyBuilder.build();
+
 		failoverStrategy = new TestFailoverStrategy();
 		restartStrategy = new TestRestartBackoffTimeStrategy(true, restartDelayMs);
-		executionFailureHandler = new ExecutionFailureHandler(failoverStrategy, restartStrategy);
+		executionFailureHandler = new ExecutionFailureHandler(failoverTopology, failoverStrategy, restartStrategy);
 	}
 
 	/**
@@ -154,6 +162,26 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		// nested unrecoverable error
 		assertTrue(ExecutionFailureHandler.isUnrecoverableError(
 			new Exception(new SuppressRestartsException(new Exception()))));
+	}
+
+	@Test
+	public void testGlobalFailureHandling() {
+		final FailureHandlingResult result = executionFailureHandler.getGlobalFailureHandlingResult(
+			new Exception("test failure"));
+
+		assertTrue(result.canRestart());
+		assertEquals(restartDelayMs, result.getRestartDelayMS());
+		assertEquals(
+			StreamSupport.stream(failoverTopology.getFailoverVertices().spliterator(), false)
+			.map(FailoverVertex::getExecutionVertexID)
+			.collect(Collectors.toSet()),
+			result.getVerticesToRestart());
+		try {
+			result.getError();
+			fail("Cannot get error when the restarting is accepted");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
 	}
 
 	// ------------------------------------------------------------------------
