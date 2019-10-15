@@ -67,7 +67,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
-import org.apache.flink.runtime.scheduler.InternalTaskFailuresListener;
+import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.adapter.ExecutionGraphToSchedulingTopologyAdapter;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -262,7 +262,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private SchedulingTopology schedulingTopology;
 
 	@Nullable
-	private InternalTaskFailuresListener internalTaskFailuresListener;
+	private InternalFailuresListener internalTaskFailuresListener;
 
 	// ------ Configuration of the Execution -------
 
@@ -884,7 +884,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 	}
 
-	public void enableNgScheduling(final InternalTaskFailuresListener internalTaskFailuresListener) {
+	public void enableNgScheduling(final InternalFailuresListener internalTaskFailuresListener) {
 		checkNotNull(internalTaskFailuresListener);
 		checkState(this.internalTaskFailuresListener == null, "enableNgScheduling can be only called once");
 		this.internalTaskFailuresListener = internalTaskFailuresListener;
@@ -1817,7 +1817,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	void notifySchedulerNgAboutInternalTaskFailure(final ExecutionAttemptID attemptId, final Throwable t) {
 		if (internalTaskFailuresListener != null) {
-			internalTaskFailuresListener.notifyFailed(attemptId, t);
+			internalTaskFailuresListener.notifyTaskFailure(attemptId, t);
 		}
 	}
 

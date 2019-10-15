@@ -25,13 +25,14 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 /**
- * This interface enables subscribing to Task failures that are detected from the JobMaster side
+ * This interface enables subscribing to failures that are detected from the JobMaster side
  * (e.g., from within the {@link ExecutionGraph}).
  * In contrast, there are also failures that are detected by the TaskManager, which are communicated
  * via {@link JobMasterGateway#updateTaskExecutionState(TaskExecutionState)}.
  */
-public interface InternalTaskFailuresListener {
+public interface InternalFailuresListener {
 
-	void notifyFailed(ExecutionAttemptID attemptId, Throwable t);
+	void notifyTaskFailure(ExecutionAttemptID attemptId, Throwable t);
 
+	void notifyGlobalFailure(Throwable t);
 }

@@ -310,7 +310,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	protected final void prepareExecutionGraphForNgScheduling() {
-		executionGraph.enableNgScheduling(new UpdateSchedulerNgOnInternalTaskFailuresListener(this, jobGraph.getJobID()));
+		executionGraph.enableNgScheduling(new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
 		executionGraph.transitionToRunning();
 	}
 
