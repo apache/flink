@@ -510,7 +510,7 @@ public class SlotManagerImpl implements SlotManager {
 	 * @return A matching slot request which can be deployed in a slot with the given resource
 	 * profile. Null if there is no such slot request pending.
 	 */
-	protected PendingSlotRequest findMatchingRequest(ResourceProfile slotResourceProfile) {
+	private PendingSlotRequest findMatchingRequest(ResourceProfile slotResourceProfile) {
 
 		for (PendingSlotRequest pendingSlotRequest : pendingSlotRequests.values()) {
 			if (!pendingSlotRequest.isAssigned() && slotResourceProfile.isMatching(pendingSlotRequest.getResourceProfile())) {
@@ -533,7 +533,7 @@ public class SlotManagerImpl implements SlotManager {
 	 * @return A matching slot which fulfills the given resource profile. Null if there is no such
 	 * slot available.
 	 */
-	protected TaskManagerSlot findMatchingSlot(ResourceProfile requestResourceProfile) {
+	private TaskManagerSlot findMatchingSlot(ResourceProfile requestResourceProfile) {
 		Iterator<Map.Entry<SlotID, TaskManagerSlot>> iterator = freeSlots.entrySet().iterator();
 
 		while (iterator.hasNext()) {
