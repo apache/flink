@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
@@ -42,17 +43,20 @@ public class SlotManagerConfiguration {
 	private final Time slotRequestTimeout;
 	private final Time taskManagerTimeout;
 	private final boolean waitResultConsumedBeforeRelease;
+	private final boolean evenlySpreadOutSlots;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
 			Time taskManagerTimeout,
-			boolean waitResultConsumedBeforeRelease) {
+			boolean waitResultConsumedBeforeRelease,
+			boolean evenlySpreadOutSlots) {
 
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
 		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
+		this.evenlySpreadOutSlots = evenlySpreadOutSlots;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -69,6 +73,10 @@ public class SlotManagerConfiguration {
 
 	public boolean isWaitResultConsumedBeforeRelease() {
 		return waitResultConsumedBeforeRelease;
+	}
+
+	public boolean evenlySpreadOutSlots() {
+		return evenlySpreadOutSlots;
 	}
 
 	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
@@ -89,7 +97,14 @@ public class SlotManagerConfiguration {
 		boolean waitResultConsumedBeforeRelease =
 			configuration.getBoolean(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
 
-		return new SlotManagerConfiguration(rpcTimeout, slotRequestTimeout, taskManagerTimeout, waitResultConsumedBeforeRelease);
+		boolean evenlySpreadOutSlots = configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+
+		return new SlotManagerConfiguration(
+			rpcTimeout,
+			slotRequestTimeout,
+			taskManagerTimeout,
+			waitResultConsumedBeforeRelease,
+			evenlySpreadOutSlots);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {
