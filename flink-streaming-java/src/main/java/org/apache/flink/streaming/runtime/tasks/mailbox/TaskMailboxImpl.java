@@ -83,7 +83,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	@Override
-	public Optional<Runnable> tryTakeMail(int priority) throws MailboxStateException {
+	public Optional<Mail> tryTake(int priority) throws MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
@@ -94,11 +94,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	@Override
-	public @Nonnull Runnable takeMail(int priorty) throws InterruptedException, MailboxStateException {
+	public @Nonnull Mail take(int priorty) throws InterruptedException, MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
 		try {
-			Runnable headLetter;
+			Mail headLetter;
 			while ((headLetter = takeHeadInternal(priorty)) == null) {
 				notEmpty.await();
 			}
@@ -111,11 +111,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
-	public void putMail(@Nonnull Runnable letter, int priority, Object description) throws MailboxStateException {
+	public void put(@Nonnull Mail mail) throws MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
-			putTailInternal(new Mail(letter, priority, description));
+			putTailInternal(mail);
 		} finally {
 			lock.unlock();
 		}
@@ -124,11 +124,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
-	public void putFirst(@Nonnull Runnable priorityLetter, Object description) throws MailboxStateException {
+	public void putFirst(@Nonnull Mail mail) throws MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
-			putHeadInternal(new Mail(priorityLetter, MAX_PRIORITY, description));
+			putHeadInternal(mail);
 		} finally {
 			lock.unlock();
 		}
@@ -157,7 +157,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	@Nullable
-	private Runnable takeHeadInternal(int priority) throws MailboxStateException {
+	private Mail takeHeadInternal(int priority) throws MailboxStateException {
 		assert lock.isHeldByCurrentThread();
 		checkTakeStateConditions();
 		Iterator<Mail> iterator = queue.iterator();
@@ -166,7 +166,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 			if (mail.getPriority() >= priority) {
 				--count;
 				iterator.remove();
-				return mail.getRunnable();
+				return mail;
 			}
 		}
 		return null;
@@ -244,73 +244,5 @@ public class TaskMailboxImpl implements TaskMailbox {
 	@Override
 	public State getState() {
 		return state;
-	}
-
-	@Override
-	public Mailbox getMainMailbox() {
-		return new DownstreamMailbox(TaskMailbox.MIN_PRIORITY);
-	}
-
-	@Override
-	public Mailbox getDownstreamMailbox(int priority) {
-		Preconditions.checkArgument(priority >= 0, "The priority of a downstream mailbox should be non-negative");
-		return new DownstreamMailbox(priority);
-	}
-
-	class DownstreamMailbox implements Mailbox {
-		private final int priority;
-
-		DownstreamMailbox(int priority) {
-			this.priority = priority;
-		}
-
-		@Override
-		public Optional<Runnable> tryTakeMail() throws MailboxStateException {
-			return TaskMailboxImpl.this.tryTakeMail(priority);
-		}
-
-		@Nonnull
-		@Override
-		public Runnable takeMail() throws InterruptedException, MailboxStateException {
-			return TaskMailboxImpl.this.takeMail(priority);
-		}
-
-		@Override
-		public void putMail(@Nonnull Runnable letter, Object description) throws MailboxStateException {
-			TaskMailboxImpl.this.putMail(letter, priority, description);
-		}
-
-		@Override
-		public void putFirst(@Nonnull Runnable priorityLetter, Object description) throws MailboxStateException {
-			TaskMailboxImpl.this.putFirst(priorityLetter, description);
-		}
-	}
-
-	/**
-	 * An executable bound to a specific operator in the chain, such that it can be picked for downstream mailbox.
-	 */
-	static class Mail {
-		private final Runnable runnable;
-		private final int priority;
-		private final Object description;
-
-		public Mail(Runnable runnable, int priority, Object description) {
-			this.runnable = runnable;
-			this.priority = priority;
-			this.description = description == null ? runnable : description;
-		}
-
-		public int getPriority() {
-			return priority;
-		}
-
-		Runnable getRunnable() {
-			return runnable;
-		}
-
-		@Override
-		public String toString() {
-			return description.toString();
-		}
 	}
 }

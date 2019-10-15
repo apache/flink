@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 
@@ -39,13 +40,16 @@ public class MailboxExecutorImpl implements MailboxExecutor {
 	@Nonnull
 	private final Mailbox mailbox;
 
-	public MailboxExecutorImpl(@Nonnull Mailbox mailbox) {
-		this(mailbox, Thread.currentThread());
+	private final int priority;
+
+	public MailboxExecutorImpl(@Nonnull Mailbox mailbox, int priority) {
+		this(mailbox, Thread.currentThread(), priority);
 	}
 
-	public MailboxExecutorImpl(@Nonnull Mailbox mailbox, @Nonnull Thread taskMailboxThread) {
+	public MailboxExecutorImpl(@Nonnull Mailbox mailbox, @Nonnull Thread taskMailboxThread, int priority) {
 		this.mailbox = mailbox;
 		this.taskMailboxThread = taskMailboxThread;
+		this.priority = priority;
 	}
 
 	@Override
@@ -54,7 +58,19 @@ public class MailboxExecutorImpl implements MailboxExecutor {
 		final String descriptionFormat,
 		final Object... descriptionArgs) {
 		try {
-			mailbox.putMail(command, description);
+			mailbox.put(new Mail(command, priority, descriptionFormat, descriptionArgs));
+		} catch (MailboxStateException mbex) {
+			throw new RejectedExecutionException(mbex);
+		}
+	}
+
+	@Override
+	public void executeFirst(
+		@Nonnull final Runnable command,
+		final String descriptionFormat,
+		final Object... descriptionArgs) {
+		try {
+			mailbox.putFirst(new Mail(command, priority, descriptionFormat, descriptionArgs));
 		} catch (MailboxStateException mbex) {
 			throw new RejectedExecutionException(mbex);
 		}
@@ -64,8 +80,7 @@ public class MailboxExecutorImpl implements MailboxExecutor {
 	public void yield() throws InterruptedException, IllegalStateException {
 		checkIsMailboxThread();
 		try {
-			Runnable runnable = mailbox.takeMail();
-			runnable.run();
+			mailbox.take(priority).run();
 		} catch (MailboxStateException e) {
 			throw new IllegalStateException("Mailbox can no longer supply runnables for yielding.", e);
 		}
@@ -75,9 +90,9 @@ public class MailboxExecutorImpl implements MailboxExecutor {
 	public boolean tryYield() throws IllegalStateException {
 		checkIsMailboxThread();
 		try {
-			Optional<Runnable> runnableOptional = mailbox.tryTakeMail();
-			if (runnableOptional.isPresent()) {
-				runnableOptional.get().run();
+			Optional<Mail> optionalMail = mailbox.tryTake(priority);
+			if (optionalMail.isPresent()) {
+				optionalMail.get().run();
 				return true;
 			} else {
 				return false;
