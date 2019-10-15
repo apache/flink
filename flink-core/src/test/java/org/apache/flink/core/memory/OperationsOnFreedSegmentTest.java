@@ -27,6 +27,7 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
+import java.util.function.BiConsumer;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -41,9 +42,9 @@ public class OperationsOnFreedSegmentTest {
 
 	@Test
 	public void testSingleSegmentOperationsHeapSegment() throws Exception {
-		testOpsOnFreedSegment(new HeapMemorySegment(new byte[PAGE_SIZE]));
-		testOpsOnFreedSegment(MemorySegmentFactory.wrap(new byte[PAGE_SIZE]));
-		testOpsOnFreedSegment(MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE));
+		for (MemorySegment segment : createTestSegments()) {
+			testOpsOnFreedSegment(segment);
+		}
 	}
 
 	@Test
@@ -86,78 +87,51 @@ public class OperationsOnFreedSegmentTest {
 
 	@Test
 	public void testCopyTo() {
-		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
-
-		MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
-		freedHeap.free();
-		freedHybridHeap.free();
-		freedHybridOffHeap.free();
-
-		MemorySegment[] alive = { aliveHeap, aliveHybridHeap, aliveHybridOffHeap };
-		MemorySegment[] free = { freedHeap, freedHybridHeap, freedHybridOffHeap };
-
-		// alive with free
-		for (MemorySegment seg1 : alive) {
-			for (MemorySegment seg2 : free) {
-				testCopy(seg1, seg2);
-			}
-		}
-
-		// free with alive
-		for (MemorySegment seg1 : free) {
-			for (MemorySegment seg2 : alive) {
-				testCopy(seg1, seg2);
-			}
-		}
-
-		// free with free
-		for (MemorySegment seg1 : free) {
-			for (MemorySegment seg2 : free) {
-				testCopy(seg1, seg2);
-			}
-		}
+		testAliveVsFree(this::testCopy);
 	}
 
 	@Test
 	public void testSwap() {
-		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+		testAliveVsFree(this::testSwap);
+	}
 
-		MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
-		freedHeap.free();
-		freedHybridHeap.free();
-		freedHybridOffHeap.free();
-
-		MemorySegment[] alive = { aliveHeap, aliveHybridHeap, aliveHybridOffHeap };
-		MemorySegment[] free = { freedHeap, freedHybridHeap, freedHybridOffHeap };
+	private static void testAliveVsFree(BiConsumer<MemorySegment, MemorySegment> testOperation) {
+		MemorySegment[] alive = createTestSegments();
+		MemorySegment[] free = createTestSegments();
+		for (MemorySegment segment : free) {
+			segment.free();
+		}
 
 		// alive with free
 		for (MemorySegment seg1 : alive) {
 			for (MemorySegment seg2 : free) {
-				testSwap(seg1, seg2);
+				testOperation.accept(seg1, seg2);
 			}
 		}
 
 		// free with alive
 		for (MemorySegment seg1 : free) {
 			for (MemorySegment seg2 : alive) {
-				testSwap(seg1, seg2);
+				testOperation.accept(seg1, seg2);
 			}
 		}
 
 		// free with free
 		for (MemorySegment seg1 : free) {
 			for (MemorySegment seg2 : free) {
-				testSwap(seg1, seg2);
+				testOperation.accept(seg1, seg2);
 			}
 		}
+	}
+
+	private static MemorySegment[] createTestSegments() {
+		MemorySegment heap = new HeapMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment hybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
+		MemorySegment hybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+
+		MemorySegment[] segments = { heap, hybridHeap, hybridOffHeap };
+
+		return segments;
 	}
 
 	private void testOpsOnFreedSegment(MemorySegment segment) throws Exception {
@@ -943,8 +917,8 @@ public class OperationsOnFreedSegmentTest {
 		// --------- ByteBuffer -----------
 
 		for (ByteBuffer bbuf : new ByteBuffer[] {
-				ByteBuffer.allocate(55),
-				ByteBuffer.allocateDirect(55) }) {
+			ByteBuffer.allocate(55),
+			ByteBuffer.allocateDirect(55) }) {
 
 			try {
 				segment.get(0, bbuf, 17);
