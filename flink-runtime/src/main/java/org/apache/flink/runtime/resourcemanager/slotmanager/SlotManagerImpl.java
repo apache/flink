@@ -38,6 +38,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalConsumer;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -530,10 +531,10 @@ public class SlotManagerImpl implements SlotManager {
 	 * request fulfillment, then you should override this method.
 	 *
 	 * @param requestResourceProfile specifying the resource requirements for the a slot request
-	 * @return A matching slot which fulfills the given resource profile. Null if there is no such
-	 * slot available.
+	 * @return A matching slot which fulfills the given resource profile. {@link Optional#empty()}
+	 * if there is no such slot available.
 	 */
-	private TaskManagerSlot findMatchingSlot(ResourceProfile requestResourceProfile) {
+	private Optional<TaskManagerSlot> findMatchingSlot(ResourceProfile requestResourceProfile) {
 		Iterator<Map.Entry<SlotID, TaskManagerSlot>> iterator = freeSlots.entrySet().iterator();
 
 		while (iterator.hasNext()) {
@@ -547,11 +548,11 @@ public class SlotManagerImpl implements SlotManager {
 
 			if (taskManagerSlot.getResourceProfile().isMatching(requestResourceProfile)) {
 				iterator.remove();
-				return taskManagerSlot;
+				return Optional.of(taskManagerSlot);
 			}
 		}
 
-		return null;
+		return Optional.empty();
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -746,28 +747,29 @@ public class SlotManagerImpl implements SlotManager {
 	 */
 	private void internalRequestSlot(PendingSlotRequest pendingSlotRequest) throws ResourceManagerException {
 		final ResourceProfile resourceProfile = pendingSlotRequest.getResourceProfile();
-		TaskManagerSlot taskManagerSlot = findMatchingSlot(resourceProfile);
 
-		if (taskManagerSlot != null) {
-			allocateSlot(taskManagerSlot, pendingSlotRequest);
-		} else {
-			Optional<PendingTaskManagerSlot> pendingTaskManagerSlotOptional = findFreeMatchingPendingTaskManagerSlot(resourceProfile);
+		OptionalConsumer.of(findMatchingSlot(resourceProfile))
+			.ifPresent(taskManagerSlot -> allocateSlot(taskManagerSlot, pendingSlotRequest))
+			.ifNotPresent(() -> fulfillPendingSlotRequestWithPendingTaskManagerSlot(pendingSlotRequest));
+	}
 
-			if (!pendingTaskManagerSlotOptional.isPresent()) {
-				pendingTaskManagerSlotOptional = allocateResource(resourceProfile);
-			}
+	private void fulfillPendingSlotRequestWithPendingTaskManagerSlot(PendingSlotRequest pendingSlotRequest) throws ResourceManagerException {
+		ResourceProfile resourceProfile = pendingSlotRequest.getResourceProfile();
+		Optional<PendingTaskManagerSlot> pendingTaskManagerSlotOptional = findFreeMatchingPendingTaskManagerSlot(resourceProfile);
 
-			if (pendingTaskManagerSlotOptional.isPresent()) {
-				assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlotOptional.get());
-			}
-			else {
+		if (!pendingTaskManagerSlotOptional.isPresent()) {
+			pendingTaskManagerSlotOptional = allocateResource(resourceProfile);
+		}
+
+		OptionalConsumer.of(pendingTaskManagerSlotOptional)
+			.ifPresent(pendingTaskManagerSlot -> assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlot))
+			.ifNotPresent(() -> {
 				// request can not be fulfilled by any free slot or pending slot that can be allocated,
 				// check whether it can be fulfilled by allocated slots
 				if (failUnfulfillableRequest && !isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile())) {
 					throw new UnfulfillableSlotRequestException(pendingSlotRequest.getAllocationId(), pendingSlotRequest.getResourceProfile());
 				}
-			}
-		}
+			});
 	}
 
 	private Optional<PendingTaskManagerSlot> findFreeMatchingPendingTaskManagerSlot(ResourceProfile requiredResourceProfile) {
