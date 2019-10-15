@@ -93,7 +93,7 @@ public static class TimestampModifier extends ScalarFunction {
 </div>
 
 <div data-lang="scala" markdown="1">
-In order to define a scalar function, one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. Evaluation methods can also support variable arguments, such as `eval(String... strs)`.
+In order to define a scalar function, one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. Evaluation methods can also support variable arguments, such as `eval(str: String*)` with @VarArgs annotation.
 
 The following example shows how to define your own hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
 
@@ -152,9 +152,12 @@ public class HashCode extends ScalarFunction {
 }
 '''
 
-class HashCode(ScalarFunction):
+class PyHashCode(ScalarFunction):
+  def __init__(self):
+    self.factor = 12
+
   def eval(self, s):
-    return hash(s) * factor
+    return hash(s) * self.factor
 
 table_env = BatchTableEnvironment.create(env)
 
@@ -162,13 +165,13 @@ table_env = BatchTableEnvironment.create(env)
 table_env.register_java_function("hashCode", "my.java.function.HashCode")
 
 # register the Python function
-table_env.register_function("py_hash_code", udf(HashCode(), DataTypes.STRING(), DataTypes.BIGINT()))
+table_env.register_function("py_hash_code", udf(PyHashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
 # use the function in Python Table API
-my_table.select("string, string.hashCode(), hashCode(string), string.py_hash_code(), py_hash_code(string)")
+my_table.select("string, bigint, string.hashCode(), hashCode(string), bigint.py_hash_code(), py_hash_code(bigint)")
 
 # use the function in SQL API
-table_env.sql_query("SELECT string, hashCode(string), py_hash_code(string) FROM MyTable")
+table_env.sql_query("SELECT string, bigint, hashCode(string), py_hash_code(bigint) FROM MyTable")
 {% endhighlight %}
 
 There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`. The following example shows the different ways to define a Python scalar function which takes two columns of bigint as input parameters and returns the sum of them as the result.
@@ -187,19 +190,25 @@ def add(i, j):
   return i + j
 
 # option 3: lambda function
-udf(lambda i, j: i + j, [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
+add = udf(lambda i, j: i + j, [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
 
 # option 4: callable function
 class CallableAdd(object):
   def __call__(self, i, j):
     return i + j
 
-udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
+add = udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
 
 # option 5: partial function
 def partial_add(i, j):
   return i + j
-udf(functools.partial(partial_add, j=1), DataTypes.BIGINT(), DataTypes.BIGINT())
+
+add = udf(functools.partial(partial_add, j=1), DataTypes.BIGINT(), DataTypes.BIGINT())
+
+# register the Python function
+table_env.register_function("add", add)
+# use the function in Python Table API
+my_table.select("add(a, b)")
 {% endhighlight %}
 </div>
 </div>
