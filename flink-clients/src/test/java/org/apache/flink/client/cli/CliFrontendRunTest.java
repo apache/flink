@@ -23,6 +23,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
+import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -79,8 +80,12 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		// test configure savepoint path (no ignore flag)
 		{
 			String[] parameters = {"-s", "expectedSavepointPath", getTestJarPath()};
-			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
-			SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+
+			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
+
+			SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
 			assertTrue(savepointSettings.restoreSavepoint());
 			assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
 			assertFalse(savepointSettings.allowNonRestoredState());
@@ -89,8 +94,12 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		// test configure savepoint path (with ignore flag)
 		{
 			String[] parameters = {"-s", "expectedSavepointPath", "-n", getTestJarPath()};
-			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
-			SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+
+			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
+
+			SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
 			assertTrue(savepointSettings.restoreSavepoint());
 			assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
 			assertTrue(savepointSettings.allowNonRestoredState());
@@ -100,12 +109,15 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		{
 			String[] parameters =
 				{ getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"};
-			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
-			assertEquals("-arg1", options.getProgramArgs()[0]);
-			assertEquals("value1", options.getProgramArgs()[1]);
-			assertEquals("justavalue", options.getProgramArgs()[2]);
-			assertEquals("--arg2", options.getProgramArgs()[3]);
-			assertEquals("value2", options.getProgramArgs()[4]);
+
+			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+			ProgramOptions programOptions = new ProgramOptions(commandLine);
+
+			assertEquals("-arg1", programOptions.getProgramArgs()[0]);
+			assertEquals("value1", programOptions.getProgramArgs()[1]);
+			assertEquals("justavalue", programOptions.getProgramArgs()[2]);
+			assertEquals("--arg2", programOptions.getProgramArgs()[3]);
+			assertEquals("value2", programOptions.getProgramArgs()[4]);
 		}
 	}
 

@@ -24,7 +24,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
-//import org.apache.flink.client.cli.RunOptions;
+import org.apache.flink.client.cli.ExecutionConfigAccessor;
+import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
@@ -114,7 +115,7 @@ public class ExecutionContext<T> {
 	private final Configuration flinkConfig;
 	private final CommandLine commandLine;
 	private final CustomCommandLine<T> activeCommandLine;
-	private final ExecutionPa runOptions;
+	private final ExecutionConfigAccessor executionParameters;
 	private final T clusterId;
 	private final ClusterSpecification clusterSpec;
 
@@ -158,7 +159,7 @@ public class ExecutionContext<T> {
 		// convert deployment options into command line options that describe a cluster
 		commandLine = createCommandLine(mergedEnv.getDeployment(), commandLineOptions);
 		activeCommandLine = findActiveCommandLine(availableCommandLines, commandLine);
-		runOptions = createRunOptions(commandLine);
+		executionParameters = createExecutionParameterProvider(commandLine);
 		clusterId = activeCommandLine.getClusterId(commandLine);
 		clusterSpec = createClusterSpecification(activeCommandLine, commandLine);
 	}
@@ -237,9 +238,10 @@ public class ExecutionContext<T> {
 		throw new SqlExecutionException("Could not find a matching deployment.");
 	}
 
-	private static RunOptions createRunOptions(CommandLine commandLine) {
+	private static ExecutionConfigAccessor createExecutionParameterProvider(CommandLine commandLine) {
 		try {
-			return new RunOptions(commandLine);
+			final ProgramOptions programOptions = new ProgramOptions(commandLine);
+			return ExecutionConfigAccessor.fromProgramOptions(programOptions);
 		} catch (CliArgsException e) {
 			throw new SqlExecutionException("Invalid deployment run options.", e);
 		}
@@ -445,8 +447,8 @@ public class ExecutionContext<T> {
 				flinkConfig,
 				plan,
 				dependencies,
-				runOptions.getClasspaths(),
-				runOptions.getSavepointRestoreSettings());
+				executionParameters.getClasspaths(),
+				executionParameters.getSavepointRestoreSettings());
 		}
 
 		private FlinkPlan createPlan(String name, Configuration flinkConfig) {

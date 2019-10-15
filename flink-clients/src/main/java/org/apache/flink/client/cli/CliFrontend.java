@@ -176,7 +176,8 @@ public class CliFrontend {
 
 		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, true);
 
-		final ExecutionParameterProvider executionParameters = ExecutionParameterProviderBuilder.fromCommandLine(commandLine);
+		final ProgramOptions programOptions = new ProgramOptions(commandLine);
+		final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromProgramOptions(programOptions);
 
 		// evaluate help flag
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
@@ -184,7 +185,7 @@ public class CliFrontend {
 			return;
 		}
 
-		if (!executionParameters.isPython()) {
+		if (!programOptions.isPython()) {
 			// Java program should be specified a JAR file
 			if (executionParameters.getJarFilePath() == null) {
 				throw new CliArgsException("Java program should be specified a JAR file.");
@@ -194,7 +195,7 @@ public class CliFrontend {
 		final PackagedProgram program;
 		try {
 			LOG.info("Building program from JAR file");
-			program = buildProgram(executionParameters);
+			program = buildProgram(programOptions, executionParameters);
 		}
 		catch (FileNotFoundException e) {
 			throw new CliArgsException("Could not build the program from JAR file.", e);
@@ -218,8 +219,7 @@ public class CliFrontend {
 
 		try {
 			final T clusterId = customCommandLine.getClusterId(commandLine);
-			final ExecutionParameterProvider executionParameters =
-					ExecutionParameterProviderBuilder.fromConfiguration(executionConfig);
+			final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromConfiguration(executionConfig);
 			final ClusterClient<T> client;
 
 			// directly deploy the job if the cluster is started in job mode and detached
@@ -262,8 +262,6 @@ public class CliFrontend {
 
 				try {
 					client.setDetached(executionParameters.getDetachedMode());
-
-					LOG.debug("{}", executionParameters.getSavepointRestoreSettings());
 
 					int userParallelism = executionParameters.getParallelism();
 					LOG.debug("User parallelism is set to {}", userParallelism);
@@ -313,7 +311,8 @@ public class CliFrontend {
 
 		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
 
-		ExecutionParameterProvider executionParameters = ExecutionParameterProviderBuilder.fromCommandLine(commandLine);
+		final ProgramOptions programOptions = new ProgramOptions(commandLine);
+		final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromProgramOptions(programOptions);
 
 		// evaluate help flag
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
@@ -321,17 +320,17 @@ public class CliFrontend {
 			return;
 		}
 
-		if (executionParameters.getJarFilePath() == null) {
+		if (programOptions.getJarFilePath() == null) {
 			throw new CliArgsException("The program JAR file was not specified.");
 		}
 
 		// -------- build the packaged program -------------
 
 		LOG.info("Building program from JAR file");
-		final PackagedProgram program = buildProgram(executionParameters);
+		final PackagedProgram program = buildProgram(programOptions, executionParameters);
 
 		try {
-			int parallelism = executionParameters.getParallelism();
+			int parallelism = programOptions.getParallelism();
 			if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
 				parallelism = defaultParallelism;
 			}
@@ -771,15 +770,17 @@ public class CliFrontend {
 	 *
 	 * @return A PackagedProgram (upon success)
 	 */
-	PackagedProgram buildProgram(ExecutionParameterProvider executionParameters) throws FileNotFoundException, ProgramInvocationException {
-		String[] programArgs = executionParameters.getProgramArgs();
+	PackagedProgram buildProgram(
+			final ProgramOptions runOptions,
+			final ExecutionConfigAccessor executionParameters) throws FileNotFoundException, ProgramInvocationException {
+		String[] programArgs = runOptions.getProgramArgs();
 		String jarFilePath = executionParameters.getJarFilePath();
 		List<URL> classpaths = executionParameters.getClasspaths();
 
 		// Get assembler class
-		String entryPointClass = executionParameters.getEntryPointClassName();
+		String entryPointClass = runOptions.getEntryPointClassName();
 		File jarFile = null;
-		if (executionParameters.isPython()) {
+		if (runOptions.isPython()) {
 			// If the job is specified a jar file
 			if (jarFilePath != null) {
 				jarFile = getJarFile(jarFilePath);
