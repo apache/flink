@@ -30,12 +30,12 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -88,10 +88,7 @@ public class AccumulatorErrorITCase extends TestLogger {
 			env.execute();
 			fail("Should have failed.");
 		} catch (JobExecutionException e) {
-			assertTrue("Root cause should be:",
-					e.getCause() instanceof Exception);
-			assertTrue("Root cause should be:",
-					e.getCause().getCause() instanceof UnsupportedOperationException);
+			assertTrue(findThrowable(e, UnsupportedOperationException.class).isPresent());
 		}
 	}
 
@@ -202,7 +199,7 @@ public class AccumulatorErrorITCase extends TestLogger {
 			fail("Should have failed");
 		}
 		catch (Exception ex) {
-			assertTrue(ExceptionUtils.findThrowable(ex, CustomException.class).isPresent());
+			assertTrue(findThrowable(ex, CustomException.class).isPresent());
 		}
 	}
 }
