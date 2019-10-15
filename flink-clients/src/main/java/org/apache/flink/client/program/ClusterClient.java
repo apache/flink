@@ -142,25 +142,6 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 		}
 	}
 
-	public JobSubmissionResult run(
-		Plan plan,
-		List<URL> libraries,
-		List<URL> classpaths,
-		ClassLoader classLoader,
-		int parallelism,
-		SavepointRestoreSettings savepointSettings) throws CompilerException, ProgramInvocationException {
-
-		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
-				plan,
-				flinkConfig,
-				parallelism);
-
-		ClientUtils.addJarFiles(jobGraph, libraries);
-		jobGraph.setClasspaths(classpaths);
-
-		return submitJob(jobGraph, classLoader);
-	}
-
 	/**
 	 * Requests the {@link JobStatus} of the job with the given {@link JobID}.
 	 */

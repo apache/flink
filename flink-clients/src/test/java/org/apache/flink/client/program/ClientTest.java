@@ -28,6 +28,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -36,7 +38,7 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.NetUtils;
@@ -153,13 +155,16 @@ public class ClientTest extends TestLogger {
 	public void shouldSubmitToJobClient() throws Exception {
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 		clusterClient.setDetached(true);
-		JobSubmissionResult result = clusterClient.run(
-			plan,
-			Collections.emptyList(),
-			Collections.emptyList(),
-			getClass().getClassLoader(),
-			1,
-			SavepointRestoreSettings.none());
+
+		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
+				plan,
+				new Configuration(),
+				1);
+
+		ClientUtils.addJarFiles(jobGraph, Collections.emptyList());
+		jobGraph.setClasspaths(Collections.emptyList());
+
+		JobSubmissionResult result = clusterClient.submitJob(jobGraph, getClass().getClassLoader());
 
 		assertNotNull(result);
 	}
