@@ -36,8 +36,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -81,8 +81,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 				fail("this should fail due to null values.");
 			}
 			catch (JobExecutionException e) {
-				assertNotNull(e.getCause());
-				assertTrue(e.getCause() instanceof NullPointerException);
+				assertTrue(findThrowable(e, NullPointerException.class).isPresent());
 			}
 		}
 		catch (Exception e) {
