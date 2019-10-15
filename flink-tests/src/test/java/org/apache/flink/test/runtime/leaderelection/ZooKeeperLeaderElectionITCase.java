@@ -39,6 +39,7 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -46,6 +47,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
@@ -64,6 +66,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Test the election of a new JobManager leader.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 	private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5L);
