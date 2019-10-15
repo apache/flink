@@ -218,10 +218,10 @@ public class OrcTableSource
 	}
 
 	private String predicateString() {
-		if (predicates != null) {
-			return "AND(" + Arrays.toString(predicates) + ")";
-		} else {
+		if (predicates == null || predicates.length == 0) {
 			return "TRUE";
+		} else {
+			return "AND(" + Arrays.toString(predicates) + ")";
 		}
 	}
 

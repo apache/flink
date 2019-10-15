@@ -225,7 +225,7 @@ public class ParquetTableSource
 	public String explainSource() {
 		return "ParquetFile[path=" + path + ", schema=" + parquetSchema + ", filter=" + predicateString()
 			+ ", typeInfo=" + typeInfo + ", selectedFields=" + Arrays.toString(selectedFields)
-			+ ", pushDownStatus=" + isFilterPushedDown + ", predicates=" + predicate + "]";
+			+ ", pushDownStatus=" + isFilterPushedDown + "]";
 	}
 
 	private String predicateString() {

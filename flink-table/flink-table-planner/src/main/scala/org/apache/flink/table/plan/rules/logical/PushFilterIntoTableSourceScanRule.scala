@@ -84,8 +84,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
     val newTableSource = filterableSource.applyPredicate(remainingPredicates)
 
-    if (remainingPredicates.size() > 0
-      && newTableSource.asInstanceOf[FilterableTableSource[_]].isFilterPushedDown
+    if (newTableSource.asInstanceOf[FilterableTableSource[_]].isFilterPushedDown
       && newTableSource.explainSource().equals(scan.tableSource.explainSource())) {
       throw new TableException("Failed to push filter into table source! "
         + "table source with pushdown capability must override and change "
