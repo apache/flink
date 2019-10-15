@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.resourcemanager.slotmanager.AnyMatchingSlotMatchingStrategy;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
@@ -56,6 +57,7 @@ public class ResourceManagerRuntimeServices {
 		final SlotManagerConfiguration slotManagerConfiguration = configuration.getSlotManagerConfiguration();
 
 		final SlotManager slotManager = new SlotManagerImpl(
+			AnyMatchingSlotMatchingStrategy.INSTANCE,
 			scheduledExecutor,
 			slotManagerConfiguration.getTaskManagerRequestTimeout(),
 			slotManagerConfiguration.getSlotRequestTimeout(),

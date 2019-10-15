@@ -97,6 +97,8 @@ public class SlotManagerImpl implements SlotManager {
 
 	private final HashMap<TaskManagerSlotId, PendingTaskManagerSlot> pendingSlots;
 
+	private final SlotMatchingStrategy slotMatchingStrategy;
+
 	/** ResourceManager's id. */
 	private ResourceManagerId resourceManagerId;
 
@@ -124,12 +126,14 @@ public class SlotManagerImpl implements SlotManager {
 	private boolean failUnfulfillableRequest = true;
 
 	public SlotManagerImpl(
+			SlotMatchingStrategy slotMatchingStrategy,
 			ScheduledExecutor scheduledExecutor,
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
 			Time taskManagerTimeout,
 			boolean waitResultConsumedBeforeRelease) {
 
+		this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
 		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
@@ -535,24 +539,22 @@ public class SlotManagerImpl implements SlotManager {
 	 * if there is no such slot available.
 	 */
 	private Optional<TaskManagerSlot> findMatchingSlot(ResourceProfile requestResourceProfile) {
-		Iterator<Map.Entry<SlotID, TaskManagerSlot>> iterator = freeSlots.entrySet().iterator();
+		final Optional<TaskManagerSlot> optionalMatchingSlot = slotMatchingStrategy.findMatchingSlot(
+			requestResourceProfile,
+			freeSlots.values(),
+			this::getNumberRegisteredSlotsOf);
 
-		while (iterator.hasNext()) {
-			TaskManagerSlot taskManagerSlot = iterator.next().getValue();
-
+		optionalMatchingSlot.ifPresent(taskManagerSlot -> {
 			// sanity check
 			Preconditions.checkState(
 				taskManagerSlot.getState() == TaskManagerSlot.State.FREE,
 				"TaskManagerSlot %s is not in state FREE but %s.",
 				taskManagerSlot.getSlotId(), taskManagerSlot.getState());
 
-			if (taskManagerSlot.getResourceProfile().isMatching(requestResourceProfile)) {
-				iterator.remove();
-				return Optional.of(taskManagerSlot);
-			}
-		}
+			freeSlots.remove(taskManagerSlot.getSlotId());
+		});
 
-		return Optional.empty();
+		return optionalMatchingSlot;
 	}
 
 	// ---------------------------------------------------------------------------------------------
