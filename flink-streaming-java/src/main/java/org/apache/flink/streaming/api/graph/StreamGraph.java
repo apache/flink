@@ -84,7 +84,7 @@ public class StreamGraph implements Pipeline {
 
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
-	private SavepointRestoreSettings savepointRestoreSettings;
+	private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
 
 	private ScheduleMode scheduleMode;
 
