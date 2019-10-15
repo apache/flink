@@ -71,7 +71,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable {
 
-	protected CompletableFuture<?> isAvailable = new CompletableFuture<>();
+	protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
 	public abstract int getNumberOfInputChannels();
 
@@ -100,14 +100,7 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	 */
 	@Override
 	public CompletableFuture<?> isAvailable() {
-		return isAvailable;
-	}
-
-	protected void resetIsAvailable() {
-		// try to avoid volatile access in isDone()}
-		if (isAvailable == AVAILABLE || isAvailable.isDone()) {
-			isAvailable = new CompletableFuture<>();
-		}
+		return availabilityHelper.isAvailable();
 	}
 
 	/**

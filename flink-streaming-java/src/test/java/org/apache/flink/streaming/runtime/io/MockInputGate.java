@@ -54,7 +54,7 @@ public class MockInputGate extends InputGate {
 		this.closed = new boolean[numberOfChannels];
 		this.finishAfterLastBuffer = finishAfterLastBuffer;
 
-		isAvailable = AVAILABLE;
+		availabilityHelper.resetAvailable();
 	}
 
 	@Override
@@ -75,7 +75,7 @@ public class MockInputGate extends InputGate {
 	public Optional<BufferOrEvent> getNext() {
 		BufferOrEvent next = bufferOrEvents.poll();
 		if (!finishAfterLastBuffer && bufferOrEvents.isEmpty()) {
-			resetIsAvailable();
+			availabilityHelper.resetUnavailable();
 		}
 		if (next == null) {
 			return Optional.empty();
