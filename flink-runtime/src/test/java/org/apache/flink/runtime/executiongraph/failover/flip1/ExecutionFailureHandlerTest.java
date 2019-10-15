@@ -28,6 +28,8 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -40,19 +42,25 @@ import static org.junit.Assert.fail;
  */
 public class ExecutionFailureHandlerTest extends TestLogger {
 
-	private static final long restartDelayMs = 1234L;
+	private static final long RESTART_DELAY_MS = 1234L;
+
+	private FailoverTopology failoverTopology;
 
 	private TestFailoverStrategy failoverStrategy;
 
-	private TestRestartBackoffTimeStrategy restartStrategy;
+	private TestRestartBackoffTimeStrategy backoffTimeStrategy;
 
 	private ExecutionFailureHandler executionFailureHandler;
 
 	@Before
 	public void setUp() {
+		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+		topologyBuilder.newVertex();
+		failoverTopology = topologyBuilder.build();
+
 		failoverStrategy = new TestFailoverStrategy();
-		restartStrategy = new TestRestartBackoffTimeStrategy(true, restartDelayMs);
-		executionFailureHandler = new ExecutionFailureHandler(failoverStrategy, restartStrategy);
+		backoffTimeStrategy = new TestRestartBackoffTimeStrategy(true, RESTART_DELAY_MS);
+		executionFailureHandler = new ExecutionFailureHandler(failoverTopology, failoverStrategy, backoffTimeStrategy);
 	}
 
 	/**
@@ -71,7 +79,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 		// verify results
 		assertTrue(result.canRestart());
-		assertEquals(restartDelayMs, result.getRestartDelayMS());
+		assertEquals(RESTART_DELAY_MS, result.getRestartDelayMS());
 		assertEquals(tasksToRestart, result.getVerticesToRestart());
 		try {
 			result.getError();
@@ -87,7 +95,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	@Test
 	public void testRestartingSuppressedFailureHandlingResult() {
 		// restart strategy suppresses restarting
-		restartStrategy.setCanRestart(false);
+		backoffTimeStrategy.setCanRestart(false);
 
 		// trigger a task failure
 		final FailureHandlingResult result = executionFailureHandler.getFailureHandlingResult(
@@ -156,6 +164,18 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 			new Exception(new SuppressRestartsException(new Exception()))));
 	}
 
+	@Test
+	public void testGlobalFailureHandling() {
+		final FailureHandlingResult result = executionFailureHandler.getGlobalFailureHandlingResult(
+			new Exception("test failure"));
+
+		assertEquals(
+			StreamSupport.stream(failoverTopology.getFailoverVertices().spliterator(), false)
+			.map(FailoverVertex::getExecutionVertexID)
+			.collect(Collectors.toSet()),
+			result.getVerticesToRestart());
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
@@ -163,7 +183,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	/**
 	 * A FailoverStrategy implementation for tests. It always suggests restarting the given tasks to restart.
 	 */
-	private class TestFailoverStrategy implements FailoverStrategy {
+	private static class TestFailoverStrategy implements FailoverStrategy {
 
 		private Set<ExecutionVertexID> tasksToRestart;
 

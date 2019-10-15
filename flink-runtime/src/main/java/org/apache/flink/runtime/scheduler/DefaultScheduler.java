@@ -139,7 +139,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		this.executionVertexOperations = checkNotNull(executionVertexOperations);
 		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 
-		this.executionFailureHandler = new ExecutionFailureHandler(failoverStrategyFactory.create(getFailoverTopology()), restartBackoffTimeStrategy);
+		this.executionFailureHandler = new ExecutionFailureHandler(
+			getFailoverTopology(),
+			failoverStrategyFactory.create(getFailoverTopology()),
+			restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology(), getJobGraph());
 		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getInputsLocationsRetriever());
 	}
@@ -170,6 +173,13 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private void handleTaskFailure(final ExecutionVertexID executionVertexId, final Throwable error) {
 		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getFailureHandlingResult(executionVertexId, error);
+		maybeRestartTasks(failureHandlingResult);
+	}
+
+	@Override
+	public void handleGlobalFailure(final Throwable error) {
+		log.info("Trying to recover from a global failure.", error);
+		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getGlobalFailureHandlingResult(error);
 		maybeRestartTasks(failureHandlingResult);
 	}
 
