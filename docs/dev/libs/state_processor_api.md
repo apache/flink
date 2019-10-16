@@ -238,7 +238,7 @@ This means if an operator contains a stateful process function such as:
 public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Integer, Void> {
  
    ValueState<Integer> state;
-   
+
    @Override
    public void open(Configuration parameters) {
       ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
@@ -283,7 +283,7 @@ class KeyedState {
  
 class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState> {
   ValueState<Integer> state;
-  
+
   @Override
   public void open(Configuration parameters) {
      ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);

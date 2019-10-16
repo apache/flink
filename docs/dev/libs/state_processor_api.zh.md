@@ -283,7 +283,7 @@ class KeyedState {
  
 class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState> {
   ValueState<Integer> state;
-  
+
   @Override
   public void open(Configuration parameters) {
      ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
