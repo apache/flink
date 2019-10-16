@@ -25,29 +25,24 @@ under the License.
 -->
 
 Apache Filnk 提供 Table API 作为批处理和流处理统一的关系型API，
-
-即，查询在无界实时流或有界批数据集上以相同的语义执行，并产生相同的结果。
-
+即查询在无界实时流或有界批数据集上以相同的语义执行，并产生相同的结果。
 Flink 中的 Table API 通常用于简化数据分析，数据流水线和 ETL 应用程序的定义。
 * This will be replaced by the TOC
 {:toc}
 
 ## 接下来你会构建什么？ 
 
-在本教程中，你将学习如何构建持续不断的 ETL 流水线，以便按账户跟踪金融交易。
-
+在本教程中，你将学习如何构建连续的 ETL 流水线，以便按账户随时跟踪金融交易。
 首先你将报表构建为每晚执行的批处理作业，然后迁移到流式管道。
 
 ## 先决条件
 
 本演练假设你对 Java 和 Scala 有一定的了解，但即便你使用其他编程语言，相信也可以学会。
-
 它还假定你熟悉基本的关系概念比如 `SELECT` 和 `GROUP BY` 子句。
 
 ## 救命，我被困住了！
 
 如果你被难题困住了，可以在[社区](https://flink.apache.org/community.html)寻求帮助。
-
 值得一提的是，Apache Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists)一直是最活跃的 Apache 项目之一，也是一个快速获得帮助的好途径。
 
 ## 如何跟进
@@ -167,7 +162,7 @@ val tEnv = BatchTableEnvironment.create(env)
 接下来，表将会被注册到运行环境之中，这样你就可以用它们连接外部系统以读取或写入批数据或流数据。
 表数据源提供对存储在外部系统中的数据的访问；例如数据库、键-值存储、消息队列或文件系统。
 表接收器则将表中的数据发送到外部存储系统。
-根据数据源或接收器的类型，它们支持不同的格式，如 CSV、JSON、Avro 或 Parquet。
+根据 source 或 sink 的类型，它们支持不同的格式，如 CSV、JSON、Avro 或 Parquet。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -189,7 +184,7 @@ tEnv.registerTableSink("spend_report", new SpendReportTableSink)
 我们可以从交易（`transactions`）表中读取信用卡的交易记录，其中包含了账户 ID（`accountId`）字段、时间戳（`timestamp`）字段和交易金额（`amount`）字段。
 本教程中，该表使用内存中的数据，以避免对外部系统的任何依赖。
 而在实际情况下，`BoundedTransactionTableSource` 可能来源于文件系统、数据库或任何静态数据源。
-支出报告表 `spend_report` 用 **INFO** 日志级别记录每一行日志，而不是写入持久化存储，所以你可以很容易地查看结果。
+支出报告表 `spend_report` 用 **INFO** 日志级别将表的每一行数据记录到日志，而不是写入持久化存储，所以你可以很容易地查看结果。
 
 #### 注册 UDF
 
@@ -302,7 +297,6 @@ tEnv
 > 2, 2019-01-01 04:00:00.0, $760.76
 {% endhighlight %}
 
-## Adding Windows
 ## 添加窗口
 
 根据时间进行分组在数据处理中是一种很常见的方式，特别是在处理无限的数据流时。
@@ -385,7 +379,7 @@ val tEnv = StreamTableEnvironment.create(env)
 </div>
 
 第二步就是把有界的数据源替换成无限的数据源。
-这个项目通过 `UnboundedTransactionTableSource` 来实时生成交易事件。
+这个项目通过 `UnboundedTransactionTableSource` 持续不断地实时生成交易事件。
 与 `BoundedTransactionTableSource` 一样，这个表也是通过在内存中生成数据从而不依赖外部系统。
 在实践中，这个表可能从一个流式数据源中读取数据，比如 Apache Kafka、AWS Kinesis 或者 Pravega。
 
@@ -406,7 +400,7 @@ tEnv.registerTableSource("transactions", new UnboundedTransactionTableSource)
 这就是一个功能齐全、有状态的分布式流式应用！
 这个查询会持续处理交易流，计算每小时的消费额，然后实时输出结果。
 由于输入是无界的，因此查询将一直运行，直到手动停止为止。
-因为这个作业使用了基于时间的聚合，Flink 可以使用一些特定的优化，比如当系统知道一个特定的窗口不会再有新的数据到来，它就会对状态进行清理。
+因为这个作业使用了基于时间窗口的聚合，Flink 可以使用一些特定的优化，比如当系统知道一个特定的窗口不会再有新的数据到来，它就会对状态进行清理。
 
 {% highlight raw %}
 # 查询 3 的输出显示了账户 id、时间戳消费总额
