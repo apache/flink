@@ -30,7 +30,7 @@ import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
-import org.apache.flink.table.operations.ddl.CreateTableOperation
+import org.apache.flink.table.operations.ddl.{CreateTableOperation, DropTableOperation}
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
@@ -38,10 +38,12 @@ import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSi
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
+
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
@@ -415,16 +417,19 @@ abstract class TableEnvImpl(
           targetTablePath.asScala:_*)
       case createTable: SqlCreateTable =>
         val operation = SqlToOperationConverter
-          .convert(planner, createTable)
+          .convert(planner, catalogManager, createTable)
           .asInstanceOf[CreateTableOperation]
-        val objectIdentifier = catalogManager.qualifyIdentifier(operation.getTablePath: _*)
         catalogManager.createTable(
           operation.getCatalogTable,
-          objectIdentifier,
+          operation.getTableIdentifier,
           operation.isIgnoreIfExists)
       case dropTable: SqlDropTable =>
-        val objectIdentifier = catalogManager.qualifyIdentifier(dropTable.fullTableName(): _*)
-        catalogManager.dropTable(objectIdentifier, dropTable.getIfExists)
+        val operation = SqlToOperationConverter
+          .convert(planner, catalogManager, dropTable)
+          .asInstanceOf[DropTableOperation]
+        catalogManager.dropTable(
+          operation.getTableIdentifier,
+          operation.isIfExists)
       case _ =>
         throw new TableException(
           "Unsupported SQL query! sqlUpdate() only accepts SQL statements of " +
