@@ -85,6 +85,10 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
 	}
 
 	public static PreviousAllocationSlotSelectionStrategy create() {
-		return new PreviousAllocationSlotSelectionStrategy(LocationPreferenceSlotSelectionStrategy.createDefault());
+		return create(LocationPreferenceSlotSelectionStrategy.createDefault());
+	}
+
+	public static PreviousAllocationSlotSelectionStrategy create(SlotSelectionStrategy fallbackSlotSelectionStrategy) {
+		return new PreviousAllocationSlotSelectionStrategy(fallbackSlotSelectionStrategy);
 	}
 }
