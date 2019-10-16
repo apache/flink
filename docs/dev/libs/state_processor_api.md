@@ -241,6 +241,7 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
  
    @Override
    public void open(Configuration parameters) {
+      ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
       state = getRuntimeContext().getState(stateDescriptor);
    }
  
@@ -255,14 +256,13 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
 {% highlight scala %}
 public class StatefulFunctionWithTime extends KeyedProcessFunction[Integer, Integer, Void] {
  
-  var state: ValueState[Integer];
+   var state: ValueState[Integer];
  
-   @throws[Exception]
-   override def open(Configuration parameters) {
+   override def open(parameters: Configuration) {
+      val stateDescriptor = new ValueStateDescriptor("state", Types.INT);
       state = getRuntimeContext().getState(stateDescriptor);
    }
  
-   @throws[Exception]
    override def processElement(value: Integer, ctx: Context, out: Collector[Void]) {
       state.update(value + 1);
    }
@@ -286,6 +286,7 @@ class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState> {
  
   @Override
   public void open(Configuration parameters) {
+     ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
      state = getRuntimeContext().getState(stateDescriptor);
   }
  
@@ -310,9 +311,10 @@ DataSet<KeyedState> keyedState = savepoint.readKeyedState("my-uid", new ReaderFu
 case class KeyedState(key: Int, value: Int)
  
 class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
-  var state ValueState[Integer];
+  var state: ValueState[Integer];
  
-  override def open(Configuration parameters) {
+  override def open(parameters: Configuration) {
+     val stateDescriptor = new ValueStateDescriptor("state", Types.INT);
      state = getRuntimeContext().getState(stateDescriptor);
   }
  
