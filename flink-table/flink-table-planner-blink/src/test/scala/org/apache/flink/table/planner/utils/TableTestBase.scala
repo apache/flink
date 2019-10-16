@@ -33,7 +33,7 @@ import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => J
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, UnresolvedIdentifier}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.expressions.Expression
@@ -956,7 +956,8 @@ class TestingTableEnvironment private(
 
   override def insertInto(table: Table, path: String, pathContinued: String*): Unit = {
     val fullPath = List(path) ++ pathContinued.toList
-    val identifier = catalogManager.qualifyIdentifier(fullPath: _*)
+    val unresolvedIdentifier = UnresolvedIdentifier.of(fullPath:_*)
+    val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
 
     val modifyOperations = List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation))
     if (isEagerOperationTranslation) {
