@@ -165,16 +165,6 @@ class PartitionableSinkITCase extends BatchTestBase {
   }
 
   @Test
-  def testDynamicPartitionInFrontOfStaticPartition(): Unit = {
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Static partition column b "
-      + "should appear before dynamic partition a")
-    registerTableSink(partitionColumns = Array("a", "b"))
-    tEnv.sqlUpdate("insert into sinkTable partition(b=1) select a, c from sortTable")
-    tEnv.execute("testJob")
-  }
-
-  @Test
   def testStaticPartitionNotInPartitionFields(): Unit = {
     expectedEx.expect(classOf[ValidationException])
     registerTableSink(tableName = "sinkTable2", rowType = type4,
