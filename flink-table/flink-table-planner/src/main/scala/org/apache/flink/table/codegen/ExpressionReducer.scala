@@ -18,25 +18,29 @@
 
 package org.apache.flink.table.codegen
 
+import java.io.File
 import java.util
 
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.metrics.MetricGroup
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.FunctionLanguage
+import org.apache.flink.table.functions.{FunctionContext, FunctionLanguage, UserDefinedFunction}
 import org.apache.flink.table.plan.util.PythonUtil
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 /**
-  * Evaluates constant expressions using Flink's [[FunctionCodeGenerator]].
+  * Evaluates constant expressions using Flink's [[ConstantFunctionCodeGenerator]].
   */
 class ExpressionReducer(config: TableConfig)
   extends RelOptPlanner.Executor with Compiler[MapFunction[Row, Row]] {
@@ -94,8 +98,15 @@ class ExpressionReducer(config: TableConfig)
     val literalTypes = literals.map(e => FlinkTypeFactory.toTypeInfo(e.getType))
     val resultType = new RowTypeInfo(literalTypes: _*)
 
+    val parameters = if (config.getConfiguration != null) {
+      config.getConfiguration
+    } else {
+      new Configuration()
+    }
     // generate MapFunction
-    val generator = new FunctionCodeGenerator(config, false, EMPTY_ROW_INFO)
+    val generator = new ConstantFunctionCodeGenerator(config,
+      false, EMPTY_ROW_INFO,
+      new ConstantFunctionContext(parameters), "parameters")
 
     val result = generator.generateResultExpression(
       resultType,
@@ -117,8 +128,18 @@ class ExpressionReducer(config: TableConfig)
       generatedFunction.code)
     val function = clazz.newInstance()
 
-    // execute
-    val reduced = function.map(EMPTY_ROW)
+    val richMapFunction = function match {
+      case r: RichMapFunction[Row, Row] => r
+      case _ => throw new TableException("RichMapFunction[Row, Row] required here")
+    }
+
+    val reduced = try {
+      richMapFunction.open(parameters)
+      // execute
+      richMapFunction.map(EMPTY_ROW)
+    } finally {
+      richMapFunction.close()
+    }
 
     // add the reduced results or keep them unreduced
     var i = 0
@@ -162,5 +183,98 @@ class ExpressionReducer(config: TableConfig)
       }
       i += 1
     }
+  }
+}
+
+/**
+  * A [[ConstantFunctionContext]] allows to obtain user-defined configuration information set
+  * in [[TableConfig]].
+  *
+  * @param parameters User-defined configuration set in [[TableConfig]].
+  */
+class ConstantFunctionContext(parameters: Configuration) extends FunctionContext(null) {
+
+  override def getMetricGroup: MetricGroup = {
+    throw new UnsupportedOperationException("getMetricGroup is not supported when optimizing")
+  }
+
+  override def getCachedFile(name: String): File = {
+    throw new UnsupportedOperationException("getCachedFile is not supported when optimizing")
+  }
+
+  /**
+    * Gets the user-defined configuration value associated with the given key as a string.
+    *
+    * @param key          key pointing to the associated value
+    * @param defaultValue default value which is returned in case user-defined configuration
+    *                     value is null or there is no value associated with the given key
+    * @return (default) value associated with the given key
+    */
+  override def getJobParameter(key: String, defaultValue: String): String = {
+    parameters.getString(key, defaultValue)
+  }
+}
+
+/**
+  * A [[ConstantFunctionCodeGenerator]] used for constant expression code generator
+  * @param config configuration that determines runtime behavior
+  * @param nullableInput input(s) can be null.
+  * @param input1 type information about the first input of the Function
+  * @param functionContext functionContext that used for code generator
+  * @param parameters parameters that accessed by openFunction
+  */
+class ConstantFunctionCodeGenerator(config: TableConfig,
+                                    nullableInput: Boolean,
+                                    input1: TypeInformation[_ <: Any],
+                                    functionContext: FunctionContext,
+                                    parameters: String = null)
+  extends FunctionCodeGenerator(config, nullableInput, input1) {
+
+  override def addReusableFunction(function: UserDefinedFunction,
+                                   contextTerm: String = null): String = {
+
+    val classQualifier = function.getClass.getCanonicalName
+    val functionSerializedData = EncodingUtils.encodeObjectToString(function)
+    val fieldTerm = s"function_${function.functionIdentifier}"
+
+    val fieldFunction =
+      s"""
+         |final $classQualifier $fieldTerm;
+         |""".stripMargin
+    reusableMemberStatements.add(fieldFunction)
+
+    val functionDeserialization =
+      s"""
+         |$fieldTerm = ($classQualifier)
+         |${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+         |  "$functionSerializedData",
+         |  ${classOf[UserDefinedFunction].getCanonicalName}.class);
+       """.stripMargin
+
+    reusableInitStatements.add(functionDeserialization)
+
+    val openFunction = if (contextTerm != null) {
+      s"""
+         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}($contextTerm));
+       """.stripMargin
+    } else if (functionContext != null) {
+      s"""
+         |$fieldTerm.open(new ${functionContext.getClass.getCanonicalName}(${parameters}));
+       """.stripMargin
+    } else {
+      s"""
+         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}(getRuntimeContext()));
+       """.stripMargin
+    }
+
+    reusableOpenStatements.add(openFunction)
+
+    val closeFunction =
+      s"""
+         |$fieldTerm.close();
+       """.stripMargin
+    reusableCloseStatements.add(closeFunction)
+
+    fieldTerm
   }
 }
