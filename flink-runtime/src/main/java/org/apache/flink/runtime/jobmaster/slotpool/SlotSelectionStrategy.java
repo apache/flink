@@ -56,10 +56,6 @@ public interface SlotSelectionStrategy {
 		@Nonnull
 		private final ResourceProfile remainingResources;
 
-		public SlotInfoAndResources(@Nonnull SlotInfo slotInfo) {
-			this(slotInfo, slotInfo.getResourceProfile());
-		}
-
 		public SlotInfoAndResources(@Nonnull SlotInfo slotInfo, @Nonnull ResourceProfile remainingResources) {
 			this.slotInfo = slotInfo;
 			this.remainingResources = remainingResources;
@@ -73,6 +69,10 @@ public interface SlotSelectionStrategy {
 		@Nonnull
 		public ResourceProfile getRemainingResources() {
 			return remainingResources;
+		}
+
+		public static SlotInfoAndResources fromSingleSlot(@Nonnull SlotInfo slotInfo) {
+			return new SlotInfoAndResources(slotInfo, slotInfo.getResourceProfile());
 		}
 	}
 
