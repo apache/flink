@@ -354,7 +354,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				names = Collections.singletonList(refId);
 			}
 
-			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(tableSource, !isBatch, statistic);
+			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(
+					tableSource, !isBatch, statistic, null);
 			FlinkRelOptTable table = FlinkRelOptTable.create(
 				relBuilder.getRelOptSchema(),
 				tableSourceTable.getRowType(relBuilder.getTypeFactory()),

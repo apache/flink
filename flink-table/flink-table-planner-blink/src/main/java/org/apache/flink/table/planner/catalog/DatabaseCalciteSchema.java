@@ -143,7 +143,8 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			return new TableSourceTable<>(
 					tableSource,
 					isStreamingMode,
-					FlinkStatistic.builder().tableStats(tableStats).build());
+					FlinkStatistic.builder().tableStats(tableStats).build(),
+					null);
 		} else {
 			Optional<TableSinkTable> tableSinkTable = table.getTableSink()
 				.map(tableSink -> new TableSinkTable<>(
@@ -180,7 +181,8 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		return new TableSourceTable<>(
 			tableSource,
 			!((StreamTableSource<?>) tableSource).isBounded(),
-			FlinkStatistic.UNKNOWN()
+			FlinkStatistic.UNKNOWN(),
+			table
 		);
 	}
 

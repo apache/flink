@@ -151,7 +151,10 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       FlinkStatistic.builder().statistic(statistic).tableStats(null).build()
     }
     val newTableSourceTable = new TableSourceTable(
-      newTableSource, tableSourceTable.isStreamingMode, newStatistic)
+      newTableSource,
+      tableSourceTable.isStreamingMode,
+      newStatistic,
+      tableSourceTable.catalogTable)
     relOptTable.copy(newTableSourceTable, tableSourceTable.getRowType(typeFactory))
   }
 
