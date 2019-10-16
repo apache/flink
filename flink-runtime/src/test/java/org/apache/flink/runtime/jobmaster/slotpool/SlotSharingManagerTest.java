@@ -174,7 +174,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that we can release nested slots from the leaves onwards
+	 * Tests that we can release nested slots from the leaves onwards.
 	 */
 	@Test
 	public void testNestedSlotRelease() throws Exception {
@@ -351,7 +351,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that slot context future failures will release the root slot
+	 * Tests that slot context future failures will release the root slot.
 	 */
 	@Test
 	public void testSlotContextFutureFailure() {
@@ -387,7 +387,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	/**
 	 * Tests that the root slot are moved from unresolved to resolved once the
-	 * slot context future is successfully completed
+	 * slot context future is successfully completed.
 	 */
 	@Test
 	public void testRootSlotTransition() {
