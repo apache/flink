@@ -89,7 +89,7 @@ public class DateTimeUtils {
 	 * <p>This is the modulo 'mask' used when converting
 	 * TIMESTAMP values to DATE and TIME values.
 	 */
-	public static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
+	public static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
 
 	/**
 	 * Calendar set to the epoch (1970-01-01 00:00:00 UTC). Useful for

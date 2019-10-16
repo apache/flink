@@ -50,7 +50,7 @@ public final class ApiExpressionUtils {
 
 	public static final long MILLIS_PER_HOUR = 3600000L; // = 60 * 60 * 1000
 
-	public static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
+	public static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
 
 	private ApiExpressionUtils() {
 		// private
