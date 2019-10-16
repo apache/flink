@@ -56,7 +56,7 @@ class FlinkPlannerImpl(
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
   val sqlToRelConverterConfig: SqlToRelConverter.Config = config.getSqlToRelConverterConfig
-  val parser = new CalciteParser(config)
+  val parser = new CalciteParser(config.getParserConfig)
 
   var validator: FlinkCalciteSqlValidator = _
   var root: RelRoot = _

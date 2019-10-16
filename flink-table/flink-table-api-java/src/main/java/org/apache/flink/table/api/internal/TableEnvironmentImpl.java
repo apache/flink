@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
@@ -93,6 +94,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	protected final Executor execEnv;
 	protected final FunctionCatalog functionCatalog;
 	protected final Planner planner;
+	protected final Parser parser;
 
 	protected TableEnvironmentImpl(
 			CatalogManager catalogManager,
@@ -110,6 +112,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;
+		this.parser = planner.getParser();
 		this.operationTreeBuilder = OperationTreeBuilder.create(
 			functionCatalog,
 			path -> {
@@ -311,7 +314,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public Table sqlQuery(String query) {
-		List<Operation> operations = planner.parse(query);
+		List<Operation> operations = parser.parse(query);
 
 		if (operations.size() != 1) {
 			throw new ValidationException(
@@ -350,7 +353,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public void sqlUpdate(String stmt) {
-		List<Operation> operations = planner.parse(stmt);
+		List<Operation> operations = parser.parse(stmt);
 
 		if (operations.size() != 1) {
 			throw new TableException(

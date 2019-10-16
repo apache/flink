@@ -48,6 +48,7 @@ import org.apache.calcite.sql.SqlNodeList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -83,7 +84,7 @@ public class SqlToOperationConverter {
 	 * @param catalogManager CatalogManager to resolve full path for operations
 	 * @param sqlNode SqlNode to execute on
 	 */
-	public static Operation convert(
+	public static Optional<Operation> convert(
 			FlinkPlannerImpl flinkPlanner,
 			CatalogManager catalogManager,
 			SqlNode sqlNode) {
@@ -91,16 +92,15 @@ public class SqlToOperationConverter {
 		final SqlNode validated = flinkPlanner.validate(sqlNode);
 		SqlToOperationConverter converter = new SqlToOperationConverter(flinkPlanner, catalogManager);
 		if (validated instanceof SqlCreateTable) {
-			return converter.convertCreateTable((SqlCreateTable) validated);
+			return Optional.of(converter.convertCreateTable((SqlCreateTable) validated));
 		} else if (validated instanceof SqlDropTable) {
-			return converter.convertDropTable((SqlDropTable) validated);
+			return Optional.of(converter.convertDropTable((SqlDropTable) validated));
 		} else if (validated instanceof RichSqlInsert) {
-			return converter.convertSqlInsert((RichSqlInsert) validated);
+			return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
-			return converter.convertSqlQuery(validated);
+			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
-			throw new TableException("Unsupported node type "
-				+ validated.getClass().getSimpleName());
+			return Optional.empty();
 		}
 	}
 
@@ -165,12 +165,16 @@ public class SqlToOperationConverter {
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath.toArray(new String[0]));
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
+		PlannerQueryOperation query = (PlannerQueryOperation) SqlToOperationConverter.convert(
+			flinkPlanner,
+			catalogManager,
+			insert.getSource())
+			.orElseThrow(() -> new TableException(
+				"Unsupported node type " + insert.getSource().getClass().getSimpleName()));
+
 		return new CatalogSinkModifyOperation(
 			identifier,
-			(PlannerQueryOperation) SqlToOperationConverter.convert(
-				flinkPlanner,
-				catalogManager,
-				insert.getSource()),
+			query,
 			insert.getStaticPartitionKVs(),
 			insert.isOverwrite());
 	}
