@@ -200,10 +200,11 @@ class CallableAdd(object):
 add = udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
 
 # option 5: partial function
-def partial_add(i, j):
-  return i + j
+def partial_add(i, j, k):
+  return i + j + k
 
-add = udf(functools.partial(partial_add, j=1), DataTypes.BIGINT(), DataTypes.BIGINT())
+add = udf(functools.partial(partial_add, j=1), [DataTypes.BIGINT(), DataTypes.BIGINT()],
+          DataTypes.BIGINT())
 
 # register the Python function
 table_env.register_function("add", add)
