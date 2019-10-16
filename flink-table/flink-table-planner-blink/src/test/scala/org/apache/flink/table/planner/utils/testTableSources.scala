@@ -578,8 +578,6 @@ class TestPartitionableTableSource(
     Map("part1"->"C", "part2"->"1").asJava
   ).asJava
 
-  override def getPartitionFieldNames: JList[String] = List("part1", "part2").asJava
-
   override def applyPartitionPruning(
       remainingPartitions: JList[JMap[String, String]]): TableSource[_] = {
     new TestPartitionableTableSource(isBounded, remainingPartitions)

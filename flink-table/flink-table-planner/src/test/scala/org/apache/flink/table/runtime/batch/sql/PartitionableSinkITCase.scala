@@ -128,8 +128,6 @@ class PartitionableSinkITCase {
       with PartitionableTableSink {
     private var staticPartitions: JMap[String, String] = _
 
-    override def getPartitionFieldNames: JList[String] = partitionColumns.toList
-
     override def setStaticPartition(partitions: JMap[String, String]): Unit = {
       partitions.foreach { case (part, v) =>
         if (!partitionColumns.contains(part)) {
