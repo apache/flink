@@ -17,7 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-set -Eeuo pipefail
 source "$(dirname "$0")"/common.sh
 
 HBASE_VERSION=1.4.10
@@ -67,7 +66,6 @@ function start_hbase_cluster {
     exit 1
   fi
 
-  export HBASE_OPTS="-Dhbase.tmp.dir=$TEST_DATA_DIR"
   $HBASE_DIR/bin/start-hbase.sh
 
   # Wait until the hbase:meta table to be online.
@@ -114,6 +112,16 @@ on_exit sql_cleanup
 echo "Prepare the HBase-$HBASE_VERSION standalone cluster..."
 
 setup_hbase_dist
+
+cat > $HBASE_DIR/conf/hbase-site.xml << EOF
+<configuration>
+  <property>
+    <name>hbase.tmp.dir</name>
+    <value>$TEST_DATA_DIR</value>
+  </property>
+</configuration>
+EOF
+
 start_hbase_cluster
 
 ################################################################################
