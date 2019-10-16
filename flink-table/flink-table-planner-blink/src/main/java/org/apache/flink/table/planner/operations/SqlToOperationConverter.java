@@ -25,8 +25,10 @@ import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -60,11 +62,15 @@ import java.util.stream.Collectors;
  */
 public class SqlToOperationConverter {
 	private FlinkPlannerImpl flinkPlanner;
+	private CatalogManager catalogManager;
 
 	//~ Constructors -----------------------------------------------------------
 
-	private SqlToOperationConverter(FlinkPlannerImpl flinkPlanner) {
+	private SqlToOperationConverter(
+			FlinkPlannerImpl flinkPlanner,
+			CatalogManager catalogManager) {
 		this.flinkPlanner = flinkPlanner;
+		this.catalogManager = catalogManager;
 	}
 
 	/**
@@ -72,16 +78,20 @@ public class SqlToOperationConverter {
 	 * SqlNode will have it's implementation in the #convert(type) method whose 'type' argument
 	 * is subclass of {@code SqlNode}.
 	 *
-	 * @param flinkPlanner     FlinkPlannerImpl to convertCreateTable sql node to rel node
-	 * @param sqlNode          SqlNode to execute on
+	 * @param flinkPlanner FlinkPlannerImpl to convertCreateTable sql node to rel node
+	 * @param catalogManager CatalogManager to resolve full path for operations
+	 * @param sqlNode SqlNode to execute on
 	 */
-	public static Operation convert(FlinkPlannerImpl flinkPlanner, SqlNode sqlNode) {
+	public static Operation convert(
+			FlinkPlannerImpl flinkPlanner,
+			CatalogManager catalogManager,
+			SqlNode sqlNode) {
 		// validate the query
 		final SqlNode validated = flinkPlanner.validate(sqlNode);
-		SqlToOperationConverter converter = new SqlToOperationConverter(flinkPlanner);
+		SqlToOperationConverter converter = new SqlToOperationConverter(flinkPlanner, catalogManager);
 		if (validated instanceof SqlCreateTable) {
 			return converter.convertCreateTable((SqlCreateTable) validated);
-		} if (validated instanceof SqlDropTable) {
+		} else if (validated instanceof SqlDropTable) {
 			return converter.convertDropTable((SqlDropTable) validated);
 		} else if (validated instanceof RichSqlInsert) {
 			return converter.convertSqlInsert((RichSqlInsert) validated);
@@ -128,22 +138,34 @@ public class SqlToOperationConverter {
 			partitionKeys,
 			properties,
 			tableComment);
-		return new CreateTableOperation(sqlCreateTable.fullTableName(), catalogTable,
+
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(sqlCreateTable.fullTableName());
+
+		return new CreateTableOperation(
+			identifier,
+			catalogTable,
 			sqlCreateTable.isIfNotExists());
 	}
 
 	/** Convert DROP TABLE statement. */
 	private Operation convertDropTable(SqlDropTable sqlDropTable) {
-		return new DropTableOperation(sqlDropTable.fullTableName(), sqlDropTable.getIfExists());
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(sqlDropTable.fullTableName());
+
+		return new DropTableOperation(identifier, sqlDropTable.getIfExists());
 	}
 
 	/** Convert insert into statement. */
 	private Operation convertSqlInsert(RichSqlInsert insert) {
 		// get name of sink table
 		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTable()).names;
+
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(targetTablePath.toArray(new String[0]));
+
 		return new CatalogSinkModifyOperation(
-			targetTablePath,
-			(PlannerQueryOperation) SqlToOperationConverter.convert(flinkPlanner,
+			identifier,
+			(PlannerQueryOperation) SqlToOperationConverter.convert(
+				flinkPlanner,
+				catalogManager,
 				insert.getSource()),
 			insert.getStaticPartitionKVs(),
 			insert.isOverwrite());

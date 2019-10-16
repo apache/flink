@@ -956,8 +956,9 @@ class TestingTableEnvironment private(
 
   override def insertInto(table: Table, path: String, pathContinued: String*): Unit = {
     val fullPath = List(path) ++ pathContinued.toList
+    val identifier = catalogManager.qualifyIdentifier(fullPath: _*)
 
-    val modifyOperations = List(new CatalogSinkModifyOperation(fullPath, table.getQueryOperation))
+    val modifyOperations = List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation))
     if (isEagerOperationTranslation) {
       translate(modifyOperations)
     } else {

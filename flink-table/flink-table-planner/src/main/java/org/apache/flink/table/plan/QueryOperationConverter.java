@@ -264,7 +264,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visit(CatalogQueryOperation catalogTable) {
-			ObjectIdentifier objectIdentifier = catalogTable.getObjectIdentifier();
+			ObjectIdentifier objectIdentifier = catalogTable.getTableIdentifier();
 			return relBuilder.scan(
 				objectIdentifier.getCatalogName(),
 				objectIdentifier.getDatabaseName(),

@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testAppendSink">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[appendSink], fields=[a])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a])
 +- LogicalProject(cnt=[$1])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
       +- LogicalProject(a=[$0])
@@ -28,7 +28,7 @@ LogicalSink(name=[appendSink], fields=[a])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[appendSink], fields=[a], updateAsRetraction=[false], accMode=[Acc])
+Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a], updateAsRetraction=[false], accMode=[Acc])
 +- Calc(select=[cnt], updateAsRetraction=[false], accMode=[Acc])
    +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], updateAsRetraction=[false], accMode=[Acc])
       +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
@@ -40,7 +40,7 @@ Sink(name=[appendSink], fields=[a], updateAsRetraction=[false], accMode=[Acc])
   <TestCase name="testUpsertAndUpsertSink">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[upsertSink1], fields=[b, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[b, cnt])
 +- LogicalAggregate(group=[{0}], frequency=[COUNT($1)])
    +- LogicalProject(cnt=[$1], b=[$0])
       +- LogicalFilter(condition=[<($0, 4)])
@@ -48,7 +48,7 @@ LogicalSink(name=[upsertSink1], fields=[b, cnt])
             +- LogicalProject(b=[$1], a=[$0])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
-LogicalSink(name=[upsertSink2], fields=[b, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
    +- LogicalFilter(condition=[AND(>=($0, 4), <($0, 6))])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
@@ -63,13 +63,13 @@ GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], updateAsRetraction=[tru
    +- Calc(select=[b, a], updateAsRetraction=[true], accMode=[Acc])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
 
-Sink(name=[upsertSink1], fields=[b, cnt], updateAsRetraction=[false], accMode=[Acc])
+Sink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[b, cnt], updateAsRetraction=[false], accMode=[Acc])
 +- GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(b) AS frequency], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[cnt]], updateAsRetraction=[true], accMode=[AccRetract])
       +- Calc(select=[b, cnt], where=[<(b, 4)], updateAsRetraction=[true], accMode=[AccRetract])
          +- Reused(reference_id=[1])
 
-Sink(name=[upsertSink2], fields=[b, cnt], updateAsRetraction=[false], accMode=[AccRetract])
+Sink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[b, cnt], updateAsRetraction=[false], accMode=[AccRetract])
 +- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))], updateAsRetraction=[false], accMode=[AccRetract])
    +- Reused(reference_id=[1])
 ]]>
@@ -78,14 +78,14 @@ Sink(name=[upsertSink2], fields=[b, cnt], updateAsRetraction=[false], accMode=[A
   <TestCase name="testAppendUpsertAndRetractSink">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[appendSink], fields=[a, b])
+LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a=[$0], b=[$1])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(d=[$0], e=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-LogicalSink(name=[retractSink], fields=[total_sum])
+LogicalSink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -98,7 +98,7 @@ LogicalSink(name=[retractSink], fields=[total_sum])
          +- LogicalProject(i=[$0], j=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
 
-LogicalSink(name=[upsertSink], fields=[total_min])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -120,7 +120,7 @@ Union(all=[true], union=[a, b], updateAsRetraction=[true], accMode=[Acc], reuse_
 +- Calc(select=[d, e], updateAsRetraction=[true], accMode=[Acc])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], updateAsRetraction=[true], accMode=[Acc])
 
-Sink(name=[appendSink], fields=[a, b], updateAsRetraction=[false], accMode=[Acc])
+Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b], updateAsRetraction=[false], accMode=[Acc])
 +- Reused(reference_id=[1])
 
 Exchange(distribution=[single], updateAsRetraction=[true], accMode=[Acc], reuse_id=[2])
@@ -130,11 +130,11 @@ Exchange(distribution=[single], updateAsRetraction=[true], accMode=[Acc], reuse_
       +- Calc(select=[i, j], updateAsRetraction=[true], accMode=[Acc])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable3]], fields=[i, j, k], updateAsRetraction=[true], accMode=[Acc])
 
-Sink(name=[retractSink], fields=[total_sum], updateAsRetraction=[true], accMode=[AccRetract])
+Sink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_sum], updateAsRetraction=[true], accMode=[AccRetract])
 +- GroupAggregate(select=[SUM(a) AS total_sum], updateAsRetraction=[true], accMode=[AccRetract])
    +- Reused(reference_id=[2])
 
-Sink(name=[upsertSink], fields=[total_min], updateAsRetraction=[false], accMode=[Acc])
+Sink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[total_min], updateAsRetraction=[false], accMode=[Acc])
 +- GroupAggregate(select=[MIN(a) AS total_min], updateAsRetraction=[false], accMode=[Acc])
    +- Reused(reference_id=[2])
 ]]>
@@ -143,14 +143,14 @@ Sink(name=[upsertSink], fields=[total_min], updateAsRetraction=[false], accMode=
   <TestCase name="testRetractAndUpsertSink">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[retractSink], fields=[b, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($0, 4)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
          +- LogicalProject(b=[$1], a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
-LogicalSink(name=[upsertSink], fields=[b, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
    +- LogicalFilter(condition=[AND(>=($0, 4), <($0, 6))])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
@@ -165,11 +165,11 @@ GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], updateAsRetraction=[tru
    +- Calc(select=[b, a], updateAsRetraction=[true], accMode=[Acc])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
 
-Sink(name=[retractSink], fields=[b, cnt], updateAsRetraction=[true], accMode=[AccRetract])
+Sink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b, cnt], updateAsRetraction=[true], accMode=[AccRetract])
 +- Calc(select=[b, cnt], where=[<(b, 4)], updateAsRetraction=[true], accMode=[AccRetract])
    +- Reused(reference_id=[1])
 
-Sink(name=[upsertSink], fields=[b, cnt], updateAsRetraction=[false], accMode=[AccRetract])
+Sink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt], updateAsRetraction=[false], accMode=[AccRetract])
 +- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))], updateAsRetraction=[false], accMode=[AccRetract])
    +- Reused(reference_id=[1])
 ]]>
@@ -178,7 +178,7 @@ Sink(name=[upsertSink], fields=[b, cnt], updateAsRetraction=[false], accMode=[Ac
   <TestCase name="testRetractSink1">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[retractSink], fields=[a, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[a, cnt])
 +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
    +- LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -186,7 +186,7 @@ LogicalSink(name=[retractSink], fields=[a, cnt])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[retractSink], fields=[a, cnt], updateAsRetraction=[true], accMode=[AccRetract])
+Sink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[a, cnt], updateAsRetraction=[true], accMode=[AccRetract])
 +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], updateAsRetraction=[true], accMode=[AccRetract])
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
       +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc])
@@ -197,7 +197,7 @@ Sink(name=[retractSink], fields=[a, cnt], updateAsRetraction=[true], accMode=[Ac
   <TestCase name="testRetractSink2">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[retractSink], fields=[cnt, a])
+LogicalSink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[cnt, a])
 +- LogicalAggregate(group=[{0}], a=[COUNT($1)])
    +- LogicalProject(cnt=[$1], a=[$0])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -207,7 +207,7 @@ LogicalSink(name=[retractSink], fields=[cnt, a])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[retractSink], fields=[cnt, a], updateAsRetraction=[true], accMode=[AccRetract])
+Sink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[cnt, a], updateAsRetraction=[true], accMode=[AccRetract])
 +- GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(a) AS a], updateAsRetraction=[true], accMode=[AccRetract])
    +- Exchange(distribution=[hash[cnt]], updateAsRetraction=[true], accMode=[AccRetract])
       +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], updateAsRetraction=[true], accMode=[AccRetract])
@@ -220,7 +220,7 @@ Sink(name=[retractSink], fields=[cnt, a], updateAsRetraction=[true], accMode=[Ac
   <TestCase name="testUpsertSink1">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[upsertSink], fields=[a, cnt])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, cnt])
 +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
    +- LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -228,7 +228,7 @@ LogicalSink(name=[upsertSink], fields=[a, cnt])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[upsertSink], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc])
+Sink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc])
 +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
       +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc])
@@ -239,7 +239,7 @@ Sink(name=[upsertSink], fields=[a, cnt], updateAsRetraction=[false], accMode=[Ac
   <TestCase name="testUpsertSink2">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[upsertSink], fields=[a1, b, c1])
+LogicalSink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a1, b, c1])
 +- LogicalProject(a1=[$2], b=[$3], c1=[$1])
    +- LogicalFilter(condition=[=($2, $0)])
       +- LogicalJoin(condition=[true], joinType=[inner])
@@ -263,7 +263,7 @@ LogicalSink(name=[upsertSink], fields=[a1, b, c1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[upsertSink], fields=[a1, b, c1], updateAsRetraction=[false], accMode=[Acc])
+Sink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a1, b, c1], updateAsRetraction=[false], accMode=[Acc])
 +- Calc(select=[a1, b, c1], updateAsRetraction=[false], accMode=[Acc])
    +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a3, c1, a1, b, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[Acc])
       :- Exchange(distribution=[hash[a3]], updateAsRetraction=[true], accMode=[Acc])

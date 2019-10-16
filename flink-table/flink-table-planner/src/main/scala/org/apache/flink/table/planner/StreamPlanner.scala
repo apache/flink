@@ -110,9 +110,9 @@ class StreamPlanner(
         if (targetColumnList != null && insert.getTargetColumnList.size() != 0) {
           throw new ValidationException("Partial inserts are not supported")
         }
-        List(SqlToOperationConverter.convert(planner, insert))
+        List(SqlToOperationConverter.convert(planner, catalogManager, insert))
       case node if node.getKind.belongsTo(SqlKind.QUERY) || node.getKind.belongsTo(SqlKind.DDL) =>
-        List(SqlToOperationConverter.convert(planner, parsed)).asJava
+        List(SqlToOperationConverter.convert(planner, catalogManager, parsed))
       case _ =>
         throw new TableException(
           "Unsupported SQL query! parse() only accepts SQL queries of type " +
@@ -151,13 +151,12 @@ class StreamPlanner(
         writeToSink(s.getChild, s.getSink, unwrapQueryConfig)
 
       case catalogSink: CatalogSinkModifyOperation =>
-        val identifier = catalogManager.qualifyIdentifier(catalogSink.getTablePath: _*)
-        getTableSink(identifier)
+        getTableSink(catalogSink.getTableIdentifier)
           .map(sink => {
             TableSinkUtils.validateSink(
               catalogSink.getStaticPartitions,
               catalogSink.getChild,
-              identifier,
+              catalogSink.getTableIdentifier,
               sink)
             // set static partitions if it is a partitioned sink
             sink match {
@@ -177,7 +176,8 @@ class StreamPlanner(
             writeToSink(catalogSink.getChild, sink, unwrapQueryConfig)
           }) match {
           case Some(t) => t
-          case None => throw new TableException(s"Sink ${catalogSink.getTablePath} does not exists")
+          case None =>
+            throw new TableException(s"Sink ${catalogSink.getTableIdentifier} does not exists")
         }
 
       case outputConversion: OutputConversionModifyOperation =>

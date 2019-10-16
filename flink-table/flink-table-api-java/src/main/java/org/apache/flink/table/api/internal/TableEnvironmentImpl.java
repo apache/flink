@@ -333,9 +333,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		List<String> fullPath = new ArrayList<>(Arrays.asList(pathContinued));
 		fullPath.add(0, path);
 
+		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(fullPath.toArray(new String[0]));
 		List<ModifyOperation> modifyOperations = Collections.singletonList(
 			new CatalogSinkModifyOperation(
-				fullPath,
+				objectIdentifier,
 				table.getQueryOperation()));
 
 		if (isEagerOperationTranslation()) {
@@ -366,15 +367,15 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(createTableOperation.getTablePath());
 			catalogManager.createTable(
 				createTableOperation.getCatalogTable(),
-				objectIdentifier,
+				createTableOperation.getTableIdentifier(),
 				createTableOperation.isIgnoreIfExists());
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
-			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(dropTableOperation.getTableName());
-			catalogManager.dropTable(objectIdentifier, dropTableOperation.isIfExists());
+			catalogManager.dropTable(
+				dropTableOperation.getTableIdentifier(),
+				dropTableOperation.isIfExists());
 		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
