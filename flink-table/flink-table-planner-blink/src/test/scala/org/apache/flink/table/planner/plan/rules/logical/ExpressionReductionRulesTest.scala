@@ -59,8 +59,6 @@ object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
 
   def eval(): Long = 1
 
-  override def isDeterministic = true
-
   override def getSerializedPythonFunction: Array[Byte] = null
 
   override def getPythonEnv: PythonEnv = null

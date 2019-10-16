@@ -533,11 +533,9 @@ object DeterministicNullFunc extends ScalarFunction {
   override def isDeterministic = true
 }
 
-object DeterministicPythonFunc extends ScalarFunction with PythonFunction{
+object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
 
   def eval(): Long = 1L
-
-  override def isDeterministic = true
 
   override def getSerializedPythonFunction: Array[Byte] = null
 

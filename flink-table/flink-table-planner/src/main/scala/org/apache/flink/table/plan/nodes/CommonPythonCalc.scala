@@ -21,7 +21,6 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo, SimplePythonFunction}
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
-import org.apache.flink.table.plan.util.PythonUtil.isPythonFunction
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -48,11 +47,10 @@ trait CommonPythonCalc {
   private[flink] def createPythonScalarFunctionInfo(
       rexCall: RexCall,
       inputNodes: mutable.Map[RexNode, Integer]): PythonFunctionInfo = rexCall.getOperator match {
-    case sfc: ScalarSqlFunction if isPythonFunction(sfc.getScalarFunction) =>
+    case sfc: ScalarSqlFunction =>
       val inputs = new mutable.ArrayBuffer[AnyRef]()
       rexCall.getOperands.foreach {
-        case pythonRexCall: RexCall if isPythonFunction(
-          pythonRexCall.getOperator.asInstanceOf[ScalarSqlFunction].getScalarFunction) =>
+        case pythonRexCall: RexCall =>
           // Continuous Python UDFs can be chained together
           val argPythonInfo = createPythonScalarFunctionInfo(pythonRexCall, inputNodes)
           inputs.append(argPythonInfo)

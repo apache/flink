@@ -23,9 +23,8 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc
-import org.apache.flink.table.plan.util.PythonUtil.{FunctionLanguage, containsFunctionOf, isPythonFunction}
+import org.apache.flink.table.plan.util.PythonUtil.{containsFunctionOf, isPythonCall}
 import org.apache.flink.table.plan.util.{InputRefVisitor, RexDefaultVisitor}
 
 import scala.collection.JavaConverters._
@@ -49,11 +48,11 @@ class PythonScalarFunctionSplitRule extends RelOptRule(
     // This rule matches if one of the following cases is met:
     // 1. There are Python functions and Java functions mixed in the Calc
     // 2. There are Python functions in the condition of the Calc
-    (program.getExprList.exists(containsFunctionOf(_, FunctionLanguage.PYTHON)) &&
-      program.getExprList.exists(containsFunctionOf(_, FunctionLanguage.JVM))) ||
+    (program.getExprList.exists(containsFunctionOf(_, findPythonFunction = true)) &&
+      program.getExprList.exists(containsFunctionOf(_, findPythonFunction = false))) ||
     Option(program.getCondition)
       .map(program.expandLocalRef)
-      .exists(containsFunctionOf(_, FunctionLanguage.PYTHON))
+      .exists(containsFunctionOf(_, findPythonFunction = true))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -66,12 +65,12 @@ class PythonScalarFunctionSplitRule extends RelOptRule(
     val convertPythonFunction =
       program.getProjectList
         .map(program.expandLocalRef)
-        .exists(containsFunctionOf(_, FunctionLanguage.JVM, recursive = false)) ||
+        .exists(containsFunctionOf(_, findPythonFunction = false, recursive = false)) ||
       Option(program.getCondition)
         .map(program.expandLocalRef)
         .exists(expr =>
-          containsFunctionOf(expr, FunctionLanguage.JVM, recursive = false) ||
-            containsFunctionOf(expr, FunctionLanguage.PYTHON))
+          containsFunctionOf(expr, findPythonFunction = false, recursive = false) ||
+            containsFunctionOf(expr, findPythonFunction = true))
 
     val extractedFunctionOffset = input.getRowType.getFieldCount
     val splitter = new ScalarFunctionSplitter(
@@ -144,13 +143,7 @@ private class ScalarFunctionSplitter(
   extends RexDefaultVisitor[RexNode] {
 
   override def visitCall(call: RexCall): RexNode = {
-    call.getOperator match {
-      case sfc: ScalarSqlFunction if isPythonFunction(sfc.getScalarFunction) =>
-        visit(convertPythonFunction, call)
-
-      case _ =>
-        visit(!convertPythonFunction, call)
-    }
+    visit(if (isPythonCall(call)) convertPythonFunction else !convertPythonFunction , call)
   }
 
   override def visitNode(rexNode: RexNode): RexNode = rexNode
