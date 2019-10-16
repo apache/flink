@@ -64,7 +64,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 
 	@Rule
 	public final SlotPoolResource slotPoolResource =
-		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.INSTANCE);
+		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.create());
 
 	/**
 	 * Tests the scheduling of two tasks with a parallelism of 2 and a co-location constraint.

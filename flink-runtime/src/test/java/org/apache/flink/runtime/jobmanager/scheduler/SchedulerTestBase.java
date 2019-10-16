@@ -74,7 +74,7 @@ public class SchedulerTestBase extends TestLogger {
 		final SlotPool slotPool = new TestingSlotPoolImpl(jobId);
 		final TestingScheduler testingScheduler = new TestingScheduler(
 			new HashMap<>(16),
-			LocationPreferenceSlotSelectionStrategy.INSTANCE,
+			LocationPreferenceSlotSelectionStrategy.createDefault(),
 			slotPool);
 
 		testingSlotProvider = new TestingSlotPoolSlotProvider(slotPool, testingScheduler);
@@ -264,7 +264,6 @@ public class SchedulerTestBase extends TestLogger {
 		public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		}
 	}
-
 
 	/**
 	 * Test implementation of scheduler that offers a bit more introspection.
