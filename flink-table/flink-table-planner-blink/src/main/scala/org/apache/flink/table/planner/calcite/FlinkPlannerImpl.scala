@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
-import org.apache.flink.table.api.{SqlParserException, TableException, ValidationException}
+import org.apache.flink.table.api.{TableException, ValidationException}
 
-import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
@@ -29,7 +28,6 @@ import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
-import org.apache.calcite.sql.parser.{SqlParser, SqlParseException => CSqlParseException}
 import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
@@ -54,23 +52,12 @@ class FlinkPlannerImpl(
     cluster: RelOptCluster) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
-  /** Holds the trait definitions to be registered with planner. May be null. */
-  val traitDefs: ImmutableList[RelTraitDef[_ <: RelTrait]] = config.getTraitDefs
-  val parserConfig: SqlParser.Config = config.getParserConfig
+  val parser: CalciteParser = new CalciteParser(config.getParserConfig)
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
   val sqlToRelConverterConfig: SqlToRelConverter.Config = config.getSqlToRelConverterConfig
 
   var validator: FlinkCalciteSqlValidator = _
   var root: RelRoot = _
-
-  private def ready() {
-    if (this.traitDefs != null) {
-      cluster.getPlanner.clearRelTraitDefs()
-      for (traitDef <- this.traitDefs) {
-        cluster.getPlanner.addRelTraitDef(traitDef)
-      }
-    }
-  }
 
   def getCompletionHints(sql: String, cursor: Int): Array[String] = {
     val advisorValidator = new SqlAdvisorValidator(
@@ -107,18 +94,6 @@ class FlinkPlannerImpl(
       validator.setEnableTypeCoercion(false)
     }
     validator
-  }
-
-  def parse(sql: String): SqlNode = {
-    try {
-      ready()
-      val parser: SqlParser = SqlParser.create(sql, parserConfig)
-      val sqlNode: SqlNode = parser.parseStmt
-      sqlNode
-    } catch {
-      case e: CSqlParseException =>
-        throw new SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
-    }
   }
 
   def validate(sqlNode: SqlNode): SqlNode = {
@@ -179,15 +154,7 @@ class FlinkPlannerImpl(
         schemaPath: util.List[String],
         viewPath: util.List[String]): RelRoot = {
 
-      val parser: SqlParser = SqlParser.create(queryString, parserConfig)
-      var sqlNode: SqlNode = null
-      try {
-        sqlNode = parser.parseQuery
-      }
-      catch {
-        case e: CSqlParseException =>
-          throw new SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
-      }
+      val sqlNode: SqlNode = parser.parse(queryString)
       val catalogReader: CalciteCatalogReader = catalogReaderSupplier.apply(false)
         .withSchemaPath(schemaPath)
       val validator: SqlValidator =
