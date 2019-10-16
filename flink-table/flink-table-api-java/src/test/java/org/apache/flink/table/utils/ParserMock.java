@@ -18,36 +18,23 @@
 
 package org.apache.flink.table.utils;
 
-import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 
 import java.util.List;
 
 /**
- * Mocking {@link Planner} for tests.
+ * Mocks {@link Parser} for tests.
  */
-public class PlannerMock implements Planner {
-
+public class ParserMock implements Parser {
 	@Override
-	public Parser getParser() {
-		return new ParserMock();
-	}
-
-	@Override
-	public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+	public List<Operation> parse(String statement) {
 		return null;
 	}
 
 	@Override
-	public String explain(List<Operation> operations, boolean extended) {
+	public UnresolvedIdentifier parseIdentifier(String identifier) {
 		return null;
-	}
-
-	@Override
-	public String[] getCompletionHints(String statement, int position) {
-		return new String[0];
 	}
 }

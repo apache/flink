@@ -21,13 +21,12 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
-import org.apache.flink.table.calcite.{CalciteConfig, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, _}
-import org.apache.flink.table.delegation.{Executor, Planner}
+import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{ExpressionBridge, PlannerExpression, PlannerExpressionConverter, PlannerTypeInferenceUtilImpl}
@@ -39,7 +38,6 @@ import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
@@ -47,11 +45,11 @@ import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.SqlKind
 
 import _root_.java.lang.{Boolean => JBool}
 import _root_.java.util
-import _root_.java.util.{Objects, List => JList}
+import _root_.java.util.Objects
+import _root_.java.util.function.{Supplier => JSupplier}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -99,30 +97,20 @@ class StreamPlanner(
       .orElse(CalciteConfig.DEFAULT),
     planningConfigurationBuilder)
 
-  override def parse(stmt: String): JList[Operation] = {
-    val planner = getFlinkPlanner
-    // parse the sql query, we do not cache the parser in order to use the most up to
+  private val parser: Parser = new ParserImpl(
+    catalogManager,
+    // we do not cache the parser in order to use the most up to
     // date configuration. Users might change parser configuration in TableConfig in between
     // parsing statements
-    val parsed = planningConfigurationBuilder.createCalciteParser().parse(stmt)
-
-    parsed match {
-      case insert: RichSqlInsert =>
-        val targetColumnList = insert.getTargetColumnList
-        if (targetColumnList != null && insert.getTargetColumnList.size() != 0) {
-          throw new ValidationException("Partial inserts are not supported")
-        }
-        List(SqlToOperationConverter.convert(planner, catalogManager, insert))
-      case node if node.getKind.belongsTo(SqlKind.QUERY) || node.getKind.belongsTo(SqlKind.DDL) =>
-        List(SqlToOperationConverter.convert(planner, catalogManager, parsed))
-      case _ =>
-        throw new TableException(
-          "Unsupported SQL query! parse() only accepts SQL queries of type " +
-            "SELECT, UNION, INTERSECT, EXCEPT, VALUES, ORDER_BY or INSERT;" +
-            "and SQL DDLs of type " +
-            "CREATE TABLE")
+    new JSupplier[FlinkPlannerImpl] {
+      override def get(): FlinkPlannerImpl = getFlinkPlanner
+    },
+    new JSupplier[CalciteParser] {
+      override def get(): CalciteParser = planningConfigurationBuilder.createCalciteParser()
     }
-  }
+  )
+
+  override def getParser: Parser = parser
 
   override def translate(tableOperations: util.List[ModifyOperation])
     : util.List[Transformation[_]] = {

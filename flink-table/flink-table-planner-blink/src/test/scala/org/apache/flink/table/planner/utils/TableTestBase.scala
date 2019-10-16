@@ -38,14 +38,14 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableAggregateFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.operations.{DataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkChainedProgram, FlinkStreamProgram, StreamOptimizeContext}
+import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
@@ -968,7 +968,7 @@ class TestingTableEnvironment private(
   }
 
   override def sqlUpdate(stmt: String): Unit = {
-    val operations = planner.parse(stmt)
+    val operations = parser.parse(stmt)
     if (operations.size != 1) {
       throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type INSERT.")

@@ -21,19 +21,17 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.delegation.{Executor, Planner}
+import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
-import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
-import org.apache.flink.table.planner.operations.SqlToOperationConverter
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
@@ -48,10 +46,10 @@ import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.FrameworkConfig
 
 import java.util
+import java.util.function.{Supplier => JSupplier}
 
 import _root_.scala.collection.JavaConversions._
 
@@ -91,6 +89,19 @@ abstract class PlannerBase(
       getTraitDefs.toList
     )
 
+  private val parser: Parser = new ParserImpl(
+    catalogManager,
+    new JSupplier[FlinkPlannerImpl] {
+      override def get(): FlinkPlannerImpl = createFlinkPlanner
+    },
+    // we do not cache the parser in order to use the most up to
+    // date configuration. Users might change parser configuration in TableConfig in between
+    // parsing statements
+    new JSupplier[CalciteParser] {
+      override def get(): CalciteParser = plannerContext.createCalciteParser()
+    }
+  )
+
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
     val currentCatalogName = catalogManager.getCurrentCatalog
@@ -121,25 +132,7 @@ abstract class PlannerBase(
     executor.asInstanceOf[ExecutorBase].getExecutionEnvironment
   }
 
-  override def parse(stmt: String): util.List[Operation] = {
-    val planner = createFlinkPlanner
-    // we do not cache the parser in order to use the most up to
-    // date configuration. Users might change parser configuration in TableConfig in between
-    // parsing statements
-    val parser = plannerContext.createCalciteParser()
-    // parse the sql query
-    val parsed = parser.parse(stmt)
-    parsed match {
-      case insert: RichSqlInsert =>
-        List(SqlToOperationConverter.convert(planner, catalogManager, insert))
-      case query if query.getKind.belongsTo(SqlKind.QUERY) =>
-        List(SqlToOperationConverter.convert(planner, catalogManager, query))
-      case ddl if ddl.getKind.belongsTo(SqlKind.DDL) =>
-        List(SqlToOperationConverter.convert(planner, catalogManager, ddl))
-      case _ =>
-        throw new TableException(s"Unsupported query: $stmt")
-    }
-  }
+  override def getParser: Parser = parser
 
   override def translate(
       modifyOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
