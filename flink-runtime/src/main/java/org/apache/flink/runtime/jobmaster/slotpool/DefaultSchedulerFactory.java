@@ -44,9 +44,9 @@ public class DefaultSchedulerFactory implements SchedulerFactory {
 	@Nonnull
 	private static SlotSelectionStrategy selectSlotSelectionStrategy(@Nonnull Configuration configuration) {
 		if (configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY)) {
-			return PreviousAllocationSlotSelectionStrategy.INSTANCE;
+			return PreviousAllocationSlotSelectionStrategy.create();
 		} else {
-			return LocationPreferenceSlotSelectionStrategy.INSTANCE;
+			return LocationPreferenceSlotSelectionStrategy.createDefault();
 		}
 	}
 

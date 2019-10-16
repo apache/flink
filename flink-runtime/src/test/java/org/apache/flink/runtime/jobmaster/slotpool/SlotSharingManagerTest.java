@@ -442,8 +442,9 @@ public class SlotSharingManagerTest extends TestLogger {
 		SlotSharingManager.MultiTaskSlot resolvedMultiTaskSlot =
 			slotSharingManager.getResolvedRootSlot(slotInfoAndRemainingResource.getSlotInfo());
 
-		SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality =
-			LocationPreferenceSlotSelectionStrategy.INSTANCE.selectBestSlotForProfile(slotInfos, SlotProfile.noRequirements()).get();
+		final LocationPreferenceSlotSelectionStrategy locationPreferenceSlotSelectionStrategy = LocationPreferenceSlotSelectionStrategy.createDefault();
+		SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality = locationPreferenceSlotSelectionStrategy
+			.selectBestSlotForProfile(slotInfos, SlotProfile.noRequirements()).get();
 
 		assertNotNull(resolvedMultiTaskSlot);
 		assertEquals(Locality.UNCONSTRAINED, slotInfoAndLocality.getLocality());
@@ -482,8 +483,9 @@ public class SlotSharingManagerTest extends TestLogger {
 		SlotProfile slotProfile = SlotProfile.preferredLocality(ResourceProfile.UNKNOWN, Collections.singleton(taskManagerLocation));
 
 		Collection<SlotSelectionStrategy.SlotInfoAndResources> slotInfos = slotSharingManager.listResolvedRootSlotInfo(groupId);
+		final LocationPreferenceSlotSelectionStrategy locationPreferenceSlotSelectionStrategy = LocationPreferenceSlotSelectionStrategy.createDefault();
 		SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality =
-			LocationPreferenceSlotSelectionStrategy.INSTANCE.selectBestSlotForProfile(slotInfos, slotProfile).get();
+			locationPreferenceSlotSelectionStrategy.selectBestSlotForProfile(slotInfos, slotProfile).get();
 		SlotSharingManager.MultiTaskSlot resolvedRootSlot = slotSharingManager.getResolvedRootSlot(slotInfoAndLocality.getSlotInfo());
 
 		assertNotNull(resolvedRootSlot);
@@ -498,7 +500,7 @@ public class SlotSharingManagerTest extends TestLogger {
 			slotInfoAndLocality.getLocality());
 
 		slotInfos = slotSharingManager.listResolvedRootSlotInfo(groupId);
-		slotInfoAndLocality = LocationPreferenceSlotSelectionStrategy.INSTANCE.selectBestSlotForProfile(slotInfos, slotProfile).get();
+		slotInfoAndLocality = locationPreferenceSlotSelectionStrategy.selectBestSlotForProfile(slotInfos, slotProfile).get();
 		resolvedRootSlot = slotSharingManager.getResolvedRootSlot(slotInfoAndLocality.getSlotInfo());
 		assertNotNull(resolvedRootSlot);
 		assertNotSame(Locality.LOCAL, (slotInfoAndLocality.getLocality()));

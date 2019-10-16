@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyTestBase {
 
 	public LocationPreferenceSlotSelectionStrategyTest() {
-		super(LocationPreferenceSlotSelectionStrategy.INSTANCE);
+		super(LocationPreferenceSlotSelectionStrategy.createDefault());
 	}
 
 	protected LocationPreferenceSlotSelectionStrategyTest(SlotSelectionStrategy slotSelectionStrategy) {

@@ -814,7 +814,7 @@ public class SlotPoolImplTest extends TestLogger {
 	private static Scheduler setupScheduler(
 		SlotPool slotPool,
 		ComponentMainThreadExecutor mainThreadExecutable) {
-		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
+		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
 		scheduler.start(mainThreadExecutable);
 		return scheduler;
 	}

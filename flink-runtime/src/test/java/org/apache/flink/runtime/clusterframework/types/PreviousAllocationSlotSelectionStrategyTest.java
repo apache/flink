@@ -32,7 +32,7 @@ import java.util.Optional;
 public class PreviousAllocationSlotSelectionStrategyTest extends LocationPreferenceSlotSelectionStrategyTest {
 
 	public PreviousAllocationSlotSelectionStrategyTest() {
-		super(PreviousAllocationSlotSelectionStrategy.INSTANCE);
+		super(PreviousAllocationSlotSelectionStrategy.create());
 	}
 
 	@Test
