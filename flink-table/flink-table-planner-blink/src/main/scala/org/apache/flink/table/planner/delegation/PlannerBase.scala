@@ -175,12 +175,10 @@ abstract class PlannerBase(
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
         val identifier = catalogManager.qualifyIdentifier(catalogSink.getTablePath: _*)
-        getTableSink(identifier).map(sink => {
-          TableSinkUtils.validateSink(catalogSink, identifier, sink)
+        getTableSink(identifier).map { case (table, sink) =>
+          TableSinkUtils.validateSink(catalogSink, identifier, sink, table.getPartitionKeys)
           sink match {
-            case partitionableSink: PartitionableTableSink
-              if partitionableSink.getPartitionFieldNames != null
-                && partitionableSink.getPartitionFieldNames.nonEmpty =>
+            case partitionableSink: PartitionableTableSink =>
               partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
             case _ =>
           }
@@ -192,8 +190,8 @@ abstract class PlannerBase(
                 s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
                 sink.getClass.getName)
           }
-          LogicalSink.create(input, sink, catalogSink.getTablePath.mkString("."))
-        }) match {
+          LogicalSink.create(input, sink, catalogSink.getTablePath.mkString("."), table)
+        } match {
           case Some(sinkRel) => sinkRel
           case None => throw new TableException(s"Sink ${catalogSink.getTablePath} does not exists")
         }
@@ -254,28 +252,31 @@ abstract class PlannerBase(
     */
   protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
 
-  private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier)) match {
+  private def getTableSink(
+      tableIdentifier: ObjectIdentifier): Option[(CatalogTable, TableSink[_])] = {
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(tableIdentifier)) match {
       case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
-        JavaScalaConversionUtil
-          .toScala(s.asInstanceOf[ConnectorCatalogTable[_, _]].getTableSink)
+        val table = s.asInstanceOf[ConnectorCatalogTable[_, _]]
+        JavaScalaConversionUtil.toScala(table.getTableSink) match {
+          case Some(sink) => Some(table, sink)
+          case None => None
+        }
 
       case Some(s) if s.isInstanceOf[CatalogTable] =>
-
-        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
-        val catalogTable = s.asInstanceOf[CatalogTable]
+        val catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName)
+        val table = s.asInstanceOf[CatalogTable]
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val objectPath = objectIdentifier.toObjectPath
+          val objectPath = tableIdentifier.toObjectPath
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(
             catalog.get(),
-            catalogTable,
+            table,
             objectPath)
           if (sink.isPresent) {
-            return Option(sink.get())
+            return Option(table, sink.get())
           }
         }
-        val sinkProperties = catalogTable.toProperties
-        Option(TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
+        val sinkProperties = table.toProperties
+        Option(table, TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
           .createTableSink(sinkProperties))
 
       case _ => None
