@@ -149,13 +149,12 @@ class UserDefinedFunctionWrapper(object):
         self._deterministic = deterministic if deterministic is not None else (
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
 
-    @property
-    def _judf(self):
+    def _judf(self, t_env):
         if self._judf_placeholder is None:
-            self._judf_placeholder = self._create_judf()
+            self._judf_placeholder = self._create_judf(t_env)
         return self._judf_placeholder
 
-    def _create_judf(self):
+    def _create_judf(self, t_env):
         func = self._func
         if not isinstance(self._func, UserDefinedFunction):
             func = DelegatingScalarFunction(self._func)
@@ -167,13 +166,25 @@ class UserDefinedFunctionWrapper(object):
         j_input_types = utils.to_jarray(gateway.jvm.TypeInformation,
                                         [_to_java_type(i) for i in self._input_types])
         j_result_type = _to_java_type(self._result_type)
-        return gateway.jvm.org.apache.flink.table.util.python.PythonTableUtils \
-            .createPythonScalarFunction(self._name,
-                                        bytearray(serialized_func),
-                                        j_input_types,
-                                        j_result_type,
-                                        self._deterministic,
-                                        _get_python_env())
+        if t_env.is_blink_planner:
+            j_scalar_function = gateway.jvm.org.apache.flink.table \
+                .planner.utils.python.PythonTableUtils \
+                .createPythonScalarFunction(self._name,
+                                            bytearray(serialized_func),
+                                            j_input_types,
+                                            j_result_type,
+                                            self._deterministic,
+                                            _get_python_env())
+
+        else:
+            j_scalar_function = gateway.jvm.PythonTableUtils \
+                .createPythonScalarFunction(self._name,
+                                            bytearray(serialized_func),
+                                            j_input_types,
+                                            j_result_type,
+                                            self._deterministic,
+                                            _get_python_env())
+        return j_scalar_function
 
 
 # TODO: support to configure the python execution environment
