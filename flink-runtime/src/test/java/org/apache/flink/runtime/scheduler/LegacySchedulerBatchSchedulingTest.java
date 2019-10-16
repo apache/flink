@@ -170,7 +170,7 @@ public class LegacySchedulerBatchSchedulingTest extends TestLogger {
 
 	@Nonnull
 	private SchedulerImpl createScheduler(SlotPool slotPool, ComponentMainThreadExecutor mainThreadExecutor) {
-		final SchedulerImpl scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
+		final SchedulerImpl scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
 		scheduler.start(mainThreadExecutor);
 
 		return scheduler;

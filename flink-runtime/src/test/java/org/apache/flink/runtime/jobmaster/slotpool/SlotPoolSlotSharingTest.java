@@ -56,7 +56,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 
 	@Rule
 	public final SlotPoolResource slotPoolResource =
-		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.INSTANCE);
+		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.create());
 
 	@Test
 	public void testSingleQueuedSharedSlotScheduling() throws Exception {

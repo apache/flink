@@ -72,7 +72,7 @@ public abstract class SchedulerTestBase extends TestLogger {
 	public void setup() throws Exception {
 		final JobID jobId = new JobID();
 		slotPool = new TestingSlotPoolImpl(jobId);
-		scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
+		scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
 
 		testingSlotProvider = new TestingSlotPoolSlotProvider();
 
