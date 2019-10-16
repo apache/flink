@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.python.PythonFunction
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 
