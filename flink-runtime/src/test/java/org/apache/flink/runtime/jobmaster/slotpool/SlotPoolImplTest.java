@@ -51,6 +51,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -73,9 +75,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -704,6 +708,52 @@ public class SlotPoolImplTest extends TestLogger {
 			assertThat(jobId, is(slotReport.getJobId()));
 			assertThat(slotReport.getAllocatedSlotInfos(), containsInAnyOrder(isEachEqual(allocatedSlotInfos)));
 		}
+	}
+
+	@Test
+	public void testCalculationOfTaskExecutorUtilization() throws Exception {
+		try (final SlotPoolImpl slotPool = createSlotPoolImpl()) {
+			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+
+			final TaskManagerLocation firstTaskManagerLocation = new LocalTaskManagerLocation();
+			final TaskManagerLocation secondTaskManagerLocation = new LocalTaskManagerLocation();
+
+			final List<AllocationID> firstTaskManagersSlots = registerAndOfferSlots(firstTaskManagerLocation, slotPool, 4);
+			final List<AllocationID> secondTaskManagersSlots = registerAndOfferSlots(secondTaskManagerLocation, slotPool, 4);
+
+			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(0));
+			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(1));
+			slotPool.allocateAvailableSlot(new SlotRequestId(), secondTaskManagersSlots.get(3));
+
+			final Collection<SlotInfoWithUtilization> availableSlotsInformation = slotPool.getAvailableSlotsInformation();
+
+			final Map<TaskManagerLocation, Double> utilizationPerTaskExecutor = ImmutableMap.of(
+				firstTaskManagerLocation, 2.0 / 4,
+				secondTaskManagerLocation, 1.0 / 4);
+
+			for (SlotInfoWithUtilization slotInfoWithUtilization : availableSlotsInformation) {
+				final double expectedTaskExecutorUtilization = utilizationPerTaskExecutor.get(slotInfoWithUtilization.getTaskManagerLocation());
+				assertThat(slotInfoWithUtilization.getTaskExecutorUtilization(), is(closeTo(expectedTaskExecutorUtilization, 0.1)));
+			}
+		}
+	}
+
+	private List<AllocationID> registerAndOfferSlots(TaskManagerLocation taskManagerLocation, SlotPoolImpl slotPool, int numberOfSlotsToRegister) {
+		slotPool.registerTaskManager(taskManagerLocation.getResourceID());
+		final List<AllocationID> allocationIds = IntStream.range(0, numberOfSlotsToRegister)
+			.mapToObj(ignored -> new AllocationID())
+			.collect(Collectors.toList());
+
+		Collection<SlotOffer> slotOffers = IntStream.range(0, numberOfSlotsToRegister)
+			.mapToObj(index -> new SlotOffer(allocationIds.get(index), index, ResourceProfile.ANY))
+			.collect(Collectors.toList());
+
+		slotPool.offerSlots(
+			taskManagerLocation,
+			new SimpleAckingTaskManagerGateway(),
+			slotOffers);
+
+		return allocationIds;
 	}
 
 	private static Collection<Matcher<? super AllocatedSlotInfo>> isEachEqual(Collection<AllocatedSlotInfo> allocatedSlotInfos) {

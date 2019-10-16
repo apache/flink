@@ -88,6 +88,7 @@ import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMet
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
@@ -570,8 +571,11 @@ public class JobMasterTest extends TestLogger {
 
 		@Nonnull
 		@Override
-		public Collection<SlotInfo> getAvailableSlotsInformation() {
-			final Collection<SlotInfo> allSlotInfos = registeredSlots.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+		public Collection<SlotInfoWithUtilization> getAvailableSlotsInformation() {
+			final Collection<SlotInfoWithUtilization> allSlotInfos = registeredSlots.values().stream()
+				.flatMap(Collection::stream)
+				.map(slot -> SlotInfoWithUtilization.from(slot, 0))
+				.collect(Collectors.toList());
 
 			return Collections.unmodifiableCollection(allSlotInfos);
 		}
