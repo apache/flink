@@ -238,11 +238,10 @@ This means if an operator contains a stateful process function such as:
 public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Integer, Void> {
  
    ValueState<Integer> state;
-   ValueStateDescriptor<Integer> stateDescriptor;
    
    @Override
    public void open(Configuration parameters) {
-	  stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
+      ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
       state = getRuntimeContext().getState(stateDescriptor);
    }
  
@@ -257,16 +256,13 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
 {% highlight scala %}
 public class StatefulFunctionWithTime extends KeyedProcessFunction[Integer, Integer, Void] {
  
-  var state: ValueState[Integer];
-  var stateDescriptor: ValueStateDescriptor[Integer];
+   var state: ValueState[Integer];
  
-   @throws[Exception]
    override def open(parameters: Configuration) {
-      stateDescriptor = new ValueStateDescriptor("state", Types.INT);
+      val stateDescriptor = new ValueStateDescriptor("state", Types.INT);
       state = getRuntimeContext().getState(stateDescriptor);
    }
  
-   @throws[Exception]
    override def processElement(value: Integer, ctx: Context, out: Collector[Void]) {
       state.update(value + 1);
    }
@@ -287,11 +283,10 @@ class KeyedState {
  
 class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState> {
   ValueState<Integer> state;
-  ValueStateDescriptor<Integer> stateDescriptor;
   
   @Override
   public void open(Configuration parameters) {
-     stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
+     ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
      state = getRuntimeContext().getState(stateDescriptor);
   }
  
@@ -317,10 +312,9 @@ case class KeyedState(key: Int, value: Int)
  
 class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
   var state: ValueState[Integer];
-  var stateDescriptor: ValueStateDescriptor[Integer]
  
   override def open(parameters: Configuration) {
-     stateDescriptor = new ValueStateDescriptor("state", Types.INT);
+     val stateDescriptor = new ValueStateDescriptor("state", Types.INT);
      state = getRuntimeContext().getState(stateDescriptor);
   }
  
