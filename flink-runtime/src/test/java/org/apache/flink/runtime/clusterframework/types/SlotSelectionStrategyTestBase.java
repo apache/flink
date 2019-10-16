@@ -65,10 +65,10 @@ public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 
 	private Set<SlotSelectionStrategy.SlotInfoAndResources> createCandidates() {
 		Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = new HashSet<>(4);
-		candidates.add(new SlotSelectionStrategy.SlotInfoAndResources(ssc1));
-		candidates.add(new SlotSelectionStrategy.SlotInfoAndResources(ssc2));
-		candidates.add(new SlotSelectionStrategy.SlotInfoAndResources(ssc3));
-		candidates.add(new SlotSelectionStrategy.SlotInfoAndResources(ssc4));
+		candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(ssc1));
+		candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(ssc2));
+		candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(ssc3));
+		candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(ssc4));
 		return candidates;
 	}
 

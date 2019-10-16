@@ -283,7 +283,7 @@ public class SchedulerImpl implements Scheduler {
 		Collection<SlotSelectionStrategy.SlotInfoAndResources> slotInfoList =
 				slotPool.getAvailableSlotsInformation()
 						.stream()
-						.map(SlotSelectionStrategy.SlotInfoAndResources::new)
+						.map(SlotSelectionStrategy.SlotInfoAndResources::fromSingleSlot)
 						.collect(Collectors.toList());
 
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> selectedAvailableSlot =
