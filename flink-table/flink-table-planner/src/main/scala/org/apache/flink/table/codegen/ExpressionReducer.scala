@@ -18,22 +18,27 @@
 
 package org.apache.flink.table.codegen
 
+import java.io.File
 import java.util
 
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
 
 /**
-  * Evaluates constant expressions using Flink's [[FunctionCodeGenerator]].
+  * Evaluates constant expressions using Flink's [[ConstantFunctionCodeGenerator]].
   */
 class ExpressionReducer(config: TableConfig)
   extends RelOptPlanner.Executor with Compiler[MapFunction[Row, Row]] {
@@ -83,8 +88,9 @@ class ExpressionReducer(config: TableConfig)
     val literalTypes = literals.map(e => FlinkTypeFactory.toTypeInfo(e.getType))
     val resultType = new RowTypeInfo(literalTypes: _*)
 
+    val parameters = config.getConfiguration
     // generate MapFunction
-    val generator = new FunctionCodeGenerator(config, false, EMPTY_ROW_INFO)
+    val generator = new ConstantFunctionCodeGenerator(config, false, EMPTY_ROW_INFO)
 
     val result = generator.generateResultExpression(
       resultType,
@@ -106,8 +112,12 @@ class ExpressionReducer(config: TableConfig)
       generatedFunction.code)
     val function = clazz.newInstance()
 
-    // execute
-    val reduced = function.map(EMPTY_ROW)
+    val reduced = try {
+      FunctionUtils.openFunction(function, parameters)
+      function.map(EMPTY_ROW)
+    } finally {
+      FunctionUtils.closeFunction(function)
+    }
 
     // add the reduced results or keep them unreduced
     var i = 0
@@ -145,5 +155,60 @@ class ExpressionReducer(config: TableConfig)
       }
       i += 1
     }
+  }
+}
+
+/**
+  * A [[ConstantFunctionContext]] allows to obtain user-defined configuration information set
+  * in [[TableConfig]].
+  *
+  * @param parameters User-defined configuration set in [[TableConfig]].
+  */
+class ConstantFunctionContext(parameters: Configuration) extends FunctionContext(null) {
+
+  override def getMetricGroup: MetricGroup = {
+    throw new UnsupportedOperationException("getMetricGroup is not supported when optimizing")
+  }
+
+  override def getCachedFile(name: String): File = {
+    throw new UnsupportedOperationException("getCachedFile is not supported when optimizing")
+  }
+
+  /**
+    * Gets the user-defined configuration value associated with the given key as a string.
+    *
+    * @param key          key pointing to the associated value
+    * @param defaultValue default value which is returned in case user-defined configuration
+    *                     value is null or there is no value associated with the given key
+    * @return (default) value associated with the given key
+    */
+  override def getJobParameter(key: String, defaultValue: String): String = {
+    parameters.getString(key, defaultValue)
+  }
+}
+
+/**
+  * A [[ConstantFunctionCodeGenerator]] used for constant expression code generator
+  * @param config configuration that determines runtime behavior
+  * @param nullableInput input(s) can be null.
+  * @param input1 type information about the first input of the Function
+  */
+class ConstantFunctionCodeGenerator(
+    config: TableConfig,
+    nullableInput: Boolean,
+    input1: TypeInformation[_ <: Any])
+  extends FunctionCodeGenerator(config, nullableInput, input1) {
+  /**
+    * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
+    *
+    * @param function    [[UserDefinedFunction]] object to be instantiated during runtime
+    * @param contextTerm term to access the Context
+    * @return member variable term
+    */
+  override def addReusableFunction(
+      function: UserDefinedFunction,
+      contextTerm: String = null,
+      functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext]): String = {
+    super.addReusableFunction(function, "parameters", classOf[ConstantFunctionContext])
   }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.plan
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.utils.{Func1, RichFunc1}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
@@ -499,6 +500,41 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testExpressionReductionWithUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    util.addFunction("MyUdf", Func1)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(table),
+      term("select", "CAST(2) AS constantValue")
+    )
+
+    util.verifySql("SELECT MyUdf(1) as constantValue FROM MyTable", expected)
+
+  }
+
+  @Test
+  def testExpressionReductionWithRichUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    util.addFunction("MyUdf", new RichFunc1)
+    util.tableEnv.getConfig.getConfiguration.setString("int.value", "10")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(table),
+      term("select", "CAST(11) AS constantValue")
+    )
+
+    util.verifySql("SELECT MyUdf(1) as constantValue FROM MyTable", expected)
+  }
+
 }
 
 object NonDeterministicNullFunc extends ScalarFunction {

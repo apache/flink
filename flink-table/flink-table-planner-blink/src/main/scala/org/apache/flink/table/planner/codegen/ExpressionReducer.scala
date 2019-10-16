@@ -102,11 +102,7 @@ class ExpressionReducer(
       case _ => throw new TableException("RichMapFunction[GenericRow, GenericRow] required here")
     }
 
-    val parameters = if (config.getConfiguration != null) {
-      config.getConfiguration
-    } else {
-      new Configuration()
-    }
+    val parameters = config.getConfiguration
     val reduced = try {
       richMapFunction.open(parameters)
       // execute
