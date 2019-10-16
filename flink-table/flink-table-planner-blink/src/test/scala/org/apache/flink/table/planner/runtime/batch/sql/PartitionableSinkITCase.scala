@@ -282,8 +282,6 @@ private class TestSink(
         with PartitionableTableSink {
   private var staticPartitions: JMap[String, String] = _
 
-  override def getPartitionFieldNames: JList[String] = partitionColumns.toList
-
   override def setStaticPartition(partitions: JMap[String, String]): Unit =
     this.staticPartitions = partitions
 

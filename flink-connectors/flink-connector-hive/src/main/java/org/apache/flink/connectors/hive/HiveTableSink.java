@@ -163,8 +163,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		return res;
 	}
 
-	@Override
-	public List<String> getPartitionFieldNames() {
+	private List<String> getPartitionFieldNames() {
 		return catalogTable.getPartitionKeys();
 	}
 
