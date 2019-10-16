@@ -56,9 +56,12 @@ public interface SlotSelectionStrategy {
 		@Nonnull
 		private final ResourceProfile remainingResources;
 
-		public SlotInfoAndResources(@Nonnull SlotInfo slotInfo, @Nonnull ResourceProfile remainingResources) {
+		private final double taskExecutorUtilization;
+
+		public SlotInfoAndResources(@Nonnull SlotInfo slotInfo, @Nonnull ResourceProfile remainingResources, double taskExecutorUtilization) {
 			this.slotInfo = slotInfo;
 			this.remainingResources = remainingResources;
+			this.taskExecutorUtilization = taskExecutorUtilization;
 		}
 
 		@Nonnull
@@ -71,8 +74,15 @@ public interface SlotSelectionStrategy {
 			return remainingResources;
 		}
 
-		public static SlotInfoAndResources fromSingleSlot(@Nonnull SlotInfo slotInfo) {
-			return new SlotInfoAndResources(slotInfo, slotInfo.getResourceProfile());
+		public double getTaskExecutorUtilization() {
+			return taskExecutorUtilization;
+		}
+
+		public static SlotInfoAndResources fromSingleSlot(@Nonnull SlotInfoWithUtilization slotInfoWithUtilization) {
+			return new SlotInfoAndResources(
+				slotInfoWithUtilization,
+				slotInfoWithUtilization.getResourceProfile(),
+				slotInfoWithUtilization.getTaskExecutorUtilization());
 		}
 	}
 
