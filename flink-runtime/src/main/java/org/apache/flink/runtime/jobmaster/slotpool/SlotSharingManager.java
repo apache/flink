@@ -53,6 +53,7 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Manager which is responsible for slot sharing. Slot sharing allows to run different
@@ -185,18 +186,55 @@ public class SlotSharingManager {
 		return resolvedRootSlots
 			.values()
 			.stream()
-				.flatMap((Map<AllocationID, MultiTaskSlot> map) -> map.values().stream())
-				.filter(validMultiTaskSlotAndDoesNotContain(groupId))
-				.map((MultiTaskSlot multiTaskSlot) -> {
-					SlotInfo slotInfo = multiTaskSlot.getSlotContextFuture().join();
+				.flatMap((Map<AllocationID, MultiTaskSlot> map) -> createValidMultiTaskSlotInfos(map, groupId))
+				.map((MultiTaskSlotInfo multiTaskSlotInfo) -> {
+					SlotInfo slotInfo = multiTaskSlotInfo.getSlotInfo();
 					return new SlotSelectionStrategy.SlotInfoAndResources(
-							slotInfo,
-							slotInfo.getResourceProfile().subtract(multiTaskSlot.getReservedResources()));
+						slotInfo,
+						slotInfo.getResourceProfile().subtract(multiTaskSlotInfo.getReservedResources()),
+						multiTaskSlotInfo.getTaskExecutorUtilization());
 				}).collect(Collectors.toList());
 	}
 
+	private Stream<MultiTaskSlotInfo> createValidMultiTaskSlotInfos(Map<AllocationID, MultiTaskSlot> taskExecutorSlots, AbstractID groupId) {
+		final double taskExecutorUtilization = calculateTaskExecutorUtilization(taskExecutorSlots, groupId);
+
+		return taskExecutorSlots.values().stream()
+			.filter(validMultiTaskSlotAndDoesNotContain(groupId))
+			.map(multiTaskSlot ->
+				new MultiTaskSlotInfo(
+					multiTaskSlot.getSlotContextFuture().join(),
+					multiTaskSlot.getReservedResources(),
+					taskExecutorUtilization));
+	}
+
+	private double calculateTaskExecutorUtilization(Map<AllocationID, MultiTaskSlot> map, AbstractID groupId) {
+		int numberValidSlots = 0;
+		int numberFreeSlots = 0;
+
+		for (MultiTaskSlot multiTaskSlot : map.values()) {
+			if (isNotReleasing(multiTaskSlot)) {
+				numberValidSlots++;
+
+				if (doesNotContain(groupId, multiTaskSlot)) {
+					numberFreeSlots++;
+				}
+			}
+		}
+
+		return (double) (numberValidSlots - numberFreeSlots) / numberValidSlots;
+	}
+
+	private boolean isNotReleasing(MultiTaskSlot multiTaskSlot) {
+		return !multiTaskSlot.isReleasing();
+	}
+
+	private boolean doesNotContain(@Nullable AbstractID groupId, MultiTaskSlot multiTaskSlot) {
+		return !multiTaskSlot.contains(groupId);
+	}
+
 	private Predicate<MultiTaskSlot> validMultiTaskSlotAndDoesNotContain(@Nullable AbstractID groupId) {
-		return (MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId) && !multiTaskSlot.isReleasing();
+		return (MultiTaskSlot multiTaskSlot) -> doesNotContain(groupId, multiTaskSlot) && isNotReleasing(multiTaskSlot);
 	}
 
 	@Nullable
@@ -812,6 +850,30 @@ public class SlotSharingManager {
 			while (baseIterator.hasNext() && !currentIterator.hasNext()) {
 				currentIterator = baseIterator.next().values().iterator();
 			}
+		}
+	}
+
+	private static class MultiTaskSlotInfo {
+		private final SlotInfo slotInfo;
+		private final ResourceProfile reservedResources;
+		private final double taskExecutorUtilization;
+
+		private MultiTaskSlotInfo(SlotInfo slotInfo, ResourceProfile reservedResources, double taskExecutorUtilization) {
+			this.slotInfo = slotInfo;
+			this.reservedResources = reservedResources;
+			this.taskExecutorUtilization = taskExecutorUtilization;
+		}
+
+		private ResourceProfile getReservedResources() {
+			return reservedResources;
+		}
+
+		private double getTaskExecutorUtilization() {
+			return taskExecutorUtilization;
+		}
+
+		private SlotInfo getSlotInfo() {
+			return slotInfo;
 		}
 	}
 }
