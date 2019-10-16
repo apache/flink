@@ -65,8 +65,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		final String name = scope.getMetricIdentifier(metricName);
 
 		List<String> tags = new ArrayList<>(configTags);
-		tags.addAll(getTagsFromMetricGroup(scope));
-		String host = getHostFromMetricGroup(scope);
+		tags.addAll(getTags(scope));
+		String host = getHost(scope);
 
 		if (metric instanceof Counter) {
 			Counter c = (Counter) metric;
@@ -172,9 +172,9 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	}
 
 	/**
-	 * Get tags from MetricGroup#getAllVariables(), excluding 'host'.
+	 * Retrieve tags from the metric scope, excluding 'host'.
 	 */
-	private List<String> getTagsFromMetricGroup(MetricScope scope) {
+	private List<String> getTags(MetricScope scope) {
 		List<String> tags = new ArrayList<>();
 
 		for (Map.Entry<String, String> entry: scope.getAllVariables().entrySet()) {
@@ -186,7 +186,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		return tags;
 	}
 
-	private String getHostFromMetricGroup(MetricScope scope) {
+	private String getHost(MetricScope scope) {
 		return scope.getAllVariables().get(HOST_VARIABLE);
 	}
 
