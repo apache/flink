@@ -50,13 +50,13 @@ public class InternalMetricScope implements MetricScope {
 	 * Array containing the metrics scope represented by this group for each reporter, as a concatenated string, lazily computed.
 	 * For example: "host-7.taskmanager-2.window_word_count.my-mapper"
 	 */
-	private final String[] scopeStrings;
+	private final String[] cachedIdentifierScopes;
 
 	public InternalMetricScope(DelimiterProvider delimiterProvider, String[] scopeComponents, Supplier<Map<String, String>> variablesProvider) {
 		this.delimiterProvider = delimiterProvider;
 		this.variablesProvider = variablesProvider;
 		this.scopeComponents = scopeComponents;
-		this.scopeStrings = new String[delimiterProvider.getNumberReporters()];
+		this.cachedIdentifierScopes = new String[delimiterProvider.getNumberReporters()];
 	}
 
 	@Override
@@ -69,10 +69,6 @@ public class InternalMetricScope implements MetricScope {
 			}
 		}
 		return variables;
-	}
-
-	public String[] geScopeComponents() {
-		return scopeStrings;
 	}
 
 	@Override
@@ -95,13 +91,17 @@ public class InternalMetricScope implements MetricScope {
 	}
 
 	private String getIdentifierScope(CharacterFilter filter, char delimiter, int reporterIndex) {
-		if (scopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= scopeStrings.length)) {
+		if (cachedIdentifierScopes.length == 0 || (reporterIndex < 0 || reporterIndex >= cachedIdentifierScopes.length)) {
 			return ScopeFormat.concat(filter, delimiter, scopeComponents);
 		} else {
-			if (scopeStrings[reporterIndex] == null) {
-				scopeStrings[reporterIndex] = ScopeFormat.concat(filter, delimiter, scopeComponents);
+			if (cachedIdentifierScopes[reporterIndex] == null) {
+				cachedIdentifierScopes[reporterIndex] = ScopeFormat.concat(filter, delimiter, scopeComponents);
 			}
-			return scopeStrings[reporterIndex];
+			return cachedIdentifierScopes[reporterIndex];
 		}
+	}
+
+	public String[] geScopeComponents() {
+		return scopeComponents;
 	}
 }
