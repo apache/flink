@@ -80,11 +80,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			SqlCharStringLiteral comment) {
 		super(OPERATOR, pos, false, false);
 		this.tableName = requireNonNull(tableName, "Table name is missing");
-		this.columnList = requireNonNull(columnList, "ColumnList should not be null");
-		this.primaryKeyList = requireNonNull(primaryKeyList, "PrimayKeyList should not be null");
-		this.uniqueKeysList = requireNonNull(uniqueKeysList, "UniqueKeysList should not be null");
-		this.propertyList = requireNonNull(propertyList, "PropertyList should not be null");
-		this.partitionKeyList = requireNonNull(partitionKeyList, "PartitionKeyList should not be null");
+		this.columnList = requireNonNull(columnList, "columnList should not be null");
+		this.primaryKeyList = requireNonNull(primaryKeyList, "primayKeyList should not be null");
+		this.uniqueKeysList = requireNonNull(uniqueKeysList, "uniqueKeysList should not be null");
+		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+		this.partitionKeyList = requireNonNull(partitionKeyList, "partitionKeyList should not be null");
 		this.comment = comment;
 	}
 
@@ -133,60 +133,52 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	public void validate() throws SqlValidateException {
 		Set<String> columnNames = new HashSet<>();
-		if (columnList.size() > 0) {
-			for (SqlNode column : columnList) {
-				String columnName = null;
-				if (column instanceof SqlTableColumn) {
-					SqlTableColumn tableColumn = (SqlTableColumn) column;
-					columnName = tableColumn.getName().getSimple();
-				} else if (column instanceof SqlBasicCall) {
-					SqlBasicCall tableColumn = (SqlBasicCall) column;
-					columnName = tableColumn.getOperands()[1].toString();
-				}
+		for (SqlNode column : columnList) {
+			String columnName = null;
+			if (column instanceof SqlTableColumn) {
+				SqlTableColumn tableColumn = (SqlTableColumn) column;
+				columnName = tableColumn.getName().getSimple();
+			} else if (column instanceof SqlBasicCall) {
+				SqlBasicCall tableColumn = (SqlBasicCall) column;
+				columnName = tableColumn.getOperands()[1].toString();
+			}
 
-				if (!columnNames.add(columnName)) {
+			if (!columnNames.add(columnName)) {
+				throw new SqlValidateException(
+					column.getParserPosition(),
+					"Duplicate column name [" + columnName + "], at " +
+						column.getParserPosition());
+			}
+		}
+
+		for (SqlNode primaryKeyNode : this.primaryKeyList) {
+			String primaryKey = ((SqlIdentifier) primaryKeyNode).getSimple();
+			if (!columnNames.contains(primaryKey)) {
+				throw new SqlValidateException(
+					primaryKeyNode.getParserPosition(),
+					"Primary key [" + primaryKey + "] not defined in columns, at " +
+						primaryKeyNode.getParserPosition());
+			}
+		}
+
+		for (SqlNodeList uniqueKeys: this.uniqueKeysList) {
+			for (SqlNode uniqueKeyNode : uniqueKeys) {
+				String uniqueKey = ((SqlIdentifier) uniqueKeyNode).getSimple();
+				if (!columnNames.contains(uniqueKey)) {
 					throw new SqlValidateException(
-						column.getParserPosition(),
-						"Duplicate column name [" + columnName + "], at " +
-							column.getParserPosition());
+							uniqueKeyNode.getParserPosition(),
+							"Unique key [" + uniqueKey + "] not defined in columns, at " + uniqueKeyNode.getParserPosition());
 				}
 			}
 		}
 
-		if (this.primaryKeyList.size() > 0) {
-			for (SqlNode primaryKeyNode : this.primaryKeyList) {
-				String primaryKey = ((SqlIdentifier) primaryKeyNode).getSimple();
-				if (!columnNames.contains(primaryKey)) {
-					throw new SqlValidateException(
-						primaryKeyNode.getParserPosition(),
-						"Primary key [" + primaryKey + "] not defined in columns, at " +
-							primaryKeyNode.getParserPosition());
-				}
-			}
-		}
-
-		if (this.uniqueKeysList.size() > 0) {
-			for (SqlNodeList uniqueKeys: this.uniqueKeysList) {
-				for (SqlNode uniqueKeyNode : uniqueKeys) {
-					String uniqueKey = ((SqlIdentifier) uniqueKeyNode).getSimple();
-					if (!columnNames.contains(uniqueKey)) {
-						throw new SqlValidateException(
-								uniqueKeyNode.getParserPosition(),
-								"Unique key [" + uniqueKey + "] not defined in columns, at " + uniqueKeyNode.getParserPosition());
-					}
-				}
-			}
-		}
-
-		if (this.partitionKeyList.size() > 0) {
-			for (SqlNode partitionKeyNode : this.partitionKeyList.getList()) {
-				String partitionKey = ((SqlIdentifier) partitionKeyNode).getSimple();
-				if (!columnNames.contains(partitionKey)) {
-					throw new SqlValidateException(
-						partitionKeyNode.getParserPosition(),
-						"Partition column [" + partitionKey + "] not defined in columns, at "
-							+ partitionKeyNode.getParserPosition());
-				}
+		for (SqlNode partitionKeyNode : this.partitionKeyList.getList()) {
+			String partitionKey = ((SqlIdentifier) partitionKeyNode).getSimple();
+			if (!columnNames.contains(partitionKey)) {
+				throw new SqlValidateException(
+					partitionKeyNode.getParserPosition(),
+					"Partition column [" + partitionKey + "] not defined in columns, at "
+						+ partitionKeyNode.getParserPosition());
 			}
 		}
 

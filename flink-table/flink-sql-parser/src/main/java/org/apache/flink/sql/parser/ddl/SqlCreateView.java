@@ -62,7 +62,7 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 			SqlCharStringLiteral comment) {
 		super(OPERATOR, pos, replace, false);
 		this.viewName = requireNonNull(viewName, "View name is missing");
-		this.fieldList = requireNonNull(fieldList, "FieldList should not be null");
+		this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
 		this.query = requireNonNull(query, "Query is missing");
 		this.comment = comment;
 	}
