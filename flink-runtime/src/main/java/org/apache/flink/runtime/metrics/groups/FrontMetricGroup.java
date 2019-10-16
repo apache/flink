@@ -56,7 +56,7 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
 	}
 
 	public String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return parentMetricGroup.getLogicalScope(filter, delimiter);
+		return parentMetricGroup.getLogicalScope(filter, delimiter, scope.reporterIndex);
 	}
 
 	private static final class ReporterIndexInjectingMetricScope implements MetricScope {
