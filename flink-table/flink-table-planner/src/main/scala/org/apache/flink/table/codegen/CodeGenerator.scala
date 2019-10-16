@@ -1617,7 +1617,10 @@ abstract class CodeGenerator(
     * @param contextTerm [[RuntimeContext]] term to access the [[RuntimeContext]]
     * @return member variable term
     */
-  def addReusableFunction(function: UserDefinedFunction, contextTerm: String = null): String = {
+  def addReusableFunction(
+      function: UserDefinedFunction,
+      contextTerm: String = null,
+      functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext]): String = {
     val classQualifier = function.getClass.getCanonicalName
     val functionSerializedData = EncodingUtils.encodeObjectToString(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
@@ -1640,11 +1643,11 @@ abstract class CodeGenerator(
 
     val openFunction = if (contextTerm != null) {
       s"""
-         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}($contextTerm));
+         |$fieldTerm.open(new ${functionContextClass.getCanonicalName}($contextTerm));
        """.stripMargin
     } else {
       s"""
-         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}(getRuntimeContext()));
+         |$fieldTerm.open(new ${functionContextClass.getCanonicalName}(getRuntimeContext()));
        """.stripMargin
     }
     reusableOpenStatements.add(openFunction)
