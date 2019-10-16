@@ -108,7 +108,7 @@ public class HBase extends ConnectorDescriptor {
 	}
 
 	/**
-	 * Set a flush interval flushing buffered requesting if the interval passes, in milliseconds.
+	 * Set an interval when to flushing buffered requesting if the interval passes, in milliseconds.
 	 * Defaults to not set, i.e. won't flush based on flush interval. Optional.
 	 *
 	 * @param interval flush interval. The string should be in format "{length value}{time unit label}"
@@ -117,8 +117,7 @@ public class HBase extends ConnectorDescriptor {
 	 *                 {@link TimeUtils#parseDuration(String)}}.
 	 */
 	public HBase writeBufferFlushInterval(String interval) {
-		Duration duration = TimeUtils.parseDuration(interval);
-		properties.putLong(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL, duration.toMillis());
+		properties.putString(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL, interval);
 		return this;
 	}
 
