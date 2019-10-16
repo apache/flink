@@ -484,7 +484,7 @@ public class TaskManagerOptions {
 	@Documentation.ExcludeFromDocumentation("FLIP-49 is still in development.")
 	public static final ConfigOption<Boolean> ENABLE_FLIP_49_CONFIG =
 			key("taskmanager.enable-flip-49")
-			.defaultValue(false)
+			.defaultValue(true)
 			.withDescription("Toggle to switch between FLIP-49 and current task manager memory configurations.");
 
 	/** Not intended to be instantiated. */
