@@ -82,7 +82,11 @@ public final class MultisetType extends LogicalType {
 
 	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
-		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+		if (Map.class.isAssignableFrom(clazz)) {
+			return true;
+		} else {
+			return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+		}
 	}
 
 	@Override
