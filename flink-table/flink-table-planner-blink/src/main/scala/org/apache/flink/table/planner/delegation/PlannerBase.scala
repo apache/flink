@@ -251,9 +251,10 @@ abstract class PlannerBase(
     */
   protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
 
-  private def getTableSink(
-      tableIdentifier: ObjectIdentifier): Option[(CatalogTable, TableSink[_])] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(tableIdentifier)) match {
+  private def getTableSink(objectIdentifier: ObjectIdentifier)
+    : Option[(CatalogTable, TableSink[_])] = {
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+      .map(_.getTable) match {
       case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
         val table = s.asInstanceOf[ConnectorCatalogTable[_, _]]
         JavaScalaConversionUtil.toScala(table.getTableSink) match {
@@ -262,10 +263,10 @@ abstract class PlannerBase(
         }
 
       case Some(s) if s.isInstanceOf[CatalogTable] =>
-        val catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName)
+        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val table = s.asInstanceOf[CatalogTable]
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val objectPath = tableIdentifier.toObjectPath
+          val objectPath = objectIdentifier.toObjectPath
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(
             catalog.get(),
             table,

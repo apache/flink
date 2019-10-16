@@ -145,13 +145,13 @@ public class LocalExecutorITCase extends TestLogger {
 
 		List<String> actualTables = executor.listTables(session);
 		List<String> expectedTables = Arrays.asList(
+			"AdditionalView1",
+			"AdditionalView2",
 			"TableNumber1",
 			"TableNumber2",
 			"TableSourceSink",
 			"TestView1",
-			"TestView2",
-			"AdditionalView1",
-			"AdditionalView2");
+			"TestView2");
 		assertEquals(expectedTables, actualTables);
 
 		session.removeView("AdditionalView1");
@@ -183,8 +183,8 @@ public class LocalExecutorITCase extends TestLogger {
 		final List<String> actualCatalogs = executor.listCatalogs(session);
 
 		final List<String> expectedCatalogs = Arrays.asList(
-			"default_catalog",
 			"catalog1",
+			"default_catalog",
 			"simple-catalog");
 		assertEquals(expectedCatalogs, actualCatalogs);
 	}

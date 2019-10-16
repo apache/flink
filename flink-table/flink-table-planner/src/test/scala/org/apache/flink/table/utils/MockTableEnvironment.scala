@@ -101,4 +101,8 @@ class MockTableEnvironment extends TableEnvironment {
   override def loadModule(moduleName: String, module: Module): Unit = ???
 
   override def unloadModule(moduleName: String): Unit = ???
+
+  override def listTemporaryTables(): Array[String] = ???
+
+  override def listTemporaryViews(): Array[String] = ???
 }

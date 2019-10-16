@@ -203,7 +203,7 @@ abstract class TableEnvImpl(
     }
 
     val view = new QueryOperationCatalogView(table.getQueryOperation)
-    catalogManager.createTable(view, getTemporaryObjectIdentifier(name), false)
+    catalogManager.createTemporaryTable(view, getTemporaryObjectIdentifier(name), false)
   }
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
@@ -271,7 +271,7 @@ abstract class TableEnvImpl(
     tableSource: TableSource[_])
   : Unit = {
     // register
-    getCatalogTable(
+    getTemporaryTable(
       catalogManager.getBuiltInCatalogName,
       catalogManager.getBuiltInDatabaseName, name) match {
 
@@ -287,13 +287,16 @@ abstract class TableEnvImpl(
             tableSource,
             table.getTableSink.get,
             isBatchTable)
-          catalogManager.alterTable(sourceAndSink, getTemporaryObjectIdentifier(name), false)
+          catalogManager.createTemporaryTable(
+            sourceAndSink,
+            getTemporaryObjectIdentifier(name),
+            true)
         }
 
       // no table is registered
       case _ =>
         val source = ConnectorCatalogTable.source(tableSource, isBatchTable)
-        catalogManager.createTable(source, getTemporaryObjectIdentifier(name), false)
+        catalogManager.createTemporaryTable(source, getTemporaryObjectIdentifier(name), false)
     }
   }
 
@@ -302,7 +305,7 @@ abstract class TableEnvImpl(
     tableSink: TableSink[_])
   : Unit = {
     // check if a table (source or sink) is registered
-    getCatalogTable(
+    getTemporaryTable(
       catalogManager.getBuiltInCatalogName,
       catalogManager.getBuiltInDatabaseName,
       name) match {
@@ -319,13 +322,16 @@ abstract class TableEnvImpl(
             table.getTableSource.get,
             tableSink,
             isBatchTable)
-          catalogManager.alterTable(sourceAndSink, getTemporaryObjectIdentifier(name), false)
+          catalogManager.createTemporaryTable(
+            sourceAndSink,
+            getTemporaryObjectIdentifier(name),
+            true)
         }
 
       // no table is registered
       case _ =>
         val sink = ConnectorCatalogTable.sink(tableSink, isBatchTable)
-        catalogManager.createTable(sink, getTemporaryObjectIdentifier(name), false)
+        catalogManager.createTemporaryTable(sink, getTemporaryObjectIdentifier(name), false)
     }
   }
 
@@ -350,7 +356,7 @@ abstract class TableEnvImpl(
     val unresolvedIdentifier = UnresolvedIdentifier.of(tablePath: _*)
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
-      .map(t => new CatalogQueryOperation(objectIdentifier, t.getSchema))
+      .map(t => new CatalogQueryOperation(objectIdentifier, t.getTable.getSchema))
   }
 
   override def listModules(): Array[String] = {
@@ -358,7 +364,10 @@ abstract class TableEnvImpl(
   }
 
   override def listCatalogs(): Array[String] = {
-    catalogManager.getCatalogs.asScala.toArray
+    catalogManager.listCatalogs
+      .asScala
+      .toArray
+      .sorted
   }
 
   override def listDatabases(): Array[String] = {
@@ -369,13 +378,21 @@ abstract class TableEnvImpl(
   }
 
   override def listTables(): Array[String] = {
-    val currentCatalogName = catalogManager.getCurrentCatalog
-    val currentCatalog = catalogManager.getCatalog(currentCatalogName)
-    JavaScalaConversionUtil.toScala(currentCatalog) match {
-      case Some(catalog) => catalog.listTables(catalogManager.getCurrentDatabase).asScala.toArray
-      case None =>
-        throw new TableException(s"The current catalog ($currentCatalogName) does not exist.")
-    }
+    catalogManager.listTables().asScala
+      .toArray
+      .sorted
+  }
+
+  override def listTemporaryTables(): Array[String] = {
+    catalogManager.listTemporaryTables().asScala
+      .toArray
+      .sorted
+  }
+
+  override def listTemporaryViews(): Array[String] = {
+    catalogManager.listTemporaryViews().asScala
+      .toArray
+      .sorted
   }
 
   override def listUserDefinedFunctions(): Array[String] = functionCatalog.getUserDefinedFunctions
@@ -510,7 +527,8 @@ abstract class TableEnvImpl(
   }
 
   private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier)) match {
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+      .map(_.getTable) match {
       case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
 
         JavaScalaConversionUtil
@@ -537,10 +555,12 @@ abstract class TableEnvImpl(
     }
   }
 
-  protected def getCatalogTable(name: String*): Option[CatalogBaseTable] = {
+  protected def getTemporaryTable(name: String*): Option[CatalogBaseTable] = {
     val unresolvedIdentifier = UnresolvedIdentifier.of(name: _*)
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+      .filter(_.isTemporary)
+      .map(_.getTable)
   }
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */

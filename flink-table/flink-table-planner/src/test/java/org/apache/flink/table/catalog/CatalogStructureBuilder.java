@@ -26,8 +26,11 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Utility classes to construct a {@link CatalogManager} with a given structure.
@@ -51,6 +54,7 @@ import java.util.Objects;
  *          table("tab1"),
  *          table("tab2")
  *      )
+ *  .temporaryTable(ObjectIdentifier.of("cat1", "default", "tab1"))
  *  ).build();
  * }</pre>
  */
@@ -80,11 +84,30 @@ public class CatalogStructureBuilder {
 		return this;
 	}
 
+	public CatalogStructureBuilder temporaryTable(ObjectIdentifier path) {
+		this.catalogManager.createTemporaryTable(new TestTable(path.toString(), true), path, false);
+		return this;
+	}
+
+	public CatalogStructureBuilder temporaryView(ObjectIdentifier path, String query) {
+		this.catalogManager.createTemporaryTable(
+			new TestView(
+				query,
+				query,
+				TableSchema.builder().build(),
+				Collections.emptyMap(),
+				"",
+				true,
+				path.toString()),
+			path,
+			false);
+		return this;
+	}
+
 	public CatalogStructureBuilder catalog(
 			String name,
 			DatabaseBuilder defaultDatabase,
 			DatabaseBuilder... databases) throws Exception {
-
 		GenericInMemoryCatalog catalog = buildCatalog(name, defaultDatabase, databases);
 		catalogManager.registerCatalog(name, catalog);
 
@@ -158,33 +181,46 @@ public class CatalogStructureBuilder {
 		}
 
 		public TestTable build(String path) {
-			return new TestTable(path + "." + name);
+			return new TestTable(path + "." + name, false);
 		}
 	}
 
-	private static class TestTable extends ConnectorCatalogTable<Row, Row> {
+	/**
+	 * A test {@link CatalogTable}.
+	 */
+	public static class TestTable extends ConnectorCatalogTable<Row, Row> {
 		private final String fullyQualifiedPath;
+		private final boolean isTemporary;
 
-		private static final StreamTableSource<Row> tableSource = new StreamTableSource<Row>() {
-			@Override
-			public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-				return null;
-			}
+		public boolean isTemporary() {
+			return isTemporary;
+		}
 
-			@Override
-			public TypeInformation<Row> getReturnType() {
-				return Types.ROW();
-			}
+		private TestTable(String fullyQualifiedPath, boolean isTemporary) {
+			super(new StreamTableSource<Row>() {
+				@Override
+				public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
+					return null;
+				}
 
-			@Override
-			public TableSchema getTableSchema() {
-				return TableSchema.builder().build();
-			}
-		};
+				@Override
+				public TypeInformation<Row> getReturnType() {
+					return Types.ROW();
+				}
 
-		private TestTable(String fullyQualifiedPath) {
-			super(tableSource, null, tableSource.getTableSchema(), false);
+				@Override
+				public TableSchema getTableSchema() {
+					return TableSchema.builder().build();
+				}
+
+				@Override
+				public String explainSource() {
+					return String.format("isTemporary=[%s]", isTemporary);
+				}
+			}, null, TableSchema.builder().build(), false);
+
 			this.fullyQualifiedPath = fullyQualifiedPath;
+			this.isTemporary = isTemporary;
 		}
 
 		@Override
@@ -196,12 +232,71 @@ public class CatalogStructureBuilder {
 				return false;
 			}
 			TestTable testTable = (TestTable) o;
-			return Objects.equals(fullyQualifiedPath, testTable.fullyQualifiedPath);
+			return Objects.equals(fullyQualifiedPath, testTable.fullyQualifiedPath) &&
+				Objects.equals(isTemporary, testTable.isTemporary);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(fullyQualifiedPath);
+			return Objects.hash(fullyQualifiedPath, isTemporary);
+		}
+	}
+
+	/**
+	 * A test {@link CatalogView}.
+	 */
+	public static class TestView extends AbstractCatalogView {
+		private final boolean isTemporary;
+		private final String fullyQualifiedPath;
+
+		public boolean isTemporary() {
+			return isTemporary;
+		}
+
+		private TestView(
+				String originalQuery,
+				String expandedQuery,
+				TableSchema schema,
+				Map<String, String> properties,
+				String comment,
+				boolean isTemporary,
+				String fullyQualifiedPath) {
+			super(originalQuery, expandedQuery, schema, properties, comment);
+			this.isTemporary = isTemporary;
+			this.fullyQualifiedPath = fullyQualifiedPath;
+		}
+
+		@Override
+		public CatalogBaseTable copy() {
+			return this;
+		}
+
+		@Override
+		public Optional<String> getDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public Optional<String> getDetailedDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			TestView testView = (TestView) o;
+			return isTemporary == testView.isTemporary &&
+				Objects.equals(fullyQualifiedPath, testView.fullyQualifiedPath);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(isTemporary, fullyQualifiedPath);
 		}
 	}
 }
