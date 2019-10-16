@@ -155,7 +155,7 @@ run_test "SQL Client end-to-end test (Blink planner)" "$END_TO_END_DIR/test-scri
 run_test "SQL Client end-to-end test for Kafka 0.10" "$END_TO_END_DIR/test-scripts/test_sql_client_kafka010.sh"
 run_test "SQL Client end-to-end test for Kafka 0.11" "$END_TO_END_DIR/test-scripts/test_sql_client_kafka011.sh"
 run_test "SQL Client end-to-end test for modern Kafka" "$END_TO_END_DIR/test-scripts/test_sql_client_kafka.sh"
-run_test "SQL Client end-to-end test for HBase 1.4.3" "$END_TO_END_DIR/test-scripts/test_sql_client_hbase.sh"
+run_test "SQL Client end-to-end test for HBase 1.4.3" "$END_TO_END_DIR/test-scripts/test_sql_client_hbase.sh" "skip_check_exceptions"
 
 run_test "TPC-H end-to-end test (Blink planner)" "$END_TO_END_DIR/test-scripts/test_tpch.sh"
 

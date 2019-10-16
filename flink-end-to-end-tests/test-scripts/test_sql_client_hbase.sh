@@ -17,6 +17,7 @@
 # limitations under the License.
 ################################################################################
 
+set -Eeuo pipefail
 source "$(dirname "$0")"/common.sh
 
 HBASE_VERSION=1.4.10
@@ -33,8 +34,6 @@ if [[ -z $TEST_DATA_DIR ]]; then
 fi
 
 function setup_hbase_dist {
-  #NOTICE need to choose the offical website.
-  #HBASE_URL="https://archive.apache.org/dist/hbase/$HBASE_VERSION/hbase-$HBASE_VERSION-bin.tar.gz"
   HBASE_URL="https://mirrors.tuna.tsinghua.edu.cn/apache/hbase/$HBASE_VERSION/hbase-$HBASE_VERSION-bin.tar.gz"
   echo "Downloading hbase dist package from $HBASE_URL"
   curl "$HBASE_URL" --retry 10 --retry-max-time 120 > $TEST_DATA_DIR/hbase.tgz
