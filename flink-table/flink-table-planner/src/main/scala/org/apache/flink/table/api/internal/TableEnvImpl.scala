@@ -379,7 +379,7 @@ abstract class TableEnvImpl(
   override def sqlQuery(query: String): Table = {
     val planner = getFlinkPlanner
     // parse the sql query
-    val parsed = planner.parse(query)
+    val parsed = planningConfigurationBuilder.createCalciteParser().parse(query)
     if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
       // validate the sql query
       val validated = planner.validate(parsed)
@@ -396,7 +396,7 @@ abstract class TableEnvImpl(
   override def sqlUpdate(stmt: String): Unit = {
     val planner = getFlinkPlanner
     // parse the sql query
-    val parsed = planner.parse(stmt)
+    val parsed = planningConfigurationBuilder.createCalciteParser().parse(stmt)
     parsed match {
       case insert: RichSqlInsert =>
         // validate the insert

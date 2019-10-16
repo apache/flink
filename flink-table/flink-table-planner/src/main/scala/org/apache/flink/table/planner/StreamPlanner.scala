@@ -101,8 +101,10 @@ class StreamPlanner(
 
   override def parse(stmt: String): JList[Operation] = {
     val planner = getFlinkPlanner
-    // parse the sql query
-    val parsed = planner.parse(stmt)
+    // parse the sql query, we do not cache the parser in order to use the most up to
+    // date configuration. Users might change parser configuration in TableConfig in between
+    // parsing statements
+    val parsed = planningConfigurationBuilder.createCalciteParser().parse(stmt)
 
     parsed match {
       case insert: RichSqlInsert =>

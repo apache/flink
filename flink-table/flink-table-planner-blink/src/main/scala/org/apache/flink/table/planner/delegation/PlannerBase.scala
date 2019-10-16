@@ -82,7 +82,8 @@ abstract class PlannerBase(
 
   executor.asInstanceOf[ExecutorBase].setTableConfig(config)
 
-  private val plannerContext: PlannerContext =
+  @VisibleForTesting
+  private[flink] val plannerContext: PlannerContext =
     new PlannerContext(
       config,
       functionCatalog,
@@ -122,8 +123,12 @@ abstract class PlannerBase(
 
   override def parse(stmt: String): util.List[Operation] = {
     val planner = createFlinkPlanner
+    // we do not cache the parser in order to use the most up to
+    // date configuration. Users might change parser configuration in TableConfig in between
+    // parsing statements
+    val parser = plannerContext.createCalciteParser()
     // parse the sql query
-    val parsed = planner.parse(stmt)
+    val parsed = parser.parse(stmt)
     parsed match {
       case insert: RichSqlInsert =>
         List(SqlToOperationConverter.convert(planner, catalogManager, insert))
