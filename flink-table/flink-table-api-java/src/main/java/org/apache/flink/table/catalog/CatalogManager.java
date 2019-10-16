@@ -31,7 +31,6 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -116,7 +115,7 @@ public class CatalogManager {
 	 * Gets the current catalog that will be used when resolving table path.
 	 *
 	 * @return the current catalog
-	 * @see CatalogManager#qualifyIdentifier(String...)
+	 * @see CatalogManager#qualifyIdentifier(UnresolvedIdentifier)
 	 */
 	public String getCurrentCatalog() {
 		return currentCatalogName;
@@ -127,7 +126,7 @@ public class CatalogManager {
 	 *
 	 * @param catalogName catalog name to set as current catalog
 	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
-	 * @see CatalogManager#qualifyIdentifier(String...)
+	 * @see CatalogManager#qualifyIdentifier(UnresolvedIdentifier)
 	 */
 	public void setCurrentCatalog(String catalogName) throws CatalogNotExistException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
@@ -152,7 +151,7 @@ public class CatalogManager {
 	 * Gets the current database name that will be used when resolving table path.
 	 *
 	 * @return the current database
-	 * @see CatalogManager#qualifyIdentifier(String...)
+	 * @see CatalogManager#qualifyIdentifier(UnresolvedIdentifier)
 	 */
 	public String getCurrentDatabase() {
 		return currentDatabaseName;
@@ -164,7 +163,7 @@ public class CatalogManager {
 	 *
 	 * @param databaseName database name to set as current database name
 	 * @throws CatalogException thrown if the database doesn't exist in the current catalog
-	 * @see CatalogManager#qualifyIdentifier(String...)
+	 * @see CatalogManager#qualifyIdentifier(UnresolvedIdentifier)
 	 * @see CatalogManager#setCurrentCatalog(String)
 	 */
 	public void setCurrentDatabase(String databaseName) {
@@ -210,7 +209,7 @@ public class CatalogManager {
 
 	/**
 	 * Retrieves a fully qualified table. If the path is not yet fully qualified use
-	 * {@link #qualifyIdentifier(String...)} first.
+	 * {@link #qualifyIdentifier(UnresolvedIdentifier)} first.
 	 *
 	 * @param objectIdentifier full path of the table to retrieve
 	 * @return table that the path points to.
@@ -232,42 +231,16 @@ public class CatalogManager {
 
 	/**
 	 * Returns the full name of the given table path, this name may be padded
-	 * with current catalog/database name based on the {@code paths} length.
+	 * with current catalog/database name based on the {@code identifier's} length.
 	 *
-	 * @param path Table path whose format can be "catalog.db.table", "db.table" or "table"
-	 * @return An array of complete table path
+	 * @param identifier an unresolved identifier
+	 * @return a fully qualified object identifier
 	 */
-	public ObjectIdentifier qualifyIdentifier(String... path) {
-		if (path == null) {
-			throw new ValidationException("Table paths can not be null!");
-		}
-		if (path.length < 1 || path.length > 3) {
-			throw new ValidationException("Table paths length must be " +
-				"between 1(inclusive) and 3(inclusive)");
-		}
-		if (Arrays.stream(path).anyMatch(StringUtils::isNullOrWhitespaceOnly)) {
-			throw new ValidationException("Table paths contain null or " +
-				"while-space-only string");
-		}
-
-		String catalogName;
-		String dbName;
-		String tableName;
-		if (path.length == 3) {
-			catalogName = path[0];
-			dbName = path[1];
-			tableName = path[2];
-		} else if (path.length == 2) {
-			catalogName = getCurrentCatalog();
-			dbName = path[0];
-			tableName = path[1];
-		} else {
-			catalogName = getCurrentCatalog();
-			dbName = getCurrentDatabase();
-			tableName = path[0];
-		}
-
-		return ObjectIdentifier.of(catalogName, dbName, tableName);
+	public ObjectIdentifier qualifyIdentifier(UnresolvedIdentifier identifier) {
+		return ObjectIdentifier.of(
+			identifier.getCatalogName().orElseGet(this::getCurrentCatalog),
+			identifier.getDatabaseName().orElseGet(this::getCurrentDatabase),
+			identifier.getObjectName());
 	}
 
 	/**

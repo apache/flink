@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -139,7 +140,8 @@ public class SqlToOperationConverter {
 			properties,
 			tableComment);
 
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(sqlCreateTable.fullTableName());
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateTable.fullTableName());
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 		return new CreateTableOperation(
 			identifier,
@@ -149,7 +151,8 @@ public class SqlToOperationConverter {
 
 	/** Convert DROP TABLE statement. */
 	private Operation convertDropTable(SqlDropTable sqlDropTable) {
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(sqlDropTable.fullTableName());
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlDropTable.fullTableName());
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 		return new DropTableOperation(identifier, sqlDropTable.getIfExists());
 	}
@@ -159,7 +162,8 @@ public class SqlToOperationConverter {
 		// get name of sink table
 		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTable()).names;
 
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(targetTablePath.toArray(new String[0]));
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath.toArray(new String[0]));
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 		return new CatalogSinkModifyOperation(
 			identifier,

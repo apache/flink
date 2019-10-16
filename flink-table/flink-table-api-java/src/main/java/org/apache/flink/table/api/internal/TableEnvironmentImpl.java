@@ -37,6 +37,7 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
@@ -233,7 +234,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private Optional<CatalogQueryOperation> scanInternal(String... tablePath) {
-		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(tablePath);
+		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(tablePath));
 		return catalogManager.getTable(objectIdentifier)
 			.map(t -> new CatalogQueryOperation(objectIdentifier, t.getSchema()));
 	}
@@ -333,7 +334,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		List<String> fullPath = new ArrayList<>(Arrays.asList(pathContinued));
 		fullPath.add(0, path);
 
-		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(fullPath.toArray(new String[0]));
+		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(
+			UnresolvedIdentifier.of(fullPath.toArray(new String[0])));
 		List<ModifyOperation> modifyOperations = Collections.singletonList(
 			new CatalogSinkModifyOperation(
 				objectIdentifier,
@@ -452,9 +454,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private ObjectIdentifier getTemporaryObjectIdentifier(String name) {
 		return catalogManager.qualifyIdentifier(
-			catalogManager.getBuiltInCatalogName(),
-			catalogManager.getBuiltInDatabaseName(),
-			name);
+			UnresolvedIdentifier.of(
+				catalogManager.getBuiltInCatalogName(),
+				catalogManager.getBuiltInDatabaseName(),
+				name));
 	}
 
 	private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
@@ -517,7 +520,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private Optional<CatalogBaseTable> getCatalogTable(String... name) {
-		return catalogManager.getTable(catalogManager.qualifyIdentifier(name));
+		return catalogManager.getTable(catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name)));
 	}
 
 	protected TableImpl createTable(QueryOperation tableOperation) {
