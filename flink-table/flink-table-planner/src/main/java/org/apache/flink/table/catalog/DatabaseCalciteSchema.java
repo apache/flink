@@ -19,9 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -40,12 +37,12 @@ import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-
-import static java.lang.String.format;
 
 /**
  * A mapping between Flink catalog's database and Calcite's schema.
@@ -53,50 +50,49 @@ import static java.lang.String.format;
  */
 class DatabaseCalciteSchema implements Schema {
 	private final boolean isStreamingMode;
-	private final String databaseName;
 	private final String catalogName;
-	private final Catalog catalog;
+	private final String databaseName;
+	private final CatalogManager catalogManager;
 
 	public DatabaseCalciteSchema(
 			boolean isStreamingMode,
 			String databaseName,
 			String catalogName,
-			Catalog catalog) {
+			CatalogManager catalogManager) {
 		this.isStreamingMode = isStreamingMode;
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
-		this.catalog = catalog;
+		this.catalogManager = catalogManager;
 	}
 
 	@Override
 	public Table getTable(String tableName) {
+		ObjectIdentifier identifier = ObjectIdentifier.of(catalogName, databaseName, tableName);
+		return catalogManager.getTable(identifier)
+			.map(result -> {
+				CatalogBaseTable table = result.getTable();
+				final TableFactory tableFactory;
+				if (result.isTemporary()) {
+					tableFactory = null;
+				} else {
+					tableFactory = catalogManager.getCatalog(catalogName)
+						.flatMap(Catalog::getTableFactory)
+						.orElse(null);
+				}
+				return convertTable(identifier.toObjectPath(), table, tableFactory);
+			})
+			.orElse(null);
+	}
 
-		ObjectPath tablePath = new ObjectPath(databaseName, tableName);
-
-		try {
-			if (!catalog.tableExists(tablePath)) {
-				return null;
-			}
-
-			CatalogBaseTable table = catalog.getTable(tablePath);
-
-			if (table instanceof QueryOperationCatalogView) {
-				return QueryOperationCatalogViewTable.createCalciteTable(((QueryOperationCatalogView) table));
-			} else if (table instanceof ConnectorCatalogTable) {
-				return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
-			} else if (table instanceof CatalogTable) {
-				return convertCatalogTable(tablePath, (CatalogTable) table);
-			} else {
-				throw new TableException("Unsupported table type: " + table);
-			}
-		} catch (TableNotExistException | CatalogException e) {
-			// TableNotExistException should never happen, because we are checking it exists
-			// via catalog.tableExists
-			throw new TableException(format(
-				"A failure occurred when accessing table. Table path [%s, %s, %s]",
-				catalogName,
-				databaseName,
-				tableName), e);
+	private Table convertTable(ObjectPath tablePath, CatalogBaseTable table, @Nullable TableFactory tableFactory) {
+		if (table instanceof QueryOperationCatalogView) {
+			return QueryOperationCatalogViewTable.createCalciteTable(((QueryOperationCatalogView) table));
+		} else if (table instanceof ConnectorCatalogTable) {
+			return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
+		} else if (table instanceof CatalogTable) {
+			return convertCatalogTable(tablePath, (CatalogTable) table, tableFactory);
+		} else {
+			throw new TableException("Unsupported table type: " + table);
 		}
 	}
 
@@ -122,16 +118,14 @@ class DatabaseCalciteSchema implements Schema {
 		}
 	}
 
-	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {
-		TableSource<?> tableSource;
-		Optional<TableFactory> tableFactory = catalog.getTableFactory();
-		if (tableFactory.isPresent()) {
-			TableFactory tf = tableFactory.get();
-			if (tf instanceof TableSourceFactory) {
-				tableSource = ((TableSourceFactory) tf).createTableSource(tablePath, table);
+	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table, @Nullable TableFactory tableFactory) {
+		final TableSource<?> tableSource;
+		if (tableFactory != null) {
+			if (tableFactory instanceof TableSourceFactory) {
+				tableSource = ((TableSourceFactory) tableFactory).createTableSource(tablePath, table);
 			} else {
-				throw new TableException(String.format("Cannot query a sink-only table. TableFactory provided by catalog %s must implement TableSourceFactory",
-					catalog.getClass()));
+				throw new TableException(
+					"Cannot query a sink-only table. TableFactory provided by catalog must implement TableSourceFactory");
 			}
 		} else {
 			tableSource = TableFactoryUtil.findAndCreateTableSource(table);
@@ -153,11 +147,7 @@ class DatabaseCalciteSchema implements Schema {
 
 	@Override
 	public Set<String> getTableNames() {
-		try {
-			return new HashSet<>(catalog.listTables(databaseName));
-		} catch (DatabaseNotExistException e) {
-			throw new CatalogException(e);
-		}
+		return catalogManager.listTables(catalogName, databaseName);
 	}
 
 	@Override

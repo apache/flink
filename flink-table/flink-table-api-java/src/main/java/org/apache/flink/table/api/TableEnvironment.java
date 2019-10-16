@@ -272,11 +272,34 @@ public interface TableEnvironment {
 	String[] listDatabases();
 
 	/**
-	 * Gets the names of all tables registered in the current database of the current catalog.
+	 * Gets the names of all tables available in the current namespace (the current database of the current catalog).
+	 * It returns both temporary and permanent tables and views.
 	 *
 	 * @return A list of the names of all registered tables in the current database of the current catalog.
+	 * @see #listTemporaryTables()
+	 * @see #listTemporaryViews()
 	 */
 	String[] listTables();
+
+	/**
+	 * Gets the names of all temporary tables and views available in the current namespace (the current
+	 * database of the current catalog).
+	 *
+	 * @return A list of the names of all registered temporary tables and views in the current database
+	 * of the current catalog.
+	 * @see #listTables()
+	 */
+	String[] listTemporaryTables();
+
+	/**
+	 * Gets the names of all temporary views available in the current namespace (the current
+	 * database of the current catalog).
+	 *
+	 * @return A list of the names of all registered temporary views in the current database
+	 * of the current catalog.
+	 * @see #listTables()
+	 */
+	String[] listTemporaryViews();
 
 	/**
 	 * Gets the names of all user defined functions registered in this environment.
