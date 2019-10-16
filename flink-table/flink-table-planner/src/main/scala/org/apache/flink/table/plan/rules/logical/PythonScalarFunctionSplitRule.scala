@@ -143,7 +143,7 @@ private class ScalarFunctionSplitter(
   extends RexDefaultVisitor[RexNode] {
 
   override def visitCall(call: RexCall): RexNode = {
-    visit(if (isPythonCall(call)) convertPythonFunction else !convertPythonFunction , call)
+    visit(if (isPythonCall(call)) convertPythonFunction else !convertPythonFunction, call)
   }
 
   override def visitNode(rexNode: RexNode): RexNode = rexNode
