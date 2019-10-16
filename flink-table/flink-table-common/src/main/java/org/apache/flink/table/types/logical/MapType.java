@@ -91,6 +91,9 @@ public final class MapType extends LogicalType {
 
 	@Override
 	public boolean supportsInputConversion(Class<?> clazz) {
+		if (Map.class.isAssignableFrom(clazz)) {
+			return true;
+		}
 		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
 	}
 

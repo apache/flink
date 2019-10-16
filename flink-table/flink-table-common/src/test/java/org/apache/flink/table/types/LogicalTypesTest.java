@@ -68,7 +68,9 @@ import org.junit.Test;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -426,7 +428,7 @@ public class LogicalTypesTest {
 			new MultisetType(new TimestampType()),
 			"MULTISET<TIMESTAMP(6)>",
 			"MULTISET<TIMESTAMP(6)>",
-			new Class[]{Map.class},
+			new Class[]{Map.class, HashMap.class, TreeMap.class},
 			new Class[]{Map.class},
 			new LogicalType[]{new TimestampType()},
 			new MultisetType(new SmallIntType())
@@ -436,7 +438,7 @@ public class LogicalTypesTest {
 			new MultisetType(new MultisetType(new TimestampType())),
 			"MULTISET<MULTISET<TIMESTAMP(6)>>",
 			"MULTISET<MULTISET<TIMESTAMP(6)>>",
-			new Class[]{Map.class},
+			new Class[]{Map.class, HashMap.class, TreeMap.class},
 			new Class[]{Map.class},
 			new LogicalType[]{new MultisetType(new TimestampType())},
 			new MultisetType(new MultisetType(new SmallIntType()))
@@ -449,7 +451,7 @@ public class LogicalTypesTest {
 			new MapType(new VarCharType(20), new TimestampType()),
 			"MAP<VARCHAR(20), TIMESTAMP(6)>",
 			"MAP<VARCHAR(20), TIMESTAMP(6)>",
-			new Class[]{Map.class},
+			new Class[]{Map.class, HashMap.class, TreeMap.class},
 			new Class[]{Map.class},
 			new LogicalType[]{new VarCharType(20), new TimestampType()},
 			new MapType(new VarCharType(99), new TimestampType())

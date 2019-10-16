@@ -30,6 +30,8 @@ import org.junit.rules.ExpectedException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -85,6 +87,23 @@ public class ExpressionTest {
 			new ValueLiteralExpression(
 					new String[][]{null, null, {"1", "2", "3", "Dog's"}},
 					DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING())))
+				.toString());
+
+		final Map<String, Integer> map = new HashMap<>();
+		map.put("key1", 1);
+		map.put("key2", 2);
+		map.put("key3", 3);
+		assertEquals(
+			"{key1=1, key2=2, key3=3}",
+			new ValueLiteralExpression(
+					map,
+					DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()))
+				.toString());
+		assertEquals(
+			"{key1=1, key2=2, key3=3}",
+			new ValueLiteralExpression(
+					map,
+					DataTypes.MULTISET(DataTypes.STRING()))
 				.toString());
 	}
 
