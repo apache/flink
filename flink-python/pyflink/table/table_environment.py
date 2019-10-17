@@ -47,9 +47,12 @@ class TableEnvironment(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, j_tenv, is_blink_planner=False, serializer=PickleSerializer()):
+    def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
-        self._is_blink_planner = is_blink_planner
+        j_planner_class = j_tenv.getPlanner().getClass()
+        j_blink_planner_class = get_java_class(
+            get_gateway().jvm.org.apache.flink.table.planner.delegation.PlannerBase)
+        self._is_blink_planner = j_blink_planner_class.isAssignableFrom(j_planner_class)
         self._serializer = serializer
 
     def from_table_source(self, table_source):
@@ -737,9 +740,9 @@ class TableEnvironment(object):
 
 class StreamTableEnvironment(TableEnvironment):
 
-    def __init__(self, j_tenv, is_blink_planner=False):
+    def __init__(self, j_tenv):
         self._j_tenv = j_tenv
-        super(StreamTableEnvironment, self).__init__(j_tenv, is_blink_planner)
+        super(StreamTableEnvironment, self).__init__(j_tenv)
 
     def _get_execution_config(self, filename, schema):
         return self._j_tenv.execEnv().getConfig()
@@ -827,7 +830,6 @@ class StreamTableEnvironment(TableEnvironment):
                              "'environment_settings' cannot be used at the same time")
 
         gateway = get_gateway()
-        is_blink_planner = False
         if table_config is not None:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment,
@@ -839,18 +841,17 @@ class StreamTableEnvironment(TableEnvironment):
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment,
                 environment_settings._j_environment_settings)
-            is_blink_planner = environment_settings.is_blink_planner()
         else:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment)
-        return StreamTableEnvironment(j_tenv, is_blink_planner)
+        return StreamTableEnvironment(j_tenv)
 
 
 class BatchTableEnvironment(TableEnvironment):
 
-    def __init__(self, j_tenv, is_blink_planner=False):
+    def __init__(self, j_tenv):
         self._j_tenv = j_tenv
-        super(BatchTableEnvironment, self).__init__(j_tenv, is_blink_planner)
+        super(BatchTableEnvironment, self).__init__(j_tenv)
 
     def _get_execution_config(self, filename, schema):
         gateway = get_gateway()
@@ -986,4 +987,4 @@ class BatchTableEnvironment(TableEnvironment):
                                  "set to batch mode.")
             j_tenv = gateway.jvm.TableEnvironment.create(
                 environment_settings._j_environment_settings)
-            return BatchTableEnvironment(j_tenv, environment_settings.is_blink_planner())
+            return BatchTableEnvironment(j_tenv)

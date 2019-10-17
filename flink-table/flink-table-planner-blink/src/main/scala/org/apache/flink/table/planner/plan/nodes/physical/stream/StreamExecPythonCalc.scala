@@ -22,16 +22,13 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
-import org.apache.calcite.rex.{RexInputRef, RexProgram}
+import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.{CalcCodeGenerator, CodeGeneratorContext}
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 
 /**
   * Stream physical RelNode for Python ScalarFunctions.
@@ -58,48 +55,18 @@ class StreamExecPythonCalc(
       planner: StreamPlanner): Transformation[BaseRow] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-
-    val (pythonInputTransform, pythonOperatorResultTyeInfo, resultProjectList) =
-      generatePythonOneInputStream(inputTransform, calcProgram, getRelDetailedDescription)
-
-    val onlyFilter = resultProjectList.zipWithIndex.forall { case (rexNode, index) =>
-      rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
-    }
-
-    if (inputsContainSingleton()) {
-      pythonInputTransform.setParallelism(1)
-      pythonInputTransform.setMaxParallelism(1)
-    }
-
-    if (onlyFilter) {
-      pythonInputTransform
-    } else {
-      val config = planner.getTableConfig
-      val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
-        classOf[AbstractProcessStreamOperator[BaseRow]])
-      val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-      val rexProgram = createProjectionRexProgram(
-        pythonOperatorResultTyeInfo.toRowType, outputType, resultProjectList, cluster)
-      val substituteStreamOperator = CalcCodeGenerator.generateCalcOperator(
-        ctx,
-        cluster,
-        pythonInputTransform,
-        outputType,
-        config,
-        rexProgram,
-        None,
-        retainHeader = true,
-        "StreamExecCalc"
-      )
-
-      val ret = new OneInputTransformation(
-        pythonInputTransform,
-        getRelDetailedDescription,
-        substituteStreamOperator,
-        BaseRowTypeInfo.of(outputType),
-        inputTransform.getParallelism)
-
-      ret
-    }
+    val config = planner.getTableConfig
+    val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
+      classOf[AbstractProcessStreamOperator[BaseRow]])
+    createOneInputTransformation(
+      inputTransform,
+      inputsContainSingleton(),
+      calcProgram,
+      getRelDetailedDescription,
+      config,
+      ctx,
+      cluster,
+      getRowType,
+      "StreamExecCalc")
   }
 }

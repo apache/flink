@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.utils;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.FunctionLanguage;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import java.util.Arrays;
@@ -154,4 +157,63 @@ public class JavaUserDefinedScalarFunctions {
 		}
 	}
 
+	/**
+	 * Test for Python Scalar Function.
+	 */
+	public static class PythonScalarFunction extends ScalarFunction {
+		private final String name;
+
+		public PythonScalarFunction(String name) {
+			this.name = name;
+		}
+
+		public int eval(int i, int j) {
+			return i + j;
+		}
+
+		@Override
+		public TypeInformation<?> getResultType(Class<?>[] signature) {
+			return BasicTypeInfo.INT_TYPE_INFO;
+		}
+
+		@Override
+		public FunctionLanguage getLanguage() {
+			return FunctionLanguage.PYTHON;
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
+	}
+
+	/**
+	 * Test for Python Scalar Function.
+	 */
+	public static class BooleanPythonScalarFunction extends ScalarFunction {
+		private final String name;
+
+		public BooleanPythonScalarFunction(String name) {
+			this.name = name;
+		}
+
+		public boolean eval(int i, int j) {
+			return i + j > 1;
+		}
+
+		@Override
+		public TypeInformation<?> getResultType(Class<?>[] signature) {
+			return BasicTypeInfo.BOOLEAN_TYPE_INFO;
+		}
+
+		@Override
+		public FunctionLanguage getLanguage() {
+			return FunctionLanguage.PYTHON;
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
+	}
 }

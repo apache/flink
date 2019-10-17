@@ -45,7 +45,6 @@ class EnvironmentSettings(object):
         def __init__(self):
             gateway = get_gateway()
             self._j_builder = gateway.jvm.EnvironmentSettings.Builder()
-            self._is_blink_planner = False
 
         def use_old_planner(self):
             """
@@ -57,7 +56,6 @@ class EnvironmentSettings(object):
             :rtype: EnvironmentSettings.Builder
             """
             self._j_builder = self._j_builder.useOldPlanner()
-            self._is_blink_planner = False
             return self
 
         def use_blink_planner(self):
@@ -69,7 +67,6 @@ class EnvironmentSettings(object):
             :rtype: EnvironmentSettings.Builder
             """
             self._j_builder = self._j_builder.useBlinkPlanner()
-            self._is_blink_planner = True
             return self
 
         def use_any_planner(self):
@@ -153,11 +150,10 @@ class EnvironmentSettings(object):
             :return: an immutable instance of EnvironmentSettings.
             :rtype: EnvironmentSettings
             """
-            return EnvironmentSettings(self._j_builder.build(), self._is_blink_planner)
+            return EnvironmentSettings(self._j_builder.build())
 
-    def __init__(self, j_environment_settings, is_blink_planner):
+    def __init__(self, j_environment_settings):
         self._j_environment_settings = j_environment_settings
-        self._is_blink_planner = is_blink_planner
 
     def get_built_in_catalog_name(self):
         """
@@ -188,15 +184,6 @@ class EnvironmentSettings(object):
         :rtype: bool
         """
         return self._j_environment_settings.isStreamingMode()
-
-    def is_blink_planner(self):
-        """
-        Tells if the :class:`~pyflink.table.TableEnvironment` works in blink planner.
-
-        :return: True if the TableEnvironment works in blink planner, false otherwise.
-        :rtype: bool
-        """
-        return self._is_blink_planner
 
     @staticmethod
     def new_instance():

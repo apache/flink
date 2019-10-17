@@ -46,8 +46,8 @@ abstract class BatchExecCalcBase(
     calcProgram: RexProgram,
     outputRowType: RelDataType)
   extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
-    with BatchPhysicalRel
-    with BatchExecNode[BaseRow] {
+  with BatchPhysicalRel
+  with BatchExecNode[BaseRow] {
 
   override def deriveRowType(): RelDataType = outputRowType
 
