@@ -225,7 +225,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 	protected void testOneToOneAtLeastOnce(boolean regularSink) throws Exception {
 		final String topic = regularSink ? "oneToOneTopicRegularSink" : "oneToOneTopicCustomOperator";
 		final int partition = 0;
-		final int numElements = 1000;
+		final int numElements = 100000;
 		final int failAfterElements = 333;
 
 		createTestTopic(topic, 1, 1);
