@@ -27,7 +27,7 @@
   <thead (nzSortChange)="sort($event)" nzSingleSort>
     <tr>
       <th nzWidth="40px" nzLeft="0px">ID</th>
-      <th nzWidth="50px" nzLeft="40px">LOG</th>
+      <th nzWidth="50px" nzLeft="40px">Logs</th>
       <th nzSortKey="metrics.read-bytes" nzShowSort nzWidth="140px">Bytes Received</th>
       <th nzSortKey="metrics.read-records" nzShowSort nzWidth="150px">Records Received</th>
       <th nzSortKey="metrics.write-bytes" nzShowSort nzWidth="120px">Bytes Sent</th>
@@ -42,13 +42,13 @@
   </thead>
   <tbody>
     <tr *ngFor="let task of listOfTask; trackBy:trackTaskBy;">
-      <td nzLeft="0" nzWidth="40px">
+      <td nzLeft="0">
         {{ task.subtask }}
       </td>
       <td nzLeft="40px">
         <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
         <ng-template #hrefTpl>
-          <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">LOG</a>
+          <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">log</a>
         </ng-template>
       </td>
       <td>
