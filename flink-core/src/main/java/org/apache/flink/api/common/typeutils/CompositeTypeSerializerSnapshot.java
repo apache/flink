@@ -58,7 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * This means that the outer snapshot's version can be maintained only taking into account changes in how the
  * outer snapshot is written. Any changes in the base format does not require upticks in the outer snapshot's version.
  *
- * <h2>Serialization Format</hr>
+ * <h2>Serialization Format</h2>
  *
  * <p>The current version of the serialization format of a {@link CompositeTypeSerializerSnapshot} is as follows:
  *
