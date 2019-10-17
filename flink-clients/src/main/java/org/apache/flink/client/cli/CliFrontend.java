@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -729,12 +730,7 @@ public class CliFrontend {
 	protected void executeProgram(PackagedProgram program, ClusterClient<?> client, int parallelism) throws ProgramMissingJobException, ProgramInvocationException {
 		logAndSysout("Starting execution of program");
 
-		final JobSubmissionResult result = client.run(program, parallelism);
-
-		if (null == result) {
-			throw new ProgramMissingJobException("No JobSubmissionResult returned, please make sure you called " +
-				"ExecutionEnvironment.execute()");
-		}
+		JobSubmissionResult result = ClientUtils.executeProgram(client, program, parallelism);
 
 		if (result.isJobExecutionResult()) {
 			logAndSysout("Program execution finished");

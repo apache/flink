@@ -18,9 +18,20 @@
 
 package org.apache.flink.client;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ContextEnvironment;
+import org.apache.flink.client.program.ContextEnvironmentFactory;
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +45,8 @@ import java.util.jar.JarFile;
  */
 public enum ClientUtils {
 	;
+
+	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
 	/**
 	 * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}. This will
@@ -79,5 +92,44 @@ public enum ClientUtils {
 			urls[i + jars.size()] = classpaths.get(i);
 		}
 		return FlinkUserCodeClassLoaders.parentFirst(urls, parent);
+	}
+
+	public static JobSubmissionResult executeProgram(
+		ClusterClient<?> client,
+		PackagedProgram program,
+		int parallelism) throws ProgramMissingJobException, ProgramInvocationException {
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());
+
+			LOG.info("Starting program (detached: {})", client.isDetached());
+
+			final List<URL> libraries = program.getAllLibraries();
+
+			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
+				client,
+				libraries,
+				program.getClasspaths(),
+				program.getUserCodeClassLoader(),
+				parallelism,
+				client.isDetached(),
+				program.getSavepointSettings());
+			ContextEnvironment.setAsContext(factory);
+
+			try {
+				program.invokeInteractiveModeForExecution();
+
+				JobExecutionResult result = client.getLastJobExecutionResult();
+				if (result == null) {
+					throw new ProgramMissingJobException("The program didn't contain a Flink job.");
+				}
+				return result;
+			} finally {
+				ContextEnvironment.unsetContext();
+			}
+		}
+		finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
 	}
 }
