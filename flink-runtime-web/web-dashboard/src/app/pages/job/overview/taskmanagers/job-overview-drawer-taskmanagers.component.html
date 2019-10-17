@@ -41,7 +41,7 @@
   </thead>
   <tbody>
     <tr *ngFor="let taskManager of listOfTaskManager; trackBy:trackTaskManagerBy;">
-      <td nzLeft="0px" nzWidth="160px">{{ taskManager.host }}</td>
+      <td nzLeft="0px">{{ taskManager.host }}</td>
       <td nzLeft="160px">
         <span *ngIf="!taskManager['taskmanager-id'] || taskManager['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
         <ng-template #hrefTpl>
