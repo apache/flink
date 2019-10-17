@@ -41,7 +41,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * TypeInformation for {@link Row}
+ * {@link TypeInformation} for {@link Row}.
+ *
+ * Note: The implementations of {@link #hashCode()} and {@link #equals(Object)} do not check field
+ * names because those don't matter during serialization and runtime. This might change in future
+ * versions. See FLINK-14438 for more information.
  */
 @PublicEvolving
 public class RowTypeInfo extends TupleTypeInfoBase<Row> {
