@@ -100,6 +100,9 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -130,6 +133,8 @@ import java.util.stream.Collectors;
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
 public class RestClusterClient<T> extends ClusterClient<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(RestClusterClient.class);
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
 
@@ -203,25 +208,25 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		try {
 			webMonitorRetrievalService.stop();
 		} catch (Exception e) {
-			log.error("An error occurred during stopping the WebMonitorRetrievalService", e);
+			LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
 		}
 
 		try {
 			clientHAServices.close();
 		} catch (Exception e) {
-			log.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+			LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
 		}
 
 		try {
 			super.close();
 		} catch (Exception e) {
-			log.error("Error while closing the Cluster Client", e);
+			LOG.error("Error while closing the Cluster Client", e);
 		}
 	}
 
 	@Override
 	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		log.info("Submitting job {} (detached: {}).", jobGraph.getJobID(), isDetached());
+		LOG.info("Submitting job {} (detached: {}).", jobGraph.getJobID(), isDetached());
 
 		final CompletableFuture<JobSubmissionResult> jobSubmissionFuture = submitJob(jobGraph);
 
@@ -229,7 +234,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			try {
 				final JobSubmissionResult jobSubmissionResult = jobSubmissionFuture.get();
 
-				log.warn("Job was executed in detached mode, the results will be available on completion.");
+				LOG.warn("Job was executed in detached mode, the results will be available on completion.");
 
 				this.lastJobExecutionResult = new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
 				return lastJobExecutionResult;
@@ -252,9 +257,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			try {
 				this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
 				return lastJobExecutionResult;
-			} catch (JobExecutionException e) {
-				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
-			} catch (IOException | ClassNotFoundException e) {
+			} catch (JobExecutionException | IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
 			}
 		}
@@ -364,7 +367,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			try {
 				Files.delete(jobGraphFile);
 			} catch (IOException e) {
-				log.warn("Could not delete temporary file {}.", jobGraphFile, e);
+				LOG.warn("Could not delete temporary file {}.", jobGraphFile, e);
 			}
 		});
 
@@ -559,7 +562,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (ExecutionException e) {
-			log.error("Error while shutting down cluster", e);
+			LOG.error("Error while shutting down cluster", e);
 		}
 	}
 
@@ -613,7 +616,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		} catch (InterruptedException | ExecutionException e) {
 			ExceptionUtils.checkInterrupted(e);
 
-			log.warn("Could not retrieve the web interface URL for the cluster.", e);
+			LOG.warn("Could not retrieve the web interface URL for the cluster.", e);
 			return "Unknown address.";
 		}
 	}

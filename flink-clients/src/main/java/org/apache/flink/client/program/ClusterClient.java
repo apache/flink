@@ -31,9 +31,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -47,8 +44,6 @@ import java.util.concurrent.CompletableFuture;
  * @param <T> type of the cluster id
  */
 public abstract class ClusterClient<T> implements AutoCloseable {
-
-	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** Configuration of the client. */
 	private final Configuration flinkConfig;
