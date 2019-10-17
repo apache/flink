@@ -35,13 +35,14 @@ import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescr
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserFunctionsTypeHelper}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{OutputConversionModifyOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
-
 import java.util
 import java.util.{Collections, List => JList, Map => JMap}
+
 
 import _root_.scala.collection.JavaConverters._
 
@@ -52,6 +53,7 @@ import _root_.scala.collection.JavaConverters._
 @Internal
 class StreamTableEnvironmentImpl (
     catalogManager: CatalogManager,
+    moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     config: TableConfig,
     scalaExecutionEnvironment: StreamExecutionEnvironment,
@@ -60,6 +62,7 @@ class StreamTableEnvironmentImpl (
     isStreaming: Boolean)
   extends TableEnvironmentImpl(
     catalogManager,
+    moduleManager,
     config,
     executor,
     functionCatalog,
@@ -278,7 +281,8 @@ object StreamTableEnvironmentImpl {
       settings.getBuiltInCatalogName,
       new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
 
-    val functionCatalog = new FunctionCatalog(catalogManager)
+    val moduleManager = new ModuleManager
+    val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
 
     val executorProperties = settings.toExecutorProperties
     val executor = lookupExecutor(executorProperties, executionEnvironment)
@@ -294,6 +298,7 @@ object StreamTableEnvironmentImpl {
 
     new StreamTableEnvironmentImpl(
       catalogManager,
+      moduleManager,
       functionCatalog,
       tableConfig,
       executionEnvironment,

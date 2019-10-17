@@ -77,6 +77,7 @@ import org.apache.flink.table.functions.FunctionService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.delegation.ExecutorBase;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -293,8 +294,8 @@ public class ExecutionContext<T> {
 		final CatalogManager catalogManager = new CatalogManager(
 			settings.getBuiltInCatalogName(),
 			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
-
-		final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager);
+		final ModuleManager moduleManager = new ModuleManager();
+		final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
 
 		final Map<String, String> plannerProperties = settings.toPlannerProperties();
 		final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
@@ -302,6 +303,7 @@ public class ExecutionContext<T> {
 
 		return new StreamTableEnvironmentImpl(
 			catalogManager,
+			moduleManager,
 			functionCatalog,
 			config,
 			env,

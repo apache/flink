@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.types.Row;
@@ -92,9 +93,11 @@ public class StreamTableEnvironmentImplTest {
 			StreamExecutionEnvironment env,
 			DataStreamSource<Integer> elements) {
 		CatalogManager catalogManager = new CatalogManager("cat", new GenericInMemoryCatalog("cat", "db"));
+		ModuleManager moduleManager = new ModuleManager();
 		return new StreamTableEnvironmentImpl(
 			catalogManager,
-			new FunctionCatalog(catalogManager),
+			moduleManager,
+			new FunctionCatalog(catalogManager, moduleManager),
 			new TableConfig(),
 			env,
 			new TestPlanner(elements.getTransformation()),

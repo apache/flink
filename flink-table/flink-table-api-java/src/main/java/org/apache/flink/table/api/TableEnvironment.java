@@ -27,6 +27,9 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
+import org.apache.flink.table.module.exceptions.ModuleNotFoundException;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
@@ -102,6 +105,23 @@ public interface TableEnvironment {
 	 * @return The requested catalog, empty if there is no registered catalog with given name.
 	 */
 	Optional<Catalog> getCatalog(String catalogName);
+
+	/**
+	 * Load a module with given name.
+	 *
+	 * @param moduleName name of the module
+	 * @param module the module instance
+	 * @throws ModuleAlreadyExistException thrown when there is already a module with the same name
+	 */
+	void loadModule(String moduleName, Module module) throws ModuleAlreadyExistException;
+
+	/**
+	 * Unload a module with given name.
+	 *
+	 * @param moduleName name of the module
+	 * @throws ModuleNotFoundException thrown when there is no module with the given name
+	 */
+	void unloadModule(String moduleName) throws ModuleNotFoundException;
 
 	/**
 	 * Registers a {@link ScalarFunction} under a unique name. Replaces already existing

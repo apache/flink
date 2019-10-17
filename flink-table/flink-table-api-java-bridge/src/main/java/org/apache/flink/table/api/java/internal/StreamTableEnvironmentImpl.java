@@ -53,6 +53,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.sources.TableSource;
@@ -80,13 +81,14 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	public StreamTableEnvironmentImpl(
 			CatalogManager catalogManager,
+			ModuleManager moduleManager,
 			FunctionCatalog functionCatalog,
 			TableConfig tableConfig,
 			StreamExecutionEnvironment executionEnvironment,
 			Planner planner,
 			Executor executor,
 			boolean isStreamingMode) {
-		super(catalogManager, tableConfig, executor, functionCatalog, planner, isStreamingMode);
+		super(catalogManager, moduleManager, tableConfig, executor, functionCatalog, planner, isStreamingMode);
 		this.executionEnvironment = executionEnvironment;
 	}
 
@@ -104,7 +106,9 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			settings.getBuiltInCatalogName(),
 			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
 
-		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager);
+		ModuleManager moduleManager = new ModuleManager();
+
+		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
 
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = lookupExecutor(executorProperties, executionEnvironment);
@@ -115,6 +119,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 		return new StreamTableEnvironmentImpl(
 			catalogManager,
+			moduleManager,
 			functionCatalog,
 			tableConfig,
 			executionEnvironment,

@@ -38,6 +38,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashSet;
@@ -57,6 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class FunctionCatalog implements FunctionLookup {
 
 	private final CatalogManager catalogManager;
+	private final ModuleManager moduleManager;
 
 	private final Map<String, FunctionDefinition> tempSystemFunctions = new LinkedHashMap<>();
 	private final Map<ObjectIdentifier, FunctionDefinition> tempCatalogFunctions = new LinkedHashMap<>();
@@ -66,8 +68,9 @@ public class FunctionCatalog implements FunctionLookup {
 	 */
 	private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
 
-	public FunctionCatalog(CatalogManager catalogManager) {
+	public FunctionCatalog(CatalogManager catalogManager, ModuleManager moduleManager) {
 		this.catalogManager = checkNotNull(catalogManager);
+		this.moduleManager = checkNotNull(moduleManager);
 	}
 
 	public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
