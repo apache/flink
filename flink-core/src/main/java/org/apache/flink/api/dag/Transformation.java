@@ -19,9 +19,9 @@
 package org.apache.flink.api.dag;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.util.Preconditions;
@@ -202,9 +202,7 @@ public abstract class Transformation<T> {
 	 * @param parallelism The new parallelism to set on this {@code Transformation}.
 	 */
 	public void setParallelism(int parallelism) {
-		Preconditions.checkArgument(
-				parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
-				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
+		OperatorValidationUtils.validateParallelism(parallelism);
 		this.parallelism = parallelism;
 	}
 
@@ -223,10 +221,7 @@ public abstract class Transformation<T> {
 	 * @param maxParallelism Maximum parallelism for this stream transformation.
 	 */
 	public void setMaxParallelism(int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0
-						&& maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
-				"Maximum parallelism must be between 1 and " + UPPER_BOUND_MAX_PARALLELISM
-						+ ". Found: " + maxParallelism);
+		OperatorValidationUtils.validateMaxParallelism(maxParallelism, UPPER_BOUND_MAX_PARALLELISM);
 		this.maxParallelism = maxParallelism;
 	}
 
