@@ -53,7 +53,7 @@ of the Elasticsearch installation:
     <tr>
         <td>flink-connector-elasticsearch6{{ site.scala_version_suffix }}</td>
         <td>1.6.0</td>
-        <td>6 and later versions</td>
+        <td>6.x</td>
     </tr>
     <tr>
         <td>flink-connector-elasticsearch7{{ site.scala_version_suffix }}</td>
@@ -128,7 +128,7 @@ input.addSink(new ElasticsearchSink<>(config, transportAddresses, new Elasticsea
     }
 }));{% endhighlight %}
 </div>
-<div data-lang="java, Elasticsearch 6.x" markdown="1">
+<div data-lang="java, Elasticsearch 6.x and above" markdown="1">
 {% highlight java %}
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -231,7 +231,7 @@ input.addSink(new ElasticsearchSink(config, transportAddresses, new Elasticsearc
 }))
 {% endhighlight %}
 </div>
-<div data-lang="scala, Elasticsearch 6.x" markdown="1">
+<div data-lang="scala, Elasticsearch 6.x and above" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -252,7 +252,7 @@ val httpHosts = new java.util.ArrayList[HttpHost]
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"))
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"))
 
-val esSinkBuilder = new ElasticsearchSink.Builer[String](
+val esSinkBuilder = new ElasticsearchSink.Builder[String](
   httpHosts,
   new ElasticsearchSinkFunction[String] {
     def createIndexRequest(element: String): IndexRequest = {
