@@ -41,8 +41,10 @@ import org.junit.runner.RunWith;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import scala.collection.JavaConverters;
 
@@ -257,6 +259,34 @@ public class TableEnvHiveConnectorTest {
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\t1.1\ta", "2\t1.1\tb"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testUDTF() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.simple (i int,a array<int>)");
+			hiveShell.execute("create table db1.nested (a array<map<int, string>>)");
+			hiveShell.execute("create function hiveudtf as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDTFExplode'");
+			hiveShell.insertInto("db1", "simple").addRow(3, Arrays.asList(1, 2, 3)).commit();
+			Map<Integer, String> map1 = new HashMap<>();
+			map1.put(1, "a");
+			map1.put(2, "b");
+			Map<Integer, String> map2 = new HashMap<>();
+			map2.put(3, "c");
+			hiveShell.insertInto("db1", "nested").addRow(Arrays.asList(map1, map2)).commit();
+
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			List<Row> results = HiveTestUtils.collectTable(tableEnv,
+					tableEnv.sqlQuery("select x from db1.simple, lateral table(hiveudtf(a)) as T(x)"));
+			assertEquals("[1, 2, 3]", results.toString());
+			results = HiveTestUtils.collectTable(tableEnv,
+					tableEnv.sqlQuery("select x from db1.nested, lateral table(hiveudtf(a)) as T(x)"));
+			assertEquals("[{1=a, 2=b}, {3=c}]", results.toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+			hiveShell.execute("drop function hiveudtf");
 		}
 	}
 

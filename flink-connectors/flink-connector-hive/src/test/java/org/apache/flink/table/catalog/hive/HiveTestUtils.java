@@ -18,12 +18,23 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.planner.sinks.CollectRowTableSink;
+import org.apache.flink.table.planner.sinks.CollectTableSink;
+import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -33,6 +44,9 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
@@ -107,5 +121,23 @@ public class HiveTestUtils {
 		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
 		tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
 		return tableEnv;
+	}
+
+	public static List<Row> collectTable(TableEnvironment tableEnv, Table table) throws Exception {
+		CollectTableSink sink = new CollectRowTableSink();
+		TableSchema tableSchema = table.getSchema();
+		sink = (CollectTableSink) sink.configure(tableSchema.getFieldNames(), tableSchema.getFieldTypes());
+		final String id = new AbstractID().toString();
+		TypeSerializer serializer = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType())
+				.createSerializer(new ExecutionConfig());
+		sink.init(serializer, id);
+		String sinkName = UUID.randomUUID().toString();
+		tableEnv.registerTableSink(sinkName, sink);
+		final String builtInCatalogName = EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
+		final String builtInDBName = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
+		tableEnv.insertInto(table, builtInCatalogName, builtInDBName, sinkName);
+		JobExecutionResult result = tableEnv.execute("collect-table");
+		ArrayList<byte[]> data = result.getAccumulatorResult(id);
+		return SerializedListAccumulator.deserializeList(data, serializer);
 	}
 }
