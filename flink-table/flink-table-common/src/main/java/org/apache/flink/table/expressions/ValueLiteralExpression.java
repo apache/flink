@@ -104,7 +104,7 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 			convertedValue = Duration.ofMillis(longVal);
 		}
 
-		else if (valueClass == Period.class && clazz == Integer.class) {
+		else if (valueClass == Period.class && clazz == Long.class) {
 			final Period period = (Period) value;
 			convertedValue = period.toTotalMonths();
 		}
