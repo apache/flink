@@ -117,11 +117,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	// --------------------------------------------------------------------------------------------
 
-	static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(ContextEnvironmentFactory factory) {
 		initializeContextEnvironment(factory);
 	}
 
-	static void unsetContext() {
+	public static void unsetContext() {
 		resetContextEnvironment();
 	}
 }

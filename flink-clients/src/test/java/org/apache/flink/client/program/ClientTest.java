@@ -102,7 +102,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestExecuteTwice.class);
-			clusterClient.run(prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -112,7 +112,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestEager.class);
-			clusterClient.run(prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -122,7 +122,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
-			clusterClient.run(prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -132,7 +132,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
-			clusterClient.run(prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -142,7 +142,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAllAccumulator.class);
-			clusterClient.run(prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -190,7 +190,7 @@ public class ClientTest extends TestLogger {
 		try {
 			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 			client.setDetached(true);
-			client.run(packagedProgramMock, 1);
+			ClientUtils.executeProgram(client, packagedProgramMock, 1);
 			fail("Creating the local execution environment should not be possible");
 		}
 		catch (InvalidProgramException e) {
