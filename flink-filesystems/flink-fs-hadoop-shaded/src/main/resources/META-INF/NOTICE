@@ -1044,25 +1044,25 @@ COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL)Version 1.1
 
 1. Definitions.
 
-1.1. “Contributor” means each individual or entity that creates or
+1.1. "Contributor" means each individual or entity that creates or
 contributes to the creation of Modifications.
-1.2. “Contributor Version” means the combination of the Original Software,
+1.2. "Contributor Version" means the combination of the Original Software,
 prior Modifications used by a Contributor (if any), and the Modifications made
 by that particular Contributor.
-1.3. “Covered Software” means (a) the Original Software, or (b)
+1.3. "Covered Software" means (a) the Original Software, or (b)
 Modifications, or (c) the combination of files containing Original Software with
 files containing Modifications, in each case including portions thereof.
-1.4. “Executable” means the Covered Software in any form other than Source
+1.4. "Executable" means the Covered Software in any form other than Source
 Code.
-1.5. “Initial Developer” means the individual or entity that first makes
+1.5. "Initial Developer" means the individual or entity that first makes
 Original Software available under this License.
-1.6. “Larger Work” means a work which combines Covered Software or portions
+1.6. "Larger Work" means a work which combines Covered Software or portions
 thereof with code not governed by the terms of this License.
-1.7. “License” means this document.
-1.8. “Licensable” means having the right to grant, to the maximum extent
+1.7. "License" means this document.
+1.8. "Licensable" means having the right to grant, to the maximum extent
 possible, whether at the time of the initial grant or subsequently acquired, any
 and all of the rights conveyed herein.
-1.9. “Modifications” means the Source Code and Executable form of any of the
+1.9. "Modifications" means the Source Code and Executable form of any of the
 following:
 A. Any file that results from an addition to, deletion from or modification of
 the contents of a file containing Original Software or previous Modifications;
@@ -1070,18 +1070,18 @@ B. Any new file that contains any part of the Original Software or previous
 Modification; or
 C. Any new file that is contributed or otherwise made available under the terms
 of this License.
-1.10. “Original Software” means the Source Code and Executable form of
+1.10. "Original Software" means the Source Code and Executable form of
 computer software code that is originally released under this License.
-1.11. “Patent Claims” means any patent claim(s), now owned or hereafter
+1.11. "Patent Claims" means any patent claim(s), now owned or hereafter
 acquired, including without limitation, method, process, and apparatus claims,
 in any patent Licensable by grantor.
-1.12. “Source Code” means (a) the common form of computer software code in
+1.12. "Source Code" means (a) the common form of computer software code in
 which modifications are made and (b) associated documentation included in or
 with such code.
-1.13. “You” (or “Your”) means an individual or a legal entity exercising
+1.13. "You" (or "Your") means an individual or a legal entity exercising
 rights under, and complying with all of the terms of, this License. For legal
-entities, “You” includes any entity which controls, is controlled by, or is
-under common control with You. For purposes of this definition, “control”
+entities, "You" includes any entity which controls, is controlled by, or is
+under common control with You. For purposes of this definition, "control"
 means (a) the power, direct or indirect, to cause the direction or management of
 such entity, whether by contract or otherwise, or (b) ownership of more than
 fifty percent (50%) of the outstanding shares or beneficial ownership of such
@@ -1227,7 +1227,7 @@ License.
 5. DISCLAIMER OF WARRANTY.
 
 COVERED SOFTWARE IS PROVIDED UNDER THIS
-LICENSE ON AN “AS IS” BASIS, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
+LICENSE ON AN "AS IS" BASIS, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
 OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES THAT THE COVERED SOFTWARE
 IS FREE OF DEFECTS, MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE OR
 NON-INFRINGING. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE COVERED
@@ -1247,7 +1247,7 @@ survive.
 6.2. If You assert a patent infringement claim (excluding declaratory
 judgment actions) against Initial Developer or a Contributor (the Initial
 Developer or Contributor against whom You assert such claim is referred to as
-“Participant”) alleging that the Participant Software (meaning the
+"Participant") alleging that the Participant Software (meaning the
 Contributor Version where the Participant is a Contributor or the Original
 Software where the Participant is the Initial Developer) directly or indirectly
 infringes any patent, then any and all rights granted directly or indirectly to
@@ -1290,9 +1290,9 @@ LIMITATION MAY NOT APPLY TO YOU.
 
 The Covered
 Software is a “commercial item,” as that term is defined in 48 C.F.R. 2.101
-(Oct. 1995), consisting of “commercial computer software” (as that term is
-defined at 48 C.F.R. § 252.227-7014(a)(1)) and “commercial computer software
-documentation” as such terms are used in 48 C.F.R. 12.212 (Sept. 1995).
+(Oct. 1995), consisting of "commercial computer software" (as that term is
+defined at 48 C.F.R. § 252.227-7014(a)(1)) and "commercial computer software
+documentation" as such terms are used in 48 C.F.R. 12.212 (Sept. 1995).
 Consistent with 48 C.F.R. 12.212 and 48 C.F.R. 227.7202-1 through 227.7202-4
 (June 1995), all U.S. Government End Users acquire Covered Software with only
 those rights set forth herein. This U.S. Government Rights clause is in lieu of,
@@ -1848,23 +1848,23 @@ jamon-runtime 2.4.1
 
 1. Definitions
 
-1.1. “Contributor”
+1.1. "Contributor"
 means each individual or legal entity that creates, contributes to the creation
 of, or owns Covered Software.
 
-1.2. “Contributor Version”
+1.2. "Contributor Version"
 means the combination of the Contributions of others (if any) used by a
 Contributor and that particular Contributor’s Contribution.
 
-1.3. “Contribution”
+1.3. "Contribution"
 means Covered Software of a particular Contributor.
 
-1.4. “Covered Software”
+1.4. "Covered Software"
 means Source Code Form to which the initial Contributor has attached the notice
 in Exhibit A, the Executable Form of such Source Code Form, and Modifications of
 such Source Code Form, in each case including portions thereof.
 
-1.5. “Incompatible With Secondary Licenses”
+1.5. "Incompatible With Secondary Licenses"
 means
 
 that the initial Contributor has attached the notice described in Exhibit B to
@@ -1873,22 +1873,22 @@ the Covered Software; or
 that the Covered Software was made available under the terms of version 1.1 or
 earlier of the License, but not also under the terms of a Secondary License.
 
-1.6. “Executable Form”
+1.6. "Executable Form"
 means any form of the work other than Source Code Form.
 
-1.7. “Larger Work”
+1.7. "Larger Work"
 means a work that combines Covered Software with other material, in a separate
 file or files, that is not Covered Software.
 
-1.8. “License”
+1.8. "License"
 means this document.
 
-1.9. “Licensable”
+1.9. "Licensable"
 means having the right to grant, to the maximum extent possible, whether at the
 time of the initial grant or subsequently, any and all of the rights conveyed by
 this License.
 
-1.10. “Modifications”
+1.10. "Modifications"
 means any of the following:
 
 any file in Source Code Form that results from an addition to, deletion from, or
@@ -1896,26 +1896,26 @@ modification of the contents of Covered Software; or
 
 any new file in Source Code Form that contains any Covered Software.
 
-1.11. “Patent Claims” of a Contributor
+1.11. "Patent Claims" of a Contributor
 means any patent claim(s), including without limitation, method, process, and
 apparatus claims, in any patent Licensable by such Contributor that would be
 infringed, but for the grant of the License, by the making, using, selling,
 offering for sale, having made, import, or transfer of either its Contributions
 or its Contributor Version.
 
-1.12. “Secondary License”
+1.12. "Secondary License"
 means either the GNU General Public License, Version 2.0, the GNU Lesser General
 Public License, Version 2.1, the GNU Affero General Public License, Version 3.0,
 or any later versions of those licenses.
 
-1.13. “Source Code Form”
+1.13. "Source Code Form"
 means the form of the work preferred for making modifications.
 
-1.14. “You” (or “Your”)
+1.14. "You" (or "Your")
 means an individual or a legal entity exercising rights under this License. For
-legal entities, “You” includes any entity that controls, is controlled by,
+legal entities, "You" includes any entity that controls, is controlled by,
 or is under common control with You. For purposes of this definition,
-“control” means (a) the power, direct or indirect, to cause the direction or
+"control" means (a) the power, direct or indirect, to cause the direction or
 management of such entity, whether by contract or otherwise, or (b) ownership of
 more than fifty percent (50%) of the outstanding shares or beneficial ownership
 of such entity.
@@ -2082,7 +2082,7 @@ termination shall survive termination.
 
 6. Disclaimer of Warranty
 
-Covered Software is provided under this License on an “as is” basis, without
+Covered Software is provided under this License on an "as is" basis, without
 warranty of any kind, either expressed, implied, or statutory, including,
 without limitation, warranties that the Covered Software is free of defects,
 merchantable, fit for a particular purpose or non-infringing. The entire risk as
@@ -2166,9 +2166,9 @@ directory) where a recipient would be likely to look for such a notice.
 
 You may add additional accurate notices of copyright ownership.
 
-Exhibit B - “Incompatible With Secondary Licenses” Notice
+Exhibit B - "Incompatible With Secondary Licenses" Notice
 
-This Source Code Form is “Incompatible With Secondary Licenses”, as defined
+This Source Code Form is "Incompatible With Secondary Licenses", as defined
 by the Mozilla Public License, v. 2.0.
 
 The binary distribution of this product bundles these dependencies under the
