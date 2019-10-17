@@ -30,6 +30,7 @@ import org.junit.rules.ExpectedException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -157,6 +158,16 @@ public class ExpressionTest {
 		assertEquals(
 			intervalUnit,
 			new ValueLiteralExpression(intervalUnit).getValueAs(TimeIntervalUnit.class)
+				.orElseThrow(AssertionError::new));
+	}
+
+	@Test
+	public void testPeriodValueLiteralExtraction() {
+		final Period period = Period.ofMonths(10);
+		Integer expectedValue = 10;
+		assertEquals(
+			expectedValue,
+			new ValueLiteralExpression(period).getValueAs(Integer.class)
 				.orElseThrow(AssertionError::new));
 	}
 
