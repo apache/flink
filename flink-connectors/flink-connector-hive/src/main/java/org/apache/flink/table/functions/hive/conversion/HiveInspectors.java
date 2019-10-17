@@ -96,7 +96,9 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -312,9 +314,11 @@ public class HiveInspectors {
 			ListObjectInspector listInspector = (ListObjectInspector) inspector;
 			List<?> list = listInspector.getList(data);
 
-			Object[] result = new Object[list.size()];
+			// flink expects a specific array type (e.g. Integer[] instead of Object[]), so we have to get the element class
+			ObjectInspector elementInspector = listInspector.getListElementObjectInspector();
+			Object[] result = (Object[]) Array.newInstance(getClassFromObjectInspector(elementInspector), list.size());
 			for (int i = 0; i < list.size(); i++) {
-				result[i] = toFlinkObject(listInspector.getListElementObjectInspector(), list.get(i));
+				result[i] = toFlinkObject(elementInspector, list.get(i));
 			}
 			return result;
 		}
@@ -449,5 +453,57 @@ public class HiveInspectors {
 
 	public static DataType toFlinkType(ObjectInspector inspector) {
 		return HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(inspector.getTypeName()));
+	}
+
+	// given a Hive ObjectInspector, get the class for corresponding Flink object
+	private static Class<?> getClassFromObjectInspector(ObjectInspector inspector) {
+		switch (inspector.getCategory()) {
+			case PRIMITIVE: {
+				PrimitiveObjectInspector primitiveOI = (PrimitiveObjectInspector) inspector;
+				switch (primitiveOI.getPrimitiveCategory()) {
+					case STRING:
+					case CHAR:
+					case VARCHAR:
+						return String.class;
+					case INT:
+						return Integer.class;
+					case LONG:
+						return Long.class;
+					case BYTE:
+						return Byte.class;
+					case SHORT:
+						return Short.class;
+					case FLOAT:
+						return Float.class;
+					case DOUBLE:
+						return Double.class;
+					case DECIMAL:
+						return BigDecimal.class;
+					case BOOLEAN:
+						return Boolean.class;
+					case BINARY:
+						return byte[].class;
+					case DATE:
+						return Date.class;
+					case TIMESTAMP:
+					case INTERVAL_DAY_TIME:
+					case INTERVAL_YEAR_MONTH:
+					default:
+						throw new IllegalArgumentException(
+								"Unsupported primitive type " + primitiveOI.getPrimitiveCategory().name());
+
+				}
+			}
+			case LIST:
+				ListObjectInspector listInspector = (ListObjectInspector) inspector;
+				Class elementClz = getClassFromObjectInspector(listInspector.getListElementObjectInspector());
+				return Array.newInstance(elementClz, 0).getClass();
+			case MAP:
+				return Map.class;
+			case STRUCT:
+				return Row.class;
+			default:
+				throw new IllegalArgumentException("Unsupported type " + inspector.getCategory().name());
+		}
 	}
 }
