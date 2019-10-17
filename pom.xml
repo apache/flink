@@ -644,7 +644,7 @@ under the License.
 		<profile>
 			<id>scheduler-ng</id>
 			<properties>
-				<scheduler.type>ng</scheduler.type>
+				<test.scheduler.type>ng</test.scheduler.type>
 				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG</test.groups>
 			</properties>
 			<activation>
