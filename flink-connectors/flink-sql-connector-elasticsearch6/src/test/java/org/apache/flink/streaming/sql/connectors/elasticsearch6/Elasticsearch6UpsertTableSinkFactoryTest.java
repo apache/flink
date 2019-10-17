@@ -65,11 +65,11 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		final TestElasticsearch6UpsertTableSink testSink = new TestElasticsearch6UpsertTableSink(
 			false,
 			schema,
-			Collections.singletonList(new Host(ElasticsearchUpsertTableSinkFactoryTestBase.HOSTNAME, ElasticsearchUpsertTableSinkFactoryTestBase.PORT, ElasticsearchUpsertTableSinkFactoryTestBase.SCHEMA)),
-			ElasticsearchUpsertTableSinkFactoryTestBase.INDEX,
-			ElasticsearchUpsertTableSinkFactoryTestBase.DOC_TYPE,
-			ElasticsearchUpsertTableSinkFactoryTestBase.KEY_DELIMITER,
-			ElasticsearchUpsertTableSinkFactoryTestBase.KEY_NULL_LITERAL,
+			Collections.singletonList(new Host(HOSTNAME, PORT, SCHEMA)),
+			INDEX,
+			DOC_TYPE,
+			KEY_DELIMITER,
+			KEY_NULL_LITERAL,
 			new JsonRowSerializationSchema(schema.toRowType()),
 			XContentType.JSON,
 			new DummyFailureHandler(),
@@ -82,12 +82,12 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		testSink.emitDataStream(dataStreamMock);
 
 		final ElasticsearchSink.Builder<Tuple2<Boolean, Row>> expectedBuilder = new ElasticsearchSink.Builder<>(
-			Collections.singletonList(new HttpHost(ElasticsearchUpsertTableSinkFactoryTestBase.HOSTNAME, ElasticsearchUpsertTableSinkFactoryTestBase.PORT, ElasticsearchUpsertTableSinkFactoryTestBase.SCHEMA)),
+			Collections.singletonList(new HttpHost(HOSTNAME, PORT, SCHEMA)),
 			new ElasticsearchUpsertSinkFunction(
-				ElasticsearchUpsertTableSinkFactoryTestBase.INDEX,
-				ElasticsearchUpsertTableSinkFactoryTestBase.DOC_TYPE,
-				ElasticsearchUpsertTableSinkFactoryTestBase.KEY_DELIMITER,
-				ElasticsearchUpsertTableSinkFactoryTestBase.KEY_NULL_LITERAL,
+				INDEX,
+				DOC_TYPE,
+				KEY_DELIMITER,
+				KEY_NULL_LITERAL,
 				new JsonRowSerializationSchema(schema.toRowType()),
 				XContentType.JSON,
 				Elasticsearch6UpsertTableSink.UPDATE_REQUEST_FACTORY,
