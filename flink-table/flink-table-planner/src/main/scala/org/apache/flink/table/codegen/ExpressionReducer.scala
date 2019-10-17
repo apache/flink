@@ -24,6 +24,7 @@ import java.util
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -128,17 +129,11 @@ class ExpressionReducer(config: TableConfig)
       generatedFunction.code)
     val function = clazz.newInstance()
 
-    val richMapFunction = function match {
-      case r: RichMapFunction[Row, Row] => r
-      case _ => throw new TableException("RichMapFunction[Row, Row] required here")
-    }
-
     val reduced = try {
-      richMapFunction.open(parameters)
-      // execute
-      richMapFunction.map(EMPTY_ROW)
+      FunctionUtils.openFunction(function, parameters)
+      function.map(EMPTY_ROW)
     } finally {
-      richMapFunction.close()
+      FunctionUtils.closeFunction(function)
     }
 
     // add the reduced results or keep them unreduced
