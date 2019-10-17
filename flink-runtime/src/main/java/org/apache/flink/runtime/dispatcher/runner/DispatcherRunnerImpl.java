@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
@@ -55,7 +56,7 @@ class DispatcherRunnerImpl implements DispatcherRunner {
 	}
 
 	@Override
-	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+	public CompletableFuture<Tuple2<ApplicationStatus, String>> getShutDownFuture() {
 		return dispatcher.getShutDownFuture();
 	}
 }

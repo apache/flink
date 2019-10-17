@@ -26,10 +26,11 @@ import org.apache.flink.client.deployment.ClusterDescriptor
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
-
 import scala.collection.mutable.ArrayBuffer
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
+
+import org.apache.flink.runtime.clusterframework.ApplicationStatus
 
 object FlinkShell {
 
@@ -224,7 +225,7 @@ object FlinkShell {
       cluster match {
         case Some(Left(miniCluster)) => miniCluster.close()
         case Some(Right(yarnCluster)) =>
-          yarnCluster.shutDownCluster()
+          yarnCluster.shutDownCluster(ApplicationStatus.SUCCEEDED, null)
           yarnCluster.close()
         case _ =>
       }

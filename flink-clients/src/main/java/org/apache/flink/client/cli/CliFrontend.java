@@ -252,19 +252,15 @@ public class CliFrontend {
 					// if not running in detached mode, add a shutdown hook to shut down cluster if client exits
 					// there's a race-condition here if cli is killed before shutdown hook is installed
 					if (!runOptions.getDetachedMode() && runOptions.isShutdownOnAttachedExit()) {
-						shutdownHook = ShutdownHookUtil.addShutdownHook(client::shutDownCluster, client.getClass().getSimpleName(), LOG);
+						shutdownHook = ShutdownHookUtil.addShutdownHook(() ->
+							client.shutDownCluster(ApplicationStatus.FAILED, "Client exited!"),
+							client.getClass().getSimpleName(), LOG);
 					} else {
 						shutdownHook = null;
-						client.getTerminationFuture().whenComplete((result, throwable) -> {
-							if (result != null) {
-								client.shutDownCluster(result.f0, result.f1);
-							} else {
-								client.shutDownCluster(ApplicationStatus.UNKNOWN, ExceptionUtils.stringifyException(throwable));
-							}
-						});
 					}
 				}
 
+				Throwable executionException = null;
 				try {
 					client.setDetached(runOptions.getDetachedMode());
 
@@ -278,11 +274,17 @@ public class CliFrontend {
 
 					executeProgram(program, client, userParallelism);
 				} catch (Exception e) {
+					executionException = e;
+					throw e;
 				} finally {
 					if (clusterId == null && !client.isDetached()) {
 						// terminate the cluster only if we have started it before and if it's not detached
 						try {
-							client.shutDownCluster();
+							if (executionException != null) {
+								client.shutDownCluster(ApplicationStatus.FAILED, ExceptionUtils.stringifyException(executionException));
+							} else {
+								client.shutDownCluster(ApplicationStatus.SUCCEEDED, null);
+							}
 						} catch (final Exception e) {
 							LOG.info("Could not properly terminate the Flink cluster.", e);
 						}

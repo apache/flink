@@ -64,9 +64,11 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.ShutdownMessageParameters;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.ShutdownRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
@@ -555,8 +557,12 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public void shutDownCluster(ApplicationStatus status, String diagnostics) {
+		ShutdownHeaders shutdownHeaders = ShutdownHeaders.getInstance();
+		ShutdownMessageParameters shutdownParameters = shutdownHeaders.getUnresolvedMessageParameters();
+		shutdownParameters.status.resolve(Collections.singletonList(status));
+		ShutdownRequestBody requestBody = new ShutdownRequestBody(diagnostics);
 		try {
-			sendRequest(ShutdownHeaders.getInstance()).get();
+			sendRequest(shutdownHeaders, shutdownParameters, requestBody).get();
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (ExecutionException e) {

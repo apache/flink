@@ -24,15 +24,12 @@ import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.ApplicationStatusParameter;
-import org.apache.flink.runtime.rest.messages.DiagnosticsParameter;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ShutdownMessageParameters;
+import org.apache.flink.runtime.rest.messages.cluster.ShutdownRequestBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
 
@@ -44,33 +41,31 @@ import java.util.concurrent.CompletableFuture;
  * REST handler which allows to shut down the cluster.
  */
 public class ShutdownHandler extends
-		AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, ShutdownMessageParameters> {
+		AbstractRestHandler<RestfulGateway, ShutdownRequestBody, EmptyResponseBody, ShutdownMessageParameters> {
 
 	public ShutdownHandler(
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
-			final MessageHeaders<EmptyRequestBody, EmptyResponseBody, ShutdownMessageParameters> messageHeaders) {
+			final MessageHeaders<ShutdownRequestBody, EmptyResponseBody, ShutdownMessageParameters> messageHeaders) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 	}
 
 	@Override
 	protected CompletableFuture<EmptyResponseBody> handleRequest(
-			@Nonnull final HandlerRequest<EmptyRequestBody, ShutdownMessageParameters> request,
+			@Nonnull final HandlerRequest<ShutdownRequestBody, ShutdownMessageParameters> request,
 			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
-		ApplicationStatus status = null;
-		String diagnosticMessage = null;
+		final ApplicationStatus status;
+		final String diagnostics;
 		List<ApplicationStatus> statuses = request.getQueryParameter(ApplicationStatusParameter.class);
-		List<String> diagnosticMessages = request.getQueryParameter(DiagnosticsParameter.class);
-
+		ShutdownRequestBody requestBody = request.getRequestBody();
 		if (!statuses.isEmpty()) {
 			status = statuses.get(0);
 		} else {
-			throw new IllegalArgumentException(ApplicationStatusParameter.APP_STATUS + " is required.");
+			throw new IllegalArgumentException(ApplicationStatusParameter.APP_STATUS + " is " +
+				"required.");
 		}
-		if (!diagnosticMessages.isEmpty()) {
-			diagnosticMessage = diagnosticMessages.get(0);
-		}
-		return gateway.shutDownCluster(status, diagnosticMessage).thenApply(ignored -> EmptyResponseBody.getInstance());
+		diagnostics = requestBody.getDiagnostics();
+		return gateway.shutDownCluster(status, diagnostics).thenApply(ignored -> EmptyResponseBody.getInstance());
 	}
 }

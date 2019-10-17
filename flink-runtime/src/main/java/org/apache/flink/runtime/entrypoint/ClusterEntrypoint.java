@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -224,24 +223,14 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				new RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService()),
 				this);
 
-			clusterComponent.getShutDownFuture().whenComplete(
-				(Tuple2<ApplicationStatus, String> applicationStatusWithDiagnostics, Throwable throwable) -> {
-					ApplicationStatus status = applicationStatusWithDiagnostics.f0;
-					String diagnostics = applicationStatusWithDiagnostics.f1;
-					if (throwable != null) {
-						shutDownAsync(
-							ApplicationStatus.UNKNOWN,
-							ExceptionUtils.stringifyException(throwable),
-							false);
-					} else {
-						// This is the general shutdown path. If a separate more specific shutdown was
-						// already triggered, this will do nothing
-						shutDownAsync(
-							status,
-							diagnostics,
-							true);
-					}
-				});
+			clusterComponent.getShutDownFuture().thenAccept(statusWithDiagnostics -> {
+				// This is the general shutdown path. If a separate more specific shutdown was
+				// already triggered, this will do nothing
+				ApplicationStatus status = statusWithDiagnostics.f0;
+				String diagnostics = statusWithDiagnostics.f1;
+				LOG.debug("Shutdown clusterEntrypoint with status {}, diagnostics {}", status, diagnostics);
+				shutDownAsync(status, diagnostics, true);
+			});
 		}
 	}
 

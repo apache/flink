@@ -684,7 +684,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			LOG.info("Could not properly close the Yarn application status monitor.", e);
 		}
 
-		clusterClient.shutDownCluster();
+		clusterClient.shutDownCluster(ApplicationStatus.SUCCEEDED, null);
 
 		try {
 			clusterClient.close();

@@ -225,7 +225,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		log.info("Stopping dispatcher {}.", getAddress());
 
 		final CompletableFuture<Void> allJobManagerRunnersTerminationFuture = terminateJobManagerRunnersAndGetTerminationFuture();
-
 		return FutureUtils.runAfterwards(
 			allJobManagerRunnersTerminationFuture,
 			() -> {
@@ -617,9 +616,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Override
 	public CompletableFuture<Acknowledge> shutDownCluster(ApplicationStatus status, String diagnostics) {
 		CompletableFuture<Void> terminationFuture = closeAsync();
-		terminationFuture.whenComplete((aVoid, throwable) -> {
-			shutDownFuture.complete(Tuple2.of(status, diagnostics));
-		});
+		terminationFuture.thenRun(() -> shutDownFuture.complete(Tuple2.of(status, diagnostics)));
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 

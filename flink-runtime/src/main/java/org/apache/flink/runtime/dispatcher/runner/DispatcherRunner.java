@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -43,5 +44,5 @@ public interface DispatcherRunner extends AutoCloseableAsync {
 	 *
 	 * @return future with the final application status
 	 */
-	CompletableFuture<ApplicationStatus> getShutDownFuture();
+	CompletableFuture<Tuple2<ApplicationStatus, String>> getShutDownFuture();
 }
