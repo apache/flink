@@ -61,8 +61,6 @@ class ScalarSqlFunction(
   def makeFunction(constants: Array[AnyRef], argTypes: Array[LogicalType]): ScalarFunction =
     scalarFunction
 
-  def getScalarFunction: ScalarFunction = scalarFunction
-
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
 
   override def toString: String = displayName

@@ -15,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from abc import ABCMeta
-
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
@@ -24,13 +22,7 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase
 
 
-class UserDefinedFunctionTests:
-    """
-    The abstract base class for PyFlinkStreamUserDefinedFunctionTests,
-    PyFlinkBatchUserDefinedFunctionTests, PyFlinkBlinkStreamUserDefinedFunctionTests
-    and PyFlinkBlinkBatchUserDefinedFunctionTests
-    """
-    __metaclass__ = ABCMeta
+class UserDefinedFunctionTests(object):
 
     def test_scalar_function(self):
         # test lambda function

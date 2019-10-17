@@ -145,7 +145,7 @@ private class ScalarFunctionSplitter(
 
   override def visitCall(call: RexCall): RexNode = {
     call.getOperator match {
-      case sfc: ScalarSqlFunction if sfc.getScalarFunction.getLanguage ==
+      case sfc: ScalarSqlFunction if sfc.scalarFunction.getLanguage ==
         FunctionLanguage.PYTHON =>
         visit(convertPythonFunction, call)
 

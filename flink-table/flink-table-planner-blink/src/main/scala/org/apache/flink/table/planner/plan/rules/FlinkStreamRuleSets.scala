@@ -338,7 +338,7 @@ object FlinkStreamRuleSets {
     CalcSnapshotTransposeRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
-    // Rule that splits calc into multiple calcs
+    // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
     PythonScalarFunctionSplitRule.INSTANCE
   )
 

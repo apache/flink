@@ -22,16 +22,16 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexProgram}
+import org.apache.calcite.rex.{RexInputRef, RexProgram}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.codegen.{CalcCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
+import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-
-import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for Python ScalarFunctions.
@@ -54,46 +54,43 @@ class BatchExecPythonCalc(
     new BatchExecPythonCalc(cluster, traitSet, child, program, outputRowType)
   }
 
-  private lazy val pythonRexCalls = calcProgram.getProjectList
-    .map(calcProgram.expandLocalRef)
-    .filter(_.isInstanceOf[RexCall])
-    .map(_.asInstanceOf[RexCall])
-    .toArray
-
-  private lazy val forwardedFields: Array[Int] = calcProgram.getProjectList
-    .map(calcProgram.expandLocalRef)
-    .filter(_.isInstanceOf[RexInputRef])
-    .map(_.asInstanceOf[RexInputRef].getIndex)
-    .toArray
-
-  private lazy val (pythonUdfInputOffsets, pythonFunctionInfos) =
-    extractPythonScalarFunctionInfos(pythonRexCalls)
-
   override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[BaseRow] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val inputLogicalTypes =
-      inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].getLogicalTypes
-    val pythonOperatorInputTypeInfo = new BaseRowTypeInfo(inputLogicalTypes: _*)
-    val pythonOperatorResultTyeInfo = new BaseRowTypeInfo(
-      forwardedFields.map(inputLogicalTypes(_)) ++
-        pythonRexCalls.map(node => FlinkTypeFactory.toLogicalType(node.getType)): _*)
 
-    val pythonOperatorInputRowType = pythonOperatorInputTypeInfo.toRowType
-    val pythonOperatorOutputRowType = pythonOperatorResultTyeInfo.toRowType
+    val (pythonInputTransform, pythonOperatorResultTyeInfo, resultProjectList) =
+      generatePythonOneInputStream(inputTransform, calcProgram, getRelDetailedDescription)
 
-    val pythonOperator = getPythonScalarFunctionOperator(
-      pythonOperatorInputRowType, pythonOperatorOutputRowType,
-      pythonUdfInputOffsets, pythonFunctionInfos, forwardedFields)
+    val onlyFilter = resultProjectList.zipWithIndex.forall { case (rexNode, index) =>
+      rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
+    }
 
-    val pythonInputTransform = new OneInputTransformation(
-      inputTransform,
-      getRelDetailedDescription,
-      pythonOperator,
-      pythonOperatorResultTyeInfo,
-      inputTransform.getParallelism
-    )
+    if (onlyFilter) {
+      pythonInputTransform
+    } else {
+      val config = planner.getTableConfig
+      val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
+        classOf[AbstractProcessStreamOperator[BaseRow]])
+      val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
+      val rexProgram = createProjectionRexProgram(
+        pythonOperatorResultTyeInfo.toRowType, outputType, resultProjectList, cluster)
+      val operator = CalcCodeGenerator.generateCalcOperator(
+        ctx,
+        cluster,
+        pythonInputTransform,
+        outputType,
+        config,
+        rexProgram,
+        None,
+        opName = "BatchCalc"
+      )
 
-    pythonInputTransform
+      new OneInputTransformation(
+        pythonInputTransform,
+        getRelDetailedDescription,
+        operator,
+        BaseRowTypeInfo.of(outputType),
+        inputTransform.getParallelism)
+    }
   }
 }

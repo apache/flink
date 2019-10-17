@@ -157,7 +157,6 @@ class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
     def setUp(self):
         super(PyFlinkBlinkStreamTableTestCase, self).setUp()
         self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(1)
 
         self.t_env = StreamTableEnvironment.create(
             self.env, environment_settings=EnvironmentSettings.new_instance()

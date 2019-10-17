@@ -28,9 +28,9 @@ LogicalProject(EXPR$0=[+(pyFunc1($0, $1), 1)])
 		</Resource>
 		<Resource name="planAfter">
 			<![CDATA[
-FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
-+- FlinkLogicalCalc(select=[pyFunc1(a, b) AS f0])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[+(f0, 1) AS EXPR$0])
++- PythonCalc(select=[pyFunc1(a, b) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
 		</Resource>
 	</TestCase>
@@ -46,9 +46,9 @@ LogicalProject(EXPR$0=[pyFunc1($0, $1)], EXPR$1=[+($2, 1)])
 		</Resource>
 		<Resource name="planAfter">
 			<![CDATA[
-FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
-+- FlinkLogicalCalc(select=[c, pyFunc1(a, b) AS f0])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
++- PythonCalc(select=[c, pyFunc1(a, b) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
 		</Resource>
 	</TestCase>
@@ -65,9 +65,9 @@ LogicalProject(EXPR$0=[pyFunc1($0, $1)], EXPR$1=[+($2, 1)])
 		</Resource>
 		<Resource name="planAfter">
 			<![CDATA[
-FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1], where=[>(f1, 0)])
-+- FlinkLogicalCalc(select=[c, pyFunc1(a, b) AS f0, pyFunc2(a, c) AS f1])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1], where=[>(f1, 0)])
++- PythonCalc(select=[c, pyFunc1(a, b) AS f0, pyFunc2(a, c) AS f1])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
 		</Resource>
 	</TestCase>
@@ -84,9 +84,9 @@ LogicalProject(EXPR$0=[pyFunc1($0, $1)])
 		</Resource>
 		<Resource name="planAfter">
 			<![CDATA[
-FlinkLogicalCalc(select=[f0 AS EXPR$0], where=[f1])
-+- FlinkLogicalCalc(select=[pyFunc1(a, b) AS f0, pyFunc2(a, c) AS f1])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[f0 AS EXPR$0], where=[f1])
++- PythonCalc(select=[pyFunc1(a, b) AS f0, pyFunc2(a, c) AS f1])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
 		</Resource>
 	</TestCase>
@@ -102,10 +102,10 @@ LogicalProject(EXPR$0=[pyFunc3(pyFunc2(+($0, pyFunc1($0, $2)), $1), $2)])
 		</Resource>
 		<Resource name="planAfter">
 			<![CDATA[
-FlinkLogicalCalc(select=[pyFunc3(pyFunc2(f0, b), c) AS EXPR$0])
-+- FlinkLogicalCalc(select=[b, c, +(a, f0) AS f0])
-   +- FlinkLogicalCalc(select=[b, c, a, pyFunc1(a, c) AS f0])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+PythonCalc(select=[pyFunc3(pyFunc2(f0, b), c) AS EXPR$0])
++- Calc(select=[b, c, +(a, f0) AS f0])
+   +- PythonCalc(select=[b, c, a, pyFunc1(a, c) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
 		</Resource>
 	</TestCase>
@@ -121,8 +121,8 @@ LogicalProject(EXPR$0=[pyFunc1($0, $1)])
 		</Resource>
 		<Resource name="planAfter">
 			<![CDATA[
-FlinkLogicalCalc(select=[pyFunc1(a, b) AS EXPR$0])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+PythonCalc(select=[pyFunc1(a, b) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
 		</Resource>
 	</TestCase>
@@ -139,9 +139,9 @@ LogicalProject(a=[$0], b=[$1])
 		</Resource>
 		<Resource name="planAfter">
 			<![CDATA[
-FlinkLogicalCalc(select=[a, b], where=[f0])
-+- FlinkLogicalCalc(select=[a, b, pyFunc1(a, c) AS f0])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[a, b], where=[f0])
++- PythonCalc(select=[a, b, pyFunc1(a, c) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
 		</Resource>
 	</TestCase>
@@ -157,9 +157,9 @@ LogicalProject(EXPR$0=[pyFunc1($1, $2)], EXPR$1=[+($0, 1)])
 		</Resource>
 		<Resource name="planAfter">
 			<![CDATA[
-FlinkLogicalCalc(select=[f00 AS EXPR$0, +(f0, 1) AS EXPR$1])
-+- FlinkLogicalCalc(select=[f0, pyFunc1(f1, f2) AS f00])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(f0, f1, f2)]]], fields=[f0, f1, f2])
+Calc(select=[f00 AS EXPR$0, +(f0, 1) AS EXPR$1])
++- PythonCalc(select=[f0, pyFunc1(f1, f2) AS f00])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(f0, f1, f2)]]], fields=[f0, f1, f2])
 ]]>
 		</Resource>
 	</TestCase>

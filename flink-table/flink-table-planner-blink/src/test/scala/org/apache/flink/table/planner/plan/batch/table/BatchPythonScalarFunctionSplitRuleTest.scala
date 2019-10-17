@@ -16,54 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.rules.logical
+package org.apache.flink.table.planner.plan.batch.table
 
-import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction}
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.optimize.program._
-import org.apache.flink.table.planner.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.junit.{Before, Test}
+import org.junit.Test
 
-/**
-  * Test for [[PythonScalarFunctionSplitRule]].
-  */
-class PythonScalarFunctionSplitRuleTest extends TableTestBase {
-
-  private val util = batchTestUtil()
-
-  @Before
-  def setup(): Unit = {
-    val programs = new FlinkChainedProgram[BatchOptimizeContext]()
-    programs.addLast(
-      "table_ref",
-      FlinkHepRuleSetProgramBuilder.newBuilder
-        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkBatchRuleSets.TABLE_REF_RULES)
-        .build())
-    programs.addLast(
-      "logical",
-      FlinkVolcanoProgramBuilder.newBuilder
-        .add(FlinkBatchRuleSets.LOGICAL_OPT_RULES)
-        .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
-        .build())
-    programs.addLast(
-      "logical_rewrite",
-      FlinkHepRuleSetProgramBuilder.newBuilder
-        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkStreamRuleSets.LOGICAL_REWRITE)
-        .build())
-    util.replaceBatchProgram(programs)
-  }
+class BatchPythonScalarFunctionSplitRuleTest extends TableTestBase {
 
   @Test
   def testPythonFunctionAsInputOfJavaFunction(): Unit = {
+    val util = batchTestUtil()
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
 
@@ -73,6 +39,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
 
   @Test
   def testPythonFunctionMixedWithJavaFunction(): Unit = {
+    val util = batchTestUtil()
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
 
@@ -82,6 +49,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
 
   @Test
   def testPythonFunctionMixedWithJavaFunctionInWhereClause(): Unit = {
+    val util = batchTestUtil()
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
     util.addFunction("pyFunc2", new PythonScalarFunction("pyFunc2"))
@@ -92,6 +60,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
 
   @Test
   def testPythonFunctionInWhereClause(): Unit = {
+    val util = batchTestUtil()
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
     util.addFunction("pyFunc2", new BooleanPythonScalarFunction("pyFunc2"))
@@ -102,6 +71,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
 
   @Test
   def testChainingPythonFunction(): Unit = {
+    val util = batchTestUtil()
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
     util.addFunction("pyFunc2", new PythonScalarFunction("pyFunc2"))
@@ -113,6 +83,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
 
   @Test
   def testOnlyOnePythonFunction(): Unit = {
+    val util = batchTestUtil()
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
 
@@ -122,6 +93,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
 
   @Test
   def testOnlyOnePythonFunctionInWhereClause(): Unit = {
+    val util = batchTestUtil()
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("pyFunc1", new BooleanPythonScalarFunction("pyFunc1"))
 
@@ -131,6 +103,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
 
   @Test
   def testFieldNameUniquify(): Unit = {
+    val util = batchTestUtil()
     util.addTableSource[(Int, Int, Int)]("MyTable", 'f0, 'f1, 'f2)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
 

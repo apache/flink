@@ -571,7 +571,7 @@ class TableEnvironment(object):
         :param function: The python user-defined function to register.
         :type function: UserDefinedFunctionWrapper
         """
-        self._j_tenv.registerFunction(name, function._judf(self))
+        self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner))
 
     def execute(self, job_name):
         """
@@ -733,10 +733,6 @@ class TableEnvironment(object):
     @abstractmethod
     def _get_execution_config(self, filename, schema):
         pass
-
-    @property
-    def is_blink_planner(self):
-        return self._is_blink_planner
 
 
 class StreamTableEnvironment(TableEnvironment):
