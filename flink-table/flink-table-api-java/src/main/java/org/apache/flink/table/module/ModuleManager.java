@@ -39,6 +39,8 @@ public class ModuleManager {
 
 	public ModuleManager() {
 		this.modules = new LinkedHashMap<>();
+
+		// TODO: Add Core module to modules
 	}
 
 	public void loadModule(String name, Module module) throws ModuleAlreadyExistException {
