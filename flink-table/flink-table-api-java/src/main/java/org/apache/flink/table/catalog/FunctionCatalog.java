@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -241,7 +242,11 @@ public class FunctionCatalog implements FunctionLookup {
 			CatalogFunction catalogFunction = catalog.getFunction(
 				new ObjectPath(catalogManager.getCurrentDatabase(), functionName));
 
-			userCandidate = catalog.getFunctionDefinitionFactory().createFunctionDefinition(functionName, catalogFunction);
+			if (catalog.getFunctionDefinitionFactory().isPresent()) {
+				userCandidate = catalog.getFunctionDefinitionFactory().get().createFunctionDefinition(functionName, catalogFunction);
+			} else {
+				userCandidate = FunctionDefinitionUtil.createFunctionDefinition(functionName, catalogFunction);
+			}
 
 			return Optional.of(
 				new FunctionLookup.Result(

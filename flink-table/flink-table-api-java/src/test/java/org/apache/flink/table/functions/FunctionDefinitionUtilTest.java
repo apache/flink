@@ -16,19 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.table.functions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.AggregateFunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.ScalarFunctionDefinition;
-import org.apache.flink.table.functions.TableAggregateFunction;
-import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.TableFunctionDefinition;
 
 import org.junit.Test;
 
@@ -37,12 +28,12 @@ import java.util.Collections;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test for {@link DefaultFunctionDefinitionFactory}.
+ * Test for {@link FunctionDefinitionUtil}.
  */
-public class DefaultFunctionDefinitionFactoryTest {
+public class FunctionDefinitionUtilTest {
 	@Test
 	public void testScalarFunction() {
-		FunctionDefinition fd = DefaultFunctionDefinitionFactory.INSTANCE.createFunctionDefinition(
+		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
 				new CatalogFunctionImpl(TestScalarFunction.class.getName(), Collections.emptyMap())
 		);
@@ -52,7 +43,7 @@ public class DefaultFunctionDefinitionFactoryTest {
 
 	@Test
 	public void testTableFunction() {
-		FunctionDefinition fd = DefaultFunctionDefinitionFactory.INSTANCE.createFunctionDefinition(
+		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
 			new CatalogFunctionImpl(TestTableFunction.class.getName(), Collections.emptyMap())
 		);
@@ -62,7 +53,7 @@ public class DefaultFunctionDefinitionFactoryTest {
 
 	@Test
 	public void testAggregateFunction() {
-		FunctionDefinition fd = DefaultFunctionDefinitionFactory.INSTANCE.createFunctionDefinition(
+		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
 			new CatalogFunctionImpl(TestAggFunction.class.getName(), Collections.emptyMap())
 		);
@@ -72,7 +63,7 @@ public class DefaultFunctionDefinitionFactoryTest {
 
 	@Test
 	public void testTableAggregateFunction() {
-		FunctionDefinition fd = DefaultFunctionDefinitionFactory.INSTANCE.createFunctionDefinition(
+		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
 			new CatalogFunctionImpl(TestTableAggFunction.class.getName(), Collections.emptyMap())
 		);

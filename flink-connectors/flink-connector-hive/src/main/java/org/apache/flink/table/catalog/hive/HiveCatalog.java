@@ -205,8 +205,8 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public FunctionDefinitionFactory getFunctionDefinitionFactory() {
-		return new HiveFunctionDefinitionFactory(hiveConf);
+	public Optional<FunctionDefinitionFactory> getFunctionDefinitionFactory() {
+		return Optional.of(new HiveFunctionDefinitionFactory(hiveConf));
 	}
 
 	// ------ databases ------

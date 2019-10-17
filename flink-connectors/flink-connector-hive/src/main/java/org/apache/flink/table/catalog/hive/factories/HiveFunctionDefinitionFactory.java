@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
+import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
@@ -68,12 +69,11 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 
 	@Override
 	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
-		String functionClassName = catalogFunction.getClassName();
-
 		if (Boolean.valueOf(catalogFunction.getProperties().get(CatalogConfig.IS_GENERIC))) {
-			throw new TableException(
-				String.format("HiveFunctionDefinitionFactory does not support generic functions %s yet", name));
+			FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
 		}
+
+		String functionClassName = catalogFunction.getClassName();
 
 		Class clazz;
 		try {

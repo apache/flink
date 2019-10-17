@@ -16,31 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.table.functions;
 
 import org.apache.flink.table.catalog.CatalogFunction;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.AggregateFunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.ScalarFunctionDefinition;
-import org.apache.flink.table.functions.TableAggregateFunction;
-import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.functions.UserDefinedFunction;
 
 /**
- * A default factory to instantiate {@link FunctionDefinition}.
+ * A util to instantiate {@link FunctionDefinition} in the default way.
  */
-public class DefaultFunctionDefinitionFactory implements FunctionDefinitionFactory {
+public class FunctionDefinitionUtil {
 
-	public static final FunctionDefinitionFactory INSTANCE = new DefaultFunctionDefinitionFactory();
-
-	private DefaultFunctionDefinitionFactory() {}
-
-	@Override
-	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
+	public static FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
 		// Currently only handles Java class-based functions
 		Object func;
 		try {

@@ -34,7 +34,6 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
-import org.apache.flink.table.factories.DefaultFunctionDefinitionFactory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 
@@ -59,12 +58,12 @@ public interface Catalog {
 	}
 
 	/**
-	 * Get a {@link FunctionDefinitionFactory} instance that's responsible for instantiating function definitions.
+	 * Get an optional {@link FunctionDefinitionFactory} instance that's responsible for instantiating function definitions.
 	 *
-	 * @return a FunctionDefinitionFactory instance
+	 * @return an optional FunctionDefinitionFactory instance
 	 */
-	default FunctionDefinitionFactory getFunctionDefinitionFactory() {
-		return DefaultFunctionDefinitionFactory.INSTANCE;
+	default Optional<FunctionDefinitionFactory> getFunctionDefinitionFactory() {
+		return Optional.empty();
 	}
 
 	/**
