@@ -21,13 +21,13 @@
   [nzSize]="'small'"
   [nzLoading]="isLoading"
   [nzData]="listOfTaskManager"
-  [nzScroll]="{x:'1460px',y:'calc( 100% - 35px )'}"
+  [nzScroll]="{x:'1500px',y:'calc( 100% - 35px )'}"
   [nzFrontPagination]="false"
   [nzShowPagination]="false">
   <thead (nzSortChange)="sort($event)" nzSingleSort>
     <tr>
-      <th nzWidth="120px" nzLeft="0px" nzShowSort nzSortKey="host">Host</th>
-      <th nzWidth="50px" nzLeft="120px">LOG</th>
+      <th nzWidth="160px" nzLeft="0px" nzShowSort nzSortKey="host">Host</th>
+      <th nzWidth="50px" nzLeft="160px">LOG</th>
       <th nzWidth="150px" nzShowSort nzSortKey="metrics.read-bytes">Bytes received</th>
       <th nzWidth="150px" nzShowSort nzSortKey="metrics.read-records">Records received</th>
       <th nzWidth="120px" nzShowSort nzSortKey="metrics.write-bytes">Bytes sent</th>
