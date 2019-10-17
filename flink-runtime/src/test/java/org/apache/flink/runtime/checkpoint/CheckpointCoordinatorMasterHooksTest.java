@@ -479,7 +479,10 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 	// ------------------------------------------------------------------------
 
-	private static final class StringSerializer implements SimpleVersionedSerializer<String> {
+	/**
+	 * A test implementation of {@link SimpleVersionedSerializer} for String type.
+	 */
+	public static final class StringSerializer implements SimpleVersionedSerializer<String> {
 
 		static final int VERSION = 77;
 
