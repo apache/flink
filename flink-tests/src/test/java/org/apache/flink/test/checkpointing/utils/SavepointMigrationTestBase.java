@@ -20,6 +20,7 @@ package org.apache.flink.test.checkpointing.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -50,13 +51,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import static junit.framework.Assert.fail;
 import static org.junit.Assert.assertNotEquals;
@@ -79,7 +78,6 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 	public final MiniClusterWithClientResource miniClusterResource;
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointMigrationTestBase.class);
-	private static final Deadline DEADLINE = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 	protected static final int DEFAULT_PARALLELISM = 4;
 
 	protected static String getResourceFilename(String filename) {
@@ -133,6 +131,8 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 			String savepointPath,
 			Tuple2<String, Integer>... expectedAccumulators) throws Exception {
 
+		final Deadline deadLine = Deadline.fromNow(Duration.ofMinutes(5));
+
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
 		client.setDetached(true);
 
@@ -144,7 +144,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		LOG.info("Submitted job {} and waiting...", jobSubmissionResult.getJobID());
 
 		boolean done = false;
-		while (DEADLINE.hasTimeLeft()) {
+		while (deadLine.hasTimeLeft()) {
 			Thread.sleep(100);
 			Map<String, OptionalFailure<Object>> accumulators = client.getAccumulators(jobSubmissionResult.getJobID());
 
@@ -180,7 +180,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 		CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobSubmissionResult.getJobID(), null);
 
-		String jobmanagerSavepointPath = savepointPathFuture.get(DEADLINE.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+		String jobmanagerSavepointPath = savepointPathFuture.get(deadLine.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 		File jobManagerSavepoint = new File(new URI(jobmanagerSavepointPath).getPath());
 		// savepoints were changed to be directories in Flink 1.3
@@ -197,6 +197,8 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 			String savepointPath,
 			Tuple2<String, Integer>... expectedAccumulators) throws Exception {
 
+		final Deadline deadLine = Deadline.fromNow(Duration.ofMinutes(5));
+
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
 		client.setDetached(true);
 
@@ -208,7 +210,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		JobSubmissionResult jobSubmissionResult = client.submitJob(jobGraph, SavepointMigrationTestBase.class.getClassLoader());
 
 		boolean done = false;
-		while (DEADLINE.hasTimeLeft()) {
+		while (deadLine.hasTimeLeft()) {
 
 			// try and get a job result, this will fail if the job already failed. Use this
 			// to get out of this loop
