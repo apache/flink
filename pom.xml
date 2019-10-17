@@ -1563,6 +1563,7 @@ under the License.
 								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
 									<projectName>Apache Flink</projectName>
+									<encoding>UTF-8</encoding>
 								</transformer>
 							</transformers>
 						</configuration>
