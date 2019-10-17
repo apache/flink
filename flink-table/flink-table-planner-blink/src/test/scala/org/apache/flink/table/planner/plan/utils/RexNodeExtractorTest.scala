@@ -31,7 +31,6 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.SqlPostfixOperator
@@ -42,10 +41,11 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
-
 import java.math.BigDecimal
 import java.sql.Timestamp
 import java.util.{TimeZone, List => JList}
+
+import org.apache.flink.table.module.ModuleManager
 
 import scala.collection.JavaConverters._
 
@@ -56,8 +56,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
   val defaultCatalog = "default_catalog"
   val catalogManager = new CatalogManager(
     defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
-
-  private val functionCatalog = new FunctionCatalog(catalogManager)
+  val moduleManager = new ModuleManager
+  private val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](

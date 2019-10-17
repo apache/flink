@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.module.ModuleManager;
 
 import org.junit.Test;
 
@@ -37,7 +38,8 @@ public class FunctionCatalogTest {
 	@Test
 	public void testGetBuiltInFunctions() {
 		FunctionCatalog functionCatalog = new FunctionCatalog(
-			new CatalogManager("test", new GenericInMemoryCatalog("test")));
+			new CatalogManager("test", new GenericInMemoryCatalog("test")),
+			new ModuleManager());
 
 		Set<String> actual = new HashSet<>();
 		Collections.addAll(actual, functionCatalog.getFunctions());

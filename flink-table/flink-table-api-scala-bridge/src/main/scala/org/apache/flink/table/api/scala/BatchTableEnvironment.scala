@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.sinks.TableSink
 
 /**
@@ -294,7 +295,8 @@ object BatchTableEnvironment {
         .getConstructor(
           classOf[ExecutionEnvironment],
           classOf[TableConfig],
-          classOf[CatalogManager])
+          classOf[CatalogManager],
+          classOf[ModuleManager])
       val builtInCatalog = "default_catalog"
       val catalogManager = new CatalogManager(
         "default_catalog",
@@ -302,7 +304,8 @@ object BatchTableEnvironment {
           builtInCatalog,
           "default_database")
       )
-      const.newInstance(executionEnvironment, tableConfig, catalogManager)
+      val moduleManager = new ModuleManager
+      const.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager)
         .asInstanceOf[BatchTableEnvironment]
     } catch {
       case t: Throwable => throw new TableException("Create BatchTableEnvironment failed.", t)

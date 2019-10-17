@@ -67,9 +67,10 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.{DateString, ImmutableBitSet, ImmutableIntList, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
-
 import java.math.BigDecimal
 import java.util
+
+import org.apache.flink.table.module.ModuleManager
 
 import scala.collection.JavaConversions._
 
@@ -82,13 +83,14 @@ class FlinkRelMdHandlerTestBase {
   val builtinDatabase = "default_database"
   val catalogManager = new CatalogManager(
     builtinCatalog, new GenericInMemoryCatalog(builtinCatalog, builtinDatabase))
+  val moduleManager = new ModuleManager
 
   // TODO batch RelNode and stream RelNode should have different PlannerContext
   //  and RelOptCluster due to they have different trait definitions.
   val plannerContext: PlannerContext =
     new PlannerContext(
       tableConfig,
-      new FunctionCatalog(catalogManager),
+      new FunctionCatalog(catalogManager, moduleManager),
       CalciteSchema.from(rootSchema),
       util.Arrays.asList(
         ConventionTraitDef.INSTANCE,

@@ -209,6 +209,15 @@ class TableEnvironment(object):
         j_catalog_name_array = self._j_tenv.listCatalogs()
         return [item for item in j_catalog_name_array]
 
+    def list_modules(self):
+        """
+        Gets the names of all modules registered in this environment.
+
+        :return: List of module names.
+        """
+        j_module_name_array = self._j_tenv.listModules()
+        return [item for item in j_module_name_array]
+
     def list_databases(self):
         """
         Gets the names of all databases in the current catalog.

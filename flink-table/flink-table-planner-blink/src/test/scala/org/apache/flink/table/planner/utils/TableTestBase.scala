@@ -57,15 +57,15 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
-
 import _root_.java.util
+
+import org.apache.flink.table.module.ModuleManager
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -887,6 +887,7 @@ class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
 
 class TestingTableEnvironment private(
     catalogManager: CatalogManager,
+    moduleManager: ModuleManager,
     tableConfig: TableConfig,
     executor: Executor,
     functionCatalog: FunctionCatalog,
@@ -894,6 +895,7 @@ class TestingTableEnvironment private(
     isStreamingMode: Boolean)
   extends TableEnvironmentImpl(
     catalogManager,
+    moduleManager,
     tableConfig,
     executor,
     functionCatalog,
@@ -1027,7 +1029,8 @@ object TestingTableEnvironment {
           new GenericInMemoryCatalog(
             settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
     }
-    val functionCatalog = new FunctionCatalog(catalogMgr)
+    val moduleManager = new ModuleManager
+    val functionCatalog = new FunctionCatalog(catalogMgr, moduleManager)
     val plannerProperties = settings.toPlannerProperties
     val executorProperties = settings.toExecutorProperties
     val executor = ComponentFactoryService.find(classOf[ExecutorFactory],
@@ -1036,7 +1039,13 @@ object TestingTableEnvironment {
       .create(plannerProperties, executor, tableConfig, functionCatalog, catalogMgr)
       .asInstanceOf[PlannerBase]
     new TestingTableEnvironment(
-      catalogMgr, tableConfig, executor, functionCatalog, planner, settings.isStreamingMode)
+      catalogMgr,
+      moduleManager,
+      tableConfig,
+      executor,
+      functionCatalog,
+      planner,
+      settings.isStreamingMode)
   }
 }
 

@@ -26,12 +26,12 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericI
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.operations.{ModifyOperation, Operation}
 import org.apache.flink.types.Row
-
 import org.hamcrest.CoreMatchers.equalTo
 import org.junit.Assert.assertThat
 import org.junit.Test
-
 import java.util.{Collections, List => JList}
+
+import org.apache.flink.table.module.ModuleManager
 
 /**
  * Tests for [[StreamTableEnvironmentImpl]].
@@ -83,9 +83,11 @@ class StreamTableEnvironmentImplTest {
     val catalogManager = new CatalogManager(
       "cat",
       new GenericInMemoryCatalog("cat", "db"))
+    val moduleManager = new ModuleManager
     new StreamTableEnvironmentImpl(
       catalogManager,
-      new FunctionCatalog(catalogManager),
+      moduleManager,
+      new FunctionCatalog(catalogManager, moduleManager),
       new TableConfig,
       env,
       new TestPlanner(elements.javaStream.getTransformation),
