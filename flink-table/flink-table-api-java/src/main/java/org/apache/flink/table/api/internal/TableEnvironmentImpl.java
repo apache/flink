@@ -249,6 +249,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public String[] listModules() {
+		return moduleManager.listModules().toArray(new String[0]);
+	}
+
+	@Override
 	public String[] listDatabases() {
 		return catalogManager.getCatalog(catalogManager.getCurrentCatalog())
 			.get()

@@ -258,6 +258,13 @@ public interface TableEnvironment {
 	String[] listCatalogs();
 
 	/**
+	 * Gets the names of all modules registered in this environment.
+	 *
+	 * @return A list of the names of all registered modules.
+	 */
+	String[] listModules();
+
+	/**
 	 * Gets the names of all databases registered in the current catalog.
 	 *
 	 * @return A list of the names of all registered databases in the current catalog.

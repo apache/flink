@@ -338,6 +338,10 @@ abstract class TableEnvImpl(
       .map(t => new CatalogQueryOperation(objectIdentifier, t.getSchema))
   }
 
+  override def listModules(): Array[String] = {
+    moduleManager.listModules().asScala.toArray
+  }
+
   override def listCatalogs(): Array[String] = {
     catalogManager.getCatalogs.asScala.toArray
   }

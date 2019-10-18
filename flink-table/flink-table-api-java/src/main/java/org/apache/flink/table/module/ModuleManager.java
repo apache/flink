@@ -23,7 +23,9 @@ import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
 import org.apache.flink.table.module.exceptions.ModuleNotFoundException;
 import org.apache.flink.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,6 +45,13 @@ public class ModuleManager {
 		// TODO: Add Core module to modules
 	}
 
+	/**
+	 * Load a module with given name.
+	 *
+	 * @param name name of the module
+	 * @param module the module instance
+	 * @throws ModuleAlreadyExistException thrown when there is already a module with the same name
+	 */
 	public void loadModule(String name, Module module) throws ModuleAlreadyExistException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty string");
 		checkNotNull(module, "module cannot be null");
@@ -54,14 +63,34 @@ public class ModuleManager {
 		}
 	}
 
+	/**
+	 * Unload a module with given name.
+	 *
+	 * @param name name of the module
+	 * @throws ModuleNotFoundException thrown when there is no module with the given name
+	 */
 	public void unloadModule(String name) throws ModuleNotFoundException {
-		if (modules.containsValue(name)) {
+		if (modules.containsKey(name)) {
 			modules.remove(name);
 		} else {
 			throw new ModuleNotFoundException(name);
 		}
 	}
 
+	/**
+	 * Get names of all modules registered.
+	 *
+	 * @return a list of names of registered modules
+	 */
+	public List<String> listModules() {
+		return new ArrayList<>(modules.keySet());
+	}
+
+	/**
+	 * Get names of all functions from all modules.
+	 *
+	 * @return a set of names of registered modules.
+	 */
 	public Set<String> listFunctions() {
 		return modules.values().stream()
 				.map(m -> m.listFunctions())
@@ -69,6 +98,12 @@ public class ModuleManager {
 				.collect(Collectors.toSet());
 	}
 
+	/**
+	 * Get an optional of {@link FunctionDefinition} by a given name.
+	 *
+	 * @param normalizedName
+	 * @return an optional of {@link FunctionDefinition}
+	 */
 	public Optional<FunctionDefinition> getFunctionDefinition(String normalizedName) {
 		Optional<Module> module = modules.values().stream()
 			.filter(p -> p.listFunctions().stream().anyMatch(e -> e.equals(normalizedName)))
