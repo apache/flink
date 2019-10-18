@@ -39,11 +39,6 @@ public class NoOpBufferPool implements BufferPool {
 	}
 
 	@Override
-	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
 		throw new UnsupportedOperationException();
 	}
