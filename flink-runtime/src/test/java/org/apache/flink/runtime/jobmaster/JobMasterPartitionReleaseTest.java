@@ -64,6 +64,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -127,7 +128,16 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 	}
 
 	@Test
-	public void testPartitionReleaseOrPromotionOnJobTermination() throws Exception {
+	public void testPartitionReleaseOrPromotionOnJobSuccess() throws Exception {
+		testPartitionReleaseOrPromotionOnJobTermination(TestSetup::getReleaseOrPromotePartitionsTargetResourceId, ExecutionState.FINISHED);
+	}
+
+	@Test
+	public void testPartitionReleaseOrPromotionOnJobFailure() throws Exception {
+		testPartitionReleaseOrPromotionOnJobTermination(TestSetup::getReleasePartitionsTargetResourceId, ExecutionState.FAILED);
+	}
+
+	private void testPartitionReleaseOrPromotionOnJobTermination(Function<TestSetup, CompletableFuture<ResourceID>> taskExecutorCallSelector, ExecutionState finalExecutionState) throws Exception {
 		final CompletableFuture<TaskDeploymentDescriptor> taskDeploymentDescriptorFuture = new CompletableFuture<>();
 		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
 			.setSubmitTaskConsumer((tdd, ignored) -> {
@@ -139,16 +149,16 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 		try (final TestSetup testSetup = new TestSetup(rpcService, testingFatalErrorHandler, testingTaskExecutorGateway)) {
 			final JobMasterGateway jobMasterGateway = testSetup.getJobMasterGateway();
 
-			// update the execution state of the only execution to FINISHED
+			// update the execution state of the only execution to target state
 			// this should trigger the job to finish
 			final TaskDeploymentDescriptor taskDeploymentDescriptor = taskDeploymentDescriptorFuture.get();
 			jobMasterGateway.updateTaskExecutionState(
 				new TaskExecutionState(
 					taskDeploymentDescriptor.getJobId(),
 					taskDeploymentDescriptor.getExecutionAttemptId(),
-					ExecutionState.FINISHED));
+					finalExecutionState));
 
-			assertThat(testSetup.getReleasePartitionsTargetResourceId().get(), equalTo(testSetup.getTaskExecutorResourceID()));
+			assertThat(taskExecutorCallSelector.apply(testSetup).get(), equalTo(testSetup.getTaskExecutorResourceID()));
 		}
 	}
 
@@ -180,10 +190,11 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
 		private final CompletableFuture<ResourceID> taskExecutorIdForStopTracking = new CompletableFuture<>();
 		private final CompletableFuture<ResourceID> taskExecutorIdForPartitionRelease = new CompletableFuture<>();
+		private final CompletableFuture<ResourceID> taskExecutorIdForPartitionReleaseOrPromote = new CompletableFuture<>();
 
 		private JobMaster jobMaster;
 
-		TestSetup(TestingRpcService rpcService, FatalErrorHandler fatalErrorHandler, TaskExecutorGateway taskExecutorGateway) throws Exception {
+		public TestSetup(TestingRpcService rpcService, FatalErrorHandler fatalErrorHandler, TaskExecutorGateway taskExecutorGateway) throws Exception {
 
 			temporaryFolder.create();
 
@@ -199,6 +210,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
 			partitionTracker.setStopTrackingAllPartitionsConsumer(taskExecutorIdForStopTracking::complete);
 			partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(taskExecutorIdForPartitionRelease::complete);
+			partitionTracker.setStopTrackingAndReleaseOrPromotePartitionsConsumer(taskExecutorIdForPartitionReleaseOrPromote::complete);
 
 			Configuration configuration = new Configuration();
 			configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -258,6 +270,10 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
 		public CompletableFuture<ResourceID> getReleasePartitionsTargetResourceId() {
 			return taskExecutorIdForPartitionRelease;
+		}
+
+		public CompletableFuture<ResourceID> getReleaseOrPromotePartitionsTargetResourceId() {
+			return taskExecutorIdForPartitionReleaseOrPromote;
 		}
 
 		public void close() throws Exception {
