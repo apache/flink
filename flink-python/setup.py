@@ -62,6 +62,10 @@ README_FILE_TEMP_PATH = os.path.join("pyflink", "README.txt")
 in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/api/java/"
                                  "ExecutionEnvironment.java")
 
+# Due to changes in FLINK-14008, the licenses directory and NOTICE file may not exist in
+# build-target folder. Just ignore them in this case.
+exist_licenses = None
+exist_notice = None
 try:
     if in_flink_source:
 
@@ -97,6 +101,9 @@ run sdist.
         NOTICE_FILE_PATH = os.path.join(FLINK_HOME, "NOTICE")
         README_FILE_PATH = os.path.join(FLINK_HOME, "README.txt")
 
+        exist_licenses = os.path.exists(LICENSES_PATH)
+        exist_notice = os.path.exists(NOTICE_FILE_PATH)
+
         if not os.path.isdir(LIB_PATH):
             print(incorrect_invocation_message, file=sys.stderr)
             sys.exit(-1)
@@ -106,22 +113,26 @@ run sdist.
             os.symlink(OPT_PATH, OPT_TEMP_PATH)
             os.symlink(CONF_PATH, CONF_TEMP_PATH)
             os.symlink(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
-            os.symlink(LICENSES_PATH, LICENSES_TEMP_PATH)
+            if exist_licenses:
+                os.symlink(LICENSES_PATH, LICENSES_TEMP_PATH)
             os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             os.symlink(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             os.symlink(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
-            os.symlink(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
+            if exist_notice:
+                os.symlink(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
             os.symlink(README_FILE_PATH, README_FILE_TEMP_PATH)
         else:
             copytree(LIB_PATH, LIB_TEMP_PATH)
             copytree(OPT_PATH, OPT_TEMP_PATH)
             copytree(CONF_PATH, CONF_TEMP_PATH)
             copytree(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
-            copytree(LICENSES_PATH, LICENSES_TEMP_PATH)
+            if exist_licenses:
+                copytree(LICENSES_PATH, LICENSES_TEMP_PATH)
             copytree(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             copy(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
-            copy(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
+            if exist_notice:
+                copy(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
         os.mkdir(LOG_TEMP_PATH)
         with open(os.path.join(LOG_TEMP_PATH, "empty.txt"), 'w') as f:
@@ -134,51 +145,62 @@ run sdist.
                   "is complete, or do this in the flink-python directory of the flink source "
                   "directory.")
             sys.exit(-1)
+        exist_licenses = os.path.exists(LICENSES_TEMP_PATH)
+        exist_notice = os.path.exists(NOTICE_FILE_TEMP_PATH)
 
     script_names = ["pyflink-shell.sh", "find-flink-home.sh"]
     scripts = [os.path.join(SCRIPTS_TEMP_PATH, script) for script in script_names]
     scripts.append("pyflink/find_flink_home.py")
 
+    PACKAGES = ['pyflink',
+                'pyflink.table',
+                'pyflink.util',
+                'pyflink.datastream',
+                'pyflink.dataset',
+                'pyflink.common',
+                'pyflink.fn_execution',
+                'pyflink.lib',
+                'pyflink.opt',
+                'pyflink.conf',
+                'pyflink.log',
+                'pyflink.examples',
+                'pyflink.plugins',
+                'pyflink.bin']
+
+    PACKAGE_DIR = {
+        'pyflink.lib': TEMP_PATH + '/lib',
+        'pyflink.opt': TEMP_PATH + '/opt',
+        'pyflink.conf': TEMP_PATH + '/conf',
+        'pyflink.log': TEMP_PATH + '/log',
+        'pyflink.examples': TEMP_PATH + '/examples',
+        'pyflink.plugins': TEMP_PATH + '/plugins',
+        'pyflink.bin': TEMP_PATH + '/bin'}
+
+    PACKAGE_DATA = {
+        'pyflink': ['LICENSE', 'README.txt'],
+        'pyflink.lib': ['*.jar'],
+        'pyflink.opt': ['*.*', '*/*'],
+        'pyflink.conf': ['*'],
+        'pyflink.log': ['*'],
+        'pyflink.examples': ['*.py', '*/*.py'],
+        'pyflink.plugins': ['*', '*/*'],
+        'pyflink.bin': ['*']}
+
+    if exist_licenses:
+        PACKAGES.append('pyflink.licenses')
+        PACKAGE_DIR['pyflink.licenses'] = TEMP_PATH + '/licenses'
+        PACKAGE_DATA['pyflink.licenses'] = ['*']
+
+    if exist_notice:
+        PACKAGE_DATA['pyflink'].append('NOTICE')
+
     setup(
         name='apache-flink',
         version=VERSION,
-        packages=['pyflink',
-                  'pyflink.table',
-                  'pyflink.util',
-                  'pyflink.datastream',
-                  'pyflink.dataset',
-                  'pyflink.common',
-                  'pyflink.fn_execution',
-                  'pyflink.lib',
-                  'pyflink.opt',
-                  'pyflink.conf',
-                  'pyflink.log',
-                  'pyflink.examples',
-                  'pyflink.licenses',
-                  'pyflink.plugins',
-                  'pyflink.bin'],
+        packages=PACKAGES,
         include_package_data=True,
-        package_dir={
-            'pyflink.lib': TEMP_PATH + '/lib',
-            'pyflink.opt': TEMP_PATH + '/opt',
-            'pyflink.conf': TEMP_PATH + '/conf',
-            'pyflink.log': TEMP_PATH + '/log',
-            'pyflink.examples': TEMP_PATH + '/examples',
-            'pyflink.licenses': TEMP_PATH + '/licenses',
-            'pyflink.plugins': TEMP_PATH + '/plugins',
-            'pyflink.bin': TEMP_PATH + '/bin'
-        },
-        package_data={
-            'pyflink': ['LICENSE', 'NOTICE', 'README.txt'],
-            'pyflink.lib': ['*.jar'],
-            'pyflink.opt': ['*.*', '*/*'],
-            'pyflink.conf': ['*'],
-            'pyflink.log': ['*'],
-            'pyflink.examples': ['*.py', '*/*.py'],
-            'pyflink.licenses': ['*'],
-            'pyflink.plugins': ['*', '*/*'],
-            'pyflink.bin': ['*']
-        },
+        package_dir=PACKAGE_DIR,
+        package_data=PACKAGE_DATA,
         scripts=scripts,
         url='https://flink.apache.org',
         license='https://www.apache.org/licenses/LICENSE-2.0',
@@ -205,22 +227,26 @@ finally:
             os.remove(OPT_TEMP_PATH)
             os.remove(CONF_TEMP_PATH)
             os.remove(EXAMPLES_TEMP_PATH)
-            os.remove(LICENSES_TEMP_PATH)
+            if exist_licenses:
+                os.remove(LICENSES_TEMP_PATH)
             os.remove(PLUGINS_TEMP_PATH)
             os.remove(SCRIPTS_TEMP_PATH)
             os.remove(LICENSE_FILE_TEMP_PATH)
-            os.remove(NOTICE_FILE_TEMP_PATH)
+            if exist_notice:
+                os.remove(NOTICE_FILE_TEMP_PATH)
             os.remove(README_FILE_TEMP_PATH)
         else:
             rmtree(LIB_TEMP_PATH)
             rmtree(OPT_TEMP_PATH)
             rmtree(CONF_TEMP_PATH)
             rmtree(EXAMPLES_TEMP_PATH)
-            rmtree(LICENSES_TEMP_PATH)
+            if exist_licenses:
+                rmtree(LICENSES_TEMP_PATH)
             rmtree(PLUGINS_TEMP_PATH)
             rmtree(SCRIPTS_TEMP_PATH)
             os.remove(LICENSE_FILE_TEMP_PATH)
-            os.remove(NOTICE_FILE_TEMP_PATH)
+            if exist_notice:
+                os.remove(NOTICE_FILE_TEMP_PATH)
             os.remove(README_FILE_TEMP_PATH)
         rmtree(LOG_TEMP_PATH)
         os.rmdir(TEMP_PATH)
