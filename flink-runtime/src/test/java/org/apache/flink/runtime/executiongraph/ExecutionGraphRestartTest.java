@@ -69,7 +69,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -80,9 +79,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.completeCancellingForAllVertices;
@@ -104,17 +100,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static final int NUM_TASKS = 31;
 
-	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
-
 	private static final ComponentMainThreadExecutor mainThreadExecutor =
 		ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 	private static final JobID TEST_JOB_ID = new JobID();
-
-	@After
-	public void shutdown() {
-		executor.shutdownNow();
-	}
 
 	// ------------------------------------------------------------------------
 
@@ -593,9 +582,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	@Test
 	public void testRestartWithEagerSchedulingAndSlotSharing() throws Exception {
-		// this test is inconclusive if not used with a proper multi-threaded executor
-		assertTrue("test assumptions violated", ((ThreadPoolExecutor) executor).getCorePoolSize() > 1);
-
 		final int parallelism = 20;
 
 		try (SlotPool slotPool = createSlotPoolImpl()) {
@@ -618,8 +604,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
 				.setSlotProvider(scheduler)
-				.setIoExecutor(executor)
-				.setFutureExecutor(executor)
 				.setRestartStrategy(restartStrategy)
 				.setScheduleMode(ScheduleMode.EAGER)
 				.build();
@@ -650,9 +634,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	@Test
 	public void testRestartWithSlotSharingAndNotEnoughResources() throws Exception {
-		// this test is inconclusive if not used with a proper multi-threaded executor
-		assertTrue("test assumptions violated", ((ThreadPoolExecutor) executor).getCorePoolSize() > 1);
-
 		final int numRestarts = 10;
 		final int parallelism = 20;
 
@@ -679,8 +660,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
 				.setSlotProvider(scheduler)
 				.setRestartStrategy(restartStrategy)
-				.setIoExecutor(executor)
-				.setFutureExecutor(executor)
 				.setScheduleMode(ScheduleMode.EAGER)
 				.build();
 
