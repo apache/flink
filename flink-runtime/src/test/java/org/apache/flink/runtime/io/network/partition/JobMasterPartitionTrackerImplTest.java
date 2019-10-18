@@ -18,8 +18,8 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -27,6 +27,8 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.junit.Test;
 
@@ -40,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -81,7 +84,7 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 		final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 		final JobID jobId = new JobID();
 
-		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
+		final Queue<ReleaseCall> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
 		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			jobId,
 			shuffleMaster,
@@ -105,10 +108,11 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 
 			assertEquals(1, taskExecutorReleaseCalls.size());
 
-			Tuple3<ResourceID, JobID, Collection<ResultPartitionID>> taskExecutorReleaseCall = taskExecutorReleaseCalls.remove();
-			assertEquals(taskExecutorId1, taskExecutorReleaseCall.f0);
-			assertEquals(jobId, taskExecutorReleaseCall.f1);
-			assertThat(taskExecutorReleaseCall.f2, contains(resultPartitionId1));
+			ReleaseCall taskExecutorReleaseCall = taskExecutorReleaseCalls.remove();
+			assertEquals(taskExecutorId1, taskExecutorReleaseCall.getTaskExecutorId());
+			assertEquals(jobId, taskExecutorReleaseCall.getJobId());
+			assertThat(taskExecutorReleaseCall.getReleasedPartitions(), contains(resultPartitionId1));
+			assertThat(taskExecutorReleaseCall.getPromotedPartitions(), is(empty()));
 
 			assertEquals(1, shuffleMaster.externallyReleasedPartitions.size());
 			assertEquals(resultPartitionId1, shuffleMaster.externallyReleasedPartitions.remove());
@@ -121,10 +125,11 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 
 			assertEquals(1, taskExecutorReleaseCalls.size());
 
-			Tuple3<ResourceID, JobID, Collection<ResultPartitionID>> releaseCall = taskExecutorReleaseCalls.remove();
-			assertEquals(taskExecutorId2, releaseCall.f0);
-			assertEquals(jobId, releaseCall.f1);
-			assertThat(releaseCall.f2, contains(resultPartitionId2));
+			ReleaseCall releaseCall = taskExecutorReleaseCalls.remove();
+			assertEquals(taskExecutorId2, releaseCall.getTaskExecutorId());
+			assertEquals(jobId, releaseCall.getJobId());
+			assertThat(releaseCall.getReleasedPartitions(), contains(resultPartitionId2));
+			assertThat(releaseCall.getPromotedPartitions(), is(empty()));
 
 			assertEquals(1, shuffleMaster.externallyReleasedPartitions.size());
 			assertEquals(resultPartitionId2, shuffleMaster.externallyReleasedPartitions.remove());
@@ -137,7 +142,7 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 	public void testReleaseCallsWithoutLocalResources() {
 		final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
-		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
+		final Queue<ReleaseCall> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
 		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			new JobID(),
 			shuffleMaster,
@@ -183,8 +188,8 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 	public void testStopTrackingIssuesNoReleaseCalls() {
 		final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
-		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
-		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
+		final Queue<ReleaseCall> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
+		final JobMasterPartitionTrackerImpl partitionTracker = new JobMasterPartitionTrackerImpl(
 			new JobID(),
 			shuffleMaster,
 			resourceId -> Optional.of(createTaskExecutorGateway(resourceId, taskExecutorReleaseCalls))
@@ -203,9 +208,54 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 		assertEquals(0, shuffleMaster.externallyReleasedPartitions.size());
 	}
 
-	private static TaskExecutorGateway createTaskExecutorGateway(ResourceID taskExecutorId, Collection<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> releaseCalls) {
+	@Test
+	public void testReleaseOrPromote() {
+		final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
+
+		final Queue<ReleaseCall> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
+		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
+			new JobID(),
+			shuffleMaster,
+			resourceId -> Optional.of(createTaskExecutorGateway(resourceId, taskExecutorReleaseCalls))
+		);
+
+		final ResourceID taskExecutorId1 = ResourceID.generate();
+		final ResultPartitionID jobPartitionId = new ResultPartitionID();
+		final ResultPartitionID clusterPartitionId = new ResultPartitionID();
+
+		// any partition type that is not BLOCKING_PERSISTENT denotes a job partition
+		final ResultPartitionDeploymentDescriptor jobPartition = AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(jobPartitionId, ResultPartitionType.BLOCKING, true);
+		partitionTracker.startTrackingPartition(
+			taskExecutorId1,
+			jobPartition);
+
+		// BLOCKING_PERSISTENT denotes a cluster partition
+		final ResultPartitionDeploymentDescriptor clusterPartition = AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(clusterPartitionId, ResultPartitionType.BLOCKING_PERSISTENT, true);
+		partitionTracker.startTrackingPartition(
+			taskExecutorId1,
+			clusterPartition);
+
+		partitionTracker.stopTrackingAndReleaseOrPromotePartitionsFor(taskExecutorId1);
+
+		// exactly one call should have been made to the hosting task executor
+		assertEquals(1, taskExecutorReleaseCalls.size());
+
+		// the job partition should have been released on the shuffle master
+		assertEquals(1, shuffleMaster.externallyReleasedPartitions.size());
+		assertEquals(jobPartitionId, shuffleMaster.externallyReleasedPartitions.remove());
+
+		final ReleaseCall taskExecutorReleaseOrPromoteCall = taskExecutorReleaseCalls.remove();
+
+		// the job partition should be passed as a partition to release
+		assertEquals(jobPartitionId, Iterables.getOnlyElement(taskExecutorReleaseOrPromoteCall.getReleasedPartitions()));
+
+		// the cluster partition should be passed as a partition to promote
+		assertEquals(clusterPartitionId, Iterables.getOnlyElement(taskExecutorReleaseOrPromoteCall.getPromotedPartitions()));
+	}
+
+	private static TaskExecutorGateway createTaskExecutorGateway(ResourceID taskExecutorId, Collection<ReleaseCall> releaseCalls) {
 		return new TestingTaskExecutorGatewayBuilder()
-			.setReleaseOrPromotePartitionsConsumer((jobId, partitionToRelease, partitionsToPromote) -> releaseCalls.add(Tuple3.of(taskExecutorId, jobId, partitionToRelease)))
+			.setReleaseOrPromotePartitionsConsumer((jobId, partitionToRelease, partitionsToPromote) -> releaseCalls.add(new ReleaseCall(taskExecutorId, jobId, partitionToRelease, partitionsToPromote)))
 			.createTestingTaskExecutorGateway();
 	}
 
@@ -221,6 +271,36 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 		@Override
 		public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
 			externallyReleasedPartitions.add(shuffleDescriptor.getResultPartitionID());
+		}
+	}
+
+	private static class ReleaseCall {
+		private final ResourceID taskExecutorId;
+		private final JobID jobId;
+		private final Collection<ResultPartitionID> releasedPartitions;
+		private final Collection<ResultPartitionID> promotedPartitions;
+
+		private ReleaseCall(ResourceID taskExecutorId, JobID jobId, Collection<ResultPartitionID> releasedPartitions, Collection<ResultPartitionID> promotedPartitions) {
+			this.taskExecutorId = taskExecutorId;
+			this.jobId = jobId;
+			this.releasedPartitions = releasedPartitions;
+			this.promotedPartitions = promotedPartitions;
+		}
+
+		public ResourceID getTaskExecutorId() {
+			return taskExecutorId;
+		}
+
+		public JobID getJobId() {
+			return jobId;
+		}
+
+		public Collection<ResultPartitionID> getReleasedPartitions() {
+			return releasedPartitions;
+		}
+
+		public Collection<ResultPartitionID> getPromotedPartitions() {
+			return promotedPartitions;
 		}
 	}
 

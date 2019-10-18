@@ -35,6 +35,7 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
 	private Function<ResultPartitionID, Boolean> isPartitionTrackedFunction = ignored -> false;
 	private Consumer<ResourceID> stopTrackingAllPartitionsConsumer = ignored -> {};
 	private Consumer<ResourceID> stopTrackingAndReleaseAllPartitionsConsumer = ignored -> {};
+	private Consumer<ResourceID> stopTrackingAndReleaseOrPromotePartitionsConsumer = ignored -> {};
 	private BiConsumer<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingPartitionsConsumer = (ignoredA, ignoredB) -> {};
 	private Consumer<Collection<ResultPartitionID>> stopTrackingAndReleasePartitionsConsumer = ignored -> {};
 	private Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer = ignored -> {};
@@ -57,6 +58,10 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
 
 	public void setStopTrackingAndReleaseAllPartitionsConsumer(Consumer<ResourceID> stopTrackingAndReleaseAllPartitionsConsumer) {
 		this.stopTrackingAndReleaseAllPartitionsConsumer = stopTrackingAndReleaseAllPartitionsConsumer;
+	}
+
+	public void setStopTrackingAndReleaseOrPromotePartitionsConsumer(Consumer<ResourceID> stopTrackingAndReleaseOrPromotePartitionsConsumer) {
+		this.stopTrackingAndReleaseOrPromotePartitionsConsumer = stopTrackingAndReleaseOrPromotePartitionsConsumer;
 	}
 
 	public void setStopTrackingAndReleasePartitionsConsumer(Consumer<Collection<ResultPartitionID>> stopTrackingAndReleasePartitionsConsumer) {
@@ -92,6 +97,11 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
 	@Override
 	public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {
 		stopTrackingAndReleaseAllPartitionsConsumer.accept(producingTaskExecutorId);
+	}
+
+	@Override
+	public void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId) {
+		stopTrackingAndReleaseOrPromotePartitionsConsumer.accept(producingTaskExecutorId);
 	}
 
 	@Override
