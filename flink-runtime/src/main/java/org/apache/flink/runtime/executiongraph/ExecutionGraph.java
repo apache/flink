@@ -27,6 +27,8 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -263,6 +265,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	@Nullable
 	private InternalTaskFailuresListener internalTaskFailuresListener;
+
+	/** Counts all restarts. Used by other Gauges/Meters and does not register to metric group. */
+	private final Counter numberOfRestartsCounter = new SimpleCounter();
 
 	// ------ Configuration of the Execution -------
 
@@ -732,15 +737,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
-	 * Gets the number of full restarts that the execution graph went through.
-	 * If a full restart recovery is currently pending, this recovery is included in the
-	 * count.
+	 * Gets the number of restarts, including full restarts and fine grained restarts.
+	 * If a recovery is currently pending, this recovery is included in the count.
 	 *
-	 * @return The number of full restarts so far
+	 * @return The number of restarts so far
 	 */
-	public long getNumberOfFullRestarts() {
-		// subtract one, because the version starts at one
-		return globalModVersion - 1;
+	public long getNumberOfRestarts() {
+		return numberOfRestartsCounter.getCount();
 	}
 
 	@Override
@@ -1365,7 +1368,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	private long incrementGlobalModVersion() {
+		incrementRestarts();
 		return GLOBAL_VERSION_UPDATER.incrementAndGet(this);
+	}
+
+	public void incrementRestarts() {
+		numberOfRestartsCounter.inc();
 	}
 
 	private void initFailureCause(Throwable t) {
