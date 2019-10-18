@@ -207,6 +207,9 @@ trait CommonPythonCalc {
     if (onlyFilter) {
       pythonInputTransform
     } else {
+      // After executing python OneInputTransformation, the order of the output fields
+      // is Python Call after the forwarding fields, so in the case of sequential changes,
+      // a calc is needed to adjust the order.
       val outputType = FlinkTypeFactory.toLogicalRowType(rowType)
       val rexProgram = createProjectionRexProgram(
         pythonOperatorResultTyeInfo.toRowType, rowType, resultProjectList, cluster)
@@ -222,18 +225,12 @@ trait CommonPythonCalc {
         opName
       )
 
-      val ret = new OneInputTransformation(
+      new OneInputTransformation(
         pythonInputTransform,
         name,
         substituteOperator,
         BaseRowTypeInfo.of(outputType),
         pythonInputTransform.getParallelism)
-
-      if (inputsContainSingleton) {
-        ret.setParallelism(1)
-        ret.setMaxParallelism(1)
-      }
-      ret
     }
   }
 }
