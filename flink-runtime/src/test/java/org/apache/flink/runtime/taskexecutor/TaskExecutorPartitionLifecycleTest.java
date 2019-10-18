@@ -169,7 +169,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			final CompletableFuture<Collection<ResultPartitionID>> firstReleasePartitionsCallFuture = new CompletableFuture<>();
 			runInTaskExecutorThreadAndWait(taskExecutor, () -> shuffleEnvironment.releasePartitionsLocallyFuture = firstReleasePartitionsCallFuture);
 
-			taskExecutorGateway.releasePartitions(jobId, Collections.singletonList(new ResultPartitionID()));
+			taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(new ResultPartitionID()), Collections.emptySet());
 
 			// at this point we only know that the TE has entered releasePartitions; we cannot be certain whether it
 			// has already checked whether it should disconnect or not
@@ -183,7 +183,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			runInTaskExecutorThreadAndWait(taskExecutor, () -> shuffleEnvironment.releasePartitionsLocallyFuture = secondReleasePartitionsCallFuture);
 
 			// the TM should check whether partitions are still stored, and afterwards terminate the connection
-			taskExecutorGateway.releasePartitions(jobId, Collections.singletonList(resultPartitionId));
+			taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(resultPartitionId), Collections.emptySet());
 
 			disconnectFuture.get();
 		} finally {
@@ -210,7 +210,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	@Test
 	public void testBlockingPartitionReleaseAfterReleaseCall() throws Exception {
 		testPartitionRelease(
-			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releasePartitions(jobId, Collections.singletonList(partitionId)),
+			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(partitionId), Collections.emptySet()),
 			true,
 			ResultPartitionType.BLOCKING);
 	}
@@ -218,7 +218,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	@Test
 	public void testPipelinedPartitionReleaseAfterReleaseCall() throws Exception {
 		testPartitionRelease(
-			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releasePartitions(jobId, Collections.singletonList(partitionId)),
+			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(partitionId), Collections.emptySet()),
 			true,
 			ResultPartitionType.PIPELINED);
 	}

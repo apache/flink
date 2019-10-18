@@ -77,6 +77,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -129,7 +130,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 
 		final Tuple2<JobID, Collection<ResultPartitionID>> releasePartitionsCall = releasePartitionsCallFuture.get();
 		assertEquals(jobId, releasePartitionsCall.f0);
-		assertEquals(Collections.singletonList(descriptor.getShuffleDescriptor().getResultPartitionID()), releasePartitionsCall.f1);
+		assertThat(releasePartitionsCall.f1, contains(descriptor.getShuffleDescriptor().getResultPartitionID()));
 
 		assertEquals(1, testingShuffleMaster.externallyReleasedPartitions.size());
 		assertEquals(descriptor.getShuffleDescriptor(), testingShuffleMaster.externallyReleasedPartitions.poll());

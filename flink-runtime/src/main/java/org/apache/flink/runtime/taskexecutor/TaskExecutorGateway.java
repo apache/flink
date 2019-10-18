@@ -40,7 +40,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
 
-import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -102,12 +102,12 @@ public interface TaskExecutorGateway extends RpcGateway {
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Batch release intermediate result partitions.
-	 *
+	 * Batch release/promote intermediate result partitions.
 	 * @param jobId id of the job that the partitions belong to
-	 * @param partitionIds partition ids to release
+	 * @param partitionToRelease partition ids to release
+	 * @param partitionsToPromote partitions ids to promote
 	 */
-	void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds);
+	void releaseOrPromotePartitions(JobID jobId, Set<ResultPartitionID> partitionToRelease, Set<ResultPartitionID> partitionsToPromote);
 
 	/**
 	 * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID

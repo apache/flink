@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
@@ -158,17 +159,17 @@ public class PartitionTrackerImpl implements PartitionTracker {
 		ResourceID potentialPartitionLocation,
 		Collection<ResultPartitionDeploymentDescriptor> partitionDeploymentDescriptors) {
 
-		final List<ResultPartitionID> partitionsRequiringRpcReleaseCalls = partitionDeploymentDescriptors.stream()
+		final Set<ResultPartitionID> partitionsRequiringRpcReleaseCalls = partitionDeploymentDescriptors.stream()
 			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
 			.filter(descriptor -> descriptor.storesLocalResourcesOn().isPresent())
 			.map(ShuffleDescriptor::getResultPartitionID)
-			.collect(Collectors.toList());
+			.collect(Collectors.toSet());
 
 		if (!partitionsRequiringRpcReleaseCalls.isEmpty()) {
 			taskExecutorGatewayLookup
 				.lookup(potentialPartitionLocation)
 				.ifPresent(taskExecutorGateway ->
-					taskExecutorGateway.releasePartitions(jobId, partitionsRequiringRpcReleaseCalls));
+					taskExecutorGateway.releaseOrPromotePartitions(jobId, partitionsRequiringRpcReleaseCalls, Collections.emptySet()));
 		}
 	}
 
