@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Execution Environment for remote execution with the Client.
@@ -48,10 +49,18 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private final SavepointRestoreSettings savepointSettings;
 
+	private final AtomicReference<JobExecutionResult> jobExecutionResult;
+
 	private boolean alreadyCalled;
 
-	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings, boolean detached) {
+	public ContextEnvironment(
+		ClusterClient<?> remoteConnection,
+		List<URL> jarFiles,
+		List<URL> classpaths,
+		ClassLoader userCodeClassLoader,
+		SavepointRestoreSettings savepointSettings,
+		boolean detached,
+		AtomicReference<JobExecutionResult> jobExecutionResult) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
@@ -60,6 +69,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 		this.detached = detached;
 		this.alreadyCalled = false;
+
+		this.jobExecutionResult = jobExecutionResult;
 	}
 
 	@Override
@@ -76,11 +87,13 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		ClientUtils.addJarFiles(jobGraph, this.jarFilesToAttach);
 		jobGraph.setClasspaths(this.classpathsToAttach);
 
-		this.lastJobExecutionResult = client
+		lastJobExecutionResult = client
 				.submitJob(jobGraph, this.userCodeClassLoader)
 				.getJobExecutionResult();
 
-		return this.lastJobExecutionResult;
+		setJobExecutionResult(lastJobExecutionResult);
+
+		return lastJobExecutionResult;
 	}
 
 	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
@@ -88,6 +101,10 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
 		}
 		alreadyCalled = true;
+	}
+
+	public void setJobExecutionResult(JobExecutionResult jobExecutionResult) {
+		this.jobExecutionResult.set(jobExecutionResult);
 	}
 
 	@Override

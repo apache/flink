@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
@@ -47,8 +46,6 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 
 	/** Configuration of the client. */
 	private final Configuration flinkConfig;
-
-	protected JobExecutionResult lastJobExecutionResult;
 
 	/** Switch for blocking/detached job submission of the client. */
 	private boolean detachedJobSubmission = false;
@@ -225,14 +222,5 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 
 	public void shutDownCluster() {
 		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");
-	}
-
-	/**
-	 * For interactive invocations, the job results are only available after the ContextEnvironment has
-	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
-	 * which lets us access the execution result here.
-	 */
-	public JobExecutionResult getLastJobExecutionResult() {
-		return lastJobExecutionResult;
 	}
 }
