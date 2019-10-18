@@ -44,4 +44,9 @@ public interface JobMasterPartitionTracker extends PartitionTracker<ResourceID, 
 	 * Releases all partitions for the given task executor ID, and stop the tracking of partitions that were released.
 	 */
 	void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId);
+
+	/**
+	 * Releases all job partitions and promotes all cluster partitions for the given task executor ID, and stops the tracking of partitions that were released/promoted.
+	 */
+	void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId);
 }

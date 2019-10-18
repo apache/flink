@@ -54,6 +54,10 @@ public enum NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
 	}
 
 	@Override
+	public void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId) {
+	}
+
+	@Override
 	public boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
 		return false;
 	}
