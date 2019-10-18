@@ -282,17 +282,6 @@ public class StreamTaskTestHarness<OUT> {
 	 * @throws Exception
 	 */
 	public void waitForTaskRunning() throws Exception {
-		waitForTaskRunning(Long.MAX_VALUE);
-	}
-
-	/**
-	 * Waits fro the task to be running. If this does not happen within the timeout, then a
-	 * TimeoutException is thrown.
-	 *
-	 * @param timeout Timeout for the task to be running.
-	 * @throws Exception
-	 */
-	public void waitForTaskRunning(long timeout) throws Exception {
 		Preconditions.checkState(taskThread != null, "Task thread was not started.");
 		StreamTask<?, ?> streamTask = taskThread.task;
 		while (!streamTask.isRunning()) {
