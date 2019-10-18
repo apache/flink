@@ -44,8 +44,9 @@ import java.util.concurrent.CompletableFuture;
  */
 public class FakeClusterClient extends ClusterClient<ApplicationId> {
 
-	public FakeClusterClient(Configuration flinkConfig) throws Exception {
-		super(flinkConfig);
+	@Override
+	public Configuration getFlinkConfiguration() {
+		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
 	@Override

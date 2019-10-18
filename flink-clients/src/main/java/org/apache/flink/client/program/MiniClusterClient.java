@@ -49,10 +49,16 @@ import java.util.concurrent.ExecutionException;
 public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> {
 
 	private final MiniCluster miniCluster;
+	private final Configuration configuration;
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) {
-		super(configuration);
+		this.configuration = configuration;
 		this.miniCluster = miniCluster;
+	}
+
+	@Override
+	public Configuration getFlinkConfiguration() {
+		return new Configuration(configuration);
 	}
 
 	@Override
