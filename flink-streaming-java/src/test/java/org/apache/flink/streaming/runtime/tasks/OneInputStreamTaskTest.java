@@ -521,7 +521,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		TestingStreamOperator.numberRestoreCalls = 0;
 
 		testHarness.invoke();
-		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
+		testHarness.waitForTaskRunning();
 
 		final OneInputStreamTask<String, String> streamTask = testHarness.getTask();
 
