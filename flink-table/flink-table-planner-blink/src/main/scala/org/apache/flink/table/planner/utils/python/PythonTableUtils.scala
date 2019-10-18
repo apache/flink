@@ -30,10 +30,10 @@ import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, 
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.core.io.InputSplit
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api.{TableConfig, TableSchema, Types}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.python.PythonEnv
-import org.apache.flink.table.planner.codegen.PythonFunctionCodeGenerator
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, PythonFunctionCodeGenerator}
 import org.apache.flink.table.sources.InputFormatTableSource
 import org.apache.flink.types.Row
 
@@ -53,6 +53,7 @@ object PythonTableUtils {
     * @return A generated Java ScalarFunction representation for the specified Python ScalarFunction
     */
   def createPythonScalarFunction(
+      config: TableConfig,
       funcName: String,
       serializedScalarFunction: Array[Byte],
       inputTypes: Array[TypeInformation[_]],
@@ -60,6 +61,7 @@ object PythonTableUtils {
       deterministic: Boolean,
       pythonEnv: PythonEnv): ScalarFunction =
     PythonFunctionCodeGenerator.generateScalarFunction(
+      CodeGeneratorContext(config),
       funcName,
       serializedScalarFunction,
       inputTypes,

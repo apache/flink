@@ -36,7 +36,8 @@ object PythonFunctionCodeGenerator {
   /**
     * Generates a [[ScalarFunction]] for the specified Python user-defined function.
     *
-    * @param name class name of the user-defined function. Must be a valid Java class identifier
+    * @param ctx The context of the code generator
+    * @param name name of the user-defined function
     * @param serializedScalarFunction serialized Python scalar function
     * @param inputTypes input data types
     * @param resultType expected result type
@@ -45,6 +46,7 @@ object PythonFunctionCodeGenerator {
     * @return instance of generated ScalarFunction
     */
   def generateScalarFunction(
+      ctx: CodeGeneratorContext,
       name: String,
       serializedScalarFunction: Array[Byte],
       inputTypes: Array[TypeInformation[_]],
@@ -69,16 +71,28 @@ object PythonFunctionCodeGenerator {
          |""".stripMargin
     }.mkString(", ")
 
-    val encodedResultType = EncodingUtils.encodeObjectToString(resultType)
-    val encodedScalarFunction = EncodingUtils.encodeBytesToBase64(serializedScalarFunction)
-    val encodedPythonEnv = EncodingUtils.encodeObjectToString(pythonEnv)
     val pythonEnvTypeTerm = classOf[PythonEnv].getCanonicalName
+
+    val resultTypeNameTerm = newName("resultType")
+    val serializedScalarFunctionNameTerm = newName("serializedScalarFunction")
+    val pythonEnvNameTerm = newName("pythonEnv")
+
+    ctx.addReusableObjectWithName(resultType, resultTypeNameTerm, typeInfoTypeTerm)
+    ctx.addReusableObjectWithName(serializedScalarFunction,
+      serializedScalarFunctionNameTerm, "byte[]")
+    ctx.addReusableObjectWithName(pythonEnv, pythonEnvNameTerm, pythonEnvTypeTerm)
 
     val funcCode = j"""
       |public class $funcName extends ${classOf[ScalarFunction].getCanonicalName}
       |  implements ${classOf[PythonFunction].getCanonicalName} {
       |
       |  private static final long serialVersionUID = 1L;
+      |
+      |  ${ctx.reuseMemberCode()}
+      |
+      |  public $funcName(Object[] references) throws Exception {
+      |     ${ctx.reuseInitCode()}
+      |  }
       |
       |  public $resultTypeTerm eval($inputParamCode) {
       |    return $defaultResultValue;
@@ -91,8 +105,7 @@ object PythonFunctionCodeGenerator {
       |
       |  @Override
       |  public $typeInfoTypeTerm getResultType(Class<?>[] signature) {
-      |    return ($typeInfoTypeTerm) $encodingUtilsTypeTerm.decodeStringToObject(
-      |      "$encodedResultType", $typeInfoTypeTerm.class);
+      |    return $resultTypeNameTerm;
       |  }
       |
       |  @Override
@@ -102,13 +115,12 @@ object PythonFunctionCodeGenerator {
       |
       |  @Override
       |  public byte[] getSerializedPythonFunction() {
-      |    return $encodingUtilsTypeTerm.decodeBase64ToBytes("$encodedScalarFunction");
+      |    return $serializedScalarFunctionNameTerm;
       |  }
       |
       |  @Override
       |  public $pythonEnvTypeTerm getPythonEnv() {
-      |    return ($pythonEnvTypeTerm) $encodingUtilsTypeTerm.decodeStringToObject(
-      |      "$encodedPythonEnv", $pythonEnvTypeTerm.class);
+      |    return $pythonEnvNameTerm;
       |  }
       |
       |  @Override
@@ -122,8 +134,7 @@ object PythonFunctionCodeGenerator {
       |  }
       |}
       |""".stripMargin
-    val clazz = new GeneratedFunction(funcName, funcCode, Array())
-      .compile(Thread.currentThread().getContextClassLoader)
-    clazz.newInstance()
+    new GeneratedFunction(funcName, funcCode, ctx.references.toArray)
+      .newInstance(Thread.currentThread().getContextClassLoader)
   }
 }

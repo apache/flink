@@ -149,12 +149,12 @@ class UserDefinedFunctionWrapper(object):
         self._deterministic = deterministic if deterministic is not None else (
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
 
-    def _judf(self, is_blink_planner):
+    def _judf(self, is_blink_planner, table_config):
         if self._judf_placeholder is None:
-            self._judf_placeholder = self._create_judf(is_blink_planner)
+            self._judf_placeholder = self._create_judf(is_blink_planner, table_config)
         return self._judf_placeholder
 
-    def _create_judf(self, is_blink_planner):
+    def _create_judf(self, is_blink_planner, table_config):
         func = self._func
         if not isinstance(self._func, UserDefinedFunction):
             func = DelegatingScalarFunction(self._func)
@@ -167,8 +167,19 @@ class UserDefinedFunctionWrapper(object):
                                         [_to_java_type(i) for i in self._input_types])
         j_result_type = _to_java_type(self._result_type)
         if is_blink_planner:
-            j_scalar_function = gateway.jvm.org.apache.flink.table \
-                .planner.utils.python.PythonTableUtils \
+            PythonTableUtils = gateway.jvm\
+                .org.apache.flink.table.planner.utils.python.PythonTableUtils
+            j_scalar_function = PythonTableUtils \
+                .createPythonScalarFunction(table_config,
+                                            self._name,
+                                            bytearray(serialized_func),
+                                            j_input_types,
+                                            j_result_type,
+                                            self._deterministic,
+                                            _get_python_env())
+        else:
+            PythonTableUtils = gateway.jvm.PythonTableUtils
+            j_scalar_function = PythonTableUtils \
                 .createPythonScalarFunction(self._name,
                                             bytearray(serialized_func),
                                             j_input_types,
@@ -176,14 +187,6 @@ class UserDefinedFunctionWrapper(object):
                                             self._deterministic,
                                             _get_python_env())
 
-        else:
-            j_scalar_function = gateway.jvm.PythonTableUtils \
-                .createPythonScalarFunction(self._name,
-                                            bytearray(serialized_func),
-                                            j_input_types,
-                                            j_result_type,
-                                            self._deterministic,
-                                            _get_python_env())
         return j_scalar_function
 
 

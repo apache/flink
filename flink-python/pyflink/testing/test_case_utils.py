@@ -119,7 +119,7 @@ class PyFlinkTestCase(unittest.TestCase):
 
 class PyFlinkStreamTableTestCase(PyFlinkTestCase):
     """
-    Base class for stream unit tests.
+    Base class for stream tests.
     """
 
     def setUp(self):
@@ -131,7 +131,7 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
     """
-    Base class for batch unit tests.
+    Base class for batch tests.
     """
 
     def setUp(self):
@@ -151,7 +151,7 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
 
 class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
     """
-    Base class for stream unit tests of blink planner.
+    Base class for stream tests of blink planner.
     """
 
     def setUp(self):
@@ -165,7 +165,7 @@ class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
 
 class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
     """
-    Base class for batch unit tests of blink planner.
+    Base class for batch tests of blink planner.
     """
 
     def setUp(self):
