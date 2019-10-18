@@ -644,6 +644,7 @@ under the License.
 					<reuseForks>false</reuseForks>
 					<systemPropertyVariables>
 						<derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
+						<hive.version>${hive.version}</hive.version>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>

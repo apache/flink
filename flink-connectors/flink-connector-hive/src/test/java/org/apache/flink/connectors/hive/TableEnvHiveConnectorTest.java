@@ -35,6 +35,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -264,6 +265,13 @@ public class TableEnvHiveConnectorTest {
 
 	@Test
 	public void testUDTF() throws Exception {
+		// W/o https://issues.apache.org/jira/browse/HIVE-11878 Hive registers the App classloader as the classloader
+		// for the UDTF and closes the App classloader when we tear down the session. This causes problems for JUnit code
+		// and shutdown hooks that have to run after the test finishes, because App classloader can no longer load new
+		// classes. And will crash the forked JVM, thus failing the test phase.
+		// Therefore disable such tests for older Hive versions.
+		String hiveVersion = System.getProperty("hive.version");
+		Assume.assumeTrue(hiveVersion.compareTo("2.0.0") >= 0 || hiveVersion.compareTo("1.3.0") >= 0);
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.simple (i int,a array<int>)");
