@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarFile;
 
 /**
@@ -106,6 +107,8 @@ public enum ClientUtils {
 
 			final List<URL> libraries = program.getAllLibraries();
 
+			final AtomicReference<JobExecutionResult> jobExecutionResult = new AtomicReference<>();
+
 			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
 				client,
 				libraries,
@@ -113,13 +116,14 @@ public enum ClientUtils {
 				program.getUserCodeClassLoader(),
 				parallelism,
 				client.isDetached(),
-				program.getSavepointSettings());
+				program.getSavepointSettings(),
+				jobExecutionResult);
 			ContextEnvironment.setAsContext(factory);
 
 			try {
 				program.invokeInteractiveModeForExecution();
 
-				JobExecutionResult result = client.getLastJobExecutionResult();
+				JobExecutionResult result = jobExecutionResult.get();
 				if (result == null) {
 					throw new ProgramMissingJobException("The program didn't contain a Flink job.");
 				}

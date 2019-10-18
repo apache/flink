@@ -236,8 +236,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 				LOG.warn("Job was executed in detached mode, the results will be available on completion.");
 
-				this.lastJobExecutionResult = new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
-				return lastJobExecutionResult;
+				return new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
 			} catch (Exception e) {
 				throw new ProgramInvocationException("Could not submit job",
 					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
@@ -255,8 +254,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			}
 
 			try {
-				this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
-				return lastJobExecutionResult;
+				return jobResult.toJobExecutionResult(classLoader);
 			} catch (JobExecutionException | IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
 			}

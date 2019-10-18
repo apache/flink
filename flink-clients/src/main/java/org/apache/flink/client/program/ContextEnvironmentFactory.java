@@ -19,12 +19,14 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The factory that instantiates the environment to be used when running jobs that are
@@ -47,11 +49,19 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private final SavepointRestoreSettings savepointSettings;
 
+	private final AtomicReference<JobExecutionResult> jobExecutionResult;
+
 	private boolean alreadyCalled;
 
-	public ContextEnvironmentFactory(ClusterClient<?> client, List<URL> jarFilesToAttach,
-			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
-			boolean isDetached, SavepointRestoreSettings savepointSettings) {
+	public ContextEnvironmentFactory(
+		ClusterClient<?> client,
+		List<URL> jarFilesToAttach,
+		List<URL> classpathsToAttach,
+		ClassLoader userCodeClassLoader,
+		int defaultParallelism,
+		boolean isDetached,
+		SavepointRestoreSettings savepointSettings,
+		AtomicReference<JobExecutionResult> jobExecutionResult) {
 		this.client = client;
 		this.jarFilesToAttach = jarFilesToAttach;
 		this.classpathsToAttach = classpathsToAttach;
@@ -60,6 +70,7 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		this.isDetached = isDetached;
 		this.savepointSettings = savepointSettings;
 		this.alreadyCalled = false;
+		this.jobExecutionResult = jobExecutionResult;
 	}
 
 	@Override
@@ -67,7 +78,13 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		verifyCreateIsCalledOnceWhenInDetachedMode();
 
 		final ContextEnvironment environment = new ContextEnvironment(
-				client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings, isDetached);
+			client,
+			jarFilesToAttach,
+			classpathsToAttach,
+			userCodeClassLoader,
+			savepointSettings,
+			isDetached,
+			jobExecutionResult);
 		if (defaultParallelism > 0) {
 			environment.setParallelism(defaultParallelism);
 		}

@@ -57,9 +57,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		// running from the CLI will override the savepoint restore settings
 		jobGraph.setSavepointRestoreSettings(ctx.getSavepointRestoreSettings());
 
-		return ctx
-				.getClient()
-				.submitJob(jobGraph, ctx.getUserCodeClassLoader())
-				.getJobExecutionResult();
+		JobExecutionResult jobExecutionResult =  ctx.getClient()
+			.submitJob(jobGraph, ctx.getUserCodeClassLoader())
+			.getJobExecutionResult();
+
+		ctx.setJobExecutionResult(jobExecutionResult);
+
+		return jobExecutionResult;
 	}
 }
