@@ -94,7 +94,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
@@ -129,6 +128,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
@@ -137,6 +138,8 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	private static final Logger LOG = LoggerFactory.getLogger(RestClusterClient.class);
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
+
+	private final Configuration configuration;
 
 	/** Timeout for futures. */
 	private final Duration timeout;
@@ -172,8 +175,8 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		@Nullable RestClient restClient,
 		T clusterId,
 		WaitStrategy waitStrategy) throws Exception {
-		super(configuration);
 
+		this.configuration = checkNotNull(configuration);
 		this.timeout = AkkaUtils.getClientTimeout(configuration);
 
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
@@ -184,8 +187,8 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			this.restClient = new RestClient(restClusterClientConfiguration.getRestClientConfiguration(), executorService);
 		}
 
-		this.waitStrategy = Preconditions.checkNotNull(waitStrategy);
-		this.clusterId = Preconditions.checkNotNull(clusterId);
+		this.waitStrategy = checkNotNull(waitStrategy);
+		this.clusterId = checkNotNull(clusterId);
 
 		this.clientHAServices = HighAvailabilityServicesUtils.createClientHAService(configuration);
 
@@ -196,6 +199,11 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	private void startLeaderRetrievers() throws Exception {
 		this.webMonitorRetrievalService.start(webMonitorLeaderRetriever);
+	}
+
+	@Override
+	public Configuration getFlinkConfiguration() {
+		return new Configuration(configuration);
 	}
 
 	@Override

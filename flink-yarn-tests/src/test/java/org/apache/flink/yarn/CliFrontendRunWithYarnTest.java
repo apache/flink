@@ -99,7 +99,7 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 				String longPrefix) throws Exception {
 			super(configuration, configurationDirectory, shortPrefix, longPrefix);
 
-			this.clusterClient = new FakeClusterClient(configuration);
+			this.clusterClient = new FakeClusterClient();
 			this.configurationDirectory = configurationDirectory;
 		}
 
