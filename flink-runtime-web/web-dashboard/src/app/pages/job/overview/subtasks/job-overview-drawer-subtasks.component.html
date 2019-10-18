@@ -21,13 +21,13 @@
   [nzSize]="'small'"
   [nzLoading]="isLoading"
   [nzData]="listOfTask"
-  [nzScroll]="{x:'1440px',y:'calc( 100% - 35px )'}"
+  [nzScroll]="{x:'1480px',y:'calc( 100% - 35px )'}"
   [nzFrontPagination]="false"
   [nzShowPagination]="false">
   <thead (nzSortChange)="sort($event)" nzSingleSort>
     <tr>
-      <th nzWidth="40px" nzLeft="0px">ID</th>
-      <th nzWidth="50px" nzLeft="40px">Logs</th>
+      <th nzWidth="35px" nzLeft="0px">ID</th>
+      <th nzWidth="95px" nzLeft="35px">TaskManager</th>
       <th nzSortKey="metrics.read-bytes" nzShowSort nzWidth="140px">Bytes Received</th>
       <th nzSortKey="metrics.read-records" nzShowSort nzWidth="150px">Records Received</th>
       <th nzSortKey="metrics.write-bytes" nzShowSort nzWidth="120px">Bytes Sent</th>
@@ -45,10 +45,10 @@
       <td nzLeft="0">
         {{ task.subtask }}
       </td>
-      <td nzLeft="40px">
+      <td nzLeft="35px">
         <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
         <ng-template #hrefTpl>
-          <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">log</a>
+          <a [routerLink]="['/task-manager',task['taskmanager-id'],'metrics']" target="_blank">TaskManager</a>
         </ng-template>
       </td>
       <td>
