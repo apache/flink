@@ -737,18 +737,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
-	 * Gets the number of full restarts that the execution graph went through.
-	 * If a full restart recovery is currently pending, this recovery is included in the
-	 * count.
-	 *
-	 * @return The number of full restarts so far
-	 */
-	public long getNumberOfFullRestarts() {
-		// subtract one, because the version starts at one
-		return globalModVersion - 1;
-	}
-
-	/**
 	 * Gets the number of restarts, including full restarts and fine grained restarts.
 	 * If a recovery is currently pending, this recovery is included in the count.
 	 *
