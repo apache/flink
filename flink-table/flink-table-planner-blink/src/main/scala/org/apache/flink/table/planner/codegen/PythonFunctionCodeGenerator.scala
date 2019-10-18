@@ -64,11 +64,13 @@ object PythonFunctionCodeGenerator {
     val typeInfoTypeTerm = classOf[TypeInformation[_]].getCanonicalName
     val pythonEnvTypeTerm = classOf[PythonEnv].getCanonicalName
 
-    val resultTypeNameTerm = ctx.addReusableObject(resultType, "resultType", typeInfoTypeTerm)
-    val serializedScalarFunctionNameTerm = ctx.addReusableObject(serializedScalarFunction,
-      "serializedScalarFunction", "byte[]")
+    val resultTypeNameTerm =
+      ctx.addReusableObject(resultType, "resultType", typeInfoTypeTerm)
+    val serializedScalarFunctionNameTerm =
+      ctx.addReusableObject(serializedScalarFunction, "serializedScalarFunction", "byte[]")
     val pythonEnvNameTerm = ctx.addReusableObject(pythonEnv, "pythonEnv", pythonEnvTypeTerm)
-    val inputTypesCode = inputTypes.map(ctx.addReusableObject(_, "inputType", typeInfoTypeTerm))
+    val inputTypesCode = inputTypes
+      .map(ctx.addReusableObject(_, "inputType", typeInfoTypeTerm))
       .mkString(", ")
 
     val funcCode = j"""
