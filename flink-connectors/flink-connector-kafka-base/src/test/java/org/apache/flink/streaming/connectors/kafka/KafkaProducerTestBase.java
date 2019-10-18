@@ -255,7 +255,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 		// process exactly failAfterElements number of elements and then shutdown Kafka broker and fail application
 		DataStream<Integer> inputStream = env
-			.fromCollection(getIntegersSequence(numElements))
+			.addSource(new InfiniteIntegerSource())
 			.map(new BrokerRestartingMapper<>(failAfterElements));
 
 		StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic, keyedSerializationSchema, properties, new FlinkKafkaPartitioner<Integer>() {
@@ -536,6 +536,24 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
+		}
+	}
+
+	private static final class InfiniteIntegerSource implements SourceFunction<Integer> {
+
+		private volatile boolean running = true;
+		private int counter = 0;
+
+		@Override
+		public void run(SourceContext<Integer> ctx) throws Exception {
+			while (running) {
+				ctx.collect(counter++);
+			}
+		}
+
+		@Override
+		public void cancel() {
+			running = false;
 		}
 	}
 }
