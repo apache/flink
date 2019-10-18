@@ -277,7 +277,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 			});
 		}
 
-		FailingIdentityMapper.failedBefore = false;
 		try {
 			env.execute("One-to-one at least once test");
 			fail("Job should fail!");
