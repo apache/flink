@@ -455,8 +455,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			ScheduleMode scheduleMode,
 			boolean allowQueuedScheduling) throws IOException {
 
-		checkNotNull(futureExecutor);
-
 		this.jobInformation = Preconditions.checkNotNull(jobInformation);
 
 		this.blobWriter = Preconditions.checkNotNull(blobWriter);
