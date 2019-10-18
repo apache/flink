@@ -36,19 +36,15 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testIsValid() throws Exception {
-		ResourceSpec rs = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs = ResourceSpec.newBuilder(1.0, 100).build();
 		assertTrue(rs.isValid());
 
-		rs = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		rs = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1).
 				build();
 		assertTrue(rs.isValid());
 
-		rs = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		rs = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(-1).
 				build();
 		assertFalse(rs.isValid());
@@ -56,22 +52,18 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testLessThanOrEqual() throws Exception {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();
 		assertTrue(rs1.lessThanOrEqual(rs2));
 		assertTrue(rs2.lessThanOrEqual(rs1));
 
-		ResourceSpec rs3 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs3 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1.1).
 				build();
 		assertTrue(rs1.lessThanOrEqual(rs3));
 		assertFalse(rs3.lessThanOrEqual(rs1));
 
-		ResourceSpec rs4 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs4 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
 		assertFalse(rs4.lessThanOrEqual(rs3));
@@ -80,26 +72,20 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testEquals() throws Exception {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();
 		assertEquals(rs1, rs2);
 		assertEquals(rs2, rs1);
 
-		ResourceSpec rs3 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs3 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
-		ResourceSpec rs4 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs4 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1).
 				build();
 		assertNotEquals(rs3, rs4);
 
-		ResourceSpec rs5 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs5 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
 		assertEquals(rs3, rs5);
@@ -107,25 +93,19 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testHashCode() throws Exception {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();
 		assertEquals(rs1.hashCode(), rs2.hashCode());
 
-		ResourceSpec rs3 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs3 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
-		ResourceSpec rs4 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs4 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1).
 				build();
 		assertNotEquals(rs3.hashCode(), rs4.hashCode());
 
-		ResourceSpec rs5 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs5 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
 		assertEquals(rs3.hashCode(), rs5.hashCode());
@@ -133,12 +113,10 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testMerge() throws Exception {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1.1).
 				build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();
 
 		ResourceSpec rs3 = rs1.merge(rs2);
 		assertEquals(2.0, rs3.getCpuCores(), 0.000001);
@@ -151,9 +129,7 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testSerializable() throws Exception {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1.1).
 				build();
 
@@ -164,9 +140,7 @@ public class ResourceSpecTest extends TestLogger {
 	@Test
 	public void testMergeThisUnknown() throws Exception {
 		final ResourceSpec spec1 = ResourceSpec.UNKNOWN;
-		final ResourceSpec spec2 = ResourceSpec.newBuilder()
-				.setCpuCores(1.0)
-				.setTaskHeapMemoryMB(100)
+		final ResourceSpec spec2 = ResourceSpec.newBuilder(1.0, 100)
 				.setGPUResource(1.1)
 				.build();
 
@@ -177,9 +151,7 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testMergeOtherUnknown() throws Exception {
-		final ResourceSpec spec1 = ResourceSpec.newBuilder()
-			.setCpuCores(1.0)
-			.setTaskHeapMemoryMB(100)
+		final ResourceSpec spec1 = ResourceSpec.newBuilder(1.0, 100)
 			.setGPUResource(1.1)
 			.build();
 		final ResourceSpec spec2 = ResourceSpec.UNKNOWN;

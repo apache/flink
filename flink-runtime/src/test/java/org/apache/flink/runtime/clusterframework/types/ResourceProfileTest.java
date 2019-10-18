@@ -65,14 +65,10 @@ public class ResourceProfileTest {
 		ResourceProfile rp5 = new ResourceProfile(2.0, 100, 100, 100, 100, 100, null);
 		assertFalse(rp4.isMatching(rp5));
 
-		ResourceSpec rs1 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1.1).
 				build();
 
@@ -88,25 +84,19 @@ public class ResourceProfileTest {
 
 	@Test
 	public void testEquals() {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();
 		assertEquals(ResourceProfile.fromResourceSpec(rs1), ResourceProfile.fromResourceSpec(rs2));
 
-		ResourceSpec rs3 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs3 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
-		ResourceSpec rs4 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs4 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1.1).
 				build();
 		assertNotEquals(ResourceProfile.fromResourceSpec(rs3), ResourceProfile.fromResourceSpec(rs4));
 
-		ResourceSpec rs5 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs5 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
 		MemorySize networkMemory = MemorySize.parse(100 + "m");
@@ -132,29 +122,23 @@ public class ResourceProfileTest {
 
 	@Test
 	public void testCompareTo() {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();
 		assertEquals(0, ResourceProfile.fromResourceSpec(rs1).compareTo(ResourceProfile.fromResourceSpec(rs2)));
 
-		ResourceSpec rs3 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs3 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
 		assertEquals(-1, ResourceProfile.fromResourceSpec(rs1).compareTo(ResourceProfile.fromResourceSpec(rs3)));
 		assertEquals(1, ResourceProfile.fromResourceSpec(rs3).compareTo(ResourceProfile.fromResourceSpec(rs1)));
 
-		ResourceSpec rs4 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs4 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1.1).
 				build();
 		assertEquals(1, ResourceProfile.fromResourceSpec(rs3).compareTo(ResourceProfile.fromResourceSpec(rs4)));
 		assertEquals(-1, ResourceProfile.fromResourceSpec(rs4).compareTo(ResourceProfile.fromResourceSpec(rs3)));
 
-		ResourceSpec rs5 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs5 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
 		assertEquals(0, ResourceProfile.fromResourceSpec(rs3).compareTo(ResourceProfile.fromResourceSpec(rs5)));
@@ -162,9 +146,7 @@ public class ResourceProfileTest {
 
 	@Test
 	public void testGet() {
-		ResourceSpec rs = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setTaskHeapMemoryMB(100).
+		ResourceSpec rs = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1.6).
 				build();
 		ResourceProfile rp = ResourceProfile.fromResourceSpec(rs, MemorySize.parse(50 + "m"));
