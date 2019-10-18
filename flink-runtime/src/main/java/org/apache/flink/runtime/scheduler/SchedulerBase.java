@@ -109,7 +109,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private final ExecutionGraph executionGraph;
 
-	private final SchedulingTopology schedulingTopology;
+	private final SchedulingTopology<?, ?> schedulingTopology;
 
 	private final FailoverTopology failoverTopology;
 
@@ -301,7 +301,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return failoverTopology;
 	}
 
-	protected final SchedulingTopology getSchedulingTopology() {
+	protected final SchedulingTopology<?, ?> getSchedulingTopology() {
 		return schedulingTopology;
 	}
 

@@ -22,11 +22,8 @@ import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -35,13 +32,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Default implementation of {@link SchedulingExecutionVertex}.
  */
-class DefaultSchedulingExecutionVertex implements SchedulingExecutionVertex {
+class DefaultSchedulingExecutionVertex
+	implements SchedulingExecutionVertex<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
 
 	private final ExecutionVertexID executionVertexId;
 
-	private final List<SchedulingResultPartition> consumedPartitions;
+	private final List<DefaultSchedulingResultPartition> consumedResults;
 
-	private final List<? extends SchedulingResultPartition> producedPartitions;
+	private final List<DefaultSchedulingResultPartition> producedResults;
 
 	private final Supplier<ExecutionState> stateSupplier;
 
@@ -49,13 +47,13 @@ class DefaultSchedulingExecutionVertex implements SchedulingExecutionVertex {
 
 	DefaultSchedulingExecutionVertex(
 			ExecutionVertexID executionVertexId,
-			List<? extends SchedulingResultPartition> producedPartitions,
+			List<DefaultSchedulingResultPartition> producedPartitions,
 			Supplier<ExecutionState> stateSupplier,
 			InputDependencyConstraint constraint) {
 		this.executionVertexId = checkNotNull(executionVertexId);
-		this.consumedPartitions = new ArrayList<>();
+		this.consumedResults = new ArrayList<>();
 		this.stateSupplier = checkNotNull(stateSupplier);
-		this.producedPartitions = checkNotNull(producedPartitions);
+		this.producedResults = checkNotNull(producedPartitions);
 		this.inputDependencyConstraint = checkNotNull(constraint);
 	}
 
@@ -70,13 +68,13 @@ class DefaultSchedulingExecutionVertex implements SchedulingExecutionVertex {
 	}
 
 	@Override
-	public Collection<SchedulingResultPartition> getConsumedResultPartitions() {
-		return Collections.unmodifiableCollection(consumedPartitions);
+	public Iterable<DefaultSchedulingResultPartition> getConsumedResults() {
+		return consumedResults;
 	}
 
 	@Override
-	public Collection<SchedulingResultPartition> getProducedResultPartitions() {
-		return Collections.unmodifiableCollection(producedPartitions);
+	public Iterable<DefaultSchedulingResultPartition> getProducedResults() {
+		return producedResults;
 	}
 
 	@Override
@@ -84,7 +82,7 @@ class DefaultSchedulingExecutionVertex implements SchedulingExecutionVertex {
 		return inputDependencyConstraint;
 	}
 
-	<X extends SchedulingResultPartition> void addConsumedPartition(X partition) {
-		consumedPartitions.add(partition);
+	void addConsumedResult(DefaultSchedulingResultPartition result) {
+		consumedResults.add(result);
 	}
 }

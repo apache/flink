@@ -41,13 +41,13 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 
 	private final SchedulerOperations schedulerOperations;
 
-	private final SchedulingTopology schedulingTopology;
+	private final SchedulingTopology<?, ?> schedulingTopology;
 
 	private final DeploymentOption deploymentOption = new DeploymentOption(false);
 
 	public EagerSchedulingStrategy(
 			SchedulerOperations schedulerOperations,
-			SchedulingTopology schedulingTopology) {
+			SchedulingTopology<?, ?> schedulingTopology) {
 		this.schedulerOperations = checkNotNull(schedulerOperations);
 		this.schedulingTopology = checkNotNull(schedulingTopology);
 	}
@@ -104,7 +104,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 		@Override
 		public SchedulingStrategy createInstance(
 				SchedulerOperations schedulerOperations,
-				SchedulingTopology schedulingTopology,
+				SchedulingTopology<?, ?> schedulingTopology,
 				JobGraph jobGraph) {
 			return new EagerSchedulingStrategy(schedulerOperations, schedulingTopology);
 		}
