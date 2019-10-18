@@ -294,6 +294,23 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		assertNotEquals(globalModVersionBeforeFailure, globalModVersionAfterFailure);
 	}
 
+	@Test
+	public void testCountingRestarts() throws Exception {
+		final JobGraph jobGraph = createStreamingJobGraph();
+		final ExecutionGraph eg = createExecutionGraph(jobGraph);
+
+		final Iterator<ExecutionVertex> vertexIterator = eg.getAllExecutionVertices().iterator();
+		final ExecutionVertex ev11 = vertexIterator.next();
+
+		// trigger task failure for fine grained recovery
+		ev11.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
+		assertEquals(1, eg.getNumberOfRestarts());
+
+		// trigger global failover
+		eg.failGlobal(new Exception("Force failover global"));
+		assertEquals(2, eg.getNumberOfRestarts());
+	}
+
 	// ------------------------------- Test Utils -----------------------------------------
 
 	/**
