@@ -36,14 +36,6 @@ public interface BufferProvider {
 	Buffer requestBuffer() throws IOException;
 
 	/**
-	 * Returns a {@link Buffer} instance from the buffer provider.
-	 *
-	 * <p>If there is no buffer available, the call will block until one becomes available again or the
-	 * buffer provider has been destroyed.
-	 */
-	Buffer requestBufferBlocking() throws IOException, InterruptedException;
-
-	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider.
 	 *
 	 * <p>If there is no buffer available, the call will block until one becomes available again or the

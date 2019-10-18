@@ -136,7 +136,7 @@ public class LocalBufferPoolDestroyTest {
 				String msg = "Test assumption violated: expected no available buffer";
 				assertNull(msg, bufferPool.requestBuffer());
 
-				bufferPool.requestBufferBlocking();
+				bufferPool.requestBufferBuilderBlocking();
 			} catch (Exception t) {
 				asyncException.set(t);
 			}
