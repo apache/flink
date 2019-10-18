@@ -28,8 +28,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import static java.util.stream.Collectors.toSet;
-
 /**
  * Enable which RocksDB metrics to forward to Flink's metrics reporter.
  * All metrics report at the column family level and return unsigned long values.
@@ -39,6 +37,9 @@ import static java.util.stream.Collectors.toSet;
  * db.h</a> for more information.
  */
 public class RocksDBNativeMetricOptions implements Serializable {
+
+	public static final String METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY = "state.backend.rocksdb.metrics" +
+		".column-family-as-variable";
 
 	public static final ConfigOption<Boolean> MONITOR_NUM_IMMUTABLE_MEM_TABLES = ConfigOptions
 		.key(RocksDBProperty.NumImmutableMemTable.getConfigKey())
@@ -153,10 +154,10 @@ public class RocksDBNativeMetricOptions implements Serializable {
 		.withDescription("Monitor the current actual delayed write rate. 0 means no delay.");
 
 	public static final ConfigOption<Boolean> COLUMN_FAMILY_AS_VARIABLE = ConfigOptions
-		.key(RocksDBProperty.ColumnFamilyAsVariable.getConfigKey())
+		.key(METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY)
 		.defaultValue(false)
-		.withDescription(String.format("The column family as variable for RocksDB metrics to use column family as variable or not, when create metric group. " +
-			"The default column family as variable is %s", false));
+		.withDescription(String.format("Whether to expose the column family as a variable. " +
+			"The column-family-as-variable has default as '%s'", false));
 
 	/**
 	 * Creates a {@link RocksDBNativeMetricOptions} based on an
@@ -248,14 +249,13 @@ public class RocksDBNativeMetricOptions implements Serializable {
 			options.enableActualDelayedWriteRate();
 		}
 
-		if (config.getBoolean(COLUMN_FAMILY_AS_VARIABLE)) {
-			options.enableColumnFamilyAsVariable();
-		}
+		options.setColumnFamilyAsVariable(config.getBoolean(COLUMN_FAMILY_AS_VARIABLE));
 
 		return options;
 	}
 
 	private Set<String> properties;
+	private boolean columnFamilyAsVariable;
 
 	public RocksDBNativeMetricOptions() {
 		this.properties = new HashSet<>();
@@ -417,15 +417,15 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	/**
 	 * Returns the column family as variable.
 	 */
-	public void enableColumnFamilyAsVariable() {
-		this.properties.add(RocksDBProperty.ColumnFamilyAsVariable.getRocksDBProperty());
+	public void setColumnFamilyAsVariable(boolean columnFamilyAsVariable) {
+		this.columnFamilyAsVariable = columnFamilyAsVariable;
 	}
 
 	/**
 	 * @return the enabled RocksDB metrics
 	 */
 	public Collection<String> getProperties() {
-		return Collections.unmodifiableCollection(properties.stream().filter(str -> !str.equals(RocksDBProperty.ColumnFamilyAsVariable.getRocksDBProperty())).collect(toSet()));
+		return Collections.unmodifiableCollection(properties);
 	}
 
 	/**
@@ -434,15 +434,15 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	 * @return true if {{RocksDBNativeMetricMonitor}} should be enabled, false otherwise.
 	 */
 	public boolean isEnabled() {
-		return properties.stream().anyMatch(str -> !str.equals(RocksDBProperty.ColumnFamilyAsVariable.getRocksDBProperty()));
+		return !properties.isEmpty();
 	}
 
 	/**
-	 *  {{@link RocksDBNativeMetricMonitor}} is enabled column family as variable.
+	 *  {{@link RocksDBNativeMetricMonitor}} Whether to expose the column family as a variable..
 	 *
-	 * @return true is ColumnFamilyAsVariable should be enalbed, false otherwise.
+	 * @return true is column family to expose variable, false otherwise.
 	 */
-	public boolean isEnableColumnFaminlyAsVariable() {
-		return properties.stream().anyMatch(str -> str.equals(RocksDBProperty.ColumnFamilyAsVariable.getRocksDBProperty()));
+	public boolean isColumnFaminlyAsVariable() {
+		return this.columnFamilyAsVariable;
 	}
 }

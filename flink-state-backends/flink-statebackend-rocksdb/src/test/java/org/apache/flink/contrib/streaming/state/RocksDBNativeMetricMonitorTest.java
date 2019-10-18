@@ -67,7 +67,6 @@ public class RocksDBNativeMetricMonitorTest {
 		// value since empty memtables
 		// have overhead.
 		options.enableSizeAllMemTables();
-		options.enableColumnFamilyAsVariable();
 
 		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
 			options,
