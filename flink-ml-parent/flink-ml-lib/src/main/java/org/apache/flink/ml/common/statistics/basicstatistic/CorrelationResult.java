@@ -36,7 +36,7 @@ public class CorrelationResult {
 	public DenseMatrix correlation;
 
 	/**
-	 * if colNames is null, it is vector correlation result.
+	 * If it is vector correlation, colNames is null.
 	 */
 	public String[] colNames;
 
