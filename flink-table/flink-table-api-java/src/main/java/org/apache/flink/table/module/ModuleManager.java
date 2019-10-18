@@ -101,15 +101,15 @@ public class ModuleManager {
 	/**
 	 * Get an optional of {@link FunctionDefinition} by a given name.
 	 *
-	 * @param normalizedName
+	 * @param name name of the function
 	 * @return an optional of {@link FunctionDefinition}
 	 */
-	public Optional<FunctionDefinition> getFunctionDefinition(String normalizedName) {
+	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
 		Optional<Module> module = modules.values().stream()
-			.filter(p -> p.listFunctions().stream().anyMatch(e -> e.equals(normalizedName)))
+			.filter(p -> p.listFunctions().stream().anyMatch(e -> e.equals(name)))
 			.findFirst();
 
-		return module.isPresent() ? module.get().getFunctionDefinition(normalizedName) : Optional.empty();
+		return module.isPresent() ? module.get().getFunctionDefinition(name) : Optional.empty();
 	}
 
 }
