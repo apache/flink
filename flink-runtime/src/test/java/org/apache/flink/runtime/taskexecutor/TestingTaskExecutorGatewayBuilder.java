@@ -30,8 +30,9 @@ import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.util.function.TriConsumer;
 
-import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -52,7 +53,7 @@ public class TestingTaskExecutorGatewayBuilder {
 	private static final Consumer<ResourceID> NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER = ignored -> {};
 	private static final Consumer<Exception> NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER = ignored -> {};
 	private static final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> NOOP_CANCEL_TASK_FUNCTION = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
-	private static final BiConsumer<JobID, Collection<ResultPartitionID>> NOOP_RELEASE_PARTITIONS_CONSUMER = (ignoredA, ignoredB) -> {};
+	private static final TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> NOOP_RELEASE_PARTITIONS_CONSUMER = (ignoredA, ignoredB, ignoredC) -> {};
 
 	private String address = "foobar:1234";
 	private String hostname = "foobar";
@@ -65,7 +66,7 @@ public class TestingTaskExecutorGatewayBuilder {
 	private Consumer<Exception> disconnectResourceManagerConsumer = NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER;
 	private Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction = NOOP_CANCEL_TASK_FUNCTION;
 	private Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier = () -> CompletableFuture.completedFuture(true);
-	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = NOOP_RELEASE_PARTITIONS_CONSUMER;
+	private TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer = NOOP_RELEASE_PARTITIONS_CONSUMER;
 
 	public TestingTaskExecutorGatewayBuilder setAddress(String address) {
 		this.address = address;
@@ -122,8 +123,8 @@ public class TestingTaskExecutorGatewayBuilder {
 		return this;
 	}
 
-	public TestingTaskExecutorGatewayBuilder setReleasePartitionsConsumer(BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer) {
-		this.releasePartitionsConsumer = releasePartitionsConsumer;
+	public TestingTaskExecutorGatewayBuilder setReleaseOrPromotePartitionsConsumer(TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releasePartitionsConsumer) {
+		this.releaseOrPromotePartitionsConsumer = releasePartitionsConsumer;
 		return this;
 	}
 
@@ -140,6 +141,6 @@ public class TestingTaskExecutorGatewayBuilder {
 			disconnectResourceManagerConsumer,
 			cancelTaskFunction,
 			canBeReleasedSupplier,
-			releasePartitionsConsumer);
+			releaseOrPromotePartitionsConsumer);
 	}
 }

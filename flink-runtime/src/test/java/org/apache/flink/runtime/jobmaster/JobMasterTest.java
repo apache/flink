@@ -1924,7 +1924,7 @@ public class JobMasterTest extends TestLogger {
 		final CompletableFuture<Tuple2<JobID, Collection<ResultPartitionID>>> releasePartitionsFuture = new CompletableFuture<>();
 		final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
 		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setReleasePartitionsConsumer((jobId, partitions) -> releasePartitionsFuture.complete(Tuple2.of(jobId, partitions)))
+			.setReleaseOrPromotePartitionsConsumer((jobId, partitionsToRelease, partitionsToPromote) -> releasePartitionsFuture.complete(Tuple2.of(jobId, partitionsToRelease)))
 			.setDisconnectJobManagerConsumer((jobID, throwable) -> disconnectTaskExecutorFuture.complete(jobID))
 			.setSubmitTaskConsumer((tdd, ignored) -> {
 				taskDeploymentDescriptorFuture.complete(tdd);

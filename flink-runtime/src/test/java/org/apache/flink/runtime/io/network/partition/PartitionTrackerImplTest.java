@@ -270,7 +270,7 @@ public class PartitionTrackerImplTest extends TestLogger {
 
 	private static TaskExecutorGateway createTaskExecutorGateway(ResourceID taskExecutorId, Collection<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> releaseCalls) {
 		return new TestingTaskExecutorGatewayBuilder()
-			.setReleasePartitionsConsumer((jobId, partitionIds) -> releaseCalls.add(Tuple3.of(taskExecutorId, jobId, partitionIds)))
+			.setReleaseOrPromotePartitionsConsumer((jobId, partitionToRelease, partitionsToPromote) -> releaseCalls.add(Tuple3.of(taskExecutorId, jobId, partitionToRelease)))
 			.createTestingTaskExecutorGateway();
 	}
 
