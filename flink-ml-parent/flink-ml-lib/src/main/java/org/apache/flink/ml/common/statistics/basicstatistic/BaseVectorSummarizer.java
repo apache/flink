@@ -23,8 +23,30 @@ import org.apache.flink.ml.common.linalg.DenseMatrix;
 import org.apache.flink.ml.common.linalg.Vector;
 
 /**
- * It is the base class of vector summarizer, which will calculate count, sum, squareSum, min, max.
- * If sparse vector， it will calculate numNonZero of sparse vector.
+ * It is the base class of vector summary. Inheritance relationship as follow:
+ *             BaseSummarizer
+ *               /       \
+ *              /         \
+ *   TableSummarizer   BaseVectorSummarizer
+ *                       /            \
+ *                      /              \
+ *        SparseVectorSummarizer    DenseVectorSummarizer
+ *
+ * <p>TableSummarizer is for table data, BaseVectorSummarizer is for vector data.
+ * SparseVectorSummarizer is for sparse vector, DenseVectorSummarizer is for dense vector.
+ *
+ * <p>It can use toSummary() to get the result BaseVectorSummary.
+ *
+ * <p>example:
+ * <pre>
+ * {@code
+ *      DenseVector data = new DenseVector(new double[]{1.0, -1.0, 3.0})
+ *      DenseVectorSummarizer summarizer = new DenseVectorSummarizer(false);
+ *      summarizer = summarizer.visit(data);
+ *      BaseVectorSummary summary = summarizer.toSummary()
+ *      double mean = summary.mean(0)
+ * }
+ * </pre>
  */
 public abstract class BaseVectorSummarizer extends BaseSummarizer {
 	/**

@@ -22,8 +22,30 @@ package org.apache.flink.ml.common.statistics.basicstatistic;
 import org.apache.flink.ml.common.linalg.Vector;
 
 /**
- * It is the base class which is used to store vector summarizer result.
+ * It is the base class which is used to store vector summary result.
  * You can get vectorSize, sum, mean, variance, standardDeviation, and so on.
+ *
+ * <p>Summary Inheritance relationship as follow:
+ *            BaseSummary
+ *             /       \
+ *            /         \
+ *   TableSummary     BaseVectorSummary
+ *                     /            \
+ *                    /              \
+ *      SparseVectorSummary    DenseVectorSummary
+ *
+ * <p>It can use toSummary() to get the result BaseVectorSummary.
+ *
+ * <p>example:
+ * <pre>
+ * {@code
+ *   DenseVector data = new DenseVector(new double[]{1.0, -1.0, 3.0})
+ *   DenseVectorSummarizer summarizer = new DenseVectorSummarizer(false);
+ *   summarizer = summarizer.visit(data);
+ *   BaseVectorSummary summary = summarizer.toSummary()
+ *   double mean = summary.mean(0)
+ *}
+ *</pre>
  */
 public abstract class BaseVectorSummary extends BaseSummary {
 
