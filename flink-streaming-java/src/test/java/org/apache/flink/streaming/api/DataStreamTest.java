@@ -547,26 +547,26 @@ public class DataStreamTest extends TestLogger {
 	public void testResources() throws Exception{
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		ResourceSpec minResource1 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
-		ResourceSpec preferredResource1 = ResourceSpec.newBuilder().setCpuCores(2.0).setTaskHeapMemoryMB(200).build();
+		ResourceSpec minResource1 = ResourceSpec.newBuilder(1.0, 100).build();
+		ResourceSpec preferredResource1 = ResourceSpec.newBuilder(2.0, 200).build();
 
-		ResourceSpec minResource2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(200).build();
-		ResourceSpec preferredResource2 = ResourceSpec.newBuilder().setCpuCores(2.0).setTaskHeapMemoryMB(300).build();
+		ResourceSpec minResource2 = ResourceSpec.newBuilder(1.0, 200).build();
+		ResourceSpec preferredResource2 = ResourceSpec.newBuilder(2.0, 300).build();
 
-		ResourceSpec minResource3 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(300).build();
-		ResourceSpec preferredResource3 = ResourceSpec.newBuilder().setCpuCores(2.0).setTaskHeapMemoryMB(400).build();
+		ResourceSpec minResource3 = ResourceSpec.newBuilder(1.0, 300).build();
+		ResourceSpec preferredResource3 = ResourceSpec.newBuilder(2.0, 400).build();
 
-		ResourceSpec minResource4 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(400).build();
-		ResourceSpec preferredResource4 = ResourceSpec.newBuilder().setCpuCores(2.0).setTaskHeapMemoryMB(500).build();
+		ResourceSpec minResource4 = ResourceSpec.newBuilder(1.0, 400).build();
+		ResourceSpec preferredResource4 = ResourceSpec.newBuilder(2.0, 500).build();
 
-		ResourceSpec minResource5 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(500).build();
-		ResourceSpec preferredResource5 = ResourceSpec.newBuilder().setCpuCores(2.0).setTaskHeapMemoryMB(600).build();
+		ResourceSpec minResource5 = ResourceSpec.newBuilder(1.0, 500).build();
+		ResourceSpec preferredResource5 = ResourceSpec.newBuilder(2.0, 600).build();
 
-		ResourceSpec minResource6 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(600).build();
-		ResourceSpec preferredResource6 = ResourceSpec.newBuilder().setCpuCores(2.0).setTaskHeapMemoryMB(700).build();
+		ResourceSpec minResource6 = ResourceSpec.newBuilder(1.0, 600).build();
+		ResourceSpec preferredResource6 = ResourceSpec.newBuilder(2.0, 700).build();
 
-		ResourceSpec minResource7 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(700).build();
-		ResourceSpec preferredResource7 = ResourceSpec.newBuilder().setCpuCores(2.0).setTaskHeapMemoryMB(800).build();
+		ResourceSpec minResource7 = ResourceSpec.newBuilder(1.0, 700).build();
+		ResourceSpec preferredResource7 = ResourceSpec.newBuilder(2.0, 800).build();
 
 		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
 		opMethod.setAccessible(true);

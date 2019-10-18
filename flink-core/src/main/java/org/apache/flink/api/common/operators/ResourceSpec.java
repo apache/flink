@@ -338,8 +338,12 @@ public final class ResourceSpec implements Serializable {
 	//  builder
 	// ------------------------------------------------------------------------
 
-	public static Builder newBuilder() {
-		return new Builder();
+	public static Builder newBuilder(double cpuCores, MemorySize taskHeapMemory) {
+		return new Builder(cpuCores, taskHeapMemory);
+	}
+
+	public static Builder newBuilder(double cpuCores, int taskHeapMemoryMB) {
+		return newBuilder(cpuCores, MemorySize.parse(taskHeapMemoryMB + "m"));
 	}
 
 	/**
@@ -347,12 +351,17 @@ public final class ResourceSpec implements Serializable {
 	 */
 	public static class Builder {
 
-		private double cpuCores = 0.0;
-		private MemorySize taskHeapMemory = MemorySize.ZERO;
+		private double cpuCores;
+		private MemorySize taskHeapMemory;
 		private MemorySize taskOffHeapMemory = MemorySize.ZERO;
 		private MemorySize onHeapManagedMemory = MemorySize.ZERO;
 		private MemorySize offHeapManagedMemory = MemorySize.ZERO;
 		private GPUResource gpuResource;
+
+		private Builder(double cpuCores, MemorySize taskHeapMemory) {
+			this.cpuCores = cpuCores;
+			this.taskHeapMemory = taskHeapMemory;
+		}
 
 		public Builder setCpuCores(double cpuCores) {
 			this.cpuCores = cpuCores;

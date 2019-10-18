@@ -213,11 +213,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	 */
 	@Test
 	public void testResourcesForChainedSourceSink() throws Exception {
-		ResourceSpec resource1 = ResourceSpec.newBuilder().setCpuCores(0.1).setTaskHeapMemoryMB(100).build();
-		ResourceSpec resource2 = ResourceSpec.newBuilder().setCpuCores(0.2).setTaskHeapMemoryMB(200).build();
-		ResourceSpec resource3 = ResourceSpec.newBuilder().setCpuCores(0.3).setTaskHeapMemoryMB(300).build();
-		ResourceSpec resource4 = ResourceSpec.newBuilder().setCpuCores(0.4).setTaskHeapMemoryMB(400).build();
-		ResourceSpec resource5 = ResourceSpec.newBuilder().setCpuCores(0.5).setTaskHeapMemoryMB(500).build();
+		ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
+		ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
+		ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
+		ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
+		ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
 
 		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
 		opMethod.setAccessible(true);
@@ -285,11 +285,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	 */
 	@Test
 	public void testResourcesForIteration() throws Exception {
-		ResourceSpec resource1 = ResourceSpec.newBuilder().setCpuCores(0.1).setTaskHeapMemoryMB(100).build();
-		ResourceSpec resource2 = ResourceSpec.newBuilder().setCpuCores(0.2).setTaskHeapMemoryMB(200).build();
-		ResourceSpec resource3 = ResourceSpec.newBuilder().setCpuCores(0.3).setTaskHeapMemoryMB(300).build();
-		ResourceSpec resource4 = ResourceSpec.newBuilder().setCpuCores(0.4).setTaskHeapMemoryMB(400).build();
-		ResourceSpec resource5 = ResourceSpec.newBuilder().setCpuCores(0.5).setTaskHeapMemoryMB(500).build();
+		ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
+		ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
+		ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
+		ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
+		ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
 
 		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
 		opMethod.setAccessible(true);
