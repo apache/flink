@@ -216,7 +216,7 @@ public class PartitionTrackerImplTest extends TestLogger {
 		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
 		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
 			new JobID(),
-			new TestingShuffleMaster(),
+			shuffleMaster,
 			resourceId -> Optional.of(createTaskExecutorGateway(resourceId, taskExecutorReleaseCalls))
 		);
 
