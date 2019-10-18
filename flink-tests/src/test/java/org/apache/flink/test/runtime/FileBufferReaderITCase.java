@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.testutils.serialization.types.ByteArrayType;
 import org.apache.flink.util.TestLogger;
 
@@ -46,6 +47,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -63,6 +65,7 @@ import static org.junit.Assert.assertThat;
  * the first fetched buffer from {@link org.apache.flink.runtime.io.network.partition.FileChannelBoundedData} has not
  * been recycled while fetching the second buffer to trigger next read ahead, which breaks the above assumption.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class FileBufferReaderITCase extends TestLogger {
 
 	private static final int parallelism = 8;

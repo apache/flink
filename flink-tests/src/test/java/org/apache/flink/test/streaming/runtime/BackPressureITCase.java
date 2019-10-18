@@ -36,12 +36,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.BlockingSink;
 import org.apache.flink.test.util.IdentityMapFunction;
 import org.apache.flink.test.util.InfiniteIntegerSource;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.time.Duration;
 import java.util.List;
@@ -52,6 +54,7 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondit
 /**
  * Integration test for operator back pressure tracking.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class BackPressureITCase extends TestLogger {
 
 	private static final JobID TEST_JOB_ID = new JobID();
