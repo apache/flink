@@ -45,7 +45,7 @@
       <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job-manager']">
         <span><i nz-icon type="build"></i><span>Job Manager</span></span>
       </li>
-      <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/submit']">
+      <li *ngIf="webSubmitEnabled" nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/submit']">
         <span><i nz-icon type="upload"></i><span>Submit New Job</span></span>
       </li>
     </ul>
