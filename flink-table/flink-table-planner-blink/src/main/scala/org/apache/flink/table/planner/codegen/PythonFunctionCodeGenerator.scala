@@ -24,7 +24,6 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, primitiveDe
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
-import org.apache.flink.table.utils.EncodingUtils
 
 /**
   * A code generator for generating Python [[UserDefinedFunction]]s.
@@ -62,25 +61,15 @@ object PythonFunctionCodeGenerator {
         TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType(inputType))} in$index"
     }.mkString(", ")
 
-    val encodingUtilsTypeTerm = classOf[EncodingUtils].getCanonicalName
     val typeInfoTypeTerm = classOf[TypeInformation[_]].getCanonicalName
-    val inputTypesCode = inputTypes.map(EncodingUtils.encodeObjectToString).map { inputType =>
-      s"""
-         |($typeInfoTypeTerm) $encodingUtilsTypeTerm.decodeStringToObject(
-         |  "$inputType", $typeInfoTypeTerm.class)
-         |""".stripMargin
-    }.mkString(", ")
-
     val pythonEnvTypeTerm = classOf[PythonEnv].getCanonicalName
 
-    val resultTypeNameTerm = newName("resultType")
-    val serializedScalarFunctionNameTerm = newName("serializedScalarFunction")
-    val pythonEnvNameTerm = newName("pythonEnv")
-
-    ctx.addReusableObjectWithName(resultType, resultTypeNameTerm, typeInfoTypeTerm)
-    ctx.addReusableObjectWithName(serializedScalarFunction,
-      serializedScalarFunctionNameTerm, "byte[]")
-    ctx.addReusableObjectWithName(pythonEnv, pythonEnvNameTerm, pythonEnvTypeTerm)
+    val resultTypeNameTerm = ctx.addReusableObject(resultType, "resultType", typeInfoTypeTerm)
+    val serializedScalarFunctionNameTerm = ctx.addReusableObject(serializedScalarFunction,
+      "serializedScalarFunction", "byte[]")
+    val pythonEnvNameTerm = ctx.addReusableObject(pythonEnv, "pythonEnv", pythonEnvTypeTerm)
+    val inputTypesCode = inputTypes.map(ctx.addReusableObject(_, "inputType", typeInfoTypeTerm))
+      .mkString(", ")
 
     val funcCode = j"""
       |public class $funcName extends ${classOf[ScalarFunction].getCanonicalName}
