@@ -90,12 +90,12 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.finishAllVertices;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.switchToRunning;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Tests the restart behaviour of the {@link ExecutionGraph}.
@@ -549,9 +549,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.waitUntilTerminal();
 		assertEquals(JobStatus.FINISHED, eg.getState());
 
-		if (eg.getNumberOfFullRestarts() > 2) {
-			fail("Too many restarts: " + eg.getNumberOfFullRestarts());
-		}
+		assertThat("Too many restarts", eg.getNumberOfRestarts(), is(lessThanOrEqualTo(2L)));
 	}
 
 	/**
@@ -689,10 +687,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			eg.start(mainThreadExecutor);
 			eg.scheduleForExecution();
 
-			// wait until no more changes happen
-			while (eg.getNumberOfFullRestarts() < numRestarts) {
-				Thread.sleep(1);
-			}
+			// the last suppressed restart is also counted
+			assertEquals(numRestarts + 1, eg.getNumberOfRestarts());
 
 			assertEquals(JobStatus.FAILED, eg.getState());
 
