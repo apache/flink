@@ -49,6 +49,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.BlobServerResource;
+import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
@@ -131,27 +132,32 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 
 	@Test
 	public void leaderChange_afterJobSubmission_recoversSubmittedJob() throws Exception {
-		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
+		try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			final UUID firstLeaderSessionId = UUID.randomUUID();
 
-			dispatcherLeaderElectionService.isLeader(firstLeaderSessionId);
-
-			final DispatcherGateway firstDispatcherGateway = dispatcherRunner.getDispatcherGateway().get();
+			final DispatcherGateway firstDispatcherGateway = electLeaderAndRetrieveGateway(firstLeaderSessionId);
 
 			firstDispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
 			dispatcherLeaderElectionService.notLeader();
 
 			final UUID secondLeaderSessionId = UUID.randomUUID();
-			dispatcherLeaderElectionService.isLeader(secondLeaderSessionId).get();
-
-			final DispatcherGateway secondDispatcherGateway = dispatcherRunner.getDispatcherGateway().get();
+			final DispatcherGateway secondDispatcherGateway = electLeaderAndRetrieveGateway(secondLeaderSessionId);
 
 			final Collection<JobID> jobIds = secondDispatcherGateway.listJobs(TIMEOUT).get();
 
-			assertThat(jobIds, hasSize(1));
 			assertThat(jobIds, contains(jobGraph.getJobID()));
 		}
+	}
+
+	private DispatcherGateway electLeaderAndRetrieveGateway(UUID firstLeaderSessionId) throws InterruptedException, java.util.concurrent.ExecutionException {
+		dispatcherLeaderElectionService.isLeader(firstLeaderSessionId);
+		final LeaderConnectionInfo leaderConnectionInfo = dispatcherLeaderElectionService.getConfirmationFuture().get();
+
+		return rpcServiceResource.getTestingRpcService().connect(
+			leaderConnectionInfo.getAddress(),
+			DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionId()),
+			DispatcherGateway.class).get();
 	}
 
 	/**
@@ -222,7 +228,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 		return testJob;
 	}
 
-	private DefaultDispatcherRunner createDispatcherRunner() throws Exception {
+	private DispatcherRunner createDispatcherRunner() throws Exception {
 		return dispatcherRunnerFactory.createDispatcherRunner(
 			dispatcherLeaderElectionService,
 			fatalErrorHandler,

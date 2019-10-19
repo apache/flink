@@ -32,33 +32,30 @@ public enum StoppedDispatcherLeaderProcess implements DispatcherLeaderProcess {
 	INSTANCE;
 
 	private static final CompletableFuture<Void> TERMINATION_FUTURE = CompletableFuture.completedFuture(null);
-	private static final UUID LEADER_SESSION_ID = new UUID(0L, 0L);
-	private static final CompletableFuture<String> NEVER_COMPLETED_LEADER_SESSION_FUTURE = new CompletableFuture<>();
-	private static final CompletableFuture<ApplicationStatus> NEVER_COMPLETED_SHUTDOWN_FUTURE = new CompletableFuture<>();
 
 	@Override
 	public void start() {
-
+		throw new UnsupportedOperationException("This method should never be called.");
 	}
 
 	@Override
 	public UUID getLeaderSessionId() {
-		return LEADER_SESSION_ID;
+		throw new UnsupportedOperationException("This method should never be called.");
 	}
 
 	@Override
 	public CompletableFuture<DispatcherGateway> getDispatcherGateway() {
-		return null;
+		throw new UnsupportedOperationException("This method should never be called.");
 	}
 
 	@Override
 	public CompletableFuture<String> getConfirmLeaderSessionFuture() {
-		return NEVER_COMPLETED_LEADER_SESSION_FUTURE;
+		throw new UnsupportedOperationException("This method should never be called.");
 	}
 
 	@Override
 	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return NEVER_COMPLETED_SHUTDOWN_FUTURE;
+		throw new UnsupportedOperationException("This method should never be called.");
 	}
 
 	@Override
