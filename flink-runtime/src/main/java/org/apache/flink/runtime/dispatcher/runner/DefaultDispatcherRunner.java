@@ -37,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
  * Runner for the {@link org.apache.flink.runtime.dispatcher.Dispatcher} which is responsible for the
  * leader election.
  */
-public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContender {
+public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderContender {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultDispatcherRunner.class);
 
@@ -53,7 +53,7 @@ public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContende
 
 	private final CompletableFuture<ApplicationStatus> shutDownFuture;
 
-	private boolean isRunning;
+	private boolean running;
 
 	private DispatcherLeaderProcess dispatcherLeaderProcess;
 
@@ -61,7 +61,7 @@ public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContende
 
 	private CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
 
-	DefaultDispatcherRunner(
+	private DefaultDispatcherRunner(
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler,
 			DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) throws Exception {
@@ -71,7 +71,7 @@ public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContende
 		this.terminationFuture = new CompletableFuture<>();
 		this.shutDownFuture = new CompletableFuture<>();
 
-		this.isRunning = true;
+		this.running = true;
 		this.dispatcherLeaderProcess = StoppedDispatcherLeaderProcess.INSTANCE;
 		this.previousDispatcherLeaderProcessTerminationFuture = CompletableFuture.completedFuture(null);
 		this.dispatcherGatewayFuture = new CompletableFuture<>();
@@ -100,10 +100,10 @@ public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContende
 	@Override
 	public CompletableFuture<Void> closeAsync() {
 		synchronized (lock) {
-			if (!isRunning) {
+			if (!running) {
 				return terminationFuture;
 			} else {
-				isRunning = false;
+				running = false;
 			}
 		}
 
@@ -147,15 +147,11 @@ public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContende
 	private void startNewDispatcherLeaderProcess(UUID leaderSessionID) {
 		stopDispatcherLeaderProcess();
 
-		createAndAssignNewDispatcherLeaderProcess(leaderSessionID);
+		dispatcherLeaderProcess = createNewDispatcherLeaderProcess(leaderSessionID);
 
 		final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcess;
 		FutureUtils.assertNoException(
 			previousDispatcherLeaderProcessTerminationFuture.thenRun(newDispatcherLeaderProcess::start));
-	}
-
-	private void createAndAssignNewDispatcherLeaderProcess(UUID leaderSessionID) {
-		dispatcherLeaderProcess = createNewDispatcherLeaderProcess(leaderSessionID);
 	}
 
 	private void stopDispatcherLeaderProcess() {
@@ -189,7 +185,7 @@ public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContende
 			(applicationStatus, throwable) -> {
 				synchronized (lock) {
 					// ignore if no longer running or if leader processes is no longer valid
-					if (isRunning && this.dispatcherLeaderProcess == newDispatcherLeaderProcess) {
+					if (running && this.dispatcherLeaderProcess == newDispatcherLeaderProcess) {
 						if (throwable != null) {
 							shutDownFuture.completeExceptionally(throwable);
 						} else {
@@ -217,7 +213,7 @@ public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContende
 
 	private void runActionIfRunning(Runnable runnable) {
 		synchronized (lock) {
-			if (isRunning) {
+			if (running) {
 				runnable.run();
 			} else {
 				LOG.debug("Ignoring action because {} has already been stopped.", getClass().getSimpleName());
@@ -231,5 +227,15 @@ public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContende
 			new FlinkException(
 				String.format("Exception during leader election of %s occurred.", getClass().getSimpleName()),
 				exception));
+	}
+
+	public static DispatcherRunner create(
+			LeaderElectionService leaderElectionService,
+			FatalErrorHandler fatalErrorHandler,
+			DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) throws Exception {
+		return new DefaultDispatcherRunner(
+			leaderElectionService,
+			fatalErrorHandler,
+			dispatcherLeaderProcessFactory);
 	}
 }

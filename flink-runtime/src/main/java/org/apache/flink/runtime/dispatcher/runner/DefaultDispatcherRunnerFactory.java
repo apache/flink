@@ -40,7 +40,7 @@ public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
 	}
 
 	@Override
-	public DefaultDispatcherRunner createDispatcherRunner(
+	public DispatcherRunner createDispatcherRunner(
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler,
 			JobGraphStoreFactory jobGraphStoreFactory,
@@ -55,7 +55,7 @@ public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
 			partialDispatcherServices,
 			fatalErrorHandler);
 
-		return new DefaultDispatcherRunner(
+		return DefaultDispatcherRunner.create(
 			leaderElectionService,
 			fatalErrorHandler,
 			dispatcherLeaderProcessFactory);
