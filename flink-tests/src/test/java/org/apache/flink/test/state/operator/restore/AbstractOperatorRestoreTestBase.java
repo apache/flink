@@ -40,6 +40,7 @@ import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -239,5 +240,10 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 		return string
 			.replaceAll("\\(", "\\\\(")
 			.replaceAll("\\)", "\\\\)");
+	}
+
+	@AfterClass
+	public static void after() {
+		SavepointSerializers.setFailWhenLegacyStateDetected(true);
 	}
 }
