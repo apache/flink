@@ -70,8 +70,6 @@ public class Plan implements Visitable<Operator<?>>, Pipeline {
 	/** The ID of the Job that this dataflow plan belongs to. */
 	private JobID jobId;
 
-	private long sessionTimeout;
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -255,14 +253,6 @@ public class Plan implements Visitable<Operator<?>>, Pipeline {
 	 */
 	public void setJobId(JobID jobId) {
 		this.jobId = jobId;
-	}
-
-	public void setSessionTimeout(long sessionTimeout) {
-		this.sessionTimeout = sessionTimeout;
-	}
-
-	public long getSessionTimeout() {
-		return sessionTimeout;
 	}
 
 	/**
