@@ -249,7 +249,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		}
 
 		graph.setAllowQueuedScheduling(false);
-		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
 
 		// add vertices to the graph
 		for (JobVertex vertex : this.vertices.values()) {
