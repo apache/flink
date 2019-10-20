@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
-import org.apache.flink.streaming.connectors.kafka.internal.Handover.WakeupException;
+import org.apache.flink.streaming.connectors.kafka.internals.Handover;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -239,7 +239,7 @@ public class HandoverTest {
 		try {
 			handover.produce(createTestRecords());
 			fail();
-		} catch (WakeupException e) {
+		} catch (Handover.WakeupException e) {
 			// expected
 		}
 
