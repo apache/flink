@@ -17,23 +17,13 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.topology.Topology;
+
 /**
- * Represents a topology.
+ * Represents a topology for failover.
  */
-public interface FailoverTopology {
-
-	/**
-	 * Returns an iterable over all vertices, topologically sorted.
-	 *
-	 * @return topologically sorted iterable over all vertices
-	 */
-	Iterable<? extends FailoverVertex> getFailoverVertices();
-
-	/**
-	 * Returns whether the topology contains co-location constraints.
-	 * Co-location constraints are currently used for iterations.
-	 *
-	 * @return whether the topology contains co-location constraints
-	 */
-	boolean containsCoLocationConstraints();
+public interface FailoverTopology<V extends FailoverVertex<V, R>, R extends FailoverResultPartition<V, R>>
+	extends Topology<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
 }

@@ -17,41 +17,14 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.topology.Result;
 
 /**
- * A connection between {@link FailoverVertex FailoverVertices}.
- *
- * <p>producer -> ResultPartition -> consumer
+ * Represents a {@link IntermediateResultPartition} produced by a {@link FailoverVertex}.
  */
-public interface FailoverEdge {
-
-	/**
-	 * Returns the ID of the result partition that the source produces.
-	 *
-	 * @return ID of the result partition that the source produces
-	 */
-	IntermediateResultPartitionID getResultPartitionID();
-
-	/**
-	 * Returns the {@link ResultPartitionType} of the produced result partition.
-	 *
-	 * @return type of the produced result partition
-	 */
-	ResultPartitionType getResultPartitionType();
-
-	/**
-	 * Returns the source vertex, i.e., the producer of the result partition.
-	 *
-	 * @return source vertex
-	 */
-	FailoverVertex getSourceVertex();
-
-	/**
-	 * Returns the target vertex, i.e., the consumer of the result partition.
-	 *
-	 * @return target vertex
-	 */
-	FailoverVertex getTargetVertex();
+public interface FailoverResultPartition<V extends FailoverVertex<V, R>, R extends FailoverResultPartition<V, R>>
+	extends Result<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
 }
