@@ -104,7 +104,7 @@ public class ModuleManager {
 	 * @param name name of the function
 	 * @return an optional of {@link FunctionDefinition}
 	 */
-	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
+	public Optional<FunctionDefinition> lookupFunctionDefinition(String name) {
 		Optional<Module> module = modules.values().stream()
 			.filter(p -> p.listFunctions().stream().anyMatch(e -> e.equals(name)))
 			.findFirst();

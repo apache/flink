@@ -107,18 +107,18 @@ public interface TableEnvironment {
 	Optional<Catalog> getCatalog(String catalogName);
 
 	/**
-	 * Load a module with given name.
+	 * Load a {@link Module} under a unique name.
 	 *
-	 * @param moduleName name of the module
+	 * @param moduleName name of the {@link Module}
 	 * @param module the module instance
 	 * @throws ModuleAlreadyExistException thrown when there is already a module with the same name
 	 */
 	void loadModule(String moduleName, Module module) throws ModuleAlreadyExistException;
 
 	/**
-	 * Unload a module with given name.
+	 * Unload a {@link Module} with given name.
 	 *
-	 * @param moduleName name of the module
+	 * @param moduleName name of the {@link Module}
 	 * @throws ModuleNotFoundException thrown when there is no module with the given name
 	 */
 	void unloadModule(String moduleName) throws ModuleNotFoundException;
@@ -258,9 +258,9 @@ public interface TableEnvironment {
 	String[] listCatalogs();
 
 	/**
-	 * Gets the names of all modules registered in this environment.
+	 * Gets an array of names of all modules registered in this environment in the loaded order.
 	 *
-	 * @return A list of the names of all registered modules.
+	 * @return A list of the names of all registered modules in the loaded order.
 	 */
 	String[] listModules();
 
