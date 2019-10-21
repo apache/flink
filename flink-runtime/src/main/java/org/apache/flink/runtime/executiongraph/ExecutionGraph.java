@@ -49,7 +49,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
-import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.NotReleasingPartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
@@ -951,7 +950,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		schedulingTopology = new ExecutionGraphToSchedulingTopologyAdapter(this);
 		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(
 			schedulingTopology,
-			new DefaultFailoverTopology(this));
+			new ExecutionGraphToSchedulingTopologyAdapter(this));
 	}
 
 	public boolean isLegacyScheduling() {

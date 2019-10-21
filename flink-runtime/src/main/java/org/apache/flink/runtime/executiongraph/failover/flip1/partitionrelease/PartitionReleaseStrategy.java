@@ -53,6 +53,6 @@ public interface PartitionReleaseStrategy {
 	 * Factory for {@link PartitionReleaseStrategy}.
 	 */
 	interface Factory {
-		PartitionReleaseStrategy createInstance(SchedulingTopology<?, ?> schedulingStrategy, FailoverTopology failoverTopology);
+		PartitionReleaseStrategy createInstance(SchedulingTopology<?, ?> schedulingStrategy, FailoverTopology<?, ?> failoverTopology);
 	}
 }

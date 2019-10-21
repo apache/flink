@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -29,7 +30,6 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,7 +44,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 	private static final long RESTART_DELAY_MS = 1234L;
 
-	private FailoverTopology failoverTopology;
+	private FailoverTopology<?, ?> failoverTopology;
 
 	private TestFailoverStrategy failoverStrategy;
 
@@ -170,8 +170,8 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 			new Exception("test failure"));
 
 		assertEquals(
-			StreamSupport.stream(failoverTopology.getFailoverVertices().spliterator(), false)
-			.map(FailoverVertex::getExecutionVertexID)
+			IterableUtils.toStream(failoverTopology.getVertices())
+			.map(FailoverVertex::getId)
 			.collect(Collectors.toSet()),
 			result.getVerticesToRestart());
 	}

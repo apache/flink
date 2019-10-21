@@ -178,9 +178,9 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 		@Override
 		public PartitionReleaseStrategy createInstance(
 				final SchedulingTopology<?, ?> schedulingStrategy,
-				final FailoverTopology failoverTopology) {
+				final FailoverTopology<?, ?> failoverTopology) {
 
-			final Set<Set<FailoverVertex>> distinctRegions = PipelinedRegionComputeUtil.computePipelinedRegions(failoverTopology);
+			final Set<Set<FailoverVertex<?, ?>>> distinctRegions = PipelinedRegionComputeUtil.computePipelinedRegions(failoverTopology);
 			return new RegionPartitionReleaseStrategy(
 				schedulingStrategy,
 				PipelinedRegionComputeUtil.toPipelinedRegionsSet(distinctRegions));
