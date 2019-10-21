@@ -33,7 +33,6 @@ import org.apache.calcite.sql.validate.SqlConformance;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.Reader;
@@ -174,191 +173,115 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				")");
 	}
 
-	@Ignore // need to implement
 	@Test
-	public void testCreateTableWithoutWatermarkFieldName() {
-		check("CREATE TABLE tbl1 (\n" +
-				"  a bigint,\n" +
-				"  b varchar, \n" +
-				"  c as 2 * (a + 1), \n" +
-				"  WATERMARK FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND\n" +
-				")\n" +
-				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
-				"    'kafka.topic' = 'log.test'\n" +
-				")\n",
+	public void testCreateTableWithWatermark() {
+		String sql = "CREATE TABLE tbl1 (\n" +
+			"  ts timestamp(3),\n" +
+			"  id varchar, \n" +
+			"  watermark FOR ts AS ts - interval '3' second\n" +
+			")\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		check(sql,
 			"CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT,\n" +
-				"  `B`  VARCHAR,\n" +
-				"  `C` AS (2 * (`A` + 1)),\n" +
-				"  WATERMARK FOR `A` AS BOUNDED WITH DELAY 1000 MILLISECOND\n" +
+				"  `TS`  TIMESTAMP(3),\n" +
+				"  `ID`  VARCHAR,\n" +
+				"  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n" +
 				") WITH (\n" +
 				"  'connector' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
-	@Ignore // need to implement
 	@Test
-	public void testCreateTableWithWatermarkBoundedDelay() {
-		check("CREATE TABLE tbl1 (\n" +
-				"  a bigint,\n" +
-				"  b varchar, \n" +
-				"  c as 2 * (a + 1), \n" +
-				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY 1000 DAY\n" +
-				")\n" +
-				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
-				"    'kafka.topic' = 'log.test'\n" +
-				")\n",
+	public void testCreateTableWithWatermarkOnComputedColumn() {
+		String sql = "CREATE TABLE tbl1 (\n" +
+			"  log_ts varchar,\n" +
+			"  ts as to_timestamp(log_ts), \n" +
+			"  WATERMARK FOR ts AS ts + interval '1' second\n" +
+			")\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		check(sql,
 			"CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT,\n" +
-				"  `B`  VARCHAR,\n" +
-				"  `C` AS (2 * (`A` + 1)),\n" +
-				"  WATERMARK `WK` FOR `A` AS BOUNDED WITH DELAY 1000 DAY\n" +
+				"  `LOG_TS`  VARCHAR,\n" +
+				"  `TS` AS `TO_TIMESTAMP`(`LOG_TS`),\n" +
+				"  WATERMARK FOR `TS` AS (`TS` + INTERVAL '1' SECOND)\n" +
 				") WITH (\n" +
 				"  'connector' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
-	@Ignore // need to implement
 	@Test
-	public void testCreateTableWithWatermarkBoundedDelay1() {
+	public void testCreateTableWithWatermarkOnNestedField() {
 		check("CREATE TABLE tbl1 (\n" +
-				"  a bigint,\n" +
-				"  b varchar, \n" +
-				"  c as 2 * (a + 1), \n" +
-				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY 1000 HOUR\n" +
+				"  f1 row<q1 bigint, q2 row<t1 timestamp, t2 varchar>, q3 boolean>,\n" +
+				"  WATERMARK FOR f1.q2.t1 AS NOW()\n" +
 				")\n" +
 				"  with (\n" +
 				"    'connector' = 'kafka', \n" +
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT,\n" +
-				"  `B`  VARCHAR,\n" +
-				"  `C` AS (2 * (`A` + 1)),\n" +
-				"  WATERMARK `WK` FOR `A` AS BOUNDED WITH DELAY 1000 HOUR\n" +
+				"  `F1`  ROW< `Q1` BIGINT, `Q2` ROW< `T1` TIMESTAMP, `T2` VARCHAR >, `Q3` BOOLEAN >,\n" +
+				"  WATERMARK FOR `F1`.`Q2`.`T1` AS `NOW`()\n" +
 				") WITH (\n" +
 				"  'connector' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
-	@Ignore // need to implement
 	@Test
-	public void testCreateTableWithWatermarkBoundedDelay2() {
-		check("CREATE TABLE tbl1 (\n" +
-				"  a bigint,\n" +
-				"  b varchar, \n" +
-				"  c as 2 * (a + 1), \n" +
-				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY 1000 MINUTE\n" +
-				")\n" +
-				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
-				"    'kafka.topic' = 'log.test'\n" +
-				")\n",
-			"CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT,\n" +
-				"  `B`  VARCHAR,\n" +
-				"  `C` AS (2 * (`A` + 1)),\n" +
-				"  WATERMARK `WK` FOR `A` AS BOUNDED WITH DELAY 1000 MINUTE\n" +
-				") WITH (\n" +
-				"  'connector' = 'kafka',\n" +
-				"  'kafka.topic' = 'log.test'\n" +
-				")");
+	public void testCreateTableWithInvalidWatermark() {
+		String sql = "CREATE TABLE tbl1 (\n" +
+			"  f1 row<q1 bigint, q2 varchar, q3 boolean>,\n" +
+			"  WATERMARK FOR f1.q0 AS NOW()\n" +
+			")\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		sql(sql).node(new ValidationMatcher()
+			.fails("The rowtime attribute field \"F1.Q0\" is not defined in columns, at line 3, column 17"));
+
 	}
 
-	@Ignore // need to implement
 	@Test
-	public void testCreateTableWithWatermarkBoundedDelay3() {
-		check("CREATE TABLE tbl1 (\n" +
-				"  a bigint,\n" +
-				"  b varchar, \n" +
-				"  c as 2 * (a + 1), \n" +
-				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY 1000 SECOND\n" +
-				")\n" +
-				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
-				"    'kafka.topic' = 'log.test'\n" +
-				")\n",
-			"CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT,\n" +
-				"  `B`  VARCHAR,\n" +
-				"  `C` AS (2 * (`A` + 1)),\n" +
-				"  WATERMARK `WK` FOR `A` AS BOUNDED WITH DELAY 1000 SECOND\n" +
-				") WITH (\n" +
-				"  'connector' = 'kafka',\n" +
-				"  'kafka.topic' = 'log.test'\n" +
-				")");
+	public void testCreateTableWithMultipleWatermark() {
+		String sql = "CREATE TABLE tbl1 (\n" +
+			"  f0 bigint,\n" +
+			"  f1 varchar,\n" +
+			"  f2 boolean,\n" +
+			"  WATERMARK FOR f0 AS NOW(),\n" +
+			"  ^WATERMARK^ FOR f1 AS NOW()\n" +
+			")\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		sql(sql)
+			.fails("Multiple WATERMARK statements is not supported yet.");
 	}
 
-	@Ignore // need to implement
 	@Test
-	public void testCreateTableWithNegativeWatermarkOffsetDelay() {
-		checkFails("CREATE TABLE tbl1 (\n" +
-				"  a bigint,\n" +
-				"  b varchar, \n" +
-				"  c as 2 * (a + 1), \n" +
-				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY ^-^1000 SECOND\n" +
-				")\n" +
-				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
-				"    'kafka.topic' = 'log.test'\n" +
-				")\n",
-			"(?s).*Encountered \"-\" at line 5, column 44.\n" +
-				"Was expecting:\n" +
-				"    <UNSIGNED_INTEGER_LITERAL> ...\n" +
-				".*");
-	}
-
-	@Ignore // need to implement
-	@Test
-	public void testCreateTableWithWatermarkStrategyAscending() {
-		check("CREATE TABLE tbl1 (\n" +
-				"  a bigint,\n" +
-				"  b varchar, \n" +
-				"  c as 2 * (a + 1), \n" +
-				"  WATERMARK wk FOR a AS ASCENDING\n" +
-				")\n" +
-				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
-				"    'kafka.topic' = 'log.test'\n" +
-				")\n",
-			"CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT,\n" +
-				"  `B`  VARCHAR,\n" +
-				"  `C` AS (2 * (`A` + 1)),\n" +
-				"  WATERMARK `WK` FOR `A` AS ASCENDING\n" +
-				") WITH (\n" +
-				"  'connector' = 'kafka',\n" +
-				"  'kafka.topic' = 'log.test'\n" +
-				")");
-	}
-
-	@Ignore // need to implement
-	@Test
-	public void testCreateTableWithWatermarkStrategyFromSource() {
-		check("CREATE TABLE tbl1 (\n" +
-				"  a bigint,\n" +
-				"  b varchar, \n" +
-				"  c as 2 * (a + 1), \n" +
-				"  WATERMARK wk FOR a AS FROM_SOURCE\n" +
-				")\n" +
-				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
-				"    'kafka.topic' = 'log.test'\n" +
-				")\n",
-			"CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT,\n" +
-				"  `B`  VARCHAR,\n" +
-				"  `C` AS (2 * (`A` + 1)),\n" +
-				"  WATERMARK `WK` FOR `A` AS FROM_SOURCE\n" +
-				") WITH (\n" +
-				"  'connector' = 'kafka',\n" +
-				"  'kafka.topic' = 'log.test'\n" +
-				")");
+	public void testCreateTableWithQueryWatermarkExpression() {
+		String sql = "CREATE TABLE tbl1 (\n" +
+			"  f0 bigint,\n" +
+			"  f1 varchar,\n" +
+			"  f2 boolean,\n" +
+			"  WATERMARK FOR f0 AS ^(^SELECT f1 FROM tbl1)\n" +
+			")\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		sql(sql)
+			.fails("Query expression encountered in illegal context");
 	}
 
 	@Test
@@ -620,8 +543,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	@Test
 	public void testInvalidUpsertOverwrite() {
 		conformance0 = FlinkSqlConformance.HIVE;
-		checkFails("UPSERT OVERWRITE myDB.myTbl SELECT * FROM src",
-			"OVERWRITE expression is only used with INSERT mode");
+		sql("UPSERT ^OVERWRITE^ myDB.myTbl SELECT * FROM src")
+			.fails("OVERWRITE expression is only used with INSERT statement.");
 	}
 
 	@Test
