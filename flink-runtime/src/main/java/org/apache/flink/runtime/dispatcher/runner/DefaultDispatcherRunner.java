@@ -64,7 +64,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 	private DefaultDispatcherRunner(
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler,
-			DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) throws Exception {
+			DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) {
 		this.leaderElectionService = leaderElectionService;
 		this.fatalErrorHandler = fatalErrorHandler;
 		this.dispatcherLeaderProcessFactory = dispatcherLeaderProcessFactory;
@@ -75,14 +75,6 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 		this.dispatcherLeaderProcess = StoppedDispatcherLeaderProcess.INSTANCE;
 		this.previousDispatcherLeaderProcessTerminationFuture = CompletableFuture.completedFuture(null);
 		this.dispatcherGatewayFuture = new CompletableFuture<>();
-
-		startDispatcherRunner(leaderElectionService);
-	}
-
-	private void startDispatcherRunner(LeaderElectionService leaderElectionService) throws Exception {
-		LOG.info("Starting {}.", getClass().getName());
-
-		leaderElectionService.start(this);
 	}
 
 	@Override
@@ -108,31 +100,12 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 		}
 
 		stopDispatcherLeaderProcess();
-		final CompletableFuture<Void> servicesTerminationFuture = stopServices();
 
 		FutureUtils.forward(
-			FutureUtils.completeAll(
-				Arrays.asList(
-					previousDispatcherLeaderProcessTerminationFuture,
-					servicesTerminationFuture)),
+			previousDispatcherLeaderProcessTerminationFuture,
 			terminationFuture);
 
 		return terminationFuture;
-	}
-
-	private CompletableFuture<Void> stopServices() {
-		Exception exception = null;
-
-		try {
-			leaderElectionService.stop();
-		} catch (Exception e) {
-			exception = e;
-		}
-		if (exception == null) {
-			return CompletableFuture.completedFuture(null);
-		} else {
-			return FutureUtils.completedExceptionally(exception);
-		}
 	}
 
 	// ---------------------------------------------------------------
@@ -233,9 +206,10 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler,
 			DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) throws Exception {
-		return new DefaultDispatcherRunner(
+		final DefaultDispatcherRunner dispatcherRunner = new DefaultDispatcherRunner(
 			leaderElectionService,
 			fatalErrorHandler,
 			dispatcherLeaderProcessFactory);
+		return DispatcherRunnerLeaderElectionLifecycleManager.createFor(dispatcherRunner, leaderElectionService);
 	}
 }
