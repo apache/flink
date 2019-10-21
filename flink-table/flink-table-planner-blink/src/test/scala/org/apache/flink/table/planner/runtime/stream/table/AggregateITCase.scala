@@ -308,7 +308,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
 
     tEnv.registerTableSink("testSink", tableSink)
-    tEnv.insertInto(t, "testSink")
+    tEnv.insertInto("testSink", t)
     tEnv.execute("test")
 
     val expected = List("A,1", "B,2", "C,3")

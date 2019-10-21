@@ -305,7 +305,9 @@ trait StreamTableEnvironment extends TableEnvironment {
     *                          of the [[TableSink]] is provided.
     * @param sinkPathContinued The remaining part of the path of the registered [[TableSink]] to
     *                          which the [[Table]] is written.
+    * @deprecated use `TableEnvironment#insertInto(String, Table)`
     */
+  @deprecated
   def insertInto(
     table: Table,
     queryConfig: StreamQueryConfig,
@@ -359,7 +361,7 @@ trait StreamTableEnvironment extends TableEnvironment {
     *       .field("count", "DECIMAL")
     *       .field("proc-time", "TIMESTAMP").proctime())
     *   .inAppendMode()
-    *   .registerSource("MyTable")
+    *   .createTemporaryTable("MyTable")
     * }}}
     *
     * @param connectorDescriptor connector descriptor describing the external system

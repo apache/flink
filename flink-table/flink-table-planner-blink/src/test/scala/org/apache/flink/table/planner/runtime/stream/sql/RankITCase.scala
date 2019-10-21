@@ -131,7 +131,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -194,7 +194,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val updatedExpected = List(
@@ -257,7 +257,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val updatedExpected = List(
@@ -303,7 +303,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val updatedExpected = List(
@@ -357,7 +357,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val updatedExpected = List(
@@ -402,7 +402,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val updatedExpected = List(
@@ -537,7 +537,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -596,7 +596,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -656,7 +656,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -718,7 +718,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -789,7 +789,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -853,7 +853,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -933,7 +933,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -1006,7 +1006,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -1073,7 +1073,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema.getFieldNames,
         schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(table, "MySink")
+    tEnv.insertInto("MySink", table)
     tEnv.execute("test")
 
     val expected = List(
@@ -1202,7 +1202,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema1.getFieldNames, schema1
       .getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink1", sink1)
-    tEnv.insertInto(table1, "MySink1")
+    tEnv.insertInto("MySink1", table1)
     tEnv.execute("test")
 
     val table2 = tEnv.sqlQuery(
@@ -1219,7 +1219,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema2.getFieldNames, schema2
       .getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink2", sink2)
-    tEnv.insertInto(table2, "MySink2")
+    tEnv.insertInto("MySink2", table2)
     tEnv.execute("test")
 
     val expected1 = List(
@@ -1276,7 +1276,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema1.getFieldNames,
         schema1.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink1", sink1)
-    tEnv.insertInto(table1, "MySink1")
+    tEnv.insertInto("MySink1", table1)
     tEnv.execute("test")
 
     val table2 = tEnv.sqlQuery(
@@ -1293,7 +1293,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       configure(schema2.getFieldNames,
         schema2.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.registerTableSink("MySink2", sink2)
-    tEnv.insertInto(table2, "MySink2")
+    tEnv.insertInto("MySink2", table2)
     tEnv.execute("test")
 
     val expected1 = List(

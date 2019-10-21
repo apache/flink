@@ -63,7 +63,7 @@ class TableSinkValidationTest extends TableTestBase {
     val schema = result.getSchema
     sink.configure(schema.getFieldNames, schema.getFieldTypes)
     tEnv.registerTableSink("testSink", sink)
-    tEnv.insertInto(result, "testSink")
+    tEnv.insertInto("testSink", result)
     // must fail because table is updating table without full key
     env.execute()
   }

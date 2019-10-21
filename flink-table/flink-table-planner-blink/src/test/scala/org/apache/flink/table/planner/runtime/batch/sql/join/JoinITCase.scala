@@ -100,10 +100,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     if (expectedJoinType == HashJoin) {
       val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
       tEnv.registerTableSink("collect", sink)
-      tEnv.insertInto(
-        tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e"),
-        "collect"
-      )
+      tEnv.insertInto("collect", tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e"))
       var haveTwoOp = false
       env.getStreamGraph.getAllOperatorFactory.foreach(o =>
         o.f1 match {

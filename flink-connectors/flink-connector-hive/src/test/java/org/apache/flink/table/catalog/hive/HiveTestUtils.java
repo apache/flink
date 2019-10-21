@@ -133,9 +133,7 @@ public class HiveTestUtils {
 		sink.init(serializer, id);
 		String sinkName = UUID.randomUUID().toString();
 		tableEnv.registerTableSink(sinkName, sink);
-		final String builtInCatalogName = EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
-		final String builtInDBName = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
-		tableEnv.insertInto(table, builtInCatalogName, builtInDBName, sinkName);
+		tableEnv.insertInto(table, sinkName);
 		JobExecutionResult result = tableEnv.execute("collect-table");
 		ArrayList<byte[]> data = result.getAccumulatorResult(id);
 		return SerializedListAccumulator.deserializeList(data, serializer);
