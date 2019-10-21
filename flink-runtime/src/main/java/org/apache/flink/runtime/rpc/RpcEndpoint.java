@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledFutureTask;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
@@ -127,7 +128,8 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
 		this.rpcServer = rpcService.startServer(this);
 
-		this.mainThreadExecutor = new MainThreadExecutor(rpcServer, this::validateRunsInMainThread);
+		this.mainThreadExecutor = new MainThreadExecutor(
+			rpcServer, this::validateRunsInMainThread, rpcService.getScheduledExecutor());
 	}
 
 	/**
@@ -405,10 +407,16 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
 		private final MainThreadExecutable gateway;
 		private final Runnable mainThreadCheck;
+		private final ScheduledExecutor scheduledExecutor;
 
-		MainThreadExecutor(MainThreadExecutable gateway, Runnable mainThreadCheck) {
+		MainThreadExecutor(
+			MainThreadExecutable gateway,
+			Runnable mainThreadCheck,
+			ScheduledExecutor scheduledExecutor) {
+
 			this.gateway = Preconditions.checkNotNull(gateway);
 			this.mainThreadCheck = Preconditions.checkNotNull(mainThreadCheck);
+			this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 		}
 
 		public void runAsync(Runnable runnable) {
@@ -433,22 +441,70 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
 		@Override
 		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+			final ScheduledFutureTask<V> scheduledFutureTask =
+				new ScheduledFutureTask<>(callable, delay, unit);
+			scheduleRunAsync(scheduledFutureTask, TimeUnit.MILLISECONDS.convert(delay, unit));
+			return scheduledFutureTask;
 		}
 
 		@Override
 		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
-			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+			final ScheduledFutureTask<?> scheduledFutureTask =
+				new ScheduledFutureTask<>(command, initialDelay, period, unit);
+
+			// uses scheduledExecutor to periodically trigger runnable task
+			// but the runnable task must be executed in main thread
+			// so we invoke runAsync here
+			final ScheduledFuture<?> scheduledFuture = scheduledExecutor.scheduleWithFixedDelay(
+				() -> runAsync(scheduledFutureTask), initialDelay, period, unit);
+			scheduledFutureTask.setCancellable(new CancellableAdapter(scheduledFuture));
+
+			return scheduledFutureTask;
 		}
 
 		@Override
 		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
-			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+			final ScheduledFutureTask<?> scheduledFutureTask =
+				new ScheduledFutureTask<>(
+					command,
+					initialDelay,
+					delay,
+					unit,
+					// manually schedule next runnable task after the prior one finished
+					(innerRunnable, innerDelay, innerUnit) -> {
+						scheduleRunAsync(
+							innerRunnable, TimeUnit.MILLISECONDS.convert(innerDelay, innerUnit));
+						// scheduleRunAsync does not provide a future
+						return null;
+					});
+
+			scheduleRunAsync(scheduledFutureTask, TimeUnit.MILLISECONDS.convert(delay, unit));
+
+			return scheduledFutureTask;
 		}
 
 		@Override
 		public void assertRunningInMainThread() {
 			mainThreadCheck.run();
+		}
+	}
+
+	private static class CancellableAdapter implements ScheduledFutureTask.Cancellable {
+
+		private final ScheduledFuture scheduledFuture;
+
+		private CancellableAdapter(ScheduledFuture scheduledFuture) {
+			this.scheduledFuture = scheduledFuture;
+		}
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			return scheduledFuture.cancel(mayInterruptIfRunning);
+		}
+
+		@Override
+		public boolean isCancelled() {
+			return scheduledFuture.isCancelled();
 		}
 	}
 }

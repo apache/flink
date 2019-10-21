@@ -197,7 +197,7 @@ public class RpcEndpointTest extends TestLogger {
 		CompletableFuture<String> foo();
 	}
 
-	private static class BaseEndpoint extends RpcEndpoint implements BaseGateway {
+	static class BaseEndpoint extends RpcEndpoint implements BaseGateway {
 
 		private final int foobarValue;
 
