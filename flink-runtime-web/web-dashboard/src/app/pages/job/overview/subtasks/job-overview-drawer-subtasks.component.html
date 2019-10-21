@@ -26,8 +26,7 @@
   [nzShowPagination]="false">
   <thead (nzSortChange)="sort($event)" nzSingleSort>
     <tr>
-      <th nzWidth="35px" nzLeft="0px">ID</th>
-      <th nzWidth="95px" nzLeft="35px">TaskManager</th>
+      <th nzWidth="80px" nzLeft="0px">ID</th>
       <th nzSortKey="metrics.read-bytes" nzShowSort nzWidth="140px">Bytes Received</th>
       <th nzSortKey="metrics.read-records" nzShowSort nzWidth="150px">Records Received</th>
       <th nzSortKey="metrics.write-bytes" nzShowSort nzWidth="120px">Bytes Sent</th>
@@ -37,19 +36,14 @@
       <th nzSortKey="start_time" nzShowSort nzWidth="150px">Start Time</th>
       <th nzSortKey="duration" nzShowSort nzWidth="100px">Duration</th>
       <th nzSortKey="end-time" nzShowSort nzWidth="150px">End Time</th>
-      <th nzSortKey="status" nzShowSort nzWidth="120px" nzRight="0px">Status</th>
+      <th nzSortKey="status" nzShowSort nzWidth="120px" nzRight="50px">Status</th>
+      <th nzWidth="50px" nzRight="0px">More</th>
     </tr>
   </thead>
   <tbody>
     <tr *ngFor="let task of listOfTask; trackBy:trackTaskBy;">
       <td nzLeft="0">
         {{ task.subtask }}
-      </td>
-      <td nzLeft="35px">
-        <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
-        <ng-template #hrefTpl>
-          <a [routerLink]="['/task-manager',task['taskmanager-id'],'metrics']" target="_blank">TaskManager</a>
-        </ng-template>
       </td>
       <td>
         <span *ngIf="task.metrics['read-bytes-complete'];else loadingTemplate">
@@ -76,8 +70,21 @@
       <td>{{ task["start_time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>{{ task.duration | humanizeDuration }}</td>
       <td>{{ task["end-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
-      <td nzRight="0px">
+      <td nzRight="50px">
         <flink-job-badge [state]="task.status"></flink-job-badge>
+      </td>
+      <td nzRight="0px">
+        <nz-dropdown [nzPlacement]="'bottomRight'">
+          <span nz-dropdown><i nz-icon nzType="ellipsis" nzTheme="outline"></i></span>
+              <ul nz-menu nzSelectable>
+                <li nz-menu-item>
+              <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
+              <ng-template #hrefTpl>
+                <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">Taskamanger Log</a>
+              </ng-template>
+            </li>
+          </ul>
+        </nz-dropdown>
       </td>
     </tr>
   </tbody>
