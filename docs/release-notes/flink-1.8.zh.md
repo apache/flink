@@ -203,4 +203,11 @@ see
 [here](/dev/stream/state/custom_serialization.html#implementing-a-compositetypeserializersnapshot)
 for instructions on using `CompositeTypeSerializerSnapshot`.
 
+### Memory management
+
+In Fink 1.8.0 and prior version, the managed memory fraction of taskmanager is controlled by `taskmanager.memory.fraction`,
+and with 0.7 as the default value. However, sometimes this will cause OOMs due to the fact that the default value of JVM
+parameter `NewRatio` is 2, which means the old generation occupied only 2/3 (0.66) of the heap memory. So if you run into
+this case, please manually change this value to a lower value.
+
 {% top %}
