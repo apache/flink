@@ -55,7 +55,7 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 
 	private final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
 
-	private final CompletableFuture<String> confirmLeaderSessionFuture;
+	private final CompletableFuture<String> leaderAddressFuture;
 
 	private final CompletableFuture<Void> terminationFuture;
 
@@ -71,7 +71,7 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		this.fatalErrorHandler = fatalErrorHandler;
 
 		this.dispatcherGatewayFuture = new CompletableFuture<>();
-		this.confirmLeaderSessionFuture = dispatcherGatewayFuture.thenApply(RestfulGateway::getAddress);
+		this.leaderAddressFuture = dispatcherGatewayFuture.thenApply(RestfulGateway::getAddress);
 		this.terminationFuture = new CompletableFuture<>();
 		this.shutDownFuture = new CompletableFuture<>();
 
@@ -109,8 +109,8 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	}
 
 	@Override
-	public final CompletableFuture<String> getConfirmLeaderSessionFuture() {
-		return confirmLeaderSessionFuture;
+	public final CompletableFuture<String> getLeaderAddressFuture() {
+		return leaderAddressFuture;
 	}
 
 	@Override

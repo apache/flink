@@ -153,7 +153,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
 	private void forwardConfirmLeaderSessionFuture(UUID leaderSessionID, DispatcherLeaderProcess newDispatcherLeaderProcess) {
 		FutureUtils.assertNoException(
-			newDispatcherLeaderProcess.getConfirmLeaderSessionFuture().thenAccept(
+			newDispatcherLeaderProcess.getLeaderAddressFuture().thenAccept(
 				leaderAddress -> {
 					if (leaderElectionService.hasLeadership(leaderSessionID)) {
 						leaderElectionService.confirmLeadership(leaderSessionID, leaderAddress);

@@ -68,7 +68,7 @@ class TestingDispatcherLeaderProcess implements DispatcherLeaderProcess {
 	}
 
 	@Override
-	public CompletableFuture<String> getConfirmLeaderSessionFuture() {
+	public CompletableFuture<String> getLeaderAddressFuture() {
 		return confirmLeaderSessionFuture;
 	}
 

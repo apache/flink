@@ -49,7 +49,7 @@ public enum StoppedDispatcherLeaderProcess implements DispatcherLeaderProcess {
 	}
 
 	@Override
-	public CompletableFuture<String> getConfirmLeaderSessionFuture() {
+	public CompletableFuture<String> getLeaderAddressFuture() {
 		throw new UnsupportedOperationException("This method should never be called.");
 	}
 
