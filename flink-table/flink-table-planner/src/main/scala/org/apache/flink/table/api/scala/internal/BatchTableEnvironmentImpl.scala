@@ -92,5 +92,18 @@ class BatchTableEnvironmentImpl(
     queryConfig: BatchQueryConfig,
     sinkPath: String,
     sinkPathContinued: String*): Unit = insertInto(table, sinkPath, sinkPathContinued: _*)
+
+  override def createTemporaryView[T](
+      path: String,
+      dataSet: DataSet[T]): Unit = {
+    createTemporaryView(path, fromDataSet(dataSet))
+  }
+
+  override def createTemporaryView[T](
+      path: String,
+      dataSet: DataSet[T],
+      fields: Expression*): Unit = {
+    createTemporaryView(path, fromDataSet(dataSet, fields: _*))
+  }
 }
 

@@ -192,13 +192,26 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public void registerTable(String name, Table table) {
-		if (((TableImpl) table).getTableEnvironment() != this) {
+		UnresolvedIdentifier identifier = UnresolvedIdentifier.of(name);
+		createTemporaryView(identifier, table);
+	}
+
+	@Override
+	public void createTemporaryView(String path, Table view) {
+		UnresolvedIdentifier identifier = parser.parseIdentifier(path);
+		createTemporaryView(identifier, view);
+	}
+
+	private void createTemporaryView(UnresolvedIdentifier identifier, Table view) {
+		if (((TableImpl) view).getTableEnvironment() != this) {
 			throw new TableException(
-				"Only tables that belong to this TableEnvironment can be registered.");
+				"Only table API objects that belong to this TableEnvironment can be registered.");
 		}
 
-		CatalogBaseTable tableTable = new QueryOperationCatalogView(table.getQueryOperation());
-		catalogManager.createTemporaryTable(tableTable, getTemporaryObjectIdentifier(name), false);
+		CatalogBaseTable tableTable = new QueryOperationCatalogView(view.getQueryOperation());
+
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
+		catalogManager.createTemporaryTable(tableTable, tableIdentifier, false);
 	}
 
 	@Override
@@ -236,9 +249,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private Optional<CatalogQueryOperation> scanInternal(String... tablePath) {
-		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(tablePath));
-		return catalogManager.getTable(objectIdentifier)
-			.map(t -> new CatalogQueryOperation(objectIdentifier, t.getTable().getSchema()));
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(tablePath));
+		return catalogManager.getTable(tableIdentifier)
+			.map(t -> new CatalogQueryOperation(tableIdentifier, t.getTable().getSchema()));
 	}
 
 	@Override
@@ -348,11 +361,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		List<String> fullPath = new ArrayList<>(Arrays.asList(pathContinued));
 		fullPath.add(0, path);
 
-		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(
 			UnresolvedIdentifier.of(fullPath.toArray(new String[0])));
 		List<ModifyOperation> modifyOperations = Collections.singletonList(
 			new CatalogSinkModifyOperation(
-				objectIdentifier,
+				tableIdentifier,
 				table.getQueryOperation()));
 
 		if (isEagerOperationTranslation()) {
