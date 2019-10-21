@@ -137,7 +137,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def writeToSink(table: Table, sink: TableSink[_], sinkName: String): Unit = {
     val tableEnv = getTableEnv
     tableEnv.registerTableSink(sinkName, sink)
-    tableEnv.insertInto(table, sinkName)
+    tableEnv.insertInto(sinkName, table)
   }
 
   /**
@@ -954,9 +954,8 @@ class TestingTableEnvironment private(
     )
   }
 
-  override def insertInto(table: Table, path: String, pathContinued: String*): Unit = {
-    val fullPath = List(path) ++ pathContinued.toList
-    val unresolvedIdentifier = UnresolvedIdentifier.of(fullPath:_*)
+  override def insertInto(path: String, table: Table): Unit = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
     val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
 
     val modifyOperations = List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation))

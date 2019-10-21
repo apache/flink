@@ -175,7 +175,9 @@ public interface TableEnvironment {
 	 *
 	 * @param name        The name under which the {@link TableSource} is registered.
 	 * @param tableSource The {@link TableSource} to register.
+	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
 	 */
+	@Deprecated
 	void registerTableSource(String name, TableSource<?> tableSource);
 
 	/**
@@ -191,7 +193,7 @@ public interface TableEnvironment {
 	 * @param fieldNames The field names to register with the {@link TableSink}.
 	 * @param fieldTypes The field types to register with the {@link TableSink}.
 	 * @param tableSink The {@link TableSink} to register.
-	 * @deprecated Use {@link #registerTableSink(String, TableSink)} instead.
+	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
 	 */
 	@Deprecated
 	void registerTableSink(String name, String[] fieldNames, TypeInformation<?>[] fieldTypes, TableSink<?> tableSink);
@@ -207,7 +209,9 @@ public interface TableEnvironment {
 	 *
 	 * @param name The name under which the {@link TableSink} is registered.
 	 * @param configuredSink The configured {@link TableSink} to register.
+	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
 	 */
+	@Deprecated
 	void registerTableSink(String name, TableSink<?> configuredSink);
 
 	/**
@@ -294,8 +298,21 @@ public interface TableEnvironment {
 	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
 	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
 	 *        {@link Table} is written.
+	 * @deprecated use {@link #insertInto(String, Table)}
 	 */
+	@Deprecated
 	void insertInto(Table table, String sinkPath, String... sinkPathContinued);
+
+	/**
+	 * Instructs to write the content of a {@link Table} API object into a table.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+	 *
+	 * @param targetPath The path of the registered {@link TableSink} to which the {@link Table} is written.
+	 * @param table The Table to write to the sink.
+	 */
+	void insertInto(String targetPath, Table table);
 
 	/**
 	 * Creates a table source and/or table sink from a descriptor.

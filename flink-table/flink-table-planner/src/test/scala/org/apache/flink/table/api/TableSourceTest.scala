@@ -18,17 +18,21 @@
 
 package org.apache.flink.table.api
 
+import _root_.java.util.{HashMap => JHashMap}
+import _root_.java.util.{Map => JMap}
 import _root_.java.sql.{Date, Time, Timestamp}
-
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.apache.flink.types.Row
+
 import org.junit.{Assert, Test}
 
 class TableSourceTest extends TableTestBase {
@@ -362,6 +366,34 @@ class TableSourceTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
+  @Test
+  def testConnectToTableWithProperties(): Unit = {
+    val util = streamTestUtil()
+    val tableEnv = util.tableEnv
+
+    val path = "cat.db.tab1"
+    tableEnv.connect(new ConnectorDescriptor("COLLECTION", 1, false) {
+      override protected def toConnectorProperties: JMap[String, String] = {
+        val context = new JHashMap[String, String]()
+        context.put(CONNECTOR, "COLLECTION")
+        context
+      }
+    }).withSchema(
+        new Schema()
+          .schema(TableSchema.builder()
+            .field("id", DataTypes.INT())
+            .field("name", DataTypes.STRING())
+            .build())
+      ).createTemporaryTable(path)
+
+    val result = tableEnv.from(path)
+
+    val expected = "StreamTableSourceScan(table=[[cat, db, tab1]], fields=[id, name], " +
+      "source=[CollectionTableSource(id, name)])"
+
+    util.verifyTable(result, expected)
+  }
+
   // csv builder
 
   @Test
@@ -489,7 +521,6 @@ class TableSourceTest extends TableTestBase {
     val tableSource = TestFilterableTableSource(rowTypeInfo, Seq(row), Set("dv", "tv", "tsv"))
     (tableSource, "filterableTable")
   }
-
 
   def csvTable: (CsvTableSource, String) = {
     val csvTable = CommonTestData.getCsvTableSource

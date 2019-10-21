@@ -96,7 +96,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("src", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from src").insertInto("hive.`default`.dest");
 		tableEnv.execute("mytest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
@@ -138,7 +138,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("complexSrc", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive.`default`.dest");
 		tableEnv.execute("mytest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
@@ -177,7 +177,7 @@ public class HiveTableSinkTest {
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("nestedSrc", src);
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive.`default`.dest");
 		tableEnv.execute("mytest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);

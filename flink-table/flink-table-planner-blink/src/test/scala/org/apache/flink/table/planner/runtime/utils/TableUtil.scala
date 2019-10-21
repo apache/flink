@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
@@ -53,9 +52,7 @@ object TableUtil {
       new CollectTableSink(_ => t.asInstanceOf[TypeInformation[T]]), Option(jobName))
 
   def collectSink[T](
-      table: TableImpl, sink: CollectTableSink[T], jobName: Option[String] = None,
-      builtInCatalogName: String = EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
-      builtInDBName: String = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE): Seq[T] = {
+      table: TableImpl, sink: CollectTableSink[T], jobName: Option[String] = None): Seq[T] = {
     // get schema information of table
     val relNode = TableTestUtil.toRelNode(table)
     val rowType = relNode.getRowType
@@ -74,8 +71,7 @@ object TableUtil {
     val configuredSink = sink.configure(
       fieldNames, fieldTypes.map(TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo))
     BatchTableEnvUtil.collect(table.getTableEnvironment,
-      table, configuredSink.asInstanceOf[CollectTableSink[T]], jobName,
-      builtInCatalogName, builtInDBName)
+      table, configuredSink.asInstanceOf[CollectTableSink[T]], jobName)
   }
 
 }

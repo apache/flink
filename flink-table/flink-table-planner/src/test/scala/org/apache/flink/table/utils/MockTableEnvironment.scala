@@ -91,6 +91,8 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def useDatabase(databaseName: String): Unit = ???
 
+  override def insertInto(sinkPath: String, table: Table): Unit = ???
+
   override def insertInto(
     table: Table,
     sinkPath: String,
