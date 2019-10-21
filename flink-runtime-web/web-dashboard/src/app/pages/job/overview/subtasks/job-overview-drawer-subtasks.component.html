@@ -74,17 +74,17 @@
         <flink-job-badge [state]="task.status"></flink-job-badge>
       </td>
       <td nzRight="0px">
-        <nz-dropdown [nzPlacement]="'bottomRight'">
-          <span nz-dropdown><i nz-icon nzType="ellipsis" nzTheme="outline"></i></span>
-              <ul nz-menu nzSelectable>
-                <li nz-menu-item>
-              <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
-              <ng-template #hrefTpl>
-                <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">Taskamanger Log</a>
-              </ng-template>
-            </li>
-          </ul>
-        </nz-dropdown>
+        <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
+        <ng-template #hrefTpl>
+          <nz-dropdown [nzPlacement]="'bottomRight'">
+            <span nz-dropdown><i nz-icon nzType="ellipsis" nzTheme="outline"></i></span>
+            <ul nz-menu nzSelectable>
+              <li nz-menu-item>
+                <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">View taskmanager log</a>
+              </li>
+            </ul>
+          </nz-dropdown>
+        </ng-template>
       </td>
     </tr>
   </tbody>
