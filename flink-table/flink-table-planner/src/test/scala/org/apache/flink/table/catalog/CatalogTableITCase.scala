@@ -318,7 +318,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
 
-  @Test @Ignore // need to implement
+  @Test @Ignore("FLINK-14320") // need to implement
   def testStreamSourceTableWithRowtime(): Unit = {
     val sourceData = List(
       toRow(1, 1000),
@@ -329,10 +329,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val sourceDDL =
       """
         |create table t1(
-        |  a bigint,
+        |  a timestamp(3),
         |  b bigint,
-        |  primary key(a),
-        |  WATERMARK wm FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND
+        |  WATERMARK FOR a AS a - interval '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -340,7 +339,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val sinkDDL =
       """
         |create table t2(
-        |  a bigint,
+        |  a timestamp(3),
         |  b bigint
         |) with (
         |  'connector' = 'COLLECTION'
@@ -349,7 +348,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val query =
       """
         |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(wm, INTERVAL '1' SECOND)
+        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
       """.stripMargin
 
     tableEnv.sqlUpdate(sourceDDL)
@@ -400,7 +399,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
 
-  @Test @Ignore // need to implement
+  @Test @Ignore("FLINK-14320") // need to implement
   def testBatchTableWithRowtime(): Unit = {
     val sourceData = List(
       toRow(1, 1000),
@@ -411,10 +410,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val sourceDDL =
       """
         |create table t1(
-        |  a bigint,
+        |  a timestamp(3),
         |  b bigint,
-        |  primary key(a),
-        |  WATERMARK wm FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND
+        |  WATERMARK FOR a AS a - interval '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -422,7 +420,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val sinkDDL =
       """
         |create table t2(
-        |  a bigint,
+        |  a timestamp(3),
         |  b bigint
         |) with (
         |  'connector' = 'COLLECTION'
@@ -431,7 +429,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
     val query =
       """
         |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(wm, INTERVAL '1' SECOND)
+        |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
       """.stripMargin
 
     tableEnv.sqlUpdate(sourceDDL)
