@@ -83,60 +83,6 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 	}
 
 	@Test
-	public void getDispatcherGateway_beforeDispatcherLeaderProcessCompletes_returnsDispatcherGateway() throws Exception {
-		final UUID leaderSessionId = UUID.randomUUID();
-		final TestingDispatcherGateway expectedDispatcherGateway = createDispatcherGateway(leaderSessionId);
-		final TestingDispatcherLeaderProcess testingDispatcherLeaderProcess = TestingDispatcherLeaderProcess.newBuilder(leaderSessionId)
-			.setDispatcherGatewayFuture(CompletableFuture.completedFuture(expectedDispatcherGateway))
-			.build();
-
-		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
-		try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
-
-			final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture = dispatcherRunner.getDispatcherGateway();
-
-			assertThat(dispatcherGatewayFuture.isDone(), is(false));
-
-			testingLeaderElectionService.isLeader(leaderSessionId);
-
-			assertThat(dispatcherGatewayFuture.get(), is(expectedDispatcherGateway));
-		}
-	}
-
-	@Test
-	public void getDispatcherGateway_withChangingLeaders_returnsLeadingDispatcherGateway() throws Exception {
-		final UUID firstLeaderSessionId = UUID.randomUUID();
-		final UUID secondLeaderSessionId = UUID.randomUUID();
-		final TestingDispatcherGateway firstDispatcherGateway = createDispatcherGateway(firstLeaderSessionId);
-		final TestingDispatcherGateway secondDispatcherGateway = createDispatcherGateway(secondLeaderSessionId);
-
-		final TestingDispatcherLeaderProcess firstDispatcherLeaderProcess = TestingDispatcherLeaderProcess.newBuilder(firstLeaderSessionId)
-			.setDispatcherGatewayFuture(CompletableFuture.completedFuture(firstDispatcherGateway))
-			.build();
-		final TestingDispatcherLeaderProcess secondDispatcherLeaderProcess = TestingDispatcherLeaderProcess.newBuilder(secondLeaderSessionId)
-			.setDispatcherGatewayFuture(CompletableFuture.completedFuture(secondDispatcherGateway))
-			.build();
-
-		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(
-			firstDispatcherLeaderProcess,
-			secondDispatcherLeaderProcess);
-
-		try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
-			testingLeaderElectionService.isLeader(firstLeaderSessionId);
-
-			final CompletableFuture<DispatcherGateway> firstDispatcherGatewayFuture = dispatcherRunner.getDispatcherGateway();
-
-			testingLeaderElectionService.notLeader();
-			testingLeaderElectionService.isLeader(secondLeaderSessionId);
-
-			final CompletableFuture<DispatcherGateway> secondDispatcherGatewayFuture = dispatcherRunner.getDispatcherGateway();
-
-			assertThat(firstDispatcherGatewayFuture.get(), is(firstDispatcherGateway));
-			assertThat(secondDispatcherGatewayFuture.get(), is(secondDispatcherGateway));
-		}
-	}
-
-	@Test
 	public void getShutDownFuture_whileRunning_forwardsDispatcherLeaderProcessShutDownRequest() throws Exception {
 		final UUID leaderSessionId = UUID.randomUUID();
 		final CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -59,8 +58,6 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
 	private CompletableFuture<Void> previousDispatcherLeaderProcessTerminationFuture;
 
-	private CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
-
 	private DefaultDispatcherRunner(
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler,
@@ -74,14 +71,6 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 		this.running = true;
 		this.dispatcherLeaderProcess = StoppedDispatcherLeaderProcess.INSTANCE;
 		this.previousDispatcherLeaderProcessTerminationFuture = CompletableFuture.completedFuture(null);
-		this.dispatcherGatewayFuture = new CompletableFuture<>();
-	}
-
-	@Override
-	public CompletableFuture<DispatcherGateway> getDispatcherGateway() {
-		synchronized (lock) {
-			return dispatcherGatewayFuture;
-		}
 	}
 
 	@Override
@@ -140,17 +129,10 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
 		final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcessFactory.create(leaderSessionID);
 
-		forwardDispatcherGatewayFuture(newDispatcherLeaderProcess);
 		forwardShutDownFuture(newDispatcherLeaderProcess);
 		forwardConfirmLeaderSessionFuture(leaderSessionID, newDispatcherLeaderProcess);
 
 		return newDispatcherLeaderProcess;
-	}
-
-	private void forwardDispatcherGatewayFuture(DispatcherLeaderProcess newDispatcherLeaderProcess) {
-		final CompletableFuture<DispatcherGateway> newDispatcherGatewayFuture = newDispatcherLeaderProcess.getDispatcherGateway();
-		FutureUtils.forward(newDispatcherGatewayFuture, dispatcherGatewayFuture);
-		dispatcherGatewayFuture = newDispatcherGatewayFuture;
 	}
 
 	private void forwardShutDownFuture(DispatcherLeaderProcess newDispatcherLeaderProcess) {
