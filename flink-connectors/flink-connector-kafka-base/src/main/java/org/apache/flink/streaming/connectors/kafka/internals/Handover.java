@@ -20,10 +20,12 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.Closeable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
