@@ -74,7 +74,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 		topologyBuilder.connect(v2, v5, ResultPartitionType.BLOCKING);
 		topologyBuilder.connect(v3, v6, ResultPartitionType.BLOCKING);
 
-		FailoverTopology topology = topologyBuilder.build();
+		TestFailoverTopology topology = topologyBuilder.build();
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
@@ -154,7 +154,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 		topologyBuilder.connect(v2, v5, ResultPartitionType.BLOCKING);
 		topologyBuilder.connect(v3, v6, ResultPartitionType.BLOCKING);
 
-		FailoverTopology topology = topologyBuilder.build();
+		TestFailoverTopology topology = topologyBuilder.build();
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
@@ -249,7 +249,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 		topologyBuilder.connect(v1, v3, ResultPartitionType.BLOCKING);
 		topologyBuilder.connect(v2, v3, ResultPartitionType.BLOCKING);
 
-		FailoverTopology topology = topologyBuilder.build();
+		TestFailoverTopology topology = topologyBuilder.build();
 
 		TestResultPartitionAvailabilityChecker availabilityChecker = new TestResultPartitionAvailabilityChecker();
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology, availabilityChecker);
@@ -370,7 +370,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 		topologyBuilder.connect(v4, v5, ResultPartitionType.BLOCKING);
 		topologyBuilder.connect(v5, v6, ResultPartitionType.PIPELINED);
 
-		FailoverTopology topology = topologyBuilder.build();
+		TestFailoverTopology topology = topologyBuilder.build();
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 

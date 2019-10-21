@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -35,7 +36,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Default implementation of {@link SchedulingResultPartition}.
  */
 class DefaultSchedulingResultPartition
-	implements SchedulingResultPartition<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
+	implements SchedulingResultPartition<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition>,
+		FailoverResultPartition<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
 
 	private final IntermediateResultPartitionID resultPartitionId;
 

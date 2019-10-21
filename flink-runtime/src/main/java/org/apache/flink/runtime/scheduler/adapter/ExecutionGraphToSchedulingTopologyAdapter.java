@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -42,7 +43,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Adapter of {@link ExecutionGraph} to {@link SchedulingTopology}.
  */
 public class ExecutionGraphToSchedulingTopologyAdapter
-	implements SchedulingTopology<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
+	implements SchedulingTopology<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition>,
+		FailoverTopology<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
 
 	private final boolean containsCoLocationConstraints;
 
