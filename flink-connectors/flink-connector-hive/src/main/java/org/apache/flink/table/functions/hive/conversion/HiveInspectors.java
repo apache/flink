@@ -98,6 +98,7 @@ import org.apache.hadoop.io.Text;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -470,12 +471,23 @@ public class HiveInspectors {
 						return Long.class;
 					case BYTE:
 						return Byte.class;
+					case SHORT:
+						return Short.class;
 					case FLOAT:
 						return Float.class;
 					case DOUBLE:
 						return Double.class;
+					case DECIMAL:
+						return BigDecimal.class;
 					case BOOLEAN:
 						return Boolean.class;
+					case BINARY:
+						return byte[].class;
+					case DATE:
+						return Date.class;
+					case TIMESTAMP:
+					case INTERVAL_DAY_TIME:
+					case INTERVAL_YEAR_MONTH:
 					default:
 						throw new IllegalArgumentException(
 								"Unsupported primitive type " + primitiveOI.getPrimitiveCategory().name());
