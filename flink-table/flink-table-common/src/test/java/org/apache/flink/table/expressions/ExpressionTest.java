@@ -162,7 +162,7 @@ public class ExpressionTest {
 	}
 
 	@Test
-	public void testPeriodlValueLiteralExtraction() {
+	public void testPeriodValueLiteralExtraction() {
 		final Period period = Period.ofMonths(10);
 		Integer expectedValue = 10;
 		assertEquals(
