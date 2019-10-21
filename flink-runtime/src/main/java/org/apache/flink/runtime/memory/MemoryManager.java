@@ -120,7 +120,7 @@ public class MemoryManager {
 
 	private static void sanityCheck(long memorySize, int pageSize, MemoryType memoryType) {
 		Preconditions.checkNotNull(memoryType);
-		Preconditions.checkArgument(memorySize > 0L, "Size of total memory must be positive.");
+		Preconditions.checkArgument(memorySize >= 0L, "Size of total memory must be non-negative.");
 		Preconditions.checkArgument(
 			pageSize >= MIN_PAGE_SIZE,
 			"The page size must be at least %d bytes.", MIN_PAGE_SIZE);
@@ -135,10 +135,6 @@ public class MemoryManager {
 			"The given number of memory bytes (%d: %s) corresponds to more than MAX_INT pages.",
 			numberOfPagesLong,
 			memorySizeByType);
-
-		@SuppressWarnings("NumericCastThatLosesPrecision")
-		int totalNumPages = (int) numberOfPagesLong;
-		Preconditions.checkArgument(totalNumPages >= 1, "The given amount of memory amounted to less than one page.");
 	}
 
 	// ------------------------------------------------------------------------
