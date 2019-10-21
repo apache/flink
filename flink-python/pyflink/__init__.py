@@ -15,3 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
+import sys
+
+if sys.version_info < (3, 5):
+    raise RuntimeError(
+        'Python versions prior to 3.5 are not supported for PyFlink [' +
+        str(sys.version_info) + '].')

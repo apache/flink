@@ -65,6 +65,8 @@ Then go to the root directory of flink source code and run this command to build
 cd flink-python; python3 setup.py sdist bdist_wheel
 {% endhighlight %}
 
+<span class="label label-info">Note</span> Python 3.5+ is required to build PyFlink.
+
 The sdist and wheel package will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
 
 {% highlight bash %}
