@@ -1213,14 +1213,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		return Collections.nCopies(numSlots, resourceProfile);
 	}
 
-	@Nullable // should only be null when flip49 is disabled
 	public static TaskExecutorResourceSpec createTaskExecutorResourceSpec(Configuration config) {
-		final boolean enableFlip49 = config.getBoolean(TaskManagerOptions.ENABLE_FLIP_49_CONFIG);
-		if (enableFlip49) {
-			return TaskExecutorResourceUtils.resourceSpecFromConfig(config);
-		} else {
-			return null;
-		}
+		return TaskExecutorResourceUtils.resourceSpecFromConfig(config);
 	}
 }
 

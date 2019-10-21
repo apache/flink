@@ -21,7 +21,6 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -130,7 +129,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	private final Resource resource;
 
-	@Nullable // should only be null when flip49 is disabled
 	private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
 	public YarnResourceManager(
@@ -182,11 +180,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		this.numberOfTaskSlots = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 
 		this.taskExecutorResourceSpec = createTaskExecutorResourceSpec(flinkConfig);
-		if (taskExecutorResourceSpec != null) { // FLIP-49 enabled
-			this.defaultTaskManagerMemoryMB = taskExecutorResourceSpec.getTotalProcessMemorySize().getMebiBytes();
-		} else { // FLIP-49 disabled
-			this.defaultTaskManagerMemoryMB = ConfigurationUtils.getTaskManagerHeapMemory(flinkConfig).getMebiBytes();
-		}
+		this.defaultTaskManagerMemoryMB = taskExecutorResourceSpec.getTotalProcessMemorySize().getMebiBytes();
 		this.defaultCpus = flinkConfig.getInteger(YarnConfigOptions.VCORES, numberOfTaskSlots);
 		this.resource = Resource.newInstance(defaultTaskManagerMemoryMB, defaultCpus);
 
@@ -551,7 +545,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(
-		@Nullable // should only be null when flip49 is disabled
 		TaskExecutorResourceSpec tmResourceSpec,
 		Resource resource,
 		String containerId,
@@ -563,18 +556,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		final ContaineredTaskManagerParameters taskManagerParameters =
 				ContaineredTaskManagerParameters.create(flinkConfig, tmResourceSpec, resource.getMemory(), numberOfTaskSlots);
 
-		if (tmResourceSpec == null) { // FLIP-49 disabled
-			log.debug("TaskExecutor {} will be started with container size {} MB, JVM heap size {} MB, " +
-					"JVM direct memory limit {} MB",
-				containerId,
-				taskManagerParameters.taskManagerTotalMemoryMB(),
-				taskManagerParameters.taskManagerHeapSizeMB(),
-				taskManagerParameters.taskManagerDirectMemoryLimitMB());
-		} else { // Flip-49 enabled
-			log.debug("TaskExecutor {} will be started with {}.",
-				containerId,
-				tmResourceSpec);
-		}
+		log.debug("TaskExecutor {} will be started with {}.",
+			containerId,
+			tmResourceSpec);
 
 		Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
 

@@ -153,36 +153,13 @@ public class BootstrapToolsTest extends TestLogger {
 			new MemorySize(0), // offHeapManagedMemorySize
 			new MemorySize(333), // jvmMetaspaceSize
 			new MemorySize(0)); // jvmOverheadSize
-		final ContaineredTaskManagerParameters containeredParams = new ContaineredTaskManagerParameters(
-			taskExecutorResourceSpec, 1024, 768, 256, 4, new HashMap<String, String>());
-
-		// no logging, with/out krb5
-		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
-		final String mainClass =
-			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
-		final String dynamicConfigs = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec).trim();
-		final String args = dynamicConfigs + " --configDir ./conf";
-		final String redirects =
-			"1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
-
-		assertEquals(
-			java + " " + jvmmem + " " + mainClass + " " + args + " " + redirects,
-			BootstrapTools
-				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, false, false, this.getClass()));
-	}
-
-	@Test
-	public void testGetTaskManagerShellCommandLegacy() {
-		final Configuration cfg = new Configuration();
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(null, 1024, 768, 256, 4,
+			new ContaineredTaskManagerParameters(taskExecutorResourceSpec, 1024, 768, 256, 4,
 				new HashMap<String, String>());
 
 		// no logging, with/out krb5
 		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = "-Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m";
+		final String jvmmem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
 		final String jvmOpts = "-Djvm"; // if set
 		final String tmJvmOpts = "-DtmJvm"; // if set
 		final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set
@@ -192,7 +169,8 @@ public class BootstrapToolsTest extends TestLogger {
 			"-Dlog4j.configuration=file:./conf/log4j.properties"; // if set
 		final String mainClass =
 			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
-		final String args = "--configDir ./conf";
+		final String dynamicConfigs = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec).trim();
+		final String args = dynamicConfigs + " --configDir ./conf";
 		final String redirects =
 			"1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
 
