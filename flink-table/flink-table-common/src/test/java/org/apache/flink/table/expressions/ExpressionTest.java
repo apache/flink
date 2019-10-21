@@ -164,10 +164,10 @@ public class ExpressionTest {
 	@Test
 	public void testPeriodlValueLiteralExtraction() {
 		final Period period = Period.ofMonths(10);
-		Long expectedValue = 10L;
+		Integer expectedValue = 10;
 		assertEquals(
 			expectedValue,
-			new ValueLiteralExpression(period).getValueAs(Long.class)
+			new ValueLiteralExpression(period).getValueAs(Integer.class)
 				.orElseThrow(AssertionError::new));
 	}
 
