@@ -335,14 +335,11 @@ public class MesosTaskManagerParameters {
 	public static MesosTaskManagerParameters create(Configuration flinkConfig) {
 
 		List<ConstraintEvaluator> constraints = parseConstraints(flinkConfig.getString(MESOS_CONSTRAINTS_HARD_HOSTATTR));
-		TaskExecutorResourceSpec taskExecutorResourceSpec;
-		if (flinkConfig.getBoolean(TaskManagerOptions.ENABLE_FLIP_49_CONFIG)) {
-			Configuration copiedConfig = new Configuration(flinkConfig);
-			copiedConfig.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, flinkConfig.getInteger(MESOS_RM_TASKS_MEMORY_MB) + "m");
-			taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(copiedConfig);
-		} else {
-			taskExecutorResourceSpec = null;
-		}
+
+		Configuration copiedConfig = new Configuration(flinkConfig);
+		copiedConfig.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, flinkConfig.getInteger(MESOS_RM_TASKS_MEMORY_MB) + "m");
+		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(copiedConfig);
+
 		// parse the common parameters
 		ContaineredTaskManagerParameters containeredParameters = ContaineredTaskManagerParameters.create(
 			flinkConfig,
