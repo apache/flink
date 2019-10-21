@@ -21,12 +21,9 @@ package org.apache.flink.runtime.scheduler.adapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
@@ -37,7 +34,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Default implementation of {@link SchedulingResultPartition}.
  */
-class DefaultSchedulingResultPartition implements SchedulingResultPartition {
+class DefaultSchedulingResultPartition
+	implements SchedulingResultPartition<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
 
 	private final IntermediateResultPartitionID resultPartitionId;
 
@@ -45,9 +43,9 @@ class DefaultSchedulingResultPartition implements SchedulingResultPartition {
 
 	private final ResultPartitionType partitionType;
 
-	private SchedulingExecutionVertex producer;
+	private DefaultSchedulingExecutionVertex producer;
 
-	private final List<SchedulingExecutionVertex> consumers;
+	private final List<DefaultSchedulingExecutionVertex> consumers;
 
 	DefaultSchedulingResultPartition(
 			IntermediateResultPartitionID partitionId,
@@ -70,7 +68,7 @@ class DefaultSchedulingResultPartition implements SchedulingResultPartition {
 	}
 
 	@Override
-	public ResultPartitionType getPartitionType() {
+	public ResultPartitionType getResultType() {
 		return partitionType;
 	}
 
@@ -87,20 +85,20 @@ class DefaultSchedulingResultPartition implements SchedulingResultPartition {
 	}
 
 	@Override
-	public SchedulingExecutionVertex getProducer() {
+	public DefaultSchedulingExecutionVertex getProducer() {
 		return producer;
 	}
 
 	@Override
-	public Collection<SchedulingExecutionVertex> getConsumers() {
-		return Collections.unmodifiableCollection(consumers);
+	public Iterable<DefaultSchedulingExecutionVertex> getConsumers() {
+		return consumers;
 	}
 
-	void addConsumer(SchedulingExecutionVertex vertex) {
+	void addConsumer(DefaultSchedulingExecutionVertex vertex) {
 		consumers.add(checkNotNull(vertex));
 	}
 
-	void setProducer(SchedulingExecutionVertex vertex) {
+	void setProducer(DefaultSchedulingExecutionVertex vertex) {
 		producer = checkNotNull(vertex);
 	}
 }

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -82,16 +83,20 @@ public class DefaultSchedulingExecutionVertexTest extends TestLogger {
 
 	@Test
 	public void testGetProducedResultPartitions() {
-		IntermediateResultPartitionID partitionIds1 = producerVertex
-			.getProducedResultPartitions().stream().findAny().map(SchedulingResultPartition::getId)
+		IntermediateResultPartitionID partitionIds1 = IterableUtils
+			.toStream(producerVertex.getProducedResults())
+			.findAny()
+			.map(SchedulingResultPartition::getId)
 			.orElseThrow(() -> new IllegalArgumentException("can not find result partition"));
 		assertEquals(partitionIds1, intermediateResultPartitionId);
 	}
 
 	@Test
 	public void testGetConsumedResultPartitions() {
-		IntermediateResultPartitionID partitionIds1 = consumerVertex
-			.getConsumedResultPartitions().stream().findAny().map(SchedulingResultPartition::getId)
+		IntermediateResultPartitionID partitionIds1 = IterableUtils
+			.toStream(consumerVertex.getConsumedResults())
+			.findAny()
+			.map(SchedulingResultPartition::getId)
 			.orElseThrow(() -> new IllegalArgumentException("can not find result partition"));
 		assertEquals(partitionIds1, intermediateResultPartitionId);
 	}

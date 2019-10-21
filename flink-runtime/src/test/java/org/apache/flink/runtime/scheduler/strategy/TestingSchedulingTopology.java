@@ -27,7 +27,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -39,36 +38,42 @@ import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartit
 /**
  * A simple scheduling topology for testing purposes.
  */
-public class TestingSchedulingTopology implements SchedulingTopology {
+public class TestingSchedulingTopology
+	implements SchedulingTopology<TestingSchedulingExecutionVertex, TestingSchedulingResultPartition> {
 
-	private final Map<ExecutionVertexID, SchedulingExecutionVertex> schedulingExecutionVertices = new HashMap<>();
+	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> schedulingExecutionVertices = new HashMap<>();
 
-	private final Map<IntermediateResultPartitionID, SchedulingResultPartition> schedulingResultPartitions = new HashMap<>();
+	private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition> schedulingResultPartitions = new HashMap<>();
 
 	@Override
-	public Iterable<SchedulingExecutionVertex> getVertices() {
+	public Iterable<TestingSchedulingExecutionVertex> getVertices() {
 		return Collections.unmodifiableCollection(schedulingExecutionVertices.values());
 	}
 
 	@Override
-	public Optional<SchedulingExecutionVertex> getVertex(ExecutionVertexID executionVertexId)  {
+	public boolean containsCoLocationConstraints() {
+		return false;
+	}
+
+	@Override
+	public Optional<TestingSchedulingExecutionVertex> getVertex(ExecutionVertexID executionVertexId)  {
 		return Optional.ofNullable(schedulingExecutionVertices.get(executionVertexId));
 	}
 
 	@Override
-	public Optional<SchedulingResultPartition> getResultPartition(
+	public Optional<TestingSchedulingResultPartition> getResultPartition(
 			IntermediateResultPartitionID intermediateResultPartitionId) {
 		return Optional.of(schedulingResultPartitions.get(intermediateResultPartitionId));
 	}
 
-	void addSchedulingExecutionVertex(SchedulingExecutionVertex schedulingExecutionVertex) {
+	void addSchedulingExecutionVertex(TestingSchedulingExecutionVertex schedulingExecutionVertex) {
 		schedulingExecutionVertices.put(schedulingExecutionVertex.getId(), schedulingExecutionVertex);
-		addSchedulingResultPartitions(schedulingExecutionVertex.getConsumedResultPartitions());
-		addSchedulingResultPartitions(schedulingExecutionVertex.getProducedResultPartitions());
+		addSchedulingResultPartitions(schedulingExecutionVertex.getConsumedResults());
+		addSchedulingResultPartitions(schedulingExecutionVertex.getProducedResults());
 	}
 
-	private void addSchedulingResultPartitions(final Collection<SchedulingResultPartition> resultPartitions) {
-		for (SchedulingResultPartition schedulingResultPartition : resultPartitions) {
+	private void addSchedulingResultPartitions(final Iterable<TestingSchedulingResultPartition> resultPartitions) {
+		for (TestingSchedulingResultPartition schedulingResultPartition : resultPartitions) {
 			schedulingResultPartitions.put(schedulingResultPartition.getId(), schedulingResultPartition);
 		}
 	}

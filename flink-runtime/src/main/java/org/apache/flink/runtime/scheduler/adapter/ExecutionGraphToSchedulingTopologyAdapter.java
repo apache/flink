@@ -21,18 +21,18 @@ package org.apache.flink.runtime.scheduler.adapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -41,16 +41,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Adapter of {@link ExecutionGraph} to {@link SchedulingTopology}.
  */
-public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopology {
+public class ExecutionGraphToSchedulingTopologyAdapter
+	implements SchedulingTopology<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
+
+	private final boolean containsCoLocationConstraints;
 
 	private final Map<ExecutionVertexID, DefaultSchedulingExecutionVertex> executionVerticesById;
 
-	private final List<SchedulingExecutionVertex> executionVerticesList;
+	private final List<DefaultSchedulingExecutionVertex> executionVerticesList;
 
-	private final Map<IntermediateResultPartitionID, ? extends SchedulingResultPartition> resultPartitionsById;
+	private final Map<IntermediateResultPartitionID, DefaultSchedulingResultPartition> resultPartitionsById;
 
 	public ExecutionGraphToSchedulingTopologyAdapter(ExecutionGraph graph) {
 		checkNotNull(graph, "execution graph can not be null");
+
+		this.containsCoLocationConstraints = graph.getAllVertices().values().stream()
+			.map(ExecutionJobVertex::getCoLocationGroup)
+			.anyMatch(Objects::nonNull);
 
 		this.executionVerticesById = new HashMap<>();
 		this.executionVerticesList = new ArrayList<>(graph.getTotalNumberOfVertices());
@@ -73,17 +80,22 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 	}
 
 	@Override
-	public Iterable<SchedulingExecutionVertex> getVertices() {
+	public Iterable<DefaultSchedulingExecutionVertex> getVertices() {
 		return executionVerticesList;
 	}
 
 	@Override
-	public Optional<SchedulingExecutionVertex> getVertex(ExecutionVertexID executionVertexId) {
+	public boolean containsCoLocationConstraints() {
+		return containsCoLocationConstraints;
+	}
+
+	@Override
+	public Optional<DefaultSchedulingExecutionVertex> getVertex(ExecutionVertexID executionVertexId) {
 		return Optional.ofNullable(executionVerticesById.get(executionVertexId));
 	}
 
 	@Override
-	public Optional<SchedulingResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId) {
+	public Optional<DefaultSchedulingResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId) {
 		return Optional.ofNullable(resultPartitionsById.get(intermediateResultPartitionId));
 	}
 

@@ -28,11 +28,13 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -51,6 +53,7 @@ import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
+import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -97,7 +100,7 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
 			for (Map.Entry<IntermediateResultPartitionID, IntermediateResultPartition> entry : vertex.getProducedPartitions().entrySet()) {
 				IntermediateResultPartition partition = entry.getValue();
-				SchedulingResultPartition schedulingResultPartition = adapter.getResultPartition(entry.getKey())
+				DefaultSchedulingResultPartition schedulingResultPartition = adapter.getResultPartition(entry.getKey())
 					.orElseThrow(() -> new IllegalArgumentException("can not find partition " + entry.getKey()));
 
 				assertPartitionEquals(partition, schedulingResultPartition);
@@ -125,16 +128,52 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testWithCoLocationConstraints() throws Exception {
+		ExecutionGraph executionGraph = createExecutionGraphWithCoLocationConstraint();
+		adapter = new ExecutionGraphToSchedulingTopologyAdapter(executionGraph);
+		assertTrue(adapter.containsCoLocationConstraints());
+	}
+
+	@Test
+	public void testWithoutCoLocationConstraints() {
+		assertFalse(adapter.containsCoLocationConstraints());
+	}
+
+	private ExecutionGraph createExecutionGraphWithCoLocationConstraint() throws Exception {
+		JobVertex[] jobVertices = new JobVertex[2];
+		int parallelism = 3;
+		jobVertices[0] = createNoOpVertex("v1", parallelism);
+		jobVertices[1] = createNoOpVertex("v2", parallelism);
+		jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
+
+		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+		jobVertices[0].setSlotSharingGroup(slotSharingGroup);
+		jobVertices[1].setSlotSharingGroup(slotSharingGroup);
+
+		CoLocationGroup coLocationGroup = new CoLocationGroup();
+		coLocationGroup.addVertex(jobVertices[0]);
+		coLocationGroup.addVertex(jobVertices[1]);
+		jobVertices[0].updateCoLocationGroup(coLocationGroup);
+		jobVertices[1].updateCoLocationGroup(coLocationGroup);
+
+		return createSimpleTestGraph(
+			new JobID(),
+			taskManagerGateway,
+			triggeredRestartStrategy,
+			jobVertices);
+	}
+
 	private static void assertGraphEquals(
 		ExecutionGraph originalGraph,
-		SchedulingTopology adaptedTopology) {
+		ExecutionGraphToSchedulingTopologyAdapter adaptedTopology) {
 
 		Iterator<ExecutionVertex> originalVertices = originalGraph.getAllExecutionVertices().iterator();
-		Iterator<SchedulingExecutionVertex> adaptedVertices = adaptedTopology.getVertices().iterator();
+		Iterator<DefaultSchedulingExecutionVertex> adaptedVertices = adaptedTopology.getVertices().iterator();
 
 		while (originalVertices.hasNext()) {
 			ExecutionVertex originalVertex = originalVertices.next();
-			SchedulingExecutionVertex adaptedVertex = adaptedVertices.next();
+			DefaultSchedulingExecutionVertex adaptedVertex = adaptedVertices.next();
 
 			assertVertexEquals(originalVertex, adaptedVertex);
 
@@ -143,12 +182,12 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 				.flatMap(Arrays::stream)
 				.map(ExecutionEdge::getSource)
 				.collect(Collectors.toList());
-			Collection<SchedulingResultPartition> adaptedConsumedPartitions = adaptedVertex.getConsumedResultPartitions();
+			Iterable<DefaultSchedulingResultPartition> adaptedConsumedPartitions = adaptedVertex.getConsumedResults();
 
 			assertPartitionsEquals(originalConsumedPartitions, adaptedConsumedPartitions);
 
 			Collection<IntermediateResultPartition> originalProducedPartitions = originalVertex.getProducedPartitions().values();
-			Collection<SchedulingResultPartition> adaptedProducedPartitions = adaptedVertex.getProducedResultPartitions();
+			Iterable<DefaultSchedulingResultPartition> adaptedProducedPartitions = adaptedVertex.getProducedResults();
 
 			assertPartitionsEquals(originalProducedPartitions, adaptedProducedPartitions);
 		}
@@ -157,13 +196,13 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 	}
 
 	private static void assertPartitionsEquals(
-		Collection<IntermediateResultPartition> originalPartitions,
-		Collection<SchedulingResultPartition> adaptedPartitions) {
+		Iterable<IntermediateResultPartition> originalResultPartitions,
+		Iterable<DefaultSchedulingResultPartition> adaptedResultPartitions) {
 
-		assertEquals(originalPartitions.size(), adaptedPartitions.size());
+		assertEquals(Iterables.size(originalResultPartitions), Iterables.size(adaptedResultPartitions));
 
-		for (IntermediateResultPartition originalPartition : originalPartitions) {
-			SchedulingResultPartition adaptedPartition = adaptedPartitions.stream()
+		for (IntermediateResultPartition originalPartition : originalResultPartitions) {
+			DefaultSchedulingResultPartition adaptedPartition = IterableUtils.toStream(adaptedResultPartitions)
 				.filter(adapted -> adapted.getId().equals(originalPartition.getPartitionId()))
 				.findAny()
 				.orElseThrow(() -> new AssertionError("Could not find matching adapted partition for " + originalPartition));
@@ -174,7 +213,7 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 				.flatMap(Collection::stream)
 				.map(ExecutionEdge::getTarget)
 				.collect(Collectors.toList());
-			Collection<SchedulingExecutionVertex> adaptedConsumers = adaptedPartition.getConsumers();
+			Iterable<DefaultSchedulingExecutionVertex> adaptedConsumers = adaptedPartition.getConsumers();
 
 			for (ExecutionVertex originalConsumer : originalConsumers) {
 				// it is sufficient to verify that some vertex exists with the correct ID here,
@@ -182,18 +221,18 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 				// this DOES rely on an implicit assumption that the vertices objects returned by the topology are
 				// identical to those stored in the partition
 				ExecutionVertexID originalId = originalConsumer.getID();
-				assertTrue(adaptedConsumers.stream().anyMatch(adaptedConsumer -> adaptedConsumer.getId().equals(originalId)));
+				assertTrue(IterableUtils.toStream(adaptedConsumers).anyMatch(adaptedConsumer -> adaptedConsumer.getId().equals(originalId)));
 			}
 		}
 	}
 
 	private static void assertPartitionEquals(
 		IntermediateResultPartition originalPartition,
-		SchedulingResultPartition adaptedPartition) {
+		DefaultSchedulingResultPartition adaptedPartition) {
 
 		assertEquals(originalPartition.getPartitionId(), adaptedPartition.getId());
 		assertEquals(originalPartition.getIntermediateResult().getId(), adaptedPartition.getResultId());
-		assertEquals(originalPartition.getResultType(), adaptedPartition.getPartitionType());
+		assertEquals(originalPartition.getResultType(), adaptedPartition.getResultType());
 		assertVertexEquals(
 			originalPartition.getProducer(),
 			adaptedPartition.getProducer());
@@ -201,7 +240,8 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 
 	private static void assertVertexEquals(
 		ExecutionVertex originalVertex,
-		SchedulingExecutionVertex adaptedVertex) {
+		DefaultSchedulingExecutionVertex adaptedVertex) {
+
 		assertEquals(
 			originalVertex.getID(),
 			adaptedVertex.getId());
