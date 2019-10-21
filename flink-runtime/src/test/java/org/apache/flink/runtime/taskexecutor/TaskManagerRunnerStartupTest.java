@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -131,7 +130,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 				highAvailabilityServices);
 
 			fail("Should fail synchronously with an exception");
-		} catch (IllegalConfigurationException e) {
+		} catch (Throwable t) {
 			// splendid!
 		}
 	}
