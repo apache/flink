@@ -55,9 +55,9 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getExecutionVertexID());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getExecutionVertexID());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getExecutionVertexID());
+		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
+		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
+		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
 
 		assertDistinctRegions(r1, r2, r3);
 	}
@@ -93,12 +93,12 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getExecutionVertexID());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getExecutionVertexID());
-		FailoverRegion ra3 = strategy.getFailoverRegion(va3.getExecutionVertexID());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getExecutionVertexID());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getExecutionVertexID());
-		FailoverRegion rb3 = strategy.getFailoverRegion(vb3.getExecutionVertexID());
+		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		FailoverRegion ra3 = strategy.getFailoverRegion(va3.getId());
+		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		FailoverRegion rb3 = strategy.getFailoverRegion(vb3.getId());
 
 		assertSameRegion(ra1, rb1);
 		assertSameRegion(ra2, rb2);
@@ -142,12 +142,12 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getExecutionVertexID());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getExecutionVertexID());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getExecutionVertexID());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getExecutionVertexID());
-		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getExecutionVertexID());
-		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getExecutionVertexID());
+		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getId());
+		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2, rc1, rc2);
 	}
@@ -190,13 +190,13 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getExecutionVertexID());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getExecutionVertexID());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getExecutionVertexID());
-		FailoverRegion r4 = strategy.getFailoverRegion(v4.getExecutionVertexID());
-		FailoverRegion r5 = strategy.getFailoverRegion(v5.getExecutionVertexID());
-		FailoverRegion r6 = strategy.getFailoverRegion(v6.getExecutionVertexID());
-		FailoverRegion r7 = strategy.getFailoverRegion(v7.getExecutionVertexID());
+		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
+		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
+		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
+		FailoverRegion r4 = strategy.getFailoverRegion(v4.getId());
+		FailoverRegion r5 = strategy.getFailoverRegion(v5.getId());
+		FailoverRegion r6 = strategy.getFailoverRegion(v6.getId());
+		FailoverRegion r7 = strategy.getFailoverRegion(v7.getId());
 
 		assertSameRegion(r1, r2, r3, r4, r5, r6, r7);
 	}
@@ -239,13 +239,13 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getExecutionVertexID());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getExecutionVertexID());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getExecutionVertexID());
-		FailoverRegion r4 = strategy.getFailoverRegion(v4.getExecutionVertexID());
-		FailoverRegion r5 = strategy.getFailoverRegion(v5.getExecutionVertexID());
-		FailoverRegion r6 = strategy.getFailoverRegion(v6.getExecutionVertexID());
-		FailoverRegion r7 = strategy.getFailoverRegion(v7.getExecutionVertexID());
+		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
+		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
+		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
+		FailoverRegion r4 = strategy.getFailoverRegion(v4.getId());
+		FailoverRegion r5 = strategy.getFailoverRegion(v5.getId());
+		FailoverRegion r6 = strategy.getFailoverRegion(v6.getId());
+		FailoverRegion r7 = strategy.getFailoverRegion(v7.getId());
 
 		assertSameRegion(r1, r2, r3, r4, r5, r6, r7);
 	}
@@ -285,12 +285,12 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getExecutionVertexID());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getExecutionVertexID());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getExecutionVertexID());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getExecutionVertexID());
-		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getExecutionVertexID());
-		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getExecutionVertexID());
+		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getId());
+		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2);
 
@@ -334,12 +334,12 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getExecutionVertexID());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getExecutionVertexID());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getExecutionVertexID());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getExecutionVertexID());
-		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getExecutionVertexID());
-		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getExecutionVertexID());
+		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getId());
+		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2);
 
@@ -388,13 +388,13 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getExecutionVertexID());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getExecutionVertexID());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getExecutionVertexID());
-		FailoverRegion r4 = strategy.getFailoverRegion(v4.getExecutionVertexID());
-		FailoverRegion r5 = strategy.getFailoverRegion(v5.getExecutionVertexID());
-		FailoverRegion r6 = strategy.getFailoverRegion(v6.getExecutionVertexID());
-		FailoverRegion r7 = strategy.getFailoverRegion(v7.getExecutionVertexID());
+		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
+		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
+		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
+		FailoverRegion r4 = strategy.getFailoverRegion(v4.getId());
+		FailoverRegion r5 = strategy.getFailoverRegion(v5.getId());
+		FailoverRegion r6 = strategy.getFailoverRegion(v6.getId());
+		FailoverRegion r7 = strategy.getFailoverRegion(v7.getId());
 
 		assertSameRegion(r1, r2, r5);
 		assertSameRegion(r3, r4, r6);
@@ -434,10 +434,10 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getExecutionVertexID());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getExecutionVertexID());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getExecutionVertexID());
-		FailoverRegion r4 = strategy.getFailoverRegion(v4.getExecutionVertexID());
+		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
+		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
+		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
+		FailoverRegion r4 = strategy.getFailoverRegion(v4.getId());
 
 		assertSameRegion(r1, r2, r3, r4);
 	}
@@ -476,10 +476,10 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getExecutionVertexID());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getExecutionVertexID());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getExecutionVertexID());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getExecutionVertexID());
+		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2);
 	}
@@ -512,10 +512,10 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getExecutionVertexID());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getExecutionVertexID());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getExecutionVertexID());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getExecutionVertexID());
+		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2);
 	}
