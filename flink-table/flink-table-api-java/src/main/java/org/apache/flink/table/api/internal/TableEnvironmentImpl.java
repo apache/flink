@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -115,8 +116,17 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.operationTreeBuilder = OperationTreeBuilder.create(
 			functionCatalog,
 			path -> {
-				Optional<CatalogQueryOperation> catalogTableOperation = scanInternal(path);
-				return catalogTableOperation.map(tableOperation -> new TableReferenceExpression(path, tableOperation));
+				try {
+					UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+					Optional<CatalogQueryOperation> catalogQueryOperation = scanInternal(unresolvedIdentifier);
+					return catalogQueryOperation.map(t -> new TableReferenceExpression(path, t));
+				} catch (SqlParserException ex) {
+					// The TableLookup is used during resolution of expressions and it actually might not be an
+					// identifier of a table. It might be a reference to some other object such as column, local
+					// reference etc. This method should return empty optional in such cases to fallback for other
+					// identifiers resolution.
+					return Optional.empty();
+				}
 			},
 			isStreamingMode
 		);
@@ -242,14 +252,27 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public Table scan(String... tablePath) {
-		return scanInternal(tablePath).map(this::createTable)
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(tablePath);
+		return scanInternal(unresolvedIdentifier)
+			.map(this::createTable)
 			.orElseThrow(() -> new ValidationException(String.format(
-				"Table '%s' was not found.",
-				String.join(".", tablePath))));
+				"Table %s was not found.",
+				unresolvedIdentifier)));
 	}
 
-	private Optional<CatalogQueryOperation> scanInternal(String... tablePath) {
-		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(tablePath));
+	@Override
+	public Table from(String path) {
+		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+		return scanInternal(unresolvedIdentifier)
+			.map(this::createTable)
+			.orElseThrow(() -> new ValidationException(String.format(
+				"Table %s was not found.",
+				unresolvedIdentifier)));
+	}
+
+	private Optional<CatalogQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
+
 		return catalogManager.getTable(tableIdentifier)
 			.map(t -> new CatalogQueryOperation(tableIdentifier, t.getTable().getSchema()));
 	}

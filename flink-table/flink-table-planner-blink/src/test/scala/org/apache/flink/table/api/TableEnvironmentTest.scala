@@ -43,7 +43,7 @@ class TableEnvironmentTest {
   @Test
   def testScanNonExistTable(): Unit = {
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Table 'MyTable' was not found")
+    thrown.expectMessage("Table `MyTable` was not found")
     tableEnv.scan("MyTable")
   }
 

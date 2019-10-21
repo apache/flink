@@ -110,6 +110,8 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def listTemporaryViews(): Array[String] = ???
 
+  override def from(path: String): Table = ???
+
   override def dropTemporaryTable(path: String): Boolean = ???
 
   override def dropTemporaryView(path: String): Boolean = ???

@@ -239,8 +239,49 @@ public interface TableEnvironment {
 	 * @return The resulting {@link Table}.
 	 * @see TableEnvironment#useCatalog(String)
 	 * @see TableEnvironment#useDatabase(String)
+	 * @deprecated use {@link #from(String)}
 	 */
+	@Deprecated
 	Table scan(String... tablePath);
+
+	/**
+	 * Reads a registered table and returns the resulting {@link Table}.
+	 *
+	 * <p>A table to scan must be registered in the {@link TableEnvironment}.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+	 *
+	 * <p>Examples:
+	 *
+	 * <p>Reading a table from default catalog and database.
+	 * <pre>
+	 * {@code
+	 *   Table tab = tableEnv.from("tableName");
+	 * }
+	 * </pre>
+	 *
+	 * <p>Reading a table from a registered catalog.
+	 * <pre>
+	 * {@code
+	 *   Table tab = tableEnv.from("catalogName.dbName.tableName");
+	 * }
+	 * </pre>
+	 *
+	 * <p>Reading a table from a registered catalog with escaping. ({@code Table} is a reserved keyword).
+	 * Dots in e.g. a database name also must be escaped.
+	 * <pre>
+	 * {@code
+	 *   Table tab = tableEnv.from("catalogName.`db.Name`.`Table`");
+	 * }
+	 * </pre>
+	 *
+	 * @param path The path of a table API object to scan.
+	 * @return Either a table or virtual table (=view).
+	 * @see TableEnvironment#useCatalog(String)
+	 * @see TableEnvironment#useDatabase(String)
+	 */
+	Table from(String path);
 
 	/**
 	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
