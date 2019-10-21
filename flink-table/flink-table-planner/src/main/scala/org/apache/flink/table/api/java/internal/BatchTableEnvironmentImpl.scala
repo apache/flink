@@ -69,6 +69,19 @@ class BatchTableEnvironmentImpl(
     registerTable(name, fromDataSet(dataSet, fields))
   }
 
+  override def createTemporaryView[T](
+      path: String,
+      dataSet: DataSet[T]): Unit = {
+    createTemporaryView(path, fromDataSet(dataSet))
+  }
+
+  override def createTemporaryView[T](
+      path: String,
+      dataSet: DataSet[T],
+      fields: String): Unit = {
+    createTemporaryView(path, fromDataSet(dataSet, fields))
+  }
+
   override def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
     // Use the default query config.
     translate[T](table)(TypeExtractor.createTypeInfo(clazz))

@@ -195,15 +195,32 @@ abstract class TableEnvImpl(
   }
 
   override def registerTable(name: String, table: Table): Unit = {
+    createTemporaryView(UnresolvedIdentifier.of(name), table)
+  }
 
+  protected def parseIdentifier(identifier: String): UnresolvedIdentifier = {
+    val parser = planningConfigurationBuilder.createCalciteParser()
+    UnresolvedIdentifier.of(parser.parseIdentifier(identifier).names: _*)
+  }
+
+  override def createTemporaryView(path: String, view: Table): Unit = {
+    val identifier = parseIdentifier(path)
+    createTemporaryView(identifier, view)
+  }
+
+  private def createTemporaryView(identifier: UnresolvedIdentifier, view: Table): Unit = {
     // check that table belongs to this table environment
-    if (table.asInstanceOf[TableImpl].getTableEnvironment != this) {
+    if (view.asInstanceOf[TableImpl].getTableEnvironment != this) {
       throw new TableException(
-        "Only tables that belong to this TableEnvironment can be registered.")
+        "Only table API objects that belong to this TableEnvironment can be registered.")
     }
 
-    val view = new QueryOperationCatalogView(table.getQueryOperation)
-    catalogManager.createTemporaryTable(view, getTemporaryObjectIdentifier(name), false)
+    val objectIdentifier = catalogManager.qualifyIdentifier(identifier)
+
+    catalogManager.createTemporaryTable(
+      new QueryOperationCatalogView(view.getQueryOperation),
+      objectIdentifier,
+      false)
   }
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {

@@ -36,7 +36,7 @@ import org.apache.flink.table.sources.TableSource;
 import java.util.Optional;
 
 /**
- * A table environment is the base class, entry point, and central context for creating Table & SQL
+ * A table environment is the base class, entry point, and central context for creating Table and SQL
  * API programs.
  *
  * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no distinction
@@ -50,6 +50,14 @@ import java.util.Optional;
  *     <li>Offering further configuration options.</li>
  * </ul>
  *
+ * <p>The path in methods such as {@link #createTemporaryView(String, Table)} should be a proper SQL identifier.
+ * The syntax is following [[catalog-name.]database-name.]object-name, where the catalog name and database are
+ * optional. For path resolution see {@link #useCatalog(String)} and {@link #useDatabase(String)}. All keywords
+ * or other special characters need to be escaped.
+ *
+ * <p>Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' (table is a reserved keyword, thus must
+ * be escaped) in a catalog named 'cat.1' and database named 'db'.
+ *
  * <p>Note: This environment is meant for pure table programs. If you would like to convert from or to
  * other Flink APIs, it might be necessary to use one of the available language-specific table environments
  * in the corresponding bridging modules.
@@ -58,7 +66,7 @@ import java.util.Optional;
 public interface TableEnvironment {
 
 	/**
-	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * Creates a table environment that is the entry point and central context for creating Table and SQL
 	 * API programs.
 	 *
 	 * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no distinction
@@ -133,14 +141,37 @@ public interface TableEnvironment {
 	 * Registers a {@link Table} under a unique name in the TableEnvironment's catalog.
 	 * Registered tables can be referenced in SQL queries.
 	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name The name under which the table will be registered.
 	 * @param table The table to register.
+	 * @deprecated use {@link #createTemporaryView(String, Table)}
 	 */
+	@Deprecated
 	void registerTable(String name, Table table);
+
+	/**
+	 * Registers a {@link Table} API object as a temporary view similar to SQL temporary views.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the view will be registered.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param view The view to register.
+	 */
+	void createTemporaryView(String path, Table view);
 
 	/**
 	 * Registers an external {@link TableSource} in this {@link TableEnvironment}'s catalog.
 	 * Registered tables can be referenced in SQL queries.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
 	 *
 	 * @param name        The name under which the {@link TableSource} is registered.
 	 * @param tableSource The {@link TableSource} to register.
@@ -151,6 +182,10 @@ public interface TableEnvironment {
 	 * Registers an external {@link TableSink} with given field names and types in this
 	 * {@link TableEnvironment}'s catalog.
 	 * Registered sink tables can be referenced in SQL DML statements.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
 	 *
 	 * @param name The name under which the {@link TableSink} is registered.
 	 * @param fieldNames The field names to register with the {@link TableSink}.
@@ -165,6 +200,10 @@ public interface TableEnvironment {
 	 * Registers an external {@link TableSink} with already configured field names and field types in
 	 * this {@link TableEnvironment}'s catalog.
 	 * Registered sink tables can be referenced in SQL DML statements.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
 	 *
 	 * @param name The name under which the {@link TableSink} is registered.
 	 * @param configuredSink The configured {@link TableSink} to register.
