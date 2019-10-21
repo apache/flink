@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
+
 from abc import ABCMeta
 
 from py4j.java_gateway import get_java_class
@@ -30,9 +30,6 @@ __all__ = [
     'RocksDBStateBackend',
     'CustomStateBackend',
     'PredefinedOptions']
-
-if sys.version > '3':
-    xrange = range
 
 
 def _from_j_state_backend(j_state_backend):
@@ -532,7 +529,7 @@ class RocksDBStateBackend(StateBackend):
         else:
             gateway = get_gateway()
             j_path_array = gateway.new_array(gateway.jvm.String, len(paths))
-            for i in xrange(0, len(paths)):
+            for i in range(0, len(paths)):
                 j_path_array[i] = paths[i]
             self._j_rocks_db_state_backend.setDbStoragePaths(j_path_array)
 

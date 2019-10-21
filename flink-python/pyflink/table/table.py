@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 
 from py4j.java_gateway import get_method
 from pyflink.java_gateway import get_gateway
@@ -23,9 +22,6 @@ from pyflink.table.table_schema import TableSchema
 
 from pyflink.table.window import GroupWindow
 from pyflink.util.utils import to_jarray
-
-if sys.version > '3':
-    xrange = range
 
 __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 

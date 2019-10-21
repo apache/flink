@@ -24,8 +24,8 @@ from shutil import copytree, copy, rmtree
 
 from setuptools import setup
 
-if sys.version_info < (2, 7):
-    print("Python versions prior to 2.7 are not supported for PyFlink.",
+if sys.version_info < (3, 5):
+    print("Python versions prior to 3.5 are not supported for PyFlink.",
           file=sys.stderr)
     sys.exit(-1)
 
@@ -206,6 +206,7 @@ run sdist.
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Flink Developers',
         author_email='dev@flink.apache.org',
+        python_requires='>=3.5',
         install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.15.0',
                           'cloudpickle==1.2.2'],
         tests_require=['pytest==4.4.1'],
@@ -215,7 +216,6 @@ run sdist.
         classifiers=[
             'Development Status :: 1 - Planning',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7']
