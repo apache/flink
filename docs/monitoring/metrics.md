@@ -1033,8 +1033,8 @@ Thus, in order to infer the metric identifier:
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="8">Task</th>
-      <td rowspan="4">buffers</td>
+      <th rowspan="10">Task</th>
+      <td rowspan="6">buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers. (ignores LocalInputChannels which are using blocking subpartitions)</td>
       <td>Gauge</td>
