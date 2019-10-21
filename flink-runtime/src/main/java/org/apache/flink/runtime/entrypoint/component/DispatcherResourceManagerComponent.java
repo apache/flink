@@ -94,16 +94,6 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 		return shutDownFuture;
 	}
 
-	@Nonnull
-	public DispatcherRunner getDispatcherRunner() {
-		return dispatcherRunner;
-	}
-
-	@Nonnull
-	public WebMonitorEndpoint<?> getWebMonitorEndpoint() {
-		return webMonitorEndpoint;
-	}
-
 	/**
 	 * Deregister the Flink application from the resource management system by signalling
 	 * the {@link ResourceManager}.
