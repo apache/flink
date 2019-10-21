@@ -201,7 +201,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.build();
 
 		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
-			final CompletableFuture<String> confirmLeaderSessionFuture = dispatcherLeaderProcess.getConfirmLeaderSessionFuture();
+			final CompletableFuture<String> confirmLeaderSessionFuture = dispatcherLeaderProcess.getLeaderAddressFuture();
 
 			dispatcherLeaderProcess.start();
 

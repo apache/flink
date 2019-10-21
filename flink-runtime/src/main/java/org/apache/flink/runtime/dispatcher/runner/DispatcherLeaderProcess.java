@@ -37,7 +37,7 @@ interface DispatcherLeaderProcess extends AutoCloseableAsync {
 
 	CompletableFuture<DispatcherGateway> getDispatcherGateway();
 
-	CompletableFuture<String> getConfirmLeaderSessionFuture();
+	CompletableFuture<String> getLeaderAddressFuture();
 
 	CompletableFuture<ApplicationStatus> getShutDownFuture();
 }
