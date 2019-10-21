@@ -221,23 +221,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
-	public HighAvailabilityServices getHighAvailabilityServices() {
-		synchronized (lock) {
-			checkState(running, "MiniCluster is not yet running.");
-			return haServices;
-		}
-	}
-
 	protected Executor getIOExecutor() {
 		return ioExecutor;
-	}
-
-	@VisibleForTesting
-	@Nonnull
-	protected Collection<DispatcherResourceManagerComponent> getDispatcherResourceManagerComponents() {
-		synchronized (lock) {
-			return Collections.unmodifiableCollection(dispatcherResourceManagerComponents);
-		}
 	}
 
 	// ------------------------------------------------------------------------

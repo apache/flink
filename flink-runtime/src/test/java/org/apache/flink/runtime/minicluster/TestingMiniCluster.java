@@ -69,12 +69,6 @@ public class TestingMiniCluster extends MiniCluster {
 
 	@Nonnull
 	@Override
-	public Collection<DispatcherResourceManagerComponent> getDispatcherResourceManagerComponents() {
-		return super.getDispatcherResourceManagerComponents();
-	}
-
-	@Nonnull
-	@Override
 	public CompletableFuture<Void> terminateTaskExecutor(int index) {
 		return super.terminateTaskExecutor(index);
 	}
