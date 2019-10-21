@@ -104,6 +104,11 @@ public class SqlToOperationConverter {
 			throw new SqlConversionException("Primary key and unique key are not supported yet.");
 		}
 
+		if (sqlCreateTable.getWatermark().isPresent()) {
+			throw new SqlConversionException(
+				"Watermark statement is not supported in Old Planner, please use Blink Planner instead.");
+		}
+
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateTable.getPropertyList().getList().forEach(p ->

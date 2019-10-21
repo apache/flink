@@ -21,16 +21,19 @@ package org.apache.flink.sql.parser.ddl;
 import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
+import org.apache.calcite.sql.ExtendedSqlRowTypeNameSpec;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -67,6 +70,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	private final SqlNodeList partitionKeyList;
 
 	@Nullable
+	private final SqlWatermark watermark;
+
+	@Nullable
 	private final SqlCharStringLiteral comment;
 
 	public SqlCreateTable(
@@ -77,6 +83,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			List<SqlNodeList> uniqueKeysList,
 			SqlNodeList propertyList,
 			SqlNodeList partitionKeyList,
+			SqlWatermark watermark,
 			SqlCharStringLiteral comment) {
 		super(OPERATOR, pos, false, false);
 		this.tableName = requireNonNull(tableName, "tableName should not be null");
@@ -85,6 +92,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		this.uniqueKeysList = requireNonNull(uniqueKeysList, "uniqueKeysList should not be null");
 		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
 		this.partitionKeyList = requireNonNull(partitionKeyList, "partitionKeyList should not be null");
+		this.watermark = watermark;
 		this.comment = comment;
 	}
 
@@ -96,7 +104,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	@Override
 	public List<SqlNode> getOperandList() {
 		return ImmutableNullableList.of(tableName, columnList, primaryKeyList,
-			propertyList, partitionKeyList, comment);
+			propertyList, partitionKeyList, watermark, comment);
 	}
 
 	public SqlIdentifier getTableName() {
@@ -123,6 +131,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return uniqueKeysList;
 	}
 
+	public Optional<SqlWatermark> getWatermark() {
+		return Optional.ofNullable(watermark);
+	}
+
 	public Optional<SqlCharStringLiteral> getComment() {
 		return Optional.ofNullable(comment);
 	}
@@ -132,28 +144,14 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	}
 
 	public void validate() throws SqlValidateException {
-		Set<String> columnNames = new HashSet<>();
+		ColumnValidator validator = new ColumnValidator();
 		for (SqlNode column : columnList) {
-			String columnName = null;
-			if (column instanceof SqlTableColumn) {
-				SqlTableColumn tableColumn = (SqlTableColumn) column;
-				columnName = tableColumn.getName().getSimple();
-			} else if (column instanceof SqlBasicCall) {
-				SqlBasicCall tableColumn = (SqlBasicCall) column;
-				columnName = tableColumn.getOperands()[1].toString();
-			}
-
-			if (!columnNames.add(columnName)) {
-				throw new SqlValidateException(
-					column.getParserPosition(),
-					"Duplicate column name [" + columnName + "], at " +
-						column.getParserPosition());
-			}
+			validator.addColumn(column);
 		}
 
 		for (SqlNode primaryKeyNode : this.primaryKeyList) {
 			String primaryKey = ((SqlIdentifier) primaryKeyNode).getSimple();
-			if (!columnNames.contains(primaryKey)) {
+			if (!validator.contains(primaryKey)) {
 				throw new SqlValidateException(
 					primaryKeyNode.getParserPosition(),
 					"Primary key [" + primaryKey + "] not defined in columns, at " +
@@ -164,7 +162,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		for (SqlNodeList uniqueKeys: this.uniqueKeysList) {
 			for (SqlNode uniqueKeyNode : uniqueKeys) {
 				String uniqueKey = ((SqlIdentifier) uniqueKeyNode).getSimple();
-				if (!columnNames.contains(uniqueKey)) {
+				if (!validator.contains(uniqueKey)) {
 					throw new SqlValidateException(
 							uniqueKeyNode.getParserPosition(),
 							"Unique key [" + uniqueKey + "] not defined in columns, at " + uniqueKeyNode.getParserPosition());
@@ -174,7 +172,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 		for (SqlNode partitionKeyNode : this.partitionKeyList.getList()) {
 			String partitionKey = ((SqlIdentifier) partitionKeyNode).getSimple();
-			if (!columnNames.contains(partitionKey)) {
+			if (!validator.contains(partitionKey)) {
 				throw new SqlValidateException(
 					partitionKeyNode.getParserPosition(),
 					"Partition column [" + partitionKey + "] not defined in columns, at "
@@ -182,6 +180,16 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			}
 		}
 
+		if (this.watermark != null) {
+			// SqlIdentifier.toString() returns a qualified identifier string using "." separator
+			String rowtimeField = watermark.getColumnName().toString();
+			if (!validator.contains(rowtimeField)) {
+				throw new SqlValidateException(
+					watermark.getColumnName().getParserPosition(),
+					"The rowtime attribute field \"" + rowtimeField + "\" is not defined in columns, at " +
+						watermark.getColumnName().getParserPosition());
+			}
+		}
 	}
 
 	public boolean containsComputedColumn() {
@@ -266,6 +274,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				writer.endList(keyFrame);
 			}
 		}
+		if (watermark != null) {
+			printIndent(writer);
+			watermark.unparse(writer, leftPrec, rightPrec);
+		}
 
 		writer.newlineAndIndent();
 		writer.endList(frame);
@@ -310,9 +322,67 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		public List<SqlNode> columnList = new ArrayList<>();
 		public SqlNodeList primaryKeyList = SqlNodeList.EMPTY;
 		public List<SqlNodeList> uniqueKeysList = new ArrayList<>();
+		@Nullable public SqlWatermark watermark;
 	}
 
 	public String[] fullTableName() {
 		return tableName.names.toArray(new String[0]);
+	}
+
+	// -------------------------------------------------------------------------------------
+
+	private static final class ColumnValidator {
+
+		private final Set<String> allColumnNames = new HashSet<>();
+
+		/**
+		 * Adds column name to the registered column set. This will add nested column names recursive.
+		 * Nested column names are qualified using "." separator.
+		 */
+		public void addColumn(SqlNode column) throws SqlValidateException {
+			String columnName;
+			if (column instanceof SqlTableColumn) {
+				SqlTableColumn tableColumn = (SqlTableColumn) column;
+				columnName = tableColumn.getName().getSimple();
+				addNestedColumn(columnName, tableColumn.getType());
+			} else if (column instanceof SqlBasicCall) {
+				SqlBasicCall tableColumn = (SqlBasicCall) column;
+				columnName = tableColumn.getOperands()[1].toString();
+			} else {
+				throw new UnsupportedOperationException("Unsupported column:" + column);
+			}
+
+			addColumnName(columnName, column.getParserPosition());
+		}
+
+		/**
+		 * Returns true if the column name is existed in the registered column set.
+		 * This supports qualified column name using "." separator.
+		 */
+		public boolean contains(String columnName) {
+			return allColumnNames.contains(columnName);
+		}
+
+		private void addNestedColumn(String columnName, SqlDataTypeSpec columnType) throws SqlValidateException {
+			SqlTypeNameSpec typeName = columnType.getTypeNameSpec();
+			// validate composite type
+			if (typeName instanceof ExtendedSqlRowTypeNameSpec) {
+				ExtendedSqlRowTypeNameSpec rowType = (ExtendedSqlRowTypeNameSpec) typeName;
+				for (int i = 0; i < rowType.getFieldNames().size(); i++) {
+					SqlIdentifier fieldName = rowType.getFieldNames().get(i);
+					String fullName = columnName + "." + fieldName;
+					addColumnName(fullName, fieldName.getParserPosition());
+					SqlDataTypeSpec fieldType = rowType.getFieldTypes().get(i);
+					addNestedColumn(fullName, fieldType);
+				}
+			}
+		}
+
+		private void addColumnName(String columnName, SqlParserPos pos) throws SqlValidateException {
+			if (!allColumnNames.add(columnName)) {
+				throw new SqlValidateException(pos,
+					"Duplicate column name [" + columnName + "], at " + pos);
+			}
+		}
 	}
 }
