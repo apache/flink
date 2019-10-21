@@ -33,11 +33,10 @@ import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartit
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Default implementation of {@link SchedulingResultPartition}.
+ * Default implementation of {@link SchedulingResultPartition} and {@link FailoverResultPartition}.
  */
-class DefaultSchedulingResultPartition
-	implements SchedulingResultPartition<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition>,
-		FailoverResultPartition<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
+class DefaultResultPartition implements SchedulingResultPartition<DefaultExecutionVertex, DefaultResultPartition>,
+		FailoverResultPartition<DefaultExecutionVertex, DefaultResultPartition> {
 
 	private final IntermediateResultPartitionID resultPartitionId;
 
@@ -45,11 +44,11 @@ class DefaultSchedulingResultPartition
 
 	private final ResultPartitionType partitionType;
 
-	private DefaultSchedulingExecutionVertex producer;
+	private DefaultExecutionVertex producer;
 
-	private final List<DefaultSchedulingExecutionVertex> consumers;
+	private final List<DefaultExecutionVertex> consumers;
 
-	DefaultSchedulingResultPartition(
+	DefaultResultPartition(
 			IntermediateResultPartitionID partitionId,
 			IntermediateDataSetID intermediateDataSetId,
 			ResultPartitionType partitionType) {
@@ -87,20 +86,20 @@ class DefaultSchedulingResultPartition
 	}
 
 	@Override
-	public DefaultSchedulingExecutionVertex getProducer() {
+	public DefaultExecutionVertex getProducer() {
 		return producer;
 	}
 
 	@Override
-	public Iterable<DefaultSchedulingExecutionVertex> getConsumers() {
+	public Iterable<DefaultExecutionVertex> getConsumers() {
 		return consumers;
 	}
 
-	void addConsumer(DefaultSchedulingExecutionVertex vertex) {
+	void addConsumer(DefaultExecutionVertex vertex) {
 		consumers.add(checkNotNull(vertex));
 	}
 
-	void setProducer(DefaultSchedulingExecutionVertex vertex) {
+	void setProducer(DefaultExecutionVertex vertex) {
 		producer = checkNotNull(vertex);
 	}
 }

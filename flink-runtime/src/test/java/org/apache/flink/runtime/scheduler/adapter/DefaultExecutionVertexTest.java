@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -34,61 +35,76 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Unit tests for {@link DefaultSchedulingResultPartition}.
+ * Unit tests for {@link DefaultExecutionVertex}.
  */
-public class DefaultSchedulingResultPartitionTest extends TestLogger {
+public class DefaultExecutionVertexTest extends TestLogger {
 
-	private static final TestExecutionStateSupplier stateProvider = new TestExecutionStateSupplier();
+	private final TestExecutionStateSupplier stateSupplier = new TestExecutionStateSupplier();
 
-	private final IntermediateResultPartitionID resultPartitionId = new IntermediateResultPartitionID();
-	private final IntermediateDataSetID intermediateResultId = new IntermediateDataSetID();
+	private DefaultExecutionVertex producerVertex;
 
-	private DefaultSchedulingResultPartition resultPartition;
+	private DefaultExecutionVertex consumerVertex;
+
+	private IntermediateResultPartitionID intermediateResultPartitionId;
 
 	@Before
-	public void setUp() {
-		resultPartition = new DefaultSchedulingResultPartition(
-			resultPartitionId,
-			intermediateResultId,
-			BLOCKING);
+	public void setUp() throws Exception {
 
-		DefaultSchedulingExecutionVertex producerVertex = new DefaultSchedulingExecutionVertex(
+		intermediateResultPartitionId = new IntermediateResultPartitionID();
+
+		DefaultResultPartition schedulingResultPartition = new DefaultResultPartition(
+			intermediateResultPartitionId,
+			new IntermediateDataSetID(),
+			BLOCKING);
+		producerVertex = new DefaultExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
-			Collections.singletonList(resultPartition),
-			stateProvider,
+			Collections.singletonList(schedulingResultPartition),
+			stateSupplier,
 			ANY);
-		resultPartition.setProducer(producerVertex);
+		schedulingResultPartition.setProducer(producerVertex);
+		consumerVertex = new DefaultExecutionVertex(
+			new ExecutionVertexID(new JobVertexID(), 0),
+			Collections.emptyList(),
+			stateSupplier,
+			ANY);
+		consumerVertex.addConsumedPartition(schedulingResultPartition);
 	}
 
 	@Test
-	public void testGetPartitionState() {
+	public void testGetExecutionState() {
 		for (ExecutionState state : ExecutionState.values()) {
-			stateProvider.setExecutionState(state);
-			SchedulingResultPartition.ResultPartitionState partitionState = resultPartition.getState();
-			switch (state) {
-				case RUNNING:
-					assertEquals(PRODUCING, partitionState);
-					break;
-				case FINISHED:
-					assertEquals(DONE, partitionState);
-					break;
-				default:
-					assertEquals(EMPTY, partitionState);
-					break;
-			}
+			stateSupplier.setExecutionState(state);
+			assertEquals(state, producerVertex.getState());
 		}
+	}
+
+	@Test
+	public void testGetProducedResultPartitions() {
+		IntermediateResultPartitionID partitionIds1 = IterableUtils
+			.toStream(producerVertex.getProducedResults())
+			.findAny()
+			.map(SchedulingResultPartition::getId)
+			.orElseThrow(() -> new IllegalArgumentException("can not find result partition"));
+		assertEquals(partitionIds1, intermediateResultPartitionId);
+	}
+
+	@Test
+	public void testGetConsumedResultPartitions() {
+		IntermediateResultPartitionID partitionIds1 = IterableUtils
+			.toStream(consumerVertex.getConsumedResults())
+			.findAny()
+			.map(SchedulingResultPartition::getId)
+			.orElseThrow(() -> new IllegalArgumentException("can not find result partition"));
+		assertEquals(partitionIds1, intermediateResultPartitionId);
 	}
 
 	/**
 	 * A simple implementation of {@link Supplier} for testing.
 	 */
-	private static class TestExecutionStateSupplier implements Supplier<ExecutionState> {
+	static class TestExecutionStateSupplier implements Supplier<ExecutionState> {
 
 		private ExecutionState executionState;
 

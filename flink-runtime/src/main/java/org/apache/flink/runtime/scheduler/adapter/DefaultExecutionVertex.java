@@ -31,25 +31,24 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Default implementation of {@link SchedulingExecutionVertex}.
+ * Default implementation of {@link SchedulingExecutionVertex} and {@link FailoverVertex}.
  */
-class DefaultSchedulingExecutionVertex
-	implements SchedulingExecutionVertex<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition>,
-		FailoverVertex<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
+class DefaultExecutionVertex implements SchedulingExecutionVertex<DefaultExecutionVertex, DefaultResultPartition>,
+		FailoverVertex<DefaultExecutionVertex, DefaultResultPartition> {
 
 	private final ExecutionVertexID executionVertexId;
 
-	private final List<DefaultSchedulingResultPartition> consumedPartitions;
+	private final List<DefaultResultPartition> consumedPartitions;
 
-	private final List<DefaultSchedulingResultPartition> producedPartitions;
+	private final List<DefaultResultPartition> producedPartitions;
 
 	private final Supplier<ExecutionState> stateSupplier;
 
 	private final InputDependencyConstraint inputDependencyConstraint;
 
-	DefaultSchedulingExecutionVertex(
+	DefaultExecutionVertex(
 			ExecutionVertexID executionVertexId,
-			List<DefaultSchedulingResultPartition> producedPartitions,
+			List<DefaultResultPartition> producedPartitions,
 			Supplier<ExecutionState> stateSupplier,
 			InputDependencyConstraint constraint) {
 		this.executionVertexId = checkNotNull(executionVertexId);
@@ -70,12 +69,12 @@ class DefaultSchedulingExecutionVertex
 	}
 
 	@Override
-	public Iterable<DefaultSchedulingResultPartition> getConsumedResults() {
+	public Iterable<DefaultResultPartition> getConsumedResults() {
 		return consumedPartitions;
 	}
 
 	@Override
-	public Iterable<DefaultSchedulingResultPartition> getProducedResults() {
+	public Iterable<DefaultResultPartition> getProducedResults() {
 		return producedPartitions;
 	}
 
@@ -84,7 +83,7 @@ class DefaultSchedulingExecutionVertex
 		return inputDependencyConstraint;
 	}
 
-	void addConsumedPartition(DefaultSchedulingResultPartition partition) {
+	void addConsumedPartition(DefaultResultPartition partition) {
 		consumedPartitions.add(partition);
 	}
 }
