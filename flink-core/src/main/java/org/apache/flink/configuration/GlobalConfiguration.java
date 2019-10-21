@@ -139,23 +139,23 @@ public final class GlobalConfiguration {
 	}
 
 	private static void enrichWithEnvironmentVariable(String environmentVariable, Configuration configuration) {
-		String pluginsDirFromEnv = System.getenv(environmentVariable);
+		String valueFromEnv = System.getenv(environmentVariable);
 
-		if (pluginsDirFromEnv == null) {
+		if (valueFromEnv == null) {
 			return;
 		}
 
-		String pluginsDirFromConfig = configuration.getString(environmentVariable, pluginsDirFromEnv);
+		String valueFromConfig = configuration.getString(environmentVariable, valueFromEnv);
 
-		if (!pluginsDirFromEnv.equals(pluginsDirFromConfig)) {
+		if (!valueFromEnv.equals(valueFromConfig)) {
 			throw new IllegalConfigurationException(
-				"The given configuration file already contains a value (" + pluginsDirFromEnv +
+				"The given configuration file already contains a value (" + valueFromEnv +
 					") for the key (" + environmentVariable +
-					") that would have been overwritten with (" + pluginsDirFromConfig +
+					") that would have been overwritten with (" + valueFromConfig +
 					") by an environment with the same name.");
 		}
 
-		configuration.setString(environmentVariable, pluginsDirFromEnv);
+		configuration.setString(environmentVariable, valueFromEnv);
 	}
 
 	/**
