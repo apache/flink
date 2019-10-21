@@ -55,6 +55,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,6 +66,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class HiveTypeUtil {
+
+	public static final DataType HIVE_DATE_TYPE = DataTypes.DATE().bridgedTo(Date.class);
 
 	private HiveTypeUtil() {
 	}
@@ -165,7 +168,7 @@ public class HiveTypeUtil {
 			case DOUBLE:
 				return DataTypes.DOUBLE();
 			case DATE:
-				return DataTypes.DATE();
+				return HIVE_DATE_TYPE;
 			case TIMESTAMP:
 				return DataTypes.TIMESTAMP();
 			case BINARY:
