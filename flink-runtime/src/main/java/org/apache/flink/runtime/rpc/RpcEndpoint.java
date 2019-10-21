@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
+import org.apache.flink.runtime.concurrent.ScheduledFutureTask;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
 
@@ -32,7 +32,6 @@ import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -426,10 +425,10 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
 		@Override
 		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-			final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
-			FutureTask<Void> ft = new FutureTask<>(command, null);
-			scheduleRunAsync(ft, delayMillis);
-			return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
+			final ScheduledFutureTask<?> scheduledFutureTask =
+				new ScheduledFutureTask<>(command, delay, unit);
+			scheduleRunAsync(scheduledFutureTask, TimeUnit.MILLISECONDS.convert(delay, unit));
+			return scheduledFutureTask;
 		}
 
 		@Override
