@@ -22,6 +22,7 @@ import { NzNotificationService } from 'ng-zorro-antd';
 import { throwError, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { StatusService } from 'services';
+import { IGNORE_ERROR_HEADER_KEY } from 'config';
 
 @Injectable()
 export class AppInterceptor implements HttpInterceptor {
@@ -31,16 +32,16 @@ export class AppInterceptor implements HttpInterceptor {
     /**
      * Error response from below url should be ignored
      */
-    const ignoreErrorUrlEndsList = ['checkpoints/config', 'checkpoints'];
+    let showErrorAlert = true;
     const ignoreErrorMessage = ['File not found.'];
+    if (req.headers.has(IGNORE_ERROR_HEADER_KEY)) {
+      showErrorAlert = false;
+      req = req.clone({ headers: req.headers.delete(IGNORE_ERROR_HEADER_KEY) });
+    }
     return next.handle(req).pipe(
       catchError(res => {
         const errorMessage = res && res.error && res.error.errors && res.error.errors[0];
-        if (
-          errorMessage &&
-          ignoreErrorUrlEndsList.every(url => !res.url.endsWith(url)) &&
-          ignoreErrorMessage.every(message => errorMessage !== message)
-        ) {
+        if (errorMessage && showErrorAlert && ignoreErrorMessage.every(message => errorMessage !== message)) {
           this.injector.get<StatusService>(StatusService).listOfErrorMessage.push(errorMessage);
           this.injector
             .get<NzNotificationService>(NzNotificationService)

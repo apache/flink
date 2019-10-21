@@ -29,6 +29,8 @@ export const COLOR_MAP = {
   RECONCILING: '#eb2f96',
   IN_PROGRESS: '#faad14',
   SCHEDULED: '#722ed1',
-  COMPLETED  : '#1890ff'
+  COMPLETED: '#1890ff'
 };
 export const LONG_MIN_VALUE = -9223372036854776000;
+export const IGNORE_ERROR_HEADER_KEY = 'ErrorResponse';
+export const IGNORE_ERROR_HEADER = { headers: { [IGNORE_ERROR_HEADER_KEY]: 'ignore' } };

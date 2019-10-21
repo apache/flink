@@ -40,7 +40,7 @@ import {
 } from 'interfaces';
 import { combineLatest, EMPTY, ReplaySubject } from 'rxjs';
 import { catchError, filter, flatMap, map, tap } from 'rxjs/operators';
-import { BASE_URL } from 'config';
+import { BASE_URL, IGNORE_ERROR_HEADER } from 'config';
 
 @Injectable({
   providedIn: 'root'
@@ -205,7 +205,7 @@ export class JobService {
    * @param jobId
    */
   loadCheckpointStats(jobId: string) {
-    return this.httpClient.get<CheckPointInterface>(`${BASE_URL}/jobs/${jobId}/checkpoints`);
+    return this.httpClient.get<CheckPointInterface>(`${BASE_URL}/jobs/${jobId}/checkpoints`, IGNORE_ERROR_HEADER);
   }
 
   /**
@@ -213,7 +213,10 @@ export class JobService {
    * @param jobId
    */
   loadCheckpointConfig(jobId: string) {
-    return this.httpClient.get<CheckPointConfigInterface>(`${BASE_URL}/jobs/${jobId}/checkpoints/config`);
+    return this.httpClient.get<CheckPointConfigInterface>(
+      `${BASE_URL}/jobs/${jobId}/checkpoints/config`,
+      IGNORE_ERROR_HEADER
+    );
   }
 
   /**

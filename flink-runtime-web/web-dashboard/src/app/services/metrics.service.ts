@@ -19,7 +19,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map } from 'rxjs/operators';
-import { BASE_URL, LONG_MIN_VALUE } from 'config';
+import { BASE_URL, IGNORE_ERROR_HEADER, LONG_MIN_VALUE } from 'config';
 
 @Injectable({
   providedIn: 'root'
@@ -62,7 +62,8 @@ export class MetricsService {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
       .get<Array<{ id: string; value: string }>>(
-        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics?get=${metricName}`
+        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics?get=${metricName}`,
+        IGNORE_ERROR_HEADER
       )
       .pipe(
         map(arr => {
