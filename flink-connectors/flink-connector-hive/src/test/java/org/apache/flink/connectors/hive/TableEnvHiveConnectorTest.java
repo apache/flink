@@ -270,7 +270,7 @@ public class TableEnvHiveConnectorTest {
 		// and shutdown hooks that have to run after the test finishes, because App classloader can no longer load new
 		// classes. And will crash the forked JVM, thus failing the test phase.
 		// Therefore disable such tests for older Hive versions.
-		String hiveVersion = System.getProperty("hive.version");
+		String hiveVersion = HiveShimLoader.getHiveVersion();
 		Assume.assumeTrue(hiveVersion.compareTo("2.0.0") >= 0 || hiveVersion.compareTo("1.3.0") >= 0);
 		hiveShell.execute("create database db1");
 		try {
