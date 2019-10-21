@@ -351,6 +351,26 @@ public interface TableEnvironment {
 	String[] listFunctions();
 
 	/**
+	 * Drops a temporary table registered in the given path.
+	 *
+	 * <p>If a permanent table with a given path exists, it will be used
+	 * from now on for any queries that reference this path.
+	 *
+	 * @return true if a table existed in the given path and was removed
+	 */
+	boolean dropTemporaryTable(String path);
+
+	/**
+	 * Drops a temporary view registered in the given path.
+	 *
+	 * <p>If a permanent table or view with a given path exists, it will be used
+	 * from now on for any queries that reference this path.
+	 *
+	 * @return true if a view existed in the given path and was removed
+	 */
+	boolean dropTemporaryView(String path);
+
+	/**
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
 	 * the result of the given {@link Table}.
 	 *

@@ -35,6 +35,7 @@ import static org.apache.flink.table.catalog.CatalogStructureBuilder.database;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.root;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.table;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -133,6 +134,48 @@ public class CatalogManagerTest extends TestLogger {
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(String.format("Temporary table %s already exists", tempIdentifier));
 		manager.createTemporaryTable(new CatalogTest.TestTable(), tempIdentifier, false);
+	}
+
+	@Test
+	public void testDropTableWhenTemporaryTableExists() throws Exception {
+		ObjectIdentifier identifier = ObjectIdentifier.of(BUILTIN_CATALOG_NAME, BUILTIN_DEFAULT_DATABASE_NAME, "test");
+		CatalogManager manager = root()
+			.builtin(
+				database(BUILTIN_DEFAULT_DATABASE_NAME, table("test")))
+			.temporaryTable(identifier)
+			.build();
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Temporary table with identifier '`builtin`.`default`.`test`' exists." +
+			" Drop it first before removing the permanent table.");
+		manager.dropTable(identifier, false);
+
+	}
+
+	@Test
+	public void testDropTemporaryNonExistingTable() throws Exception {
+		CatalogManager manager = root()
+			.builtin(
+				database(BUILTIN_DEFAULT_DATABASE_NAME, table("test")))
+			.build();
+
+		boolean dropped = manager.dropTemporaryTable(UnresolvedIdentifier.of("test"));
+
+		assertThat(dropped, is(false));
+	}
+
+	@Test
+	public void testDropTemporaryTable() throws Exception {
+		ObjectIdentifier identifier = ObjectIdentifier.of(BUILTIN_CATALOG_NAME, BUILTIN_DEFAULT_DATABASE_NAME, "test");
+		CatalogManager manager = root()
+			.builtin(
+				database(BUILTIN_DEFAULT_DATABASE_NAME, table("test")))
+			.temporaryTable(identifier)
+			.build();
+
+		boolean dropped = manager.dropTemporaryTable(UnresolvedIdentifier.of("test"));
+
+		assertThat(dropped, is(true));
 	}
 
 	@Test

@@ -305,6 +305,18 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public boolean dropTemporaryTable(String path) {
+		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+		return catalogManager.dropTemporaryTable(unresolvedIdentifier);
+	}
+
+	@Override
+	public boolean dropTemporaryView(String path) {
+		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+		return catalogManager.dropTemporaryView(unresolvedIdentifier);
+	}
+
+	@Override
 	public String[] listUserDefinedFunctions() {
 		return functionCatalog.getUserDefinedFunctions();
 	}
