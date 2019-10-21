@@ -69,7 +69,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
-import org.apache.flink.runtime.scheduler.adapter.ExecutionGraphToSchedulingTopologyAdapter;
+import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
@@ -947,10 +947,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
 
-		schedulingTopology = new ExecutionGraphToSchedulingTopologyAdapter(this);
+		schedulingTopology = new DefaultExecutionTopology(this);
 		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(
 			schedulingTopology,
-			new ExecutionGraphToSchedulingTopologyAdapter(this));
+			new DefaultExecutionTopology(this));
 	}
 
 	public boolean isLegacyScheduling() {

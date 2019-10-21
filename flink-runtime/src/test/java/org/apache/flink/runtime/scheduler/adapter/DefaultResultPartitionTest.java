@@ -40,25 +40,25 @@ import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartit
 import static org.junit.Assert.assertEquals;
 
 /**
- * Unit tests for {@link DefaultSchedulingResultPartition}.
+ * Unit tests for {@link DefaultResultPartition}.
  */
-public class DefaultSchedulingResultPartitionTest extends TestLogger {
+public class DefaultResultPartitionTest extends TestLogger {
 
 	private static final TestExecutionStateSupplier stateProvider = new TestExecutionStateSupplier();
 
 	private final IntermediateResultPartitionID resultPartitionId = new IntermediateResultPartitionID();
 	private final IntermediateDataSetID intermediateResultId = new IntermediateDataSetID();
 
-	private DefaultSchedulingResultPartition resultPartition;
+	private DefaultResultPartition resultPartition;
 
 	@Before
 	public void setUp() {
-		resultPartition = new DefaultSchedulingResultPartition(
+		resultPartition = new DefaultResultPartition(
 			resultPartitionId,
 			intermediateResultId,
 			BLOCKING);
 
-		DefaultSchedulingExecutionVertex producerVertex = new DefaultSchedulingExecutionVertex(
+		DefaultExecutionVertex producerVertex = new DefaultExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.singletonList(resultPartition),
 			stateProvider,

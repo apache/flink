@@ -31,25 +31,24 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Default implementation of {@link SchedulingExecutionVertex}.
+ * Default implementation of {@link SchedulingExecutionVertex} and {@link FailoverVertex}.
  */
-class DefaultSchedulingExecutionVertex
-	implements SchedulingExecutionVertex<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition>,
-		FailoverVertex<DefaultSchedulingExecutionVertex, DefaultSchedulingResultPartition> {
+class DefaultExecutionVertex implements SchedulingExecutionVertex<DefaultExecutionVertex, DefaultResultPartition>,
+		FailoverVertex<DefaultExecutionVertex, DefaultResultPartition> {
 
 	private final ExecutionVertexID executionVertexId;
 
-	private final List<DefaultSchedulingResultPartition> consumedResults;
+	private final List<DefaultResultPartition> consumedResults;
 
-	private final List<DefaultSchedulingResultPartition> producedResults;
+	private final List<DefaultResultPartition> producedResults;
 
 	private final Supplier<ExecutionState> stateSupplier;
 
 	private final InputDependencyConstraint inputDependencyConstraint;
 
-	DefaultSchedulingExecutionVertex(
+	DefaultExecutionVertex(
 			ExecutionVertexID executionVertexId,
-			List<DefaultSchedulingResultPartition> producedPartitions,
+			List<DefaultResultPartition> producedPartitions,
 			Supplier<ExecutionState> stateSupplier,
 			InputDependencyConstraint constraint) {
 		this.executionVertexId = checkNotNull(executionVertexId);
@@ -70,12 +69,12 @@ class DefaultSchedulingExecutionVertex
 	}
 
 	@Override
-	public Iterable<DefaultSchedulingResultPartition> getConsumedResults() {
+	public Iterable<DefaultResultPartition> getConsumedResults() {
 		return consumedResults;
 	}
 
 	@Override
-	public Iterable<DefaultSchedulingResultPartition> getProducedResults() {
+	public Iterable<DefaultResultPartition> getProducedResults() {
 		return producedResults;
 	}
 
@@ -84,7 +83,7 @@ class DefaultSchedulingExecutionVertex
 		return inputDependencyConstraint;
 	}
 
-	void addConsumedResult(DefaultSchedulingResultPartition result) {
-		consumedResults.add(result);
+	void addConsumedResult(DefaultResultPartition result) {
+			consumedResults.add(result);
 	}
 }
