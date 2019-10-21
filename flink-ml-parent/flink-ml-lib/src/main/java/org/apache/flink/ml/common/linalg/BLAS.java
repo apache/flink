@@ -25,7 +25,11 @@ import org.apache.flink.util.Preconditions;
  * A utility class that provides BLAS routines over matrices and vectors.
  */
 public class BLAS {
+
+	// For level-1 routines, we use Java implementation.
 	private static final com.github.fommil.netlib.BLAS NATIVE_BLAS = com.github.fommil.netlib.BLAS.getInstance();
+
+	// For level-2 and level-3 routines, we use the native BLAS.
 	private static final com.github.fommil.netlib.BLAS F2J_BLAS = com.github.fommil.netlib.F2jBLAS.getInstance();
 
 	/**
