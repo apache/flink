@@ -15,12 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 
 from apache_beam.coders.coder_impl import StreamCoderImpl
-
-if sys.version > '3':
-    xrange = range
 
 
 class RowCoderImpl(StreamCoderImpl):
@@ -30,7 +26,7 @@ class RowCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
         self.write_null_mask(value, out_stream)
-        for i in xrange(len(self._field_coders)):
+        for i in range(len(self._field_coders)):
             self._field_coders[i].encode_to_stream(value[i], out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
@@ -38,7 +34,7 @@ class RowCoderImpl(StreamCoderImpl):
         null_mask = self.read_null_mask(len(self._field_coders), in_stream)
         assert len(null_mask) == len(self._field_coders)
         return Row(*[None if null_mask[idx] else self._field_coders[idx].decode_from_stream(
-            in_stream, nested) for idx in xrange(0, len(null_mask))])
+            in_stream, nested) for idx in range(0, len(null_mask))])
 
     @staticmethod
     def write_null_mask(value, out_stream):

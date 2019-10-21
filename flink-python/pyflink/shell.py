@@ -28,10 +28,7 @@ from pyflink.table.catalog import *
 from pyflink.table.descriptors import *
 from pyflink.table.window import *
 
-if sys.version > '3':
-    utf8_out = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
-else:
-    utf8_out = codecs.getwriter("utf-8")(sys.stdout)
+utf8_out = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 
 print("Using Python version %s (%s, %s)" % (
     platform.python_version(),

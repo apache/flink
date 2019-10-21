@@ -16,18 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-import sys
+import pickle
 import struct
 from abc import ABCMeta, abstractmethod
-
-if sys.version < '3':
-    import cPickle as pickle
-    protocol = 2
-    from itertools import imap as map, chain
-else:
-    import pickle
-    protocol = 3
-    xrange = range
+from itertools import chain
 
 
 class SpecialLengths(object):
@@ -144,14 +136,10 @@ class PickleSerializer(VarLengthDataSerializer):
     """
 
     def dumps(self, obj):
-        return pickle.dumps(obj, protocol)
+        return pickle.dumps(obj, 3)
 
-    if sys.version >= '3':
-        def loads(self, obj, encoding="bytes"):
-            return pickle.loads(obj, encoding=encoding)
-    else:
-        def loads(self, obj, encoding=None):
-            return pickle.loads(obj)
+    def loads(self, obj):
+        return pickle.loads(obj, encoding="bytes")
 
 
 class BatchedSerializer(Serializer):
@@ -175,7 +163,7 @@ class BatchedSerializer(Serializer):
             yield list(iterator)
         elif hasattr(iterator, "__len__") and hasattr(iterator, "__getslice__"):
             n = len(iterator)
-            for i in xrange(0, n, self.batch_size):
+            for i in range(0, n, self.batch_size):
                 yield iterator[i: i + self.batch_size]
         else:
             items = []

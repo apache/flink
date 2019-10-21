@@ -34,11 +34,6 @@ from pyflink.find_flink_home import _find_flink_home
 from pyflink.table import BatchTableEnvironment, StreamTableEnvironment, EnvironmentSettings
 from pyflink.java_gateway import get_gateway
 
-if sys.version_info[0] >= 3:
-    xrange = range
-else:
-    unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
-    unittest.TestCase.assertRegex = unittest.TestCase.assertRegexpMatches
 
 if os.getenv("VERBOSE"):
     log_level = logging.DEBUG
@@ -97,7 +92,7 @@ class PyFlinkTestCase(unittest.TestCase):
     @classmethod
     def to_py_list(cls, actual):
         py_list = []
-        for i in xrange(0, actual.length()):
+        for i in range(0, actual.length()):
             py_list.append(actual.apply(i))
         return py_list
 

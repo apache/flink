@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 
 from apache_beam.coders import Coder, VarIntCoder
 from apache_beam.coders.coders import FastCoder
@@ -24,9 +23,6 @@ from pyflink.fn_execution import coder_impl
 from pyflink.fn_execution import flink_fn_execution_pb2
 
 FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
-
-if sys.version > '3':
-    xrange = range
 
 
 __all__ = ['RowCoder']
@@ -57,7 +53,7 @@ class RowCoder(FastCoder):
         return (self.__class__ == other.__class__
                 and len(self._field_coders) == len(other._field_coders)
                 and [self._field_coders[i] == other._field_coders[i] for i in
-                     xrange(len(self._field_coders))])
+                     range(len(self._field_coders))])
 
     def __ne__(self, other):
         return not self == other

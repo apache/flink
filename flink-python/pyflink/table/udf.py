@@ -19,19 +19,12 @@ import abc
 import collections
 import functools
 import inspect
-import sys
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, _to_java_type
 from pyflink.util import utils
 
 __all__ = ['FunctionContext', 'ScalarFunction', 'udf']
-
-
-if sys.version_info >= (3, 4):
-    ABC = abc.ABC
-else:
-    ABC = abc.ABCMeta('ABC', (), {})
 
 
 class FunctionContext(object):
@@ -43,7 +36,7 @@ class FunctionContext(object):
     pass
 
 
-class UserDefinedFunction(ABC):
+class UserDefinedFunction(abc.ABC):
     """
     Base interface for user-defined function.
     """

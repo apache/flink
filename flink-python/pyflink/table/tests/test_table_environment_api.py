@@ -17,8 +17,6 @@
 ################################################################################
 import os
 
-from py4j.compat import unicode
-
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings
@@ -103,7 +101,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         actual = t_env.explain(result)
 
-        assert isinstance(actual, str) or isinstance(actual, unicode)
+        assert isinstance(actual, str)
 
     def test_explain_with_extended(self):
         schema = RowType() \
@@ -116,7 +114,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         actual = t_env.explain(result, True)
 
-        assert isinstance(actual, str) or isinstance(actual, unicode)
+        assert isinstance(actual, str)
 
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env
@@ -135,7 +133,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         actual = t_env.explain(extended=True)
 
-        assert isinstance(actual, str) or isinstance(actual, unicode)
+        assert isinstance(actual, str)
 
     def test_sql_query(self):
         t_env = self.t_env
@@ -257,7 +255,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
         actual = t_env.explain(result)
 
-        self.assertIsInstance(actual, (str, unicode))
+        self.assertIsInstance(actual, str)
 
     def test_explain_with_extended(self):
         schema = RowType() \
@@ -270,7 +268,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
         actual = t_env.explain(result, True)
 
-        assert isinstance(actual, str) or isinstance(actual, unicode)
+        assert isinstance(actual, str)
 
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env

@@ -444,10 +444,6 @@ class TypesTests(unittest.TestCase):
             supported_string_types += ['u']
             # test unicode
             assert_collect_success('u', u'a', 'CHAR')
-        if sys.version_info[0] < 3:
-            supported_string_types += ['c']
-            # test string
-            assert_collect_success('c', 'a', 'CHAR')
 
         # supported float and double
         #
@@ -511,11 +507,7 @@ class TypesTests(unittest.TestCase):
         #
         # Keys in _array_type_mappings is a complete list of all supported types,
         # and types not in _array_type_mappings are considered unsupported.
-        # `array.typecodes` are not supported in python 2.
-        if sys.version_info[0] < 3:
-            all_types = {'c', 'b', 'B', 'u', 'h', 'H', 'i', 'I', 'l', 'L', 'f', 'd'}
-        else:
-            all_types = set(array.typecodes)
+        all_types = set(array.typecodes)
         unsupported_types = all_types - set(supported_types)
         # test unsupported types
         for t in unsupported_types:

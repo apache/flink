@@ -15,17 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import ABCMeta
 
 from py4j.java_gateway import get_method
 from pyflink.table.types import _to_java_type
 
 from pyflink.java_gateway import get_gateway
-
-if sys.version >= '3':
-    long = int
-    unicode = str
 
 __all__ = [
     'Rowtime',
@@ -215,7 +210,7 @@ class Schema(Descriptor):
         :param field_type: The data type or type string of the field.
         :return: This schema object.
         """
-        if isinstance(field_type, (str, unicode)):
+        if isinstance(field_type, str):
             self._j_schema = self._j_schema.field(field_name, field_type)
         else:
             self._j_schema = self._j_schema.field(field_name, _to_java_type(field_type))
@@ -338,7 +333,7 @@ class OldCsv(FormatDescriptor):
         :param field_type: The data type or type string of the field.
         :return: This :class:`OldCsv` object.
         """
-        if isinstance(field_type, (str, unicode)):
+        if isinstance(field_type, str):
             self._j_csv = self._j_csv.field(field_name, field_type)
         else:
             self._j_csv = self._j_csv.field(field_name, _to_java_type(field_type))
@@ -409,7 +404,7 @@ class Csv(FormatDescriptor):
         :param delimiter: The field delimiter character.
         :return: This :class:`Csv` object.
         """
-        if not isinstance(delimiter, (str, unicode)) or len(delimiter) != 1:
+        if not isinstance(delimiter, str) or len(delimiter) != 1:
             raise TypeError("Only one-character string is supported!")
         self._j_csv = self._j_csv.fieldDelimiter(delimiter)
         return self
@@ -431,7 +426,7 @@ class Csv(FormatDescriptor):
         :param quote_character: The quote character.
         :return: This :class:`Csv` object.
         """
-        if not isinstance(quote_character, (str, unicode)) or len(quote_character) != 1:
+        if not isinstance(quote_character, str) or len(quote_character) != 1:
             raise TypeError("Only one-character string is supported!")
         self._j_csv = self._j_csv.quoteCharacter(quote_character)
         return self
@@ -473,7 +468,7 @@ class Csv(FormatDescriptor):
         :param escape_character: Escaping character (e.g. backslash).
         :return: This :class:`Csv` object.
         """
-        if not isinstance(escape_character, (str, unicode)) or len(escape_character) != 1:
+        if not isinstance(escape_character, str) or len(escape_character) != 1:
             raise TypeError("Only one-character string is supported!")
         self._j_csv = self._j_csv.escapeCharacter(escape_character)
         return self
@@ -627,9 +622,9 @@ class CustomFormatDescriptor(FormatDescriptor):
         :param version: Property version for backwards compatibility.
         """
 
-        if not isinstance(type, (str, unicode)):
+        if not isinstance(type, str):
             raise TypeError("type must be of type str.")
-        if not isinstance(version, (int, long)):
+        if not isinstance(version, int):
             raise TypeError("version must be of type int.")
         gateway = get_gateway()
         super(CustomFormatDescriptor, self).__init__(
@@ -644,9 +639,9 @@ class CustomFormatDescriptor(FormatDescriptor):
         :return: This object.
         """
 
-        if not isinstance(key, (str, unicode)):
+        if not isinstance(key, str):
             raise TypeError("key must be of type str.")
-        if not isinstance(value, (str, unicode)):
+        if not isinstance(value, str):
             raise TypeError("value must be of type str.")
         self._j_format_descriptor = self._j_format_descriptor.property(key, value)
         return self
@@ -716,7 +711,7 @@ class Kafka(ConnectorDescriptor):
         :param version: Kafka version. E.g., "0.8", "0.11", etc.
         :return: This object.
         """
-        if not isinstance(version, (str, unicode)):
+        if not isinstance(version, str):
             version = str(version)
         self._j_kafka = self._j_kafka.version(version)
         return self
@@ -932,7 +927,7 @@ class Elasticsearch(ConnectorDescriptor):
         :param version: Elasticsearch version. E.g., "6".
         :return: This object.
         """
-        if not isinstance(version, (str, unicode)):
+        if not isinstance(version, str):
             version = str(version)
         self._j_elasticsearch = self._j_elasticsearch.version(version)
         return self
@@ -1195,9 +1190,9 @@ class CustomConnectorDescriptor(ConnectorDescriptor):
         :param format_needed: Flag for basic validation of a needed format descriptor.
         """
 
-        if not isinstance(type, (str, unicode)):
+        if not isinstance(type, str):
             raise TypeError("type must be of type str.")
-        if not isinstance(version, (int, long)):
+        if not isinstance(version, int):
             raise TypeError("version must be of type int.")
         if not isinstance(format_needed, bool):
             raise TypeError("format_needed must be of type bool.")
@@ -1214,9 +1209,9 @@ class CustomConnectorDescriptor(ConnectorDescriptor):
         :return: This object.
         """
 
-        if not isinstance(key, (str, unicode)):
+        if not isinstance(key, str):
             raise TypeError("key must be of type str.")
-        if not isinstance(value, (str, unicode)):
+        if not isinstance(value, str):
             raise TypeError("value must be of type str.")
         self._j_connector_descriptor = self._j_connector_descriptor.property(key, value)
         return self

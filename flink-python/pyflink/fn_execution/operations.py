@@ -95,20 +95,20 @@ class ConstantInputGetter(InputGetter):
         # the type set contains
         # TINYINT,SMALLINT,INTEGER,BIGINT,FLOAT,DOUBLE,DECIMAL,CHAR,VARCHAR,NULL,BOOLEAN
         # the pickled_data doesn't need to transfer to anther python object
-        if j_type == '\x00' or j_type == 0:
+        if j_type == 0:
             self._constant_value = pickled_data
         # the type is DATE
-        elif j_type == '\x01' or j_type == 1:
+        elif j_type == 1:
             self._constant_value = \
                 datetime.date(year=1970, month=1, day=1) + datetime.timedelta(days=pickled_data)
         # the type is TIME
-        elif j_type == '\x02' or j_type == 2:
+        elif j_type == 2:
             seconds, milliseconds = divmod(pickled_data, 1000)
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
             self._constant_value = datetime.time(hours, minutes, seconds, milliseconds * 1000)
         # the type is TIMESTAMP
-        elif j_type == '\x03' or j_type == 3:
+        elif j_type == 3:
             self._constant_value = \
                 datetime.datetime(year=1970, month=1, day=1, hour=0, minute=0, second=0) \
                 + datetime.timedelta(milliseconds=pickled_data)

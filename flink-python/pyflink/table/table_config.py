@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 
 from py4j.compat import long
 
@@ -23,9 +22,6 @@ from pyflink.common import Configuration, SqlDialect
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['TableConfig']
-
-if sys.version > '3':
-    unicode = str
 
 
 class TableConfig(object):
@@ -69,7 +65,7 @@ class TableConfig(object):
                             such as "America/Los_Angeles", or a custom timezone_id such as
                             "GMT-8:00".
         """
-        if timezone_id is not None and isinstance(timezone_id, (str, unicode)):
+        if timezone_id is not None and isinstance(timezone_id, str):
             j_timezone = get_gateway().jvm.java.time.ZoneId.of(timezone_id)
             self._j_table_config.setLocalTimeZone(j_timezone)
         else:
