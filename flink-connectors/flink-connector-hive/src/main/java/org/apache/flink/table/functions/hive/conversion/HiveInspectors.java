@@ -316,7 +316,7 @@ public class HiveInspectors {
 
 			// flink expects a specific array type (e.g. Integer[] instead of Object[]), so we have to get the element class
 			ObjectInspector elementInspector = listInspector.getListElementObjectInspector();
-			Object[] result = (Object[]) Array.newInstance(classForObjectInspector(elementInspector), list.size());
+			Object[] result = (Object[]) Array.newInstance(getClassFromObjectInspector(elementInspector), list.size());
 			for (int i = 0; i < list.size(); i++) {
 				result[i] = toFlinkObject(elementInspector, list.get(i));
 			}
@@ -456,7 +456,7 @@ public class HiveInspectors {
 	}
 
 	// given a Hive ObjectInspector, get the class for corresponding Flink object
-	private static Class<?> classForObjectInspector(ObjectInspector inspector) {
+	private static Class<?> getClassFromObjectInspector(ObjectInspector inspector) {
 		switch (inspector.getCategory()) {
 			case PRIMITIVE: {
 				PrimitiveObjectInspector primitiveOI = (PrimitiveObjectInspector) inspector;
@@ -496,7 +496,7 @@ public class HiveInspectors {
 			}
 			case LIST:
 				ListObjectInspector listInspector = (ListObjectInspector) inspector;
-				Class elementClz = classForObjectInspector(listInspector.getListElementObjectInspector());
+				Class elementClz = getClassFromObjectInspector(listInspector.getListElementObjectInspector());
 				return Array.newInstance(elementClz, 0).getClass();
 			case MAP:
 				return Map.class;
