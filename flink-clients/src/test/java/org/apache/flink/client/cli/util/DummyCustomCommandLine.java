@@ -19,26 +19,16 @@
 package org.apache.flink.client.cli.util;
 
 import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.configuration.DeploymentOptions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
-import javax.annotation.Nullable;
-
 /**
  * Dummy implementation of the {@link CustomCommandLine} for testing purposes.
  */
-public class DummyCustomCommandLine<T> implements CustomCommandLine {
-	private final ClusterClient<T> clusterClient;
-
-	public DummyCustomCommandLine(ClusterClient<T> clusterClient) {
-		this.clusterClient = Preconditions.checkNotNull(clusterClient);
-	}
+public class DummyCustomCommandLine implements CustomCommandLine {
 
 	@Override
 	public boolean isActive(CommandLine commandLine) {
@@ -47,7 +37,7 @@ public class DummyCustomCommandLine<T> implements CustomCommandLine {
 
 	@Override
 	public String getId() {
-		return DummyCustomCommandLine.class.getSimpleName();
+		return DummyClusterClientFactory.ID;
 	}
 
 	@Override
@@ -62,22 +52,8 @@ public class DummyCustomCommandLine<T> implements CustomCommandLine {
 
 	@Override
 	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) {
-		return new Configuration();
-	}
-
-	@Override
-	public ClusterDescriptor<T> createClusterDescriptor(Configuration configuration) {
-		return new DummyClusterDescriptor<>(clusterClient);
-	}
-
-	@Override
-	@Nullable
-	public String getClusterId(Configuration configuration) {
-		return "dummy";
-	}
-
-	@Override
-	public ClusterSpecification getClusterSpecification(Configuration configuration) {
-		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
+		final Configuration configuration = new Configuration();
+		configuration.setString(DeploymentOptions.TARGET, DummyClusterClientFactory.ID);
+		return configuration;
 	}
 }

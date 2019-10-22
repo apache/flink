@@ -22,7 +22,10 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.cli.DefaultCLI;
-import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -554,10 +557,15 @@ public class RestClusterClientTest extends TestLogger {
 		final String[] args = {"-m", manualHostname + ':' + manualPort};
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+
+		final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
 		final Configuration executorConfig = defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
-		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(executorConfig);
-		final RestClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(executorConfig));
+		final ClusterClientFactory<StandaloneClusterId> clusterFactory = serviceLoader.getClusterClientFactory(executorConfig);
+		checkState(clusterFactory != null);
+
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor = clusterFactory.createClusterDescriptor(executorConfig);
+		final RestClusterClient<?> clusterClient = (RestClusterClient<?>) clusterDescriptor.retrieve(clusterFactory.getClusterId(executorConfig));
 
 		URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
 		assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));

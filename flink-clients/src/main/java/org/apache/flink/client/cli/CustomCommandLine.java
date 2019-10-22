@@ -18,20 +18,16 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
-import javax.annotation.Nullable;
-
 /**
  * Custom command-line interface to load hooks for the command-line interface.
  */
-public interface CustomCommandLine<T> {
+public interface CustomCommandLine {
 
 	/**
 	 * Signals whether the custom command-line wants to execute or not.
@@ -66,34 +62,6 @@ public interface CustomCommandLine<T> {
 	 * @return the effective configuration with the overridden configuration settings
 	 */
 	Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException;
-
-	/**
-	 * Create a {@link ClusterDescriptor} from the given configuration.
-	 *
-	 * @param configuration containing the configuration options relevant for the {@link ClusterDescriptor}
-	 * @return the corresponding {@link ClusterDescriptor}.
-	 */
-	ClusterDescriptor<T> createClusterDescriptor(Configuration configuration);
-
-	/**
-	 * Returns the cluster id if a cluster id is specified in the provided configuration, otherwise it returns {@code null}.
-	 *
-	 * <p>A cluster id identifies a running cluster, e.g. the Yarn application id for a Flink cluster running on Yarn.
-	 *
-	 * @param configuration containing the configuration options relevant for the cluster id retrieval
-	 * @return Cluster id identifying the cluster to deploy jobs to or null
-	 */
-	@Nullable
-	T getClusterId(Configuration configuration);
-
-	/**
-	 * Returns the {@link ClusterSpecification} specified by the configuration and the command
-	 * line options. This specification can be used to deploy a new Flink cluster.
-	 *
-	 * @param configuration containing the configuration options relevant for the {@link ClusterSpecification}
-	 * @return the corresponding {@link ClusterSpecification} for a new Flink cluster
-	 */
-	ClusterSpecification getClusterSpecification(Configuration configuration);
 
 	default CommandLine parseCommandLineOptions(String[] args, boolean stopAtNonOptions) throws CliArgsException {
 		final Options options = new Options();

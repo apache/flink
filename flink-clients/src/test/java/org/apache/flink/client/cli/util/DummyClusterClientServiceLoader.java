@@ -16,36 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.cli;
+package org.apache.flink.client.cli.util;
 
-import org.apache.flink.client.deployment.StandaloneClientFactory;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The default CLI which is used for interaction with standalone clusters.
+ * A test {@link ClusterClientServiceLoader} that returns always a {@link DummyClusterClientFactory}.
  */
-public class DefaultCLI extends AbstractCustomCommandLine {
+public class DummyClusterClientServiceLoader<ClusterID> implements ClusterClientServiceLoader {
 
-	public DefaultCLI(Configuration configuration) {
-		super(configuration);
+	private final ClusterClient<ClusterID> clusterClient;
+
+	public DummyClusterClientServiceLoader(final ClusterClient<ClusterID> clusterClient) {
+		this.clusterClient = checkNotNull(clusterClient);
 	}
 
 	@Override
-	public boolean isActive(CommandLine commandLine) {
-		// always active because we can try to read a JobManager address from the config
-		return true;
-	}
-
-	@Override
-	public String getId() {
-		return StandaloneClientFactory.ID;
-	}
-
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		super.addGeneralOptions(baseOptions);
+	public <C> ClusterClientFactory<C> getClusterClientFactory(final Configuration configuration) {
+		checkNotNull(configuration);
+		return new DummyClusterClientFactory<>(clusterClient);
 	}
 }

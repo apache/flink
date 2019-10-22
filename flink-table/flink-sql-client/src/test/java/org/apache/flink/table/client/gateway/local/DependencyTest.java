@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
@@ -91,7 +92,8 @@ public class DependencyTest {
 			env,
 			Collections.singletonList(dependency),
 			new Configuration(),
-			new DefaultCLI(new Configuration()));
+			new DefaultCLI(new Configuration()),
+			new DefaultClusterClientServiceLoader());
 
 		final SessionContext session = new SessionContext("test-session", new Environment());
 

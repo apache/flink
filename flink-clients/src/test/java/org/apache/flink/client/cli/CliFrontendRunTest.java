@@ -18,6 +18,8 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
@@ -145,12 +147,23 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 	// --------------------------------------------------------------------------------------------
 
 	public static void verifyCliFrontend(
-		AbstractCustomCommandLine<?> cli,
+		AbstractCustomCommandLine cli,
 		String[] parameters,
 		int expectedParallelism,
 		boolean isDetached) throws Exception {
 		RunTestingCliFrontend testFrontend =
-			new RunTestingCliFrontend(cli, expectedParallelism, isDetached);
+			new RunTestingCliFrontend(new DefaultClusterClientServiceLoader(), cli, expectedParallelism, isDetached);
+		testFrontend.run(parameters); // verifies the expected values (see below)
+	}
+
+	public static void verifyCliFrontend(
+		ClusterClientServiceLoader clusterClientServiceLoader,
+		AbstractCustomCommandLine cli,
+		String[] parameters,
+		int expectedParallelism,
+		boolean isDetached) throws Exception {
+		RunTestingCliFrontend testFrontend =
+			new RunTestingCliFrontend(clusterClientServiceLoader, cli, expectedParallelism, isDetached);
 		testFrontend.run(parameters); // verifies the expected values (see below)
 	}
 
@@ -160,11 +173,13 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		private final boolean isDetached;
 
 		private RunTestingCliFrontend(
-				AbstractCustomCommandLine<?> cli,
+				ClusterClientServiceLoader clusterClientServiceLoader,
+				AbstractCustomCommandLine cli,
 				int expectedParallelism,
 				boolean isDetached) {
 			super(
 				cli.getConfiguration(),
+				clusterClientServiceLoader,
 				Collections.singletonList(cli));
 			this.expectedParallelism = expectedParallelism;
 			this.isDetached = isDetached;
