@@ -22,8 +22,10 @@ import org.junit.Test;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.Deque;
+import java.util.Queue;
 import java.util.stream.Stream;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link IterableUtils}.
@@ -34,10 +36,10 @@ public class IterableUtilsTest extends TestLogger {
 
 	@Test
 	public void testToStream() {
-		Deque<Integer> deque = new ArrayDeque<>();
+		Queue<Integer> deque = new ArrayDeque<>();
 		testIterable.forEach(deque::add);
 
 		Stream<Integer> stream = IterableUtils.toStream(testIterable);
-		stream.forEach(deque.poll()::equals);
+		assertTrue(stream.allMatch(value -> deque.poll().equals(value)));
 	}
 }

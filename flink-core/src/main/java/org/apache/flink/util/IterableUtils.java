@@ -40,7 +40,14 @@ public class IterableUtils {
 		checkNotNull(iterable);
 
 		return iterable instanceof Collection ?
-			((Collection) iterable).stream() :
+			((Collection<E>) iterable).stream() :
 			StreamSupport.stream(iterable.spliterator(), false);
 	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Private default constructor to avoid instantiation.
+	 */
+	private IterableUtils() {}
 }
