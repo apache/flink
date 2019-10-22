@@ -60,8 +60,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -69,7 +67,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -206,10 +203,10 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 
 		@Override
 		public Dispatcher createDispatcher(
-			@Nonnull RpcService rpcService,
-			@Nonnull DispatcherId fencingToken,
-			@Nonnull Collection<JobGraph> recoveredJobs,
-			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
+			RpcService rpcService,
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 			return new StandaloneDispatcher(
 				rpcService,
 				generateEndpointIdWithUUID(),
