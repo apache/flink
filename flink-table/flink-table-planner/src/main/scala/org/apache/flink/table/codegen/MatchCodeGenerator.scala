@@ -315,20 +315,22 @@ class MatchCodeGenerator(
         val baseClass = classOf[RichIterativeCondition[_]]
         val inputTypeTerm = boxedTypeTermForTypeInfo(input)
         val contextType = classOf[IterativeCondition.Context[_]].getCanonicalName
-
+        // declaration: make variable accessible for separated methods
+        reusableMemberStatements.add(s"private $inputTypeTerm $input1Term;")
         (baseClass,
           s"boolean filter(Object _in1, $contextType $contextTerm)",
-          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
+          List(s"$input1Term = ($inputTypeTerm) _in1;"))
       } else if (clazz == classOf[PatternProcessFunction[_, _]]) {
         val baseClass = classOf[PatternProcessFunction[_, _]]
         val inputTypeTerm =
           s"java.util.Map<String, java.util.List<${boxedTypeTermForTypeInfo(input)}>>"
         val contextTypeTerm = classOf[PatternProcessFunction.Context].getCanonicalName
-
+        // declaration: make variable accessible for separated method
+        reusableMemberStatements.add(s"private $inputTypeTerm $input1Term;")
         (baseClass,
-          s"void processMatch($inputTypeTerm $input1Term, $contextTypeTerm $contextTerm, " +
+          s"void processMatch($inputTypeTerm _in1, $contextTypeTerm $contextTerm, " +
             s"$collectorTypeTerm $collectorTerm)",
-          List())
+          List(s"this.$input1Term = ($inputTypeTerm) _in1;"))
       } else {
         throw new CodeGenException("Unsupported Function.")
       }
@@ -432,7 +434,7 @@ class MatchCodeGenerator(
       returnType.fieldNames)
     aggregatesPerVariable.values.foreach(_.generateAggFunction())
     if (hasCodeSplits) {
-      makeReusableInSplits(reusableAggregationExpr.values)
+      makeReusableInSplits()
     }
 
     exp
@@ -442,10 +444,16 @@ class MatchCodeGenerator(
     val exp = call.accept(this)
     aggregatesPerVariable.values.foreach(_.generateAggFunction())
     if (hasCodeSplits) {
-      makeReusableInSplits(reusableAggregationExpr.values)
+      makeReusableInSplits()
     }
 
     exp
+  }
+
+  private def makeReusableInSplits(): Unit = {
+    reusableAggregationExpr.keys.foreach(
+      key =>
+        reusableAggregationExpr(key) = makeReusableInSplits(reusableAggregationExpr(key)))
   }
 
   override def visitCall(call: RexCall): GeneratedExpression = {
