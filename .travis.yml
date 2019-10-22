@@ -76,7 +76,6 @@ stages:
   - name: cleanup
 
 arch:
-  - amd64
   - arm64
 jobs:
   include:
