@@ -25,8 +25,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
-import javax.annotation.Nonnull;
-
 import java.util.Collection;
 
 import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MODE;
@@ -39,10 +37,10 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 
 	@Override
 	public MiniDispatcher createDispatcher(
-			@Nonnull RpcService rpcService,
-			@Nonnull DispatcherId fencingToken,
-			@Nonnull Collection<JobGraph> recoveredJobs,
-			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
+			RpcService rpcService,
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
 
 		final Configuration configuration = partialDispatcherServicesWithJobGraphStore.getConfiguration();
