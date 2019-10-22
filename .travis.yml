@@ -53,6 +53,7 @@ before_script:
 
 # Install maven 3.2.5 since xenial uses 3.3.9 for which shading is broken
 before_install:
+   - sudo apt-get -y install openjdk-8-jdk unzip && export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-arm64
    - source ./tools/travis/setup_maven.sh
 
 notifications:
@@ -74,7 +75,9 @@ stages:
     if: type = cron
   - name: cleanup
 
-jdk: "openjdk8"
+arch:
+  - amd64
+  - arm64
 jobs:
   include:
     # main profile
