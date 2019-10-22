@@ -74,7 +74,6 @@ stages:
     if: type = cron
   - name: cleanup
 
-jdk: "openjdk8"
 jobs:
   include:
     # main profile
