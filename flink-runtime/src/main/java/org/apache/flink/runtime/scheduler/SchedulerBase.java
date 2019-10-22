@@ -377,8 +377,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	@Override
-	public void handleGlobalFailure(final Throwable cause) {
-	}
+	public abstract void handleGlobalFailure(final Throwable cause);
 
 	@Override
 	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
