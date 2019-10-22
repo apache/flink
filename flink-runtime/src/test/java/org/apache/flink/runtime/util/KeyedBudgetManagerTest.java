@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.runtime.util.KeyedBudgetManager.AcquisitionResult;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +46,7 @@ import static org.junit.Assert.fail;
  * Test suite for {@link KeyedBudgetManager}.
  */
 @SuppressWarnings("MagicNumber")
-public class KeyedBudgetManagerTest {
+public class KeyedBudgetManagerTest extends TestLogger {
 	private static final String[] TEST_KEYS = {"k1", "k2", "k3", "k4"};
 	private static final long[] TEST_BUDGETS = {15, 17, 22, 11};
 	private static final Executor NEW_THREAD_EXECUTOR = r -> new Thread(r).start();
