@@ -48,9 +48,6 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	/**
-	 * Test class.
-	 */
 	private static class TestJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
 		public TestJobGraphRetriever(String jobDir) {
 			super(jobDir);
