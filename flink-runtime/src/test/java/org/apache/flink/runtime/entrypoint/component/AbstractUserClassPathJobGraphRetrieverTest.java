@@ -51,8 +51,7 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 	/**
 	 * Test class.
 	 */
-	public static class TestJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
-
+	private static class TestJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
 		public TestJobGraphRetriever(String jobDir) {
 			super(jobDir);
 		}
@@ -63,17 +62,17 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 		}
 	}
 
-	@Test
+	@Test(expected = IllegalArgumentException.class)
 	public void testGetUserClassPathFromAFile() throws IOException {
 		final String fileName = "a.jar";
 		File file = temporaryFolder.newFile(fileName);
 
 		TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(file.getAbsolutePath());
 
-		assertEquals(Collections.emptyList(), testJobGraphRetriever.getUserClassPaths());
+		testJobGraphRetriever.getUserClassPaths();
 	}
 
-	@Test
+	@Test(expected = IllegalArgumentException.class)
 	public void testGetUserClassPathFormADoesNotExistsFile() throws IOException {
 		final String fileName = "_does_not_exists_file";
 		final String doesNotExistsFilePath = temporaryFolder.getRoot() + "/" + fileName;
@@ -81,12 +80,10 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 		TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(doesNotExistsFilePath);
 
 		assertEquals(Collections.emptyList(), testJobGraphRetriever.getUserClassPaths());
-
 	}
 
 	@Test
 	public void testGetUserClassPath() throws IOException {
-
 		final Path jobDir = temporaryFolder.newFolder("_job_dir").toPath();
 		final Path jobSubDir1 = Files.createDirectory(jobDir.resolve("_sub_dir1"));
 		final Path jobSubDir2 = Files.createDirectory(jobDir.resolve("_sub_dir2"));
@@ -98,10 +95,13 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 		Files.createFile(jobDir.resolve("file1.txt"));
 		Files.createFile(jobSubDir2.resolve("file2.txt"));
 
-		List<URL> expectedUrls = Arrays.asList(jarFile1.toUri().toURL(),
-			jarFile2.toUri().toURL(),
-			jarFile3.toUri().toURL(),
-			jarFile4.toUri().toURL());
+		Path userDir = Paths.get(System.getProperty("user.dir"));
+		URL spec = new URL(jobDir.toUri().getScheme() + ":");
+		List<URL> expectedUrls = Arrays.asList(
+			new URL(spec, userDir.relativize(jarFile1).toString()),
+			new URL(spec, userDir.relativize(jarFile2).toString()),
+			new URL(spec, userDir.relativize(jarFile3).toString()),
+			new URL(spec, userDir.relativize(jarFile4).toString()));
 
 		TestJobGraphRetriever testJobGraphRetriever =
 			new TestJobGraphRetriever(jobDir.toString());
