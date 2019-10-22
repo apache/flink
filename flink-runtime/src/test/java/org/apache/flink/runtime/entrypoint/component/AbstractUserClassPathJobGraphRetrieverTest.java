@@ -141,5 +141,4 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 			Files.deleteIfExists(jobRelativeDir);
 		}
 	}
-
 }
