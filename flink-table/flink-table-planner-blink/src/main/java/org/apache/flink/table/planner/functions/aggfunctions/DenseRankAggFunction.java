@@ -27,8 +27,11 @@ import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 
 import java.util.Arrays;
 
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.and;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.not;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 
 /**
@@ -73,8 +76,8 @@ public class DenseRankAggFunction extends RankLikeAggFunctionBase {
 	@Override
 	public Expression[] accumulateExpressions() {
 		Expression[] accExpressions = new Expression[1 + operands().length];
-		// sequence = if (lastValues equalTo orderKeys) sequence else sequence + 1
-		accExpressions[0] = ifThenElse(orderKeyEqualsExpression(), sequence, plus(sequence, literal(1L)));
+		// sequence = if (lastValues equalTo orderKeys and sequence != 0) sequence else sequence + 1
+		accExpressions[0] = ifThenElse(and(orderKeyEqualsExpression(), not(equalTo(sequence, literal(0L)))), sequence, plus(sequence, literal(1L)));
 		Expression[] operands = operands();
 		System.arraycopy(operands, 0, accExpressions, 1, operands.length);
 		return accExpressions;
