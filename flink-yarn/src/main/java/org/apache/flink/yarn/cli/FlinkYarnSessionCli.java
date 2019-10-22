@@ -73,11 +73,10 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -541,33 +540,29 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			configuration.setString(YarnConfigOptions.NODE_LABEL, nodeLabelValue);
 		}
 
-		discoverAndEncodeLogConfigFiles(configuration);
+		discoverLogConfigFile().ifPresent(
+				file -> configuration.setString(YarnConfigOptions.APPLICATION_LOG_CONFIG_FILE, file.getPath())
+		);
 	}
 
-	private void discoverAndEncodeLogConfigFiles(final Configuration configuration) {
-		final Set<File> logFiles = discoverLogConfigFiles();
-		YarnConfigUtils.encodeListToConfig(configuration, YarnConfigOptions.APPLICATION_LOG_CONFIG_FILES, logFiles, File::getPath);
-	}
+	private Optional<File> discoverLogConfigFile() {
+		Optional<File> logConfigFile = Optional.empty();
 
-	private Set<File> discoverLogConfigFiles() {
-		final Set<File> logConfigFiles = new HashSet<>();
-
-		File logbackFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOGBACK_NAME);
-		final boolean hasLogback = logbackFile.exists();
-		if (hasLogback) {
-			logConfigFiles.add(logbackFile);
+		final File log4jFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME);
+		if (log4jFile.exists()) {
+			logConfigFile = Optional.of(log4jFile);
 		}
 
-		File log4jFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME);
-		final boolean hasLog4j = log4jFile.exists();
-		if (hasLog4j) {
-			logConfigFiles.add(log4jFile);
-			if (hasLogback) {
-				LOG.warn("The configuration directory ('" + configurationDirectory + "') contains both LOG4J and " +
-						"Logback configuration files. Please delete or rename one of them.");
+		final File logbackFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOGBACK_NAME);
+		if (logbackFile.exists()) {
+			if (logConfigFile.isPresent()) {
+				LOG.warn("The configuration directory ('" + configurationDirectory + "') already contains a LOG4J config file." +
+						"If you want to use logback, then please delete or rename the log configuration file.");
+			} else {
+				logConfigFile = Optional.of(logbackFile);
 			}
 		}
-		return logConfigFiles;
+		return logConfigFile;
 	}
 
 	private boolean isYarnPropertiesFileMode(CommandLine commandLine) {
