@@ -23,6 +23,7 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * No-op implementation of {@link BufferPool}.
@@ -86,5 +87,10 @@ public class NoOpBufferPool implements BufferPool {
 	@Override
 	public void recycle(MemorySegment memorySegment) {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<?> isAvailable() {
+		return AVAILABLE;
 	}
 }

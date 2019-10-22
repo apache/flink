@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -320,6 +321,11 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 */
 	public boolean isReleased() {
 		return isReleased.get();
+	}
+
+	@Override
+	public CompletableFuture<?> isAvailable() {
+		return bufferPool.isAvailable();
 	}
 
 	@Override
