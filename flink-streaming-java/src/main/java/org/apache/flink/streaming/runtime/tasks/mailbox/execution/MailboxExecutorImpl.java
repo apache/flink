@@ -30,7 +30,7 @@ import java.util.concurrent.RejectedExecutionException;
 /**
  * Implementation of an executor service build around a mailbox-based execution model.
  */
-public class MailboxExecutorImpl implements MailboxExecutor {
+public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	/** Reference to the thread that executes the mailbox letters.  */
 	@Nonnull
