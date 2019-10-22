@@ -22,7 +22,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -38,8 +38,8 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 	@Override
 	public AbstractPythonScalarFunctionOperator<CRow, CRow, Row, Row> getTestOperator(
 		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
+		DataType inputType,
+		DataType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
 		return new PassThroughPythonScalarFunctionOperator(
@@ -60,8 +60,8 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 
 		PassThroughPythonScalarFunctionOperator(
 			PythonFunctionInfo[] scalarFunctions,
-			RowType inputType,
-			RowType outputType,
+			DataType inputType,
+			DataType outputType,
 			int[] udfInputOffsets,
 			int[] forwardedFields) {
 			super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);

@@ -34,7 +34,9 @@ import org.apache.flink.table.planner.codegen.{CalcCodeGenerator, CodeGeneratorC
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.utils.TypeConversions
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -103,14 +105,14 @@ trait CommonPythonCalc {
     val clazz = Class.forName(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
     val ctor = clazz.getConstructor(
       classOf[Array[PythonFunctionInfo]],
-      classOf[RowType],
-      classOf[RowType],
+      classOf[DataType],
+      classOf[DataType],
       classOf[Array[Int]],
       classOf[Array[Int]])
     ctor.newInstance(
       pythonFunctionInfos,
-      inputRowTypeInfo.toRowType,
-      outputRowTypeInfo.toRowType,
+      TypeConversions.fromLogicalToDataType(inputRowTypeInfo.toRowType),
+      TypeConversions.fromLogicalToDataType(outputRowTypeInfo.toRowType),
       udfInputOffsets,
       forwardedFields)
       .asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]]

@@ -118,9 +118,6 @@ class UserDefinedFunctionTests(object):
                                      bigint_param, decimal_param, float_param, double_param,
                                      boolean_param, str_param,
                                      date_param, time_param, timestamp_param):
-            # decide whether two floats are equal
-            def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
-                return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
             from decimal import Decimal
             import datetime
@@ -326,6 +323,253 @@ class UserDefinedFunctionTests(object):
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,2", "1,2", "1,2"])
+
+    def test_all_data_types(self):
+        def boolean_func(bool_param):
+            assert isinstance(bool_param, bool), 'bool_param of wrong type %s !' \
+                                                 % type(bool_param)
+            return bool_param
+
+        def tinyint_func(tinyint_param):
+            assert isinstance(tinyint_param, int), 'tinyint_param of wrong type %s !' \
+                                                   % type(tinyint_param)
+            return tinyint_param
+
+        def smallint_func(smallint_param):
+            assert isinstance(smallint_param, int), 'smallint_param of wrong type %s !' \
+                                                    % type(smallint_param)
+            return smallint_param
+
+        def int_func(int_param):
+            assert isinstance(int_param, int), 'int_param of wrong type %s !' \
+                                               % type(int_param)
+            return int_param
+
+        def bigint_func(bigint_param):
+            assert isinstance(bigint_param, int), 'bigint_param of wrong type %s !' \
+                                                  % type(bigint_param)
+            return bigint_param
+
+        def bytes_func(bytes_param):
+            assert bytes_param == b'flink', \
+                'bytes_param is wrong value %s !' % bytes_param
+            return bytes_param
+
+        def str_func(str_param):
+            assert str_param == 'pyflink', \
+                'str_param is wrong value %s !' % str_param
+            return str_param
+
+        def float_func(float_param):
+            assert isinstance(float_param, float) and float_equal(float_param, 1.23, 1e-6), \
+                'float_param is wrong value %s !' % float_param
+            return float_param
+
+        def double_func(double_param):
+            assert isinstance(double_param, float) and float_equal(double_param, 1.98932, 1e-7), \
+                'double_param is wrong value %s !' % double_param
+            return double_param
+
+        def decimal_func(decimal_param):
+            from decimal import Decimal
+            assert decimal_param == Decimal('1.050000000000000000'), \
+                'decimal_param is wrong value %s !' % decimal_param
+            return decimal_param
+
+        def date_func(date_param):
+            from datetime import date
+            assert date_param == date(year=2014, month=9, day=13), \
+                'date_param is wrong value %s !' % date_param
+            return date_param
+
+        def time_func(time_param):
+            from datetime import time
+            assert time_param == time(hour=12, minute=0, second=0), \
+                'time_param is wrong value %s !' % time_param
+            return time_param
+
+        def timestamp_func(timestamp_param):
+            from datetime import datetime
+            assert timestamp_param == datetime(1999, 9, 10, 5, 20, 10), \
+                'timestamp_param is wrong value %s !' % timestamp_param
+            return timestamp_param
+
+        def array_func(array_param):
+            assert array_param == [1, 2, 3], \
+                'array_param is wrong value %s !' % array_param
+            return array_param
+
+        def map_func(map_param):
+            assert map_param == {1: 'flink', 2: 'pyflink'}, \
+                'map_param is wrong value %s !' % map_param
+            return map_param
+
+        def multiset_func(multiset_param):
+            assert multiset_param == [1, 1, 2], \
+                'multiset_param is wrong value %s !' % multiset_param
+            return multiset_param
+
+        def create_multiset_func(p):
+            assert isinstance(p, int)
+            return [1, 1, 2]
+
+        self.t_env.register_function("boolean_func",
+                                     udf(boolean_func,
+                                         [DataTypes.BOOLEAN()],
+                                         DataTypes.BOOLEAN()))
+        self.t_env.register_function("tinyint_func",
+                                     udf(tinyint_func,
+                                         [DataTypes.TINYINT()],
+                                         DataTypes.TINYINT()))
+        self.t_env.register_function("smallint_func",
+                                     udf(smallint_func,
+                                         [DataTypes.SMALLINT()],
+                                         DataTypes.SMALLINT()))
+        self.t_env.register_function("int_func",
+                                     udf(int_func,
+                                         [DataTypes.INT()],
+                                         DataTypes.INT()))
+        self.t_env.register_function("bigint_func",
+                                     udf(bigint_func,
+                                         [DataTypes.BIGINT()],
+                                         DataTypes.BIGINT()))
+
+        self.t_env.register_function("bytes_func",
+                                     udf(bytes_func,
+                                         [DataTypes.BYTES()],
+                                         DataTypes.BYTES()))
+
+        self.t_env.register_function("str_func",
+                                     udf(str_func,
+                                         [DataTypes.STRING()],
+                                         DataTypes.STRING()))
+
+        self.t_env.register_function("float_func",
+                                     udf(float_func,
+                                         [DataTypes.FLOAT()],
+                                         DataTypes.FLOAT()))
+
+        self.t_env.register_function("double_func",
+                                     udf(double_func,
+                                         [DataTypes.DOUBLE()],
+                                         DataTypes.DOUBLE()))
+
+        self.t_env.register_function("decimal_func",
+                                     udf(decimal_func,
+                                         [DataTypes.DECIMAL(20, 10)],
+                                         DataTypes.DECIMAL(20, 10)))
+
+        self.t_env.register_function("date_func",
+                                     udf(date_func,
+                                         [DataTypes.DATE()],
+                                         DataTypes.DATE()))
+
+        self.t_env.register_function("time_func",
+                                     udf(time_func,
+                                         [DataTypes.TIME()],
+                                         DataTypes.TIME()))
+
+        self.t_env.register_function("timestamp_func",
+                                     udf(timestamp_func,
+                                         [DataTypes.TIMESTAMP()],
+                                         DataTypes.TIMESTAMP()))
+
+        self.t_env.register_function("array_func",
+                                     udf(array_func,
+                                         [DataTypes.ARRAY(DataTypes.BIGINT())],
+                                         DataTypes.ARRAY(DataTypes.BIGINT())))
+
+        self.t_env.register_function("map_func",
+                                     udf(map_func,
+                                         [DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING())],
+                                         DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING())))
+
+        self.t_env.register_function("create_multiset_func",
+                                     udf(create_multiset_func,
+                                         [DataTypes.BIGINT()],
+                                         DataTypes.MULTISET(DataTypes.BIGINT())))
+
+        self.t_env.register_function("multiset_func",
+                                     udf(multiset_func,
+                                         [DataTypes.MULTISET(DataTypes.BIGINT())],
+                                         DataTypes.MULTISET(DataTypes.BIGINT())))
+
+        table_sink = source_sink_utils.TestAppendSink(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+                                                       'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'],
+                                                      [DataTypes.BOOLEAN(),
+                                                       DataTypes.TINYINT(),
+                                                       DataTypes.SMALLINT(),
+                                                       DataTypes.INT(),
+                                                       DataTypes.BIGINT(),
+                                                       DataTypes.BYTES(),
+                                                       DataTypes.STRING(),
+                                                       DataTypes.FLOAT(),
+                                                       DataTypes.DOUBLE(),
+                                                       DataTypes.DECIMAL(20, 10),
+                                                       DataTypes.DATE(),
+                                                       DataTypes.TIME(),
+                                                       DataTypes.TIMESTAMP(),
+                                                       DataTypes.ARRAY(DataTypes.BIGINT()),
+                                                       DataTypes.MAP(DataTypes.BIGINT(),
+                                                                     DataTypes.STRING()),
+                                                       DataTypes.MULTISET(DataTypes.BIGINT())])
+        self.t_env.register_table_sink("Results", table_sink)
+
+        from decimal import Decimal
+        import datetime
+        t = self.t_env.from_elements(
+            [(True, 1, 1, 1, 1, bytearray(b'flink'), 'pyflink', 1.23,
+              1.98932, Decimal('1.050000000000000000'), datetime.date(2014, 9, 13),
+              datetime.time(hour=12, minute=0, second=0),
+              datetime.datetime(1999, 9, 10, 5, 20, 10),
+              [1, 2, 3], {1: 'flink', 2: 'pyflink'}, 1)],
+            DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BOOLEAN()),
+                 DataTypes.FIELD("b", DataTypes.TINYINT()),
+                 DataTypes.FIELD("c", DataTypes.SMALLINT()),
+                 DataTypes.FIELD("d", DataTypes.INT()),
+                 DataTypes.FIELD("e", DataTypes.BIGINT()),
+                 DataTypes.FIELD("f", DataTypes.BYTES()),
+                 DataTypes.FIELD('g', DataTypes.STRING()),
+                 DataTypes.FIELD('h', DataTypes.FLOAT()),
+                 DataTypes.FIELD('i', DataTypes.DOUBLE()),
+                 DataTypes.FIELD('j', DataTypes.DECIMAL(20, 10)),
+                 DataTypes.FIELD('k', DataTypes.DATE()),
+                 DataTypes.FIELD('l', DataTypes.TIME()),
+                 DataTypes.FIELD('m', DataTypes.TIMESTAMP()),
+                 DataTypes.FIELD('n', DataTypes.ARRAY(DataTypes.BIGINT())),
+                 DataTypes.FIELD('o', DataTypes.MAP(DataTypes.BIGINT(),
+                                                    DataTypes.STRING())),
+                 DataTypes.FIELD('p', DataTypes.BIGINT())]))
+
+        t.select("boolean_func(a),"
+                 "tinyint_func(b),"
+                 "smallint_func(c),"
+                 "int_func(d),"
+                 "bigint_func(e),"
+                 "bytes_func(f),"
+                 "str_func(g),"
+                 "float_func(h),"
+                 "double_func(i),"
+                 "decimal_func(j),"
+                 "date_func(k),"
+                 "time_func(l),"
+                 "timestamp_func(m),"
+                 "array_func(n),"
+                 "map_func(o),"
+                 "multiset_func(create_multiset_func(p))") \
+            .insert_into("Results")
+        self.t_env.execute("test")
+        actual = source_sink_utils.results()
+        self.assert_equals(actual,
+                           ["true,1,1,1,1,[102, 108, 105, 110, 107],pyflink,1.23,1.98932,"
+                            "1.050000000000000000,2014-09-13,12:00:00,1999-09-10 05:20:10.0,"
+                            "[1, 2, 3],{1=flink, 2=pyflink},{1=2, 2=1}"])
+
+
+# decide whether two floats are equal
+def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
+    return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,

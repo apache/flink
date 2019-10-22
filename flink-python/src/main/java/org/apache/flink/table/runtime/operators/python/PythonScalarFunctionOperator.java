@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -58,8 +59,8 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 
 	public PythonScalarFunctionOperator(
 		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
+		DataType inputType,
+		DataType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
 		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
@@ -72,7 +73,7 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 
 		CRowTypeInfo forwardedInputTypeInfo = new CRowTypeInfo(new RowTypeInfo(
 			Arrays.stream(forwardedFields)
-				.mapToObj(i -> inputType.getFields().get(i))
+				.mapToObj(i -> ((RowType) inputType.getLogicalType()).getFields().get(i))
 				.map(RowType.RowField::getType)
 				.map(TypeConversions::fromLogicalToDataType)
 				.map(TypeConversions::fromDataTypeToLegacyInfo)

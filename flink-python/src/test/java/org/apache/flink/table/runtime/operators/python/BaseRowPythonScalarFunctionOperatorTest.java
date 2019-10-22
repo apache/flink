@@ -25,7 +25,7 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
@@ -38,7 +38,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
  * Tests for {@link BaseRowPythonScalarFunctionOperator}.
  */
 public class BaseRowPythonScalarFunctionOperatorTest
-		extends PythonScalarFunctionOperatorTestBase<BaseRow, BaseRow, BaseRow, BaseRow> {
+	extends PythonScalarFunctionOperatorTestBase<BaseRow, BaseRow, BaseRow, BaseRow> {
 
 	private final BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(new TypeInformation[]{
 		Types.STRING,
@@ -49,8 +49,8 @@ public class BaseRowPythonScalarFunctionOperatorTest
 	@Override
 	public AbstractPythonScalarFunctionOperator<BaseRow, BaseRow, BaseRow, BaseRow> getTestOperator(
 		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
+		DataType inputType,
+		DataType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
 		return new PassThroughPythonScalarFunctionOperator(
@@ -80,8 +80,8 @@ public class BaseRowPythonScalarFunctionOperatorTest
 
 		PassThroughPythonScalarFunctionOperator(
 			PythonFunctionInfo[] scalarFunctions,
-			RowType inputType,
-			RowType outputType,
+			DataType inputType,
+			DataType outputType,
 			int[] udfInputOffsets,
 			int[] forwardedFields) {
 			super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);

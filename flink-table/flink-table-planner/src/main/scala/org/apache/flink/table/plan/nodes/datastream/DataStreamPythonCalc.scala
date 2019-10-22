@@ -36,6 +36,7 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.CRowProcessRunner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.types.utils.TypeConversions
 
@@ -117,12 +118,12 @@ class DataStreamPythonCalc(
         pythonRexCalls.map(node => FlinkTypeFactory.toTypeInfo(node.getType)): _*)
 
     // Constructs the Python operator
-    val pythonOperatorInputRowType = TypeConversions.fromLegacyInfoToDataType(
-      inputSchema.typeInfo).getLogicalType.asInstanceOf[RowType]
-    val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
-      pythonOperatorResultTypeInfo).getLogicalType.asInstanceOf[RowType]
+    val pythonOperatorInputType = TypeConversions.fromLegacyInfoToDataType(
+      inputSchema.typeInfo)
+    val pythonOperatorOutputType = TypeConversions.fromLegacyInfoToDataType(
+      pythonOperatorResultTypeInfo)
     val pythonOperator = getPythonScalarFunctionOperator(
-      pythonOperatorInputRowType, pythonOperatorOutputRowType, pythonUdfInputOffsets)
+      pythonOperatorInputType, pythonOperatorOutputType, pythonUdfInputOffsets)
 
     val pythonDataStream = inputDataStream
       .transform(
@@ -157,20 +158,20 @@ class DataStreamPythonCalc(
   }
 
   private[flink] def getPythonScalarFunctionOperator(
-      inputRowType: RowType,
-      outputRowType: RowType,
+      inputType: DataType,
+      outputType: DataType,
       udfInputOffsets: Array[Int]) = {
     val clazz = Class.forName(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
     val ctor = clazz.getConstructor(
       classOf[Array[PythonFunctionInfo]],
-      classOf[RowType],
-      classOf[RowType],
+      classOf[DataType],
+      classOf[DataType],
       classOf[Array[Int]],
       classOf[Array[Int]])
     ctor.newInstance(
       pythonFunctionInfos,
-      inputRowType,
-      outputRowType,
+      inputType,
+      outputType,
       udfInputOffsets,
       forwardedFields)
       .asInstanceOf[OneInputStreamOperator[CRow, CRow]]

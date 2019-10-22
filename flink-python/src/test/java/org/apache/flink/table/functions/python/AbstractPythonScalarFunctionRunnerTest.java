@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.functions.python;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.RowType;
-
-import java.util.Arrays;
-import java.util.Collections;
+import org.apache.flink.table.types.DataType;
 
 /**
  * Base class for PythonScalarFunctionRunner and BaseRowPythonScalarFunctionRunner test.
@@ -40,8 +37,10 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 				new Integer[]{0})
 		};
 
-		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
-		return createPythonScalarFunctionRunner(pythonFunctionInfos, rowType, rowType);
+		DataType dataType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.BIGINT())
+		);
+		return createPythonScalarFunctionRunner(pythonFunctionInfos, dataType, dataType);
 	}
 
 	AbstractPythonScalarFunctionRunner<IN, OUT> createMultipleUDFRunner() {
@@ -54,13 +53,16 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 				new Integer[]{0, 2})
 		};
 
-		RowType inputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new BigIntType()),
-			new RowType.RowField("f2", new BigIntType()),
-			new RowType.RowField("f3", new BigIntType())));
-		RowType outputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new BigIntType()),
-			new RowType.RowField("f2", new BigIntType())));
+		DataType inputType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.BIGINT()),
+			DataTypes.FIELD("f2", DataTypes.BIGINT()),
+			DataTypes.FIELD("f3", DataTypes.BIGINT())
+		);
+
+		DataType outputType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.BIGINT()),
+			DataTypes.FIELD("f2", DataTypes.BIGINT())
+		);
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
 	}
 
@@ -89,21 +91,24 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 				})
 		};
 
-		RowType inputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new BigIntType()),
-			new RowType.RowField("f2", new BigIntType()),
-			new RowType.RowField("f3", new BigIntType()),
-			new RowType.RowField("f4", new BigIntType()),
-			new RowType.RowField("f5", new BigIntType())));
-		RowType outputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new BigIntType()),
-			new RowType.RowField("f2", new BigIntType()),
-			new RowType.RowField("f3", new BigIntType())));
+		DataType inputType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.BIGINT()),
+			DataTypes.FIELD("f2", DataTypes.BIGINT()),
+			DataTypes.FIELD("f3", DataTypes.BIGINT()),
+			DataTypes.FIELD("f4", DataTypes.BIGINT()),
+			DataTypes.FIELD("f5", DataTypes.BIGINT())
+		);
+
+		DataType outputType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.BIGINT()),
+			DataTypes.FIELD("f2", DataTypes.BIGINT()),
+			DataTypes.FIELD("f3", DataTypes.BIGINT())
+		);
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
 	}
 
 	public abstract AbstractPythonScalarFunctionRunner<IN, OUT> createPythonScalarFunctionRunner(
-		PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType);
+		PythonFunctionInfo[] pythonFunctionInfos, DataType inputType, DataType outputType);
 
 	/**
 	 * Dummy PythonFunction.

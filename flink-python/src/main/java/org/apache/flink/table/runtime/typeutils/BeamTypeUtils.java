@@ -20,8 +20,16 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.table.runtime.typeutils.coders.BaseRowCoder;
-import org.apache.flink.table.runtime.typeutils.coders.RowCoder;
+import org.apache.flink.table.runtime.typeutils.coders.factory.AtomicDataTypeCoderFactory;
+import org.apache.flink.table.runtime.typeutils.coders.factory.CollectionDataTypeCoderFactory;
+import org.apache.flink.table.runtime.typeutils.coders.factory.FieldsDataTypeCoderFactory;
+import org.apache.flink.table.runtime.typeutils.coders.factory.KeyValueDataTypeCoderFactory;
+import org.apache.flink.table.types.AtomicDataType;
+import org.apache.flink.table.types.CollectionDataType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.DataTypeVisitor;
+import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -35,6 +43,7 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeVisitor;
@@ -54,7 +63,8 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
+
+import java.math.BigDecimal;
 
 /**
  * Utilities for converting Flink data types to Beam data types.
@@ -64,227 +74,142 @@ public final class BeamTypeUtils {
 
 	private static final String EMPTY_STRING = "";
 
-	public static Coder toCoder(LogicalType logicalType) {
-		return logicalType.accept(new LogicalTypeToCoderConverter());
+	public static Coder toCoder(DataType dataType) {
+		return dataType.accept(DataTypeToCoderConverter.INSTANCE);
 	}
 
-	public static Coder toBlinkCoder(LogicalType logicalType) {
-		return logicalType.accept(new LogicalTypeToBlinkCoderConverter());
+	public static Coder toBlinkCoder(DataType dataType) {
+		return dataType.accept(DataTypeToBlinkCoderConverter.INSTANCE);
 	}
 
 	public static FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
-		return logicalType.accept(new LogicalTypeToProtoTypeConverter());
+		return logicalType.accept(LogicalTypeToProtoTypeConverter.INSTANCE);
 	}
 
-	private static class LogicalTypeToCoderConverter implements LogicalTypeVisitor<Coder> {
+	private static class DataTypeToCoderConverter implements DataTypeVisitor<Coder> {
+
+		private static final DataTypeToCoderConverter INSTANCE = new DataTypeToCoderConverter();
 
 		@Override
-		public Coder visit(CharType charType) {
-			return null;
+		public Coder visit(AtomicDataType atomicDataType) {
+			return AtomicDataTypeCoderFactory.of(false).findCoder(atomicDataType);
 		}
 
 		@Override
-		public Coder visit(VarCharType varCharType) {
-			return null;
+		public Coder visit(CollectionDataType collectionDataType) {
+			return CollectionDataTypeCoderFactory.of(this, false).findCoder(collectionDataType);
 		}
 
 		@Override
-		public Coder visit(BooleanType booleanType) {
-			return null;
+		public Coder visit(FieldsDataType fieldsDataType) {
+			return FieldsDataTypeCoderFactory.of(this, false).findCoder(fieldsDataType);
 		}
 
 		@Override
-		public Coder visit(BinaryType binaryType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(VarBinaryType varBinaryType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(DecimalType decimalType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(TinyIntType tinyIntType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(SmallIntType smallIntType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(IntType intType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(BigIntType bigIntType) {
-			return VarLongCoder.of();
-		}
-
-		@Override
-		public Coder visit(FloatType floatType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(DoubleType doubleType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(DateType dateType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(TimeType timeType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(TimestampType timestampType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(ZonedTimestampType zonedTimestampType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(LocalZonedTimestampType localZonedTimestampType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(YearMonthIntervalType yearMonthIntervalType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(DayTimeIntervalType dayTimeIntervalType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(ArrayType arrayType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(MultisetType multisetType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(MapType mapType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(RowType rowType) {
-			final Coder[] fieldCoders = rowType.getFields()
-				.stream()
-				.map(f -> f.getType().accept(this))
-				.toArray(Coder[]::new);
-			return new RowCoder(fieldCoders);
-		}
-
-		@Override
-		public Coder visit(DistinctType distinctType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(StructuredType structuredType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(NullType nullType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(AnyType<?> anyType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(SymbolType<?> symbolType) {
-			return null;
-		}
-
-		@Override
-		public Coder visit(LogicalType other) {
-			return null;
+		public Coder visit(KeyValueDataType keyValueDataType) {
+			return KeyValueDataTypeCoderFactory.of(this, false).findCoder(keyValueDataType);
 		}
 	}
 
-	private static class LogicalTypeToBlinkCoderConverter extends LogicalTypeToCoderConverter {
+	private static class DataTypeToBlinkCoderConverter implements DataTypeVisitor<Coder> {
+
+		private static final DataTypeToBlinkCoderConverter INSTANCE = new DataTypeToBlinkCoderConverter();
 
 		@Override
-		public Coder visit(RowType rowType) {
-			final Coder[] fieldCoders = rowType.getFields()
-				.stream()
-				.map(f -> f.getType().accept(this))
-				.toArray(Coder[]::new);
-			return new BaseRowCoder(fieldCoders, rowType.getChildren().toArray(new LogicalType[0]));
+		public Coder visit(AtomicDataType atomicDataType) {
+			return AtomicDataTypeCoderFactory.of(true).findCoder(atomicDataType);
+		}
+
+		@Override
+		public Coder visit(CollectionDataType collectionDataType) {
+			return CollectionDataTypeCoderFactory.of(this, true).findCoder(collectionDataType);
+		}
+
+		@Override
+		public Coder visit(KeyValueDataType keyValueDataType) {
+			return KeyValueDataTypeCoderFactory.of(this, true).findCoder(keyValueDataType);
+		}
+
+		@Override
+		public Coder visit(FieldsDataType fieldsDataType) {
+			return FieldsDataTypeCoderFactory.of(this, true).findCoder(fieldsDataType);
 		}
 	}
 
 	private static class LogicalTypeToProtoTypeConverter implements LogicalTypeVisitor<FlinkFnApi.Schema.FieldType> {
 
+		private static final LogicalTypeToProtoTypeConverter INSTANCE = new LogicalTypeToProtoTypeConverter();
+
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(CharType charType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.CHAR)
+				.setNullable(charType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(VarCharType varCharType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.VARCHAR)
+				.setNullable(varCharType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(BooleanType booleanType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.BOOLEAN)
+				.setNullable(booleanType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(BinaryType binaryType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.BINARY)
+				.setNullable(binaryType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(VarBinaryType varBinaryType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.VARBINARY)
+				.setNullable(varBinaryType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(DecimalType decimalType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
+				.setNullable(decimalType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(TinyIntType tinyIntType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.TINYINT)
+				.setNullable(tinyIntType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(SmallIntType smallIntType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.SMALLINT)
+				.setNullable(smallIntType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(IntType intType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.INT)
+				.setNullable(intType.isNullable())
+				.build();
 		}
 
 		@Override
@@ -297,27 +222,42 @@ public final class BeamTypeUtils {
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(FloatType floatType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.FLOAT)
+				.setNullable(floatType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(DoubleType doubleType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.DOUBLE)
+				.setNullable(doubleType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(DateType dateType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.DATE)
+				.setNullable(dateType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(TimeType timeType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.TIME)
+				.setNullable(timeType.isNullable())
+				.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(TimestampType timestampType) {
-			return null;
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.DATETIME)
+				.setNullable(timestampType.isNullable())
+				.build();
 		}
 
 		@Override
@@ -342,17 +282,41 @@ public final class BeamTypeUtils {
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(ArrayType arrayType) {
-			return null;
+			FlinkFnApi.Schema.FieldType.Builder builder =
+				FlinkFnApi.Schema.FieldType.newBuilder()
+					.setTypeName(FlinkFnApi.Schema.TypeName.ARRAY)
+					.setNullable(arrayType.isNullable());
+
+			FlinkFnApi.Schema.FieldType elementFieldType = arrayType.getElementType().accept(this);
+			builder.setCollectionElementType(elementFieldType);
+			return builder.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(MultisetType multisetType) {
-			return null;
+			FlinkFnApi.Schema.FieldType.Builder builder =
+				FlinkFnApi.Schema.FieldType.newBuilder()
+					.setTypeName(FlinkFnApi.Schema.TypeName.MULTISET)
+					.setNullable(multisetType.isNullable());
+
+			FlinkFnApi.Schema.FieldType elementFieldType = multisetType.getElementType().accept(this);
+			builder.setCollectionElementType(elementFieldType);
+			return builder.build();
 		}
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(MapType mapType) {
-			return null;
+			FlinkFnApi.Schema.FieldType.Builder builder =
+				FlinkFnApi.Schema.FieldType.newBuilder()
+					.setTypeName(FlinkFnApi.Schema.TypeName.MAP)
+					.setNullable(mapType.isNullable());
+
+			FlinkFnApi.Schema.MapType.Builder mapBuilder =
+				FlinkFnApi.Schema.MapType.newBuilder()
+					.setKeyType(mapType.getKeyType().accept(this))
+					.setValueType(mapType.getValueType().accept(this));
+			builder.setMapType(mapBuilder.build());
+			return builder.build();
 		}
 
 		@Override
@@ -402,6 +366,15 @@ public final class BeamTypeUtils {
 
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(LogicalType other) {
+			if (other instanceof LegacyTypeInformationType) {
+				Class<?> typeClass = ((LegacyTypeInformationType) other).getTypeInformation().getTypeClass();
+				if (typeClass == BigDecimal.class) {
+					return FlinkFnApi.Schema.FieldType.newBuilder()
+						.setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
+						.setNullable(other.isNullable())
+						.build();
+				}
+			}
 			return null;
 		}
 	}

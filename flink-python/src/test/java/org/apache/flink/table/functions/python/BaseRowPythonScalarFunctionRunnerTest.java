@@ -22,7 +22,7 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.coders.BaseRowCoder;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -110,8 +110,8 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 	@Override
 	public AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> createPythonScalarFunctionRunner(
 		final PythonFunctionInfo[] pythonFunctionInfos,
-		RowType inputType,
-		RowType outputType) {
+		DataType inputType,
+		DataType outputType) {
 		final FnDataReceiver<BaseRow> dummyReceiver = input -> {
 			// ignore the execution results
 		};

@@ -19,9 +19,11 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
 import org.apache.flink.table.runtime.typeutils.coders.BaseRowCoder;
 import org.apache.flink.table.runtime.typeutils.coders.RowCoder;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -42,10 +44,10 @@ public class BeamTypeUtilsTest {
 
 	@Test
 	public void testLogicalTypeToCoder() {
-		List<RowType.RowField> rowFields = new ArrayList<>();
-		rowFields.add(new RowType.RowField("f1", new BigIntType()));
-		RowType rowType = new RowType(rowFields);
-		Coder coder = BeamTypeUtils.toCoder(rowType);
+		DataType dataType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.BIGINT())
+		);
+		Coder coder = BeamTypeUtils.toCoder(dataType);
 		assertTrue(coder instanceof RowCoder);
 
 		Coder<?>[] fieldCoders = ((RowCoder) coder).getFieldCoders();
@@ -55,10 +57,10 @@ public class BeamTypeUtilsTest {
 
 	@Test
 	public void testLogicalTypeToBlinkCoder() {
-		List<RowType.RowField> rowFields = new ArrayList<>();
-		rowFields.add(new RowType.RowField("f1", new BigIntType()));
-		RowType rowType = new RowType(rowFields);
-		Coder coder = BeamTypeUtils.toBlinkCoder(rowType);
+		DataType dataType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.BIGINT())
+		);
+		Coder coder = BeamTypeUtils.toBlinkCoder(dataType);
 		assertTrue(coder instanceof BaseRowCoder);
 
 		Coder<?>[] fieldCoders = ((BaseRowCoder) coder).getFieldCoders();

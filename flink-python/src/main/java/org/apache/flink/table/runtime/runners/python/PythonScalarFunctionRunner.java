@@ -24,7 +24,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -42,8 +42,8 @@ public class PythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunn
 		FnDataReceiver<Row> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnv pythonEnv,
-		RowType inputType,
-		RowType outputType,
+		DataType inputType,
+		DataType outputType,
 		String[] tempDirs) {
 		super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);
 	}

@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
 
@@ -71,8 +72,8 @@ public class BaseRowPythonScalarFunctionOperator
 
 	public BaseRowPythonScalarFunctionOperator(
 		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
+		DataType inputType,
+		DataType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
 		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
@@ -128,8 +129,8 @@ public class BaseRowPythonScalarFunctionOperator
 		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 			CodeGeneratorContext.apply(new TableConfig()),
 			"UdfInputProjection",
-			inputType,
-			udfInputType,
+			(RowType) inputType.getLogicalType(),
+			(RowType) udfInputType.getLogicalType(),
 			udfInputOffsets);
 		// noinspection unchecked
 		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
@@ -138,12 +139,12 @@ public class BaseRowPythonScalarFunctionOperator
 	private Projection<BaseRow, BinaryRow> createForwardedFieldProjection() {
 		final RowType forwardedFieldType = new RowType(
 			Arrays.stream(forwardedFields)
-				.mapToObj(i -> inputType.getFields().get(i))
+				.mapToObj(i -> ((RowType) inputType.getLogicalType()).getFields().get(i))
 				.collect(Collectors.toList()));
 		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 			CodeGeneratorContext.apply(new TableConfig()),
 			"ForwardedFieldProjection",
-			inputType,
+			(RowType) inputType.getLogicalType(),
 			forwardedFieldType,
 			forwardedFields);
 		// noinspection unchecked

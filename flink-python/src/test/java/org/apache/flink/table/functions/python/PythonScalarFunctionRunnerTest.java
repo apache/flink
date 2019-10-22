@@ -19,11 +19,11 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.coders.RowCoder;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -238,8 +238,8 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 	@Override
 	public AbstractPythonScalarFunctionRunner<Row, Row> createPythonScalarFunctionRunner(
 		final PythonFunctionInfo[] pythonFunctionInfos,
-		RowType inputType,
-		RowType outputType) {
+		DataType inputType,
+		DataType outputType) {
 		final FnDataReceiver<Row> dummyReceiver = input -> {
 			// ignore the execution results
 		};
@@ -264,7 +264,9 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 				new Integer[]{0})
 		};
 
-		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
+		DataType dataType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.BIGINT())
+		);
 
 		final PythonEnv pythonEnv = new PythonEnv(PythonEnv.ExecType.PROCESS);
 
@@ -273,8 +275,8 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			receiver,
 			pythonFunctionInfos,
 			pythonEnv,
-			rowType,
-			rowType,
+			dataType,
+			dataType,
 			jobBundleFactory,
 			new String[] {System.getProperty("java.io.tmpdir")});
 	}
@@ -288,7 +290,8 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			FnDataReceiver<Row> resultReceiver,
 			PythonFunctionInfo[] scalarFunctions,
 			PythonEnv pythonEnv,
-			RowType inputType, RowType outputType,
+			DataType inputType,
+			DataType outputType,
 			JobBundleFactory jobBundleFactory,
 			String[] tempDirs) {
 			super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);

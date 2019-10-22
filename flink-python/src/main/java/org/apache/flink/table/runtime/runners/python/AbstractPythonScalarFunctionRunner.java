@@ -27,7 +27,8 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.ByteString;
@@ -71,16 +72,16 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 	private static final String WINDOW_STRATEGY = "windowing_strategy";
 
 	private final PythonFunctionInfo[] scalarFunctions;
-	private final RowType inputType;
-	private final RowType outputType;
+	private final DataType inputType;
+	private final DataType outputType;
 
 	public AbstractPythonScalarFunctionRunner(
 		String taskName,
 		FnDataReceiver<OUT> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnv pythonEnv,
-		RowType inputType,
-		RowType outputType,
+		DataType inputType,
+		DataType outputType,
 		String[] tempDirs) {
 		super(taskName, resultReceiver, pythonEnv, StateRequestHandler.unsupported(), tempDirs);
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
@@ -89,16 +90,16 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 	}
 
 	/**
-	 * Gets the logical type of the input elements of the Python user-defined functions.
+	 * Gets the DataType of the input elements of the Python user-defined functions.
 	 */
-	public RowType getInputType() {
+	public DataType getInputType() {
 		return inputType;
 	}
 
 	/**
-	 * Gets the logical type of the execution results of the Python user-defined functions.
+	 * Gets the DataType of the execution results of the Python user-defined functions.
 	 */
-	public RowType getOutputType() {
+	public DataType getOutputType() {
 		return outputType;
 	}
 
@@ -197,17 +198,17 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 	 * Gets the proto representation of the input coder.
 	 */
 	private RunnerApi.Coder getInputCoderProto() {
-		return getRowCoderProto(inputType);
+		return getRowCoderProto(inputType.getLogicalType());
 	}
 
 	/**
 	 * Gets the proto representation of the output coder.
 	 */
 	private RunnerApi.Coder getOutputCoderProto() {
-		return getRowCoderProto(outputType);
+		return getRowCoderProto(outputType.getLogicalType());
 	}
 
-	private RunnerApi.Coder getRowCoderProto(RowType rowType) {
+	private RunnerApi.Coder getRowCoderProto(LogicalType rowType) {
 		return RunnerApi.Coder.newBuilder()
 			.setSpec(
 				RunnerApi.FunctionSpec.newBuilder()

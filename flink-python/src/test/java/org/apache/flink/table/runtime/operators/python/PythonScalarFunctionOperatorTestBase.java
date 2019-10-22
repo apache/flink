@@ -23,15 +23,13 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.python.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -191,10 +189,11 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 	}
 
 	private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness() throws Exception {
-		RowType dataType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
+		DataType dataType = DataTypes.ROW(
+			DataTypes.FIELD("f1", DataTypes.STRING()),
+			DataTypes.FIELD("f2", DataTypes.STRING()),
+			DataTypes.FIELD("f3", DataTypes.BIGINT())
+		);
 		AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT> operator = getTestOperator(
 			new PythonFunctionInfo[] {
 				new PythonFunctionInfo(
@@ -212,8 +211,8 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 
 	public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT> getTestOperator(
 		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
+		DataType inputType,
+		DataType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields);
 

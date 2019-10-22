@@ -22,16 +22,17 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
-import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.stream.Collectors;
 
 /**
  * Base class for all stream operators to execute Python {@link ScalarFunction}s. It executes the Python
@@ -72,14 +73,14 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	protected final PythonFunctionInfo[] scalarFunctions;
 
 	/**
-	 * The input logical type.
+	 * The input DataType.
 	 */
-	protected final RowType inputType;
+	protected final DataType inputType;
 
 	/**
-	 * The output logical type.
+	 * The output DataType.
 	 */
-	protected final RowType outputType;
+	protected final DataType outputType;
 
 	/**
 	 * The offsets of udf inputs.
@@ -92,14 +93,14 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	protected final int[] forwardedFields;
 
 	/**
-	 * The udf input logical type.
+	 * The udf input DataType.
 	 */
-	protected transient RowType udfInputType;
+	protected transient DataType udfInputType;
 
 	/**
-	 * The udf output logical type.
+	 * The udf output DataType.
 	 */
-	protected transient RowType udfOutputType;
+	protected transient DataType udfOutputType;
 
 	/**
 	 * The queue holding the input elements for which the execution results have not been received.
@@ -114,8 +115,8 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 
 	AbstractPythonScalarFunctionOperator(
 		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
+		DataType inputType,
+		DataType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
@@ -129,11 +130,23 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	public void open() throws Exception {
 		forwardedInputQueue = new LinkedBlockingQueue<>();
 		udfResultQueue = new LinkedBlockingQueue<>();
-		udfInputType = new RowType(
-			Arrays.stream(udfInputOffsets)
-				.mapToObj(i -> inputType.getFields().get(i))
-				.collect(Collectors.toList()));
-		udfOutputType = new RowType(outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
+		DataTypes.Field[] inputFields = new DataTypes.Field[udfInputOffsets.length];
+		for (int i = 0; i < udfInputOffsets.length; i++) {
+			int udfInputOffset = udfInputOffsets[i];
+			String fieldName = ((RowType) inputType.getLogicalType()).getFieldNames().get(udfInputOffset);
+			inputFields[i] = DataTypes.FIELD(
+				fieldName, ((FieldsDataType) inputType).getFieldDataTypes().get(fieldName));
+		}
+		udfInputType = DataTypes.ROW(inputFields);
+
+		DataTypes.Field[] outputFields =
+			new DataTypes.Field[((FieldsDataType) outputType).getFieldDataTypes().size() - forwardedFields.length];
+		for (int i = 0; i < outputFields.length; i++) {
+			String fieldName = ((RowType) outputType.getLogicalType()).getFieldNames().get(forwardedFields.length + i);
+			outputFields[i] = DataTypes.FIELD(
+				fieldName, ((FieldsDataType) outputType).getFieldDataTypes().get(fieldName));
+		}
+		udfOutputType = DataTypes.ROW(outputFields);
 		super.open();
 	}
 
