@@ -93,19 +93,19 @@ public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraph
 			Integer.MAX_VALUE,
 			new SimpleFileVisitor<java.nio.file.Path>() {
 
-			@Override
-			public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
-					throws IOException {
-				FileVisitResult fileVisitResult = super.visitFile(file, attrs);
-				if (file.getFileName().toString().endsWith(".jar")) {
-					LOG.info("add " + file.toString() + " to user classpath");
+				@Override
+				public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
+						throws IOException {
+					FileVisitResult fileVisitResult = super.visitFile(file, attrs);
+					if (file.getFileName().toString().endsWith(".jar")) {
+						LOG.info("add " + file.toString() + " to user classpath");
 						jarURLs.add(
 							new URL(new URL(file.getFileName().toUri().getScheme() + ":"), file.toString())
 						);
+					}
+					return fileVisitResult;
 				}
-				return fileVisitResult;
-			}
-		});
+			});
 
 		if (jarURLs.isEmpty()) {
 			return Collections.emptyList();
