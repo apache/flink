@@ -22,7 +22,7 @@ import java.io._
 import java.net.URL
 
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
-import org.apache.flink.client.deployment.ClusterDescriptor
+import org.apache.flink.client.deployment.{ClusterDescriptor, DefaultClusterClientServiceLoader}
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
@@ -258,11 +258,12 @@ object FlinkShell {
     val commandLine = CliFrontendParser.parse(commandLineOptions, args.toArray, true)
 
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
-    val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine);
+    val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine)
 
-    val clusterDescriptor = customCLI.createClusterDescriptor(executorConfig)
-
-    val clusterSpecification = customCLI.getClusterSpecification(executorConfig)
+    val serviceLoader = new DefaultClusterClientServiceLoader
+    val clientFactory = serviceLoader.getClusterClientFactory(executorConfig)
+    val clusterDescriptor = clientFactory.createClusterDescriptor(executorConfig)
+    val clusterSpecification = clientFactory.getClusterSpecification(executorConfig)
 
     val cluster = clusterDescriptor.deploySessionCluster(clusterSpecification)
 
@@ -291,11 +292,12 @@ object FlinkShell {
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
     val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
-    val clusterDescriptor = customCLI
+    val serviceLoader = new DefaultClusterClientServiceLoader
+    val clientFactory = serviceLoader.getClusterClientFactory(executorConfig)
+    val clusterDescriptor = clientFactory
       .createClusterDescriptor(executorConfig)
       .asInstanceOf[ClusterDescriptor[Any]]
-
-    val clusterId = customCLI.getClusterId(executorConfig)
+    val clusterId = clientFactory.getClusterId(executorConfig)
 
     val cluster = clusterDescriptor.retrieve(clusterId)
 

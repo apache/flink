@@ -39,7 +39,7 @@ import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConf
  * a ZooKeeper namespace.
  *
  */
-public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<T> {
+public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 
 	protected final Option zookeeperNamespaceOption = new Option("z", "zookeeperNamespace", true,
 		"Namespace to create the Zookeeper sub-paths for high availability mode");

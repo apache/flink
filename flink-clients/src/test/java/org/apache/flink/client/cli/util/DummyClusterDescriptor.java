@@ -22,7 +22,6 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -60,7 +59,7 @@ public class DummyClusterDescriptor<T> implements ClusterDescriptor<T> {
 	}
 
 	@Override
-	public void killCluster(T clusterId) throws FlinkException {
+	public void killCluster(T clusterId) {
 		throw new UnsupportedOperationException("Cannot terminate a dummy cluster.");
 	}
 

@@ -28,8 +28,11 @@ import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.RunOptions;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
@@ -92,6 +95,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Context for executing table programs. This class caches everything that can be cached across
  * multiple queries as long as the session context does not change. This must be thread-safe as
@@ -111,13 +117,18 @@ public class ExecutionContext<T> {
 	private final Map<String, UserDefinedFunction> functions;
 	private final Configuration flinkConfig;
 	private final Configuration executorConfig;
-	private final CustomCommandLine<T> activeCommandLine;
+	private final ClusterClientFactory<T> clusterClientFactory;
 	private final RunOptions runOptions;
 	private final T clusterId;
 	private final ClusterSpecification clusterSpec;
 
 	public ExecutionContext(Environment defaultEnvironment, SessionContext sessionContext, List<URL> dependencies,
-			Configuration flinkConfig, Options commandLineOptions, List<CustomCommandLine<?>> availableCommandLines) throws FlinkException {
+				Configuration flinkConfig, Options commandLineOptions, List<CustomCommandLine> availableCommandLines) throws FlinkException {
+		this(defaultEnvironment, sessionContext, dependencies, flinkConfig, new DefaultClusterClientServiceLoader(), commandLineOptions, availableCommandLines);
+	}
+
+	public ExecutionContext(Environment defaultEnvironment, SessionContext sessionContext, List<URL> dependencies,
+			Configuration flinkConfig, ClusterClientServiceLoader clusterClientServiceLoader, Options commandLineOptions, List<CustomCommandLine> availableCommandLines) throws FlinkException {
 		this.sessionContext = sessionContext.copy(); // create internal copy because session context is mutable
 		this.mergedEnv = Environment.merge(defaultEnvironment, sessionContext.getEnvironment());
 		this.dependencies = dependencies;
@@ -154,12 +165,17 @@ public class ExecutionContext<T> {
 		});
 
 		// convert deployment options into command line options that describe a cluster
+		final ClusterClientServiceLoader serviceLoader = checkNotNull(clusterClientServiceLoader);
 		final CommandLine commandLine = createCommandLine(mergedEnv.getDeployment(), commandLineOptions);
-		activeCommandLine = findActiveCommandLine(availableCommandLines, commandLine);
+		final CustomCommandLine activeCommandLine = findActiveCommandLine(availableCommandLines, commandLine);
+
 		executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
+		clusterClientFactory = serviceLoader.getClusterClientFactory(executorConfig);
+		checkState(clusterClientFactory != null);
+
 		runOptions = createRunOptions(commandLine);
-		clusterId = activeCommandLine.getClusterId(executorConfig);
-		clusterSpec = activeCommandLine.getClusterSpecification(executorConfig);
+		clusterId = clusterClientFactory.getClusterId(executorConfig);
+		clusterSpec = clusterClientFactory.getClusterSpecification(executorConfig);
 	}
 
 	public SessionContext getSessionContext() {
@@ -183,7 +199,7 @@ public class ExecutionContext<T> {
 	}
 
 	public ClusterDescriptor<T> createClusterDescriptor() {
-		return activeCommandLine.createClusterDescriptor(executorConfig);
+		return clusterClientFactory.createClusterDescriptor(executorConfig);
 	}
 
 	public EnvironmentInstance createEnvironmentInstance() {
@@ -226,11 +242,10 @@ public class ExecutionContext<T> {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	private static <T> CustomCommandLine<T> findActiveCommandLine(List<CustomCommandLine<?>> availableCommandLines, CommandLine commandLine) {
-		for (CustomCommandLine<?> cli : availableCommandLines) {
+	private static CustomCommandLine findActiveCommandLine(List<CustomCommandLine> availableCommandLines, CommandLine commandLine) {
+		for (CustomCommandLine cli : availableCommandLines) {
 			if (cli.isActive(commandLine)) {
-				return (CustomCommandLine<T>) cli;
+				return cli;
 			}
 		}
 		throw new SqlExecutionException("Could not find a matching deployment.");

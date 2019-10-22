@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.cli.util.DummyClusterClientServiceLoader;
 import org.apache.flink.client.cli.util.DummyCustomCommandLine;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
@@ -609,7 +610,8 @@ public class LocalExecutorITCase extends TestLogger {
 			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
-			new DummyCustomCommandLine<T>(clusterClient));
+			new DummyCustomCommandLine(),
+			new DummyClusterClientServiceLoader(clusterClient));
 	}
 
 	private <T> LocalExecutor createModifiedExecutor(ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
@@ -617,7 +619,8 @@ public class LocalExecutorITCase extends TestLogger {
 			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
-			new DummyCustomCommandLine<T>(clusterClient));
+			new DummyCustomCommandLine(),
+			new DummyClusterClientServiceLoader(clusterClient));
 	}
 
 	private <T> LocalExecutor createModifiedExecutor(
@@ -626,7 +629,8 @@ public class LocalExecutorITCase extends TestLogger {
 			EnvironmentFileUtil.parseModified(yamlFile, replaceVars),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
-			new DummyCustomCommandLine<T>(clusterClient));
+			new DummyCustomCommandLine(),
+			new DummyClusterClientServiceLoader(clusterClient));
 	}
 
 	private List<String> retrieveTableResult(

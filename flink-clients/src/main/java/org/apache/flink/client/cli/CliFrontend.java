@@ -27,8 +27,11 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
@@ -81,6 +84,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Implementation of a simple command line frontend for executing programs.
  */
@@ -104,7 +110,7 @@ public class CliFrontend {
 
 	private final Configuration configuration;
 
-	private final List<CustomCommandLine<?>> customCommandLines;
+	private final List<CustomCommandLine> customCommandLines;
 
 	private final Options customCommandLineOptions;
 
@@ -112,17 +118,27 @@ public class CliFrontend {
 
 	private final int defaultParallelism;
 
+	private final ClusterClientServiceLoader clusterClientServiceLoader;
+
 	public CliFrontend(
 			Configuration configuration,
-			List<CustomCommandLine<?>> customCommandLines) {
-		this.configuration = Preconditions.checkNotNull(configuration);
-		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
+			List<CustomCommandLine> customCommandLines) {
+		this(configuration, new DefaultClusterClientServiceLoader(), customCommandLines);
+	}
+
+	public CliFrontend(
+			Configuration configuration,
+			ClusterClientServiceLoader clusterClientServiceLoader,
+			List<CustomCommandLine> customCommandLines) {
+		this.configuration = checkNotNull(configuration);
+		this.customCommandLines = checkNotNull(customCommandLines);
+		this.clusterClientServiceLoader = checkNotNull(clusterClientServiceLoader);
 
 		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 		this.customCommandLineOptions = new Options();
 
-		for (CustomCommandLine<?> customCommandLine : customCommandLines) {
+		for (CustomCommandLine customCommandLine : customCommandLines) {
 			customCommandLine.addGeneralOptions(customCommandLineOptions);
 			customCommandLine.addRunOptions(customCommandLineOptions);
 		}
@@ -194,24 +210,27 @@ public class CliFrontend {
 			throw new CliArgsException("Could not build the program from JAR file.", e);
 		}
 
-		final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine customCommandLine = getActiveCustomCommandLine(commandLine);
 		final Configuration executorConfig = customCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
 		try {
-			runProgram(customCommandLine, executorConfig, runOptions, program);
+			runProgram(executorConfig, runOptions, program);
 		} finally {
 			program.deleteExtractedLibraries();
 		}
 	}
 
 	private <T> void runProgram(
-			CustomCommandLine<T> customCommandLine,
 			Configuration executorConfig,
 			RunOptions runOptions,
 			PackagedProgram program) throws ProgramInvocationException, FlinkException {
-		final ClusterDescriptor<T> clusterDescriptor = customCommandLine.createClusterDescriptor(executorConfig);
+
+		final ClusterClientFactory<T> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
+		checkState(clusterClientFactory != null);
+
+		final ClusterDescriptor<T> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig);
 
 		try {
-			final T clusterId = customCommandLine.getClusterId(executorConfig);
+			final T clusterId = clusterClientFactory.getClusterId(executorConfig);
 
 			final ClusterClient<T> client;
 
@@ -221,7 +240,7 @@ public class CliFrontend {
 
 				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(program, configuration, parallelism);
 
-				final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(executorConfig);
+				final ClusterSpecification clusterSpecification = clusterClientFactory.getClusterSpecification(executorConfig);
 				client = clusterDescriptor.deployJobCluster(
 					clusterSpecification,
 					jobGraph,
@@ -242,7 +261,7 @@ public class CliFrontend {
 				} else {
 					// also in job mode we have to deploy a session cluster because the job
 					// might consist of multiple parts (e.g. when using collect)
-					final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(executorConfig);
+					final ClusterSpecification clusterSpecification = clusterClientFactory.getClusterSpecification(executorConfig);
 					client = clusterDescriptor.deploySessionCluster(clusterSpecification);
 					// if not running in detached mode, add a shutdown hook to shut down cluster if client exits
 					// there's a race-condition here if cli is killed before shutdown hook is installed
@@ -395,7 +414,7 @@ public class CliFrontend {
 			showAll = listOptions.showAll();
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
 
 		runClusterAction(
 			activeCommandLine,
@@ -513,7 +532,7 @@ public class CliFrontend {
 
 		logAndSysout((advanceToEndOfEventTime ? "Draining job " : "Suspending job ") + "\"" + jobId + "\" with a savepoint.");
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
 		runClusterAction(
 			activeCommandLine,
 			commandLine,
@@ -550,7 +569,7 @@ public class CliFrontend {
 			return;
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
 
 		final String[] cleanedArgs = cancelOptions.getArgs();
 
@@ -635,7 +654,7 @@ public class CliFrontend {
 			return;
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
 
 		if (savepointOptions.isDispose()) {
 			runClusterAction(
@@ -908,21 +927,22 @@ public class CliFrontend {
 	 * @param activeCommandLine to create the {@link ClusterDescriptor} from
 	 * @param commandLine containing the parsed command line options
 	 * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
-	 * @param <T> type of the cluster id
+	 * @param <ClusterID> type of the cluster id
 	 * @throws FlinkException if something goes wrong
 	 */
-	private <T> void runClusterAction(CustomCommandLine<T> activeCommandLine, CommandLine commandLine, ClusterAction<T> clusterAction) throws FlinkException {
+	private <ClusterID> void runClusterAction(CustomCommandLine activeCommandLine, CommandLine commandLine, ClusterAction<ClusterID> clusterAction) throws FlinkException {
 		final Configuration executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterDescriptor<T> clusterDescriptor = activeCommandLine.createClusterDescriptor(executorConfig);
 
-		final T clusterId = activeCommandLine.getClusterId(executorConfig);
+		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
+		final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig);
+		final ClusterID clusterId = clusterClientFactory.getClusterId(executorConfig);
 
 		if (clusterId == null) {
 			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
 				"you would like to connect.");
 		} else {
 			try {
-				final ClusterClient<T> clusterClient = clusterDescriptor.retrieve(clusterId);
+				final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId);
 
 				try {
 					clusterAction.runAction(clusterClient);
@@ -1052,7 +1072,7 @@ public class CliFrontend {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
 		// 3. load the custom command lines
-		final List<CustomCommandLine<?>> customCommandLines = loadCustomCommandLines(
+		final List<CustomCommandLine> customCommandLines = loadCustomCommandLines(
 			configuration,
 			configurationDirectory);
 
@@ -1117,8 +1137,8 @@ public class CliFrontend {
 		config.setInteger(RestOptions.PORT, address.getPort());
 	}
 
-	public static List<CustomCommandLine<?>> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
-		List<CustomCommandLine<?>> customCommandLines = new ArrayList<>(2);
+	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
+		List<CustomCommandLine> customCommandLines = new ArrayList<>(2);
 
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
@@ -1150,8 +1170,8 @@ public class CliFrontend {
 	 * @param commandLine The input to the command-line.
 	 * @return custom command-line which is active (may only be one at a time)
 	 */
-	public CustomCommandLine<?> getActiveCustomCommandLine(CommandLine commandLine) {
-		for (CustomCommandLine<?> cli : customCommandLines) {
+	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
+		for (CustomCommandLine cli : customCommandLines) {
 			if (cli.isActive(commandLine)) {
 				return cli;
 			}
@@ -1164,7 +1184,7 @@ public class CliFrontend {
 	 * @param className The fully-qualified class name to load.
 	 * @param params The constructor parameters
 	 */
-	private static CustomCommandLine<?> loadCustomCommandLine(String className, Object... params) throws IllegalAccessException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException {
+	private static CustomCommandLine loadCustomCommandLine(String className, Object... params) throws IllegalAccessException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException {
 
 		Class<? extends CustomCommandLine> customCliClass =
 			Class.forName(className).asSubclass(CustomCommandLine.class);
