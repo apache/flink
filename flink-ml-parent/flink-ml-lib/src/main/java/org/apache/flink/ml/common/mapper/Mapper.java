@@ -19,31 +19,56 @@
 
 package org.apache.flink.ml.common.mapper;
 
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * Abstract class for mappers.
  */
-public abstract class Mapper extends FlatMapper implements MapOperable {
+public abstract class Mapper extends RichMapFunction<Row, Row> implements Serializable {
+
+	/**
+	 * schema of the input.
+	 */
+	private final String[] dataFieldNames;
+	private final DataType[] dataFieldTypes;
+
+	/**
+	 * params used for FlatMapper.
+	 * User can set the params before that the FlatMapper is executed.
+	 */
+	protected Params params;
 
 	public Mapper(TableSchema dataSchema, Params params) {
-		super(dataSchema, params);
+		this.dataFieldNames = dataSchema.getFieldNames();
+		this.dataFieldTypes = dataSchema.getFieldDataTypes();
+		this.params = (null == params) ? new Params() : params.clone();
+	}
+
+	protected TableSchema getDataSchema() {
+		return TableSchema.builder().fields(dataFieldNames, dataFieldTypes).build();
 	}
 
 	/**
-	 * This method override the {@link FlatMapper#flatMap(Row, Collector)} to map a row
-	 * to a new row which collected to {@link Collector}.
+	 * map operation method that maps a row to a new row.
 	 *
-	 * @param row the input row.
-	 * @param output the output collector
-	 * @throws Exception if {@link Collector#collect(Object)} throws exception.
+	 * @param row the input Row type data
+	 * @return one Row type data
+	 * @throws Exception This method may throw exceptions. Throwing
+	 * an exception will cause the operation to fail.
 	 */
-	@Override
-	public void flatMap(Row row, Collector<Row> output) throws Exception {
-		output.collect(map(row));
-	}
+	public abstract Row map(Row row) throws Exception;
+
+	/**
+	 * Get the table schema(includes column names and types) of the calculation result.
+	 *
+	 * @return the table schema of output Row type data
+	 */
+	public abstract TableSchema getOutputSchema();
 
 }

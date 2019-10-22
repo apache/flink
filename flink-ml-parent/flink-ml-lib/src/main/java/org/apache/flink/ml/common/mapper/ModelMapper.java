@@ -19,31 +19,105 @@
 
 package org.apache.flink.ml.common.mapper;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
+
+import java.io.Serializable;
+import java.util.List;
 
 /**
  * Abstract class for mappers with model.
  */
-public abstract class ModelMapper extends FlatModelMapper implements MapOperable {
+public abstract class ModelMapper extends Mapper {
 
-	public ModelMapper(TableSchema modelScheme, TableSchema dataSchema, Params params) {
-		super(modelScheme, dataSchema, params);
+	/**
+	 * Specify where to load model data.
+	 */
+	private enum ModelSourceType implements Serializable {
+		/**
+		 * Load model data from flink's broadcast dataset.
+		 */
+		BroadcastDataset,
+
+		/**
+		 * Load model data from data rows.
+		 */
+		Rows
+	}
+
+	private ModelSourceType modelSourceType;
+
+	/**
+	 * Load model from broadcast dataset of this name if modelSource == BroadcastDataset.
+	 */
+	private String modelBroadcastName;
+
+	/**
+	 * Load model from these rows if modelSource == Rows.
+	 */
+	private List<Row> modelRows;
+
+
+	/**
+	 * Field names of the model.
+	 */
+	private final String[] modelFieldNames;
+
+	/**
+	 * Field types of the model.
+	 */
+	private final DataType[] modelFieldTypes;
+
+	public ModelMapper(TableSchema modelSchema, TableSchema dataSchema, Params params) {
+		super(dataSchema, params);
+		this.modelFieldNames = modelSchema.getFieldNames();
+		this.modelFieldTypes = modelSchema.getFieldDataTypes();
+	}
+
+	protected TableSchema getModelSchema() {
+		return TableSchema.builder().fields(this.modelFieldNames, this.modelFieldTypes).build();
+	}
+
+	public final void setModelBroadcastName(String modelBroadcastName) {
+		Preconditions.checkState(this.modelSourceType == null,
+				"Model source could be set only once");
+		this.modelBroadcastName = modelBroadcastName;
+		this.modelSourceType = ModelSourceType.BroadcastDataset;
+	}
+
+	public final void setModelRows(List<Row> rows) {
+		Preconditions.checkState(this.modelSourceType == null,
+				"Model source could be set only once");
+		this.modelRows = rows;
+		this.modelSourceType = ModelSourceType.Rows;
 	}
 
 	/**
-	 * This method override the {@link FlatModelMapper#flatMap(Row, Collector)} to map a row
-	 * to a new row which collected to {@link Collector}.
+	 * Load model from the list of Row type data.
 	 *
-	 * @param row the input row.
-	 * @param output the output collector
-	 * @throws Exception if {@link Collector#collect(Object)} throws exception.
+	 * @param modelRows the list of Row type data
 	 */
-	@Override
-	public void flatMap(Row row, Collector<Row> output) throws Exception {
-		output.collect(map(row));
-	}
+	public abstract void loadModel(List<Row> modelRows);
 
+	@Override
+	public final void open(Configuration parameters) {
+		List<Row> rows;
+		switch (this.modelSourceType) {
+			case BroadcastDataset:
+				rows = getRuntimeContext().getBroadcastVariable(this.modelBroadcastName);
+				break;
+			case Rows:
+				rows = this.modelRows;
+				break;
+			default:
+				throw new IllegalStateException();
+		}
+		if (rows != null) {
+			loadModel(rows);
+		}
+	}
 }
