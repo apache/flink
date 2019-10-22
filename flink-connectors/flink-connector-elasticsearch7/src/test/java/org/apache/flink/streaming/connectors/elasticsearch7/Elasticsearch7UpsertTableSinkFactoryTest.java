@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.sql.connectors.elasticsearch7;
+package org.apache.flink.streaming.connectors.elasticsearch7;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -37,7 +37,6 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTa
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkFactoryTestBase;
-import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
