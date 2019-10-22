@@ -36,17 +36,14 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.TriFunctionWithException;
 
-import org.hamcrest.core.Is;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -57,7 +54,6 @@ import java.util.concurrent.TimeoutException;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -137,7 +133,6 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 			final Collection<JobGraph> recoveredJobGraphs = recoveredJobGraphsFuture.get();
 
-			assertThat(recoveredJobGraphs, hasSize(1));
 			assertThat(recoveredJobGraphs, containsInAnyOrder(JOB_GRAPH));
 		}
 	}
@@ -150,13 +145,9 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.build();
 
 		final CompletableFuture<Void> dispatcherServiceTerminationFuture = new CompletableFuture<>();
-		final OneShotLatch dispatcherServiceShutdownLatch = new OneShotLatch();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherService.newBuilder()
-				.setTerminationFutureSupplier(() -> {
-					dispatcherServiceShutdownLatch.trigger();
-					return dispatcherServiceTerminationFuture;
-				})
+				.setTerminationFutureSupplier(() -> dispatcherServiceTerminationFuture)
 				.build())
 			.build();
 
@@ -171,7 +162,6 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			assertThat(jobGraphStopFuture.isDone(), is(false));
 			assertThat(terminationFuture.isDone(), is(false));
 
-			dispatcherServiceShutdownLatch.await();
 			dispatcherServiceTerminationFuture.complete(null);
 
 			// verify that we shut down the JobGraphStore
@@ -215,14 +205,14 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 	@Test
 	public void closeAsync_duringJobRecovery_preventsDispatcherServiceCreation() throws Exception {
-		final OneShotLatch jobRecoveryStarted = new OneShotLatch();
-		final OneShotLatch completeJobRecovery = new OneShotLatch();
-		final OneShotLatch createDispatcherService = new OneShotLatch();
+		final OneShotLatch jobRecoveryStartedLatch = new OneShotLatch();
+		final OneShotLatch completeJobRecoveryLatch = new OneShotLatch();
+		final OneShotLatch createDispatcherServiceLatch = new OneShotLatch();
 
 		this.jobGraphStore = TestingJobGraphStore.newBuilder()
 			.setJobIdsFunction(storedJobs -> {
-				jobRecoveryStarted.trigger();
-				completeJobRecovery.await();
+				jobRecoveryStartedLatch.trigger();
+				completeJobRecoveryLatch.await();
 				return storedJobs;
 			})
 			.build();
@@ -230,7 +220,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 		this.dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
 				(ignoredA, ignoredB, ignoredC) -> {
-					createDispatcherService.trigger();
+					createDispatcherServiceLatch.trigger();
 					return TestingDispatcherService.newBuilder().build();
 				})
 			.build();
@@ -238,14 +228,14 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
-			jobRecoveryStarted.await();
+			jobRecoveryStartedLatch.await();
 
 			dispatcherLeaderProcess.closeAsync();
 
-			completeJobRecovery.trigger();
+			completeJobRecoveryLatch.trigger();
 
 			try {
-				createDispatcherService.await(10L, TimeUnit.MILLISECONDS);
+				createDispatcherServiceLatch.await(10L, TimeUnit.MILLISECONDS);
 				fail("No dispatcher service should be created after the process has been stopped.");
 			} catch (TimeoutException expected) {}
 		}
@@ -392,7 +382,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 			final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
 			final Throwable throwable = errorFuture.get();
-			Assert.assertThat(ExceptionUtils.findThrowable(throwable, expectedFailure::equals).isPresent(), Is.is(true));
+			assertThat(ExceptionUtils.findThrowable(throwable, expectedFailure::equals).isPresent(), is(true));
 
 			assertThat(dispatcherLeaderProcess.getState(), is(SessionDispatcherLeaderProcess.State.STOPPED));
 
@@ -405,7 +395,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 		final FlinkException testException = new FlinkException("Test exception");
 		jobGraphStore = TestingJobGraphStore.newBuilder()
 			.setRecoverJobGraphFunction(
-				(JobID jobId, Map<JobID, JobGraph> jobGraphs) -> {
+				(ignoredA, ignoredB) -> {
 					throw testException;
 				})
 			.setInitialJobGraphs(Collections.singleton(JOB_GRAPH))
@@ -433,7 +423,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 			// we expect that a fatal error occurred
 			final Throwable error = fatalErrorHandler.getErrorFuture().get();
-			Assert.assertThat(ExceptionUtils.findThrowableWithMessage(error, testException.getMessage()).isPresent(), is(true));
+			assertThat(ExceptionUtils.findThrowableWithMessage(error, testException.getMessage()).isPresent(), is(true));
 
 			fatalErrorHandler.clearError();
 		}
