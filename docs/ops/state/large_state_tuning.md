@@ -85,7 +85,7 @@ To prevent such a situation, applications can define a *minimum duration between
 This duration is the minimum time interval that must pass between the end of the latest checkpoint and the beginning
 of the next. The figure below illustrates how this impacts checkpointing.
 
-<img src="../../fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior."/>
+<img src="{{ site.baseurl }}/fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior."/>
 
 *Note:* Applications can be configured (via the `CheckpointConfig`) to allow multiple checkpoints to be in progress at
 the same time. For applications with large state in Flink, this often ties up too many resources into the checkpointing.
@@ -108,7 +108,7 @@ impact.
 
 For state to be snapshotted asynchronsously, you need to use a state backend which supports asynchronous snapshotting.
 Starting from Flink 1.3, both RocksDB-based as well as heap-based state backends (`filesystem`) support asynchronous
-snapshotting and use it by default. This applies to to both managed operator state as well as managed keyed state (incl. timers state).
+snapshotting and use it by default. This applies to both managed operator state as well as managed keyed state (incl. timers state).
 
 <span class="label label-info">Note</span> *The combination RocksDB state backend with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
 Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*
@@ -295,7 +295,7 @@ Please note that this can come at some additional costs per checkpoint for creat
 chosen state backend and checkpointing strategy. For example, in most cases the implementation will simply duplicate the writes to the distributed
 store to a local file.
 
-<img src="../../fig/local_recovery.png" class="center" width="80%" alt="Illustration of checkpointing with task-local recovery."/>
+<img src="{{ site.baseurl }}/fig/local_recovery.png" class="center" width="80%" alt="Illustration of checkpointing with task-local recovery."/>
 
 ### Relationship of primary (distributed store) and secondary (task-local) state snapshots
 

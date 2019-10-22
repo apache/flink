@@ -20,27 +20,39 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Statistic
+import org.apache.calcite.schema.impl.AbstractTable
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sources.{TableSource, TableSourceUtil, TableSourceValidation}
 
-/** Abstract class which define the interfaces required to convert a [[TableSource]] to
-  * a Calcite Table */
-abstract class TableSourceTable[T](
+/**
+  * Abstract class which define the interfaces required to convert a [[TableSource]] to
+  * a Calcite Table.
+  *
+  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table.
+  * @param isStreamingMode A flag that tells if the current table is in stream mode.
+  * @param statistic The table statistics.
+  */
+class TableSourceTable[T](
     val tableSource: TableSource[T],
-    val statistic: FlinkStatistic) {
+    val isStreamingMode: Boolean,
+    val statistic: FlinkStatistic)
+  extends AbstractTable {
 
-  /** Returns the row type of the table with this tableSource.
-    *
-    * @param typeFactory Type factory with which to create the type
-    * @return Row type
-    */
-  def getRowType(typeFactory: RelDataTypeFactory): RelDataType
+  TableSourceValidation.validateTableSource(tableSource)
 
   /**
     * Returns statistics of current table
     *
     * @return statistics of current table
     */
-  def getStatistic: Statistic = statistic
+  override def getStatistic: Statistic = statistic
 
+  def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    TableSourceUtil.getRelDataType(
+      tableSource,
+      None,
+      isStreamingMode,
+      typeFactory.asInstanceOf[FlinkTypeFactory])
+  }
 }

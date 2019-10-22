@@ -27,7 +27,7 @@ import org.junit.Test
 class SortTest extends TableTestBase {
 
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c,
+  private val table = streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c,
       'proctime.proctime, 'rowtime.rowtime)
   
   @Test
@@ -39,7 +39,7 @@ class SortTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode("DataStreamSort",
-          streamTableNode(0),
+          streamTableNode(table),
           term("orderBy", "proctime ASC", "c ASC")),
         term("select", "a", "PROCTIME(proctime) AS proctime", "c"))
 
@@ -55,7 +55,7 @@ class SortTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode("DataStreamSort",
-          streamTableNode(0),
+          streamTableNode(table),
           term("orderBy", "rowtime ASC, c ASC")),
         term("select", "a", "rowtime", "c"))
        

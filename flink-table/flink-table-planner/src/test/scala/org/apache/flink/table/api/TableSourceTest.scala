@@ -55,10 +55,12 @@ class TableSourceTest extends TableTestBase {
       batchFilterableSourceTableNode(
         "table1",
         Array("name", "id", "amount", "price"),
+        isPushedDown = true,
         "'amount > 2"),
       batchFilterableSourceTableNode(
         "table2",
         Array("name", "id", "amount", "price"),
+        isPushedDown = true,
         "'amount > 2"),
       term("all", "true"),
       term("union", "name, id, amount, price")
@@ -137,7 +139,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      s"BatchTableSourceScan(table=[[$tableName]], " +
+      s"BatchTableSourceScan(table=[[default_catalog, default_database, $tableName]], " +
         s"fields=[], " +
         s"source=[CsvTableSource(read fields: first)])",
       term("select", "1 AS _c0")
@@ -161,7 +163,11 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      "BatchTableSourceScan(table=[[filterableTable]], fields=[price, id, amount])",
+      batchFilterableSourceTableNode(
+        tableName,
+        Array("price", "id", "amount"),
+        isPushedDown = true,
+        ""),
       term("select", "price", "id", "amount"),
       term("where", "<(*(price, 2), 32)")
     )
@@ -187,6 +193,7 @@ class TableSourceTest extends TableTestBase {
       batchFilterableSourceTableNode(
         tableName,
         Array("price", "name", "amount"),
+        isPushedDown = true,
         "'amount > 2"),
       term("select", "price", "LOWER(name) AS _c1", "amount"),
       term("where", "<(*(price, 2), 32)")
@@ -210,6 +217,7 @@ class TableSourceTest extends TableTestBase {
     val expected = batchFilterableSourceTableNode(
       tableName,
       Array("price", "id", "amount"),
+      isPushedDown = true,
       "'amount > 2 && 'amount < 32")
     util.verifyTable(result, expected)
   }
@@ -233,9 +241,10 @@ class TableSourceTest extends TableTestBase {
       batchFilterableSourceTableNode(
         tableName,
         Array("price", "id", "amount"),
+        isPushedDown = true,
         "'amount > 2"),
       term("select", "price", "id", "amount"),
-      term("where", "AND(<(id, 1.2E0), OR(<(amount, 32), >(CAST(amount), 10)))")
+      term("where", "AND(<(id, 1.2E0:DOUBLE), OR(<(amount, 32), >(CAST(amount), 10)))")
     )
     util.verifyTable(result, expected)
   }
@@ -260,6 +269,7 @@ class TableSourceTest extends TableTestBase {
       batchFilterableSourceTableNode(
         tableName,
         Array("price", "id", "amount"),
+        isPushedDown = true,
         "'amount > 2"),
       term("select", "price", "id", "amount"),
       term("where", s"<(${Func0.getClass.getSimpleName}(amount), 32)")
@@ -343,6 +353,7 @@ class TableSourceTest extends TableTestBase {
       streamFilterableSourceTableNode(
         tableName,
         Array("price", "id", "amount"),
+        isPushedDown = true,
         "'amount > 2"),
       term("select", "price", "id", "amount"),
       term("where", "<(*(price, 2), 32)")
@@ -445,6 +456,7 @@ class TableSourceTest extends TableTestBase {
     val expected = batchFilterableSourceTableNode(
       tableName,
       Array("id"),
+      isPushedDown = true,
       expectedFilter
     )
     util.verifyTable(result, expected)
@@ -486,13 +498,13 @@ class TableSourceTest extends TableTestBase {
   }
 
   def batchSourceTableNode(sourceName: String, fields: Array[String]): String = {
-    s"BatchTableSourceScan(table=[[$sourceName]], " +
+    s"BatchTableSourceScan(table=[[default_catalog, default_database, $sourceName]], " +
       s"fields=[${fields.mkString(", ")}], " +
       s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
 
   def streamSourceTableNode(sourceName: String, fields: Array[String] ): String = {
-    s"StreamTableSourceScan(table=[[$sourceName]], " +
+    s"StreamTableSourceScan(table=[[default_catalog, default_database, $sourceName]], " +
       s"fields=[${fields.mkString(", ")}], " +
       s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
@@ -500,17 +512,27 @@ class TableSourceTest extends TableTestBase {
   def batchFilterableSourceTableNode(
       sourceName: String,
       fields: Array[String],
-      exp: String): String = {
+      isPushedDown: Boolean,
+      exp: String)
+    : String = {
     "BatchTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
+      s"table=[[default_catalog, default_database, $sourceName]], fields=[${
+        fields
+          .mkString(", ")
+      }], source=[filterPushedDown=[$isPushedDown], filter=[$exp]])"
   }
 
   def streamFilterableSourceTableNode(
       sourceName: String,
       fields: Array[String],
-      exp: String): String = {
+      isPushedDown: Boolean,
+      exp: String)
+    : String = {
     "StreamTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
+      s"table=[[default_catalog, default_database, $sourceName]], fields=[${
+        fields
+          .mkString(", ")
+      }], source=[filterPushedDown=[$isPushedDown], filter=[$exp]])"
   }
 
 }

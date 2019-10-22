@@ -19,26 +19,27 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.QueryConfig;
+import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
@@ -51,6 +52,9 @@ import org.apache.flink.table.client.gateway.local.result.BasicResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
@@ -68,7 +72,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Executor that performs the Flink communication locally. The calls are blocking depending on the
@@ -112,8 +115,7 @@ public class LocalExecutor implements Executor {
 			this.flinkConfig = GlobalConfiguration.loadConfiguration(flinkConfigDir);
 
 			// initialize default file system
-			//TODO provide plugin path.
-			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
 			// load command lines for deployment
 			this.commandLines = CliFrontend.loadCustomCommandLines(flinkConfig, flinkConfigDir);
@@ -186,7 +188,30 @@ public class LocalExecutor implements Executor {
 		final Map<String, String> properties = new HashMap<>();
 		properties.putAll(env.getExecution().asTopLevelMap());
 		properties.putAll(env.getDeployment().asTopLevelMap());
+		properties.putAll(env.getConfiguration().asMap());
 		return properties;
+	}
+
+	@Override
+	public List<String> listCatalogs(SessionContext session) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listCatalogs()));
+	}
+
+	@Override
+	public List<String> listDatabases(SessionContext session) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listDatabases()));
 	}
 
 	@Override
@@ -205,6 +230,54 @@ public class LocalExecutor implements Executor {
 			.createEnvironmentInstance()
 			.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listUserDefinedFunctions()));
+	}
+
+	@Override
+	public List<String> listFunctions(SessionContext session) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listFunctions()));
+	}
+
+	@Override
+	public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		context.wrapClassLoader(() -> {
+			// Rely on TableEnvironment/CatalogManager to validate input
+			try {
+				tableEnv.useCatalog(catalogName);
+			} catch (CatalogException e) {
+				throw new SqlExecutionException("Failed to switch to catalog " + catalogName, e);
+			}
+			session.setCurrentCatalog(catalogName);
+			session.setCurrentDatabase(tableEnv.getCurrentDatabase());
+			return null;
+		});
+	}
+
+	@Override
+	public void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		context.wrapClassLoader(() -> {
+			// Rely on TableEnvironment/CatalogManager to validate input
+			try {
+				tableEnv.useDatabase(databaseName);
+			} catch (CatalogException e) {
+				throw new SqlExecutionException("Failed to switch to database " + databaseName, e);
+			}
+			session.setCurrentDatabase(databaseName);
+			return null;
+		});
 	}
 
 	@Override
@@ -246,7 +319,8 @@ public class LocalExecutor implements Executor {
 				.getTableEnvironment();
 
 		try {
-			return context.wrapClassLoader(() -> Arrays.asList(tableEnv.getCompletionHints(statement, position)));
+			return context.wrapClassLoader(() ->
+				Arrays.asList(tableEnv.getCompletionHints(statement, position)));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			if (LOG.isDebugEnabled()) {
@@ -357,7 +431,7 @@ public class LocalExecutor implements Executor {
 			} finally {
 				try {
 					if (clusterClient != null) {
-						clusterClient.shutdown();
+						clusterClient.close();
 					}
 				} catch (Exception e) {
 					// ignore
@@ -417,9 +491,12 @@ public class LocalExecutor implements Executor {
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
-				envInst
-					.getTableEnvironment()
-					.writeToSink(table, result.getTableSink(), envInst.getQueryConfig());
+				envInst.getTableEnvironment().registerTableSink(jobName, result.getTableSink());
+				table.insertInto(
+					envInst.getQueryConfig(),
+					EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
+					EnvironmentSettings.DEFAULT_BUILTIN_DATABASE,
+					jobName);
 				return null;
 			});
 			jobGraph = envInst.createJobGraph(jobName);
@@ -468,7 +545,11 @@ public class LocalExecutor implements Executor {
 		// parse and validate statement
 		try {
 			context.wrapClassLoader(() -> {
-				tableEnv.sqlUpdate(updateStatement, queryConfig);
+				if (tableEnv instanceof StreamTableEnvironment) {
+					((StreamTableEnvironment) tableEnv).sqlUpdate(updateStatement, (StreamQueryConfig) queryConfig);
+				} else {
+					tableEnv.sqlUpdate(updateStatement);
+				}
 				return null;
 			});
 		} catch (Throwable t) {
@@ -500,7 +581,7 @@ public class LocalExecutor implements Executor {
 		try {
 			// find jar files
 			for (URL url : jars) {
-				JobWithJars.checkJarFile(url);
+				ClientUtils.checkJarFile(url);
 				dependencies.add(url);
 			}
 
@@ -520,7 +601,7 @@ public class LocalExecutor implements Executor {
 					// only consider jars
 					if (f.isFile() && f.getAbsolutePath().toLowerCase().endsWith(".jar")) {
 						final URL url = f.toURI().toURL();
-						JobWithJars.checkJarFile(url);
+						ClientUtils.checkJarFile(url);
 						dependencies.add(url);
 					}
 				}
@@ -549,13 +630,10 @@ public class LocalExecutor implements Executor {
 	private static TableSchema removeTimeAttributes(TableSchema schema) {
 		final TableSchema.Builder builder = TableSchema.builder();
 		for (int i = 0; i < schema.getFieldCount(); i++) {
-			final TypeInformation<?> type = schema.getFieldTypes()[i];
-			final TypeInformation<?> convertedType;
-			if (FlinkTypeFactory.isTimeIndicatorType(type)) {
-				convertedType = Types.SQL_TIMESTAMP;
-			} else {
-				convertedType = type;
-			}
+			final DataType dataType = schema.getFieldDataTypes()[i];
+			final DataType convertedType = DataTypeUtils.replaceLogicalType(
+				dataType,
+				LogicalTypeUtils.removeTimeAttributes(dataType.getLogicalType()));
 			builder.field(schema.getFieldNames()[i], convertedType);
 		}
 		return builder.build();

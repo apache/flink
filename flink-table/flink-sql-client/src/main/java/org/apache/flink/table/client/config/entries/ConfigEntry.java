@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Describes an environment configuration entry (such as table, functions, views). Config entries
+ * Describes an environment configuration entry (such as catalogs, table, functions, views). Config entries
  * are similar to {@link org.apache.flink.table.descriptors.Descriptor} but apply to SQL Client's
  * environment files only.
  */

@@ -83,7 +83,9 @@ public class JobCancellationHandler extends AbstractRestHandler<RestfulGateway, 
 				terminationFuture = gateway.cancelJob(jobId, timeout);
 				break;
 			case STOP:
-				throw new RestHandlerException("The \"stop\" command has been removed. Please use \"stop-with-savepoint\" instead.", HttpResponseStatus.PERMANENT_REDIRECT);
+				throw new RestHandlerException("The termination mode \"stop\" has been removed. For " +
+				"an ungraceful shutdown, please use \"cancel\" instead. For a graceful shutdown, " +
+				"please use \"jobs/:jobId/stop\" instead." , HttpResponseStatus.PERMANENT_REDIRECT);
 			default:
 				terminationFuture = FutureUtils.completedExceptionally(new RestHandlerException("Unknown termination mode " + terminationMode + '.', HttpResponseStatus.BAD_REQUEST));
 		}

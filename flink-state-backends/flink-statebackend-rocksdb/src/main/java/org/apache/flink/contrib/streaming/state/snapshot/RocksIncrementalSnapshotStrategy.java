@@ -106,6 +106,9 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	/** The help class used to upload state files. */
 	private final RocksDBStateUploader stateUploader;
 
+	/** The local directory name of the current snapshot strategy. */
+	private final String localDirectoryName;
+
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
 		@Nonnull ResourceGuard rocksDBResourceGuard,
@@ -137,6 +140,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.materializedSstFiles = materializedSstFiles;
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
 		this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
+		this.localDirectoryName = backendUID.toString().replaceAll("[\\-]", "");
 	}
 
 	@Nonnull
@@ -184,17 +188,18 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
 			File directory = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointId);
 
-			if (directory.exists()) {
-				FileUtils.deleteDirectory(directory);
-			}
-
-			if (!directory.mkdirs()) {
+			if (!directory.exists() && !directory.mkdirs()) {
 				throw new IOException("Local state base directory for checkpoint " + checkpointId +
 					" already exists: " + directory);
 			}
 
 			// introduces an extra directory because RocksDB wants a non-existing directory for native checkpoints.
-			File rdbSnapshotDir = new File(directory, "rocks_db");
+			// append localDirectoryName here to solve directory collision problem when two stateful operators chained in one task.
+			File rdbSnapshotDir = new File(directory, localDirectoryName);
+			if (rdbSnapshotDir.exists()) {
+				FileUtils.deleteDirectory(rdbSnapshotDir);
+			}
+
 			Path path = new Path(rdbSnapshotDir.toURI());
 			// create a "permanent" snapshot directory because local recovery is active.
 			try {
@@ -209,8 +214,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			}
 		} else {
 			// create a "temporary" snapshot directory because local recovery is inactive.
-			Path path = new Path(instanceBasePath.getAbsolutePath(), "chk-" + checkpointId);
-			return SnapshotDirectory.temporary(path);
+			File snapshotDir = new File(instanceBasePath, "chk-" + checkpointId);
+			return SnapshotDirectory.temporary(snapshotDir);
 		}
 	}
 

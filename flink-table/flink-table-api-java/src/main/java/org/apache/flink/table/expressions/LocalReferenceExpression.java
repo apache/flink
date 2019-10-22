@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -26,27 +28,39 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Reference to entity local to a certain {@link org.apache.flink.table.operations.TableOperation}.
+ * Reference to entity local to a certain {@link QueryOperation}.
  * That entity does not come from any of the Operations input. It might be for example a group
  * window in window aggregation.
  */
-public class LocalReferenceExpression implements Expression {
+@Internal
+public class LocalReferenceExpression implements ResolvedExpression {
 
 	private final String name;
 
-	private final TypeInformation<?> resultType;
+	private final DataType dataType;
 
-	public LocalReferenceExpression(String name, TypeInformation<?> resultType) {
+	public LocalReferenceExpression(String name, DataType dataType) {
 		this.name = Preconditions.checkNotNull(name);
-		this.resultType = Preconditions.checkNotNull(resultType);
+		this.dataType = Preconditions.checkNotNull(dataType);
 	}
 
 	public String getName() {
 		return name;
 	}
 
-	public TypeInformation<?> getResultType() {
-		return resultType;
+	@Override
+	public DataType getOutputDataType() {
+		return dataType;
+	}
+
+	@Override
+	public List<ResolvedExpression> getResolvedChildren() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public String asSummaryString() {
+		return name;
 	}
 
 	@Override
@@ -68,17 +82,17 @@ public class LocalReferenceExpression implements Expression {
 			return false;
 		}
 		LocalReferenceExpression that = (LocalReferenceExpression) o;
-		return Objects.equals(name, that.name) &&
-			Objects.equals(resultType, that.resultType);
+		return name.equals(that.name) &&
+			dataType.equals(that.dataType);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(name, resultType);
+		return Objects.hash(name, dataType);
 	}
 
 	@Override
 	public String toString() {
-		return name;
+		return asSummaryString();
 	}
 }

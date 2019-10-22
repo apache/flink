@@ -1,12 +1,12 @@
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalTableScan(table=[[_DataSetTable_0]])
-  LogicalTableScan(table=[[_DataSetTable_1]])
+  %logicalSourceNode0%
+  %logicalSourceNode1%
 
 == Optimized Logical Plan ==
 DataSetUnion(all=[true], union=[count, word])
-  DataSetScan(table=[[_DataSetTable_0]])
-  DataSetScan(table=[[_DataSetTable_1]])
+  %sourceNode0%
+  %sourceNode1%
 
 == Physical Execution Plan ==
 Stage 3 : Data Source

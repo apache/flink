@@ -68,14 +68,10 @@ public class JobGraph implements Serializable {
 	private final Configuration jobConfiguration = new Configuration();
 
 	/** ID of this job. May be set if specific job id is desired (e.g. session management) */
-	private final JobID jobID;
+	private JobID jobID;
 
 	/** Name of this job. */
 	private final String jobName;
-
-	/** The number of seconds after which the corresponding ExecutionGraph is removed at the
-	 * job manager after it has been executed. */
-	private long sessionTimeout = 0;
 
 	/** flag to enable queued scheduling */
 	private boolean allowQueuedScheduling;
@@ -190,6 +186,13 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
+	 * Sets the ID of the job.
+	 */
+	public void setJobID(JobID jobID) {
+		this.jobID = jobID;
+	}
+
+	/**
 	 * Returns the name assigned to the job graph.
 	 *
 	 * @return the name assigned to the job graph
@@ -215,24 +218,6 @@ public class JobGraph implements Serializable {
 	 */
 	public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
 		return serializedExecutionConfig;
-	}
-
-	/**
-	 * Gets the timeout after which the corresponding ExecutionGraph is removed at the
-	 * job manager after it has been executed.
-	 * @return a timeout as a long in seconds.
-	 */
-	public long getSessionTimeout() {
-		return sessionTimeout;
-	}
-
-	/**
-	 * Sets the timeout of the session in seconds. The timeout specifies how long a job will be kept
-	 * in the job manager after it finishes.
-	 * @param sessionTimeout The timeout in seconds
-	 */
-	public void setSessionTimeout(long sessionTimeout) {
-		this.sessionTimeout = sessionTimeout;
 	}
 
 	public void setAllowQueuedScheduling(boolean allowQueuedScheduling) {

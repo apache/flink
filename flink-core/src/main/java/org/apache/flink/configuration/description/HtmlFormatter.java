@@ -70,6 +70,7 @@ public class HtmlFormatter extends Formatter {
 
 	private static String escapeCharacters(String value) {
 		return value
+			.replaceAll("&", "&amp;")
 			.replaceAll("<", "&lt;")
 			.replaceAll(">", "&gt;");
 	}

@@ -27,7 +27,7 @@ import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
 
-import scala.collection.mutable
+import _root_.scala.collection.mutable
 
 class TableSourceITCase extends AbstractTestBase {
 

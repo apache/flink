@@ -23,8 +23,11 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.util.MathUtils;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
+import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
  * Utility class to extract related parameters from {@link Configuration} and to
@@ -40,21 +43,23 @@ public class ConfigurationParserUtils {
 	 */
 	public static long getManagedMemorySize(Configuration configuration) {
 		long managedMemorySize;
-		String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
-		if (!configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
+		String managedMemorySizeDefaultVal = TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue();
+		if (!configuration.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
 			try {
 				managedMemorySize = MemorySize.parse(
-					configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
+					configuration.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
 			} catch (IllegalArgumentException e) {
-				throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
+				throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE
+
+					.key(), e);
 			}
 		} else {
 			managedMemorySize = Long.valueOf(managedMemorySizeDefaultVal);
 		}
 
 		checkConfigParameter(configuration.getString(
-			TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) || managedMemorySize > 0,
-			managedMemorySize, TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+			TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE).equals(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue()) || managedMemorySize > 0,
+			managedMemorySize, TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.key(),
 			"MemoryManager needs at least one MB of memory. " +
 				"If you leave this config parameter empty, the system automatically pick a fraction of the available memory.");
 
@@ -68,10 +73,10 @@ public class ConfigurationParserUtils {
 	 * @return fraction of managed memory
 	 */
 	public static float getManagedMemoryFraction(Configuration configuration) {
-		float managedMemoryFraction = configuration.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
+		float managedMemoryFraction = configuration.getFloat(TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION);
 
 		checkConfigParameter(managedMemoryFraction > 0.0f && managedMemoryFraction < 1.0f, managedMemoryFraction,
-			TaskManagerOptions.MANAGED_MEMORY_FRACTION.key(),
+			TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.key(),
 			"MemoryManager fraction of the free memory must be between 0.0 and 1.0");
 
 		return managedMemoryFraction;
@@ -130,5 +135,31 @@ public class ConfigurationParserUtils {
 			throw new IllegalConfigurationException("Invalid configuration value for " +
 				name + " : " + parameter + " - " + errorMessage);
 		}
+	}
+
+	/**
+	 * Parses the configuration to get the page size and validates the value.
+	 *
+	 * @param configuration configuration object
+	 * @return size of memory segment
+	 */
+	public static int getPageSize(Configuration configuration) {
+		final int pageSize = checkedDownCast(MemorySize.parse(
+			configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
+
+		// check page size of for minimum size
+		checkConfigParameter(
+			pageSize >= MemoryManager.MIN_PAGE_SIZE,
+			pageSize,
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
+			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
+		// check page size for power of two
+		checkConfigParameter(
+			MathUtils.isPowerOf2(pageSize),
+			pageSize,
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
+			"Memory segment size must be a power of 2.");
+
+		return pageSize;
 	}
 }

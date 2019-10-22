@@ -19,68 +19,56 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 /**
- * Interface for blocking stream element queues for the {@link AsyncWaitOperator}.
+ * Interface for stream element queues for the {@link AsyncWaitOperator}.
  */
 @Internal
-public interface StreamElementQueue {
+public interface StreamElementQueue<OUT> {
 
 	/**
-	 * Put the given element in the queue if capacity is left. If not, then block until this is
-	 * the case.
+	 * Tries to put the given element in the queue. This operation succeeds if the queue has capacity left and fails if
+	 * the queue is full.
 	 *
-	 * @param streamElementQueueEntry to be put into the queue
-	 * @param <T> Type of the entries future value
-	 * @throws InterruptedException if the calling thread has been interrupted while waiting to
-	 * 	insert the given element
+	 * <p>This method returns a handle to the inserted element that allows to set the result of the computation.
+	 *
+	 * @param streamElement the element to be inserted.
+	 * @return A handle to the element if successful or {@link Optional#empty()} otherwise.
 	 */
-	<T> void put(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException;
+	Optional<ResultFuture<OUT>> tryPut(StreamElement streamElement);
 
 	/**
-	 * Try to put the given element in the queue. This operation succeeds if the queue has capacity
-	 * left and fails if the queue is full.
+	 * Emits one completed element from the head of this queue into the given output.
 	 *
-	 * @param streamElementQueueEntry to be inserted
-	 * @param <T> Type of the entries future value
-	 * @return True if the entry could be inserted; otherwise false
-	 * @throws InterruptedException if the calling thread has been interrupted while waiting to
-	 * 	insert the given element
+	 * <p>Will not emit any element if no element has been completed (check {@link #hasCompletedElements()} before entering
+	 * any critical section).
+	 *
+	 * @param output the output into which to emit
 	 */
-	<T> boolean tryPut(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException;
+	void emitCompletedElement(TimestampedCollector<OUT> output);
 
 	/**
-	 * Peek at the head of the queue and return the first completed {@link AsyncResult}. This
-	 * operation is a blocking operation and only returns once a completed async result has been
-	 * found.
+	 * Checks if there is at least one completed head element.
 	 *
-	 * @return Completed {@link AsyncResult}
-	 * @throws InterruptedException if the current thread has been interrupted while waiting for a
-	 * 	completed async result.
+	 * @return True if there is a completed head element.
 	 */
-	AsyncResult peekBlockingly() throws InterruptedException;
+	boolean hasCompletedElements();
 
 	/**
-	 * Poll the first completed {@link AsyncResult} from the head of this queue. This operation is
-	 * blocking and only returns once a completed async result has been found.
+	 * Returns the collection of {@link StreamElement} currently contained in this queue for checkpointing.
 	 *
-	 * @return Completed {@link AsyncResult} which has been removed from the queue
-	 * @throws InterruptedException if the current thread has been interrupted while waiting for a
-	 * 	completed async result.
-	 */
-	AsyncResult poll() throws InterruptedException;
-
-	/**
-	 * Return the collection of {@link StreamElementQueueEntry} currently contained in this queue.
+	 * <p>This includes all non-emitted, completed and non-completed elements.
 	 *
-	 * @return Collection of currently contained {@link StreamElementQueueEntry}.
-	 * @throws InterruptedException if the current thread has been interrupted while retrieving the
-	 * 	stream element queue entries of this queue.
+	 * @return List of currently contained {@link StreamElement}.
 	 */
-	Collection<StreamElementQueueEntry<?>> values() throws InterruptedException;
+	List<StreamElement> values();
 
 	/**
 	 * True if the queue is empty; otherwise false.

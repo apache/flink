@@ -38,7 +38,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link BufferSpiller}.
  */
-public class BufferSpillerTest extends BufferBlockerTestBase {
+public class BufferSpillerTest extends BufferStorageTestBase {
 
 	private static IOManager ioManager;
 
@@ -54,8 +54,8 @@ public class BufferSpillerTest extends BufferBlockerTestBase {
 	}
 
 	@AfterClass
-	public static void shutdownIOManager() {
-		ioManager.shutdown();
+	public static void shutdownIOManager() throws Exception {
+		ioManager.close();
 	}
 
 	@Before
@@ -76,7 +76,7 @@ public class BufferSpillerTest extends BufferBlockerTestBase {
 	}
 
 	@Override
-	public BufferBlocker createBufferBlocker() {
+	public BufferStorage createBufferStorage() {
 		return spiller;
 	}
 
@@ -92,7 +92,7 @@ public class BufferSpillerTest extends BufferBlockerTestBase {
 		assertEquals(
 			"Changed the header format, but did not adjust the HEADER_SIZE field",
 			BufferSpiller.HEADER_SIZE + size,
-			spiller.getBytesBlocked());
+			spiller.getPendingBytes());
 	}
 
 	private static void checkNoTempFilesRemain() {

@@ -49,7 +49,7 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 
 	/** Map from tracked Closeables to some associated meta data. */
 	@GuardedBy("lock")
-	private final Map<Closeable, T> closeableToRef;
+	protected final Map<Closeable, T> closeableToRef;
 
 	/** Indicates if this registry is closed. */
 	@GuardedBy("lock")
@@ -114,7 +114,7 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 
 			closed = true;
 
-			toCloseCopy = new ArrayList<>(closeableToRef.keySet());
+			toCloseCopy = getReferencesToClose();
 
 			closeableToRef.clear();
 		}
@@ -126,6 +126,10 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 		synchronized (getSynchronizationLock()) {
 			return closed;
 		}
+	}
+
+	protected Collection<Closeable> getReferencesToClose() {
+		return new ArrayList<>(closeableToRef.keySet());
 	}
 
 	/**

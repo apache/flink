@@ -279,7 +279,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 						result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
 					}
 					catch (InvocationTargetException e) {
-						log.trace("Reporting back error thrown in remote procedure {}", rpcMethod, e);
+						log.debug("Reporting back error thrown in remote procedure {}", rpcMethod, e);
 
 						// tell the sender about the failure
 						getSender().tell(new Status.Failure(e.getTargetException()), getSelf());
@@ -506,7 +506,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 
 			CompletableFuture<Void> terminationFuture;
 			try {
-				terminationFuture = akkaRpcActor.rpcEndpoint.onStop();
+				terminationFuture = akkaRpcActor.rpcEndpoint.internalCallOnStop();
 			} catch (Throwable t) {
 				terminationFuture = FutureUtils.completedExceptionally(
 					new AkkaRpcException(
@@ -541,7 +541,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 			akkaRpcActor.mainThreadValidator.enterMainThread();
 
 			try {
-				akkaRpcActor.rpcEndpoint.onStart();
+				akkaRpcActor.rpcEndpoint.internalCallOnStart();
 			} catch (Throwable throwable) {
 				akkaRpcActor.stop(
 					RpcEndpointTerminationResult.failure(

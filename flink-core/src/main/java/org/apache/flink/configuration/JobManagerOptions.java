@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
@@ -105,8 +106,12 @@ public class JobManagerOptions {
 
 	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
+	 *
+	 * <p>The option "individual" is intentionally not included for its known limitations.
+	 * It only works when all tasks are not connected, in which case the "region"
+	 * failover strategy would also restart failed tasks individually.
+	 * The new "region" strategy supersedes "individual" strategy and should always work.
 	 */
-	@Documentation.ExcludeFromDocumentation("The failover strategy feature is highly experimental.")
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
@@ -114,22 +119,13 @@ public class JobManagerOptions {
 				.text("This option specifies how the job computation recovers from task failures. " +
 					"Accepted values are:")
 				.list(
-					text("'full': Restarts all tasks."),
-					text("'individual': Restarts only the failed task. Should only be used if all tasks are independent components."),
-					text("'region': Restarts all tasks that could be affected by the task failure.")
+					text("'full': Restarts all tasks to recover the job."),
+					text("'region': Restarts all tasks that could be affected by the task failure. " +
+						"More details can be found %s.",
+						link(
+							"../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
+							"here"))
 				).build());
-
-	/**
-	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
-	 * to the resource manager has been lost.
-	 *
-	 * <p>This option is only intended for internal use.
-	 */
-	public static final ConfigOption<Long> RESOURCE_MANAGER_RECONNECT_INTERVAL =
-		key("jobmanager.resourcemanager.reconnect-interval")
-		.defaultValue(2000L)
-		.withDescription("This option specifies the interval in order to trigger a resource manager reconnection if the connection" +
-			" to the resource manager has been lost. This option is only intended for internal use.");
 
 	/**
 	 * The location where the JobManager stores the archives of completed jobs.
@@ -157,6 +153,14 @@ public class JobManagerOptions {
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
 
 	/**
+	 * The max number of completed jobs that can be kept in the job store.
+	 */
+	public static final ConfigOption<Integer> JOB_STORE_MAX_CAPACITY =
+		key("jobstore.max-capacity")
+			.defaultValue(Integer.MAX_VALUE)
+			.withDescription("The max number of completed jobs that can be kept in the job store.");
+
+	/**
 	 * The timeout in milliseconds for requesting a slot from Slot Pool.
 	 */
 	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
@@ -172,6 +176,28 @@ public class JobManagerOptions {
 			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery
 			.defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
 			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
+	/**
+	 * Config parameter determining the scheduler implementation.
+	 */
+	@Documentation.ExcludeFromDocumentation("SchedulerNG is still in development.")
+	public static final ConfigOption<String> SCHEDULER =
+		key("jobmanager.scheduler")
+			.defaultValue("legacy")
+			.withDescription(Description.builder()
+				.text("Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
+				.list(
+					text("'legacy': legacy scheduler"),
+					text("'ng': new generation scheduler"))
+				.build());
+	/**
+	 * Config parameter controlling whether partitions should already be released during the job execution.
+	 */
+	@Documentation.ExcludeFromDocumentation("User normally should not be expected to deactivate this feature. " +
+		"We aim at removing this flag eventually.")
+	public static final ConfigOption<Boolean> PARTITION_RELEASE_DURING_JOB_EXECUTION =
+		key("jobmanager.partition.release-during-job-execution")
+			.defaultValue(true)
+			.withDescription("Controls whether partitions should already be released during the job execution.");
 
 	// ---------------------------------------------------------------------------------------------
 

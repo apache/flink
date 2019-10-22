@@ -379,7 +379,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val ds3 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'j, 'k, 'l)
 
     val joinT = ds1.join(ds2)
-      .where(Literal(true))
+      .where(true)
       .join(ds3)
       .where('a === 'd && 'e === 'k)
       .select('a, 'f, 'l)

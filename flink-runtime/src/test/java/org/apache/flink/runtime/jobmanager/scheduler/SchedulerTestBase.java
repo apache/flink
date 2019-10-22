@@ -25,7 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -36,10 +36,10 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSharingManager;
+import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -71,7 +71,7 @@ public class SchedulerTestBase extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		final JobID jobId = new JobID();
-		final SlotPool slotPool = new SlotPoolImpl(jobId);
+		final SlotPool slotPool = new TestingSlotPoolImpl(jobId);
 		final TestingScheduler testingScheduler = new TestingScheduler(
 			new HashMap<>(16),
 			LocationPreferenceSlotSelectionStrategy.INSTANCE,
@@ -81,7 +81,7 @@ public class SchedulerTestBase extends TestLogger {
 
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		final String jobManagerAddress = "localhost";
-		ComponentMainThreadExecutor executor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
+		ComponentMainThreadExecutor executor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 		slotPool.start(jobMasterId, jobManagerAddress, executor);
 		testingScheduler.start(executor);
 	}
@@ -160,7 +160,7 @@ public class SchedulerTestBase extends TestLogger {
 				final SlotOffer slotOffer = new SlotOffer(
 					new AllocationID(),
 					i,
-					ResourceProfile.UNKNOWN);
+					ResourceProfile.ANY);
 
 				slotOffers.add(slotOffer);
 			}

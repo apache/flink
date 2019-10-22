@@ -23,8 +23,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.util.NetUtils;
 
@@ -53,7 +51,6 @@ import java.util.Map;
 
 import scala.Some;
 import scala.Tuple2;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -266,40 +263,6 @@ public class BootstrapTools {
 			}
 			throw new Exception("Could not create actor system", t);
 		}
-	}
-
-	/**
-	 * Generate a task manager configuration.
-	 * @param baseConfig Config to start from.
-	 * @param jobManagerHostname Job manager host name.
-	 * @param jobManagerPort Port of the job manager.
-	 * @param numSlots Number of slots to configure.
-	 * @param registrationTimeout Timeout for registration
-	 * @return TaskManager configuration
-	 */
-	public static Configuration generateTaskManagerConfiguration(
-				Configuration baseConfig,
-				String jobManagerHostname,
-				int jobManagerPort,
-				int numSlots,
-				FiniteDuration registrationTimeout) {
-
-		Configuration cfg = cloneConfiguration(baseConfig);
-
-		if (jobManagerHostname != null && !jobManagerHostname.isEmpty()) {
-			cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
-		}
-
-		if (jobManagerPort > 0) {
-			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
-		}
-
-		cfg.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, registrationTimeout.toString());
-		if (numSlots != -1){
-			cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
-		}
-
-		return cfg;
 	}
 
 	/**

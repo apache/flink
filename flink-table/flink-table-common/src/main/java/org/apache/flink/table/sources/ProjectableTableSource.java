@@ -34,12 +34,12 @@ public interface ProjectableTableSource<T> {
 
 	/**
 	 * Creates a copy of the {@link TableSource} that projects its output to the given field indexes.
-	 * The field indexes relate to the physical return type ({@link TableSource#getReturnType}) and not
-	 * to the table schema ({@link TableSource#getTableSchema} of the {@link TableSource}.
+	 * The field indexes relate to the physical poduced data type ({@link TableSource#getProducedDataType()})
+	 * and not to the table schema ({@link TableSource#getTableSchema} of the {@link TableSource}.
 	 *
 	 * <p>The table schema ({@link TableSource#getTableSchema} of the {@link TableSource} copy must not be
-	 * modified by this method, but only the return type ({@link TableSource#getReturnType}) and the
-	 * produced {@code DataSet} ({@code BatchTableSource#getDataSet(}) or {@code DataStream}
+	 * modified by this method, but only the produced data type ({@link TableSource#getProducedDataType()})
+	 * and the produced {@code DataSet} ({@code BatchTableSource#getDataSet(}) or {@code DataStream}
 	 * ({@code StreamTableSource#getDataStream}).
 	 *
 	 * <p>If the {@link TableSource} implements the {@link DefinedFieldMapping} interface, it might

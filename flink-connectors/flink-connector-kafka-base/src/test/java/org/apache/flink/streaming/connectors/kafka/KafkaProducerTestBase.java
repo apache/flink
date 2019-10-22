@@ -120,7 +120,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setRestartStrategy(RestartStrategies.noRestart());
-			env.getConfig().disableSysoutLogging();
 
 			TypeInformationSerializationSchema<Tuple2<Long, String>> serSchema =
 				new TypeInformationSerializationSchema<>(longStringInfo, env.getConfig());
@@ -238,7 +237,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		env.enableCheckpointing(500);
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
 
 		Properties properties = new Properties();
 		properties.putAll(standardProps);
@@ -249,6 +247,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		// increase batch.size and linger.ms - this tells KafkaProducer to batch produced events instead of flushing them immediately
 		properties.setProperty("batch.size", "10240000");
 		properties.setProperty("linger.ms", "10000");
+		// kafka producer messages guarantee
+		properties.setProperty("retries", "3");
+		properties.setProperty("acks", "all");
 
 		BrokerRestartingMapper.resetState(kafkaServer::blockProxyTraffic);
 
@@ -335,7 +336,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		env.enableCheckpointing(500);
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-		env.getConfig().disableSysoutLogging();
 
 		Properties properties = new Properties();
 		properties.putAll(standardProps);

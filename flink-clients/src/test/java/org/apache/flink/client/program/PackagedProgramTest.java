@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.configuration.ConfigConstants;
 
 import org.junit.Assert;
@@ -28,7 +27,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -41,31 +39,6 @@ public class PackagedProgramTest {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	@Test
-	public void testGetPreviewPlan() {
-		try {
-			PackagedProgram prog = new PackagedProgram(new File(CliFrontendTestUtils.getTestJarPath()));
-
-			final PrintStream out = System.out;
-			final PrintStream err = System.err;
-			try {
-				System.setOut(new PrintStream(new NullOutputStream()));
-				System.setErr(new PrintStream(new NullOutputStream()));
-
-				Assert.assertNotNull(prog.getPreviewPlan());
-			}
-			finally {
-				System.setOut(out);
-				System.setErr(err);
-			}
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Test is erroneous: " + e.getMessage());
-		}
-	}
 
 	@Test
 	public void testExtractContainedLibraries() throws Exception {

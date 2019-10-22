@@ -19,24 +19,20 @@
 package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The RemoteExecutor is a {@link org.apache.flink.api.common.PlanExecutor} that takes the program
@@ -50,63 +46,20 @@ import java.util.List;
  */
 public class RemoteExecutor extends PlanExecutor {
 
-	private final Object lock = new Object();
-
-	private final List<URL> jarFiles;
-
-	private final List<URL> globalClasspaths;
-
 	private final Configuration clientConfiguration;
-
-	private ClusterClient<?> client;
 
 	private int defaultParallelism = 1;
 
 	public RemoteExecutor(String hostname, int port) {
-		this(hostname, port, new Configuration(), Collections.<URL>emptyList(),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, URL jarFile) {
-		this(hostname, port, new Configuration(), Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostport, URL jarFile) {
-		this(ClientUtils.parseHostPortAddress(hostport), new Configuration(), Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, List<URL> jarFiles) {
-		this(new InetSocketAddress(hostname, port), new Configuration(), jarFiles,
-				Collections.<URL>emptyList());
+		this(hostname, port, new Configuration());
 	}
 
 	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration) {
-		this(hostname, port, clientConfiguration, Collections.<URL>emptyList(),
-				Collections.<URL>emptyList());
+		this(new InetSocketAddress(hostname, port), clientConfiguration);
 	}
 
-	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration, URL jarFile) {
-		this(hostname, port, clientConfiguration, Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostport, Configuration clientConfiguration, URL jarFile) {
-		this(ClientUtils.parseHostPortAddress(hostport), clientConfiguration,
-				Collections.singletonList(jarFile), Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration,
-			List<URL> jarFiles, List<URL> globalClasspaths) {
-		this(new InetSocketAddress(hostname, port), clientConfiguration, jarFiles, globalClasspaths);
-	}
-
-	public RemoteExecutor(InetSocketAddress inet, Configuration clientConfiguration,
-			List<URL> jarFiles, List<URL> globalClasspaths) {
+	public RemoteExecutor(InetSocketAddress inet, Configuration clientConfiguration) {
 		this.clientConfiguration = clientConfiguration;
-		this.jarFiles = jarFiles;
-		this.globalClasspaths = globalClasspaths;
 
 		clientConfiguration.setString(JobManagerOptions.ADDRESS, inet.getHostName());
 		clientConfiguration.setInteger(JobManagerOptions.PORT, inet.getPort());
@@ -118,8 +71,8 @@ public class RemoteExecutor extends PlanExecutor {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Sets the parallelism that will be used when neither the program does not define
-	 * any parallelism at all.
+	 * Sets the parallelism that will be used when neither the program does not define any
+	 * parallelism at all.
 	 *
 	 * @param defaultParallelism The default parallelism for the executor.
 	 */
@@ -131,8 +84,8 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 
 	/**
-	 * Gets the parallelism that will be used when neither the program does not define
-	 * any parallelism at all.
+	 * Gets the parallelism that will be used when neither the program does not define any
+	 * parallelism at all.
 	 *
 	 * @return The default parallelism for the executor.
 	 */
@@ -141,86 +94,39 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Startup & Shutdown
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void start() throws Exception {
-		synchronized (lock) {
-			if (client == null) {
-				client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
-				client.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
-			}
-			else {
-				throw new IllegalStateException("The remote executor was already started.");
-			}
-		}
-	}
-
-	@Override
-	public void stop() throws Exception {
-		synchronized (lock) {
-			if (client != null) {
-				client.shutdown();
-				client = null;
-			}
-		}
-	}
-
-	@Override
-	public boolean isRunning() {
-		return client != null;
-	}
-
-	// ------------------------------------------------------------------------
 	//  Executing programs
 	// ------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult executePlan(Plan plan) throws Exception {
-		if (plan == null) {
-			throw new IllegalArgumentException("The plan may not be null.");
-		}
+	public JobExecutionResult executePlan(
+			Pipeline plan,
+			List<URL> jarFiles,
+			List<URL> globalClasspaths) throws Exception {
+		checkNotNull(plan);
 
-		JobWithJars p = new JobWithJars(plan, this.jarFiles, this.globalClasspaths);
-		return executePlanWithJars(p);
+		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(plan,
+				clientConfiguration,
+				getDefaultParallelism());
+
+		ClientUtils.addJarFiles(jobGraph, jarFiles);
+		jobGraph.setClasspaths(globalClasspaths);
+
+		ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
+				jarFiles,
+				globalClasspaths,
+				getClass().getClassLoader());
+
+		return executePlanWithJars(jobGraph, userCodeClassLoader);
 	}
 
-	public JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {
-		if (program == null) {
-			throw new IllegalArgumentException("The job may not be null.");
-		}
+	private JobExecutionResult executePlanWithJars(JobGraph jobGraph, ClassLoader classLoader) throws Exception {
+		checkNotNull(jobGraph);
+		checkNotNull(classLoader);
 
-		synchronized (this.lock) {
-			// check if we start a session dedicated for this execution
-			final boolean shutDownAtEnd;
-
-			if (client == null) {
-				shutDownAtEnd = true;
-				// start the executor for us
-				start();
-			}
-			else {
-				// we use the existing session
-				shutDownAtEnd = false;
-			}
-
-			try {
-				return client.run(program, defaultParallelism).getJobExecutionResult();
-			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
-				}
-			}
+		try (ClusterClient<?> client = new RestClusterClient<>(
+				clientConfiguration,
+				"RemoteExecutor")) {
+			return client.submitJob(jobGraph, classLoader).getJobExecutionResult();
 		}
 	}
-
-	@Override
-	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		Optimizer opt = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
-		OptimizedPlan optPlan = opt.compile(plan);
-		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
-	}
-
 }

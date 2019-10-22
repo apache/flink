@@ -44,10 +44,6 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Ret
 
 	private final FileSystem fs;
 
-	public FileSystemStateStorageHelper(String rootPath, String prefix) throws IOException {
-		this(new Path(rootPath), prefix);
-	}
-
 	public FileSystemStateStorageHelper(Path rootPath, String prefix) throws IOException {
 		this.rootPath = Preconditions.checkNotNull(rootPath, "Root path");
 		this.prefix = Preconditions.checkNotNull(prefix, "Prefix");

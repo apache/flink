@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -94,6 +94,24 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser</artifactId>
+			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-core</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -112,7 +130,6 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Used for code generation -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-cep_${scala.binary.version}</artifactId>
@@ -120,6 +137,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Used for code generation -->
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
@@ -130,17 +148,15 @@ under the License.
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
 			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
-			<version>1.18.0</version>
+			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
+				"mvn dependency:tree" as of Calcite 1.21:
 
-				Dependencies that are not needed for how we use Calcite right now.
-
-				"mvn dependency:tree" as of Calcite 1.18:
-
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.18.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.13.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.18.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.21.0:compile
+				[INFO] |  +- commons-codec:commons-codec:jar:1.10:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.15.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.21.0:compile
 				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.9.6:compile
@@ -148,6 +164,7 @@ under the License.
 				[INFO] |  +- com.google.guava:guava:jar:19.0:compile
 				[INFO] |  \- com.jayway.jsonpath:json-path:jar:2.4.0:compile
 
+				Dependencies that are not needed for how we use Calcite right now.
 				-->
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
@@ -213,7 +230,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests_${scala.binary.version}</artifactId>
+			<artifactId>flink-tests</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -319,10 +336,13 @@ under the License.
 									<include>com.fasterxml.jackson.core:jackson-core</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
+									<include>commons-codec:commons-codec</include>
 
 									<!-- flink-table-planner dependencies -->
+									<include>org.apache.flink:flink-sql-parser</include>
 									<include>org.codehaus.janino:*</include>
 									<include>joda-time:*</include>
+									<include>joda-convert:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -345,11 +365,15 @@ under the License.
 									<pattern>com.fasterxml</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.com.fasterxml</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.codec</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+								</relocation>
 
 								<!-- flink-table-planner dependencies -->
 								<relocation>
-									<pattern>org.joda.time</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.org.joda.time</shadedPattern>
+									<pattern>org.joda</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.joda</shadedPattern>
 								</relocation>
 								<!-- not relocated for now, because we need to change the contents of the properties field otherwise -->
 								<!--<relocation>
@@ -381,6 +405,27 @@ under the License.
 				<configuration>
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>integration-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/*ITCase.*</include>
+							</includes>
+							<!-- override reuseForks to true to reduce testing time -->
+							<reuseForks>true</reuseForks>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

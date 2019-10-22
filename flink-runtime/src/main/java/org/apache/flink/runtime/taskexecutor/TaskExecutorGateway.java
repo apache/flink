@@ -29,6 +29,8 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
@@ -38,6 +40,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -99,11 +102,12 @@ public interface TaskExecutorGateway extends RpcGateway {
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Fail all intermediate result partitions of the given task.
+	 * Batch release intermediate result partitions.
 	 *
-	 * @param executionAttemptID identifying the task
+	 * @param jobId id of the job that the partitions belong to
+	 * @param partitionIds partition ids to release
 	 */
-	void failPartition(ExecutionAttemptID executionAttemptID);
+	void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds);
 
 	/**
 	 * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID
@@ -149,7 +153,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 *
 	 * @param heartbeatOrigin unique id of the job manager
 	 */
-	void heartbeatFromJobManager(ResourceID heartbeatOrigin);
+	void heartbeatFromJobManager(ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport);
 
 	/**
 	 * Heartbeat request from the resource manager.

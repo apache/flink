@@ -48,7 +48,7 @@ public class LocalBufferPoolDestroyTest {
 		LocalBufferPool localBufferPool = null;
 
 		try {
-			networkBufferPool = new NetworkBufferPool(1, 4096);
+			networkBufferPool = new NetworkBufferPool(1, 4096, 1);
 			localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
 			// Drain buffer pool
@@ -136,7 +136,7 @@ public class LocalBufferPoolDestroyTest {
 				String msg = "Test assumption violated: expected no available buffer";
 				assertNull(msg, bufferPool.requestBuffer());
 
-				bufferPool.requestBufferBlocking();
+				bufferPool.requestBufferBuilderBlocking();
 			} catch (Exception t) {
 				asyncException.set(t);
 			}

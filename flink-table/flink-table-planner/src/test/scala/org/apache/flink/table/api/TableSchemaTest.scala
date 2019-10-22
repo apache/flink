@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestBase
@@ -39,8 +40,8 @@ class TableSchemaTest extends TableTestBase {
     assertEquals(Types.STRING, schema.getFieldTypes.apply(1))
 
     val expectedString = "root\n" +
-      " |-- a: Integer\n" +
-      " |-- b: String\n"
+      " |-- a: INT\n" +
+      " |-- b: STRING\n"
     assertEquals(expectedString, schema.toString)
 
     assertTrue(!schema.getFieldName(3).isPresent)
@@ -61,12 +62,44 @@ class TableSchemaTest extends TableTestBase {
     assertEquals(Types.STRING, schema.getFieldTypes.apply(1))
 
     val expectedString = "root\n" +
-      " |-- a: Integer\n" +
-      " |-- b: String\n"
+      " |-- a: INT\n" +
+      " |-- b: STRING\n"
     assertEquals(expectedString, schema.toString)
 
     assertTrue(!schema.getFieldName(3).isPresent)
     assertTrue(!schema.getFieldType(-1).isPresent)
     assertTrue(!schema.getFieldType("c").isPresent)
+  }
+
+  @Test
+  def testTableSchemaWithDifferentRowTypes(): Unit = {
+
+    def createInnerRow(innerFieldName: String): TypeInformation[_] = {
+      Types.ROW(
+        Array[String](innerFieldName),
+        Array[TypeInformation[_]](Types.INT()))
+    }
+
+    def createRow(innerFieldName: String): TypeInformation[_] = {
+      Types.ROW(
+        Array[String]("field"),
+        Array[TypeInformation[_]](createInnerRow(innerFieldName))
+      )
+    }
+
+    val util = streamTestUtil()
+    util.addTable("MyTableA", 'field)(createRow("A"))
+    util.addTable("MyTableB", 'field)(createRow("B"))
+
+    val actualSchema = util.tableEnv
+      .sqlQuery("SELECT MyTableA.field AS a, MyTableB.field AS b FROM MyTableA, MyTableB")
+      .getSchema
+
+    val expectedSchema = TableSchema.builder()
+        .field("a", createInnerRow("A"))
+        .field("b", createInnerRow("B"))
+        .build()
+
+    assertEquals(expectedSchema, actualSchema)
   }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -558,6 +559,84 @@ public class InternalTimerServiceImplTest {
 		verify(mockTriggerable, times(1)).onProcessingTime(eq(new TimerHeapInternalTimer<>(10, key2, "hello")));
 
 		assertEquals(0, timerService.numEventTimeTimers());
+	}
+
+	/**
+	 * This also verifies that we iterate over all timers and set the key context on each element.
+	 */
+	@Test
+	public void testForEachEventTimeTimers() throws Exception {
+		@SuppressWarnings("unchecked")
+		Triggerable<Integer, String> mockTriggerable = mock(Triggerable.class);
+
+		TestKeyContext keyContext = new TestKeyContext();
+		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+		InternalTimerServiceImpl<Integer, String> timerService =
+			createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
+
+		// get two different keys
+		int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
+		int key2 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
+		while (key2 == key1) {
+			key2 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
+		}
+
+		Set<Tuple3<Integer, String, Long>> timers = new HashSet<>();
+		timers.add(Tuple3.of(key1, "ciao", 10L));
+		timers.add(Tuple3.of(key1, "hello", 10L));
+		timers.add(Tuple3.of(key2, "ciao", 10L));
+		timers.add(Tuple3.of(key2, "hello", 10L));
+
+		for (Tuple3<Integer, String, Long> timer : timers) {
+			keyContext.setCurrentKey(timer.f0);
+			timerService.registerEventTimeTimer(timer.f1, timer.f2);
+		}
+
+		Set<Tuple3<Integer, String, Long>> results = new HashSet<>();
+		timerService.forEachEventTimeTimer((namespace, timer) -> {
+			results.add(Tuple3.of((Integer) keyContext.getCurrentKey(), namespace, timer));
+		});
+
+		Assert.assertEquals(timers, results);
+	}
+
+	/**
+	 * This also verifies that we iterate over all timers and set the key context on each element.
+	 */
+	@Test
+	public void testForEachProcessingTimeTimers() throws Exception {
+		@SuppressWarnings("unchecked")
+		Triggerable<Integer, String> mockTriggerable = mock(Triggerable.class);
+
+		TestKeyContext keyContext = new TestKeyContext();
+		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+		InternalTimerServiceImpl<Integer, String> timerService =
+			createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
+
+		// get two different keys
+		int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
+		int key2 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
+		while (key2 == key1) {
+			key2 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
+		}
+
+		Set<Tuple3<Integer, String, Long>> timers = new HashSet<>();
+		timers.add(Tuple3.of(key1, "ciao", 10L));
+		timers.add(Tuple3.of(key1, "hello", 10L));
+		timers.add(Tuple3.of(key2, "ciao", 10L));
+		timers.add(Tuple3.of(key2, "hello", 10L));
+
+		for (Tuple3<Integer, String, Long> timer : timers) {
+			keyContext.setCurrentKey(timer.f0);
+			timerService.registerProcessingTimeTimer(timer.f1, timer.f2);
+		}
+
+		Set<Tuple3<Integer, String, Long>> results = new HashSet<>();
+		timerService.forEachProcessingTimeTimer((namespace, timer) -> {
+			results.add(Tuple3.of((Integer) keyContext.getCurrentKey(), namespace, timer));
+		});
+
+		Assert.assertEquals(timers, results);
 	}
 
 	@Test

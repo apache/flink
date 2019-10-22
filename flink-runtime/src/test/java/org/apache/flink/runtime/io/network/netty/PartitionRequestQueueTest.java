@@ -19,9 +19,18 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -31,7 +40,11 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
 
@@ -52,6 +65,24 @@ import static org.junit.Assert.assertTrue;
  * Tests for {@link PartitionRequestQueue}.
  */
 public class PartitionRequestQueueTest {
+
+	@ClassRule
+	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+	private static final int BUFFER_SIZE = 1024 * 1024;
+
+	private static FileChannelManager fileChannelManager;
+
+	@BeforeClass
+	public static void setUp() throws Exception {
+		fileChannelManager = new FileChannelManagerImpl(
+			new String[] {TEMPORARY_FOLDER.newFolder().getAbsolutePath()}, "testing");
+	}
+
+	@AfterClass
+	public static void shutdown() throws Exception {
+		fileChannelManager.close();
+	}
 
 	/**
 	 * In case of enqueuing an empty reader and a reader that actually has some buffers when channel is not writable,
@@ -347,6 +378,68 @@ public class PartitionRequestQueueTest {
 		assertNull(channel.readOutbound());
 	}
 
+	@Test
+	public void testCancelPartitionRequestForUnavailableView() throws Exception {
+		testCancelPartitionRequest(false);
+	}
+
+	@Test
+	public void testCancelPartitionRequestForAvailableView() throws Exception {
+		testCancelPartitionRequest(true);
+	}
+
+	private void testCancelPartitionRequest(boolean isAvailableView) throws Exception {
+		// setup
+		final ResultPartitionManager partitionManager = new ResultPartitionManager();
+		final ResultPartition partition = createFinishedPartitionWithFilledData(partitionManager);
+		final InputChannelID receiverId = new InputChannelID();
+		final PartitionRequestQueue queue = new PartitionRequestQueue();
+		final CreditBasedSequenceNumberingViewReader reader = new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+		final EmbeddedChannel channel = new EmbeddedChannel(queue);
+
+		reader.requestSubpartitionView(partitionManager, partition.getPartitionId(), 0);
+		// add this reader into allReaders queue
+		queue.notifyReaderCreated(reader);
+
+		// block the channel so that we see an intermediate state in the test
+		blockChannel(channel);
+
+		// add credit to make this reader available for adding into availableReaders queue
+		if (isAvailableView) {
+			queue.addCredit(receiverId, 1);
+			assertTrue(queue.getAvailableReaders().contains(reader));
+		}
+
+		// cancel this subpartition view
+		queue.cancel(receiverId);
+		channel.runPendingTasks();
+
+		assertFalse(queue.getAvailableReaders().contains(reader));
+		// the partition and its reader view should all be released
+		assertTrue(reader.isReleased());
+		assertTrue(partition.isReleased());
+		for (ResultSubpartition subpartition : partition.getAllPartitions()) {
+			assertTrue(subpartition.isReleased());
+		}
+
+		// cleanup
+		channel.close();
+	}
+
+	private static ResultPartition createFinishedPartitionWithFilledData(ResultPartitionManager partitionManager) throws Exception {
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setResultPartitionType(ResultPartitionType.BLOCKING)
+			.setFileChannelManager(fileChannelManager)
+			.setResultPartitionManager(partitionManager)
+			.isReleasedOnConsumption(true)
+			.build();
+
+		partitionManager.registerResultPartition(partition);
+		PartitionTestUtils.writeBuffers(partition, 1, BUFFER_SIZE);
+
+		return partition;
+	}
+
 	/**
 	 * Blocks the given channel by adding a buffer that is bigger than the high watermark.
 	 *
@@ -368,44 +461,5 @@ public class PartitionRequestQueueTest {
 		assertFalse(channel.isWritable());
 
 		return channelBlockingBuffer;
-	}
-
-	private static class NoOpResultSubpartitionView implements ResultSubpartitionView {
-		@Nullable
-		public BufferAndBacklog getNextBuffer() {
-			return null;
-		}
-
-		@Override
-		public void notifyDataAvailable() {
-		}
-
-		@Override
-		public void releaseAllResources() {
-		}
-
-		@Override
-		public void notifySubpartitionConsumed() {
-		}
-
-		@Override
-		public boolean isReleased() {
-			return true;
-		}
-
-		@Override
-		public Throwable getFailureCause() {
-			return null;
-		}
-
-		@Override
-		public boolean nextBufferIsEvent() {
-			return false;
-		}
-
-		@Override
-		public boolean isAvailable() {
-			return false;
-		}
 	}
 }

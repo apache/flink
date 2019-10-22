@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.types.LongValue;
 
 import java.util.concurrent.CompletableFuture;
@@ -75,10 +77,12 @@ public class StreamNetworkPointToPointBenchmark {
 	 */
 	public void setUp(long flushTimeout, Configuration config) throws Exception {
 		environment = new StreamNetworkBenchmarkEnvironment<>();
-		environment.setUp(1, 1, false, false, -1, -1, config);
+		environment.setUp(1, 1, false, -1, -1, config);
 
+		ResultPartitionWriter resultPartitionWriter = environment.createResultPartitionWriter(0);
+
+		recordWriter = new RecordWriterBuilder().setTimeout(flushTimeout).build(resultPartitionWriter);
 		receiver = environment.createReceiver();
-		recordWriter = environment.createRecordWriter(0, flushTimeout);
 	}
 
 	/**

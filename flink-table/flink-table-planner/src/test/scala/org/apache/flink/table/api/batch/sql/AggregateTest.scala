@@ -32,13 +32,13 @@ class AggregateTest extends TableTestBase {
   @Test
   def testAggregate(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable"
 
     val aggregate = unaryNode(
       "DataSetAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "AVG(a) AS EXPR$0",
         "SUM(b) AS EXPR$1",
@@ -50,13 +50,13 @@ class AggregateTest extends TableTestBase {
   @Test
   def testAggregateWithFilter(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable WHERE a = 1"
 
     val calcNode = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select", "CAST(1) AS a", "b", "c"),
       term("where", "=(a, 1)")
     )
@@ -75,13 +75,13 @@ class AggregateTest extends TableTestBase {
   @Test
   def testAggregateWithFilterOnNestedFields(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, (Int, Long))]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, (Int, Long))]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c), sum(c._1) FROM MyTable WHERE a = 1"
 
     val calcNode = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select", "CAST(1) AS a", "b", "c", "c._1 AS $f3"),
       term("where", "=(a, 1)")
     )
@@ -102,13 +102,13 @@ class AggregateTest extends TableTestBase {
   @Test
   def testGroupAggregate(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable GROUP BY a"
 
     val aggregate = unaryNode(
         "DataSetAggregate",
-        batchTableNode(0),
+        batchTableNode(table),
         term("groupBy", "a"),
         term("select",
           "a",
@@ -130,13 +130,13 @@ class AggregateTest extends TableTestBase {
   @Test
   def testGroupAggregateWithFilter(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable WHERE a = 1 GROUP BY a"
 
     val calcNode = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select","CAST(1) AS a", "b", "c") ,
       term("where","=(a, 1)")
     )

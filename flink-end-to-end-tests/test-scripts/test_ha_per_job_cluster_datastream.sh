@@ -26,18 +26,11 @@ FLINK_LIB_DIR=${FLINK_DIR}/lib
 JOB_ID="00000000000000000000000000000000"
 
 function ha_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   stop_watchdogs
   kill_all 'StandaloneJobClusterEntryPoint'
-  rm ${FLINK_LIB_DIR}/${TEST_PROGRAM_JAR_NAME}
 }
 
-trap ha_cleanup INT
-trap ha_cleanup EXIT
+on_exit ha_cleanup
 
 function run_job() {
     local PARALLELISM=$1
@@ -64,12 +57,11 @@ function run_job() {
 }
 
 function verify_logs_per_job() {
-    local OUTPUT=$FLINK_DIR/log/*.out
     local JM_FAILURES=$1
     local EXIT_CODE=0
 
     # verify that we have no alerts
-    if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then
+    if ! check_logs_for_non_empty_out_files; then
         echo "FAILURE: Alerts found at the general purpose job."
         EXIT_CODE=1
     fi
@@ -115,7 +107,7 @@ function run_ha_test() {
 
     # change the pid dir to start log files always from 0, this is important for checks in the
     # jm killing loop
-    set_conf "env.pid.dir" "${TEST_DATA_DIR}"
+    set_config_key "env.pid.dir" "${TEST_DATA_DIR}"
 
     start_local_zk
 

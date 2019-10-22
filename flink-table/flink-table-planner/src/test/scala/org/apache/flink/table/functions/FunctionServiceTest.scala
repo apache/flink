@@ -31,8 +31,8 @@ class FunctionServiceTest {
 
   @Test(expected = classOf[ValidationException])
   def testWrongArgsFunctionCreation(): Unit = {
-    val descriptor = FunctionDescriptor()
-      .fromClass(ClassInstance()
+    val descriptor = new FunctionDescriptor()
+      .fromClass(new ClassInstance()
         .of(classOf[NoArgClass].getName)
         .parameterString("12"))
 
@@ -41,24 +41,24 @@ class FunctionServiceTest {
 
   @Test(expected = classOf[ValidationException])
   def testPrivateFunctionCreation(): Unit = {
-    val descriptor = FunctionDescriptor()
-      .fromClass(ClassInstance().of(classOf[PrivateClass].getName))
+    val descriptor = new FunctionDescriptor()
+      .fromClass(new ClassInstance().of(classOf[PrivateClass].getName))
 
     FunctionService.createFunction(descriptor)
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidClassFunctionCreation(): Unit = {
-    val descriptor = FunctionDescriptor()
-      .fromClass(ClassInstance().of("this.class.does.not.exist"))
+    val descriptor = new FunctionDescriptor()
+      .fromClass(new ClassInstance().of("this.class.does.not.exist"))
 
     FunctionService.createFunction(descriptor)
   }
 
   @Test(expected = classOf[ValidationException])
   def testNotFunctionClassFunctionCreation(): Unit = {
-    val descriptor = FunctionDescriptor()
-      .fromClass(ClassInstance()
+    val descriptor = new FunctionDescriptor()
+      .fromClass(new ClassInstance()
         .of(classOf[java.lang.String].getName)
         .parameterString("hello"))
 
@@ -67,17 +67,17 @@ class FunctionServiceTest {
 
   @Test
   def testNoArgFunctionCreation(): Unit = {
-    val descriptor = FunctionDescriptor()
-      .fromClass(ClassInstance().of(classOf[NoArgClass].getName))
+    val descriptor = new FunctionDescriptor()
+      .fromClass(new ClassInstance().of(classOf[NoArgClass].getName))
 
     assertEquals(classOf[NoArgClass], FunctionService.createFunction(descriptor).getClass)
   }
 
   @Test
   def testOneArgFunctionCreation(): Unit = {
-    val descriptor = FunctionDescriptor()
+    val descriptor = new FunctionDescriptor()
       .fromClass(
-        ClassInstance()
+        new ClassInstance()
           .of(classOf[OneArgClass].getName)
           .parameterString("false"))
 
@@ -89,12 +89,12 @@ class FunctionServiceTest {
 
   @Test
   def testMultiArgFunctionCreation(): Unit = {
-    val descriptor = FunctionDescriptor()
+    val descriptor = new FunctionDescriptor()
       .fromClass(
-        ClassInstance()
+        new ClassInstance()
           .of(classOf[MultiArgClass].getName)
           .parameter(new java.math.BigDecimal("12.0003"))
-          .parameter(ClassInstance()
+          .parameter(new ClassInstance()
             .of(classOf[java.math.BigInteger].getName)
             .parameter("111111111111111111111111111111111")))
 

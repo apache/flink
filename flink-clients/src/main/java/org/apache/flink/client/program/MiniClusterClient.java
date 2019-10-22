@@ -46,19 +46,19 @@ import java.util.concurrent.ExecutionException;
 /**
  * Client to interact with a {@link MiniCluster}.
  */
-public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> implements NewClusterClient {
+public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> {
 
 	private final MiniCluster miniCluster;
+	private final Configuration configuration;
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) {
-		super(configuration, miniCluster.getHighAvailabilityServices(), true);
-
+		this.configuration = configuration;
 		this.miniCluster = miniCluster;
 	}
 
 	@Override
-	public void shutdown() throws Exception {
-		super.shutdown();
+	public Configuration getFlinkConfiguration() {
+		return new Configuration(configuration);
 	}
 
 	@Override
@@ -67,7 +67,8 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 		if (isDetached()) {
 			try {
-				return jobSubmissionResultFuture.get();
+				final JobSubmissionResult jobSubmissionResult = jobSubmissionResultFuture.get();
+				return new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 
@@ -88,9 +89,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 			try {
 				return jobResult.toJobExecutionResult(classLoader);
-			} catch (JobExecutionException e) {
-				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
-			} catch (IOException | ClassNotFoundException e) {
+			} catch (JobExecutionException | IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			}
 		}
@@ -156,10 +155,6 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	public MiniClusterClient.MiniClusterId getClusterId() {
 		return MiniClusterId.INSTANCE;
 	}
-
-	// ======================================
-	// Legacy methods
-	// ======================================
 
 	@Override
 	public String getWebInterfaceURL() {

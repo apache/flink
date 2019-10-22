@@ -45,7 +45,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
@@ -112,6 +112,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 				initialActiveThreads = Optional.of(Thread.activeCount());
 			}
 		}
+		checkProducerLeak();
 	}
 
 	/**
@@ -155,10 +156,11 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		}
 		catch (Exception ex) {
 			// testHarness1 will be fenced off after creating and closing testHarness2
-			if (!findThrowable(ex, ProducerFencedException.class).isPresent()) {
+			if (!findSerializedThrowable(ex, ProducerFencedException.class, ClassLoader.getSystemClassLoader()).isPresent()) {
 				throw ex;
 			}
 		}
+		checkProducerLeak();
 	}
 
 	@Test
@@ -201,6 +203,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	/**
@@ -212,32 +215,32 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	public void testFailBeforeNotifyAndResumeWorkAfterwards() throws Exception {
 		String topic = "flink-kafka-producer-fail-before-notify";
 
-		OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic);
+		OneInputStreamOperatorTestHarness<Integer, Object> testHarness1 = createTestHarness(topic);
+		checkProducerLeak();
+		testHarness1.setup();
+		testHarness1.open();
+		testHarness1.processElement(42, 0);
+		testHarness1.snapshot(0, 1);
+		testHarness1.processElement(43, 2);
+		OperatorSubtaskState snapshot1 = testHarness1.snapshot(1, 3);
 
-		testHarness.setup();
-		testHarness.open();
-		testHarness.processElement(42, 0);
-		testHarness.snapshot(0, 1);
-		testHarness.processElement(43, 2);
-		OperatorSubtaskState snapshot1 = testHarness.snapshot(1, 3);
-
-		testHarness.processElement(44, 4);
-		testHarness.snapshot(2, 5);
-		testHarness.processElement(45, 6);
+		testHarness1.processElement(44, 4);
+		testHarness1.snapshot(2, 5);
+		testHarness1.processElement(45, 6);
 
 		// do not close previous testHarness to make sure that closing do not clean up something (in case of failure
 		// there might not be any close)
-		testHarness = createTestHarness(topic);
-		testHarness.setup();
+		OneInputStreamOperatorTestHarness<Integer, Object> testHarness2 = createTestHarness(topic);
+		testHarness2.setup();
 		// restore from snapshot1, transactions with records 44 and 45 should be aborted
-		testHarness.initializeState(snapshot1);
-		testHarness.open();
+		testHarness2.initializeState(snapshot1);
+		testHarness2.open();
 
 		// write and commit more records, after potentially lingering transactions
-		testHarness.processElement(46, 7);
-		testHarness.snapshot(4, 8);
-		testHarness.processElement(47, 9);
-		testHarness.notifyOfCompletedCheckpoint(4);
+		testHarness2.processElement(46, 7);
+		testHarness2.snapshot(4, 8);
+		testHarness2.processElement(47, 9);
+		testHarness2.notifyOfCompletedCheckpoint(4);
 
 		//now we should have:
 		// - records 42 and 43 in committed transactions
@@ -246,8 +249,18 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		// - pending transaction with record 47
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 46));
 
-		testHarness.close();
+		try {
+			testHarness1.close();
+		} catch (Exception e) {
+			// The only acceptable exception is ProducerFencedException because testHarness2 uses the same
+			// transactional ID.
+			if (!(e.getCause() instanceof ProducerFencedException)) {
+				fail("Received unexpected exception " + e);
+			}
+		}
+		testHarness2.close();
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	@Test
@@ -295,6 +308,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		// - aborted transactions with records 44 and 45
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	/**
@@ -353,6 +367,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 			closeIgnoringProducerFenced(operatorToClose);
 		}
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	/**
@@ -371,7 +386,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	 */
 	@Test
 	public void testScaleUpAfterScalingDown() throws Exception {
-		String topic = "scale-down-before-first-checkpoint";
+		String topic = "scale-up-after-scaling-down";
 
 		final int parallelism1 = 4;
 		final int parallelism2 = 2;
@@ -420,6 +435,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 			0,
 			IntStream.range(0, parallelism1 + parallelism2 + parallelism3).boxed().collect(Collectors.toList()));
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	private OperatorSubtaskState repartitionAndExecute(
@@ -494,6 +510,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42));
 
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	@Test
@@ -516,6 +533,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 			}
 		}
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	@Test
@@ -560,6 +578,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 			testHarness.notifyOfCompletedCheckpoint(2);
 			testHarness.processElement(47, 9);
 		}
+		checkProducerLeak();
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -643,11 +662,19 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	}
 
 	private boolean isCausedBy(FlinkKafkaErrorCode expectedErrorCode, Throwable ex) {
-		Optional<FlinkKafkaException> cause = findThrowable(ex, FlinkKafkaException.class);
+		Optional<FlinkKafkaException> cause = findSerializedThrowable(ex, FlinkKafkaException.class, ClassLoader.getSystemClassLoader());
 		if (cause.isPresent()) {
 			return cause.get().getErrorCode().equals(expectedErrorCode);
 		}
 		return false;
+	}
+
+	private void checkProducerLeak() {
+		for (Thread t : Thread.getAllStackTraces().keySet()) {
+			if (t.getName().contains("kafka-producer-network-thread")) {
+				fail("Detected producer leak. Thread name: " + t.getName());
+			}
+		}
 	}
 
 }

@@ -19,8 +19,8 @@
 package org.apache.flink.table.api.batch.table.validation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -28,8 +28,10 @@ import org.junit._
 
 class CalcValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSelectInvalidFieldFields(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Cannot resolve field [foo], input field list:[a, b, c].")
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
       // must fail. Field 'foo does not exist
@@ -96,7 +98,7 @@ class CalcValidationTest extends TableTestBase {
       util.addTable[(Int, Long, String)]("Table1", '*, 'b, 'c)
       fail("TableException expected")
     } catch {
-      case _: TableException => //ignore
+      case _: ValidationException => //ignore
     }
 
     try {

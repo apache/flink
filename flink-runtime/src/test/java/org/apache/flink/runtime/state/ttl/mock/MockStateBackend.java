@@ -35,8 +35,8 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -71,6 +71,11 @@ public class MockStateBackend extends AbstractStateBackend {
 			@Override
 			public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) {
 				return null;
+			}
+
+			@Override
+			public void initializeBaseLocations() {
+
 			}
 
 			@Override

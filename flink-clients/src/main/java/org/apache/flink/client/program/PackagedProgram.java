@@ -18,12 +18,9 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.dag.DataSinkNode;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -35,14 +32,18 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -76,8 +77,6 @@ public class PackagedProgram {
 
 	private final String[] args;
 
-	private final Program program;
-
 	private final Class<?> mainClass;
 
 	private final List<File> extractedTempLibraries;
@@ -86,9 +85,12 @@ public class PackagedProgram {
 
 	private ClassLoader userCodeClassLoader;
 
-	private Plan plan;
-
 	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
+
+	/**
+	 * Flag indicating whether the job is a Python job.
+	 */
+	private final boolean isPython;
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -169,18 +171,22 @@ public class PackagedProgram {
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
-		if (jarFile == null) {
+		// Whether the job is a Python job.
+		isPython = entryPointClassName != null && (entryPointClassName.equals("org.apache.flink.client.python.PythonDriver")
+			|| entryPointClassName.equals("org.apache.flink.client.python.PythonGatewayServer"));
+
+		URL jarFileUrl = null;
+		if (jarFile != null) {
+			try {
+				jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
+			} catch (MalformedURLException e1) {
+				throw new IllegalArgumentException("The jar file path is invalid.");
+			}
+
+			checkJarFile(jarFileUrl);
+		} else if (!isPython) {
 			throw new IllegalArgumentException("The jar file must not be null.");
 		}
-
-		URL jarFileUrl;
-		try {
-			jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
-		} catch (MalformedURLException e1) {
-			throw new IllegalArgumentException("The jar file path is invalid.");
-		}
-
-		checkJarFile(jarFileUrl);
 
 		this.jarFile = jarFileUrl;
 		this.args = args == null ? new String[0] : args;
@@ -191,35 +197,15 @@ public class PackagedProgram {
 		}
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = extractContainedLibraries(jarFileUrl);
+		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
-		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
+		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
 
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
 
-		// if the entry point is a program, instantiate the class and get the plan
-		if (Program.class.isAssignableFrom(this.mainClass)) {
-			Program prg = null;
-			try {
-				prg = InstantiationUtil.instantiate(this.mainClass.asSubclass(Program.class), Program.class);
-			} catch (Exception e) {
-				// validate that the class has a main method at least.
-				// the main method possibly instantiates the program properly
-				if (!hasMainMethod(mainClass)) {
-					throw new ProgramInvocationException("The given program class implements the " +
-							Program.class.getName() + " interface, but cannot be instantiated. " +
-							"It also declares no main(String[]) method as alternative entry point", e);
-				}
-			} catch (Throwable t) {
-				throw new ProgramInvocationException("Error while trying to instantiate program class.", t);
-			}
-			this.program = prg;
-		} else if (hasMainMethod(mainClass)) {
-			this.program = null;
-		} else {
-			throw new ProgramInvocationException("The given program class neither has a main(String[]) method, nor does it implement the " +
-					Program.class.getName() + " interface.");
+		if (!hasMainMethod(mainClass)) {
+			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
 		}
 	}
 
@@ -233,29 +219,10 @@ public class PackagedProgram {
 
 		// load the entry point class
 		this.mainClass = entryPointClass;
+		isPython = entryPointClass.getCanonicalName().equals("org.apache.flink.client.python.PythonDriver");
 
-		// if the entry point is a program, instantiate the class and get the plan
-		if (Program.class.isAssignableFrom(this.mainClass)) {
-			Program prg = null;
-			try {
-				prg = InstantiationUtil.instantiate(this.mainClass.asSubclass(Program.class), Program.class);
-			} catch (Exception e) {
-				// validate that the class has a main method at least.
-				// the main method possibly instantiates the program properly
-				if (!hasMainMethod(mainClass)) {
-					throw new ProgramInvocationException("The given program class implements the " +
-							Program.class.getName() + " interface, but cannot be instantiated. " +
-							"It also declares no main(String[]) method as alternative entry point", e);
-				}
-			} catch (Throwable t) {
-				throw new ProgramInvocationException("Error while trying to instantiate program class.", t);
-			}
-			this.program = prg;
-		} else if (hasMainMethod(mainClass)) {
-			this.program = null;
-		} else {
-			throw new ProgramInvocationException("The given program class neither has a main(String[]) method, nor does it implement the " +
-					Program.class.getName() + " interface.");
+		if (!hasMainMethod(mainClass)) {
+			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
 		}
 	}
 
@@ -275,105 +242,6 @@ public class PackagedProgram {
 		return this.mainClass.getName();
 	}
 
-	public boolean isUsingInteractiveMode() {
-		return this.program == null;
-	}
-
-	public boolean isUsingProgramEntryPoint() {
-		return this.program != null;
-	}
-
-	/**
-	 * Returns the plan without the required jars when the files are already provided by the cluster.
-	 *
-	 * @return The plan without attached jar files.
-	 * @throws ProgramInvocationException
-	 */
-	public JobWithJars getPlanWithoutJars() throws ProgramInvocationException {
-		if (isUsingProgramEntryPoint()) {
-			return new JobWithJars(getPlan(), Collections.<URL>emptyList(), classpaths, userCodeClassLoader);
-		} else {
-			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
-				" for a program that is using the interactive mode.", getPlan().getJobId());
-		}
-	}
-
-	/**
-	 * Returns the plan with all required jars.
-	 *
-	 * @return The plan with attached jar files.
-	 * @throws ProgramInvocationException
-	 */
-	public JobWithJars getPlanWithJars() throws ProgramInvocationException {
-		if (isUsingProgramEntryPoint()) {
-			return new JobWithJars(getPlan(), getAllLibraries(), classpaths, userCodeClassLoader);
-		} else {
-			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
-					" for a program that is using the interactive mode.", getPlan().getJobId());
-		}
-	}
-
-	/**
-	 * Returns the analyzed plan without any optimizations.
-	 *
-	 * @return
-	 *         the analyzed plan without any optimizations.
-	 * @throws ProgramInvocationException Thrown if an error occurred in the
-	 *  user-provided pact assembler. This may indicate
-	 *         missing parameters for generation.
-	 */
-	public String getPreviewPlan() throws ProgramInvocationException {
-		Thread.currentThread().setContextClassLoader(this.getUserCodeClassLoader());
-		List<DataSinkNode> previewPlan;
-
-		if (isUsingProgramEntryPoint()) {
-			previewPlan = Optimizer.createPreOptimizedPlan(getPlan());
-		}
-		else if (isUsingInteractiveMode()) {
-			// temporary hack to support the web client
-			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
-			env.setAsContext();
-			try {
-				invokeInteractiveModeForExecution();
-			}
-			catch (ProgramInvocationException e) {
-				throw e;
-			}
-			catch (Throwable t) {
-				// the invocation gets aborted with the preview plan
-				if (env.previewPlan == null) {
-					if (env.preview != null) {
-						return env.preview;
-					} else {
-						throw new ProgramInvocationException("The program caused an error: ", getPlan().getJobId(), t);
-					}
-				}
-			}
-			finally {
-				env.unsetAsContext();
-			}
-
-			if (env.previewPlan != null) {
-				previewPlan =  env.previewPlan;
-			} else {
-				throw new ProgramInvocationException(
-					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.",
-					getPlan().getJobId());
-			}
-		}
-		else {
-			throw new RuntimeException();
-		}
-
-		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		StringWriter string = new StringWriter(1024);
-		try (PrintWriter pw = new PrintWriter(string)) {
-			jsonGen.dumpPactPlanAsJSON(previewPlan, pw);
-		}
-		return string.toString();
-
-	}
-
 	/**
 	 * Returns the description provided by the Program class. This
 	 * may contain a description of the plan itself and its arguments.
@@ -388,15 +256,11 @@ public class PackagedProgram {
 		if (ProgramDescription.class.isAssignableFrom(this.mainClass)) {
 
 			ProgramDescription descr;
-			if (this.program != null) {
-				descr = (ProgramDescription) this.program;
-			} else {
-				try {
-					descr =  InstantiationUtil.instantiate(
+			try {
+				descr = InstantiationUtil.instantiate(
 						this.mainClass.asSubclass(ProgramDescription.class), ProgramDescription.class);
-				} catch (Throwable t) {
-					return null;
-				}
+			} catch (Throwable t) {
+				return null;
 			}
 
 			try {
@@ -417,11 +281,7 @@ public class PackagedProgram {
 	 * will be a local execution by default.
 	 */
 	public void invokeInteractiveModeForExecution() throws ProgramInvocationException{
-		if (isUsingInteractiveMode()) {
-			callMainMethod(mainClass, args);
-		} else {
-			throw new ProgramInvocationException("Cannot invoke a plan-based program directly.");
-		}
+		callMainMethod(mainClass, args);
 	}
 
 	/**
@@ -460,6 +320,36 @@ public class PackagedProgram {
 			}
 		}
 
+		if (isPython) {
+			String flinkOptPath = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
+			final List<Path> pythonJarPath = new ArrayList<>();
+			try {
+				Files.walkFileTree(FileSystems.getDefault().getPath(flinkOptPath), new SimpleFileVisitor<Path>() {
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						FileVisitResult result = super.visitFile(file, attrs);
+						if (file.getFileName().toString().startsWith("flink-python")) {
+							pythonJarPath.add(file);
+						}
+						return result;
+					}
+				});
+			} catch (IOException e) {
+				throw new RuntimeException(
+					"Exception encountered during finding the flink-python jar. This should not happen.", e);
+			}
+
+			if (pythonJarPath.size() != 1) {
+				throw new RuntimeException("Found " + pythonJarPath.size() + " flink-python jar.");
+			}
+
+			try {
+				libs.add(pythonJarPath.get(0).toUri().toURL());
+			} catch (MalformedURLException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+
 		return libs;
 	}
 
@@ -469,22 +359,6 @@ public class PackagedProgram {
 	public void deleteExtractedLibraries() {
 		deleteExtractedLibraries(this.extractedTempLibraries);
 		this.extractedTempLibraries.clear();
-	}
-
-	/**
-	 * Returns the plan as generated from the Pact Assembler.
-	 *
-	 * @return The program's plan.
-	 * @throws ProgramInvocationException Thrown, if an error occurred in the program while
-	 *         creating the program's {@link Plan}.
-	 */
-	private Plan getPlan() throws ProgramInvocationException {
-		if (this.plan == null) {
-			Thread.currentThread().setContextClassLoader(this.userCodeClassLoader);
-			this.plan = createPlanFromProgram(this.program, this.args);
-		}
-
-		return this.plan;
 	}
 
 	private static boolean hasMainMethod(Class<?> entryClass) {
@@ -636,27 +510,6 @@ public class PackagedProgram {
 	}
 
 	/**
-	 * Takes the jar described by the given file and invokes its pact assembler class to
-	 * assemble a plan. The assembler class name is either passed through a parameter,
-	 * or it is read from the manifest of the jar. The assembler is handed the given options
-	 * for its assembly.
-	 *
-	 * @param program The program to create the plan for.
-	 * @param options
-	 *        The options for the assembler.
-	 * @return The plan created by the program.
-	 * @throws ProgramInvocationException
-	 *         Thrown, if an error occurred in the user-provided pact assembler.
-	 */
-	private static Plan createPlanFromProgram(Program program, String[] options) throws ProgramInvocationException {
-		try {
-			return program.getPlan(options);
-		} catch (Throwable t) {
-			throw new ProgramInvocationException("Error while calling the program: " + t.getMessage(), t);
-		}
-	}
-
-	/**
 	 * Takes all JAR files that are contained in this program's JAR file and extracts them
 	 * to the system's temp directory.
 	 *
@@ -771,10 +624,10 @@ public class PackagedProgram {
 
 	private static void checkJarFile(URL jarfile) throws ProgramInvocationException {
 		try {
-			JobWithJars.checkJarFile(jarfile);
+			ClientUtils.checkJarFile(jarfile);
 		}
 		catch (IOException e) {
-			throw new ProgramInvocationException(e.getMessage());
+			throw new ProgramInvocationException(e.getMessage(), e);
 		}
 		catch (Throwable t) {
 			throw new ProgramInvocationException("Cannot access jar file" + (t.getMessage() == null ? "." : ": " + t.getMessage()), t);

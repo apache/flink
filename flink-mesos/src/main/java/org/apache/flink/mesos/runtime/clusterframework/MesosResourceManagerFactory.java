@@ -26,8 +26,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.ActiveResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
@@ -41,7 +41,7 @@ import javax.annotation.Nullable;
 /**
  * {@link ResourceManagerFactory} which creates a {@link MesosResourceManager}.
  */
-public class MesosResourceManagerFactory implements ResourceManagerFactory<RegisteredMesosWorkerNode> {
+public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
 
 	@Nonnull
 	private final MesosServices mesosServices;
@@ -63,17 +63,16 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 	}
 
 	@Override
-	public ResourceManager<RegisteredMesosWorkerNode> createResourceManager(
+	public ResourceManager<RegisteredMesosWorkerNode> createActiveResourceManager(
 			Configuration configuration,
 			ResourceID resourceId,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
-			JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
+			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
 		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			rmServicesConfiguration,
@@ -87,7 +86,6 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 			highAvailabilityServices,
 			heartbeatServices,
 			rmRuntimeServices.getSlotManager(),
-			metricRegistry,
 			rmRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
@@ -97,6 +95,6 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 			taskManagerParameters,
 			taskManagerContainerSpec,
 			webInterfaceUrl,
-			jobManagerMetricGroup);
+			resourceManagerMetricGroup);
 	}
 }

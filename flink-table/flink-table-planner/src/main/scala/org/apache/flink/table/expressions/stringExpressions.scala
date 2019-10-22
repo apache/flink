@@ -569,8 +569,6 @@ case class Replace(
     search: PlannerExpression,
     replacement: PlannerExpression) extends PlannerExpression with InputTypeSpec {
 
-  def this(str: PlannerExpression, begin: PlannerExpression) = this(str, begin, CharLength(str))
-
   override private[flink] def children: Seq[PlannerExpression] = str :: search :: replacement :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO

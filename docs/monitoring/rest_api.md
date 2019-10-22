@@ -61,6 +61,8 @@ If no version is specified Flink will default to the *oldest* version supporting
 
 Querying unsupported/non-existing versions will return a 404 error.
 
+There exist several async operations among these APIs, e.g. `trigger savepoint`, `rescale a job`. They would return a `triggerid` to identify the operation you just POST and then you need to use that `triggerid` to query for the status of the operation.
+
 <div class="codetabs" markdown="1">
 
 <div data-lang="v1" markdown="1">

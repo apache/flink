@@ -18,29 +18,15 @@
 
 package org.apache.flink.docs.rest;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
-import org.apache.flink.runtime.leaderelection.LeaderContender;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
-import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
-import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
+import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.SerializableString;
@@ -49,12 +35,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.Serialized
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -62,13 +45,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.docs.util.Utils.escapeCharacters;
@@ -311,102 +290,6 @@ public class RestAPIDocGenerator {
 		@Override
 		public SerializableString getEscapeSequence(int i) {
 			return escapeSequences.getOrDefault(i, null);
-		}
-	}
-
-	/**
-	 * Utility class to extract the {@link MessageHeaders} that the {@link DispatcherRestEndpoint} supports.
-	 */
-	private static class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint implements DocumentingRestEndpoint {
-
-		private static final Configuration config;
-		private static final RestServerEndpointConfiguration restConfig;
-		private static final RestHandlerConfiguration handlerConfig;
-		private static final GatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever;
-		private static final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
-
-		static {
-			config = new Configuration();
-			config.setString(RestOptions.ADDRESS, "localhost");
-			// necessary for loading the web-submission extension
-			config.setString(JobManagerOptions.ADDRESS, "localhost");
-			try {
-				restConfig = RestServerEndpointConfiguration.fromConfiguration(config);
-			} catch (ConfigurationException e) {
-				throw new RuntimeException("Implementation error. RestServerEndpointConfiguration#fromConfiguration failed for default configuration.");
-			}
-			handlerConfig = RestHandlerConfiguration.fromConfiguration(config);
-
-			dispatcherGatewayRetriever = () -> null;
-			resourceManagerGatewayRetriever = () -> null;
-		}
-
-		private DocumentingDispatcherRestEndpoint() throws IOException {
-			super(
-				restConfig,
-				dispatcherGatewayRetriever,
-				config,
-				handlerConfig,
-				resourceManagerGatewayRetriever,
-				NoOpTransientBlobService.INSTANCE,
-				Executors.newFixedThreadPool(1),
-				VoidMetricFetcher.INSTANCE,
-				NoOpElectionService.INSTANCE,
-				NoOpFatalErrorHandler.INSTANCE);
-		}
-
-		@Override
-		public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
-			return super.initializeHandlers(localAddressFuture);
-		}
-
-		private enum NoOpElectionService implements LeaderElectionService {
-			INSTANCE;
-			@Override
-			public void start(final LeaderContender contender) throws Exception {
-
-			}
-
-			@Override
-			public void stop() throws Exception {
-
-			}
-
-			@Override
-			public void confirmLeaderSessionID(final UUID leaderSessionID) {
-
-			}
-
-			@Override
-			public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
-				return false;
-			}
-		}
-
-		private enum NoOpFatalErrorHandler implements FatalErrorHandler {
-			INSTANCE;
-
-			@Override
-			public void onFatalError(final Throwable exception) {
-
-			}
-		}
-	}
-
-	/**
-	 * Interface to expose the supported {@link MessageHeaders} of a {@link RestServerEndpoint}.
-	 */
-	private interface DocumentingRestEndpoint {
-		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture);
-
-		default List<MessageHeaders> getSpecs() {
-			Comparator<String> comparator = new RestServerEndpoint.RestHandlerUrlComparator.CaseInsensitiveOrderComparator();
-			return initializeHandlers(CompletableFuture.completedFuture(null)).stream()
-				.map(tuple -> tuple.f0)
-				.filter(spec -> spec instanceof MessageHeaders)
-				.map(spec -> (MessageHeaders) spec)
-				.sorted((spec1, spec2) -> comparator.compare(spec1.getTargetRestEndpointURL(), spec2.getTargetRestEndpointURL()))
-				.collect(Collectors.toList());
 		}
 	}
 }

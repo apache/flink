@@ -65,8 +65,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 		return bufferFactory.create();
 	}
 
-	@Override
-	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
+	private Buffer requestBufferBlocking() throws IOException, InterruptedException {
 		Buffer buffer = buffers.poll();
 		if (buffer != null) {
 			return buffer;
@@ -94,11 +93,6 @@ public class TestPooledBufferProvider implements BufferProvider {
 	@Override
 	public boolean isDestroyed() {
 		return false;
-	}
-
-	@Override
-	public int getMemorySegmentSize() {
-		return bufferFactory.getBufferSize();
 	}
 
 	public int getNumberOfAvailableBuffers() {

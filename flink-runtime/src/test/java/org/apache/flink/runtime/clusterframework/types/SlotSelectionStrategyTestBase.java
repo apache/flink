@@ -21,7 +21,6 @@ package org.apache.flink.runtime.clusterframework.types;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
@@ -56,7 +55,7 @@ public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 	protected final SimpleSlotContext ssc3 = new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile);
 	protected final SimpleSlotContext ssc4 = new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile);
 
-	protected final Set<SlotContext> candidates = Collections.unmodifiableSet(createCandidates());
+	protected final Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = Collections.unmodifiableSet(createCandidates());
 
 	protected final SlotSelectionStrategy selectionStrategy;
 
@@ -64,12 +63,12 @@ public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 		this.selectionStrategy = slotSelectionStrategy;
 	}
 
-	private Set<SlotContext> createCandidates() {
-		Set<SlotContext> candidates = new HashSet<>(4);
-		candidates.add(ssc1);
-		candidates.add(ssc2);
-		candidates.add(ssc3);
-		candidates.add(ssc4);
+	private Set<SlotSelectionStrategy.SlotInfoAndResources> createCandidates() {
+		Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = new HashSet<>(4);
+		candidates.add(new SlotSelectionStrategy.SlotInfoAndResources(ssc1));
+		candidates.add(new SlotSelectionStrategy.SlotInfoAndResources(ssc2));
+		candidates.add(new SlotSelectionStrategy.SlotInfoAndResources(ssc3));
+		candidates.add(new SlotSelectionStrategy.SlotInfoAndResources(ssc4));
 		return candidates;
 	}
 

@@ -22,8 +22,8 @@ import java.util
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
-import org.apache.flink.table.descriptors.RowtimeValidator._
-import org.apache.flink.table.descriptors.SchemaValidator._
+import org.apache.flink.table.descriptors.Rowtime._
+import org.apache.flink.table.descriptors.Schema._
 import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
 import org.apache.flink.table.factories.{StreamTableSinkFactory, StreamTableSourceFactory, TableFactory}
 import org.apache.flink.table.sinks.StreamTableSink
@@ -51,10 +51,7 @@ class InMemoryTableFactory(terminationCount: Int)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(
-      isStreamEnvironment = true,
-      supportsSourceTimestamps = true,
-      supportsSourceWatermarks = true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
     val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
 
@@ -71,10 +68,7 @@ class InMemoryTableFactory(terminationCount: Int)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(
-      isStreamEnvironment = true,
-      supportsSourceTimestamps = true,
-      supportsSourceWatermarks = true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
     val tableSchema = params.getTableSchema(SCHEMA)
 

@@ -18,17 +18,20 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.util.function.RunnableWithException;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -53,120 +56,127 @@ public class SynchronousSavepointSyncLatchTest {
 	}
 
 	@Test
-	public void waitAndThenTriggerWorks() throws Exception {
+	public void triggerUnblocksWait() throws Exception {
 		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
-		final WaitingOnLatchCallable callable = new WaitingOnLatchCallable(latchUnderTest, 1L);
 
-		executors.submit(callable);
+		latchUnderTest.setCheckpointId(1L);
+		assertFalse(latchUnderTest.isWaiting());
 
-		while (!latchUnderTest.isSet()) {
+		Future<Void> future = runThreadWaitingForCheckpointAck(latchUnderTest);
+		while (!latchUnderTest.isWaiting()) {
 			Thread.sleep(5L);
 		}
+
+		final AtomicBoolean triggered = new AtomicBoolean();
 
 		// wrong checkpoint id.
-		latchUnderTest.acknowledgeCheckpointAndTrigger(2L);
+		latchUnderTest.acknowledgeCheckpointAndTrigger(2L, () -> triggered.set(true));
+		assertFalse(triggered.get());
+		assertFalse(latchUnderTest.isCompleted());
 		assertTrue(latchUnderTest.isWaiting());
 
-		latchUnderTest.acknowledgeCheckpointAndTrigger(1L);
+		latchUnderTest.acknowledgeCheckpointAndTrigger(1L, () -> triggered.set(true));
+		assertTrue(triggered.get());
 		assertTrue(latchUnderTest.isCompleted());
+
+		future.get();
+		assertFalse(latchUnderTest.isWaiting());
 	}
 
 	@Test
-	public void waitAndThenCancelWorks() throws Exception {
+	public void cancelUnblocksWait() throws Exception {
 		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
-		final WaitingOnLatchCallable callable = new WaitingOnLatchCallable(latchUnderTest, 1L);
 
-		final Future<Boolean> resultFuture = executors.submit(callable);
+		latchUnderTest.setCheckpointId(1L);
+		assertFalse(latchUnderTest.isWaiting());
 
-		while (!latchUnderTest.isSet()) {
+		Future<Void> future = runThreadWaitingForCheckpointAck(latchUnderTest);
+		while (!latchUnderTest.isWaiting()) {
 			Thread.sleep(5L);
 		}
 
 		latchUnderTest.cancelCheckpointLatch();
-
-		boolean result = resultFuture.get();
-
-		assertFalse(result);
 		assertTrue(latchUnderTest.isCanceled());
+
+		future.get();
+		assertFalse(latchUnderTest.isWaiting());
 	}
 
 	@Test
-	public void triggeringReturnsTrueAtMostOnce() throws Exception {
+	public void waitAfterTriggerIsNotBlocking() throws Exception {
 		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
 
-		final WaitingOnLatchCallable firstCallable = new WaitingOnLatchCallable(latchUnderTest, 1L);
-		final WaitingOnLatchCallable secondCallable = new WaitingOnLatchCallable(latchUnderTest, 1L);
-
-		final Future<Boolean> firstFuture = executors.submit(firstCallable);
-		final Future<Boolean> secondFuture = executors.submit(secondCallable);
-
-		while (!latchUnderTest.isSet()) {
-			Thread.sleep(5L);
-		}
-
-		latchUnderTest.acknowledgeCheckpointAndTrigger(1L);
-
-		final boolean firstResult = firstFuture.get();
-		final boolean secondResult = secondFuture.get();
-
-		// only one of the two can be true (it is a race so we do not know which one)
-		assertTrue(firstResult ^ secondResult);
-	}
-
-	@Test
-	public void waitAfterTriggerReturnsTrueImmediately() throws Exception {
-		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
 		latchUnderTest.setCheckpointId(1L);
-		latchUnderTest.acknowledgeCheckpointAndTrigger(1L);
-		final boolean triggerred = latchUnderTest.blockUntilCheckpointIsAcknowledged();
-		assertTrue(triggerred);
-	}
+		latchUnderTest.acknowledgeCheckpointAndTrigger(1L, () -> {});
 
-	@Test
-	public void waitAfterCancelDoesNothing() throws Exception {
-		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
-		latchUnderTest.setCheckpointId(1L);
-		latchUnderTest.cancelCheckpointLatch();
 		latchUnderTest.blockUntilCheckpointIsAcknowledged();
 	}
 
 	@Test
-	public void checkpointIdIsSetOnlyOnce() throws InterruptedException {
+	public void waitAfterCancelIsNotBlocking() throws Exception {
 		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
 
-		final WaitingOnLatchCallable firstCallable = new WaitingOnLatchCallable(latchUnderTest, 1L);
-		executors.submit(firstCallable);
+		latchUnderTest.setCheckpointId(1L);
+		latchUnderTest.cancelCheckpointLatch();
+		assertTrue(latchUnderTest.isCanceled());
 
-		while (!latchUnderTest.isSet()) {
-			Thread.sleep(5L);
-		}
-
-		final WaitingOnLatchCallable secondCallable = new WaitingOnLatchCallable(latchUnderTest, 2L);
-		executors.submit(secondCallable);
-
-		latchUnderTest.acknowledgeCheckpointAndTrigger(2L);
-		assertTrue(latchUnderTest.isWaiting());
-
-		latchUnderTest.acknowledgeCheckpointAndTrigger(1L);
-		assertTrue(latchUnderTest.isCompleted());
+		latchUnderTest.blockUntilCheckpointIsAcknowledged();
 	}
 
-	private static final class WaitingOnLatchCallable implements Callable<Boolean> {
+	@Test
+	public void triggeringInvokesCallbackAtMostOnce() throws Exception {
+		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
 
-		private final SynchronousSavepointLatch latch;
-		private final long checkpointId;
+		latchUnderTest.setCheckpointId(1L);
 
-		WaitingOnLatchCallable(
-				final SynchronousSavepointLatch latch,
-				final long checkpointId) {
-			this.latch = checkNotNull(latch);
-			this.checkpointId = checkpointId;
-		}
+		AtomicInteger counter = new AtomicInteger();
+		Future<Void> future1 = runThreadTriggeringCheckpoint(latchUnderTest, 1L, counter::incrementAndGet);
+		Future<Void> future2 = runThreadTriggeringCheckpoint(latchUnderTest, 1L, counter::incrementAndGet);
+		Future<Void> future3 = runThreadTriggeringCheckpoint(latchUnderTest, 1L, counter::incrementAndGet);
+		future1.get();
+		future2.get();
+		future3.get();
 
-		@Override
-		public Boolean call() throws Exception {
-			latch.setCheckpointId(checkpointId);
-			return latch.blockUntilCheckpointIsAcknowledged();
-		}
+		assertEquals(1, counter.get());
+	}
+
+	@Test
+	public void triggeringAfterCancelDoesNotInvokeCallback() throws Exception {
+		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
+
+		latchUnderTest.setCheckpointId(1L);
+		latchUnderTest.cancelCheckpointLatch();
+		assertTrue(latchUnderTest.isCanceled());
+
+		final AtomicBoolean triggered = new AtomicBoolean();
+		latchUnderTest.acknowledgeCheckpointAndTrigger(1L, () -> triggered.set(true));
+		assertFalse(triggered.get());
+	}
+
+	@Test
+	public void checkpointIdIsSetOnlyOnce() {
+		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
+
+		latchUnderTest.setCheckpointId(1L);
+		assertTrue(latchUnderTest.isSet());
+		assertEquals(1L, latchUnderTest.getCheckpointId());
+
+		latchUnderTest.setCheckpointId(2L);
+		assertTrue(latchUnderTest.isSet());
+		assertEquals(1L, latchUnderTest.getCheckpointId());
+	}
+
+	private Future<Void> runThreadWaitingForCheckpointAck(SynchronousSavepointLatch latch) {
+		return executors.submit(() -> {
+			latch.blockUntilCheckpointIsAcknowledged();
+			return null;
+		});
+	}
+
+	private Future<Void> runThreadTriggeringCheckpoint(SynchronousSavepointLatch latch, long checkpointId, RunnableWithException runnable) {
+		return executors.submit(() -> {
+			latch.acknowledgeCheckpointAndTrigger(checkpointId, runnable);
+			return null;
+		});
 	}
 }

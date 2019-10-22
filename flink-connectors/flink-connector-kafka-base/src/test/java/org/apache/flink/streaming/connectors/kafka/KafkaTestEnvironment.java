@@ -99,7 +99,7 @@ public abstract class KafkaTestEnvironment {
 		return new Config();
 	}
 
-	public abstract void prepare(Config config);
+	public abstract void prepare(Config config) throws Exception;
 
 	public void shutdown() throws Exception {
 		for (NetworkFailuresProxy proxy : networkFailuresProxies) {
@@ -154,11 +154,10 @@ public abstract class KafkaTestEnvironment {
 														KeyedSerializationSchema<T> serSchema, Properties props,
 														FlinkKafkaPartitioner<T> partitioner);
 
-	public abstract <T> DataStreamSink<T> writeToKafkaWithTimestamps(
-			DataStream<T> stream,
-			String topic,
-			KeyedSerializationSchema<T> serSchema,
-			Properties props);
+	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
+			KafkaSerializationSchema<T> serSchema, Properties props) {
+		throw new RuntimeException("KafkaSerializationSchema is only supported on the modern Kafka Connector.");
+	}
 
 	// -- offset handlers
 

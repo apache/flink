@@ -107,18 +107,32 @@ public class CliFrontendParser {
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
 	static final Option CANCEL_WITH_SAVEPOINT_OPTION = new Option(
-			"s", "withSavepoint", true, "Trigger savepoint and cancel job. The target " +
-			"directory is optional. If no directory is specified, the configured default " +
-			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
+			"s", "withSavepoint", true, "**DEPRECATION WARNING**: " +
+			"Cancelling a job with savepoint is deprecated. Use \"stop\" instead. \n Trigger" +
+			" savepoint and cancel job. The target directory is optional. If no directory is " +
+			"specified, the configured default directory (" +
+			CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
 
-	public static final Option STOP_WITH_SAVEPOINT = new Option("s", "withSavepoint", true,
+	public static final Option STOP_WITH_SAVEPOINT_PATH = new Option("p", "savepointPath", true,
 			"Path to the savepoint (for example hdfs:///flink/savepoint-1537). " +
 					"If no directory is specified, the configured default will be used (\"" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "\").");
 
 	public static final Option STOP_AND_DRAIN = new Option("d", "drain", false,
 			"Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
 
-	static final Option MODIFY_PARALLELISM_OPTION = new Option("p", "parallelism", true, "New parallelism for the specified job.");
+	static final Option PY_OPTION = new Option("py", "python", true,
+		"Python script with the program entry point. " +
+			"The dependent resources can be configured with the `--pyFiles` option.");
+
+	static final Option PYFILES_OPTION = new Option("pyfs", "pyFiles", true,
+		"Attach custom python files for job. " +
+			"Comma can be used as the separator to specify multiple files. " +
+			"The standard python resource file suffixes such as .py/.egg/.zip are all supported." +
+			"(eg: --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip)");
+
+	static final Option PYMODULE_OPTION = new Option("pym", "pyModule", true,
+		"Python module with the program entry point. " +
+			"This option must be used in conjunction with `--pyFiles`.");
 
 	static {
 		HELP_OPTION.setRequired(false);
@@ -162,14 +176,20 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setArgName("targetDirectory");
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
 
-		MODIFY_PARALLELISM_OPTION.setRequired(false);
-		MODIFY_PARALLELISM_OPTION.setArgName("newParallelism");
-
-		STOP_WITH_SAVEPOINT.setRequired(false);
-		STOP_WITH_SAVEPOINT.setArgName("withSavepoint");
-		STOP_WITH_SAVEPOINT.setOptionalArg(true);
+		STOP_WITH_SAVEPOINT_PATH.setRequired(false);
+		STOP_WITH_SAVEPOINT_PATH.setArgName("savepointPath");
+		STOP_WITH_SAVEPOINT_PATH.setOptionalArg(true);
 
 		STOP_AND_DRAIN.setRequired(false);
+
+		PY_OPTION.setRequired(false);
+		PY_OPTION.setArgName("python");
+
+		PYFILES_OPTION.setRequired(false);
+		PYFILES_OPTION.setArgName("pyFiles");
+
+		PYMODULE_OPTION.setRequired(false);
+		PYMODULE_OPTION.setArgName("pyModule");
 	}
 
 	private static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -191,6 +211,9 @@ public class CliFrontendParser {
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		options.addOption(YARN_DETACHED_OPTION);
+		options.addOption(PY_OPTION);
+		options.addOption(PYFILES_OPTION);
+		options.addOption(PYMODULE_OPTION);
 		return options;
 	}
 
@@ -201,6 +224,9 @@ public class CliFrontendParser {
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
+		options.addOption(PY_OPTION);
+		options.addOption(PYFILES_OPTION);
+		options.addOption(PYMODULE_OPTION);
 		return options;
 	}
 
@@ -230,7 +256,7 @@ public class CliFrontendParser {
 
 	static Options getStopCommandOptions() {
 		return buildGeneralOptions(new Options())
-				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_WITH_SAVEPOINT_PATH)
 				.addOption(STOP_AND_DRAIN);
 	}
 
@@ -238,12 +264,6 @@ public class CliFrontendParser {
 		Options options = buildGeneralOptions(new Options());
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
 		return options.addOption(JAR_OPTION);
-	}
-
-	static Options getModifyOptions() {
-		final Options options = buildGeneralOptions(new Options());
-		options.addOption(MODIFY_PARALLELISM_OPTION);
-		return options;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -273,7 +293,7 @@ public class CliFrontendParser {
 
 	private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
 		return options
-				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_WITH_SAVEPOINT_PATH)
 				.addOption(STOP_AND_DRAIN);
 	}
 
@@ -297,7 +317,6 @@ public class CliFrontendParser {
 		printHelpForStop(customCommandLines);
 		printHelpForCancel(customCommandLines);
 		printHelpForSavepoint(customCommandLines);
-		printHelpForModify(customCommandLines);
 
 		System.out.println();
 	}
@@ -384,21 +403,6 @@ public class CliFrontendParser {
 		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]");
 		formatter.setSyntaxPrefix("  \"savepoint\" action options:");
 		formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
-
-		printCustomCliOptions(customCommandLines, formatter, false);
-
-		System.out.println();
-	}
-
-	public static void printHelpForModify(Collection<CustomCommandLine<?>> customCommandLines) {
-		HelpFormatter formatter = new HelpFormatter();
-		formatter.setLeftPadding(5);
-		formatter.setWidth(80);
-
-		System.out.println("\nAction \"modify\" modifies a running job (e.g. change of parallelism).");
-		System.out.println("\n  Syntax: modify <Job ID> [OPTIONS]");
-		formatter.setSyntaxPrefix("  \"modify\" action options:");
-		formatter.printHelp(" ", getModifyOptions());
 
 		printCustomCliOptions(customCommandLines, formatter, false);
 

@@ -21,7 +21,7 @@ package org.apache.flink.client.cli;
 import org.apache.commons.cli.CommandLine;
 
 import static org.apache.flink.client.cli.CliFrontendParser.STOP_AND_DRAIN;
-import static org.apache.flink.client.cli.CliFrontendParser.STOP_WITH_SAVEPOINT;
+import static org.apache.flink.client.cli.CliFrontendParser.STOP_WITH_SAVEPOINT_PATH;
 
 /**
  * Command line options for the STOP command.
@@ -41,8 +41,8 @@ class StopOptions extends CommandLineOptions {
 		super(line);
 		this.args = line.getArgs();
 
-		this.savepointFlag = line.hasOption(STOP_WITH_SAVEPOINT.getOpt());
-		this.targetDirectory = line.getOptionValue(STOP_WITH_SAVEPOINT.getOpt());
+		this.savepointFlag = line.hasOption(STOP_WITH_SAVEPOINT_PATH.getOpt());
+		this.targetDirectory = line.getOptionValue(STOP_WITH_SAVEPOINT_PATH.getOpt());
 
 		this.advanceToEndOfEventTime = line.hasOption(STOP_AND_DRAIN.getOpt());
 	}

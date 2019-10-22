@@ -37,9 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
-import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -82,12 +80,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	private final Supplier<CompletableFuture<Acknowledge>> cancelFunction;
 
 	@Nonnull
-	private final BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction;
-
-	@Nonnull
-	private final TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction;
-
-	@Nonnull
 	private final Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction;
 
 	@Nonnull
@@ -104,9 +96,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
 	@Nonnull
 	private final Consumer<ResourceManagerId> disconnectResourceManagerConsumer;
-
-	@Nonnull
-	private final Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier;
 
 	@Nonnull
 	private final BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction;
@@ -166,15 +155,12 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull String address,
 			@Nonnull String hostname,
 			@Nonnull Supplier<CompletableFuture<Acknowledge>> cancelFunction,
-			@Nonnull BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction,
-			@Nonnull TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction,
 			@Nonnull Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction,
 			@Nonnull BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>> requestNextInputSplitFunction,
 			@Nonnull BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction,
 			@Nonnull Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction,
 			@Nonnull Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction,
 			@Nonnull Consumer<ResourceManagerId> disconnectResourceManagerConsumer,
-			@Nonnull Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier,
 			@Nonnull BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction,
 			@Nonnull TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer,
 			@Nonnull BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction,
@@ -196,15 +182,12 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 		this.address = address;
 		this.hostname = hostname;
 		this.cancelFunction = cancelFunction;
-		this.rescalingJobFunction = rescalingJobFunction;
-		this.rescalingOperatorsFunction = rescalingOperatorsFunction;
 		this.updateTaskExecutionStateFunction = updateTaskExecutionStateFunction;
 		this.requestNextInputSplitFunction = requestNextInputSplitFunction;
 		this.requestPartitionStateFunction = requestPartitionStateFunction;
 		this.scheduleOrUpdateConsumersFunction = scheduleOrUpdateConsumersFunction;
 		this.disconnectTaskManagerFunction = disconnectTaskManagerFunction;
 		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
-		this.classloadingPropsSupplier = classloadingPropsSupplier;
 		this.offerSlotsFunction = offerSlotsFunction;
 		this.failSlotConsumer = failSlotConsumer;
 		this.registerTaskManagerFunction = registerTaskManagerFunction;
@@ -228,16 +211,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	@Override
 	public CompletableFuture<Acknowledge> cancel(Time timeout) {
 		return cancelFunction.get();
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> rescaleJob(int newParallelism, RescalingBehaviour rescalingBehaviour, Time timeout) {
-		return rescalingJobFunction.apply(newParallelism, rescalingBehaviour);
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> rescaleOperators(Collection<JobVertexID> operators, int newParallelism, RescalingBehaviour rescalingBehaviour, Time timeout) {
-		return rescalingOperatorsFunction.apply(operators, newParallelism, rescalingBehaviour);
 	}
 
 	@Override

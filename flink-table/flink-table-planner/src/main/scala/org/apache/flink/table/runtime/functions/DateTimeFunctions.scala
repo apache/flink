@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.runtime.functions
 
+import org.apache.flink.table.utils.ThreadLocalCache
 import org.joda.time.format.DateTimeFormatter
 import org.joda.time.format.DateTimeFormatterBuilder
 

@@ -129,4 +129,14 @@ public class CheckpointingOptions {
 			.defaultValue(1024)
 			.withDescription("The minimum size of state data files. All state chunks smaller than that are stored" +
 				" inline in the root checkpoint metadata file.");
+
+	/**
+	 * The default size of the write buffer for the checkpoint streams that write to file systems.
+	 */
+	public static final ConfigOption<Integer> FS_WRITE_BUFFER_SIZE = ConfigOptions
+		.key("state.backend.fs.write-buffer-size")
+		.defaultValue(4 * 1024)
+		.withDescription(String.format("The default size of the write buffer for the checkpoint streams that write to file systems. " +
+			"The actual write buffer size is determined to be the maximum of the value of this option and option '%s'.", FS_SMALL_FILE_THRESHOLD.key()));
+
 }

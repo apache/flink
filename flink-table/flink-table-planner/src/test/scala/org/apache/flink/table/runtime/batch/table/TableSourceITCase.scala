@@ -73,6 +73,39 @@ class TableSourceITCase(
   }
 
   @Test
+  def testBoundedTableSource(): Unit = {
+    val tableName = "MyTable"
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    val data = Seq(
+      Row.of("Mary", new JLong(1L), new JInt(10)),
+      Row.of("Bob", new JLong(2L), new JInt(20)),
+      Row.of("Mary", new JLong(2L), new JInt(30)),
+      Row.of("Liz", new JLong(2001L), new JInt(40)))
+
+    val fieldNames = Array("name", "rtime", "amount")
+    val schema = new TableSchema(fieldNames, Array(Types.STRING, Types.LONG(), Types.INT))
+    val rowType = new RowTypeInfo(
+      Array(Types.STRING, Types.LONG, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
+      fieldNames)
+
+    val tableSource = new TestInputFormatTableSource(schema, rowType, data)
+    tEnv.registerTableSource(tableName, tableSource)
+
+    val results = tEnv.scan(tableName)
+      .groupBy('name)
+      .select('name, 'amount.sum)
+      .collect()
+
+    val expected = Seq(
+      "Mary,40",
+      "Bob,20",
+      "Liz,40").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testCsvTableSourceWithProjection(): Unit = {
     val csvTable = CommonTestData.getCsvTableSource
 

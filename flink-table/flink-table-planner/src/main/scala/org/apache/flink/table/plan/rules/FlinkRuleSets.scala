@@ -21,12 +21,11 @@ package org.apache.flink.table.plan.rules
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
-import org.apache.flink.table.plan.nodes.logical
+import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.rules.common._
-import org.apache.flink.table.plan.rules.logical.{ExtendedAggregateExtractProjectRule, _}
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.nodes.logical._
+import org.apache.flink.table.plan.rules.logical.{ExtendedAggregateExtractProjectRule, _}
 
 object FlinkRuleSets {
 
@@ -139,8 +138,16 @@ object FlinkRuleSets {
     FlinkLogicalValues.CONVERTER,
     FlinkLogicalTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
-    FlinkLogicalNativeTableScan.CONVERTER,
-    FlinkLogicalMatch.CONVERTER
+    FlinkLogicalMatch.CONVERTER,
+    FlinkLogicalTableAggregate.CONVERTER,
+    FlinkLogicalWindowTableAggregate.CONVERTER
+  )
+
+  /**
+    * RuleSet to do rewrite on FlinkLogicalRel
+    */
+  val LOGICAL_REWRITE_RULES: RuleSet = RuleSets.ofList(
+    PythonScalarFunctionSplitRule.INSTANCE
   )
 
   /**
@@ -231,7 +238,10 @@ object FlinkRuleSets {
     DataStreamJoinRule.INSTANCE,
     DataStreamTemporalTableJoinRule.INSTANCE,
     StreamTableSourceScanRule.INSTANCE,
-    DataStreamMatchRule.INSTANCE
+    DataStreamMatchRule.INSTANCE,
+    DataStreamTableAggregateRule.INSTANCE,
+    DataStreamGroupWindowTableAggregateRule.INSTANCE,
+    DataStreamPythonCalcRule.INSTANCE
   )
 
   /**

@@ -50,7 +50,9 @@ The configuration files for the TaskManagers can be different, Flink does not as
   <strong>Note:</strong> These keys are deprecated and it is recommended to configure the Hadoop path with the environment variable <code>HADOOP_CONF_DIR</code> instead.
 </div>
 
-These parameters configure the default HDFS used by Flink. Setups that do not specify a HDFS configuration have to specify the full path to HDFS files (`hdfs://address:port/path/to/files`) Files will also be written with default HDFS parameters (block size, replication factor).
+See also [how to configure Hadoop]({{ site.baseurl }}/ops/deployment/hadoop.html#configure-hadoop).
+
+These parameters configure the default HDFS used by Flink. Setups that do not specify an HDFS configuration have to specify the full path to HDFS files (`hdfs://address:port/path/to/files`) Files will also be written with default HDFS parameters (block size, replication factor).
 
 - `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS) configuration **directory** (OPTIONAL VALUE). Specifying this value allows programs to reference HDFS files using short URIs (`hdfs:///path/to/files`, without including the address and port of the NameNode in the file URI). Without this option, HDFS files can be accessed, but require fully qualified URIs like `hdfs://address:port/path/to/files`. This option also causes file writers to pick up the HDFS's default values for block sizes and replication factors. Flink will look for the "core-site.xml" and "hdfs-site.xml" files in the specified directory.
 
@@ -66,11 +68,25 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/job_manager_configuration.html %}
 
+### Restart Strategies
+
+Configuration options to control Flink's restart behaviour in case of job failures.
+
+{% include generated/restart_strategy_configuration.html %}
+
+#### Fixed Delay Restart Strategy
+
+{% include generated/fixed_delay_restart_strategy_configuration.html %}
+
+#### Failure Rate Restart Strategy
+
+{% include generated/failure_rate_restart_strategy_configuration.html %}
+
 ### TaskManager
 
 {% include generated/task_manager_configuration.html %}
 
-For *batch* jobs (or if `taskmanager.memoy.preallocate` is enabled) Flink allocates a fraction of 0.7 of the free memory (total memory configured via taskmanager.heap.mb minus memory used for network buffers) for its managed memory. Managed memory helps Flink to run the batch operators efficiently. It prevents OutOfMemoryExceptions because Flink knows how much memory it can use to execute operations. If Flink runs out of managed memory, it utilizes disk space. Using managed memory, some operations can be performed directly on the raw data without having to deserialize the data to convert it into Java objects. All in all, managed memory improves the robustness and speed of the system.
+For *batch* jobs (or if `taskmanager.memoy.preallocate` is enabled) Flink allocates a fraction of 0.7 of the free memory (total memory configured via taskmanager.heap.size minus memory used for network buffers) for its managed memory. Managed memory helps Flink to run the batch operators efficiently. It prevents OutOfMemoryExceptions because Flink knows how much memory it can use to execute operations. If Flink runs out of managed memory, it utilizes disk space. Using managed memory, some operations can be performed directly on the raw data without having to deserialize the data to convert it into Java objects. All in all, managed memory improves the robustness and speed of the system.
 
 The default fraction for managed memory can be adjusted using the taskmanager.memory.fraction parameter. An absolute value may be set using taskmanager.memory.size (overrides the fraction parameter). If desired, the managed memory may be allocated outside the JVM heap. This may improve performance in setups with large memory sizes.
 
@@ -100,11 +116,15 @@ The default fraction for managed memory can be adjusted using the taskmanager.me
 
 {% include generated/security_configuration.html %}
 
-### Network communication (via Netty)
+### Netty Shuffle Environment
+
+{% include generated/netty_shuffle_environment_configuration.html %}
+
+### Network Communication (via Netty)
 
 These parameters allow for advanced tuning. The default values are sufficient when running concurrent high-throughput jobs on a large cluster.
 
-{% include generated/netty_configuration.html %}
+{% include generated/network_netty_configuration.html %}
 
 ### Web Frontend
 
@@ -127,6 +147,10 @@ These parameters allow for advanced tuning. The default values are sufficient wh
 The configuration keys in this section are independent of the used resource management framework (YARN, Mesos, Standalone, ...)
 
 {% include generated/resource_manager_configuration.html %}
+
+### Shuffle Service
+
+{% include generated/shuffle_service_configuration.html %}
 
 ### YARN
 
@@ -185,10 +209,10 @@ unless user define a `OptionsFactory` and set via `RocksDBStateBackend.setOption
 
 ### RocksDB Native Metrics
 Certain RocksDB native metrics may be forwarded to Flink's metrics reporter.
-All native metrics are scoped to operators and then further broken down by column family; values are reported as unsigned longs. 
+All native metrics are scoped to operators and then further broken down by column family; values are reported as unsigned longs.
 
 <div class="alert alert-warning">
-  <strong>Note:</strong> Enabling native metrics may cause degraded performance and should be set carefully. 
+  <strong>Note:</strong> Enabling native metrics may cause degraded performance and should be set carefully.
 </div>
 
 {% include generated/rocks_db_native_metric_configuration.html %}
@@ -201,12 +225,15 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 {% include generated/history_server_configuration.html %}
 
+### Python
+
+{% include generated/python_configuration.html %}
+
 ## Legacy
 
 - `mode`: Execution mode of Flink. Possible values are `legacy` and `new`. In order to start the legacy components, you have to specify `legacy` (DEFAULT: `new`).
 
 ## Background
-
 
 ### Configuring the Network Buffers
 
@@ -281,9 +308,9 @@ The number and size of network buffers can be configured with the following para
 
 Although Flink aims to process as much data in main memory as possible, it is not uncommon that more data needs to be processed than memory is available. Flink's runtime is designed to write temporary data to disk to handle these situations.
 
-The `taskmanager.tmp.dirs` parameter specifies a list of directories into which Flink writes temporary files. The paths of the directories need to be separated by ':' (colon character). Flink will concurrently write (or read) one temporary file to (from) each configured directory. This way, temporary I/O can be evenly distributed over multiple independent I/O devices such as hard disks to improve performance. To leverage fast I/O devices (e.g., SSD, RAID, NAS), it is possible to specify a directory multiple times.
+The `io.tmp.dirs` parameter specifies a list of directories into which Flink writes temporary files. The paths of the directories need to be separated by ':' (colon character). Flink will concurrently write (or read) one temporary file to (from) each configured directory. This way, temporary I/O can be evenly distributed over multiple independent I/O devices such as hard disks to improve performance. To leverage fast I/O devices (e.g., SSD, RAID, NAS), it is possible to specify a directory multiple times.
 
-If the `taskmanager.tmp.dirs` parameter is not explicitly specified, Flink writes temporary data to the temporary directory of the operating system, such as */tmp* in Linux systems.
+If the `io.tmp.dirs` parameter is not explicitly specified, Flink writes temporary data to the temporary directory of the operating system, such as */tmp* in Linux systems.
 
 ### Configuring TaskManager processing slots
 
@@ -294,5 +321,13 @@ Each Flink TaskManager provides processing slots in the cluster. The number of s
 When starting a Flink application, users can supply the default number of slots to use for that job. The command line value therefore is called `-p` (for parallelism). In addition, it is possible to [set the number of slots in the programming APIs]({{site.baseurl}}/dev/parallel.html) for the whole application and for individual operators.
 
 <img src="{{ site.baseurl }}/fig/slots_parallelism.svg" class="img-responsive" />
+
+### Configuration Runtime Environment Variables
+You have to set config with prefix `containerized.master.env.` and `containerized.taskmanager.env.` in order to set redefined environment variable in ApplicationMaster and TaskManager.
+
+- `containerized.master.env.`: Prefix for passing custom environment variables to Flink's master process.
+   For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+    in the flink-conf.yaml.
+- `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
 
 {% top %}

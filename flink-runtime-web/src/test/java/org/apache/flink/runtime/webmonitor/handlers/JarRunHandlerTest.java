@@ -28,11 +28,13 @@ import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
@@ -46,6 +48,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the {@link JarRunHandler}.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class JarRunHandlerTest extends TestLogger {
 
 	@ClassRule
@@ -93,10 +96,10 @@ public class JarRunHandlerTest extends TestLogger {
 						// implies the job was actually submitted
 						assertTrue(expected.get().getMessage().contains("ProgramInvocationException"));
 						// original cause is preserved in stack trace
-						assertThat(expected.get().getMessage(), containsString("ZipException"));
+						assertThat(expected.get().getMessage(), containsString("ZipException: zip file is empty"));
 						// implies the jar was registered for the job graph (otherwise the jar name would not occur in the exception)
 						// implies the jar was uploaded (otherwise the file would not be found at all)
-						assertTrue(expected.get().getMessage().contains("empty.jar'. zip file is empty"));
+						assertTrue(expected.get().getMessage().contains("empty.jar"));
 					} else {
 						throw e;
 					}

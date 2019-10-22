@@ -30,18 +30,28 @@ import java.util.Optional;
 public interface CatalogBaseTable {
 	/**
 	 * Get the properties of the table.
-	 * @return table property map
+	 *
+	 * @return property map of the table/view
 	 */
 	Map<String, String> getProperties();
 
 	/**
 	 * Get the schema of the table.
-	 * @return schema of the table
+	 *
+	 * @return schema of the table/view.
 	 */
 	TableSchema getSchema();
 
 	/**
+	 * Get comment of the table or view.
+	 *
+	 * @return comment of the table/view.
+	 */
+	String getComment();
+
+	/**
 	 * Get a deep copy of the CatalogBaseTable instance.
+	 *
 	 * @return a copy of the CatalogBaseTable instance
 	 */
 	CatalogBaseTable copy();

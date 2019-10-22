@@ -49,7 +49,7 @@ Example Program
 
 The following program is a complete, working example of WordCount. You can copy &amp; paste the code
 to run it locally. You only have to include the correct Flink's library into your project
-(see Section [Linking with Flink]({{ site.baseurl }}/dev/linking_with_flink.html)) and specify the imports. Then you are ready
+(see Section [Linking with Flink]({{ site.baseurl }}/dev/projectsetup/dependencies.html)) and specify the imports. Then you are ready
 to go!
 
 <div class="codetabs" markdown="1">
@@ -829,7 +829,7 @@ File-based:
 
 Collection-based:
 
-- `fromCollection(Collection)` - Creates a data set from the Java Java.util.Collection. All elements
+- `fromCollection(Collection)` - Creates a data set from a Java.util.Collection. All elements
   in the collection must be of the same type.
 
 - `fromCollection(Iterator, Class)` - Creates a data set from an iterator. The class specifies the
@@ -858,7 +858,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 // read text file from local files system
 DataSet<String> localLines = env.readTextFile("file:///path/to/my/textfile");
 
-// read text file from a HDFS running at nnHost:nnPort
+// read text file from an HDFS running at nnHost:nnPort
 DataSet<String> hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile");
 
 // read a CSV file with three fields
@@ -970,8 +970,8 @@ File-based:
 
 Collection-based:
 
-- `fromCollection(Seq)` - Creates a data set from a Seq. All elements
-  in the collection must be of the same type.
+- `fromCollection(Iterable)` - Creates a data set from an Iterable. All elements
+  returned by the Iterable must be of the same type.
 
 - `fromCollection(Iterator)` - Creates a data set from an Iterator. The class specifies the
   data type of the elements returned by the iterator.
@@ -999,7 +999,7 @@ val env  = ExecutionEnvironment.getExecutionEnvironment
 // read text file from local files system
 val localLines = env.readTextFile("file:///path/to/my/textfile")
 
-// read text file from a HDFS running at nnHost:nnPort
+// read text file from an HDFS running at nnHost:nnPort
 val hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile")
 
 // read a CSV file with three fields
@@ -1159,7 +1159,7 @@ DataSet<String> textData = // [...]
 // write DataSet to a file on the local file system
 textData.writeAsText("file:///my/result/on/localFS");
 
-// write DataSet to a file on a HDFS with a namenode running at nnHost:nnPort
+// write DataSet to a file on an HDFS with a namenode running at nnHost:nnPort
 textData.writeAsText("hdfs://nnHost:nnPort/my/result/on/localFS");
 
 // write DataSet to a file and overwrite the file if it exists
@@ -1261,7 +1261,7 @@ val textData: DataSet[String] = // [...]
 // write DataSet to a file on the local file system
 textData.writeAsText("file:///my/result/on/localFS")
 
-// write DataSet to a file on a HDFS with a namenode running at nnHost:nnPort
+// write DataSet to a file on an HDFS with a namenode running at nnHost:nnPort
 textData.writeAsText("hdfs://nnHost:nnPort/my/result/on/localFS")
 
 // write DataSet to a file and overwrite the file if it exists

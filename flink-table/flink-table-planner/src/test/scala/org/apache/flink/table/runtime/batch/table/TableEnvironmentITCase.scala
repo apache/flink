@@ -193,7 +193,7 @@ class TableEnvironmentITCase(
     val fieldNames = Array("d", "e", "f")
     val fieldTypes = tEnv.scan("sourceTable").getSchema.getFieldTypes
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
+    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
 
     tEnv.scan("sourceTable")
       .select('a, 'b, 'c)

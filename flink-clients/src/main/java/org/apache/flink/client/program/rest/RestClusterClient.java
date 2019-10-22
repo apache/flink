@@ -26,17 +26,20 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.NewClusterClient;
+import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -46,10 +49,6 @@ import org.apache.flink.runtime.rest.FileUpload;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
-import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusHeaders;
-import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusMessageParameters;
-import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerHeaders;
-import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -95,11 +94,13 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -110,6 +111,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -126,12 +128,21 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
-public class RestClusterClient<T> extends ClusterClient<T> implements NewClusterClient {
+public class RestClusterClient<T> extends ClusterClient<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(RestClusterClient.class);
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
+
+	private final Configuration configuration;
+
+	/** Timeout for futures. */
+	private final Duration timeout;
 
 	private final RestClient restClient;
 
@@ -141,13 +152,11 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 	private final T clusterId;
 
+	private final ClientHighAvailabilityServices clientHAServices;
+
 	private final LeaderRetrievalService webMonitorRetrievalService;
 
-	private final LeaderRetrievalService dispatcherRetrievalService;
-
 	private final LeaderRetriever webMonitorLeaderRetriever = new LeaderRetriever();
-
-	private final LeaderRetriever dispatcherLeaderRetriever = new LeaderRetriever();
 
 	/** ExecutorService to run operations that can be retried on exceptions. */
 	private ScheduledExecutorService retryExecutorService;
@@ -157,30 +166,19 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L),
-			null);
-	}
-
-	public RestClusterClient(
-			Configuration config,
-			T clusterId,
-			LeaderRetrievalService webMonitorRetrievalService) throws Exception {
-		this(
-			config,
-			null,
-			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L),
-			webMonitorRetrievalService);
+			new ExponentialWaitStrategy(10L, 2000L));
 	}
 
 	@VisibleForTesting
 	RestClusterClient(
-			Configuration configuration,
-			@Nullable RestClient restClient,
-			T clusterId,
-			WaitStrategy waitStrategy,
-			@Nullable LeaderRetrievalService webMonitorRetrievalService) throws Exception {
-		super(configuration);
+		Configuration configuration,
+		@Nullable RestClient restClient,
+		T clusterId,
+		WaitStrategy waitStrategy) throws Exception {
+
+		this.configuration = checkNotNull(configuration);
+		this.timeout = AkkaUtils.getClientTimeout(configuration);
+
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 
 		if (restClient != null) {
@@ -189,26 +187,27 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			this.restClient = new RestClient(restClusterClientConfiguration.getRestClientConfiguration(), executorService);
 		}
 
-		this.waitStrategy = Preconditions.checkNotNull(waitStrategy);
-		this.clusterId = Preconditions.checkNotNull(clusterId);
+		this.waitStrategy = checkNotNull(waitStrategy);
+		this.clusterId = checkNotNull(clusterId);
 
-		if (webMonitorRetrievalService == null) {
-			this.webMonitorRetrievalService = highAvailabilityServices.getWebMonitorLeaderRetriever();
-		} else {
-			this.webMonitorRetrievalService = webMonitorRetrievalService;
-		}
-		this.dispatcherRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
+		this.clientHAServices = HighAvailabilityServicesUtils.createClientHAService(configuration);
+
+		this.webMonitorRetrievalService = clientHAServices.getClusterRestEndpointLeaderRetriever();
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
 		startLeaderRetrievers();
 	}
 
 	private void startLeaderRetrievers() throws Exception {
 		this.webMonitorRetrievalService.start(webMonitorLeaderRetriever);
-		this.dispatcherRetrievalService.start(dispatcherLeaderRetriever);
 	}
 
 	@Override
-	public void shutdown() {
+	public Configuration getFlinkConfiguration() {
+		return new Configuration(configuration);
+	}
+
+	@Override
+	public void close() {
 		ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
 
 		this.restClient.shutdown(Time.seconds(5));
@@ -217,32 +216,35 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		try {
 			webMonitorRetrievalService.stop();
 		} catch (Exception e) {
-			log.error("An error occurred during stopping the webMonitorRetrievalService", e);
+			LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
 		}
 
 		try {
-			dispatcherRetrievalService.stop();
+			clientHAServices.close();
 		} catch (Exception e) {
-			log.error("An error occurred during stopping the dispatcherLeaderRetriever", e);
+			LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
 		}
 
 		try {
-			// we only call this for legacy reasons to shutdown components that are started in the ClusterClient constructor
-			super.shutdown();
+			super.close();
 		} catch (Exception e) {
-			log.error("An error occurred during the client shutdown.", e);
+			LOG.error("Error while closing the Cluster Client", e);
 		}
 	}
 
 	@Override
 	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		log.info("Submitting job {} (detached: {}).", jobGraph.getJobID(), isDetached());
+		LOG.info("Submitting job {} (detached: {}).", jobGraph.getJobID(), isDetached());
 
 		final CompletableFuture<JobSubmissionResult> jobSubmissionFuture = submitJob(jobGraph);
 
 		if (isDetached()) {
 			try {
-				return jobSubmissionFuture.get();
+				final JobSubmissionResult jobSubmissionResult = jobSubmissionFuture.get();
+
+				LOG.warn("Job was executed in detached mode, the results will be available on completion.");
+
+				return new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
 			} catch (Exception e) {
 				throw new ProgramInvocationException("Could not submit job",
 					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
@@ -260,11 +262,8 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			}
 
 			try {
-				this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
-				return lastJobExecutionResult;
-			} catch (JobExecutionException e) {
-				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
-			} catch (IOException | ClassNotFoundException e) {
+				return jobResult.toJobExecutionResult(classLoader);
+			} catch (JobExecutionException | IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
 			}
 		}
@@ -374,7 +373,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			try {
 				Files.delete(jobGraphFile);
 			} catch (IOException e) {
-				log.warn("Could not delete temporary file {}.", jobGraphFile, e);
+				LOG.warn("Could not delete temporary file {}.", jobGraphFile, e);
 			}
 		});
 
@@ -532,43 +531,6 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> rescaleJob(JobID jobId, int newParallelism) {
-
-		final RescalingTriggerHeaders rescalingTriggerHeaders = RescalingTriggerHeaders.getInstance();
-		final RescalingTriggerMessageParameters rescalingTriggerMessageParameters = rescalingTriggerHeaders.getUnresolvedMessageParameters();
-		rescalingTriggerMessageParameters.jobPathParameter.resolve(jobId);
-		rescalingTriggerMessageParameters.rescalingParallelismQueryParameter.resolve(Collections.singletonList(newParallelism));
-
-		final CompletableFuture<TriggerResponse> rescalingTriggerResponseFuture = sendRequest(
-			rescalingTriggerHeaders,
-			rescalingTriggerMessageParameters);
-
-		final CompletableFuture<AsynchronousOperationInfo> rescalingOperationFuture = rescalingTriggerResponseFuture.thenCompose(
-			(TriggerResponse triggerResponse) -> {
-				final TriggerId triggerId = triggerResponse.getTriggerId();
-				final RescalingStatusHeaders rescalingStatusHeaders = RescalingStatusHeaders.getInstance();
-				final RescalingStatusMessageParameters rescalingStatusMessageParameters = rescalingStatusHeaders.getUnresolvedMessageParameters();
-
-				rescalingStatusMessageParameters.jobPathParameter.resolve(jobId);
-				rescalingStatusMessageParameters.triggerIdPathParameter.resolve(triggerId);
-
-				return pollResourceAsync(
-					() -> sendRequest(
-						rescalingStatusHeaders,
-						rescalingStatusMessageParameters));
-			});
-
-		return rescalingOperationFuture.thenApply(
-			(AsynchronousOperationInfo asynchronousOperationInfo) -> {
-				if (asynchronousOperationInfo.getFailureCause() == null) {
-					return Acknowledge.get();
-				} else {
-					throw new CompletionException(asynchronousOperationInfo.getFailureCause());
-				}
-			});
-	}
-
-	@Override
 	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {
 		final SavepointDisposalRequest savepointDisposalRequest = new SavepointDisposalRequest(savepointPath);
 
@@ -606,7 +568,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (ExecutionException e) {
-			log.error("Error while shutting down cluster", e);
+			LOG.error("Error while shutting down cluster", e);
 		}
 	}
 
@@ -660,7 +622,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		} catch (InterruptedException | ExecutionException e) {
 			ExceptionUtils.checkInterrupted(e);
 
-			log.warn("Could not retrieve the web interface URL for the cluster.", e);
+			LOG.warn("Could not retrieve the web interface URL for the cluster.", e);
 			return "Unknown address.";
 		}
 	}

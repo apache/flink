@@ -184,7 +184,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		defaultSSLContext = SSLContext.getDefault();
 		defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
-		final SSLContext sslClientContext = SSLUtils.createRestClientSSLContext(config);
+		final SSLContext sslClientContext = SSLUtils.createRestSSLContext(config, true);
 		if (sslClientContext != null) {
 			SSLContext.setDefault(sslClientContext);
 			HttpsURLConnection.setDefaultSSLSocketFactory(sslClientContext.getSocketFactory());

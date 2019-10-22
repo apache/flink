@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.delegation.PlannerExpressionParser;
 
 import java.util.List;
 

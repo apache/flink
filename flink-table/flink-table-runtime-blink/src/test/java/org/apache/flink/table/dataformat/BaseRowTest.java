@@ -17,10 +17,13 @@
 
 package org.apache.flink.table.dataformat;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
+import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -94,15 +97,14 @@ public class BaseRowTest {
 		writer.writeLong(4, 4);
 		writer.writeFloat(5, 5);
 		writer.writeDouble(6, 6);
-		writer.writeChar(7, (char) 7);
 		writer.writeString(8, str);
 		writer.writeGeneric(9, generic);
 		writer.writeDecimal(10, decimal1, 5);
 		writer.writeDecimal(11, decimal2, 20);
-		writer.writeArray(12, array);
-		writer.writeMap(13, map);
-		writer.writeRow(14, underRow, new BaseRowSerializer(
-				new ExecutionConfig(), InternalTypes.INT, InternalTypes.INT));
+		writer.writeArray(12, array, new BaseArraySerializer(DataTypes.INT().getLogicalType(), null));
+		writer.writeMap(13, map, new BaseMapSerializer(
+			DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
+		writer.writeRow(14, underRow, new BaseRowSerializer(null, RowType.of(new IntType(), new IntType())));
 		writer.writeBinary(15, bytes);
 		return row;
 	}
@@ -139,7 +141,6 @@ public class BaseRowTest {
 		row.setLong(4, (long) 4);
 		row.setFloat(5, (float) 5);
 		row.setDouble(6, (double) 6);
-		row.setChar(7, (char) 7);
 		row.setNonPrimitiveValue(8, str);
 		row.setNonPrimitiveValue(9, generic);
 		row.setNonPrimitiveValue(10, decimal1);
@@ -191,7 +192,6 @@ public class BaseRowTest {
 		assertEquals(4, row.getLong(4));
 		assertEquals(5, (int) row.getFloat(5));
 		assertEquals(6, (int) row.getDouble(6));
-		assertEquals(7, row.getChar(7));
 		assertEquals(str, row.getString(8));
 		assertEquals(generic, row.getGeneric(9));
 		assertEquals(decimal1, row.getDecimal(10, 5, 0));
@@ -217,8 +217,6 @@ public class BaseRowTest {
 		assertEquals(6, (int) row.getFloat(5));
 		row.setDouble(6, 7);
 		assertEquals(7, (int) row.getDouble(6));
-		row.setChar(7, (char) 8);
-		assertEquals(8, row.getChar(7));
 		row.setDecimal(10, Decimal.fromLong(11, 5, 0), 5);
 		assertEquals(Decimal.fromLong(11, 5, 0), row.getDecimal(10, 5, 0));
 		row.setDecimal(11, Decimal.fromBigDecimal(new BigDecimal(12), 20, 0), 20);

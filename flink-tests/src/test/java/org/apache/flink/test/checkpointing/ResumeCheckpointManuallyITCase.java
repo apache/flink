@@ -38,11 +38,13 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
@@ -66,6 +68,7 @@ import static org.junit.Assert.assertNotNull;
  *
  * <p>This tests considers full and incremental checkpoints and was introduced to guard against problems like FLINK-6964.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class ResumeCheckpointManuallyITCase extends TestLogger {
 
 	private static final int PARALLELISM = 2;
@@ -362,8 +365,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			.reduce((value1, value2) -> Tuple2.of(value1.f0, value1.f1 + value2.f1))
 			.filter(value -> value.f0.startsWith("Tuple 0"));
 
-		StreamGraph streamGraph = env.getStreamGraph();
-		streamGraph.setJobName("Test");
+		StreamGraph streamGraph = env.getStreamGraph("Test");
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
 

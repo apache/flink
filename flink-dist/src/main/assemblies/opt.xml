@@ -59,14 +59,6 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Table/SQL Uber JAR -->
-		<file>
-			<source>../flink-table/flink-table-uber/target/flink-table-uber_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
 		<!-- SQL Client -->
 		<file>
 			<source>../flink-table/flink-sql-client/target/flink-sql-client_${scala.binary.version}-${project.version}.jar</source>
@@ -75,11 +67,11 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- ML -->
+		<!-- State Processor API -->
 		<file>
-			<source>../flink-libraries/flink-ml-uber/target/flink-ml-uber_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-libraries/flink-state-processing-api/target/flink-state-processor-api_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-state-processor-api_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -154,6 +146,13 @@
 			<fileMode>0644</fileMode>
 		</file>
 
+		<file>
+			<source>../flink-filesystems/flink-azure-fs-hadoop/target/flink-azure-fs-hadoop-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-azure-fs-hadoop-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- Queryable State -->
 		<file>
 			<source>../flink-queryable-state/flink-queryable-state-runtime/target/flink-queryable-state-runtime_${scala.binary.version}-${project.version}.jar</source>
@@ -162,20 +161,29 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Batch Python API -->
+		<!-- Python -->
 		<file>
-			<source>../flink-libraries/flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt</outputDirectory>
 			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
-
-		<!-- Streaming Python API -->
-		<file>
-			<source>../flink-libraries/flink-streaming-python/target/flink-streaming-python_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt</outputDirectory>
-			<destName>flink-streaming-python_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
 	</files>
+	<fileSets>
+		<fileSet>
+			<directory>../flink-python/lib/</directory>
+			<outputDirectory>opt/python/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+	</fileSets>
+	<dependencySets>
+		<dependencySet>
+			<unpack>false</unpack>
+			<outputDirectory>opt</outputDirectory>
+			<includes>
+				<include>org.apache.flink:flink-shaded-netty-tcnative-dynamic</include>
+			</includes>
+			<scope>provided</scope>
+		</dependencySet>
+	</dependencySets>
 </assembly>

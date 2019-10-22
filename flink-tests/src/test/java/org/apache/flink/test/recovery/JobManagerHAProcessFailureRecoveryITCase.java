@@ -29,6 +29,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -160,7 +161,6 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
 		env.getConfig().setExecutionMode(executionMode);
-		env.getConfig().disableSysoutLogging();
 
 		final long numElements = 100000L;
 		final DataSet<Long> result = env.generateSequence(1, numElements)
@@ -249,8 +249,8 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zooKeeper.getConnectString(), zookeeperStoragePath.getPath());
 		// Task manager configuration
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
+		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "4m");
+		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 100);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 
 		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);

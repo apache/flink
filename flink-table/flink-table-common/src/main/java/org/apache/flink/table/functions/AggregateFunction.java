@@ -19,25 +19,33 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Base class for user-defined aggregates.
  *
  * <p>The behavior of an {@link AggregateFunction} can be defined by implementing a series of custom
  * methods. An {@link AggregateFunction} needs at least three methods:
- *  - <code>createAccumulator</code>,
- *  - <code>accumulate</code>, and
- *  - <code>getValue</code>.
+ * <ul>
+ *     <li>createAccumulator</li>
+ *     <li>accumulate</li>
+ *     <li>getValue</li>
+ * </ul>
  *
  * <p>There are a few other methods that can be optional to have:
- *  - <code>retract</code>,
- *  - <code>merge</code>, and
- *  - <code>resetAccumulator</code>.
+ * <ul>
+ *     <li>retract</li>
+ *     <li>merge</li>
+ *     <li>resetAccumulator</li>
+ * </ul>
  *
  * <p>All these methods must be declared publicly, not static, and named exactly as the names
- * mentioned above. The methods {@link #createAccumulator()} and {@link #getValue} are defined in
- * the {@link AggregateFunction} functions, while other methods are explained below.
+ * mentioned above. The method {@link #createAccumulator()} is defined in the
+ * {@link UserDefinedAggregateFunction} function, and method {@link #getValue} is defined in
+ * the {@link AggregateFunction} while other methods are explained below.
  *
  * <pre>
  * {@code
@@ -93,6 +101,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * }
  * </pre>
  *
+ * <p>If this aggregate function can only be applied in an OVER window, this can be declared using the
+ * requirement {@link FunctionRequirement#OVER_WINDOW_ONLY} in {@link #getRequirements()}.
+ *
  * @param <T>   the type of the aggregation result
  * @param <ACC> the type of the aggregation accumulator. The accumulator is used to keep the
  *              aggregated values which are needed to compute an aggregation result.
@@ -100,15 +111,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  *              AggregateFunction must be put into the accumulator.
  */
 @PublicEvolving
-public abstract class AggregateFunction<T, ACC> extends UserDefinedFunction {
-
-	/**
-	 * Creates and initializes the accumulator for this {@link AggregateFunction}. The accumulator
-	 * is used to keep the aggregated values which are needed to compute an aggregation result.
-	 *
-	 * @return the accumulator with the initial value
-	 */
-	public abstract ACC createAccumulator();
+public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
 
 	/**
 	 * Called every time when an aggregation result should be materialized.
@@ -128,28 +131,25 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedFunction {
 	 *
 	 * @return <code>true</code> if the {@link AggregateFunction} requires an OVER window,
 	 *         <code>false</code> otherwise.
+	 *
+	 * @deprecated Use {@link #getRequirements()} instead.
 	 */
+	@Deprecated
 	public boolean requiresOver() {
 		return false;
 	}
 
-	/**
-	 * Returns the {@link TypeInformation} of the {@link AggregateFunction}'s result.
-	 *
-	 * @return The {@link TypeInformation} of the {@link AggregateFunction}'s result or
-	 *         <code>null</code> if the result type should be automatically inferred.
-	 */
-	public TypeInformation<T> getResultType() {
-		return null;
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.AGGREGATE;
 	}
 
-	/**
-	 * Returns the {@link TypeInformation} of the {@link AggregateFunction}'s accumulator.
-	 *
-	 * @return The {@link TypeInformation} of the {@link AggregateFunction}'s accumulator or
-	 *         <code>null</code> if the accumulator type should be automatically inferred.
-	 */
-	public TypeInformation<ACC> getAccumulatorType() {
-		return null;
+	@Override
+	public Set<FunctionRequirement> getRequirements() {
+		final HashSet<FunctionRequirement> requirements = new HashSet<>();
+		if (requiresOver()) {
+			requirements.add(FunctionRequirement.OVER_WINDOW_ONLY);
+		}
+		return Collections.unmodifiableSet(requirements);
 	}
 }

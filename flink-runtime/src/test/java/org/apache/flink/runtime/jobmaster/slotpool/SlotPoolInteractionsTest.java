@@ -86,6 +86,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			jid,
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime()
 		)) {
 
@@ -113,11 +114,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testCancelSlotAllocationWithoutResourceManager() throws Exception {
 		final JobID jid = new JobID();
 
-		try (TestingSlotPool pool = new TestingSlotPool(
-			jid,
-			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (TestingSlotPool pool = createTestingSlotPool(jid)) {
 
 			final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
@@ -147,6 +144,16 @@ public class SlotPoolInteractionsTest extends TestLogger {
 		}
 	}
 
+	@Nonnull
+	private TestingSlotPool createTestingSlotPool(JobID jid) {
+		return new TestingSlotPool(
+			jid,
+			SystemClock.getInstance(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime());
+	}
+
 	/**
 	 * Tests that a slot allocation times out wrt to the specified time out.
 	 */
@@ -154,11 +161,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testSlotAllocationTimeout() throws Exception {
 		final JobID jid = new JobID();
 
-		try (TestingSlotPool pool = new TestingSlotPool(
-			jid,
-			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (TestingSlotPool pool = createTestingSlotPool(jid)) {
 
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 
@@ -200,11 +203,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testExtraSlotsAreKept() throws Exception {
 		final JobID jid = new JobID();
 
-		try (TestingSlotPool pool = new TestingSlotPool(
-			jid,
-			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (TestingSlotPool pool = createTestingSlotPool(jid)) {
 
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 
@@ -266,11 +265,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testProviderAndOwnerSlotAllocationTimeout() throws Exception {
 		final JobID jid = new JobID();
 
-		try (TestingSlotPool pool = new TestingSlotPool(
-			jid,
-			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (TestingSlotPool pool = createTestingSlotPool(jid)) {
 
 			final CompletableFuture<SlotRequestId> releaseSlotFuture = new CompletableFuture<>();
 
@@ -316,12 +311,14 @@ public class SlotPoolInteractionsTest extends TestLogger {
 				JobID jobId,
 				Clock clock,
 				Time rpcTimeout,
-				Time idleSlotTimeout) {
+				Time idleSlotTimeout,
+				Time batchSlotTimeout) {
 			super(
 				jobId,
 				clock,
 				rpcTimeout,
-				idleSlotTimeout);
+				idleSlotTimeout,
+				batchSlotTimeout);
 
 			releaseSlotConsumer = null;
 			timeoutPendingSlotRequestConsumer = null;

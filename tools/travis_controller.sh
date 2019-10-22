@@ -43,6 +43,33 @@ source "${HERE}/travis/fold.sh"
 source "${HERE}/travis/stage.sh"
 source "${HERE}/travis/shade.sh"
 
+print_system_info() {
+	FOLD_ESCAPE="\x0d\x1b"
+	COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
+	COLOR_OFF="\x1b\x5b\x30\x6d"
+
+	start_fold "cpu_info" "CPU information"
+	lscpu
+	end_fold "cpu_info"
+
+	start_fold "mem_info" "Memory information"
+	cat /proc/meminfo
+	end_fold "mem_info"
+
+	start_fold "disk_info" "Disk information"
+	df -hH
+	end_fold "disk_info"
+
+	start_fold "cache_info" "Cache information"
+	echo "Maven: $(du -s --si $HOME/.m2)"
+	echo "Flink: $(du -s --si $HOME/flink_cache)"
+	echo "Maven (binaries): $(du -s --si $HOME/maven_cache)"
+	echo "gems: $(du -s --si $HOME/gem_cache)"
+	end_fold "cache_info"
+}
+
+print_system_info
+
 function deleteOldCaches() {
 	while read CACHE_DIR; do
 		local old_number="${CACHE_DIR##*/}"
@@ -53,8 +80,8 @@ function deleteOldCaches() {
 	done
 }
 
-# delete leftover caches from previous builds
-find "$CACHE_DIR" -mindepth 1 -maxdepth 1 | grep -v "$TRAVIS_BUILD_NUMBER" | deleteOldCaches
+# delete leftover caches from previous builds; except the most recent
+find "$CACHE_DIR" -mindepth 1 -maxdepth 1 | grep -v "$TRAVIS_BUILD_NUMBER" | sort -Vr | tail -n +2 | deleteOldCaches
 
 STAGE=$1
 echo "Current stage: \"$STAGE\""
@@ -63,7 +90,7 @@ EXIT_CODE=0
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then
-	MVN="mvn clean install -nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE"
+	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 	$MVN
 	EXIT_CODE=$?
 
@@ -72,24 +99,11 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         printf "Checking scala suffixes\n"
         printf "==============================================================================\n"
 
-        ./tools/verify_scala_suffixes.sh
+        ./tools/verify_scala_suffixes.sh "${PROFILE}"
         EXIT_CODE=$?
     else
         printf "\n==============================================================================\n"
         printf "Previous build failure detected, skipping scala-suffixes check.\n"
-        printf "==============================================================================\n"
-    fi
-
-    if [ $EXIT_CODE == 0 ]; then
-        printf "\n\n==============================================================================\n"
-        printf "Checking dependency convergence\n"
-        printf "==============================================================================\n"
-
-        ./tools/check_dependency_convergence.sh
-        EXIT_CODE=$?
-    else
-        printf "\n==============================================================================\n"
-        printf "Previous build failure detected, skipping dependency-convergence check.\n"
         printf "==============================================================================\n"
     fi
     
@@ -100,11 +114,11 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_s3_fs presto
         EXIT_CODE=$(($EXIT_CODE+$?))
-        check_shaded_artifacts_connector_elasticsearch ""
-        EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 2
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 5
+        EXIT_CODE=$(($EXIT_CODE+$?))
+        check_shaded_artifacts_connector_elasticsearch 6
         EXIT_CODE=$(($EXIT_CODE+$?))
     else
         echo "=============================================================================="
@@ -123,8 +137,20 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
             # the packing&upload / download&unpacking process
             # by removing files not required for subsequent stages
     
-            # original jars
-            find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name 'original-*.jar' | xargs rm -rf
+            # jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
+            find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name '*.jar' \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-csv/target/flink-csv*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-json/target/flink-json*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-avro/target/flink-avro*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-runtime/target/flink-runtime*tests.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-streaming-java/target/flink-streaming-java*tests.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-dist*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table_*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table-blink*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-python*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-elasticsearch-base/target/flink-*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-kafka-base/target/flink-*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-table/flink-table-planner/target/flink-table-planner*tests.jar" | xargs rm -rf
     
             # .git directory
             # not deleting this can cause build stability issues
@@ -160,12 +186,14 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
 	# adjust timestamps to prevent recompilation
 	find . -type f -name '*.java' | xargs touch
 	find . -type f -name '*.scala' | xargs touch
+	# wait a bit for better odds of different timestamps
+	sleep 5
 	find . -type f -name '*.class' | xargs touch
 	find . -type f -name '*.timestamp' | xargs touch
 	travis_time_finish
 	end_fold "adjust_timestamps"
 
-	TEST="$STAGE" "./tools/travis_mvn_watchdog.sh" 300
+	TEST="$STAGE" "./tools/travis_watchdog.sh" 300
 	EXIT_CODE=$?
 elif [ $STAGE == "$STAGE_CLEANUP" ]; then
 	echo "Cleaning up $CACHE_BUILD_DIR"

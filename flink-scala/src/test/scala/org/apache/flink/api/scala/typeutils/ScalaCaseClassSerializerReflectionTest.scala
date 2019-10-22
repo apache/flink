@@ -18,13 +18,11 @@
 
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTest.{Generic, HigherKind, SimpleCaseClass}
+import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTest._
 import org.apache.flink.util.TestLogger
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-import java.lang.invoke.MethodHandle
 
 /**
   * Test obtaining the primary constructor of a case class
@@ -34,40 +32,40 @@ class ScalaCaseClassSerializerReflectionTest extends TestLogger {
 
   @Test
   def usageExample(): Unit = {
-    val constructor: MethodHandle = ScalaCaseClassSerializer
+    val constructor = ScalaCaseClassSerializer
       .lookupConstructor(classOf[SimpleCaseClass])
 
-    val actual = constructor.invoke(Array("hi", 1.asInstanceOf[Any]))
+    val actual = constructor(Array("hi", 1.asInstanceOf[AnyRef]))
 
     assertEquals(SimpleCaseClass("hi", 1), actual)
   }
 
   @Test
   def genericCaseClass(): Unit = {
-    val constructor: MethodHandle = ScalaCaseClassSerializer
+    val constructor = ScalaCaseClassSerializer
       .lookupConstructor(classOf[Generic[_]])
 
-    val actual = constructor.invoke(Array(1.asInstanceOf[AnyRef]))
+    val actual = constructor(Array(1.asInstanceOf[AnyRef]))
 
     assertEquals(Generic[Int](1), actual)
   }
 
   @Test
   def caseClassWithParameterizedList(): Unit = {
-    val constructor: MethodHandle = ScalaCaseClassSerializer
+    val constructor = ScalaCaseClassSerializer
       .lookupConstructor(classOf[HigherKind])
 
-    val actual = constructor.invoke(Array(List(1, 2, 3), "hey"))
+    val actual = constructor(Array(List(1, 2, 3), "hey"))
 
     assertEquals(HigherKind(List(1, 2, 3), "hey"), actual)
   }
 
   @Test
   def tupleType(): Unit = {
-    val constructor: MethodHandle = ScalaCaseClassSerializer
+    val constructor = ScalaCaseClassSerializer
       .lookupConstructor(classOf[(String, String, Int)])
 
-    val actual = constructor.invoke(Array("a", "b", 7))
+    val actual = constructor(Array("a", "b", 7.asInstanceOf[AnyRef]))
 
     assertEquals(("a", "b", 7), actual)
   }
@@ -79,6 +77,21 @@ class ScalaCaseClassSerializerReflectionTest extends TestLogger {
 
     ScalaCaseClassSerializer
       .lookupConstructor(classOf[outerInstance.InnerCaseClass])
+  }
+
+  @Test
+  def valueClass(): Unit = {
+    val constructor = ScalaCaseClassSerializer
+      .lookupConstructor(classOf[Measurement])
+
+    val arguments = Array(
+      1.asInstanceOf[AnyRef],
+      new DegreeCelsius(0.5f).asInstanceOf[AnyRef]
+    )
+    
+    val actual = constructor(arguments)
+
+    assertEquals(Measurement(1, new DegreeCelsius(0.5f)), actual)
   }
 }
 
@@ -93,6 +106,12 @@ object ScalaCaseClassSerializerReflectionTest {
   case class HigherKind(name: List[Int], id: String)
 
   case class Generic[T](item: T)
+
+  class DegreeCelsius(val value: Float) extends AnyVal {
+    override def toString: String = s"$value °C"
+  }
+
+  case class Measurement(i: Int, temperature: DegreeCelsius)
 
 }
 

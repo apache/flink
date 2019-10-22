@@ -20,7 +20,9 @@ package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.Table
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.utils.TableTestUtil.streamTableNode
 import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert.assertEquals
 import org.junit._
@@ -34,15 +36,14 @@ class ExplainTest extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
 
-    val table = env.fromElements((1, "hello"))
-      .toTable(tEnv, 'a, 'b)
-      .filter("a % 2 = 0")
+    val scan = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
+    val table = scan.filter("a % 2 = 0")
 
     val result = replaceString(tEnv.explain(table))
 
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testFilterStream0.out").mkString
-    val expect = replaceString(source)
+    val expect = replaceString(source, scan)
     assertEquals(expect, result)
   }
 
@@ -59,11 +60,27 @@ class ExplainTest extends AbstractTestBase {
 
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testUnionStream0.out").mkString
-    val expect = replaceString(source)
+    val expect = replaceString(source, table1, table2)
     assertEquals(expect, result)
   }
 
-  def replaceString(s: String): String = {
+  def replaceString(s: String, t1: Table, t2: Table): String = {
+    replaceSourceNode(replaceSourceNode(replaceString(s), t1, 0), t2, 1)
+  }
+
+  def replaceString(s: String, t: Table): String = {
+    replaceSourceNode(replaceString(s), t, 0)
+  }
+
+  private def replaceSourceNode(s: String, t: Table, idx: Int) = {
+    replaceString(s)
+      .replace(
+        s"%logicalSourceNode$idx%", streamTableNode(t)
+          .replace("DataStreamScan", "FlinkLogicalDataStreamScan"))
+      .replace(s"%sourceNode$idx%", streamTableNode(t))
+  }
+
+  def replaceString(s: String) = {
     /* Stage {id} is ignored, because id keeps incrementing in test class
      * while StreamExecutionEnvironment is up
      */

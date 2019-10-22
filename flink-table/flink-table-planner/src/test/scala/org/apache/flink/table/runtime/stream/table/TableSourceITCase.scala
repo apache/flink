@@ -75,6 +75,31 @@ class TableSourceITCase extends AbstractTestBase {
   }
 
   @Test
+  def testUnregisteredCsvTableSource(): Unit = {
+
+    val csvTable = CommonTestData.getCsvTableSource
+    StreamITCase.testResults = mutable.MutableList()
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+
+    tEnv.fromTableSource(csvTable)
+      .where('id > 4)
+      .select('last, 'score * 2)
+      .toAppendStream[Row]
+      .addSink(new StreamITCase.StringSink[Row])
+
+    env.execute()
+
+    val expected = Seq(
+      "Williams,69.0",
+      "Miller,13.56",
+      "Smith,180.2",
+      "Williams,4.68")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testCsvTableSource(): Unit = {
 
     val csvTable = CommonTestData.getCsvTableSource

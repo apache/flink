@@ -24,8 +24,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.TypeConverters;
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 
@@ -51,14 +52,41 @@ public class BaseRowHarnessAssertor {
 		this.comparator = comparator;
 	}
 
+	public BaseRowHarnessAssertor(TypeInformation[] typeInfos) {
+		this(typeInfos, new StringComparator());
+	}
+
+
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
+	 * Asserts two converted array should be same.
+	 */
+	public void assertOutputEquals(
+			String message,
+			Collection<Object> expected,
+			Collection<Object> actual) {
+		assertOutputEquals(message, expected, actual, false);
+	}
+
+	/**
+	 * Compare the two queues containing operator/task output by converting them to an array first, sort array by
+	 * comparator. Assertes two sorted converted array should be same.
 	 */
 	public void assertOutputEqualsSorted(
 		String message,
 		Collection<Object> expected,
 		Collection<Object> actual) {
+		assertOutputEquals(message, expected, actual, true);
+	}
 
+	private void assertOutputEquals(
+			String message,
+			Collection<Object> expected,
+			Collection<Object> actual,
+			boolean needSort) {
+		if (needSort) {
+			Preconditions.checkArgument(comparator != null, "Comparator should not be null!");
+		}
 		assertEquals(expected.size(), actual.size());
 
 		// first, compare only watermarks, their position should be deterministic
@@ -88,8 +116,8 @@ public class BaseRowHarnessAssertor {
 				GenericRow actualRow = BaseRowUtil.toGenericRow(
 						actualOutput,
 						Arrays.stream(typeInfos)
-								.map(TypeConverters::createInternalTypeFromTypeInfo)
-								.toArray(InternalType[]::new));
+								.map(TypeInfoLogicalTypeConverter::fromTypeInfoToLogicalType)
+								.toArray(LogicalType[]::new));
 				actualRecords.add(actualRow);
 			}
 		}
@@ -97,8 +125,10 @@ public class BaseRowHarnessAssertor {
 		GenericRow[] sortedExpected = expectedRecords.toArray(new GenericRow[expectedRecords.size()]);
 		GenericRow[] sortedActual = actualRecords.toArray(new GenericRow[actualRecords.size()]);
 
-		Arrays.sort(sortedExpected, comparator);
-		Arrays.sort(sortedActual, comparator);
+		if (needSort) {
+			Arrays.sort(sortedExpected, comparator);
+			Arrays.sort(sortedActual, comparator);
+		}
 
 		Assert.assertArrayEquals(message, sortedExpected, sortedActual);
 	}

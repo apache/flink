@@ -32,7 +32,9 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -41,15 +43,23 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
+import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,6 +72,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
@@ -72,9 +83,18 @@ import static org.junit.Assert.fail;
 /**
  * Contains basic tests for the {@link LocalExecutor}.
  */
+@RunWith(Parameterized.class)
 public class LocalExecutorITCase extends TestLogger {
 
+	@Parameters(name = "Planner: {0}")
+	public static List<String> planner() {
+		return Arrays.asList(
+			ExecutionEntry.EXECUTION_PLANNER_VALUE_OLD,
+			ExecutionEntry.EXECUTION_PLANNER_VALUE_BLINK);
+	}
+
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
@@ -99,12 +119,18 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
 		return config;
 	}
+
+	@Parameter
+	public String planner;
+
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
 
 	@Test
 	public void testValidateSession() throws Exception {
@@ -119,13 +145,13 @@ public class LocalExecutorITCase extends TestLogger {
 
 		List<String> actualTables = executor.listTables(session);
 		List<String> expectedTables = Arrays.asList(
-			"AdditionalView1",
-			"AdditionalView2",
 			"TableNumber1",
 			"TableNumber2",
 			"TableSourceSink",
 			"TestView1",
-			"TestView2");
+			"TestView2",
+			"AdditionalView1",
+			"AdditionalView2");
 		assertEquals(expectedTables, actualTables);
 
 		session.removeView("AdditionalView1");
@@ -147,6 +173,31 @@ public class LocalExecutorITCase extends TestLogger {
 			"TestView1",
 			"TestView2");
 		assertEquals(expectedTables, actualTables);
+	}
+
+	@Test
+	public void testListCatalogs() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		final List<String> actualCatalogs = executor.listCatalogs(session);
+
+		final List<String> expectedCatalogs = Arrays.asList(
+			"default_catalog",
+			"catalog1",
+			"simple-catalog");
+		assertEquals(expectedCatalogs, actualCatalogs);
+	}
+
+	@Test
+	public void testListDatabases() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		final List<String> actualDatabases = executor.listDatabases(session);
+
+		final List<String> expectedDatabases = Collections.singletonList("default_database");
+		assertEquals(expectedDatabases, actualDatabases);
 	}
 
 	@Test
@@ -191,6 +242,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final Map<String, String> actualProperties = executor.getSessionProperties(session);
 
 		final Map<String, String> expectedProperties = new HashMap<>();
+		expectedProperties.put("execution.planner", planner);
 		expectedProperties.put("execution.type", "batch");
 		expectedProperties.put("execution.time-characteristic", "event-time");
 		expectedProperties.put("execution.periodic-watermarks-interval", "99");
@@ -204,6 +256,7 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedProperties.put("execution.restart-strategy.max-failures-per-interval", "10");
 		expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
 		expectedProperties.put("execution.restart-strategy.delay", "1000");
+		expectedProperties.put("table.optimizer.join-reorder-enabled", "false");
 		expectedProperties.put("deployment.response-timeout", "5000");
 
 		assertEquals(expectedProperties, actualProperties);
@@ -229,9 +282,9 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		final List<String> expectedTableHints = Arrays.asList(
-			"TableNumber1",
-			"TableNumber2",
-			"TableSourceSink");
+			"default_catalog.default_database.TableNumber1",
+			"default_catalog.default_database.TableNumber2",
+			"default_catalog.default_database.TableSourceSink");
 		assertEquals(expectedTableHints, executor.completeStatement(session, "SELECT * FROM Ta", 16));
 
 		final List<String> expectedClause = Collections.singletonList("WHERE");
@@ -246,6 +299,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
@@ -286,6 +340,7 @@ public class LocalExecutorITCase extends TestLogger {
 		Objects.requireNonNull(url);
 
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -311,6 +366,7 @@ public class LocalExecutorITCase extends TestLogger {
 		Objects.requireNonNull(url);
 
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -330,6 +386,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -366,6 +423,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
@@ -376,7 +434,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		try {
-			// start job
+			// Case 1: Registered sink
 			final ProgramTargetDescriptor targetDescriptor = executor.executeUpdate(
 				session,
 				"INSERT INTO TableSourceSink SELECT IntegerField1 = 42, StringField1 FROM TableNumber1");
@@ -398,9 +456,112 @@ public class LocalExecutorITCase extends TestLogger {
 						fail("Unexpected job status.");
 				}
 			}
+
+			// Case 2: Temporary sink
+			session.setCurrentCatalog("simple-catalog");
+			session.setCurrentDatabase("default_database");
+			// all queries are pipelined to an in-memory sink, check it is properly registered
+			final ResultDescriptor otherCatalogDesc = executor.executeQuery(session, "SELECT * FROM `test-table`");
+
+			final List<String> otherCatalogResults = retrieveTableResult(
+				executor,
+				session,
+				otherCatalogDesc.getResultId());
+
+			TestBaseUtils.compareResultCollections(
+				SimpleCatalogFactory.TABLE_CONTENTS.stream().map(Row::toString).collect(Collectors.toList()),
+				otherCatalogResults,
+				Comparator.naturalOrder());
 		} finally {
 			executor.stop(session);
 		}
+	}
+
+	@Test
+	public void testUseCatalogAndUseDatabase() throws Exception {
+		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
+		final URL url1 = getClass().getClassLoader().getResource("test-data.csv");
+		final URL url2 = getClass().getClassLoader().getResource("test-data-1.csv");
+		Objects.requireNonNull(url1);
+		Objects.requireNonNull(url2);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url1.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH2", url2.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final Executor executor = createModifiedExecutor(CATALOGS_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			assertEquals(Arrays.asList("mydatabase"), executor.listDatabases(session));
+
+			executor.useCatalog(session, "hivecatalog");
+
+			assertEquals(
+				Arrays.asList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, HiveCatalog.DEFAULT_DB),
+				executor.listDatabases(session));
+
+			assertEquals(Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES),
+					executor.listTables(session));
+
+			executor.useDatabase(session, DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
+
+			assertEquals(Arrays.asList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE), executor.listTables(session));
+		} finally {
+			executor.stop(session);
+		}
+	}
+
+	@Test
+	public void testUseNonExistingDatabase() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		exception.expect(SqlExecutionException.class);
+		executor.useDatabase(session, "nonexistingdb");
+	}
+
+	@Test
+	public void testUseNonExistingCatalog() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		exception.expect(SqlExecutionException.class);
+		executor.useCatalog(session, "nonexistingcatalog");
+	}
+
+	@Test
+	public void testParameterizedTypes() throws Exception {
+		// only blink planner supports parameterized types
+		Assume.assumeTrue(planner.equals("blink"));
+		final URL url1 = getClass().getClassLoader().getResource("test-data.csv");
+		final URL url2 = getClass().getClassLoader().getResource("test-data-1.csv");
+		Objects.requireNonNull(url1);
+		Objects.requireNonNull(url2);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url1.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH2", url2.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+
+		final Executor executor = createModifiedExecutor(CATALOGS_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		executor.useCatalog(session, "hivecatalog");
+		String resultID = executor.executeQuery(session,
+				"select * from " + DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES).getResultId();
+		retrieveTableResult(executor, session, resultID);
+
+		// make sure legacy types still work
+		executor.useCatalog(session, "default_catalog");
+		resultID = executor.executeQuery(session, "select * from TableNumber3").getResultId();
+		retrieveTableResult(executor, session, resultID);
 	}
 
 	private void executeStreamQueryTable(
@@ -440,6 +601,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars.put("$VAR_UPDATE_MODE", "");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
@@ -453,6 +615,15 @@ public class LocalExecutorITCase extends TestLogger {
 	private <T> LocalExecutor createModifiedExecutor(ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
 		return new LocalExecutor(
 			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
+			Collections.emptyList(),
+			clusterClient.getFlinkConfiguration(),
+			new DummyCustomCommandLine<T>(clusterClient));
+	}
+
+	private <T> LocalExecutor createModifiedExecutor(
+			String yamlFile, ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
+		return new LocalExecutor(
+			EnvironmentFileUtil.parseModified(yamlFile, replaceVars),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));

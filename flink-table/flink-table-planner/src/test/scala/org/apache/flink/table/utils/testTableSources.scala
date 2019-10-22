@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.utils
 
-import java.util
-import java.util.{Collections, List => JList}
-
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableSchema
@@ -32,6 +33,9 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.types.Row
+
+import java.util
+import java.util.Collections
 
 import scala.collection.JavaConverters._
 
@@ -90,15 +94,13 @@ class TestProjectableTableSource(
     rowtime: String = null,
     proctime: String = null,
     fieldMapping: Map[String, String] = null)
-  extends TestTableSourceWithTime[Row](
+  extends TestProjectableTableSourceWithoutExplainSourceOverride(
     tableSchema,
     returnType,
     values,
     rowtime,
     proctime,
-    fieldMapping)
-  with ProjectableTableSource[Row] {
-
+    fieldMapping) {
   override def projectFields(fields: Array[Int]): TableSource[Row] = {
 
     val rowType = returnType.asInstanceOf[RowTypeInfo]
@@ -141,6 +143,62 @@ class TestProjectableTableSource(
   override def explainSource(): String = {
     s"TestSource(" +
       s"physical fields: ${getReturnType.asInstanceOf[RowTypeInfo].getFieldNames.mkString(", ")})"
+  }
+}
+
+class TestProjectableTableSourceWithoutExplainSourceOverride(
+    tableSchema: TableSchema,
+    returnType: TypeInformation[Row],
+    values: Seq[Row],
+    rowtime: String = null,
+    proctime: String = null,
+    fieldMapping: Map[String, String] = null)
+  extends TestTableSourceWithTime[Row](
+    tableSchema,
+    returnType,
+    values,
+    rowtime,
+    proctime,
+    fieldMapping)
+  with ProjectableTableSource[Row] {
+
+  override def projectFields(fields: Array[Int]): TableSource[Row] = {
+
+    val rowType = returnType.asInstanceOf[RowTypeInfo]
+
+    val (projectedNames: Array[String], projectedMapping) = if (fieldMapping == null) {
+      val projectedNames = fields.map(rowType.getFieldNames.apply(_))
+      (projectedNames, null)
+    } else {
+      val invertedMapping = fieldMapping.map(_.swap)
+      val projectedNames = fields.map(rowType.getFieldNames.apply(_))
+
+      val projectedMapping: Map[String, String] = projectedNames.map{ f =>
+        val logField = invertedMapping(f)
+        logField -> s"remapped-$f"
+      }.toMap
+      val renamedNames = projectedNames.map(f => s"remapped-$f")
+      (renamedNames, projectedMapping)
+    }
+
+    val projectedTypes = fields.map(rowType.getFieldTypes.apply(_))
+    val projectedReturnType = new RowTypeInfo(
+      projectedTypes.asInstanceOf[Array[TypeInformation[_]]],
+      projectedNames)
+
+    val projectedValues = values.map { fromRow =>
+      val pRow = new Row(fields.length)
+      fields.zipWithIndex.foreach{ case (from, to) => pRow.setField(to, fromRow.getField(from)) }
+      pRow
+    }
+
+    new TestProjectableTableSourceWithoutExplainSourceOverride(
+      tableSchema,
+      projectedReturnType,
+      projectedValues,
+      rowtime,
+      proctime,
+      projectedMapping)
   }
 }
 
@@ -224,4 +282,18 @@ class TestPreserveWMTableSource[T](
 
   override def getTableSchema: TableSchema = tableSchema
 
+}
+
+class TestInputFormatTableSource[T](
+    tableSchema: TableSchema,
+    returnType: TypeInformation[T],
+    values: Seq[T]) extends InputFormatTableSource[T] {
+
+  override def getInputFormat: InputFormat[T, _ <: InputSplit] = {
+    new CollectionInputFormat[T](values.asJava, returnType.createSerializer(new ExecutionConfig))
+  }
+
+  override def getReturnType: TypeInformation[T] = returnType
+
+  override def getTableSchema: TableSchema = tableSchema
 }

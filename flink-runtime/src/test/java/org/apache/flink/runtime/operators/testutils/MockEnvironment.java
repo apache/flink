@@ -66,9 +66,9 @@ import static org.junit.Assert.fail;
  * IMPORTANT! Remember to close environment after usage!
  */
 public class MockEnvironment implements Environment, AutoCloseable {
-	
+
 	private final TaskInfo taskInfo;
-	
+
 	private final ExecutionConfig executionConfig;
 
 	private final MemoryManager memManager;
@@ -107,9 +107,9 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
-	private Optional<Class<Throwable>> expectedExternalFailureCause = Optional.empty();
+	private Optional<Class<? extends Throwable>> expectedExternalFailureCause = Optional.empty();
 
-	private Optional<Throwable> actualExternalFailureCause = Optional.empty();
+	private Optional<? extends Throwable> actualExternalFailureCause = Optional.empty();
 
 	private final TaskMetricGroup taskMetricGroup;
 
@@ -163,7 +163,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		this.taskMetricGroup = taskMetricGroup;
 	}
-
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
 		try {
@@ -336,23 +335,21 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		// close() method should be idempotent and calling memManager.verifyEmpty() will throw after it was shutdown.
 		if (!memManager.isShutdown()) {
 			checkState(memManager.verifyEmpty(), "Memory Manager managed memory was not completely freed.");
 		}
 
 		memManager.shutdown();
-		ioManager.shutdown();
-
-		checkState(ioManager.isProperlyShutDown(), "IO Manager has not properly shut down.");
+		ioManager.close();
 	}
 
-	public void setExpectedExternalFailureCause(Class<Throwable> expectedThrowableClass) {
+	public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {
 		this.expectedExternalFailureCause = Optional.of(expectedThrowableClass);
 	}
 
-	public Optional<Throwable> getActualExternalFailureCause() {
+	public Optional<? extends Throwable> getActualExternalFailureCause() {
 		return actualExternalFailureCause;
 	}
 }

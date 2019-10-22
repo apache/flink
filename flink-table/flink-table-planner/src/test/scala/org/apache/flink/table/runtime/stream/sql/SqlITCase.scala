@@ -762,12 +762,12 @@ class SqlITCase extends StreamingWithStateTestBase {
     val tEnv = StreamTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
-    val desc = Schema()
+    val desc = new Schema()
       .field("a", Types.INT)
       .field("e", Types.LONG)
       .field("f", Types.STRING)
       .field("t", Types.SQL_TIMESTAMP)
-        .rowtime(Rowtime().timestampsFromField("t").watermarksPeriodicAscending())
+        .rowtime(new Rowtime().timestampsFromField("t").watermarksPeriodicAscending())
       .field("proctime", Types.SQL_TIMESTAMP).proctime()
     val properties = desc.toProperties
 

@@ -124,7 +124,7 @@ public class RestClient implements AutoCloseableAsync {
 				try {
 					// SSL should be the first handler in the pipeline
 					if (sslHandlerFactory != null) {
-						socketChannel.pipeline().addLast("ssl", sslHandlerFactory.createNettySSLHandler());
+						socketChannel.pipeline().addLast("ssl", sslHandlerFactory.createNettySSLHandler(socketChannel.alloc()));
 					}
 
 					socketChannel.pipeline()

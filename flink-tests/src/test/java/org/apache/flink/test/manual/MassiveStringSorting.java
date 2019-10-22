@@ -83,11 +83,9 @@ public class MassiveStringSorting {
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
 			MemoryManager mm = null;
-			IOManager ioMan = null;
 
-			try {
+			try (IOManager ioMan = new IOManagerAsync()) {
 				mm = new MemoryManager(1024 * 1024, 1);
-				ioMan = new IOManagerAsync();
 
 				TypeSerializer<String> serializer = StringSerializer.INSTANCE;
 				TypeComparator<String> comparator = new StringComparator(true);
@@ -126,9 +124,6 @@ public class MassiveStringSorting {
 				}
 				if (mm != null) {
 					mm.shutdown();
-				}
-				if (ioMan != null) {
-					ioMan.shutdown();
 				}
 			}
 		}
@@ -182,11 +177,9 @@ public class MassiveStringSorting {
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
 			MemoryManager mm = null;
-			IOManager ioMan = null;
 
-			try {
+			try (IOManager ioMan = new IOManagerAsync()) {
 				mm = new MemoryManager(1024 * 1024, 1);
-				ioMan = new IOManagerAsync();
 
 				TupleTypeInfo<Tuple2<String, String[]>> typeInfo = (TupleTypeInfo<Tuple2<String, String[]>>)
 						new TypeHint<Tuple2<String, String[]>>(){}.getTypeInfo();
@@ -255,9 +248,6 @@ public class MassiveStringSorting {
 				}
 				if (mm != null) {
 					mm.shutdown();
-				}
-				if (ioMan != null) {
-					ioMan.shutdown();
 				}
 			}
 		}

@@ -24,6 +24,9 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
@@ -40,19 +43,11 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
-import org.apache.flink.optimizer.plan.FlinkPlan;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.StreamingPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -74,6 +69,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -81,15 +77,9 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import scala.concurrent.duration.FiniteDuration;
-
-import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.MODIFY_PARALLELISM_OPTION;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -105,7 +95,6 @@ public class CliFrontend {
 	private static final String ACTION_CANCEL = "cancel";
 	private static final String ACTION_STOP = "stop";
 	private static final String ACTION_SAVEPOINT = "savepoint";
-	private static final String ACTION_MODIFY = "modify";
 
 	// configuration dir parameters
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
@@ -119,7 +108,7 @@ public class CliFrontend {
 
 	private final Options customCommandLineOptions;
 
-	private final FiniteDuration clientTimeout;
+	private final Duration clientTimeout;
 
 	private final int defaultParallelism;
 
@@ -129,8 +118,7 @@ public class CliFrontend {
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
 
-		//TODO provide plugin path.
-		FileSystem.initialize(this.configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 		this.customCommandLineOptions = new Options();
 
@@ -190,8 +178,11 @@ public class CliFrontend {
 			return;
 		}
 
-		if (runOptions.getJarFilePath() == null) {
-			throw new CliArgsException("The program JAR file was not specified.");
+		if (!runOptions.isPython()) {
+			// Java program should be specified a JAR file
+			if (runOptions.getJarFilePath() == null) {
+				throw new CliArgsException("Java program should be specified a JAR file.");
+			}
 		}
 
 		final PackagedProgram program;
@@ -239,7 +230,7 @@ public class CliFrontend {
 				logAndSysout("Job has been submitted with JobID " + jobGraph.getJobID());
 
 				try {
-					client.shutdown();
+					client.close();
 				} catch (Exception e) {
 					LOG.info("Could not properly shut down the client.", e);
 				}
@@ -263,7 +254,6 @@ public class CliFrontend {
 				}
 
 				try {
-					client.setPrintStatusDuringExecution(runOptions.getStdoutLogging());
 					client.setDetached(runOptions.getDetachedMode());
 
 					LOG.debug("{}", runOptions.getSavepointRestoreSettings());
@@ -289,7 +279,7 @@ public class CliFrontend {
 						}
 					}
 					try {
-						client.shutdown();
+						client.close();
 					} catch (Exception e) {
 						LOG.info("Could not properly shut down the client.", e);
 					}
@@ -341,15 +331,8 @@ public class CliFrontend {
 
 			LOG.info("Creating program plan dump");
 
-			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
-			FlinkPlan flinkPlan = ClusterClient.getOptimizedPlan(compiler, program, parallelism);
-
-			String jsonPlan = null;
-			if (flinkPlan instanceof OptimizedPlan) {
-				jsonPlan = new PlanJSONDumpGenerator().getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
-			} else if (flinkPlan instanceof StreamingPlan) {
-				jsonPlan = ((StreamingPlan) flinkPlan).getStreamingPlanAsJSON();
-			}
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism);
+			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 
 			if (jsonPlan != null) {
 				System.out.println("----------------------- Execution Plan -----------------------");
@@ -535,14 +518,14 @@ public class CliFrontend {
 			activeCommandLine,
 			commandLine,
 			clusterClient -> {
+				final String savepointPath;
 				try {
-					clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
+					savepointPath = clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
 				} catch (Exception e) {
 					throw new FlinkException("Could not stop with a savepoint job \"" + jobId + "\".", e);
 				}
+				logAndSysout("Savepoint completed. Path: " + savepointPath);
 			});
-
-		logAndSysout((advanceToEndOfEventTime ? "Drained job " : "Suspended job ") + "\"" + jobId + "\" with a savepoint.");
 	}
 
 	/**
@@ -572,6 +555,9 @@ public class CliFrontend {
 		final String[] cleanedArgs = cancelOptions.getArgs();
 
 		if (cancelOptions.isWithSavepoint()) {
+
+			logAndSysout("DEPRECATION WARNING: Cancelling a job with savepoint is deprecated. Use \"stop\" instead.");
+
 			final JobID jobId;
 			final String targetDirectory;
 
@@ -691,8 +677,7 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint}
-	 * message to the job manager.
+	 * Sends a SavepointTriggerMessage to the job manager.
 	 */
 	private String triggerSavepoint(ClusterClient<?> clusterClient, JobID jobId, String savepointDirectory) throws FlinkException {
 		logAndSysout("Triggering savepoint for job " + jobId + '.');
@@ -717,7 +702,7 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Sends a {@link JobManagerMessages.DisposeSavepoint} message to the job manager.
+	 * Sends a SavepointDisposalRequest to the job manager.
 	 */
 	private void disposeSavepoint(ClusterClient<?> clusterClient, String savepointPath) throws FlinkException {
 		Preconditions.checkNotNull(savepointPath, "Missing required argument: savepoint path. " +
@@ -738,58 +723,6 @@ public class CliFrontend {
 		logAndSysout("Savepoint '" + savepointPath + "' disposed.");
 	}
 
-	protected void modify(String[] args) throws CliArgsException, FlinkException {
-		LOG.info("Running 'modify' command.");
-
-		final Options commandOptions = CliFrontendParser.getModifyOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
-
-		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
-			CliFrontendParser.printHelpForModify(customCommandLines);
-		}
-
-		final JobID jobId;
-		final String[] modifyArgs = commandLine.getArgs();
-
-		if (modifyArgs.length > 0) {
-			jobId = parseJobId(modifyArgs[0]);
-		} else {
-			throw new CliArgsException("Missing JobId");
-		}
-
-		final int newParallelism;
-		if (commandLine.hasOption(MODIFY_PARALLELISM_OPTION.getOpt())) {
-			try {
-				newParallelism = Integer.parseInt(commandLine.getOptionValue(MODIFY_PARALLELISM_OPTION.getOpt()));
-			} catch (NumberFormatException e) {
-				throw new CliArgsException("Could not parse the parallelism which is supposed to be an integer.", e);
-			}
-		} else {
-			throw new CliArgsException("Missing new parallelism.");
-		}
-
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-
-		logAndSysout("Modify job " + jobId + '.');
-		runClusterAction(
-			activeCommandLine,
-			commandLine,
-			clusterClient -> {
-				CompletableFuture<Acknowledge> rescaleFuture = clusterClient.rescaleJob(jobId, newParallelism);
-
-				try {
-					rescaleFuture.get();
-				} catch (Exception e) {
-					throw new FlinkException("Could not rescale job " + jobId + '.', ExceptionUtils.stripExecutionException(e));
-				}
-				logAndSysout("Rescaled job " + jobId + ". Its new parallelism is " + newParallelism + '.');
-			}
-		);
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
@@ -797,12 +730,7 @@ public class CliFrontend {
 	protected void executeProgram(PackagedProgram program, ClusterClient<?> client, int parallelism) throws ProgramMissingJobException, ProgramInvocationException {
 		logAndSysout("Starting execution of program");
 
-		final JobSubmissionResult result = client.run(program, parallelism);
-
-		if (null == result) {
-			throw new ProgramMissingJobException("No JobSubmissionResult returned, please make sure you called " +
-				"ExecutionEnvironment.execute()");
-		}
+		JobSubmissionResult result = ClientUtils.executeProgram(client, program, parallelism);
 
 		if (result.isJobExecutionResult()) {
 			logAndSysout("Program execution finished");
@@ -829,22 +757,26 @@ public class CliFrontend {
 		String jarFilePath = options.getJarFilePath();
 		List<URL> classpaths = options.getClasspaths();
 
-		if (jarFilePath == null) {
-			throw new IllegalArgumentException("The program JAR file was not specified.");
-		}
-
-		File jarFile = new File(jarFilePath);
-
-		// Check if JAR file exists
-		if (!jarFile.exists()) {
-			throw new FileNotFoundException("JAR file does not exist: " + jarFile);
-		}
-		else if (!jarFile.isFile()) {
-			throw new FileNotFoundException("JAR file is not a file: " + jarFile);
-		}
-
 		// Get assembler class
 		String entryPointClass = options.getEntryPointClassName();
+		File jarFile = null;
+		if (options.isPython()) {
+			// If the job is specified a jar file
+			if (jarFilePath != null) {
+				jarFile = getJarFile(jarFilePath);
+			}
+
+			// If the job is Python Shell job, the entry point class name is PythonGateWayServer.
+			// Otherwise, the entry point class of python job is PythonDriver
+			if (entryPointClass == null) {
+				entryPointClass = "org.apache.flink.client.python.PythonDriver";
+			}
+		} else {
+			if (jarFilePath == null) {
+				throw new IllegalArgumentException("Java program should be specified a JAR file.");
+			}
+			jarFile = getJarFile(jarFilePath);
+		}
 
 		PackagedProgram program = entryPointClass == null ?
 				new PackagedProgram(jarFile, classpaths, programArgs) :
@@ -853,6 +785,25 @@ public class CliFrontend {
 		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
 		return program;
+	}
+
+	/**
+	 * Gets the JAR file from the path.
+	 *
+	 * @param jarFilePath The path of JAR file
+	 * @return The JAR file
+	 * @throws FileNotFoundException The JAR file does not exist.
+	 */
+	private File getJarFile(String jarFilePath) throws FileNotFoundException {
+		File jarFile = new File(jarFilePath);
+		// Check if JAR file exists
+		if (!jarFile.exists()) {
+			throw new FileNotFoundException("JAR file does not exist: " + jarFile);
+		}
+		else if (!jarFile.isFile()) {
+			throw new FileNotFoundException("JAR file is not a file: " + jarFile);
+		}
+		return jarFile;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -976,7 +927,7 @@ public class CliFrontend {
 					clusterAction.runAction(clusterClient);
 				} finally {
 					try {
-						clusterClient.shutdown();
+						clusterClient.close();
 					} catch (Exception e) {
 						LOG.info("Could not properly shut down the cluster client.", e);
 					}
@@ -1054,9 +1005,6 @@ public class CliFrontend {
 					return 0;
 				case ACTION_SAVEPOINT:
 					savepoint(params);
-					return 0;
-				case ACTION_MODIFY:
-					modify(params);
 					return 0;
 				case "-h":
 				case "--help":

@@ -20,6 +20,12 @@ package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * A {@link TableSink} specifies how to emit a table to an external
@@ -33,23 +39,59 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 public interface TableSink<T> {
 
 	/**
-	 * Returns the type expected by this {@link TableSink}.
+	 * Returns the data type consumed by this {@link TableSink}.
 	 *
-	 * <p>This type should depend on the types returned by {@link TableSink#getFieldNames()}.
-	 *
-	 * @return The type expected by this {@link TableSink}.
+	 * @return The data type expected by this {@link TableSink}.
 	 */
-	TypeInformation<T> getOutputType();
+	default DataType getConsumedDataType() {
+		final TypeInformation<T> legacyType = getOutputType();
+		if (legacyType == null) {
+			throw new TableException("Table sink does not implement a consumed data type.");
+		}
+		return fromLegacyInfoToDataType(legacyType);
+	}
 
 	/**
-	 * Returns the names of the table fields.
+	 * @deprecated This method will be removed in future versions as it uses the old type system. It
+	 *             is recommended to use {@link #getConsumedDataType()} instead which uses the new type
+	 *             system based on {@link DataTypes}. Please make sure to use either the old or the new type
+	 *             system consistently to avoid unintended behavior. See the website documentation
+	 *             for more information.
 	 */
-	String[] getFieldNames();
+	@Deprecated
+	default TypeInformation<T> getOutputType() {
+		return null;
+	}
 
 	/**
-	 * Returns the types of the table fields.
+	 * Returns the schema of the consumed table.
+	 *
+	 * @return The {@link TableSchema} of the consumed table.
 	 */
-	TypeInformation<?>[] getFieldTypes();
+	default TableSchema getTableSchema() {
+		final String[] fieldNames = getFieldNames();
+		final TypeInformation[] legacyFieldTypes = getFieldTypes();
+		if (fieldNames == null || legacyFieldTypes == null) {
+			throw new TableException("Table sink does not implement a table schema.");
+		}
+		return new TableSchema(fieldNames, legacyFieldTypes);
+	}
+
+	/**
+	 * @deprecated Use the field names of {@link #getTableSchema()} instead.
+	 */
+	@Deprecated
+	default String[] getFieldNames() {
+		return null;
+	}
+
+	/**
+	 * @deprecated Use the field types of {@link #getTableSchema()} instead.
+	 */
+	@Deprecated
+	default TypeInformation<?>[] getFieldTypes() {
+		return null;
+	}
 
 	/**
 	 * Returns a copy of this {@link TableSink} configured with the field names and types of the
@@ -59,6 +101,10 @@ public interface TableSink<T> {
 	 * @param fieldTypes The field types of the table to emit.
 	 * @return A copy of this {@link TableSink} configured with the field names and types of the
 	 *         table to emit.
+	 *
+	 * @deprecated This method will be dropped in future versions. It is recommended to pass a
+	 *             static schema when instantiating the sink instead.
 	 */
+	@Deprecated
 	TableSink<T> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes);
 }

@@ -18,14 +18,13 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import java.io.ObjectInputStream
+
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
 import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializer.lookupConstructor
-
-import java.io.ObjectInputStream
-import java.lang.invoke.{MethodHandle, MethodHandles}
 
 import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe
@@ -38,16 +37,16 @@ import scala.reflect.runtime.universe
   */
 @SerialVersionUID(1L)
 class ScalaCaseClassSerializer[T <: Product](
-  clazz: Class[T],
-  scalaFieldSerializers: Array[TypeSerializer[_]]
-) extends CaseClassSerializer[T](clazz, scalaFieldSerializers)
-    with SelfResolvingTypeSerializer[T] {
+    clazz: Class[T],
+    scalaFieldSerializers: Array[TypeSerializer[_]]
+    ) extends CaseClassSerializer[T](clazz, scalaFieldSerializers)
+  with SelfResolvingTypeSerializer[T] {
 
   @transient
   private var constructor = lookupConstructor(clazz)
 
   override def createInstance(fields: Array[AnyRef]): T = {
-    constructor.invoke(fields).asInstanceOf[T]
+    constructor(fields)
   }
 
   override def snapshotConfiguration(): TypeSerializerSnapshot[T] = {
@@ -55,8 +54,7 @@ class ScalaCaseClassSerializer[T <: Product](
   }
 
   override def resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
-    s: TypeSerializerConfigSnapshot[T]
-  ): TypeSerializerSchemaCompatibility[T] = {
+      s: TypeSerializerConfigSnapshot[T]): TypeSerializerSchemaCompatibility[T] = {
 
     require(s.isInstanceOf[TupleSerializerConfigSnapshot[_]])
 
@@ -85,22 +83,8 @@ class ScalaCaseClassSerializer[T <: Product](
 
 object ScalaCaseClassSerializer {
 
-  def lookupConstructor[T](clazz: Class[_]): MethodHandle = {
-    val types = findPrimaryConstructorParameterTypes(clazz, clazz.getClassLoader)
-
-    val constructor = clazz.getConstructor(types: _*)
-
-    val handle = MethodHandles
-      .lookup()
-      .unreflectConstructor(constructor)
-      .asSpreader(classOf[Array[AnyRef]], types.length)
-
-    handle
-  }
-
-  private def findPrimaryConstructorParameterTypes(cls: Class[_], cl: ClassLoader):
-  List[Class[_]] = {
-    val rootMirror = universe.runtimeMirror(cl)
+  def lookupConstructor[T](cls: Class[T]): Array[AnyRef] => T = {
+    val rootMirror = universe.runtimeMirror(cls.getClassLoader)
     val classSymbol = rootMirror.classSymbol(cls)
 
     require(
@@ -113,30 +97,21 @@ object ScalaCaseClassSerializer {
          |""".stripMargin
     )
 
-    val primaryConstructorSymbol = findPrimaryConstructorMethodSymbol(classSymbol)
-    val scalaTypes = getArgumentsTypes(primaryConstructorSymbol)
-    scalaTypes.map(tpe => scalaTypeToJavaClass(rootMirror)(tpe))
-  }
-
-  private def findPrimaryConstructorMethodSymbol(classSymbol: universe.ClassSymbol):
-  universe.MethodSymbol = {
-    classSymbol.toType
+    val primaryConstructorSymbol = classSymbol.toType
       .decl(universe.termNames.CONSTRUCTOR)
       .alternatives
+      .collectFirst({
+        case constructorSymbol: universe.MethodSymbol if constructorSymbol.isPrimaryConstructor =>
+          constructorSymbol
+      })
       .head
       .asMethod
-  }
 
-  private def getArgumentsTypes(primaryConstructorSymbol: universe.MethodSymbol):
-  List[universe.Type] = {
-    primaryConstructorSymbol.typeSignature
-      .paramLists
-      .head
-      .map(symbol => symbol.typeSignature)
-  }
+    val classMirror = rootMirror.reflectClass(classSymbol)
+    val constructorMethodMirror = classMirror.reflectConstructor(primaryConstructorSymbol)
 
-  private def scalaTypeToJavaClass(mirror: universe.Mirror)(scalaType: universe.Type): Class[_] = {
-    val erasure = scalaType.erasure
-    mirror.runtimeClass(erasure)
+    arr: Array[AnyRef] => {
+      constructorMethodMirror.apply(arr: _*).asInstanceOf[T]
+    }
   }
 }

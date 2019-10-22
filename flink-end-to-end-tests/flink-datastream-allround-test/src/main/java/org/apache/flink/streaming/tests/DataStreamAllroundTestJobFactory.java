@@ -81,7 +81,7 @@ import static org.apache.flink.streaming.tests.TestOperatorEnum.RESULT_TYPE_QUER
  *     <li>environment.checkpoint_interval (long, default - 1000): the checkpoint interval.</li>
  *     <li>environment.externalize_checkpoint (boolean, default - false): whether or not checkpoints should be externalized.</li>
  *     <li>environment.externalize_checkpoint.cleanup (String, default - 'retain'): Configures the cleanup mode for externalized checkpoints. Can be 'retain' or 'delete'.</li>
- *     <li>environment.fail_on_checkpointing_errors (String, default - true): Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure.</li>
+ *     <li>environment.tolerable_checkpoint_failure_number (int, default - 0): Sets the expected behaviour for the job manager in case that it received declined checkpoints from tasks.</li>
  *     <li>environment.parallelism (int, default - 1): parallelism to use for the job.</li>
  *     <li>environment.max_parallelism (int, default - 128): max parallelism to use for the job</li>
  *     <li>environment.restart_strategy (String, default - 'fixed_delay'): The failure restart strategy to use. Can be 'fixed_delay' or 'no_restart'.</li>
@@ -150,9 +150,9 @@ public class DataStreamAllroundTestJobFactory {
 		.key("environment.externalize_checkpoint.cleanup")
 		.defaultValue("retain");
 
-	private static final ConfigOption<Boolean> ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS = ConfigOptions
-		.key("environment.fail_on_checkpointing_errors")
-		.defaultValue(true);
+	private static final ConfigOption<Integer> ENVIRONMENT_TOLERABLE_DECLINED_CHECKPOINT_NUMBER = ConfigOptions
+		.key("environment.tolerable_declined_checkpoint_number ")
+		.defaultValue(0);
 
 	private static final ConfigOption<Integer> ENVIRONMENT_PARALLELISM = ConfigOptions
 		.key("environment.parallelism")
@@ -272,12 +272,12 @@ public class DataStreamAllroundTestJobFactory {
 					throw new IllegalArgumentException("Unknown clean up mode for externalized checkpoints: " + cleanupModeConfig);
 			}
 			env.getCheckpointConfig().enableExternalizedCheckpoints(cleanupMode);
-		}
 
-		final boolean failOnCheckpointingErrors = pt.getBoolean(
-			ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS.key(),
-			ENVIRONMENT_FAIL_ON_CHECKPOINTING_ERRORS.defaultValue());
-		env.getCheckpointConfig().setFailOnCheckpointingErrors(failOnCheckpointingErrors);
+			final int tolerableDeclinedCheckpointNumber = pt.getInt(
+				ENVIRONMENT_TOLERABLE_DECLINED_CHECKPOINT_NUMBER.key(),
+				ENVIRONMENT_TOLERABLE_DECLINED_CHECKPOINT_NUMBER.defaultValue());
+			env.getCheckpointConfig().setTolerableCheckpointFailureNumber(tolerableDeclinedCheckpointNumber);
+		}
 	}
 
 	private static void setupParallelism(final StreamExecutionEnvironment env, final ParameterTool pt) {

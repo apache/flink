@@ -28,9 +28,12 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.FunctionLanguage
+import org.apache.flink.table.plan.util.PythonUtil
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 /**
   * Evaluates constant expressions using Flink's [[FunctionCodeGenerator]].
@@ -48,7 +51,15 @@ class ExpressionReducer(config: TableConfig)
 
     val typeFactory = rexBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
+    val pythonUDFExprs = ListBuffer[RexNode]()
+
     val literals = constExprs.asScala.map(e => (e.getType.getSqlTypeName, e)).flatMap {
+
+      // Skip expressions that contain python functions because it's quite expensive to
+      // call Python UDFs during optimization phase. They will be optimized during the runtime.
+      case (_, e) if PythonUtil.containsFunctionOf(e, FunctionLanguage.PYTHON) =>
+        pythonUDFExprs += e
+        None
 
       // we need to cast here for RexBuilder.makeLiteral
       case (SqlTypeName.DATE, e) =>
@@ -114,34 +125,40 @@ class ExpressionReducer(config: TableConfig)
     var reducedIdx = 0
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
-      unreduced.getType.getSqlTypeName match {
-        // we insert the original expression for object literals
-        case SqlTypeName.ANY |
-             SqlTypeName.ROW |
-             SqlTypeName.ARRAY |
-             SqlTypeName.MAP |
-             SqlTypeName.MULTISET =>
-          reducedValues.add(unreduced)
+      // use eq to compare reference
+      if (pythonUDFExprs.exists(_ eq unreduced)) {
+        // if contains python function then just insert the original expression.
+        reducedValues.add(unreduced)
+      } else {
+        unreduced.getType.getSqlTypeName match {
+          // we insert the original expression for object literals
+          case SqlTypeName.ANY |
+               SqlTypeName.ROW |
+               SqlTypeName.ARRAY |
+               SqlTypeName.MAP |
+               SqlTypeName.MULTISET =>
+            reducedValues.add(unreduced)
 
-        case _ =>
-          val reducedValue = reduced.getField(reducedIdx)
-          // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
-          val value = if (unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
-            if (reducedValue == null) {
-              reducedValue
+          case _ =>
+            val reducedValue = reduced.getField(reducedIdx)
+            // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
+            val value = if (unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
+              if (reducedValue == null) {
+                reducedValue
+              } else {
+                new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+              }
             } else {
-              new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+              reducedValue
             }
-          } else {
-            reducedValue
-          }
 
-          val literal = rexBuilder.makeLiteral(
-            value,
-            unreduced.getType,
-            true)
-          reducedValues.add(literal)
-          reducedIdx += 1
+            val literal = rexBuilder.makeLiteral(
+              value,
+              unreduced.getType,
+              true)
+            reducedValues.add(literal)
+            reducedIdx += 1
+        }
       }
       i += 1
     }

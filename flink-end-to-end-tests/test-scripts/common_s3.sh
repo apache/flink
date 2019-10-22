@@ -63,19 +63,15 @@ s3util="java -jar ${END_TO_END_DIR}/flink-e2e-test-utils/target/S3UtilProgram.ja
 #   None
 ###################################
 function s3_setup {
-  # make sure we delete the file at the end
-  function s3_cleanup {
-    rm $FLINK_DIR/lib/flink-s3-fs*.jar
+  add_optional_plugin "s3-fs-$1"
+  set_config_key "s3.access-key" "$IT_CASE_S3_ACCESS_KEY"
+  set_config_key "s3.secret-key" "$IT_CASE_S3_SECRET_KEY"
+}
 
-    # remove any leftover settings
-    sed -i -e 's/s3.access-key: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-    sed -i -e 's/s3.secret-key: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-  }
-  trap s3_cleanup EXIT
-
-  cp $FLINK_DIR/opt/flink-s3-fs-$1-*.jar $FLINK_DIR/lib/
-  echo "s3.access-key: $IT_CASE_S3_ACCESS_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
-  echo "s3.secret-key: $IT_CASE_S3_SECRET_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
+function s3_setup_with_provider {
+  add_optional_plugin "s3-fs-$1"
+  # reads (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+  set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
 }
 
 ###################################

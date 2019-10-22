@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes.datastream
 
 import java.lang.{Boolean => JBoolean, Long => JLong}
 import java.util
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel._
@@ -51,6 +50,7 @@ import org.apache.flink.table.plan.nodes.CommonMatchRecognize
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.RexDefaultVisitor
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.`match`._
 import org.apache.flink.table.runtime.aggregate.SortUtil
 import org.apache.flink.table.runtime.conversion.CRowToRowMapFunction
@@ -58,6 +58,8 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{RowKeySelector, RowtimeProcessFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.MathUtils
+
+import org.apache.calcite.util.ImmutableBitSet
 
 /**
   * Flink RelNode which matches along with LogicalMatch.
@@ -123,18 +125,18 @@ class DataStreamMatch(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig)
     : DataStream[CRow] = {
 
     val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(getInput)
 
-    val config = tableEnv.config
+    val config = planner.getConfig
     val inputTypeInfo = inputSchema.typeInfo
 
     val crowInput: DataStream[CRow] = getInput
       .asInstanceOf[DataStreamRel]
-      .translateToPlan(tableEnv, queryConfig)
+      .translateToPlan(planner, queryConfig)
 
     if (inputIsAccRetract) {
       throw new TableException(
@@ -142,7 +144,7 @@ class DataStreamMatch(
           "Note: Match recognize should not follow a non-windowed GroupBy aggregation.")
     }
 
-    val (timestampedInput, rowComparator) = translateOrder(tableEnv,
+    val (timestampedInput, rowComparator) = translateOrder(planner,
       crowInput,
       logicalMatch.orderKeys)
 
@@ -192,7 +194,7 @@ class DataStreamMatch(
   }
 
   private def translateOrder(
-      tableEnv: StreamTableEnvironment,
+      planner: StreamPlanner,
       crowInput: DataStream[CRow],
       orderKeys: RelCollation)
     : (DataStream[CRow], Option[RowComparator]) = {
@@ -219,7 +221,7 @@ class DataStreamMatch(
       Some(SortUtil
         .createRowComparator(inputSchema.relDataType,
           orderKeys.getFieldCollations.asScala.tail,
-          tableEnv.execEnv.getConfig))
+          planner.getExecutionEnvironment.getConfig))
     } else {
       None
     }
@@ -235,12 +237,10 @@ class DataStreamMatch(
     }
   }
 
-  private def applyPartitioning(partitionKeys: util.List[RexNode], inputDs: DataStream[Row])
+  private def applyPartitioning(partitionKeys: ImmutableBitSet, inputDs: DataStream[Row])
     : DataStream[Row] = {
     if (partitionKeys.size() > 0) {
-      val keys = partitionKeys.asScala.map {
-        case ref: RexInputRef => ref.getIndex
-      }.toArray
+      val keys = partitionKeys.toArray
       val keySelector = new RowKeySelector(keys, inputSchema.projectedTypeInfo(keys))
       inputDs.keyBy(keySelector)
     } else {
@@ -372,7 +372,7 @@ private class PatternVisitor(
       pattern.timesOrMore(startNum).consecutive()
     }
 
-    if (greedy && isOptional) {
+    if (greedy && (isOptional || startNum == endNum)) {
       newPattern
     } else if (greedy) {
       newPattern.greedy()

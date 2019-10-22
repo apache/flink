@@ -21,7 +21,6 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.nonha.embedded.TestingEmbeddedHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -41,6 +41,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -54,6 +55,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests which verify the cluster behaviour in case of leader changes.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
@@ -157,7 +159,11 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		highAvailabilityServices.grantResourceManagerLeadership();
 
 		// wait for the ResourceManager to confirm the leadership
-		assertThat(LeaderRetrievalUtils.retrieveLeaderConnectionInfo(highAvailabilityServices.getResourceManagerLeaderRetriever(), Time.minutes(TESTING_TIMEOUT.toMinutes())).getLeaderSessionID(), is(notNullValue()));
+		assertThat(
+			LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+				highAvailabilityServices.getResourceManagerLeaderRetriever(),
+				TESTING_TIMEOUT).getLeaderSessionId(),
+			is(notNullValue()));
 
 		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
 	}

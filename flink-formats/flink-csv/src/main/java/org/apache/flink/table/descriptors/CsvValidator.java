@@ -44,7 +44,7 @@ public class CsvValidator extends FormatDescriptorValidator {
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		properties.validateString(FORMAT_FIELD_DELIMITER, true, 1, 1);
-		properties.validateEnumValues(FORMAT_LINE_DELIMITER, true, Arrays.asList("\r", "\n", "\r\n"));
+		properties.validateEnumValues(FORMAT_LINE_DELIMITER, true, Arrays.asList("\r", "\n", "\r\n", ""));
 		properties.validateString(FORMAT_QUOTE_CHARACTER, true, 1, 1);
 		properties.validateBoolean(FORMAT_ALLOW_COMMENTS, true);
 		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);

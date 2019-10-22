@@ -40,6 +40,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -67,7 +68,7 @@ public class LocalBufferPoolTest extends TestLogger {
 
 	@Before
 	public void setupLocalBufferPool() {
-		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
+		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize, 1);
 		localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
 		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
@@ -306,7 +307,8 @@ public class LocalBufferPoolTest extends TestLogger {
 
 				// Request all available buffers
 				for (int i = 0; i < numberOfBuffers; i++) {
-					requested.add(localBufferPool.requestBufferBlocking());
+					final Buffer buffer = checkNotNull(localBufferPool.requestBuffer());
+					requested.add(buffer);
 				}
 
 				// Notify that we've requested all buffers
@@ -315,7 +317,7 @@ public class LocalBufferPoolTest extends TestLogger {
 				// Try to request the next buffer (but pool should be destroyed either right before
 				// the request or more likely during the request).
 				try {
-					localBufferPool.requestBufferBlocking();
+					localBufferPool.requestBufferBuilderBlocking();
 					fail("Call should have failed with an IllegalStateException");
 				}
 				catch (IllegalStateException e) {
@@ -445,7 +447,7 @@ public class LocalBufferPoolTest extends TestLogger {
 		public Boolean call() throws Exception {
 			try {
 				for (int i = 0; i < numBuffersToRequest; i++) {
-					Buffer buffer = bufferProvider.requestBufferBlocking();
+					Buffer buffer = checkNotNull(bufferProvider.requestBuffer());
 					buffer.recycleBuffer();
 				}
 			}

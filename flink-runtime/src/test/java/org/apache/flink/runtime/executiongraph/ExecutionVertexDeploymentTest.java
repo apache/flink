@@ -21,8 +21,10 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -30,18 +32,19 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.net.InetAddress;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ERROR_MESSAGE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -53,6 +56,8 @@ import static org.mockito.Mockito.when;
 
 public class ExecutionVertexDeploymentTest extends TestLogger {
 
+	private static final String ERROR_MESSAGE = "test_failure_error_message";
+
 	@Test
 	public void testDeployCall() {
 		try {
@@ -60,7 +65,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -94,7 +99,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -133,7 +138,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -175,7 +180,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlot(new SubmitFailingSimpleAckingTaskManagerGateway());
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitFailingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -202,7 +207,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlot(new SubmitFailingSimpleAckingTaskManagerGateway());
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitFailingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -240,7 +245,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlot(new SubmitBlockingSimpleAckingTaskManagerGateway());
+			TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitBlockingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(testingLogicalSlot);
@@ -282,39 +287,42 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 	 */
 	@Test
 	public void testTddProducedPartitionsLazyScheduling() throws Exception {
-		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), new DirectScheduledExecutorService());
+		for (ScheduleMode scheduleMode: ScheduleMode.values()) {
+			ExecutionJobVertex jobVertex = getExecutionVertex(
+				new JobVertexID(),
+				new DirectScheduledExecutorService(),
+				scheduleMode);
 
-		IntermediateResult result =
+			IntermediateResult result =
 				new IntermediateResult(new IntermediateDataSetID(), jobVertex, 1, ResultPartitionType.PIPELINED);
 
-		ExecutionVertex vertex =
+			ExecutionAttemptID attemptID = new ExecutionAttemptID();
+			ExecutionVertex vertex =
 				new ExecutionVertex(jobVertex, 0, new IntermediateResult[]{result}, Time.minutes(1));
+			TaskDeploymentDescriptorFactory tddFactory =
+				TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, 1);
 
-		ExecutionEdge mockEdge = createMockExecutionEdge(1);
+			ExecutionEdge mockEdge = createMockExecutionEdge(1);
 
-		result.getPartitions()[0].addConsumerGroup();
-		result.getPartitions()[0].addConsumer(mockEdge, 0);
+			result.getPartitions()[0].addConsumerGroup();
+			result.getPartitions()[0].addConsumer(mockEdge, 0);
 
-		SlotContext slotContext = mock(SlotContext.class);
-		when(slotContext.getAllocationId()).thenReturn(new AllocationID());
+			TaskManagerLocation location =
+				new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 1);
 
-		LogicalSlot slot = mock(LogicalSlot.class);
-		when(slot.getAllocationId()).thenReturn(new AllocationID());
-
-		for (ScheduleMode mode : ScheduleMode.values()) {
-			vertex.getExecutionGraph().setScheduleMode(mode);
-
-			TaskDeploymentDescriptor tdd = vertex.createDeploymentDescriptor(new ExecutionAttemptID(), slot, null, 1);
+			TaskDeploymentDescriptor tdd = tddFactory.createDeploymentDescriptor(
+				new AllocationID(),
+				0,
+				null,
+				Execution.registerProducedPartitions(vertex, location, attemptID, scheduleMode.allowLazyDeployment()).get().values());
 
 			Collection<ResultPartitionDeploymentDescriptor> producedPartitions = tdd.getProducedPartitions();
 
 			assertEquals(1, producedPartitions.size());
 			ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
-			assertEquals(mode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
+			assertEquals(scheduleMode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
 		}
 	}
-
-
 
 	private ExecutionEdge createMockExecutionEdge(int maxParallelism) {
 		ExecutionVertex targetVertex = mock(ExecutionVertex.class);

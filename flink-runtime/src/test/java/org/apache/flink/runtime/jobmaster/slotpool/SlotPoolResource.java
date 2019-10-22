@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 
@@ -46,7 +46,7 @@ public class SlotPoolResource extends ExternalResource {
 
 	public SlotPoolResource(@Nonnull SlotSelectionStrategy schedulingStrategy) {
 		this.schedulingStrategy = schedulingStrategy;
-		this.mainThreadExecutor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
+		this.mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 		slotPool = null;
 		testingResourceManagerGateway = null;
 	}
@@ -78,7 +78,7 @@ public class SlotPoolResource extends ExternalResource {
 
 		testingResourceManagerGateway = new TestingResourceManagerGateway();
 
-		slotPool = new SlotPoolImpl(new JobID());
+		slotPool = new TestingSlotPoolImpl(new JobID());
 		scheduler = new SchedulerImpl(schedulingStrategy, slotPool);
 		slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
 		scheduler.start(mainThreadExecutor);

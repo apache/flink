@@ -26,17 +26,17 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
 	<name>flink-connector-kinesis</name>
 	<properties>
-		<aws.sdk.version>1.11.319</aws.sdk.version>
-		<aws.kinesis-kcl.version>1.9.0</aws.kinesis-kcl.version>
-		<aws.kinesis-kpl.version>0.12.9</aws.kinesis-kpl.version>
-		<aws.dynamodbstreams-kinesis-adapter.version>1.4.0</aws.dynamodbstreams-kinesis-adapter.version>
+		<aws.sdk.version>1.11.603</aws.sdk.version>
+		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
+		<aws.kinesis-kpl.version>0.13.1</aws.kinesis-kpl.version>
+		<aws.dynamodbstreams-kinesis-adapter.version>1.5.0</aws.dynamodbstreams-kinesis-adapter.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -66,7 +66,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests_${scala.binary.version}</artifactId>
+			<artifactId>flink-tests</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -95,10 +95,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Note:
-			The below dependencies are licenced under the Amazon Software License.
-			Flink includes the "flink-connector-kinesis" only as an optional dependency for that reason.
-		-->
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
@@ -151,6 +147,18 @@ under the License.
 
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.9</version>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
+
 	<build>
 		<plugins>
 			<plugin>
@@ -182,6 +190,8 @@ under the License.
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
 									<include>org.apache.httpcomponents:*</include>
+									<!-- Java 11 specific inclusion; should be a no-op for other versions -->
+									<include>javax.xml.bind:jaxb-api</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
@@ -205,4 +215,21 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>java11</id>
+			<activation>
+				<jdk>11</jdk>
+			</activation>
+			<dependencies>
+				<dependency>
+					<!-- KPL requires jaxb-api for javax.xml.bind.DatatypeConverter -->
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+					<version>2.3.0</version>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

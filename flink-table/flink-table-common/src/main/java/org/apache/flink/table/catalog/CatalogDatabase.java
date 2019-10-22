@@ -22,13 +22,20 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Represents a database object in a catalog.
+ * Interface of a database in a catalog.
  */
 public interface CatalogDatabase {
 	/**
 	 * Get a map of properties associated with the database.
 	 */
 	Map<String, String> getProperties();
+
+	/**
+	 * Get comment of the database.
+	 *
+	 * @return comment of the database
+	 */
+	String getComment();
 
 	/**
 	 * Get a deep copy of the CatalogDatabase instance.

@@ -24,10 +24,13 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -35,7 +38,7 @@ import java.util.function.BiConsumer;
 /**
  * A settable testing {@link StreamTask}.
  */
-public class MockStreamTask extends StreamTask {
+public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamTask<OUT, OP> {
 
 	private final String name;
 	private final Object checkpointLock;
@@ -78,16 +81,18 @@ public class MockStreamTask extends StreamTask {
 	}
 
 	@Override
-	public void init() { }
+	public void init() {
+	}
 
 	@Override
-	protected void run() { }
+	protected void processInput(DefaultActionContext context) throws Exception {
+		context.allActionsCompleted();
+	}
 
 	@Override
-	protected void cleanup() { }
-
-	@Override
-	protected void cancelTask() { }
+	protected void cleanup() {
+		this.mailboxProcessor.close();
+	}
 
 	@Override
 	public String getName() {
@@ -151,5 +156,15 @@ public class MockStreamTask extends StreamTask {
 	@Override
 	public Map<String, Accumulator<?, ?>> getAccumulatorMap() {
 		return accumulatorMap;
+	}
+
+	/**
+	 * Creates the mailbox executor for the operator with the given configuration.
+	 *
+	 * @param config the config of the operator.
+	 * @return the mailbox executor of the operator.
+	 */
+	public MailboxExecutor getMailboxExecutor(StreamConfig config) {
+		return getMailboxExecutorFactory().createExecutor(config.getChainIndex());
 	}
 }

@@ -29,10 +29,11 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.sql.`type`.AbstractSqlType
+import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.plan.schema.{ArrayRelDataType, MultisetRelDataType}
+import org.apache.flink.table.plan.schema.{ArrayRelDataType, MapRelDataType, MultisetRelDataType}
 import org.apache.flink.table.plan.util.ExplodeFunctionUtil
 
 class LogicalUnnestRule(
@@ -94,6 +95,17 @@ class LogicalUnnestRule(
             case arrayType: ArrayRelDataType =>
               (arrayType.getComponentType,
                 ExplodeFunctionUtil.explodeTableFuncFromType(arrayType.typeInfo))
+
+            case map: MapRelDataType =>
+              val keyTypeInfo = FlinkTypeFactory.toTypeInfo(map.keyType)
+              val valueTypeInfo = FlinkTypeFactory.toTypeInfo(map.valueType)
+              val componentTypeInfo = Types.ROW(keyTypeInfo, valueTypeInfo)
+              val componentType = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+                .createTypeFromTypeInfo(componentTypeInfo, isNullable = true)
+
+              val explodeFunction = ExplodeFunctionUtil.explodeTableFuncFromType(map.typeInfo)
+              (componentType, explodeFunction)
+
             case mt: MultisetRelDataType =>
               (mt.getComponentType, ExplodeFunctionUtil.explodeTableFuncFromType(mt.typeInfo))
             case _ => throw new TableException(s"Unsupported UNNEST on type: ${dataType.toString}")

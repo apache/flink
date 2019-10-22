@@ -125,6 +125,15 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The interval after which to consider a shard idle for purposes of watermark generation. */
 	public static final String SHARD_IDLE_INTERVAL_MILLIS = "flink.shard.idle.interval";
 
+	/** The interval for periodically synchronizing the shared watermark state. */
+	public static final String WATERMARK_SYNC_MILLIS = "flink.watermark.sync.interval";
+
+	/** The maximum delta allowed for the reader to advance ahead of the shared global watermark. */
+	public static final String WATERMARK_LOOKAHEAD_MILLIS = "flink.watermark.lookahead.millis";
+
+	/** The maximum number of records that will be buffered before suspending consumption of a shard. */
+	public static final String WATERMARK_SYNC_QUEUE_CAPACITY = "flink.watermark.sync.queue.capacity";
+
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
 	// ------------------------------------------------------------------------
@@ -172,6 +181,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final boolean DEFAULT_SHARD_USE_ADAPTIVE_READS = false;
 
 	public static final long DEFAULT_SHARD_IDLE_INTERVAL_MILLIS = -1;
+
+	public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
 
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured

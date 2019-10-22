@@ -18,7 +18,7 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 /**
  * Writer for {@link BinaryRow}.
@@ -105,11 +105,6 @@ public final class BinaryRowWriter extends AbstractBinaryWriter {
 	@Override
 	public void writeDouble(int pos, double value) {
 		segment.putDouble(getFieldOffset(pos), value);
-	}
-
-	@Override
-	public void writeChar(int pos, char value) {
-		segment.putChar(getFieldOffset(pos), value);
 	}
 
 	@Override

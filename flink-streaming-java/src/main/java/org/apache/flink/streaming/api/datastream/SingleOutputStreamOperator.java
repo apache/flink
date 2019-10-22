@@ -23,11 +23,12 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -58,7 +59,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
 	private boolean wasSplitApplied = false;
 
-	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
+	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, Transformation<T> transformation) {
 		super(environment, transformation);
 	}
 
@@ -258,7 +259,11 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 */
 	@PublicEvolving
 	private SingleOutputStreamOperator<T> setChainingStrategy(ChainingStrategy strategy) {
-		this.transformation.setChainingStrategy(strategy);
+		if (transformation instanceof PhysicalTransformation) {
+			((PhysicalTransformation<T>) transformation).setChainingStrategy(strategy);
+		} else {
+			throw new UnsupportedOperationException("Cannot set chaining strategy on " + transformation);
+		}
 		return this;
 	}
 

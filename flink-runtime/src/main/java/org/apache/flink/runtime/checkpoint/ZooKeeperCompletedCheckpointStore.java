@@ -244,16 +244,6 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	}
 
 	@Override
-	public CompletedCheckpoint getLatestCheckpoint() {
-		if (completedCheckpoints.isEmpty()) {
-			return null;
-		}
-		else {
-			return completedCheckpoints.peekLast();
-		}
-	}
-
-	@Override
 	public List<CompletedCheckpoint> getAllCheckpoints() throws Exception {
 		List<CompletedCheckpoint> checkpoints = new ArrayList<>(completedCheckpoints);
 		return checkpoints;

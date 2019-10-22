@@ -141,6 +141,15 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
+  def testNoDeeplyNestedAggregationsJava() {
+    val util = batchTestUtil()
+    val t = util.addTable[(Long, String)]("Table2",'b, 'c)
+    // Must fail. Aggregation on aggregation not allowed.
+    t.select("(b.sum + 1).sum")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  @throws[Exception]
   def testGroupingOnNonExistentFieldJava() {
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)

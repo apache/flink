@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -113,7 +114,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			new NoRestartStrategy(),
 			mock(SlotProvider.class));
 
-		runtimeGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		runtimeGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		runtimeGraph.attachJobGraph(vertices);
 
@@ -127,12 +128,18 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 				mock(CheckpointCoordinatorConfiguration.class),
 				new UnregisteredMetricsGroup());
 
-		runtimeGraph.enableCheckpointing(
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			100,
 			100,
 			100,
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+
+		runtimeGraph.enableCheckpointing(
+			chkConfig,
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),

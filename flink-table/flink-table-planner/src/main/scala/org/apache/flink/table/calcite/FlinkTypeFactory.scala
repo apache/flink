@@ -34,7 +34,7 @@ import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.calcite.FlinkTypeFactory.typeInfoToSqlTypeName
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.typeutils.TypeCheckUtils.isSimple
@@ -53,44 +53,37 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   // NOTE: for future data types it might be necessary to
   // override more methods of RelDataTypeFactoryImpl
 
-  private val seenTypes = mutable.HashMap[(TypeInformation[_], Boolean), RelDataType]()
-
   def createTypeFromTypeInfo(
       typeInfo: TypeInformation[_],
       isNullable: Boolean)
     : RelDataType = {
 
-      // we cannot use seenTypes for simple types,
-      // because time indicators and timestamps would be the same
+    val relType = if (isSimple(typeInfo)) {
+      // simple types can be converted to SQL types and vice versa
+      val sqlType = typeInfoToSqlTypeName(typeInfo)
+      sqlType match {
 
-      val relType = if (isSimple(typeInfo)) {
-        // simple types can be converted to SQL types and vice versa
-        val sqlType = typeInfoToSqlTypeName(typeInfo)
-        sqlType match {
+        case INTERVAL_YEAR_MONTH =>
+          createSqlIntervalType(
+            new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO))
 
-          case INTERVAL_YEAR_MONTH =>
-            createSqlIntervalType(
-              new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO))
+        case INTERVAL_DAY_SECOND =>
+          createSqlIntervalType(
+            new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
 
-          case INTERVAL_DAY_SECOND =>
-            createSqlIntervalType(
-              new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
+        case TIMESTAMP if typeInfo.isInstanceOf[TimeIndicatorTypeInfo] =>
+          if (typeInfo.asInstanceOf[TimeIndicatorTypeInfo].isEventTime) {
+            createRowtimeIndicatorType()
+          } else {
+            createProctimeIndicatorType()
+          }
 
-          case TIMESTAMP if typeInfo.isInstanceOf[TimeIndicatorTypeInfo] =>
-            if (typeInfo.asInstanceOf[TimeIndicatorTypeInfo].isEventTime) {
-              createRowtimeIndicatorType()
-            } else {
-              createProctimeIndicatorType()
-            }
-
-          case _ =>
-            createSqlType(sqlType)
-        }
-      } else {
-        // advanced types require specific RelDataType
-        // for storing the original TypeInformation
-        seenTypes.getOrElseUpdate((typeInfo, isNullable), createAdvancedType(typeInfo, isNullable))
+        case _ =>
+          createSqlType(sqlType)
       }
+    } else {
+      createAdvancedType(typeInfo, isNullable)
+    }
 
     createTypeWithNullability(relType, isNullable)
   }
@@ -176,6 +169,16 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     }
 
     canonize(relType)
+  }
+
+  /**
+    * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory
+    *
+    * @param tableSchema schema to convert to Calcite's specific one
+    * @return a struct type with the input fieldNames, input fieldTypes, and system fields
+    */
+  def buildLogicalRowType(tableSchema: TableSchema): RelDataType = {
+    buildLogicalRowType(tableSchema.getFieldNames, tableSchema.getFieldTypes)
   }
 
   /**

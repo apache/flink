@@ -1,0 +1,1135 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testEXISTS_EquiCondition_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND EXISTS (SELECT * FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), EXISTS({
+LogicalFilter(condition=[<($1, 50)])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[$6], joinType=[semi])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalFilter(condition=[<($1, 50)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEXISTS_EquiCondition_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND EXISTS (SELECT * FROM z WHERE z.i = x.a AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), EXISTS({
+LogicalFilter(condition=[AND(=($0, $cor0.a), <($1, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[=($3, $0)], joinType=[semi])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEXISTS_EquiCondition_InnerJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND EXISTS (SELECT * FROM z WHERE z.i = y.d AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), EXISTS({
+LogicalFilter(condition=[AND(=($0, $cor0.d), <($1, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[=($3, $0)], joinType=[semi])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEXISTS_NonEquiCondition_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND EXISTS (SELECT * FROM z WHERE z.i > x.a AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), EXISTS({
+LogicalFilter(condition=[AND(>($0, $cor0.a), <($1, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[>($3, $0)], joinType=[semi])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEXISTS_NonEquiCondition_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND EXISTS (SELECT * FROM z WHERE z.i < y.d AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), EXISTS({
+LogicalFilter(condition=[AND(<($0, $cor0.d), <($1, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[<($3, $0)], joinType=[semi])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_EquiCondition_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND y.d IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_EquiCondition_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND y.d IN (SELECT z.i FROM z WHERE y.e = z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.e, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[semi])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0], j=[$1])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_EquiCondition_InnerJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_EquiCondition_InnerJoin4">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a IN (SELECT z.i FROM z WHERE x.b = z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[semi])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0], j=[$1])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_EquiCondition_InnerJoin5">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND (x.a, y.e) IN (SELECT z.i, z.j FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, $4, {
+LogicalProject(i=[$0], j=[$1])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[AND(=($0, $6), =($4, $7))], joinType=[semi])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_EquiCondition_InnerJoin6">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a IN (SELECT z.i FROM z WHERE y.e = z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.e, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[AND(=($0, $6), =($4, $7))], joinType=[semi])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_FullJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM (SELECT * FROM x FULL JOIN y ON x.c = y.f) xy WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(>($4, 100), IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      +- LogicalJoin(condition=[=($2, $5)], joinType=[full])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[>($4, 100)])
+   +- LogicalJoin(condition=[=($3, $6)], joinType=[semi])
+      :- LogicalJoin(condition=[=($2, $5)], joinType=[full])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_FullJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM (SELECT * FROM x FULL JOIN y ON x.c = y.f) xy WHERE xy.e > 100 AND xy.a IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(>($4, 100), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      +- LogicalJoin(condition=[=($2, $5)], joinType=[full])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[>($4, 100)])
+   +- LogicalJoin(condition=[=($0, $6)], joinType=[semi])
+      :- LogicalJoin(condition=[=($2, $5)], joinType=[full])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_LeftJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM (SELECT * FROM x LEFT JOIN y ON x.c = y.f) xy WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(>($4, 100), IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      +- LogicalJoin(condition=[=($2, $5)], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[>($4, 100)])
+   +- LogicalJoin(condition=[=($3, $6)], joinType=[semi])
+      :- LogicalJoin(condition=[=($2, $5)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_LeftJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM (SELECT * FROM x LEFT JOIN y ON x.c = y.f) xy WHERE xy.e > 100 AND xy.a IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(>($4, 100), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      +- LogicalJoin(condition=[=($2, $5)], joinType=[left])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[>($4, 100)])
+   +- LogicalJoin(condition=[=($0, $6)], joinType=[semi])
+      :- LogicalJoin(condition=[=($2, $5)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_NonEquiCondition_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND y.d IN (SELECT z.i FROM z WHERE y.e > z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(>($cor0.e, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[semi])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0], j=[$1])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_NonEquiCondition_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a IN (SELECT z.i FROM z WHERE x.b > z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(>($cor0.b, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[semi])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0], j=[$1])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_NonEquiCondition_InnerJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a IN (SELECT z.i FROM z WHERE y.e > z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(>($cor0.e, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[AND(=($0, $6), >($4, $7))], joinType=[semi])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_NonEquiCondition_InnerJoin4">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND y.d IN (SELECT z.i FROM z WHERE x.b > z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(>($cor0.b, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[AND(=($3, $6), >($1, $7))], joinType=[semi])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_RightJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM (SELECT * FROM x RIGHT JOIN y ON x.c = y.f) xy WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(>($4, 100), IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      +- LogicalJoin(condition=[=($2, $5)], joinType=[right])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[>($4, 100)])
+   +- LogicalJoin(condition=[=($3, $6)], joinType=[semi])
+      :- LogicalJoin(condition=[=($2, $5)], joinType=[right])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIN_RightJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM (SELECT * FROM x RIGHT JOIN y ON x.c = y.f) xy WHERE xy.e > 100 AND xy.a IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(>($4, 100), IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      +- LogicalJoin(condition=[=($2, $5)], joinType=[right])
+         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[>($4, 100)])
+   +- LogicalJoin(condition=[=($0, $6)], joinType=[semi])
+      :- LogicalJoin(condition=[=($2, $5)], joinType=[right])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_EXISTS_EquiCondition_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND NOT EXISTS (SELECT * FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(EXISTS({
+LogicalFilter(condition=[<($1, 50)])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[$6], joinType=[anti])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalFilter(condition=[<($1, 50)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_EXISTS_EquiCondition_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND NOT EXISTS (SELECT * FROM z WHERE z.i = x.a AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($0, $cor0.a), <($1, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[=($3, $0)], joinType=[anti])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_EXISTS_EquiCondition_InnerJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND NOT EXISTS (SELECT * FROM z WHERE z.i = y.d AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($0, $cor0.d), <($1, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[=($3, $0)], joinType=[anti])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_EXISTS_NonEquiCondition_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND NOT EXISTS (SELECT * FROM z WHERE z.i > x.a AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(EXISTS({
+LogicalFilter(condition=[AND(>($0, $cor0.a), <($1, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[>($3, $0)], joinType=[anti])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_EXISTS_NonEquiCondition_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND NOT EXISTS (SELECT * FROM z WHERE z.i < y.d AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(EXISTS({
+LogicalFilter(condition=[AND(<($0, $cor0.d), <($1, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[<($3, $0)], joinType=[anti])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_EquiCondition_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND y.d NOT IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_EquiCondition_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND y.d NOT IN (SELECT z.i FROM z WHERE y.e = z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.e, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), =($1, $4))], joinType=[anti])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0], j=[$1])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_EquiCondition_InnerJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a NOT IN (SELECT z.i FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_EquiCondition_InnerJoin4">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a NOT IN (SELECT z.i FROM z WHERE x.b = z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), =($1, $4))], joinType=[anti])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0], j=[$1])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_EquiCondition_InnerJoin5">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND (x.a, y.e) NOT IN (SELECT z.i, z.j FROM z WHERE z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, $4, {
+LogicalProject(i=[$0], j=[$1])
+  LogicalFilter(condition=[<($1, 50)])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[AND(OR(=($0, $6), IS NULL($0), IS NULL($6)), OR(=($4, $7), IS NULL($4), IS NULL($7)))], joinType=[anti])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_EquiCondition_InnerJoin6">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a NOT IN (SELECT z.i FROM z WHERE y.e = z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.e, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[AND(OR(=($0, $6), IS NULL($0), IS NULL($6)), =($4, $7))], joinType=[anti])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_NonEquiCondition_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND y.d NOT IN (SELECT z.i FROM z WHERE y.e > z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(>($cor0.e, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), >($1, $4))], joinType=[anti])
+         :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+         +- LogicalProject(i=[$0], j=[$1])
+            +- LogicalFilter(condition=[<($1, 50)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_NonEquiCondition_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a NOT IN (SELECT z.i FROM z WHERE x.b > z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(>($cor0.b, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), >($1, $4))], joinType=[anti])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(i=[$0], j=[$1])
+      :     +- LogicalFilter(condition=[<($1, 50)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_NonEquiCondition_InnerJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND x.a NOT IN (SELECT z.i FROM z WHERE y.e > z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(>($cor0.e, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[AND(OR(=($0, $6), IS NULL($0), IS NULL($6)), >($4, $7))], joinType=[anti])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNOT_IN_NonEquiCondition_InnerJoin4">
+    <Resource name="sql">
+      <![CDATA[SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND y.d NOT IN (SELECT z.i FROM z WHERE x.b > z.j AND z.j < 50)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($3, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(>($cor0.b, $1), <($1, 50))])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], f=[$5])
++- LogicalFilter(condition=[AND(=($2, $5), >($4, 100))])
+   +- LogicalJoin(condition=[AND(OR(=($3, $6), IS NULL($3), IS NULL($6)), >($1, $7))], joinType=[anti])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalFilter(condition=[<($1, 50)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -20,7 +20,6 @@ package org.apache.flink.table.codegen
 
 import java.lang.{Long => JLong}
 import java.util
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAggFunction
@@ -36,17 +35,19 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName, primitiveDefaultValue, primitiveTypeTermForTypeInfo}
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
+import org.apache.flink.table.functions.UserDefinedAggregateFunction
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.MatchUtil.{ALL_PATTERN_VARIABLE, AggregationPatternVariableFinder}
 import org.apache.flink.table.utils.EncodingUtils
-import org.apache.flink.table.validate.BasicOperatorTable.{MATCH_PROCTIME, MATCH_ROWTIME}
+import org.apache.flink.table.catalog.BasicOperatorTable.{MATCH_PROCTIME, MATCH_ROWTIME}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
+
+import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -267,7 +268,7 @@ class MatchCodeGenerator(
     */
   def generateOneRowPerMatchExpression(
       returnType: RowSchema,
-      partitionKeys: util.List[RexNode],
+      partitionKeys: ImmutableBitSet,
       measures: util.Map[String, RexNode])
     : PatternProcessFunctionRunner = {
     val resultExpression = generateOneRowPerMatchExpression(
@@ -404,15 +405,15 @@ class MatchCodeGenerator(
     * @return generated code for the given key
     */
   private def generatePartitionKeyAccess(
-      partitionKey: RexInputRef)
+      partitionIdx: Int)
     : GeneratedExpression = {
 
     val keyRow = generateKeyRow()
-    generateFieldAccess(keyRow, partitionKey.getIndex)
+    generateFieldAccess(keyRow, partitionIdx)
   }
 
   private def generateOneRowPerMatchExpression(
-      partitionKeys: util.List[RexNode],
+      partitionKeys: ImmutableBitSet,
       measures: util.Map[String, RexNode],
       returnType: RowSchema)
     : GeneratedExpression = {
@@ -420,9 +421,10 @@ class MatchCodeGenerator(
     // 1) the partition columns;
     // 2) the columns defined in the measures clause.
     val resultExprs =
-      partitionKeys.asScala.map { case inputRef: RexInputRef =>
-        generatePartitionKeyAccess(inputRef)
-      } ++ returnType.fieldNames.filter(measures.containsKey(_)).map { fieldName =>
+      partitionKeys.toList.asScala
+        .map(generatePartitionKeyAccess(_)) ++
+        returnType.fieldNames
+          .filter(measures.containsKey(_)).map { fieldName =>
         generateExpression(measures.get(fieldName))
       }
 
@@ -729,9 +731,11 @@ class MatchCodeGenerator(
     def generateAggFunction(): Unit = {
       val matchAgg = extractAggregatesAndExpressions
 
-      val aggGenerator = new AggregationCodeGenerator(config, false, input, None)
-
-      val aggFunc = aggGenerator.generateAggregations(
+      val aggGenerator = new AggregationCodeGenerator(
+        config,
+        false,
+        input,
+        None,
         s"AggFunction_$variableUID",
         matchAgg.inputExprs.map(r => FlinkTypeFactory.toTypeInfo(r.getType)),
         matchAgg.aggregations.map(_.aggFunction).toArray,
@@ -748,6 +752,7 @@ class MatchCodeGenerator(
         needReset = false,
         None
       )
+      val aggFunc = aggGenerator.generateAggregations
 
       reusableMemberStatements.add(aggFunc.code)
 
@@ -874,7 +879,7 @@ class MatchCodeGenerator(
     )
 
     private case class SingleAggCall(
-      aggFunction: TableAggregateFunction[_, _],
+      aggFunction: UserDefinedAggregateFunction[_, _],
       inputIndices: Array[Int],
       dataViews: Seq[DataViewSpec[_]],
       distinctAccIndex: Int

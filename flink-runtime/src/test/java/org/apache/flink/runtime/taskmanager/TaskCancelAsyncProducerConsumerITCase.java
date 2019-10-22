@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
@@ -39,11 +40,13 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -54,6 +57,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+@Category(AlsoRunWithSchedulerNG.class)
 public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 	// The Exceptions thrown by the producer/consumer Threads
@@ -73,7 +77,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 	private static Configuration getFlinkConfiguration() {
 		Configuration config = new Configuration();
 		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 9);
+		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 9);
 		return config;
 	}
 
@@ -214,7 +218,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			private final RecordWriter<LongValue> recordWriter;
 
 			public ProducerThread(ResultPartitionWriter partitionWriter) {
-				this.recordWriter = new RecordWriterBuilder().build(partitionWriter);
+				this.recordWriter = new RecordWriterBuilder<LongValue>().build(partitionWriter);
 			}
 
 			@Override
@@ -278,7 +282,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			public void run() {
 				try {
 					while (true) {
-						inputGate.getNextBufferOrEvent();
+						inputGate.getNext();
 					}
 				} catch (Exception e) {
 					ASYNC_CONSUMER_EXCEPTION = e;

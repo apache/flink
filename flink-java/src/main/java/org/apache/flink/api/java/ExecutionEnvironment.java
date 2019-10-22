@@ -24,7 +24,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -50,7 +49,6 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.Path;
@@ -102,7 +100,10 @@ public abstract class ExecutionEnvironment {
 	protected static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
 	/** The environment of the context (local by default, cluster if invoked through command line). */
-	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
+	private static ExecutionEnvironmentFactory contextEnvironmentFactory = null;
+
+	/** The ThreadLocal used to store {@link ExecutionEnvironmentFactory}. */
+	private static final ThreadLocal<ExecutionEnvironmentFactory> threadLocalContextEnvironmentFactory = new ThreadLocal<>();
 
 	/** The default parallelism used by local environments. */
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
@@ -118,13 +119,6 @@ public abstract class ExecutionEnvironment {
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
 	protected JobExecutionResult lastJobExecutionResult;
 
-	/** The ID of the session, defined by this execution environment. Sessions and Jobs are same in
-	 *  Flink, as Jobs can consist of multiple parts that are attached to the growing dataflow graph. */
-	protected JobID jobID;
-
-	/** The session timeout in seconds. */
-	protected long sessionTimeout;
-
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
 
@@ -132,7 +126,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a new Execution Environment.
 	 */
 	protected ExecutionEnvironment() {
-		jobID = JobID.generate();
+
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -242,68 +236,6 @@ public abstract class ExecutionEnvironment {
 	public JobExecutionResult getLastJobExecutionResult(){
 		return this.lastJobExecutionResult;
 	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Session Management
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Gets the JobID by which this environment is identified. The JobID sets the execution context
-	 * in the cluster or local environment.
-	 *
-	 * @return The JobID of this environment.
-	 * @see #getIdString()
-	 */
-	@PublicEvolving
-	public JobID getId() {
-		return this.jobID;
-	}
-
-	/**
-	 * Gets the JobID by which this environment is identified, as a string.
-	 *
-	 * @return The JobID as a string.
-	 * @see #getId()
-	 */
-	@PublicEvolving
-	public String getIdString() {
-		return this.jobID.toString();
-	}
-
-	/**
-	 * Sets the session timeout to hold the intermediate results of a job. This only
-	 * applies the updated timeout in future executions.
-	 *
-	 * @param timeout The timeout, in seconds.
-	 */
-	@PublicEvolving
-	public void setSessionTimeout(long timeout) {
-		throw new IllegalStateException("Support for sessions is currently disabled. " +
-				"It will be enabled in future Flink versions.");
-		// Session management is disabled, revert this commit to enable
-		//if (timeout < 0) {
-		//	throw new IllegalArgumentException("The session timeout must not be less than zero.");
-		//}
-		//this.sessionTimeout = timeout;
-	}
-
-	/**
-	 * Gets the session timeout for this environment. The session timeout defines for how long
-	 * after an execution, the job and its intermediate results will be kept for future
-	 * interactions.
-	 *
-	 * @return The session timeout, in seconds.
-	 */
-	@PublicEvolving
-	public long getSessionTimeout() {
-		return sessionTimeout;
-	}
-
-	/**
-	 * Starts a new session, discarding the previous data flow and all of its intermediate results.
-	 */
-	@PublicEvolving
-	public abstract void startNewSession() throws Exception;
 
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
@@ -834,13 +766,14 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
 	 * a String using a JSON representation of the execution data flow graph.
-	 * Note that this needs to be called, before the plan is executed.
 	 *
 	 * @return The execution plan of the program, as a JSON String.
-	 * @throws Exception Thrown, if the compiler could not be instantiated, or the master could not
-	 *                   be contacted to retrieve information relevant to the execution planning.
+	 * @throws Exception Thrown, if the compiler could not be instantiated.
 	 */
-	public abstract String getExecutionPlan() throws Exception;
+	public String getExecutionPlan() throws Exception {
+		Plan p = createProgramPlan(getDefaultName(), false);
+		return ExecutionPlanUtil.getExecutionPlanAsJSON(p);
+	}
 
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
@@ -904,7 +837,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan() {
-		return createProgramPlan(null);
+		return createProgramPlan(getDefaultName());
 	}
 
 	/**
@@ -936,6 +869,8 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan(String jobName, boolean clearSinks) {
+		checkNotNull(jobName);
+
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -946,10 +881,6 @@ public abstract class ExecutionEnvironment {
 						"A program needs at least one sink that consumes data. " +
 						"Examples are writing the data set or printing it.");
 			}
-		}
-
-		if (jobName == null) {
-			jobName = getDefaultName();
 		}
 
 		OperatorTranslation translator = new OperatorTranslation();
@@ -1061,8 +992,9 @@ public abstract class ExecutionEnvironment {
 	 * @return The execution environment of the context in which the program is executed.
 	 */
 	public static ExecutionEnvironment getExecutionEnvironment() {
-		return contextEnvironmentFactory == null ?
-				createLocalEnvironment() : contextEnvironmentFactory.createExecutionEnvironment();
+		return Utils.resolveFactory(threadLocalContextEnvironmentFactory, contextEnvironmentFactory)
+			.map(ExecutionEnvironmentFactory::createExecutionEnvironment)
+			.orElseGet(ExecutionEnvironment::createLocalEnvironment);
 	}
 
 	/**
@@ -1128,8 +1060,6 @@ public abstract class ExecutionEnvironment {
 	@PublicEvolving
 	public static ExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
 		checkNotNull(conf, "conf");
-
-		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
 		if (!conf.contains(RestOptions.PORT)) {
 			// explicitly set this option so that it's not set to 0 later
@@ -1253,6 +1183,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
+		threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
 	}
 
 	/**
@@ -1262,6 +1193,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
+		threadLocalContextEnvironmentFactory.remove();
 	}
 
 	/**
@@ -1273,6 +1205,6 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public static boolean areExplicitEnvironmentsAllowed() {
-		return contextEnvironmentFactory == null;
+		return contextEnvironmentFactory == null && threadLocalContextEnvironmentFactory.get() == null;
 	}
 }

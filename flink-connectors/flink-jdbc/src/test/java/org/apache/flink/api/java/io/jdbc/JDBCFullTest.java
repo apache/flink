@@ -35,6 +35,8 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.Types;
 
+import static org.hamcrest.core.StringContains.containsString;
+
 /**
  * Tests using both {@link JDBCInputFormat} and {@link JDBCOutputFormat}.
  */
@@ -53,8 +55,7 @@ public class JDBCFullTest extends JDBCTestBase {
 	@Test
 	public void testEnrichedClassCastException() throws Exception {
 		exception.expect(ClassCastException.class);
-		exception.expectMessage(
-			"java.lang.String cannot be cast to java.lang.Double, field index: 3, field value: 11.11.");
+		exception.expectMessage(containsString("field index: 3, field value: 11.11."));
 
 		JDBCOutputFormat jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 			.setDrivername(JDBCTestBase.DRIVER_CLASS)
@@ -84,7 +85,7 @@ public class JDBCFullTest extends JDBCTestBase {
 			//use a "splittable" query to exploit parallelism
 			inputBuilder = inputBuilder
 					.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
-					.setParametersProvider(new NumericBetweenParametersProvider(fetchSize, min, max));
+					.setParametersProvider(new NumericBetweenParametersProvider(min, max).ofBatchSize(fetchSize));
 		}
 		DataSet<Row> source = environment.createInput(inputBuilder.finish());
 

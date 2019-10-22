@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class MainThreadValidatorUtil {
 
-	private static final Logger log = LoggerFactory.getLogger(MainThreadValidatorUtil.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MainThreadValidatorUtil.class);
 
 	private final RpcEndpoint endpoint;
 
@@ -65,7 +65,7 @@ public final class MainThreadValidatorUtil {
 			String violationMsg = "Violation of main thread constraint detected: expected <"
 				+ expected + "> but running in <" + actual + ">.";
 
-			log.warn(violationMsg, new Exception(violationMsg));
+			LOG.warn(violationMsg, new Exception(violationMsg));
 
 			return false;
 		}

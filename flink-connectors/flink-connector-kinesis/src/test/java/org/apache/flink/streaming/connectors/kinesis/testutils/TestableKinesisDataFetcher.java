@@ -74,6 +74,7 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 			deserializationSchema,
 			DEFAULT_SHARD_ASSIGNER,
 			null,
+			null,
 			thrownErrorUnderTest,
 			subscribedShardsStateUnderTest,
 			subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,

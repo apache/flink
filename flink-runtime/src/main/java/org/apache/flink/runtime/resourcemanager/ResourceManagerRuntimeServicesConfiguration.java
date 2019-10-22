@@ -21,10 +21,10 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
-import scala.concurrent.duration.Duration;
+import org.apache.flink.util.TimeUtils;
 
 /**
  * Configuration class for the {@link ResourceManagerRuntimeServices} class.
@@ -56,8 +56,8 @@ public class ResourceManagerRuntimeServicesConfiguration {
 		final Time jobTimeout;
 
 		try {
-			jobTimeout = Time.milliseconds(Duration.apply(strJobTimeout).toMillis());
-		} catch (NumberFormatException e) {
+			jobTimeout = Time.milliseconds(TimeUtils.parseDuration(strJobTimeout).toMillis());
+		} catch (IllegalArgumentException e) {
 			throw new ConfigurationException("Could not parse the resource manager's job timeout " +
 				"value " + ResourceManagerOptions.JOB_TIMEOUT + '.', e);
 		}

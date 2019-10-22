@@ -17,7 +17,6 @@
 package org.apache.calcite.sql.validate;
 
 import org.apache.calcite.config.NullCollation;
-import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.linq4j.function.Function2;
 import org.apache.calcite.linq4j.function.Functions;
@@ -72,6 +71,7 @@ import org.apache.calcite.sql.SqlOrderBy;
 import org.apache.calcite.sql.SqlSampleSpec;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSelectKeyword;
+import org.apache.calcite.sql.SqlSnapshot;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.SqlUnresolvedFunction;
 import org.apache.calcite.sql.SqlUpdate;
@@ -90,6 +90,8 @@ import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.util.SqlVisitor;
+import org.apache.calcite.sql.validate.implicit.TypeCoercion;
+import org.apache.calcite.sql.validate.implicit.TypeCoercions;
 import org.apache.calcite.sql2rel.InitializerContext;
 import org.apache.calcite.util.BitString;
 import org.apache.calcite.util.Bug;
@@ -132,13 +134,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.calcite.sql.SqlUtil.stripAs;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 /*
  * THIS FILE HAS BEEN COPIED FROM THE APACHE CALCITE PROJECT UNTIL CALCITE-2707 IS FIXED.
- * (Added lines: 5937-5943)
+ * (Added lines: 6016-6022)
  */
 
 /**
@@ -289,6 +292,12 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 	private final SqlValidatorImpl.ValidationErrorFunction validationErrorFunction =
 		new SqlValidatorImpl.ValidationErrorFunction();
 
+	// TypeCoercion instance used for implicit type coercion.
+	private TypeCoercion typeCoercion;
+
+	// Flag saying if we enable the implicit type coercion.
+	private boolean enableTypeCoercion;
+
 	//~ Constructors -----------------------------------------------------------
 
 	/**
@@ -314,11 +323,15 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
 		rewriteCalls = true;
 		expandColumnReferences = true;
-		aggFinder = new AggFinder(opTab, false, true, false, null);
-		aggOrOverFinder = new AggFinder(opTab, true, true, false, null);
-		overFinder = new AggFinder(opTab, true, false, false, aggOrOverFinder);
-		groupFinder = new AggFinder(opTab, false, false, true, null);
-		aggOrOverOrGroupFinder = new AggFinder(opTab, true, true, true, null);
+		final SqlNameMatcher nameMatcher = catalogReader.nameMatcher();
+		aggFinder = new AggFinder(opTab, false, true, false, null, nameMatcher);
+		aggOrOverFinder = new AggFinder(opTab, true, true, false, null, nameMatcher);
+		overFinder = new AggFinder(opTab, true, false, false, aggOrOverFinder, nameMatcher);
+		groupFinder = new AggFinder(opTab, false, false, true, null, nameMatcher);
+		aggOrOverOrGroupFinder = new AggFinder(opTab, true, true, true, null, nameMatcher);
+		this.enableTypeCoercion = catalogReader.getConfig() == null
+			|| catalogReader.getConfig().typeCoercion();
+		this.typeCoercion = TypeCoercions.getTypeCoercion(this, conformance);
 	}
 
 	//~ Methods ----------------------------------------------------------------
@@ -883,10 +896,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 					op.getName(),
 					pos);
 
-			final SqlCall call =
-				SqlUtil.makeCall(
-					validator.getOperatorTable(),
-					curOpId);
+			final SqlCall call = validator.makeNullaryCall(curOpId);
 			if (call != null) {
 				result.add(
 					new SqlMonikerImpl(
@@ -968,6 +978,22 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			node,
 			ns.getTable(),
 			SqlAccessEnum.SELECT);
+
+		if (node.getKind() == SqlKind.SNAPSHOT) {
+			SqlSnapshot snapshot = (SqlSnapshot) node;
+			SqlNode period = snapshot.getPeriod();
+			RelDataType dataType = deriveType(scope, period);
+			if (dataType.getSqlTypeName() != SqlTypeName.TIMESTAMP) {
+				throw newValidationError(period,
+						Static.RESOURCE.illegalExpressionForTemporal(dataType.getSqlTypeName().getName()));
+			}
+			if (!ns.getTable().isTemporal()) {
+				List<String> qualifiedName = ns.getTable().getQualifiedName();
+				String tableName = qualifiedName.get(qualifiedName.size() - 1);
+				throw newValidationError(snapshot.getTableRef(),
+						Static.RESOURCE.notTemporalTable(tableName));
+			}
+		}
 	}
 
 	/**
@@ -1089,6 +1115,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 					return ns;
 				}
 				// fall through
+			case SNAPSHOT:
 			case OVER:
 			case COLLECTION_TABLE:
 			case ORDER_BY:
@@ -1165,7 +1192,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 				// not, we'll handle it later during overload resolution.
 				final List<SqlOperator> overloads = new ArrayList<>();
 				opTab.lookupOperatorOverloads(function.getNameAsId(),
-					function.getFunctionType(), SqlSyntax.FUNCTION, overloads);
+						function.getFunctionType(), SqlSyntax.FUNCTION, overloads,
+						catalogReader.nameMatcher());
 				if (overloads.size() == 1) {
 					((SqlBasicCall) call).setOperator(overloads.get(0));
 				}
@@ -1611,6 +1639,25 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		nodeToTypeMap.remove(node);
 	}
 
+	@Nullable public SqlCall makeNullaryCall(SqlIdentifier id) {
+		if (id.names.size() == 1 && !id.isComponentQuoted(0)) {
+			final List<SqlOperator> list = new ArrayList<>();
+			opTab.lookupOperatorOverloads(id, null, SqlSyntax.FUNCTION, list,
+					catalogReader.nameMatcher());
+			for (SqlOperator operator : list) {
+				if (operator.getSyntax() == SqlSyntax.FUNCTION_ID) {
+					// Even though this looks like an identifier, it is a
+					// actually a call to a function. Construct a fake
+					// call to this function, so we can use the regular
+					// operator validation.
+					return new SqlBasicCall(operator, SqlNode.EMPTY_ARRAY,
+							id.getParserPosition(), true, null);
+				}
+			}
+		}
+		return null;
+	}
+
 	public RelDataType deriveType(
 		SqlValidatorScope scope,
 		SqlNode expr) {
@@ -1704,7 +1751,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		// For builtins, we can give a better error message
 		final List<SqlOperator> overloads = new ArrayList<>();
 		opTab.lookupOperatorOverloads(unresolvedFunction.getNameAsId(), null,
-			SqlSyntax.FUNCTION, overloads);
+				SqlSyntax.FUNCTION, overloads, catalogReader.nameMatcher());
 		if (overloads.size() == 1) {
 			SqlFunction fun = (SqlFunction) overloads.get(0);
 			if ((fun.getSqlIdentifier() == null)
@@ -2277,6 +2324,25 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 					forceNullable,
 					lateral);
 
+			case SNAPSHOT:
+				call = (SqlCall) node;
+				operand = call.operand(0);
+				newOperand = registerFrom(
+						tableScope == null ? parentScope : tableScope,
+						usingScope,
+						register,
+						operand,
+						enclosingNode,
+						alias,
+						extendList,
+						forceNullable,
+						true);
+				if (newOperand != operand) {
+					call.setOperand(0, newOperand);
+				}
+				scopes.put(node, parentScope);
+				return newNode;
+
 			default:
 				throw Util.unexpected(kind);
 		}
@@ -2758,7 +2824,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
 	protected boolean isNestedAggregateWindow(SqlNode node) {
 		AggFinder nestedAggFinder =
-			new AggFinder(opTab, false, false, false, aggFinder);
+				new AggFinder(opTab, false, false, false, aggFinder,
+						catalogReader.nameMatcher());
 		return nestedAggFinder.findAgg(node) != null;
 	}
 
@@ -3073,17 +3140,19 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		validateQuery(call, scope, targetRowType);
 	}
 
-	private void checkRollUpInUsing(SqlIdentifier identifier, SqlNode leftOrRight) {
-		leftOrRight = stripAs(leftOrRight);
-		// if it's not a SqlIdentifier then that's fine, it'll be validated somewhere else.
-		if (leftOrRight instanceof SqlIdentifier) {
-			SqlIdentifier from = (SqlIdentifier) leftOrRight;
-			Table table = findTable(catalogReader.getRootSchema(), Util.last(from.names),
-				catalogReader.nameMatcher().isCaseSensitive());
-			String name = Util.last(identifier.names);
+	private void checkRollUpInUsing(SqlIdentifier identifier,
+			SqlNode leftOrRight, SqlValidatorScope scope) {
+		SqlValidatorNamespace namespace = getNamespace(leftOrRight, scope);
+		if (namespace != null) {
+			SqlValidatorTable sqlValidatorTable = namespace.getTable();
+			if (sqlValidatorTable != null) {
+				Table table = sqlValidatorTable.unwrap(Table.class);
+				String column = Util.last(identifier.names);
 
-			if (table != null && table.isRolledUp(name)) {
-				throw newValidationError(identifier, RESOURCE.rolledUpNotAllowed(name, "USING"));
+				if (table.isRolledUp(column)) {
+					throw newValidationError(identifier,
+							RESOURCE.rolledUpNotAllowed(column, "USING"));
+				}
 			}
 		}
 	}
@@ -3126,8 +3195,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 							RESOURCE.naturalOrUsingColumnNotCompatible(id.getSimple(),
 								leftColType.toString(), rightColType.toString()));
 					}
-					checkRollUpInUsing(id, left);
-					checkRollUpInUsing(id, right);
+					checkRollUpInUsing(id, left, scope);
+					checkRollUpInUsing(id, right, scope);
 				}
 				break;
 			default:
@@ -3437,8 +3506,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 	}
 
 	private Pair<String, String> findTableColumnPair(SqlIdentifier identifier,
-		SqlValidatorScope scope) {
-		SqlCall call = SqlUtil.makeCall(getOperatorTable(), identifier);
+			SqlValidatorScope scope) {
+		final SqlCall call = makeNullaryCall(identifier);
 		if (call != null) {
 			return null;
 		}
@@ -3461,13 +3530,14 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			return true;
 		}
 
-		String tableAlias = pair.left;
 		String columnName = pair.right;
 
-		Table table = findTable(tableAlias);
-		if (table != null) {
+		SqlValidatorTable sqlValidatorTable =
+				scope.fullyQualify(identifier).namespace.getTable();
+		if (sqlValidatorTable != null) {
+			Table table = sqlValidatorTable.unwrap(Table.class);
 			return table.rolledUpColumnValidInsideAgg(columnName, aggCall, parent,
-				catalogReader.getConfig());
+					catalogReader.getConfig());
 		}
 		return true;
 	}
@@ -3481,60 +3551,15 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			return false;
 		}
 
-		String tableAlias = pair.left;
 		String columnName = pair.right;
 
-		Table table = findTable(tableAlias);
-		if (table != null) {
+		SqlValidatorTable sqlValidatorTable =
+				scope.fullyQualify(identifier).namespace.getTable();
+		if (sqlValidatorTable != null) {
+			Table table = sqlValidatorTable.unwrap(Table.class);
 			return table.isRolledUp(columnName);
 		}
 		return false;
-	}
-
-	private Table findTable(CalciteSchema schema, String tableName, boolean caseSensitive) {
-		CalciteSchema.TableEntry entry = schema.getTable(tableName, caseSensitive);
-		if (entry != null) {
-			return entry.getTable();
-		}
-
-		// Check sub schemas
-		for (CalciteSchema subSchema : schema.getSubSchemaMap().values()) {
-			Table table = findTable(subSchema, tableName, caseSensitive);
-			if (table != null) {
-				return table;
-			}
-		}
-
-		return null;
-	}
-
-	/**
-	 * Given a table alias, find the corresponding {@link Table} associated with it
-	 * */
-	private Table findTable(String alias) {
-		List<String> names = null;
-		if (tableScope == null) {
-			// no tables to find
-			return null;
-		}
-
-		for (ScopeChild child : tableScope.children) {
-			if (catalogReader.nameMatcher().matches(child.name, alias)) {
-				names = ((SqlIdentifier) child.namespace.getNode()).names;
-				break;
-			}
-		}
-		if (names == null || names.size() == 0) {
-			return null;
-		} else if (names.size() == 1) {
-			return findTable(catalogReader.getRootSchema(), names.get(0),
-				catalogReader.nameMatcher().isCaseSensitive());
-		}
-
-		CalciteSchema.TableEntry entry =
-			SqlValidatorUtil.getTableEntry(catalogReader, names);
-
-		return entry == null ? null : entry.getTable();
 	}
 
 	private boolean shouldCheckForRollUp(SqlNode from) {
@@ -3802,6 +3827,29 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 	public SqlValidatorScope getWithScope(SqlNode withItem) {
 		assert withItem.getKind() == SqlKind.WITH_ITEM;
 		return scopes.get(withItem);
+	}
+
+	@Override
+	public SqlValidator setEnableTypeCoercion(boolean enabled) {
+		this.enableTypeCoercion = enabled;
+		return this;
+	}
+
+	@Override
+	public boolean isTypeCoercionEnabled() {
+		return this.enableTypeCoercion;
+	}
+
+	@Override
+	public void setTypeCoercion(TypeCoercion typeCoercion) {
+		Objects.requireNonNull(typeCoercion);
+		this.typeCoercion = typeCoercion;
+	}
+
+	@Override
+	public TypeCoercion getTypeCoercion() {
+		assert isTypeCoercionEnabled();
+		return this.typeCoercion;
 	}
 
 	/**
@@ -5158,12 +5206,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 	}
 
 	public void validateAggregateParams(SqlCall aggCall, SqlNode filter,
-		SqlValidatorScope scope) {
-		validateAggregateParams(aggCall, filter, null, scope);
-	}
-
-	public void validateAggregateParams(SqlCall aggCall, SqlNode filter,
-										SqlNodeList orderList, SqlValidatorScope scope) {
+			SqlNodeList orderList, SqlValidatorScope scope) {
 		// For "agg(expr)", expr cannot itself contain aggregate function
 		// invocations.  For example, "SUM(2 * MAX(x))" is illegal; when
 		// we see it, we'll report the error for the SUM (not the MAX).
@@ -5568,7 +5611,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		public RelDataType visit(SqlIdentifier id) {
 			// First check for builtin functions which don't have parentheses,
 			// like "LOCALTIME".
-			SqlCall call = SqlUtil.makeCall(opTab, id);
+			final SqlCall call = makeNullaryCall(id);
 			if (call != null) {
 				return call.getOperator().validateOperands(
 					SqlValidatorImpl.this,
@@ -5683,10 +5726,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		@Override public SqlNode visit(SqlIdentifier id) {
 			// First check for builtin functions which don't have
 			// parentheses, like "LOCALTIME".
-			SqlCall call =
-				SqlUtil.makeCall(
-					validator.getOperatorTable(),
-					id);
+			final SqlCall call = validator.makeNullaryCall(id);
 			if (call != null) {
 				return call.accept(this);
 			}

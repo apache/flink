@@ -113,6 +113,7 @@ public enum CommandLineWrapper {
 		private boolean zipped = false;
 		private boolean extract = false;
 		private Path targetDir;
+		private int strips = -1;
 
 		public TarBuilder(final Path file) {
 			this.file = file;
@@ -133,6 +134,11 @@ public enum CommandLineWrapper {
 			return this;
 		}
 
+		public TarBuilder strip(final int num) {
+			strips = num;
+			return this;
+		}
+
 		public String[] build() {
 			final List<String> commandsList = new ArrayList<>(4);
 			commandsList.add("tar");
@@ -145,6 +151,10 @@ public enum CommandLineWrapper {
 			if (targetDir != null) {
 				commandsList.add("--directory");
 				commandsList.add(targetDir.toAbsolutePath().toString());
+			}
+			if (strips > 0) {
+				commandsList.add("--strip");
+				commandsList.add(String.valueOf(strips));
 			}
 			commandsList.add("-f");
 			commandsList.add(file.toAbsolutePath().toString());

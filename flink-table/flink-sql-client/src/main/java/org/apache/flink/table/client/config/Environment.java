@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.config.entries.CatalogEntry;
+import org.apache.flink.table.client.config.entries.ConfigurationEntry;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.FunctionEntry;
@@ -37,7 +39,7 @@ import java.util.Map;
 
 /**
  * Environment configuration that represents the content of an environment file. Environment files
- * define tables, execution, and deployment behavior. An environment might be defined by default or
+ * define catalogs, tables, execution, and deployment behavior. An environment might be defined by default or
  * as part of a session. Environments can be merged or enriched with properties (e.g. from CLI command).
  *
  * <p>In future versions, we might restrict the merging or enrichment of deployment properties to not
@@ -47,7 +49,11 @@ public class Environment {
 
 	public static final String EXECUTION_ENTRY = "execution";
 
+	public static final String CONFIGURATION_ENTRY = "table";
+
 	public static final String DEPLOYMENT_ENTRY = "deployment";
+
+	private Map<String, CatalogEntry> catalogs;
 
 	private Map<String, TableEntry> tables;
 
@@ -55,13 +61,35 @@ public class Environment {
 
 	private ExecutionEntry execution;
 
+	private ConfigurationEntry configuration;
+
 	private DeploymentEntry deployment;
 
 	public Environment() {
+		this.catalogs = Collections.emptyMap();
 		this.tables = Collections.emptyMap();
 		this.functions = Collections.emptyMap();
 		this.execution = ExecutionEntry.DEFAULT_INSTANCE;
+		this.configuration = ConfigurationEntry.DEFAULT_INSTANCE;
 		this.deployment = DeploymentEntry.DEFAULT_INSTANCE;
+	}
+
+	public Map<String, CatalogEntry> getCatalogs() {
+		return catalogs;
+	}
+
+	public void setCatalogs(List<Map<String, Object>> catalogs) {
+		this.catalogs = new HashMap<>(catalogs.size());
+
+		catalogs.forEach(config -> {
+			final CatalogEntry catalog = CatalogEntry.create(config);
+			if (this.catalogs.containsKey(catalog.getName())) {
+				throw new SqlClientException(
+					String.format("Cannot create catalog '%s' because a catalog with this name is already registered.",
+						catalog.getName()));
+			}
+			this.catalogs.put(catalog.getName(), catalog);
+		});
 	}
 
 	public Map<String, TableEntry> getTables() {
@@ -106,6 +134,14 @@ public class Environment {
 		return execution;
 	}
 
+	public void setConfiguration(Map<String, Object> config) {
+		this.configuration = ConfigurationEntry.create(config);
+	}
+
+	public ConfigurationEntry getConfiguration() {
+		return configuration;
+	}
+
 	public void setDeployment(Map<String, Object> config) {
 		this.deployment = DeploymentEntry.create(config);
 	}
@@ -117,6 +153,11 @@ public class Environment {
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
+		sb.append("===================== Catalogs =====================\n");
+		catalogs.forEach((name, catalog) -> {
+			sb.append("- ").append(CatalogEntry.CATALOG_NAME).append(": ").append(name).append("\n");
+			catalog.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
+		});
 		sb.append("===================== Tables =====================\n");
 		tables.forEach((name, table) -> {
 			sb.append("- ").append(TableEntry.TABLES_NAME).append(": ").append(name).append("\n");
@@ -129,6 +170,8 @@ public class Environment {
 		});
 		sb.append("=================== Execution ====================\n");
 		execution.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
+		sb.append("================== Configuration =================\n");
+		configuration.asMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		sb.append("=================== Deployment ===================\n");
 		deployment.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		return sb.toString();
@@ -164,6 +207,11 @@ public class Environment {
 	public static Environment merge(Environment env1, Environment env2) {
 		final Environment mergedEnv = new Environment();
 
+		// merge catalogs
+		final Map<String, CatalogEntry> catalogs = new HashMap<>(env1.getCatalogs());
+		catalogs.putAll(env2.getCatalogs());
+		mergedEnv.catalogs = catalogs;
+
 		// merge tables
 		final Map<String, TableEntry> tables = new LinkedHashMap<>(env1.getTables());
 		tables.putAll(env2.getTables());
@@ -176,6 +224,9 @@ public class Environment {
 
 		// merge execution properties
 		mergedEnv.execution = ExecutionEntry.merge(env1.getExecution(), env2.getExecution());
+
+		// merge configuration properties
+		mergedEnv.configuration = ConfigurationEntry.merge(env1.getConfiguration(), env2.getConfiguration());
 
 		// merge deployment properties
 		mergedEnv.deployment = DeploymentEntry.merge(env1.getDeployment(), env2.getDeployment());
@@ -192,6 +243,9 @@ public class Environment {
 			Map<String, ViewEntry> views) {
 		final Environment enrichedEnv = new Environment();
 
+		// merge catalogs
+		enrichedEnv.catalogs = new LinkedHashMap<>(env.getCatalogs());
+
 		// merge tables
 		enrichedEnv.tables = new LinkedHashMap<>(env.getTables());
 		enrichedEnv.tables.putAll(views);
@@ -201,6 +255,9 @@ public class Environment {
 
 		// enrich execution properties
 		enrichedEnv.execution = ExecutionEntry.enrich(env.execution, properties);
+
+		// enrich configuration properties
+		enrichedEnv.configuration = ConfigurationEntry.enrich(env.configuration, properties);
 
 		// enrich deployment properties
 		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);

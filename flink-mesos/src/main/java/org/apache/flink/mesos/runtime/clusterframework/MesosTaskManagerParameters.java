@@ -59,6 +59,11 @@ public class MesosTaskManagerParameters {
 		.defaultValue(1024)
 		.withDescription("Memory to assign to the Mesos workers in MB.");
 
+	public static final ConfigOption<Integer> MESOS_RM_TASKS_DISK_MB =
+		key("mesos.resourcemanager.tasks.disk")
+		.defaultValue(0)
+		.withDescription(Description.builder().text("Disk space to assign to the Mesos workers in MB.").build());
+
 	public static final ConfigOption<Double> MESOS_RM_TASKS_CPUS =
 		key("mesos.resourcemanager.tasks.cpus")
 		.defaultValue(0.0)
@@ -145,6 +150,8 @@ public class MesosTaskManagerParameters {
 
 	private final int gpus;
 
+	private final int disk;
+
 	private final ContainerType containerType;
 
 	private final Option<String> containerImageName;
@@ -170,6 +177,7 @@ public class MesosTaskManagerParameters {
 	public MesosTaskManagerParameters(
 			double cpus,
 			int gpus,
+			int disk,
 			ContainerType containerType,
 			Option<String> containerImageName,
 			ContaineredTaskManagerParameters containeredParameters,
@@ -184,6 +192,7 @@ public class MesosTaskManagerParameters {
 
 		this.cpus = cpus;
 		this.gpus = gpus;
+		this.disk = disk;
 		this.containerType = Preconditions.checkNotNull(containerType);
 		this.containerImageName = Preconditions.checkNotNull(containerImageName);
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
@@ -209,6 +218,13 @@ public class MesosTaskManagerParameters {
 	 */
 	public int gpus() {
 		return gpus;
+	}
+
+	/**
+	 * Get the disk space in MB to use for the TaskManager Process.
+	 */
+	public int disk() {
+		return disk;
 	}
 
 	/**
@@ -335,6 +351,8 @@ public class MesosTaskManagerParameters {
 				" cannot be negative");
 		}
 
+		int disk = flinkConfig.getInteger(MESOS_RM_TASKS_DISK_MB);
+
 		// parse the containerization parameters
 		String imageName = flinkConfig.getString(MESOS_RM_CONTAINER_IMAGE_NAME);
 
@@ -379,6 +397,7 @@ public class MesosTaskManagerParameters {
 		return new MesosTaskManagerParameters(
 			cpus,
 			gpus,
+			disk,
 			containerType,
 			Option.apply(imageName),
 			containeredParameters,

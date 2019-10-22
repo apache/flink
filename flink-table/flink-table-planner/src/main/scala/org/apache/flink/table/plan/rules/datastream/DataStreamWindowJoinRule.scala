@@ -46,7 +46,7 @@ class DataStreamWindowJoinRule
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
-      TableConfig.DEFAULT)
+      TableConfig.getDefault)
 
     if (windowBounds.isDefined) {
       if (windowBounds.get.isEventTime) {
@@ -80,7 +80,7 @@ class DataStreamWindowJoinRule
         leftRowSchema.arity,
         join.getRowType,
         join.getCluster.getRexBuilder,
-        TableConfig.DEFAULT)
+        new TableConfig())
 
     new DataStreamWindowJoin(
       rel.getCluster,
@@ -98,7 +98,7 @@ class DataStreamWindowJoinRule
       windowBounds.get.leftTimeIdx,
       windowBounds.get.rightTimeIdx,
       remainCondition,
-      description)
+      "DataStreamWindowJoinRule")
   }
 }
 

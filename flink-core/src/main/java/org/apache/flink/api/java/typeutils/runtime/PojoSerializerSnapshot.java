@@ -121,7 +121,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
 	@Override
 	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		checkArgument(readVersion == 2, "unrecognized read version %d", readVersion);
+		checkArgument(readVersion == 2, "unrecognized read version %s", readVersion);
 		snapshotData = PojoSerializerSnapshotData.createFrom(in, userCodeClassLoader);
 	}
 
@@ -474,13 +474,21 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		Iterator<TypeSerializer<?>> serializersForPreexistingRegistrations =
 			Arrays.asList(preExistingRegistrationsCompatibility.getNestedSerializers()).iterator();
 
-		for (Map.Entry<Class<?>, TypeSerializer<?>> registration : newSubclassRegistrations.entrySet()) {
-			// new registrations should simply be appended to the subclass serializer registry with their new serializers;
-			// preexisting registrations should use the compatibility-checked serializer
-			TypeSerializer<?> newRegistration = (reconfiguredSubclassSerializerRegistry.containsKey(registration.getKey()))
-				? serializersForPreexistingRegistrations.next()
-				: registration.getValue();
-			reconfiguredSubclassSerializerRegistry.put(registration.getKey(), newRegistration);
+		// first, replace all restored serializers of subclasses that co-exist in
+		// the previous and new registrations, with the compatibility-checked serializers
+		for (Map.Entry<Class<?>, TypeSerializer<?>> oldRegistration : reconfiguredSubclassSerializerRegistry.entrySet()) {
+			if (newSubclassRegistrations.containsKey(oldRegistration.getKey())) {
+				oldRegistration.setValue(serializersForPreexistingRegistrations.next());
+			}
+		}
+
+		// then, for all new registration that did not exist before, append it to the registry simply with their
+		// new serializers
+		for (Map.Entry<Class<?>, TypeSerializer<?>> newRegistration : newSubclassRegistrations.entrySet()) {
+			TypeSerializer<?> oldRegistration = reconfiguredSubclassSerializerRegistry.get(newRegistration.getKey());
+			if (oldRegistration == null) {
+				reconfiguredSubclassSerializerRegistry.put(newRegistration.getKey(), newRegistration.getValue());
+			}
 		}
 
 		return decomposeSubclassSerializerRegistry(reconfiguredSubclassSerializerRegistry);

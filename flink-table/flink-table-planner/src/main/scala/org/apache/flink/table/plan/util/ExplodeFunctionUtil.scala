@@ -21,9 +21,12 @@ package org.apache.flink.table.plan.util
 import java.util
 
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{MultisetTypeInfo, ObjectArrayTypeInfo}
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.types.Row
+
+import scala.collection.JavaConverters._
 
 abstract class ExplodeTableFunction[T] extends TableFunction[T] {
 
@@ -50,6 +53,14 @@ abstract class ExplodeTableFunction[T] extends TableFunction[T] {
           i += 1
         }
       }
+    }
+  }
+}
+
+class MapExplodeTableFunc extends TableFunction[Row] {
+  def eval(map: util.Map[Object, Object]): Unit = {
+    map.asScala.foreach { case (key,value) =>
+      collect(Row.of(key, value))
     }
   }
 }
@@ -143,6 +154,8 @@ object ExplodeFunctionUtil {
       case _: BasicArrayTypeInfo[_, _] => new ObjectExplodeTableFunc
 
       case mt: MultisetTypeInfo[_] => createTableFuncByType(mt.getElementTypeInfo)
+
+      case mt: MapTypeInfo[_,_] => new MapExplodeTableFunc
 
       case _ => throw new TableException("Unnesting of '" + ti.toString + "' is not supported.")
     }

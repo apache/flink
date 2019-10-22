@@ -55,7 +55,6 @@ public interface TableFactory {
 	 */
 	Map<String, String> requiredContext();
 
-
 	/**
 	 * List of property keys that this factory can handle. This method will be used for validation.
 	 * If a property is passed that this factory cannot handle, an exception will be thrown. The

@@ -20,13 +20,13 @@ package org.apache.flink.table.utils
 
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import java.lang.{Integer => JInt}
-import java.lang.{Float => JFloat}
+import java.lang.{Integer => JInt, Long => JLong, Float => JFloat}
 import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.table.api.Types
+import org.apache.flink.types.Row
 
 /**
   * User-defined aggregation function to compute the top 10 most visited Int IDs
@@ -142,4 +142,46 @@ class NonMergableCount extends AggregateFunction[Long, NonMergableCountAcc] {
   override def createAccumulator(): NonMergableCountAcc = NonMergableCountAcc(0)
 
   override def getValue(acc: NonMergableCountAcc): Long = acc.count
+}
+
+case class CountMinMaxAcc(var count: Long, var min: Int, var max: Int)
+
+class CountMinMax extends AggregateFunction[Row, CountMinMaxAcc] {
+
+  def accumulate(acc: CountMinMaxAcc, value: Int): Unit = {
+    if (acc.count == 0 || value < acc.min) {
+      acc.min = value
+    }
+    if (acc.count == 0 || value > acc.max) {
+      acc.max = value
+    }
+    acc.count += 1
+  }
+
+  def resetAccumulator(acc: CountMinMaxAcc): Unit = {
+    acc.count = 0
+    acc.min = 0
+    acc.max = 0
+  }
+
+  override def createAccumulator(): CountMinMaxAcc = CountMinMaxAcc(0L, 0, 0)
+
+  override def getValue(acc: CountMinMaxAcc): Row = {
+    val min: Int = if (acc.count > 0) {
+      acc.min
+    } else {
+      null.asInstanceOf[Int]
+    }
+
+    val max: Int = if (acc.count > 0) {
+      acc.max
+    } else {
+      null.asInstanceOf[Int]
+    }
+    Row.of(JLong.valueOf(acc.count), JInt.valueOf(min), JInt.valueOf(max))
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(Types.LONG, Types.INT, Types.INT)
+  }
 }

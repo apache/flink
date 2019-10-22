@@ -39,12 +39,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_FROM;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
@@ -73,11 +73,11 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 	public List<String> supportedProperties() {
 		final List<String> properties = new ArrayList<>();
 		properties.add("connector." + testProperty);
-		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
-		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_FROM());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_TYPE());
+		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
+		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
 		return properties;
 	}
 
@@ -88,7 +88,7 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
 		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
 		return new TestTableSource(
-			params.getTableSchema(SCHEMA()),
+			params.getTableSchema(SCHEMA),
 			properties.get(testProperty),
 			proctime.orElse(null),
 			rowtime);

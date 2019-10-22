@@ -26,12 +26,15 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -49,16 +52,22 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private volatile BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
 
-	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> predicate) {
-		submitConsumer = predicate;
+	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = (ignore1, ignore2) -> { };
+
+	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
+		this.submitConsumer = submitConsumer;
 	}
 
-	public void setCancelConsumer(Consumer<ExecutionAttemptID> predicate) {
-		cancelConsumer = predicate;
+	public void setCancelConsumer(Consumer<ExecutionAttemptID> cancelConsumer) {
+		this.cancelConsumer = cancelConsumer;
 	}
 
 	public void setFreeSlotFunction(BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
 		this.freeSlotFunction = freeSlotFunction;
+	}
+
+	public void setReleasePartitionsConsumer(BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer) {
+		this.releasePartitionsConsumer = releasePartitionsConsumer;
 	}
 
 	@Override
@@ -95,7 +104,9 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public void failPartition(ExecutionAttemptID executionAttemptID) {}
+	public void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds) {
+		releasePartitionsConsumer.accept(jobId, partitionIds);
+	}
 
 	@Override
 	public void notifyCheckpointComplete(

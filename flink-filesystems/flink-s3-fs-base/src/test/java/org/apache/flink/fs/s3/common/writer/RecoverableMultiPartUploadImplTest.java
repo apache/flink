@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
 import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
@@ -374,12 +375,12 @@ public class RecoverableMultiPartUploadImplTest {
 
 		@Override
 		public boolean deleteObject(String key) throws IOException {
-			return false;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public long getObject(String key, File targetLocation) throws IOException {
-			return 0;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
@@ -394,12 +395,12 @@ public class RecoverableMultiPartUploadImplTest {
 
 		@Override
 		public ObjectMetadata getObjectMetadata(String key) throws IOException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		private byte[] getFileContentBytes(File file, int length) throws IOException {
 			final byte[] content = new byte[length];
-			new FileInputStream(file).read(content, 0, length);
+			IOUtils.readFully(new FileInputStream(file), content, 0, length);
 			return content;
 		}
 

@@ -54,6 +54,7 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
@@ -520,13 +521,13 @@ public class OneInputStreamTaskTest extends TestLogger {
 		TestingStreamOperator.numberRestoreCalls = 0;
 
 		testHarness.invoke();
-		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
+		testHarness.waitForTaskRunning();
 
 		final OneInputStreamTask<String, String> streamTask = testHarness.getTask();
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		while (!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false)) {}
+		streamTask.triggerCheckpointAsync(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false).get();
 
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
@@ -594,6 +595,40 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 		timeService.shutdownService();
+	}
+
+	@Test
+	public void testHandlingEndOfInput() throws Exception {
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+			OneInputStreamTask::new,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness
+			.setupOperatorChain(new OperatorID(), new TestBoundedOneInputStreamOperator("Operator0"))
+			.chain(
+				new OperatorID(),
+				new TestBoundedOneInputStreamOperator("Operator1"),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		testHarness.processElement(new StreamRecord<>("Hello"));
+		testHarness.endInput();
+
+		testHarness.waitForTaskCompletion();
+
+		expectedOutput.add(new StreamRecord<>("Hello"));
+		expectedOutput.add(new StreamRecord<>("[Operator0]: Bye"));
+		expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
 	}
 
 	private static class TestOperator
@@ -793,21 +828,19 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 			StreamEdge outputEdge = new StreamEdge(
 				new StreamNode(
-					null,
 					chainedIndex - 1,
 					null,
 					null,
-					null,
+					(StreamOperator<?>) null,
 					null,
 					null,
 					null
 				),
 				new StreamNode(
-					null,
 					chainedIndex,
 					null,
 					null,
-					null,
+					(StreamOperator<?>) null,
 					null,
 					null,
 					null

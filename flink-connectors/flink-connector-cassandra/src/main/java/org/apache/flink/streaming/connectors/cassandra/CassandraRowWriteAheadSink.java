@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
@@ -62,7 +63,7 @@ public class CassandraRowWriteAheadSink extends GenericWriteAheadSink<Row> {
 		super(committer, serializer, UUID.randomUUID().toString().replace("-", "_"));
 		this.insertQuery = insertQuery;
 		this.builder = builder;
-		ClosureCleaner.clean(builder, true);
+		ClosureCleaner.clean(builder, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
 
 	public void open() throws Exception {

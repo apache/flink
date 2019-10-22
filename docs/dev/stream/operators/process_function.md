@@ -58,7 +58,7 @@ stream.keyBy(...).process(new MyProcessFunction())
 
 ## Low-level Joins
 
-To realize low-level operations on two inputs, applications can use `CoProcessFunction`. This
+To realize low-level operations on two inputs, applications can use `CoProcessFunction` or `KeyedCoProcessFunction`. This
 function is bound to two different inputs and gets individual calls to `processElement1(...)` and
 `processElement2(...)` for records from the two different inputs.
 
@@ -97,9 +97,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.ProcessFunction.Context;
-import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction.Context;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction.OnTimerContext;
 import org.apache.flink.util.Collector;
 
 
@@ -184,10 +184,8 @@ public class CountWithTimeoutFunction
 {% highlight scala %}
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.functions.ProcessFunction.Context
-import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext
+import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.util.Collector
 
 // the source data stream

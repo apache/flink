@@ -145,7 +145,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public double getDisk() {
-			return 0.0;
+			return params.disk();
 		}
 
 		@Override
@@ -189,6 +189,8 @@ public class LaunchableMesosWorker implements LaunchableTask {
 				"cpus=" + getCPUs() +
 				", memory=" + getMemory() +
 				", gpus=" + getGPUs() +
+				", disk=" + getDisk() +
+				", network=" + getNetworkMbps() +
 				"}";
 		}
 	}
@@ -220,6 +222,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		taskInfo.addAllResources(allocation.takeScalar("cpus", taskRequest.getCPUs(), roles));
 		taskInfo.addAllResources(allocation.takeScalar("gpus", taskRequest.getGPUs(), roles));
 		taskInfo.addAllResources(allocation.takeScalar("mem", taskRequest.getMemory(), roles));
+
+		if (taskRequest.getDisk() > 0.0) {
+			taskInfo.addAllResources(allocation.takeScalar("disk", taskRequest.getDisk(), roles));
+		}
 
 		final Protos.CommandInfo.Builder cmd = taskInfo.getCommandBuilder();
 		final Protos.Environment.Builder env = cmd.getEnvironmentBuilder();
@@ -351,7 +357,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		if (portKeys != null) {
 			Arrays.stream(portKeys.split(","))
 				.map(String::trim)
-				.peek(key -> LOG.debug("Adding port key {} to mesos request"))
+				.peek(key -> LOG.debug("Adding port key {} to mesos request", key))
 				.forEach(tmPortKeys::add);
 		}
 
