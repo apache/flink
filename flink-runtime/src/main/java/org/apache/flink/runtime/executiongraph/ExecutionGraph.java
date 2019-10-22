@@ -959,9 +959,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
 
-		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(
-			getSchedulingTopology(),
-			getFailoverTopology());
+		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(getSchedulingTopology());
 	}
 
 	public boolean isLegacyScheduling() {

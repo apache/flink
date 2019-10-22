@@ -19,8 +19,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -176,12 +174,11 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
 	public static class Factory implements PartitionReleaseStrategy.Factory {
 
 		@Override
-		public PartitionReleaseStrategy createInstance(
-				final SchedulingTopology<?, ?> schedulingStrategy,
-				final FailoverTopology<?, ?> failoverTopology) {
+		public PartitionReleaseStrategy createInstance(final SchedulingTopology<?, ?> schedulingStrategy) {
 
-			final Set<? extends Set<? extends FailoverVertex<?, ?>>> distinctRegions =
-				PipelinedRegionComputeUtil.computePipelinedRegions(failoverTopology);
+			final Set<? extends Set<? extends SchedulingExecutionVertex<?, ?>>> distinctRegions =
+				PipelinedRegionComputeUtil.computePipelinedRegions(schedulingStrategy);
+
 			return new RegionPartitionReleaseStrategy(
 				schedulingStrategy,
 				PipelinedRegionComputeUtil.toPipelinedRegionsSet(distinctRegions));

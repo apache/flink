@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PipelinedRegion;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.topology.Result;
 import org.apache.flink.runtime.topology.Topology;
 import org.apache.flink.runtime.topology.Vertex;
@@ -44,7 +45,7 @@ public final class PipelinedRegionComputeUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedRegionComputeUtil.class);
 
 	public static Set<PipelinedRegion> toPipelinedRegionsSet(
-			final Set<? extends Set<? extends FailoverVertex<?, ?>>> distinctRegions) {
+			final Set<? extends Set<? extends SchedulingExecutionVertex<?, ?>>> distinctRegions) {
 
 		return distinctRegions.stream()
 			.map(toExecutionVertexIdSet())
@@ -52,9 +53,9 @@ public final class PipelinedRegionComputeUtil {
 			.collect(Collectors.toSet());
 	}
 
-	private static Function<Set<? extends FailoverVertex<?, ?>>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
+	private static Function<Set<? extends SchedulingExecutionVertex<?, ?>>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
 		return failoverVertices -> failoverVertices.stream()
-			.map(FailoverVertex::getId)
+			.map(SchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet());
 	}
 
