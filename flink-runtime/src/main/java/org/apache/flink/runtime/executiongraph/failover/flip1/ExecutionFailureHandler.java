@@ -25,7 +25,6 @@ import org.apache.flink.runtime.throwable.ThrowableType;
 
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -71,7 +70,7 @@ public class ExecutionFailureHandler {
 	 * @return result of the failure handling
 	 */
 	public FailureHandlingResult getFailureHandlingResult(ExecutionVertexID failedTask, Throwable cause) {
-		return handleFailure(cause, () -> failoverStrategy.getTasksNeedingRestart(failedTask, cause));
+		return handleFailure(cause, failoverStrategy.getTasksNeedingRestart(failedTask, cause));
 	}
 
 	/**
@@ -84,7 +83,7 @@ public class ExecutionFailureHandler {
 	public FailureHandlingResult getGlobalFailureHandlingResult(final Throwable cause) {
 		return handleFailure(
 			cause,
-			() -> StreamSupport
+			StreamSupport
 				.stream(failoverTopology.getFailoverVertices().spliterator(), false)
 				.map(FailoverVertex::getExecutionVertexID)
 				.collect(Collectors.toSet()));
@@ -92,7 +91,7 @@ public class ExecutionFailureHandler {
 
 	private FailureHandlingResult handleFailure(
 			final Throwable cause,
-			final Supplier<Set<ExecutionVertexID>> vertexToRestartSupplier) {
+			final Set<ExecutionVertexID> verticesToRestart) {
 
 		if (isUnrecoverableError(cause)) {
 			return FailureHandlingResult.unrecoverable(new JobException("The failure is not recoverable", cause));
@@ -101,7 +100,7 @@ public class ExecutionFailureHandler {
 		restartBackoffTimeStrategy.notifyFailure(cause);
 		if (restartBackoffTimeStrategy.canRestart()) {
 			return FailureHandlingResult.restartable(
-				vertexToRestartSupplier.get(),
+				verticesToRestart,
 				restartBackoffTimeStrategy.getBackoffTime());
 		} else {
 			return FailureHandlingResult.unrecoverable(
