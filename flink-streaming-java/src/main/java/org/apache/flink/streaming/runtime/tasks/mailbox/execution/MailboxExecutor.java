@@ -33,6 +33,26 @@ import java.util.concurrent.RejectedExecutionException;
  * Interface for an {@link Executor} build around a {@link Mailbox}-based execution model.
  */
 public interface MailboxExecutor {
+	/**
+	 * A constant for empty args to save on object allocation.
+	 */
+	Object[] EMPTY_ARGS = new Object[0];
+
+	/**
+	 * Executes the given command at some time in the future in the mailbox thread.
+	 *
+	 * <p>An optional description can (and should) be added to ease debugging and error-reporting. The description
+	 * may contain placeholder that refer to the provided description arguments using {@link java.util.Formatter}
+	 * syntax. The actual description is only formatted on demand.
+	 *
+	 * @param command the runnable task to add to the mailbox for execution.
+	 * @param description the optional description for the command that is used for debugging and error-reporting.
+	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
+	 * 		quiesced or closed.
+	 */
+	default void execute(@Nonnull Runnable command, String description) {
+		execute(command, description, EMPTY_ARGS);
+	}
 
 	/**
 	 * Executes the given command at some time in the future in the mailbox thread.
@@ -81,7 +101,29 @@ public interface MailboxExecutor {
 	 * quiesced or closed.
 	 */
 	default @Nonnull Future<Void> submit(@Nonnull Runnable command, String descriptionFormat, Object... descriptionArgs) {
-		return submit(Executors.callable(command, null), descriptionFormat, descriptionArgs);
+		FutureTask<Void> future = new FutureTask<>(Executors.callable(command, null));
+		execute(future, descriptionFormat, descriptionArgs);
+		return future;
+	}
+
+	/**
+	 * Submits the given command for execution in the future in the mailbox thread and returns a Future representing
+	 * that command. The Future's {@code get} method will return {@code null} upon <em>successful</em> completion.
+	 *
+	 * <p>An optional description can (and should) be added to ease debugging and error-reporting. The description
+	 * may contain placeholder that refer to the provided description arguments using {@link java.util.Formatter}
+	 * syntax. The actual description is only formatted on demand.
+	 *
+	 * @param command the command to submit
+	 * @param description the optional description for the command that is used for debugging and error-reporting.
+	 * @return a Future representing pending completion of the task
+	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
+	 * quiesced or closed.
+	 */
+	default @Nonnull Future<Void> submit(@Nonnull Runnable command, String description) {
+		FutureTask<Void> future = new FutureTask<>(Executors.callable(command, null));
+		execute(future, description, EMPTY_ARGS);
+		return future;
 	}
 
 	/**
@@ -102,6 +144,26 @@ public interface MailboxExecutor {
 	default @Nonnull <T> Future<T> submit(@Nonnull Callable<T> command, String descriptionFormat, Object... descriptionArgs) {
 		FutureTask<T> future = new FutureTask<>(command);
 		execute(future, descriptionFormat, descriptionArgs);
+		return future;
+	}
+
+	/**
+	 * Submits the given command for execution in the future in the mailbox thread and returns a Future representing
+	 * that command. The Future's {@code get} method will return {@code null} upon <em>successful</em> completion.
+	 *
+	 * <p>An optional description can (and should) be added to ease debugging and error-reporting. The description
+	 * may contain placeholder that refer to the provided description arguments using {@link java.util.Formatter}
+	 * syntax. The actual description is only formatted on demand.
+	 *
+	 * @param command the command to submit
+	 * @param description the optional description for the command that is used for debugging and error-reporting.
+	 * @return a Future representing pending completion of the task
+	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
+	 * quiesced or closed.
+	 */
+	default @Nonnull <T> Future<T> submit(@Nonnull Callable<T> command, String description) {
+		FutureTask<T> future = new FutureTask<>(command);
+		execute(future, description, EMPTY_ARGS);
 		return future;
 	}
 
