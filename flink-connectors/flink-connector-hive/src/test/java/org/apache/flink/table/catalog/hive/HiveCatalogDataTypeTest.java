@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 
@@ -110,7 +109,7 @@ public class HiveCatalogDataTypeTest {
 			DataTypes.BOOLEAN(),
 			DataTypes.STRING(),
 			DataTypes.BYTES(),
-			HiveTypeUtil.HIVE_DATE_TYPE,
+			DataTypes.DATE(),
 			DataTypes.TIMESTAMP(),
 			DataTypes.CHAR(HiveChar.MAX_CHAR_LENGTH),
 			DataTypes.VARCHAR(HiveVarchar.MAX_VARCHAR_LENGTH),
@@ -178,7 +177,7 @@ public class HiveCatalogDataTypeTest {
 			DataTypes.ROW(
 				DataTypes.FIELD("0", DataTypes.BOOLEAN()),
 				DataTypes.FIELD("1", DataTypes.BOOLEAN()),
-				DataTypes.FIELD("2", HiveTypeUtil.HIVE_DATE_TYPE)),
+				DataTypes.FIELD("2", DataTypes.DATE())),
 
 			// nested complex types
 			DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
