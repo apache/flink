@@ -89,39 +89,48 @@ jobs:
       script: ./tools/travis_controller.sh core
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: core
+      arch: arm64
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh python
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: python
+      arch: arm64
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh libraries
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: libraries
+      arch: arm64
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh blink_planner
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: blink_planner
+      arch: arm64
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh connectors
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: connectors
+      arch: arm64
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh kafka/gelly
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: kafka/gelly
+      arch: arm64
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: tests
+      arch: arm64
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: misc
+      arch: arm64
     - if: type in (pull_request, push)
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: cleanup
+      arch: arm64
     # hadoop 2.4.1 profile
     - if: type = cron
       stage: compile
