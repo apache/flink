@@ -28,6 +28,11 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class DeploymentOptions {
 
+	public static final ConfigOption<String> TARGET =
+			key("execution.target")
+					.noDefaultValue()
+					.withDescription("The deployment target for the execution, e.g. \"local\" for local execution.");
+
 	public static final ConfigOption<Boolean> ATTACHED =
 			key("execution.attached")
 					.defaultValue(false)
