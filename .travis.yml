@@ -73,7 +73,8 @@ stages:
   - name: E2E
     if: type = cron
   - name: cleanup
-
+  
+jdk: "openjdk11"
 jobs:
   include:
     # main profile
