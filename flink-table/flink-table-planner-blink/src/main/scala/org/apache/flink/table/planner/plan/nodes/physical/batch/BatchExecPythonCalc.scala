@@ -52,15 +52,9 @@ class BatchExecPythonCalc(
   override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[BaseRow] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val ret = createPythonOneInputTransformation(
+    createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
-      "BatchExecCalc")
-
-    if (inputsContainSingleton()) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
-    }
-    ret
+      "BatchExecPythonCalc")
   }
 }

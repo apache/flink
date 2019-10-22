@@ -54,7 +54,7 @@ abstract class PythonCalcSplitRuleBase(description: String)
     val splitter = new ScalarFunctionSplitter(
       extractedFunctionOffset,
       extractedRexCalls,
-      convertPythonFunction(program))
+      isConvertPythonFunction(program))
 
     val (bottomCalcCondition, topCalcCondition, topCalcProjects) = split(program, splitter)
     val accessedFields = extractRefInputFields(
@@ -114,9 +114,9 @@ abstract class PythonCalcSplitRuleBase(description: String)
   }
 
   /**
-   * Whether to convert Python functions.
+   * Returns true if converting Python functions.
    */
-  def convertPythonFunction(program: RexProgram): Boolean
+  def isConvertPythonFunction(program: RexProgram): Boolean
 
   /**
    * Splits the specified [[RexProgram]] using the specified [[ScalarFunctionSplitter]].
@@ -132,18 +132,19 @@ abstract class PythonCalcSplitRuleBase(description: String)
  * into multiple [[FlinkLogicalCalc]]s. After this rule is applied, there will be no
  * Python functions in the condition of the [[FlinkLogicalCalc]]s.
  */
-object PythonCalcSplitFilterRule extends PythonCalcSplitRuleBase(
-  "PythonCalcSplitFilterRule") {
+object PythonCalcSplitConditionRule extends PythonCalcSplitRuleBase(
+  "PythonCalcSplitConditionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val condition = Option(calc.getProgram.getCondition).map(calc.getProgram.expandLocalRef)
 
     // matches if it contains Python functions in condition
-    condition.nonEmpty && containsFunctionOf(condition.get, FunctionLanguage.PYTHON)
+    Option(calc.getProgram.getCondition)
+      .map(calc.getProgram.expandLocalRef)
+      .exists(containsFunctionOf(_, FunctionLanguage.PYTHON))
   }
 
-  override def convertPythonFunction(program: RexProgram): Boolean = true
+  override def isConvertPythonFunction(program: RexProgram): Boolean = true
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
@@ -162,18 +163,14 @@ object PythonCalcSplitProjectionRule extends PythonCalcSplitRuleBase(
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val condition = Option(calc.getProgram.getCondition).map(calc.getProgram.expandLocalRef)
     val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
 
-    // matches if all the following conditions hold true:
-    // 1) it doesn't contain Python function in condition
-    // 2) it contains both Python functions and Java functions in the projection
-    !condition.exists(containsFunctionOf(_, FunctionLanguage.PYTHON)) &&
+    // matches if it contains both Python functions and Java functions in the projection
     projects.exists(containsFunctionOf(_, FunctionLanguage.PYTHON)) &&
       projects.exists(containsFunctionOf(_, FunctionLanguage.JVM))
   }
 
-  override def convertPythonFunction(program: RexProgram): Boolean = {
+  override def isConvertPythonFunction(program: RexProgram): Boolean = {
     program.getProjectList
       .map(program.expandLocalRef)
       .exists(containsFunctionOf(_, FunctionLanguage.JVM, recursive = false))
@@ -190,8 +187,8 @@ object PythonCalcSplitProjectionRule extends PythonCalcSplitRuleBase(
  * Rule that pushes the condition of [[FlinkLogicalCalc]]s before it for the
  * [[FlinkLogicalCalc]]s which contain Python functions in the projection.
  */
-object PythonCalcPushFilterRule extends PythonCalcSplitRuleBase(
-  "PythonCalcPushFilterRule") {
+object PythonCalcPushConditionRule extends PythonCalcSplitRuleBase(
+  "PythonCalcPushConditionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
@@ -204,7 +201,7 @@ object PythonCalcPushFilterRule extends PythonCalcSplitRuleBase(
       projects.exists(containsFunctionOf(_, FunctionLanguage.PYTHON))
   }
 
-  override def convertPythonFunction(program: RexProgram): Boolean = false
+  override def isConvertPythonFunction(program: RexProgram): Boolean = false
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
@@ -220,8 +217,8 @@ object PythonCalcPushFilterRule extends PythonCalcSplitRuleBase(
  * DataStreamPythonCalc as simple as possible and ensures that it only needs to
  * handle the Python function execution.
  */
-object PythonCalcRewriteProjectRule extends PythonCalcSplitRuleBase(
-  "PythonCalcRewriteProjectRule") {
+object PythonCalcRewriteProjectionRule extends PythonCalcSplitRuleBase(
+  "PythonCalcRewriteProjectionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
@@ -237,7 +234,7 @@ object PythonCalcRewriteProjectRule extends PythonCalcSplitRuleBase(
           projects.lastIndexWhere(_.isInstanceOf[RexInputRef]))
   }
 
-  override def convertPythonFunction(program: RexProgram): Boolean = true
+  override def isConvertPythonFunction(program: RexProgram): Boolean = true
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
@@ -314,8 +311,12 @@ private class ExtractedFunctionInputRewriter(
 }
 
 object PythonCalcSplitRule {
-  val SPLIT_FILTER: RelOptRule = PythonCalcSplitFilterRule
+  /**
+   * These rules should be applied sequentially in the order of
+   * SPLIT_CONDITION, SPLIT_PROJECT, PUSH_CONDITION and REWRITE_PROJECT.
+   */
+  val SPLIT_CONDITION: RelOptRule = PythonCalcSplitConditionRule
   val SPLIT_PROJECT: RelOptRule = PythonCalcSplitProjectionRule
-  val PUSH_FILTER: RelOptRule = PythonCalcPushFilterRule
-  val REWRITE_PROJECT: RelOptRule = PythonCalcRewriteProjectRule
+  val PUSH_CONDITION: RelOptRule = PythonCalcPushConditionRule
+  val REWRITE_PROJECT: RelOptRule = PythonCalcRewriteProjectionRule
 }

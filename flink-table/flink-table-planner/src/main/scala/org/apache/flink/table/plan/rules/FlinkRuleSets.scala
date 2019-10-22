@@ -147,11 +147,11 @@ object FlinkRuleSets {
     * RuleSet to do rewrite on FlinkLogicalRel
     */
   val LOGICAL_REWRITE_RULES: RuleSet = RuleSets.ofList(
-    PythonCalcSplitRule.SPLIT_FILTER,
+    PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
-    PythonCalcSplitRule.PUSH_FILTER,
+    PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
-  )
+    )
 
   /**
     * RuleSet to normalize plans for batch / DataSet execution
