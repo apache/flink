@@ -31,6 +31,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
@@ -93,6 +94,11 @@ public class TestPooledBufferProvider implements BufferProvider {
 	@Override
 	public boolean isDestroyed() {
 		return false;
+	}
+
+	@Override
+	public CompletableFuture<?> isAvailable() {
+		return AVAILABLE;
 	}
 
 	public int getNumberOfAvailableBuffers() {
