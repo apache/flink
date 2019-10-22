@@ -41,7 +41,7 @@ public class FailoverRegion {
 	 *
 	 * @param executionVertices to be contained in this region
 	 */
-	public FailoverRegion(Set<FailoverVertex<?, ?>> executionVertices) {
+	public FailoverRegion(Set<? extends FailoverVertex<?, ?>> executionVertices) {
 		this.executionVertices = checkNotNull(executionVertices);
 		this.executionVertexIDs = new HashSet<>();
 		executionVertices.forEach(v -> this.executionVertexIDs.add(v.getId()));
