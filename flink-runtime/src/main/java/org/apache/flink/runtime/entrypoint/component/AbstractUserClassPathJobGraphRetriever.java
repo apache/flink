@@ -54,7 +54,7 @@ public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraph
 		this.jobDir = jobDir;
 	}
 
-	public List<URL> getUserClassPaths() throws IOException {
+	protected List<URL> getUserClassPaths() throws IOException {
 		if (userClassPaths == null) {
 			userClassPaths = getRelativeJarsURLFromDir(jobDir);
 		}
@@ -73,7 +73,6 @@ public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraph
 			return Collections.emptyList();
 		}
 
-		final List<URL> jarURLs = new LinkedList<>();
 		if (!Files.exists(Paths.get(dir))) {
 			throw new IllegalArgumentException("the job dir " + dir + " dose not exists.");
 		}
@@ -82,6 +81,8 @@ public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraph
 		}
 
 		Path dirPath;
+		final List<URL> jarURLs = new LinkedList<>();
+
 		if (Paths.get(dir).isAbsolute()) {
 			dirPath = Paths.get(System.getProperty("user.dir")).relativize(Paths.get(dir));
 		} else {
