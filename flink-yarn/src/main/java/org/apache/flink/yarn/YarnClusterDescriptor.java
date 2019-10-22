@@ -47,7 +47,6 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
-import org.apache.flink.yarn.cli.YarnConfigUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
@@ -703,10 +702,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			systemShipFiles.add(file.getAbsoluteFile());
 		}
 
-		final List<File> logConfigFiles = YarnConfigUtils
-				.decodeListFromConfig(configuration, YarnConfigOptions.APPLICATION_LOG_CONFIG_FILES, File::new);
-		if (logConfigFiles != null) {
-			systemShipFiles.addAll(logConfigFiles);
+		final String logConfigFilePath = configuration.getString(YarnConfigOptions.APPLICATION_LOG_CONFIG_FILE);
+		if (logConfigFilePath != null) {
+			systemShipFiles.add(new File(logConfigFilePath));
 		}
 
 		addEnvironmentFoldersToShipFiles(systemShipFiles);
@@ -926,8 +924,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(
 				yarnClusterEntrypoint,
-				containsFileWithEnding(systemShipFiles, CONFIG_FILE_LOGBACK_NAME),
-				containsFileWithEnding(systemShipFiles, CONFIG_FILE_LOG4J_NAME),
+				logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOGBACK_NAME),
+				logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOG4J_NAME),
 				hasKrb5,
 				clusterSpecification.getMasterMemoryMB());
 
