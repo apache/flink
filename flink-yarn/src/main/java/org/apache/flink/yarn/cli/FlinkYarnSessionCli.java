@@ -443,6 +443,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
 		// we ignore the addressOption because it can only contain "yarn-cluster"
 		final Configuration effectiveConfiguration = new Configuration(configuration);
+		effectiveConfiguration.setString(DeploymentOptions.TARGET, getId());
 
 		applyDescriptorOptionToConfig(commandLine, effectiveConfiguration);
 
