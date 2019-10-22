@@ -18,19 +18,18 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
-import org.apache.flink.core.fs.Path;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
@@ -41,12 +40,9 @@ import java.util.List;
 /**
  *  Abstract class for the JobGraphRetriever, which wants to get classpath user's code depends on.
  */
-
 public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraphRetriever {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractUserClassPathJobGraphRetriever.class);
-
-	public static final String DEFAULT_JOB_DIR = "job";
 
 	/** The directory contains all the jars, which user code depends on. */
 	@Nullable
@@ -60,47 +56,52 @@ public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraph
 
 	public List<URL> getUserClassPaths() throws IOException {
 		if (userClassPaths == null) {
-			userClassPaths = scanJarsInJobClassDir(jobDir);
+			userClassPaths = getRelativeJarsURLFromDir(jobDir);
 		}
 		return userClassPaths;
 	}
 
-	private List<URL> scanJarsInJobClassDir(String dir) throws IOException {
+	/**
+	 * Scan all the jar files in the {@code dir} and return all these jar files' relative URLs to "user.dir".
+	 * @param dir the dir needed to scan the jar files
+	 * @return the jar files' relative URLs
+	 * @throws IOException
+	 */
+	private List<URL> getRelativeJarsURLFromDir(String dir) throws IOException {
 
 		if (dir == null) {
 			return Collections.emptyList();
 		}
 
-		final File dirFile = new File(new Path(dir).toString());
 		final List<URL> jarURLs = new LinkedList<>();
-
-		if (!dirFile.exists()) {
-			LOG.warn("the job dir " + dirFile + " dose not exists.");
-			return Collections.emptyList();
+		if (!Files.exists(Paths.get(dir))) {
+			throw new IllegalArgumentException("the job dir " + dir + " dose not exists.");
 		}
-		if (!dirFile.isDirectory()) {
-			LOG.warn("the job dir " + dirFile + " is not a directory.");
-			return Collections.emptyList();
+		if (!Files.isDirectory(Paths.get(dir))) {
+			throw new IllegalArgumentException("the job dir " + dir + " is not a directory.");
 		}
 
-		Files.walkFileTree(dirFile.toPath(),
+		Path dirPath;
+		if (Paths.get(dir).isAbsolute()) {
+			dirPath = Paths.get(System.getProperty("user.dir")).relativize(Paths.get(dir));
+		} else {
+			dirPath = Paths.get(dir);
+		}
+		Files.walkFileTree(
+			dirPath,
 			EnumSet.of(FileVisitOption.FOLLOW_LINKS),
 			Integer.MAX_VALUE,
-			new SimpleFileVisitor<java.nio.file.Path>(){
+			new SimpleFileVisitor<java.nio.file.Path>() {
 
 			@Override
 			public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
-				throws IOException {
+					throws IOException {
 				FileVisitResult fileVisitResult = super.visitFile(file, attrs);
 				if (file.getFileName().toString().endsWith(".jar")) {
 					LOG.info("add " + file.toString() + " to user classpath");
-					if (file.isAbsolute()) {
-						jarURLs.add(file.toUri().toURL());
-					} else {
 						jarURLs.add(
 							new URL(new URL(file.getFileName().toUri().getScheme() + ":"), file.toString())
 						);
-					}
 				}
 				return fileVisitResult;
 			}
@@ -109,7 +110,7 @@ public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraph
 		if (jarURLs.isEmpty()) {
 			return Collections.emptyList();
 		} else {
-				return jarURLs;
+			return jarURLs;
 		}
 	}
 }
