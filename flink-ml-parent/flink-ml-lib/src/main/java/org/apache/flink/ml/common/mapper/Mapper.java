@@ -39,8 +39,8 @@ public abstract class Mapper extends RichMapFunction<Row, Row> implements Serial
 	private final DataType[] dataFieldTypes;
 
 	/**
-	 * params used for FlatMapper.
-	 * User can set the params before that the FlatMapper is executed.
+	 * params used for Mapper.
+	 * User can set the params before that the Mapper is executed.
 	 */
 	protected Params params;
 
@@ -62,6 +62,7 @@ public abstract class Mapper extends RichMapFunction<Row, Row> implements Serial
 	 * @throws Exception This method may throw exceptions. Throwing
 	 * an exception will cause the operation to fail.
 	 */
+	@Override
 	public abstract Row map(Row row) throws Exception;
 
 	/**

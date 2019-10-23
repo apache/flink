@@ -21,12 +21,12 @@ package org.apache.flink.ml.common.mapper;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.ml.api.misc.param.Params;
+import org.apache.flink.ml.common.model.ModelSource;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -37,30 +37,7 @@ public abstract class ModelMapper extends Mapper {
 	/**
 	 * Specify where to load model data.
 	 */
-	private enum ModelSourceType implements Serializable {
-		/**
-		 * Load model data from flink's broadcast dataset.
-		 */
-		BroadcastDataset,
-
-		/**
-		 * Load model data from data rows.
-		 */
-		Rows
-	}
-
-	private ModelSourceType modelSourceType;
-
-	/**
-	 * Load model from broadcast dataset of this name if modelSource == BroadcastDataset.
-	 */
-	private String modelBroadcastName;
-
-	/**
-	 * Load model from these rows if modelSource == Rows.
-	 */
-	private List<Row> modelRows;
-
+	private ModelSource modelSource;
 
 	/**
 	 * Field names of the model.
@@ -72,28 +49,15 @@ public abstract class ModelMapper extends Mapper {
 	 */
 	private final DataType[] modelFieldTypes;
 
-	public ModelMapper(TableSchema modelSchema, TableSchema dataSchema, Params params) {
+	public ModelMapper(TableSchema modelSchema, TableSchema dataSchema, Params params, ModelSource modelSource) {
 		super(dataSchema, params);
 		this.modelFieldNames = modelSchema.getFieldNames();
 		this.modelFieldTypes = modelSchema.getFieldDataTypes();
+		this.modelSource = modelSource;
 	}
 
 	protected TableSchema getModelSchema() {
 		return TableSchema.builder().fields(this.modelFieldNames, this.modelFieldTypes).build();
-	}
-
-	public final void setModelBroadcastName(String modelBroadcastName) {
-		Preconditions.checkState(this.modelSourceType == null,
-				"Model source could be set only once");
-		this.modelBroadcastName = modelBroadcastName;
-		this.modelSourceType = ModelSourceType.BroadcastDataset;
-	}
-
-	public final void setModelRows(List<Row> rows) {
-		Preconditions.checkState(this.modelSourceType == null,
-				"Model source could be set only once");
-		this.modelRows = rows;
-		this.modelSourceType = ModelSourceType.Rows;
 	}
 
 	/**
@@ -105,17 +69,8 @@ public abstract class ModelMapper extends Mapper {
 
 	@Override
 	public final void open(Configuration parameters) {
-		List<Row> rows;
-		switch (this.modelSourceType) {
-			case BroadcastDataset:
-				rows = getRuntimeContext().getBroadcastVariable(this.modelBroadcastName);
-				break;
-			case Rows:
-				rows = this.modelRows;
-				break;
-			default:
-				throw new IllegalStateException();
-		}
+		Preconditions.checkState(this.modelSource != null, "model source not set.");
+		List<Row> rows = this.modelSource.getModelRows(getRuntimeContext());
 		if (rows != null) {
 			loadModel(rows);
 		}
