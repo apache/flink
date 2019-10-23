@@ -23,9 +23,7 @@ package org.apache.flink.table.catalog;
  */
 public class FunctionCatalogUtil {
 	/**
-	 *
-	 * @param name
-	 * @return
+	 * Normalize a function name.
 	 */
 	public static String normalizeName(String name) {
 		return name.toUpperCase();
