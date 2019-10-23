@@ -25,6 +25,8 @@ STAGE_BLINK_PLANNER="blink_planner"
 STAGE_CONNECTORS="connectors"
 STAGE_KAFKA_GELLY="kafka/gelly"
 STAGE_TESTS="tests"
+STAGE_SCHEDULER_NG_CORE="scheduler_ng_core"
+STAGE_SCHEDULER_NG_TESTS="scheduler_ng_tests"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
 
@@ -158,6 +160,12 @@ function get_compile_modules_for_stage() {
         (${STAGE_TESTS})
             echo "-pl $MODULES_TESTS -am"
         ;;
+        (${STAGE_SCHEDULER_NG_CORE})
+            echo "-pl $MODULES_CORE -am"
+        ;;
+        (${STAGE_SCHEDULER_NG_TESTS})
+            echo "-pl $MODULES_TESTS -am"
+        ;;
         (${STAGE_MISC})
             # compile everything; using the -am switch does not work with negated module lists!
             # the negation takes precedence, thus not all required modules would be built
@@ -200,6 +208,12 @@ function get_test_modules_for_stage() {
         ;;
         (${STAGE_TESTS})
             echo "-pl $modules_tests"
+        ;;
+        (${STAGE_SCHEDULER_NG_CORE})
+            echo "-Dscheduler-ng -pl $MODULES_CORE"
+        ;;
+        (${STAGE_SCHEDULER_NG_TESTS})
+            echo "-Dscheduler-ng -pl $MODULES_TESTS"
         ;;
         (${STAGE_MISC})
             echo "-pl $modules_misc"
