@@ -79,9 +79,9 @@ public class ModuleManager {
 	}
 
 	/**
-	 * Get names of all modules registered.
+	 * Get names of all modules loaded.
 	 *
-	 * @return a list of names of registered modules
+	 * @return a list of names of modules loaded
 	 */
 	public List<String> listModules() {
 		return new ArrayList<>(modules.keySet());
@@ -107,7 +107,7 @@ public class ModuleManager {
 	 * @param name name of the function
 	 * @return an optional of {@link FunctionDefinition}
 	 */
-	public Optional<FunctionDefinition> lookupFunctionDefinition(String name) {
+	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
 		Optional<Module> module = modules.values().stream()
 			.filter(p -> p.listFunctions().stream().anyMatch(e -> e.equals(name)))
 			.findFirst();

@@ -107,7 +107,7 @@ public interface TableEnvironment {
 	Optional<Catalog> getCatalog(String catalogName);
 
 	/**
-	 * Load a {@link Module} under a unique name. Modules will be kept in the loaded order.
+	 * Loads a {@link Module} under a unique name. Modules will be kept in the loaded order.
 	 *
 	 * @param moduleName name of the {@link Module}
 	 * @param module the module instance
@@ -116,7 +116,7 @@ public interface TableEnvironment {
 	void loadModule(String moduleName, Module module) throws ModuleAlreadyExistException;
 
 	/**
-	 * Unload a {@link Module} with given name.
+	 * Unloads a {@link Module} with given name.
 	 *
 	 * @param moduleName name of the {@link Module}
 	 * @throws ModuleNotFoundException thrown when there is no module with the given name
@@ -258,9 +258,9 @@ public interface TableEnvironment {
 	String[] listCatalogs();
 
 	/**
-	 * Gets an array of names of all modules registered in this environment in the loaded order.
+	 * Gets an array of names of all modules in this environment in the loaded order.
 	 *
-	 * @return A list of the names of all registered modules in the loaded order.
+	 * @return A list of the names of all modules in the loaded order.
 	 */
 	String[] listModules();
 
