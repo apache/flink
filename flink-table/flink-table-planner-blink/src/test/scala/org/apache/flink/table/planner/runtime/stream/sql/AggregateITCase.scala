@@ -42,6 +42,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import java.lang.{Integer => JInt, Long => JLong}
+import java.math.{BigDecimal => JBigDecimal}
 
 import scala.collection.{Seq, mutable}
 import scala.util.Random
@@ -181,35 +182,94 @@ class AggregateITCase(
 
   @Test
   def testCountDistinct(): Unit = {
+    val ids = List(
+      1,
+      2, 2,
+      3, 3, 3,
+      4, 4, 4, 4,
+      5, 5, 5, 5, 5)
+
+    val dateTimes = List(
+      "1970-01-01 00:00:01",
+      "1970-01-01 00:00:02", null,
+      "1970-01-01 00:00:04", "1970-01-01 00:00:05", "1970-01-01 00:00:06",
+      "1970-01-01 00:00:07", null, null, "1970-01-01 00:00:10",
+
+      "1970-01-01 00:00:11", "1970-01-01 00:00:11", "1970-01-01 00:00:13",
+      "1970-01-01 00:00:14", "1970-01-01 00:00:15")
+
+    val dates = List(
+      "1970-01-01",
+      "1970-01-02", null,
+      "1970-01-04", "1970-01-05", "1970-01-06",
+      "1970-01-07", null, null, "1970-01-10",
+      "1970-01-11", "1970-01-11", "1970-01-13", "1970-01-14", "1970-01-15")
+
+    val times = List(
+      "00:00:01",
+      "00:00:02", null,
+      "00:00:04", "00:00:05", "00:00:06",
+      "00:00:07", null, null, "00:00:10",
+      "00:00:11", "00:00:11", "00:00:13", "00:00:14", "00:00:15")
+
+    val integers = List(
+      "1",
+      "2", null,
+      "4", "5", "6",
+      "7", null, null, "10",
+      "11", "11", "13", "14", "15")
+
+    val chars = List(
+      "A",
+      "B", null,
+      "D", "E", "F",
+      "H", null, null, "K",
+      "L", "L", "N", "O", "P")
+
     val data = new mutable.MutableList[Row]
-    data.+=(Row.of(JInt.valueOf(1), JLong.valueOf(1L), "A"))
-    data.+=(Row.of(JInt.valueOf(2), JLong.valueOf(2L), "B"))
-    data.+=(Row.of(null, JLong.valueOf(2L), "B"))
-    data.+=(Row.of(JInt.valueOf(3), JLong.valueOf(2L), "B"))
-    data.+=(Row.of(JInt.valueOf(4), JLong.valueOf(3L), "C"))
-    data.+=(Row.of(JInt.valueOf(5), JLong.valueOf(3L), "C"))
-    data.+=(Row.of(JInt.valueOf(5), JLong.valueOf(3L), null))
-    data.+=(Row.of(JInt.valueOf(6), JLong.valueOf(3L), "C"))
-    data.+=(Row.of(JInt.valueOf(7), JLong.valueOf(4L), "B"))
-    data.+=(Row.of(JInt.valueOf(8), JLong.valueOf(4L), "A"))
-    data.+=(Row.of(JInt.valueOf(9), JLong.valueOf(4L), "D"))
-    data.+=(Row.of(null, JLong.valueOf(4L), null))
-    data.+=(Row.of(JInt.valueOf(10), JLong.valueOf(4L), "E"))
-    data.+=(Row.of(JInt.valueOf(11), JLong.valueOf(5L), "A"))
-    data.+=(Row.of(JInt.valueOf(12), JLong.valueOf(5L), "B"))
 
-    val rowType: RowTypeInfo = new RowTypeInfo(Types.INT, Types.LONG, Types.STRING)
+    for (i <- ids.indices) {
+      val v = integers(i)
+      val decimal = if (v == null) null else new JBigDecimal(v)
+      val int = if (v == null) null else JInt.valueOf(v)
+      val long = if (v == null) null else JLong.valueOf(v)
+      data.+=(Row.of(
+        Int.box(ids(i)), localDateTime(dateTimes(i)), localDate(dates(i)),
+        mLocalTime(times(i)), decimal, int, long, chars(i)))
+    }
 
-    val t = failingDataSource(data)(rowType).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    val inputs = util.Random.shuffle(data)
+
+    val rowType = new RowTypeInfo(
+      Types.INT, Types.LOCAL_DATE_TIME, Types.LOCAL_DATE, Types.LOCAL_TIME,
+      Types.DECIMAL, Types.INT, Types.LONG, Types.STRING)
+
+    val t = failingDataSource(inputs)(rowType).toTable(tEnv, 'id, 'a, 'b, 'c, 'd, 'e, 'f, 'g)
+    tEnv.createTemporaryView("T", t)
     val t1 = tEnv.sqlQuery(
-      "SELECT b, count(*), count(distinct c), count(distinct a) FROM T GROUP BY b")
+      s"""
+         |SELECT
+         | id,
+         | count(distinct a),
+         | count(distinct b),
+         | count(distinct c),
+         | count(distinct d),
+         | count(distinct e),
+         | count(distinct f),
+         | count(distinct g)
+         |FROM T GROUP BY id
+       """.stripMargin)
 
     val sink = new TestingRetractSink
     t1.toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,1,1,1", "2,3,1,2", "3,4,1,3", "4,5,4,4", "5,2,2,2")
+    val expected = List(
+      "1,1,1,1,1,1,1,1",
+      "2,1,1,1,1,1,1,1",
+      "3,3,3,3,3,3,3,3",
+      "4,2,2,2,2,2,2,2",
+      "5,4,4,4,4,4,4,4")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -1040,93 +1100,6 @@ class AggregateITCase(
     env.execute()
 
     val expected = List("1,260", "2,520")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testTimestampDistinct(): Unit = {
-    val data = new mutable.MutableList[Row]
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:01"), Long.box(1L), "A"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:02"), Long.box(2L), "B"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:03"), Long.box(2L), "B"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:04"), Long.box(3L), "C"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:05"), Long.box(3L), "C"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:06"), Long.box(3L), "C"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:07"), Long.box(4L), "B"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:08"), Long.box(4L), "A"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:09"), Long.box(4L), "D"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:10"), Long.box(4L), "E"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:11"), Long.box(5L), "A"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:12"), Long.box(5L), "B"))
-
-    val t = failingDataSource(data)(new RowTypeInfo(
-      Types.LOCAL_DATE_TIME, Types.LONG, Types.STRING)).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
-    val t1 = tEnv.sqlQuery("SELECT b, count(distinct c), count(distinct a) FROM T GROUP BY b")
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("1,1,1", "2,1,2", "3,1,3", "4,4,4", "5,2,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testDateDistinct(): Unit = {
-    val data = new mutable.MutableList[Row]
-    data.+=(Row.of(localDate("1970-01-01"), Long.box(1L), "A"))
-    data.+=(Row.of(localDate("1970-01-02"), Long.box(2L), "B"))
-    data.+=(Row.of(localDate("1970-01-03"), Long.box(2L), "B"))
-    data.+=(Row.of(localDate("1970-01-04"), Long.box(3L), "C"))
-    data.+=(Row.of(localDate("1970-01-05"), Long.box(3L), "C"))
-    data.+=(Row.of(localDate("1970-01-06"), Long.box(3L), "C"))
-    data.+=(Row.of(localDate("1970-01-07"), Long.box(4L), "B"))
-    data.+=(Row.of(localDate("1970-01-08"), Long.box(4L), "A"))
-    data.+=(Row.of(localDate("1970-01-09"), Long.box(4L), "D"))
-    data.+=(Row.of(localDate("1970-01-10"), Long.box(4L), "E"))
-    data.+=(Row.of(localDate("1970-01-11"), Long.box(5L), "A"))
-    data.+=(Row.of(localDate("1970-01-12"), Long.box(5L), "B"))
-
-    val t = failingDataSource(data)(new RowTypeInfo(
-      Types.LOCAL_DATE, Types.LONG, Types.STRING)).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
-    val t1 = tEnv.sqlQuery("SELECT b, count(distinct c), count(distinct a) FROM T GROUP BY b")
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("1,1,1", "2,1,2", "3,1,3", "4,4,4", "5,2,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testTimeDistinct(): Unit = {
-    val data = new mutable.MutableList[Row]
-    data.+=(Row.of(mLocalTime("00:00:01"), Long.box(1L), "A"))
-    data.+=(Row.of(mLocalTime("00:00:02"), Long.box(2L), "B"))
-    data.+=(Row.of(mLocalTime("00:00:03"), Long.box(2L), "B"))
-    data.+=(Row.of(mLocalTime("00:00:04"), Long.box(3L), "C"))
-    data.+=(Row.of(mLocalTime("00:00:05"), Long.box(3L), "C"))
-    data.+=(Row.of(mLocalTime("00:00:06"), Long.box(3L), "C"))
-    data.+=(Row.of(mLocalTime("00:00:07"), Long.box(4L), "B"))
-    data.+=(Row.of(mLocalTime("00:00:08"), Long.box(4L), "A"))
-    data.+=(Row.of(mLocalTime("00:00:09"), Long.box(4L), "D"))
-    data.+=(Row.of(mLocalTime("00:00:10"), Long.box(4L), "E"))
-    data.+=(Row.of(mLocalTime("00:00:11"), Long.box(5L), "A"))
-    data.+=(Row.of(mLocalTime("00:00:12"), Long.box(5L), "B"))
-
-    val t = failingDataSource(data)(new RowTypeInfo(
-      Types.LOCAL_TIME, Types.LONG, Types.STRING)).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
-    val t1 = tEnv.sqlQuery("SELECT b, count(distinct c), count(distinct a) FROM T GROUP BY b")
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("1,1,1", "2,1,2", "3,1,3", "4,4,4", "5,2,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
