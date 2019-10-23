@@ -16,34 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
-
-import org.apache.flink.table.module.ModuleManager;
-
-import org.junit.Test;
-
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.junit.Assert.assertTrue;
+package org.apache.flink.table.module;
 
 /**
- * Test for {@link FunctionCatalog}.
+ * Configs for modules.
  */
-public class FunctionCatalogTest {
-
-	@Test
-	public void testGetBuiltInFunctions() {
-		FunctionCatalog functionCatalog = new FunctionCatalog(
-			new CatalogManager("test", new GenericInMemoryCatalog("test")),
-			new ModuleManager());
-
-		Set<String> actual = new HashSet<>();
-		Collections.addAll(actual, functionCatalog.getFunctions());
-
-		Set<String> expected = new ModuleManager().listFunctions();
-
-		assertTrue(actual.containsAll(expected));
-	}
+public class ModuleConfig {
+	// Name of the core module
+	public static final String CORE_MODULE = "core";
 }

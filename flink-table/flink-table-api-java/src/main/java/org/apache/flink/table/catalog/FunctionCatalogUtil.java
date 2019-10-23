@@ -18,32 +18,16 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.module.ModuleManager;
-
-import org.junit.Test;
-
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.junit.Assert.assertTrue;
-
 /**
- * Test for {@link FunctionCatalog}.
+ * Utils for FunctionCatalog.
  */
-public class FunctionCatalogTest {
-
-	@Test
-	public void testGetBuiltInFunctions() {
-		FunctionCatalog functionCatalog = new FunctionCatalog(
-			new CatalogManager("test", new GenericInMemoryCatalog("test")),
-			new ModuleManager());
-
-		Set<String> actual = new HashSet<>();
-		Collections.addAll(actual, functionCatalog.getFunctions());
-
-		Set<String> expected = new ModuleManager().listFunctions();
-
-		assertTrue(actual.containsAll(expected));
+public class FunctionCatalogUtil {
+	/**
+	 *
+	 * @param name
+	 * @return
+	 */
+	public static String normalizeName(String name) {
+		return name.toUpperCase();
 	}
 }

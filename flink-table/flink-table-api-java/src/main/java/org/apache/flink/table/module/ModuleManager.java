@@ -42,7 +42,7 @@ public class ModuleManager {
 	public ModuleManager() {
 		this.modules = new LinkedHashMap<>();
 
-		// TODO: Add Core module to modules
+		modules.put(ModuleConfig.CORE_MODULE, CoreModule.INSTANCE);
 	}
 
 	/**
@@ -109,7 +109,7 @@ public class ModuleManager {
 	 */
 	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
 		Optional<Module> module = modules.values().stream()
-			.filter(p -> p.listFunctions().stream().anyMatch(e -> e.equals(name)))
+			.filter(p -> p.listFunctions().stream().anyMatch(e -> e.equalsIgnoreCase(name)))
 			.findFirst();
 
 		return module.isPresent() ? module.get().getFunctionDefinition(name) : Optional.empty();

@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -46,7 +45,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -203,12 +201,7 @@ public class FunctionCatalog implements FunctionLookup {
 		Set<String> result = getUserDefinedFunctionNames();
 
 		// Get built-in functions
-		result.addAll(
-			BuiltInFunctionDefinitions.getDefinitions()
-				.stream()
-				.map(f -> normalizeName(f.getName()))
-				.collect(Collectors.toSet())
-		);
+		result.addAll(moduleManager.listFunctions());
 
 		return result.toArray(new String[0]);
 	}
@@ -216,7 +209,7 @@ public class FunctionCatalog implements FunctionLookup {
 	private Set<String> getUserDefinedFunctionNames() {
 		Set<String> result = new HashSet<>();
 
-		// Get functions in catalog
+		// add catalog functions
 		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
 		try {
 			result.addAll(catalog.listFunctions(catalogManager.getCurrentDatabase()));
@@ -224,9 +217,15 @@ public class FunctionCatalog implements FunctionLookup {
 			// Ignore since there will always be a current database of the current catalog
 		}
 
-		// Get functions registered in memory
+		// add temp system functions
 		result.addAll(
 			tempSystemFunctions.values().stream()
+				.map(FunctionDefinition::toString)
+				.collect(Collectors.toSet()));
+
+		// add temp catalog functions
+		result.addAll(
+			tempCatalogFunctions.values().stream()
 				.map(FunctionDefinition::toString)
 				.collect(Collectors.toSet()));
 
@@ -235,7 +234,7 @@ public class FunctionCatalog implements FunctionLookup {
 
 	@Override
 	public Optional<FunctionLookup.Result> lookupFunction(String name) {
-		String functionName = normalizeName(name);
+		String functionName = FunctionCatalogUtil.normalizeName(name);
 
 		FunctionDefinition userCandidate;
 
@@ -267,17 +266,8 @@ public class FunctionCatalog implements FunctionLookup {
 		if (userCandidate != null) {
 			foundDefinition = Optional.of(userCandidate);
 		} else {
-
-			// TODO once we connect this class with the Catalog APIs we need to make sure that
-			//  built-in functions are present in "root" built-in catalog. This allows to
-			//  overwrite built-in functions but also fallback to the "root" catalog. It should be
-			//  possible to disable the "root" catalog if that is desired.
-
-			foundDefinition = BuiltInFunctionDefinitions.getDefinitions()
-				.stream()
-				.filter(f -> functionName.equals(normalizeName(f.getName())))
-				.findFirst()
-				.map(Function.identity());
+			foundDefinition = moduleManager.getFunctionDefinition(
+				FunctionCatalogUtil.normalizeName(functionName));
 		}
 
 		return foundDefinition.map(definition -> new FunctionLookup.Result(
@@ -298,7 +288,7 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	private void registerTempSystemFunction(String name, FunctionDefinition functionDefinition) {
-		tempSystemFunctions.put(normalizeName(name), functionDefinition);
+		tempSystemFunctions.put(FunctionCatalogUtil.normalizeName(name), functionDefinition);
 	}
 
 	private void registerTempCatalogFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
@@ -306,15 +296,10 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	@VisibleForTesting
-	static String normalizeName(String name) {
-		return name.toUpperCase();
-	}
-
-	@VisibleForTesting
 	static ObjectIdentifier normalizeObjectIdentifier(ObjectIdentifier oi) {
 		return ObjectIdentifier.of(
 			oi.getCatalogName(),
 			oi.getDatabaseName(),
-			oi.getObjectName().toUpperCase());
+			FunctionCatalogUtil.normalizeName(oi.getObjectName()));
 	}
 }
