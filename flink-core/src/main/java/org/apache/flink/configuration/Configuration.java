@@ -101,7 +101,10 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @return The value associated with the given key, or the default value, if to entry for the key exists.
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, ClassLoader classLoader) throws ClassNotFoundException {
+	public <T> Class<T> getClass(
+			String key,
+			Class<? extends T> defaultValue,
+			ClassLoader classLoader) throws ClassNotFoundException {
 		Optional<Object> o = getRawValue(key);
 		if (!o.isPresent()) {
 			return (Class<T>) defaultValue;
@@ -111,8 +114,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return (Class<T>) Class.forName((String) o.get(), true, classLoader);
 		}
 
-		LOG.warn("Configuration cannot evaluate value " + o + " as a class name");
-		return (Class<T>) defaultValue;
+		throw new IllegalArgumentException(
+			"Configuration cannot evaluate object of class " + o.get().getClass() + " as a class name");
 	}
 
 	/**
@@ -554,8 +557,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 				if (o.getClass().equals(byte[].class)) {
 					return (byte[]) o;
 				} else {
-					LOG.warn("Configuration cannot evaluate value {} as a byte[] value", o);
-					return defaultValue;
+					throw new IllegalArgumentException(String.format(
+						"Configuration cannot evaluate value %s as a byte[] value",
+						o));
 				}
 			}
 		).orElse(defaultValue);
