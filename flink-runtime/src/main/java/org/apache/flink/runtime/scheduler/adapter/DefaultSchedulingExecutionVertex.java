@@ -37,9 +37,9 @@ class DefaultSchedulingExecutionVertex
 
 	private final ExecutionVertexID executionVertexId;
 
-	private final List<DefaultSchedulingResultPartition> consumedPartitions;
+	private final List<DefaultSchedulingResultPartition> consumedResults;
 
-	private final List<DefaultSchedulingResultPartition> producedPartitions;
+	private final List<DefaultSchedulingResultPartition> producedResults;
 
 	private final Supplier<ExecutionState> stateSupplier;
 
@@ -51,9 +51,9 @@ class DefaultSchedulingExecutionVertex
 			Supplier<ExecutionState> stateSupplier,
 			InputDependencyConstraint constraint) {
 		this.executionVertexId = checkNotNull(executionVertexId);
-		this.consumedPartitions = new ArrayList<>();
+		this.consumedResults = new ArrayList<>();
 		this.stateSupplier = checkNotNull(stateSupplier);
-		this.producedPartitions = checkNotNull(producedPartitions);
+		this.producedResults = checkNotNull(producedPartitions);
 		this.inputDependencyConstraint = checkNotNull(constraint);
 	}
 
@@ -69,12 +69,12 @@ class DefaultSchedulingExecutionVertex
 
 	@Override
 	public Iterable<DefaultSchedulingResultPartition> getConsumedResults() {
-		return consumedPartitions;
+		return consumedResults;
 	}
 
 	@Override
 	public Iterable<DefaultSchedulingResultPartition> getProducedResults() {
-		return producedPartitions;
+		return producedResults;
 	}
 
 	@Override
@@ -82,7 +82,7 @@ class DefaultSchedulingExecutionVertex
 		return inputDependencyConstraint;
 	}
 
-	void addConsumedPartition(DefaultSchedulingResultPartition partition) {
-		consumedPartitions.add(partition);
+	void addConsumedResult(DefaultSchedulingResultPartition result) {
+		consumedResults.add(result);
 	}
 }

@@ -24,6 +24,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.IterableUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,7 +49,7 @@ public class InputDependencyConstraintChecker {
 
 	public boolean check(final SchedulingExecutionVertex<?, ?> schedulingExecutionVertex) {
 		final InputDependencyConstraint inputConstraint = schedulingExecutionVertex.getInputDependencyConstraint();
-		if (!schedulingExecutionVertex.getConsumedResults().iterator().hasNext() || ALL.equals(inputConstraint)) {
+		if (Iterables.isEmpty(schedulingExecutionVertex.getConsumedResults()) || ALL.equals(inputConstraint)) {
 			return checkAll(schedulingExecutionVertex);
 		} else if (ANY.equals(inputConstraint)) {
 			return checkAny(schedulingExecutionVertex);

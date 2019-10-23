@@ -70,7 +70,7 @@ public class DefaultSchedulingExecutionVertexTest extends TestLogger {
 			Collections.emptyList(),
 			stateSupplier,
 			ANY);
-		consumerVertex.addConsumedPartition(schedulingResultPartition);
+		consumerVertex.addConsumedResult(schedulingResultPartition);
 	}
 
 	@Test

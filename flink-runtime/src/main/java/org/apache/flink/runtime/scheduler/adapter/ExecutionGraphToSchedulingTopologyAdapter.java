@@ -140,7 +140,7 @@ public class ExecutionGraphToSchedulingTopologyAdapter
 			for (int index = 0; index < executionVertex.getNumberOfInputs(); index++) {
 				for (ExecutionEdge edge : executionVertex.getInputEdges(index)) {
 					DefaultSchedulingResultPartition partition = resultPartitions.get(edge.getSource().getPartitionId());
-					schedulingVertex.addConsumedPartition(partition);
+					schedulingVertex.addConsumedResult(partition);
 					partition.addConsumer(schedulingVertex);
 				}
 			}
