@@ -35,8 +35,8 @@ import scala.collection.mutable
 
 /**
   * Base rule that splits [[FlinkLogicalCalc]] into multiple [[FlinkLogicalCalc]]s.
-  * It is mainly to ensure that each [[FlinkLogicalCalc]] only contains Java/Scala or
-  * Python [[ScalarFunction]]s.
+  * It is mainly to ensure that each [[FlinkLogicalCalc]] only contains Java/Scala
+  * [[ScalarFunction]]s or Python [[ScalarFunction]]s.
   */
 abstract class PythonCalcSplitRuleBase(description: String)
   extends RelOptRule(
