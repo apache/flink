@@ -35,12 +35,10 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingWithAggTestBase, T
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import java.lang.{Integer => JInt, Long => JLong}
 
 import scala.collection.{Seq, mutable}
@@ -1040,6 +1038,28 @@ class AggregateITCase(
     env.execute()
 
     val expected = List("1,260", "2,520")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testDecimalDistinct(): Unit = {
+    val data = new mutable.MutableList[Row]
+    data.+=(Row.of(BigDecimal(1).bigDecimal, Long.box(1L)))
+    data.+=(Row.of(BigDecimal(2).bigDecimal, Long.box(1L)))
+    data.+=(Row.of(BigDecimal(2).bigDecimal, Long.box(1L)))
+    data.+=(Row.of(BigDecimal(3).bigDecimal, Long.box(2L)))
+
+    val rowType = new RowTypeInfo(Types.DECIMAL(), Types.LONG())
+    val t = failingDataSource(data)(rowType).toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("T", t)
+
+    val sql = "SELECT b, count(distinct a) FROM T GROUP BY b"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,2", "2,1")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
