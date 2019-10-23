@@ -42,13 +42,13 @@ import static org.junit.Assert.fail;
  */
 public class ExecutionFailureHandlerTest extends TestLogger {
 
-	private static final long restartDelayMs = 1234L;
+	private static final long RESTART_DELAY_MS = 1234L;
 
 	private FailoverTopology failoverTopology;
 
 	private TestFailoverStrategy failoverStrategy;
 
-	private TestRestartBackoffTimeStrategy restartStrategy;
+	private TestRestartBackoffTimeStrategy backoffTimeStrategy;
 
 	private ExecutionFailureHandler executionFailureHandler;
 
@@ -59,8 +59,8 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		failoverTopology = topologyBuilder.build();
 
 		failoverStrategy = new TestFailoverStrategy();
-		restartStrategy = new TestRestartBackoffTimeStrategy(true, restartDelayMs);
-		executionFailureHandler = new ExecutionFailureHandler(failoverTopology, failoverStrategy, restartStrategy);
+		backoffTimeStrategy = new TestRestartBackoffTimeStrategy(true, RESTART_DELAY_MS);
+		executionFailureHandler = new ExecutionFailureHandler(failoverTopology, failoverStrategy, backoffTimeStrategy);
 	}
 
 	/**
@@ -79,7 +79,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 		// verify results
 		assertTrue(result.canRestart());
-		assertEquals(restartDelayMs, result.getRestartDelayMS());
+		assertEquals(RESTART_DELAY_MS, result.getRestartDelayMS());
 		assertEquals(tasksToRestart, result.getVerticesToRestart());
 		try {
 			result.getError();
@@ -95,7 +95,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	@Test
 	public void testRestartingSuppressedFailureHandlingResult() {
 		// restart strategy suppresses restarting
-		restartStrategy.setCanRestart(false);
+		backoffTimeStrategy.setCanRestart(false);
 
 		// trigger a task failure
 		final FailureHandlingResult result = executionFailureHandler.getFailureHandlingResult(
@@ -169,19 +169,11 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		final FailureHandlingResult result = executionFailureHandler.getGlobalFailureHandlingResult(
 			new Exception("test failure"));
 
-		assertTrue(result.canRestart());
-		assertEquals(restartDelayMs, result.getRestartDelayMS());
 		assertEquals(
 			StreamSupport.stream(failoverTopology.getFailoverVertices().spliterator(), false)
 			.map(FailoverVertex::getExecutionVertexID)
 			.collect(Collectors.toSet()),
 			result.getVerticesToRestart());
-		try {
-			result.getError();
-			fail("Cannot get error when the restarting is accepted");
-		} catch (IllegalStateException ex) {
-			// expected
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -191,7 +183,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	/**
 	 * A FailoverStrategy implementation for tests. It always suggests restarting the given tasks to restart.
 	 */
-	private class TestFailoverStrategy implements FailoverStrategy {
+	private static class TestFailoverStrategy implements FailoverStrategy {
 
 		private Set<ExecutionVertexID> tasksToRestart;
 
