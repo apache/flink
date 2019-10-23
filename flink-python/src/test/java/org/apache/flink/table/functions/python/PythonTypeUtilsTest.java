@@ -18,15 +18,17 @@
 
 package org.apache.flink.table.functions.python;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
-import org.apache.flink.table.runtime.typeutils.coders.BaseRowCoder;
-import org.apache.flink.table.runtime.typeutils.coders.RowCoder;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
+import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -36,34 +38,30 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link BeamTypeUtils}.
+ * Tests for {@link PythonTypeUtils}.
  */
-public class BeamTypeUtilsTest {
+public class PythonTypeUtilsTest {
 
 	@Test
-	public void testLogicalTypeToCoder() {
+	public void testLogicalTypeToFlinkTypeSerializer() {
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		rowFields.add(new RowType.RowField("f1", new BigIntType()));
 		RowType rowType = new RowType(rowFields);
-		Coder coder = BeamTypeUtils.toCoder(rowType);
-		assertTrue(coder instanceof RowCoder);
+		TypeSerializer rowSerializer = PythonTypeUtils.toFlinkTypeSerializer(rowType);
+		assertTrue(rowSerializer instanceof RowSerializer);
 
-		Coder<?>[] fieldCoders = ((RowCoder) coder).getFieldCoders();
-		assertEquals(1, fieldCoders.length);
-		assertTrue(fieldCoders[0] instanceof VarLongCoder);
+		assertEquals(1, ((RowSerializer) rowSerializer).getArity());
 	}
 
 	@Test
-	public void testLogicalTypeToBlinkCoder() {
+	public void testLogicalTypeToBlinkTypeSerializer() {
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		rowFields.add(new RowType.RowField("f1", new BigIntType()));
 		RowType rowType = new RowType(rowFields);
-		Coder coder = BeamTypeUtils.toBlinkCoder(rowType);
-		assertTrue(coder instanceof BaseRowCoder);
+		TypeSerializer baseSerializer = PythonTypeUtils.toBlinkTypeSerializer(rowType);
+		assertTrue(baseSerializer instanceof BaseRowSerializer);
 
-		Coder<?>[] fieldCoders = ((BaseRowCoder) coder).getFieldCoders();
-		assertEquals(1, fieldCoders.length);
-		assertTrue(fieldCoders[0] instanceof VarLongCoder);
+		assertEquals(1, ((BaseRowSerializer) baseSerializer).getArity());
 	}
 
 	@Test
@@ -71,10 +69,21 @@ public class BeamTypeUtilsTest {
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		rowFields.add(new RowType.RowField("f1", new BigIntType()));
 		RowType rowType = new RowType(rowFields);
-		FlinkFnApi.Schema.FieldType protoType = BeamTypeUtils.toProtoType(rowType);
+		FlinkFnApi.Schema.FieldType protoType = PythonTypeUtils.toProtoType(rowType);
 		FlinkFnApi.Schema schema = protoType.getRowSchema();
 		assertEquals(1, schema.getFieldsCount());
 		assertEquals("f1", schema.getFields(0).getName());
 		assertEquals(FlinkFnApi.Schema.TypeName.BIGINT, schema.getFields(0).getType().getTypeName());
+	}
+
+	@Test
+	public void testUnsupportedTypeSerializer() {
+		LogicalType logicalType = new UnresolvedUserDefinedType("", "", "");
+		String expectedTestException = "Python UDF doesn't support logical type ``.``.`` currently.";
+		try {
+			PythonTypeUtils.toFlinkTypeSerializer(logicalType);
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedTestException).isPresent());
+		}
 	}
 }

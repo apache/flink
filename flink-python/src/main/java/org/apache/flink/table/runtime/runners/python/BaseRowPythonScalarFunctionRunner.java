@@ -24,10 +24,10 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
@@ -50,13 +50,13 @@ public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunct
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public Coder<BaseRow> getInputCoder() {
-		return (Coder<BaseRow>) BeamTypeUtils.toBlinkCoder(getInputType());
+	public BaseRowSerializer getInputTypeSerializer() {
+		return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public Coder<BaseRow> getOutputCoder() {
-		return (Coder<BaseRow>) BeamTypeUtils.toBlinkCoder(getOutputType());
+	public BaseRowSerializer getOutputTypeSerializer() {
+		return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getOutputType());
 	}
 }
