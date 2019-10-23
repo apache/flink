@@ -64,7 +64,7 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	private State state;
 
 	@Nullable
-	private DispatcherService dispatcherService;
+	private DispatcherGatewayService dispatcherService;
 
 	AbstractDispatcherLeaderProcess(UUID leaderSessionId, FatalErrorHandler fatalErrorHandler) {
 		this.leaderSessionId = leaderSessionId;
@@ -118,7 +118,7 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		return shutDownFuture;
 	}
 
-	protected final Optional<DispatcherService> getDispatcherService() {
+	protected final Optional<DispatcherGatewayService> getDispatcherService() {
 		return Optional.ofNullable(dispatcherService);
 	}
 
@@ -161,14 +161,14 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		return FutureUtils.completedVoidFuture();
 	}
 
-	final void completeDispatcherSetup(DispatcherService dispatcherService) {
+	final void completeDispatcherSetup(DispatcherGatewayService dispatcherService) {
 		runIfStateIs(
 			State.RUNNING,
 			() -> completeDispatcherSetupInternal(dispatcherService));
 	}
 
-	private void completeDispatcherSetupInternal(DispatcherService createdDispatcherService) {
-		Preconditions.checkState(dispatcherService == null, "The DispatcherService can only be set once.");
+	private void completeDispatcherSetupInternal(DispatcherGatewayService createdDispatcherService) {
+		Preconditions.checkState(dispatcherService == null, "The DispatcherGatewayService can only be set once.");
 		dispatcherService = createdDispatcherService;
 		dispatcherGatewayFuture.complete(createdDispatcherService.getGateway());
 		FutureUtils.forward(createdDispatcherService.getShutDownFuture(), shutDownFuture);
@@ -237,14 +237,14 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	// Internal classes
 	// ------------------------------------------------------------
 
-	interface DispatcherServiceFactory {
-		DispatcherService create(
+	interface DispatcherGatewayServiceFactory {
+		DispatcherGatewayService create(
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter);
 	}
 
-	interface DispatcherService extends AutoCloseableAsync {
+	interface DispatcherGatewayService extends AutoCloseableAsync {
 		DispatcherGateway getGateway();
 
 		CompletableFuture<Void> onRemovedJobGraph(JobID jobId);

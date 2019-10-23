@@ -122,7 +122,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.setCreateFunction(
 				(fencingToken, recoveredJobGraphs, jobGraphStore) -> {
 					recoveredJobGraphsFuture.complete(recoveredJobGraphs);
-					return TestingDispatcherService.newBuilder().build();
+					return TestingDispatcherGatewayService.newBuilder().build();
 				}
 			)
 			.build();
@@ -146,7 +146,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 		final CompletableFuture<Void> dispatcherServiceTerminationFuture = new CompletableFuture<>();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherService.newBuilder()
+			.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder()
 				.setTerminationFutureSupplier(() -> dispatcherServiceTerminationFuture)
 				.build())
 			.build();
@@ -154,7 +154,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
-			// wait for the creation of the DispatcherService
+			// wait for the creation of the DispatcherGatewayService
 			dispatcherLeaderProcess.getDispatcherGateway().get();
 
 			final CompletableFuture<Void> terminationFuture = dispatcherLeaderProcess.closeAsync();
@@ -184,7 +184,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.setCreateFunction(
 				TriFunctionWithException.unchecked((ignoredA, ignoredB, ignoredC) -> {
 					createDispatcherServiceLatch.await();
-					return TestingDispatcherService.newBuilder()
+					return TestingDispatcherGatewayService.newBuilder()
 						.setDispatcherGateway(dispatcherGateway)
 						.build();
 				}))
@@ -221,7 +221,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.setCreateFunction(
 				(ignoredA, ignoredB, ignoredC) -> {
 					createDispatcherServiceLatch.trigger();
-					return TestingDispatcherService.newBuilder().build();
+					return TestingDispatcherGatewayService.newBuilder().build();
 				})
 			.build();
 
@@ -248,7 +248,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.build();
 
 		final CompletableFuture<JobID> terminateJobFuture = new CompletableFuture<>();
-		final TestingDispatcherService testingDispatcherService = TestingDispatcherService.newBuilder()
+		final TestingDispatcherGatewayService testingDispatcherService = TestingDispatcherGatewayService.newBuilder()
 			.setOnRemovedJobGraphFunction(jobID -> {
 				terminateJobFuture.complete(jobID);
 				return FutureUtils.completedVoidFuture();
@@ -277,7 +277,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 	public void onRemovedJobGraph_failingRemovalCall_failsFatally() throws Exception {
 		final FlinkException testException = new FlinkException("Test exception");
 
-		final TestingDispatcherService testingDispatcherService = TestingDispatcherService.newBuilder()
+		final TestingDispatcherGatewayService testingDispatcherService = TestingDispatcherGatewayService.newBuilder()
 			.setOnRemovedJobGraphFunction(jobID -> FutureUtils.completedExceptionally(testException))
 			.build();
 
@@ -463,7 +463,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.setCreateFunction((dispatcherId, jobGraphs, jobGraphWriter) -> {
 				assertThat(jobGraphs, containsInAnyOrder(JOB_GRAPH));
 
-				return TestingDispatcherService.newBuilder()
+				return TestingDispatcherGatewayService.newBuilder()
 					.setDispatcherGateway(dispatcherGateway)
 					.build();
 			})
@@ -490,7 +490,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 	private TestingDispatcherServiceFactory createDispatcherServiceFactoryFor(TestingDispatcherGateway testingDispatcherGateway) {
 		return TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				(ignoredA, ignoredB, ignoredC) -> TestingDispatcherService.newBuilder()
+				(ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder()
 					.setDispatcherGateway(testingDispatcherGateway)
 					.build())
 			.build();

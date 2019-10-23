@@ -27,23 +27,23 @@ import java.util.UUID;
  * Factory for the {@link JobDispatcherLeaderProcess}.
  */
 public class JobDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
-	private final AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory;
+	private final AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 
 	private final JobGraph jobGraph;
 
 	private final FatalErrorHandler fatalErrorHandler;
 
 	JobDispatcherLeaderProcessFactory(
-			AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory,
+			AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraph jobGraph,
 			FatalErrorHandler fatalErrorHandler) {
-		this.dispatcherServiceFactory = dispatcherServiceFactory;
+		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
 		this.jobGraph = jobGraph;
 		this.fatalErrorHandler = fatalErrorHandler;
 	}
 
 	@Override
 	public DispatcherLeaderProcess create(UUID leaderSessionID) {
-		return new JobDispatcherLeaderProcess(leaderSessionID, dispatcherServiceFactory, jobGraph, fatalErrorHandler);
+		return new JobDispatcherLeaderProcess(leaderSessionID, dispatcherGatewayServiceFactory, jobGraph, fatalErrorHandler);
 	}
 }

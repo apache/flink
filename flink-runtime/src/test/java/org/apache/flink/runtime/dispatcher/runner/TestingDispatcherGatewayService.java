@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-class TestingDispatcherService implements AbstractDispatcherLeaderProcess.DispatcherService {
+class TestingDispatcherGatewayService implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
 
 	private final Object lock = new Object();
 
@@ -42,7 +42,7 @@ class TestingDispatcherService implements AbstractDispatcherLeaderProcess.Dispat
 
 	private CompletableFuture<Void> terminationFuture;
 
-	private TestingDispatcherService(
+	private TestingDispatcherGatewayService(
 			Supplier<CompletableFuture<Void>> terminationFutureSupplier,
 			Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction,
 			DispatcherGateway dispatcherGateway,
@@ -115,8 +115,8 @@ class TestingDispatcherService implements AbstractDispatcherLeaderProcess.Dispat
 			return this;
 		}
 
-		public TestingDispatcherService build() {
-			return new TestingDispatcherService(terminationFutureSupplier, onRemovedJobGraphFunction, dispatcherGateway, shutDownFuture);
+		public TestingDispatcherGatewayService build() {
+			return new TestingDispatcherGatewayService(terminationFutureSupplier, onRemovedJobGraphFunction, dispatcherGateway, shutDownFuture);
 		}
 	}
 }
