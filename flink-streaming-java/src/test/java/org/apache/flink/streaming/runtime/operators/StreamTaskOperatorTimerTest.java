@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -50,32 +50,35 @@ import static org.hamcrest.MatcherAssert.assertThat;
  * Test to verify that timer triggers are run according to operator precedence (combined with yield() at operator level).
  */
 public class StreamTaskOperatorTimerTest extends TestLogger {
-	private static List<String> events;
+	private static final String TRIGGER_PREFIX = "trigger:";
+	private static final String RESULT_PREFIX = "timer:";
 
 	@Test
 	public void testOperatorYieldExecutesSelectedTimers() throws Exception {
-		events = new ArrayList<>();
-		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
-				BasicTypeInfo.INT_TYPE_INFO,
-				BasicTypeInfo.INT_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+			OneInputStreamTask::new,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO);
 
-		testHarness.setupOperatorChain(new OperatorID(), new TestOperatorFactory<>())
-				.chain(new OperatorID(), new TestOperatorFactory<>(), IntSerializer.INSTANCE)
-				.finish();
+		testHarness.setupOperatorChain(new OperatorID(), new TestOperatorFactory())
+			.chain(new OperatorID(), new TestOperatorFactory(), StringSerializer.INSTANCE)
+			.finish();
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processElement(new StreamRecord<>(42));
+		final String trigger = TRIGGER_PREFIX + 42;
+		testHarness.processElement(new StreamRecord<>(trigger));
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 
-		assertThat(events, is(Arrays.asList("Timer:1:0", "Timer:0:0")));
+		List<String> events = new ArrayList<>();
+		testHarness.getOutput().forEach(element -> events.add(((StreamRecord<String>) element).getValue()));
+		assertThat(events, is(Arrays.asList(trigger, RESULT_PREFIX + "1:0", RESULT_PREFIX + "0:0")));
 	}
 
-	private static class TestOperatorFactory<T> implements OneInputStreamOperatorFactory<T, T>, YieldingOperatorFactory<T> {
+	private static class TestOperatorFactory implements OneInputStreamOperatorFactory<String, String>, YieldingOperatorFactory<String> {
 		private MailboxExecutor mailboxExecutor;
 
 		@Override
@@ -84,11 +87,11 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 		}
 
 		@Override
-		public <Operator extends StreamOperator<T>> Operator createStreamOperator(
+		public <Operator extends StreamOperator<String>> Operator createStreamOperator(
 				StreamTask<?, ?> containingTask,
 				StreamConfig config,
-				Output<StreamRecord<T>> output) {
-			TestOperator<T> operator = new TestOperator<>(config.getChainIndex(), mailboxExecutor);
+				Output<StreamRecord<String>> output) {
+			TestOperator operator = new TestOperator(config.getChainIndex(), mailboxExecutor);
 			operator.setup(containingTask, config, output);
 			return (Operator) operator;
 		}
@@ -108,9 +111,9 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 		}
 	}
 
-	private static class TestOperator<T>
-			extends AbstractStreamOperator<T>
-			implements OneInputStreamOperator<T, T> {
+	private static class TestOperator
+			extends AbstractStreamOperator<String>
+			implements OneInputStreamOperator<String, String> {
 
 		private final transient MailboxExecutor mailboxExecutor;
 		private final int chainIndex;
@@ -122,7 +125,13 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 		}
 
 		@Override
-		public void processElement(StreamRecord<T> element) throws Exception {
+		public void processElement(StreamRecord<String> element) throws Exception {
+			if (!isTriggerEvent(element)) {
+				// Pass through entries that are not triggers as is, so that the test can observe them.
+				output.collect(element);
+				return;
+			}
+
 			// The test operator creates a one-time timer (per input element) and passes the input element further
 			// (to the next operator or to the output).
 			// The execution is yielded until the operator's timer trigger is confirmed.
@@ -133,7 +142,7 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 				.registerTimer(
 					processingTimeService.getCurrentProcessingTime() + 1000L,
 					timestamp -> {
-						events.add("Timer:" + chainIndex + ":" + index);
+						output.collect(new StreamRecord<>(RESULT_PREFIX + chainIndex + ":" + index));
 						--count;
 					});
 
@@ -143,6 +152,13 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
 			while (count > 0) {
 				mailboxExecutor.yield();
 			}
+		}
+
+		private static boolean isTriggerEvent(StreamRecord<String> element) {
+			if (element.isRecord()) {
+				return element.getValue().startsWith(TRIGGER_PREFIX);
+			}
+			return false;
 		}
 	}
 }
