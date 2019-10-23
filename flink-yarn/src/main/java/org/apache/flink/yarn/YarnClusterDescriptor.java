@@ -627,7 +627,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			if (queues.size() > 0 && this.yarnQueue != null) { // check only if there are queues configured in yarn and for this session.
 				boolean queueFound = false;
 				for (QueueInfo queue : queues) {
-					if (queue.getQueueName().equals(this.yarnQueue)) {
+					if (queue.getQueueName().equals(this.yarnQueue)
+						|| queue.getQueueName().equals("root." + this.yarnQueue)) {
 						queueFound = true;
 						break;
 					}
