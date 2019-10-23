@@ -210,13 +210,13 @@ class TableEnvironment(object):
         return [item for item in j_catalog_name_array]
 
     def list_modules(self):
-            """
-            Gets the names of all modules registered in this environment.
+        """
+        Gets the names of all modules registered in this environment.
 
-            :return: List of module names.
-            """
-            j_module_name_array = self._j_tenv.listModules()
-            return [item for item in j_module_name_array]
+        :return: List of module names.
+        """
+        j_module_name_array = self._j_tenv.listModules()
+        return [item for item in j_module_name_array]
 
     def list_databases(self):
         """
