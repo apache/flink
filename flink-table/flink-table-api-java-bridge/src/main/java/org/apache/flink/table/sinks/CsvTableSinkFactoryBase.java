@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
+import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
@@ -66,6 +67,7 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		// format
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 		properties.add(FORMAT_FIELD_DELIMITER);
 		properties.add(CONNECTOR_PATH);
 		// schema
@@ -87,12 +89,16 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		new SchemaValidator(isStreaming, false, false).validate(params);
 
 		// build
-		TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
 		TableSchema tableSchema = params.getTableSchema(SCHEMA);
-
-		if (!formatSchema.equals(tableSchema)) {
-			throw new TableException(
+		boolean isDerived = params
+			.getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
+			.orElse(false);
+		if (!isDerived) {
+			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
+			if (!formatSchema.equals(tableSchema)) {
+				throw new TableException(
 					"Encodings that differ from the schema are not supported yet for CsvTableSink.");
+			}
 		}
 
 		String path = params.getString(CONNECTOR_PATH);
@@ -100,7 +106,7 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 
 		CsvTableSink csvTableSink = new CsvTableSink(path, fieldDelimiter);
 
-		return (CsvTableSink) csvTableSink.configure(formatSchema.getFieldNames(), formatSchema.getFieldTypes());
+		return (CsvTableSink) csvTableSink.configure(tableSchema.getFieldNames(), tableSchema.getFieldTypes());
 	}
 
 }
