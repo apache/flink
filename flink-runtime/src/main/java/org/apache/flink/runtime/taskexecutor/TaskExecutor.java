@@ -65,6 +65,7 @@ import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -77,6 +78,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -228,6 +230,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final StackTraceSampleService stackTraceSampleService;
 
+	private final TaskBackPressureSampleService taskBackPressureSampleService;
+
 	private Map<JobID, Collection<CompletableFuture<ExecutionState>>> taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
 
 	public TaskExecutor(
@@ -274,6 +278,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.currentRegistrationTimeoutId = null;
 
 		this.stackTraceSampleService = new StackTraceSampleService(rpcService.getScheduledExecutor());
+		this.taskBackPressureSampleService = new TaskBackPressureSampleService(rpcService.getScheduledExecutor());
 		this.taskCompletionTracker = new TaskCompletionTracker();
 
 		final ResourceID resourceId = taskExecutorServices.getTaskManagerLocation().getResourceID();
@@ -458,6 +463,28 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		return stackTracesFuture.thenApply(stackTraces ->
 			new StackTraceSampleResponse(sampleId, executionAttemptId, stackTraces));
+	}
+
+	@Override
+	public CompletableFuture<TaskBackPressureSampleResponse> sampleTaskBackPressure(
+			ExecutionAttemptID executionAttemptId,
+			int sampleId,
+			int numSamples,
+			Time delayBetweenSamples,
+			@RpcTimeout Time timeout) {
+		final Task task = taskSlotTable.getTask(executionAttemptId);
+		if (task == null) {
+			return FutureUtils.completedExceptionally(
+				new IllegalStateException(String.format("Cannot sample task %s. " +
+					"Task is not known to the task manager.", executionAttemptId)));
+		}
+		final CompletableFuture<Double> backPressureRatioFuture = taskBackPressureSampleService.sampleTaskBackPressure(
+			TaskOutputAvailabilitySampleableTaskAdapter.fromTask(task),
+			numSamples,
+			delayBetweenSamples);
+
+		return backPressureRatioFuture.thenApply(backPressureRatio ->
+			new TaskBackPressureSampleResponse(sampleId, executionAttemptId, backPressureRatio));
 	}
 
 	// ----------------------------------------------------------------------

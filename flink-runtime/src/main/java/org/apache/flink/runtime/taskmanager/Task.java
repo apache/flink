@@ -473,6 +473,17 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			.getStackTrace();
 	}
 
+	public boolean isAvailableForOutput() {
+		if (invokable == null || consumableNotifyingPartitionWriters.length == 0) {
+			return true;
+		}
+		final CompletableFuture<?>[] outputFutures = new CompletableFuture[consumableNotifyingPartitionWriters.length];
+		for(int i = 0; i < outputFutures.length; ++i) {
+			outputFutures[i] = consumableNotifyingPartitionWriters[i].isAvailable();
+		}
+		return CompletableFuture.allOf(outputFutures).isDone();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Task Execution
 	// ------------------------------------------------------------------------

@@ -31,9 +31,10 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -50,52 +51,32 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Back pressure statistics tracker.
  *
  * <p>Back pressure is determined by sampling running tasks. If a task is
- * slowed down by back pressure it will be stuck in memory requests to a
- * {@link org.apache.flink.runtime.io.network.buffer.LocalBufferPool}.
- *
- * <p>The back pressured stack traces look like this:
- *
- * <pre>
- * java.lang.Object.wait(Native Method)
- * o.a.f.[...].LocalBufferPool.requestBuffer(LocalBufferPool.java:163)
- * o.a.f.[...].LocalBufferPool.requestBufferBlocking(LocalBufferPool.java:133) <--- BLOCKING
- * request
- * [...]
- * </pre>
+ * slowed down by back pressure, there should be no free buffers in output
+ * {@link org.apache.flink.runtime.io.network.buffer.BufferPool} of the task.
  */
 public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BackPressureStatsTrackerImpl.class);
 
-	/** Maximum stack trace depth for samples. */
-	static final int MAX_STACK_TRACE_DEPTH = 8;
-
-	/** Expected class name for back pressure indicating stack trace element. */
-	static final String EXPECTED_CLASS_NAME = "org.apache.flink.runtime.io.network.buffer.LocalBufferPool";
-
-	/** Expected method name for back pressure indicating stack trace element. */
-	static final String EXPECTED_METHOD_NAME = "requestBufferBuilderBlocking";
-
 	/** Lock guarding trigger operations. */
 	private final Object lock = new Object();
 
-	/* Stack trace sample coordinator. */
-	private final StackTraceSampleCoordinator coordinator;
+	/** Back pressure sample coordinator. */
+	private final BackPressureSampleCoordinator coordinator;
 
 	/**
 	 * Completed stats. Important: Job vertex IDs need to be scoped by job ID,
-	 * because they are potentially constant across runs messing up the cached
-	 * data.
+	 * because they are potentially constant across runs which may mess up the
+	 * cached data.
 	 */
 	private final Cache<ExecutionJobVertex, OperatorBackPressureStats> operatorStatsCache;
 
-	/** Pending in progress stats. Important: Job vertex IDs need to be scoped
-	 * by job ID, because they are potentially constant across runs messing up
-	 * the cached data.*/
+	/**
+	 * Pending in progress stats. Important: Job vertex IDs need to be scoped
+	 * by job ID, because they are potentially constant across runs which may
+	 * mess up the cached data.
+	 */
 	private final Set<ExecutionJobVertex> pendingStats = new HashSet<>();
-
-	/** Cleanup interval for completed stats cache. */
-	private final int cleanUpInterval;
 
 	private final int numSamples;
 
@@ -104,28 +85,26 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 	private final Time delayBetweenSamples;
 
 	/** Flag indicating whether the stats tracker has been shut down. */
+	@GuardedBy("lock")
 	private boolean shutDown;
 
 	/**
 	 * Creates a back pressure statistics tracker.
 	 *
 	 * @param cleanUpInterval     Clean up interval for completed stats.
-	 * @param numSamples          Number of stack trace samples when determining back pressure.
+	 * @param numSamples          Number of samples when determining back pressure.
 	 * @param delayBetweenSamples Delay between samples when determining back pressure.
 	 */
 	public BackPressureStatsTrackerImpl(
-			StackTraceSampleCoordinator coordinator,
+			BackPressureSampleCoordinator coordinator,
 			int cleanUpInterval,
 			int numSamples,
 			int backPressureStatsRefreshInterval,
 			Time delayBetweenSamples) {
 
-		this.coordinator = checkNotNull(coordinator, "Stack trace sample coordinator");
+		this.coordinator = checkNotNull(coordinator, "Back pressure sample coordinator should not be null");
 
-		checkArgument(cleanUpInterval >= 0, "Clean up interval");
-		this.cleanUpInterval = cleanUpInterval;
-
-		checkArgument(numSamples >= 1, "Number of samples");
+		checkArgument(numSamples >= 1, "Illegal number of samples: " + numSamples);
 		this.numSamples = numSamples;
 
 		checkArgument(
@@ -141,14 +120,9 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 				.build();
 	}
 
-	/** Cleanup interval for completed stats cache. */
-	public long getCleanUpInterval() {
-		return cleanUpInterval;
-	}
-
 	/**
-	 * Returns back pressure statistics for a operator. Automatically triggers stack trace sampling
-	 * if statistics are not available or outdated.
+	 * Returns back pressure statistics for a operator. Automatically triggers task back pressure
+	 * sampling if statistics are not available or outdated.
 	 *
 	 * @param vertex Operator to get the stats for.
 	 * @return Back pressure statistics for an operator
@@ -157,25 +131,24 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 		synchronized (lock) {
 			final OperatorBackPressureStats stats = operatorStatsCache.getIfPresent(vertex);
 			if (stats == null || backPressureStatsRefreshInterval <= System.currentTimeMillis() - stats.getEndTimestamp()) {
-				triggerStackTraceSampleInternal(vertex);
+				triggerBackPressureSampleInternal(vertex);
 			}
 			return Optional.ofNullable(stats);
 		}
 	}
 
 	/**
-	 * Triggers a stack trace sample for a operator to gather the back pressure
+	 * Triggers a task back pressure sample for a operator to gather the back pressure
 	 * statistics. If there is a sample in progress for the operator, the call
 	 * is ignored.
 	 *
 	 * @param vertex Operator to get the stats for.
-	 * @return Flag indicating whether a sample with triggered.
 	 */
-	private boolean triggerStackTraceSampleInternal(final ExecutionJobVertex vertex) {
+	private void triggerBackPressureSampleInternal(final ExecutionJobVertex vertex) {
 		assert(Thread.holdsLock(lock));
 
 		if (shutDown) {
-			return false;
+			return;
 		}
 
 		if (!pendingStats.contains(vertex) &&
@@ -183,43 +156,21 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 
 			Executor executor = vertex.getGraph().getFutureExecutor();
 
-			// Only trigger if still active job
+			// Only trigger for still active job
 			if (executor != null) {
 				pendingStats.add(vertex);
 
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Triggering stack trace sample for tasks: " + Arrays.toString(vertex.getTaskVertices()));
+					LOG.debug("Triggering back pressure sample for tasks: " + Arrays.toString(vertex.getTaskVertices()));
 				}
 
-				CompletableFuture<StackTraceSample> sample = coordinator.triggerStackTraceSample(
+				CompletableFuture<BackPressureStats> statsFuture = coordinator.triggerTaskBackPressureSample(
 					vertex.getTaskVertices(),
 					numSamples,
-					delayBetweenSamples,
-					MAX_STACK_TRACE_DEPTH);
+					delayBetweenSamples);
 
-				sample.handleAsync(new StackTraceSampleCompletionCallback(vertex), executor);
-
-				return true;
+				statsFuture.handleAsync(new TaskBackPressureSampleCompletionCallback(vertex), executor);
 			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Triggers a stack trace sample for a operator to gather the back pressure
-	 * statistics. If there is a sample in progress for the operator, the call
-	 * is ignored.
-	 *
-	 * @param vertex Operator to get the stats for.
-	 * @return Flag indicating whether a sample with triggered.
-	 * @deprecated {@link #getOperatorBackPressureStats(ExecutionJobVertex)} will trigger
-	 * stack trace sampling automatically.
-	 */
-	@Deprecated
-	public boolean triggerStackTraceSample(ExecutionJobVertex vertex) {
-		synchronized (lock) {
-			return triggerStackTraceSampleInternal(vertex);
 		}
 	}
 
@@ -250,25 +201,18 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 	}
 
 	/**
-	 * Invalidates the cache (irrespective of clean up interval).
+	 * Callback on completed task back pressure sample.
 	 */
-	void invalidateOperatorStatsCache() {
-		operatorStatsCache.invalidateAll();
-	}
-
-	/**
-	 * Callback on completed stack trace sample.
-	 */
-	class StackTraceSampleCompletionCallback implements BiFunction<StackTraceSample, Throwable, Void> {
+	class TaskBackPressureSampleCompletionCallback implements BiFunction<BackPressureStats, Throwable, Void> {
 
 		private final ExecutionJobVertex vertex;
 
-		public StackTraceSampleCompletionCallback(ExecutionJobVertex vertex) {
+		public TaskBackPressureSampleCompletionCallback(ExecutionJobVertex vertex) {
 			this.vertex = vertex;
 		}
 
 		@Override
-		public Void apply(StackTraceSample stackTraceSample, Throwable throwable) {
+		public Void apply(BackPressureStats taskBackPressureStats, Throwable throwable) {
 			synchronized (lock) {
 				try {
 					if (shutDown) {
@@ -278,12 +222,12 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 					// Job finished, ignore.
 					JobStatus jobState = vertex.getGraph().getState();
 					if (jobState.isGloballyTerminalState()) {
-						LOG.debug("Ignoring sample, because job is in state " + jobState + ".");
-					} else if (stackTraceSample != null) {
-						OperatorBackPressureStats stats = createStatsFromSample(stackTraceSample);
+						LOG.debug("Ignoring stats, because job is in state " + jobState + ".");
+					} else if (taskBackPressureStats != null) {
+						OperatorBackPressureStats stats = createOperatorBackPressureStats(taskBackPressureStats);
 						operatorStatsCache.put(vertex, stats);
 					} else {
-						LOG.debug("Failed to gather stack trace sample.", throwable);
+						LOG.debug("Failed to gather task back pressure stats.", throwable);
 					}
 				} catch (Throwable t) {
 					LOG.error("Error during stats completion.", t);
@@ -296,21 +240,21 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 		}
 
 		/**
-		 * Creates the back pressure stats from a stack trace sample.
+		 * Creates operator back pressure stats from task back pressure stats.
 		 *
-		 * @param sample Stack trace sample to base stats on.
+		 * @param stats Task back pressure stats.
 		 *
-		 * @return Back pressure stats
+		 * @return Operator back pressure stats
 		 */
-		private OperatorBackPressureStats createStatsFromSample(StackTraceSample sample) {
-			Map<ExecutionAttemptID, List<StackTraceElement[]>> traces = sample.getStackTraces();
+		private OperatorBackPressureStats createOperatorBackPressureStats(BackPressureStats stats) {
+			Map<ExecutionAttemptID, Double> backPressureRatioByTask = stats.getBackPressureRatioByTask();
 
 			// Map task ID to subtask index, because the web interface expects
 			// it like that.
 			Map<ExecutionAttemptID, Integer> subtaskIndexMap = Maps
-					.newHashMapWithExpectedSize(traces.size());
+					.newHashMapWithExpectedSize(backPressureRatioByTask.size());
 
-			Set<ExecutionAttemptID> sampledTasks = sample.getStackTraces().keySet();
+			Set<ExecutionAttemptID> sampledTasks = backPressureRatioByTask.keySet();
 
 			for (ExecutionVertex task : vertex.getTaskVertices()) {
 				ExecutionAttemptID taskId = task.getCurrentExecutionAttempt().getAttemptId();
@@ -322,41 +266,18 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 				}
 			}
 
-			// Ratio of blocked samples to total samples per sub task. Array
-			// position corresponds to sub task index.
-			double[] backPressureRatio = new double[traces.size()];
+			// Back pressure ratio of all tasks. Array position corresponds
+			// to sub task index.
+			double[] backPressureRatio = new double[backPressureRatioByTask.size()];
 
-			for (Entry<ExecutionAttemptID, List<StackTraceElement[]>> entry : traces.entrySet()) {
-				int backPressureSamples = 0;
-
-				List<StackTraceElement[]> taskTraces = entry.getValue();
-
-				for (StackTraceElement[] trace : taskTraces) {
-					for (int i = trace.length - 1; i >= 0; i--) {
-						StackTraceElement elem = trace[i];
-
-						if (elem.getClassName().equals(EXPECTED_CLASS_NAME) &&
-								elem.getMethodName().equals(EXPECTED_METHOD_NAME)) {
-
-							backPressureSamples++;
-							break; // Continue with next stack trace
-						}
-					}
-				}
-
+			for (Entry<ExecutionAttemptID, Double> entry : backPressureRatioByTask.entrySet()) {
 				int subtaskIndex = subtaskIndexMap.get(entry.getKey());
-
-				int size = taskTraces.size();
-				double ratio = (size > 0)
-						? ((double) backPressureSamples) / size
-						: 0;
-
-				backPressureRatio[subtaskIndex] = ratio;
+				backPressureRatio[subtaskIndex] = entry.getValue();
 			}
 
 			return new OperatorBackPressureStats(
-					sample.getSampleId(),
-					sample.getEndTime(),
+					stats.getSampleId(),
+					stats.getEndTime(),
 					backPressureRatio);
 		}
 	}

@@ -929,6 +929,12 @@ public class TaskTest extends TestLogger {
 		assertEquals(0, actualStackTrace.length);
 	}
 
+	@Test
+	public void testNoBackPressureIfTaskNotStarted() throws Exception {
+		final Task task = createTaskBuilder().build();
+		assertTrue(task.isAvailableForOutput());
+	}
+
 	// ------------------------------------------------------------------------
 	//  customized TaskManagerActions
 	// ------------------------------------------------------------------------
