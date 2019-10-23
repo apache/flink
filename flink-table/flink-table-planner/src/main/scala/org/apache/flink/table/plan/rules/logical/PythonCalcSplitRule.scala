@@ -34,9 +34,9 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * Rule that splits [[FlinkLogicalCalc]] into multiple [[FlinkLogicalCalc]]s.
-  * This is to ensure that the Python [[ScalarFunction]]s which could be
-  * executed in a batch are grouped into the same [[FlinkLogicalCalc]] node.
+  * Base rule that splits [[FlinkLogicalCalc]] into multiple [[FlinkLogicalCalc]]s.
+  * It is mainly to ensure that each [[FlinkLogicalCalc]] only contains Java/Scala or
+  * Python [[ScalarFunction]]s.
   */
 abstract class PythonCalcSplitRuleBase(description: String)
   extends RelOptRule(
