@@ -46,7 +46,8 @@ public class ModuleManager {
 	}
 
 	/**
-	 * Load a module with given name.
+	 * Load a module under a unique name. Modules will be kept in the loaded order, and new module
+	 * will be added to the end.
 	 *
 	 * @param name name of the module
 	 * @param module the module instance
@@ -100,6 +101,8 @@ public class ModuleManager {
 
 	/**
 	 * Get an optional of {@link FunctionDefinition} by a given name.
+	 * Function will be resolved to modules in the loaded order, and the first match will be returned.
+	 * If no match is found in all modules, return an optional.
 	 *
 	 * @param name name of the function
 	 * @return an optional of {@link FunctionDefinition}

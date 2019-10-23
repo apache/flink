@@ -107,7 +107,7 @@ public interface TableEnvironment {
 	Optional<Catalog> getCatalog(String catalogName);
 
 	/**
-	 * Load a {@link Module} under a unique name.
+	 * Load a {@link Module} under a unique name. Modules will be kept in the loaded order.
 	 *
 	 * @param moduleName name of the {@link Module}
 	 * @param module the module instance

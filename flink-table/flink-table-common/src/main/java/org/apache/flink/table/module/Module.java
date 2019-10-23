@@ -27,7 +27,7 @@ import java.util.Set;
 
 /**
  * Modules define a set of metadata, including functions, user defined types, operators, rules, etc.
- * Metadata from modules are regarded as extensions of core built-in system that users can take advantages of.
+ * Metadata from modules are regarded as built-in or system metadata that users can take advantages of.
  */
 @PublicEvolving
 public interface Module {
