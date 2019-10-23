@@ -37,6 +37,7 @@
     "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
+    "org.apache.flink.sql.parser.utils.ParserResource",
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
     "org.apache.flink.sql.parser.SqlProperty",
     "org.apache.calcite.sql.SqlDrop",

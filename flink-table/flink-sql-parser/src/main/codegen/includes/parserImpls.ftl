@@ -39,12 +39,13 @@ void Watermark(TableCreationContext context) :
     SqlNode watermarkStrategy;
 }
 {
-    <WATERMARK> <FOR>
-    columnName = CompoundIdentifier() {pos = getPos();}
+    <WATERMARK> {pos = getPos();} <FOR>
+    columnName = CompoundIdentifier()
     <AS>
-    watermarkStrategy = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+    watermarkStrategy = Expression(ExprContext.ACCEPT_NON_QUERY) {
         if (context.watermark != null) {
-            throw new ParseException("Multiple WATERMARK statements is not supported yet.");
+            throw SqlUtil.newContextException(pos,
+                ParserResource.RESOURCE.multipleWatermarksUnsupported());
         } else {
             context.watermark = new SqlWatermark(columnName, watermarkStrategy, pos);
         }
@@ -61,7 +62,7 @@ void ComputedColumn(TableCreationContext context) :
 {
     identifier = SimpleIdentifier() {pos = getPos();}
     <AS>
-    expr = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+    expr = Expression(ExprContext.ACCEPT_NON_QUERY) {
         expr = SqlStdOperatorTable.AS.createCall(Span.of(identifier, expr).pos(), expr, identifier);
         context.columnList.add(expr);
     }
@@ -296,9 +297,11 @@ SqlNode RichSqlInsert() :
     |
         <OVERWRITE> {
             if (!((FlinkSqlConformance) this.conformance).allowInsertOverwrite()) {
-                throw new ParseException("OVERWRITE expression is only allowed for HIVE dialect");
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.overwriteIsOnlyAllowedForHive());
             } else if (RichSqlInsert.isUpsert(keywords)) {
-                throw new ParseException("OVERWRITE expression is only used with INSERT mode");
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
             }
             extendedKeywords.add(RichSqlInsertKeyword.OVERWRITE.symbol(getPos()));
         }
@@ -331,7 +334,8 @@ SqlNode RichSqlInsert() :
     [
         <PARTITION> PartitionSpecCommaList(partitionList) {
             if (!((FlinkSqlConformance) this.conformance).allowInsertIntoPartition()) {
-                throw new ParseException("PARTITION expression is only allowed for HIVE dialect");
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.partitionIsOnlyAllowedForHive());
             }
         }
     ]

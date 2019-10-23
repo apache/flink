@@ -258,14 +258,14 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  f1 varchar,\n" +
 			"  f2 boolean,\n" +
 			"  WATERMARK FOR f0 AS NOW(),\n" +
-			"  WATERMARK FOR f1 AS NOW()\n" +
+			"  ^WATERMARK^ FOR f1 AS NOW()\n" +
 			")\n" +
 			"  with (\n" +
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
-		final String errMsg = "Multiple WATERMARK statements is not supported yet.";
-		checkFails(sql, errMsg);
+		sql(sql)
+			.fails("Multiple WATERMARK statements is not supported yet.");
 	}
 
 	@Test
@@ -527,8 +527,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	@Test
 	public void testInvalidUpsertOverwrite() {
 		conformance0 = FlinkSqlConformance.HIVE;
-		checkFails("UPSERT OVERWRITE myDB.myTbl SELECT * FROM src",
-			"OVERWRITE expression is only used with INSERT mode");
+		sql("UPSERT ^OVERWRITE^ myDB.myTbl SELECT * FROM src")
+			.fails("OVERWRITE expression is only used with INSERT statement.");
 	}
 
 	@Test
