@@ -255,15 +255,17 @@ httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"))
 val esSinkBuilder = new ElasticsearchSink.Builder[String](
   httpHosts,
   new ElasticsearchSinkFunction[String] {
-    def createIndexRequest(element: String): IndexRequest = {
-      val json = new java.util.HashMap[String, String]
-      json.put("data", element)
+     def process(element: String, ctx: RuntimeContext, indexer: RequestIndexer) {
+          val json = new java.util.HashMap[String, String]
+          json.put("data", element)
 
-      return Requests.indexRequest()
-              .index("my-index")
-              .type("my-type")
-              .source(json)
-    }
+          val rqst: IndexRequest = Requests.indexRequest
+            .index("my-index")
+            .`type`("my-type")
+            .source(json)
+
+          indexer.add(rqst)
+     } 
   }
 )
 
