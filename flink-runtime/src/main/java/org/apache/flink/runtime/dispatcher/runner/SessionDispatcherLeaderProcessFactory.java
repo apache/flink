@@ -29,17 +29,17 @@ import java.util.concurrent.Executor;
  */
 class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
 
-	private final AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory;
+	private final AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 	private final JobGraphStoreFactory jobGraphStoreFactory;
 	private final Executor ioExecutor;
 	private final FatalErrorHandler fatalErrorHandler;
 
 	SessionDispatcherLeaderProcessFactory(
-			AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory,
+			AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraphStoreFactory jobGraphStoreFactory,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler) {
-		this.dispatcherServiceFactory = dispatcherServiceFactory;
+		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
 		this.jobGraphStoreFactory = jobGraphStoreFactory;
 		this.ioExecutor = ioExecutor;
 		this.fatalErrorHandler = fatalErrorHandler;
@@ -49,7 +49,7 @@ class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFa
 	public DispatcherLeaderProcess create(UUID leaderSessionID) {
 		return SessionDispatcherLeaderProcess.create(
 			leaderSessionID,
-			dispatcherServiceFactory,
+			dispatcherGatewayServiceFactory,
 			jobGraphStoreFactory.create(),
 			ioExecutor,
 			fatalErrorHandler);

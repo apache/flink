@@ -44,13 +44,13 @@ public class SessionDispatcherLeaderProcessFactoryFactory implements DispatcherL
 			RpcService rpcService,
 			PartialDispatcherServices partialDispatcherServices,
 			FatalErrorHandler fatalErrorHandler) {
-		final AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory = new DefaultDispatcherServiceFactory(
+		final AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory = new DefaultDispatcherGatewayServiceFactory(
 			dispatcherFactory,
 			rpcService,
 			partialDispatcherServices);
 
 		return new SessionDispatcherLeaderProcessFactory(
-			dispatcherServiceFactory,
+			dispatcherGatewayServiceFactory,
 			jobGraphStoreFactory,
 			ioExecutor,
 			fatalErrorHandler);

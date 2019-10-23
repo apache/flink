@@ -31,23 +31,23 @@ import java.util.UUID;
  */
 public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess {
 
-	private final DispatcherServiceFactory dispatcherServiceFactory;
+	private final DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 
 	private final JobGraph jobGraph;
 
 	JobDispatcherLeaderProcess(
 			UUID leaderSessionId,
-			DispatcherServiceFactory dispatcherServiceFactory,
+			DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraph jobGraph,
 			FatalErrorHandler fatalErrorHandler) {
 		super(leaderSessionId, fatalErrorHandler);
 		this.jobGraph = jobGraph;
-		this.dispatcherServiceFactory = dispatcherServiceFactory;
+		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
 	}
 
 	@Override
 	protected void onStart() {
-		final DispatcherService dispatcherService = dispatcherServiceFactory.create(
+		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
 			DispatcherId.fromUuid(getLeaderSessionId()),
 			Collections.singleton(jobGraph),
 			ThrowingJobGraphWriter.INSTANCE);

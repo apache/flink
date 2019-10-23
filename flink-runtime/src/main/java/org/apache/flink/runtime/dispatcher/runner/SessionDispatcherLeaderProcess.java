@@ -48,7 +48,7 @@ import java.util.concurrent.Executor;
  */
 public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess implements JobGraphStore.JobGraphListener {
 
-	private final DispatcherServiceFactory dispatcherFactory;
+	private final DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 
 	private final JobGraphStore jobGraphStore;
 
@@ -58,13 +58,13 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
 	private SessionDispatcherLeaderProcess(
 			UUID leaderSessionId,
-			DispatcherServiceFactory dispatcherFactory,
+			DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler) {
 		super(leaderSessionId, fatalErrorHandler);
 
-		this.dispatcherFactory = dispatcherFactory;
+		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
 		this.jobGraphStore = jobGraphStore;
 		this.ioExecutor = ioExecutor;
 	}
@@ -97,7 +97,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
 	private void createDispatcher(Collection<JobGraph> jobGraphs) {
 
-		final DispatcherService dispatcherService = dispatcherFactory.create(
+		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
 			DispatcherId.fromUuid(getLeaderSessionId()),
 			jobGraphs,
 			jobGraphStore);
@@ -261,7 +261,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
 	public static SessionDispatcherLeaderProcess create(
 			UUID leaderSessionId,
-			DispatcherServiceFactory dispatcherFactory,
+			DispatcherGatewayServiceFactory dispatcherFactory,
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler) {

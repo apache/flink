@@ -25,12 +25,12 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
 import java.util.concurrent.CompletableFuture;
 
-class DefaultDispatcherService implements AbstractDispatcherLeaderProcess.DispatcherService {
+class DefaultDispatcherGatewayService implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
 
 	private final Dispatcher dispatcher;
 	private final DispatcherGateway dispatcherGateway;
 
-	private DefaultDispatcherService(Dispatcher dispatcher) {
+	private DefaultDispatcherGatewayService(Dispatcher dispatcher) {
 		this.dispatcher = dispatcher;
 		this.dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 	}
@@ -55,7 +55,7 @@ class DefaultDispatcherService implements AbstractDispatcherLeaderProcess.Dispat
 		return dispatcher.closeAsync();
 	}
 
-	public static DefaultDispatcherService from(Dispatcher dispatcher) {
-		return new DefaultDispatcherService(dispatcher);
+	public static DefaultDispatcherGatewayService from(Dispatcher dispatcher) {
+		return new DefaultDispatcherGatewayService(dispatcher);
 	}
 }

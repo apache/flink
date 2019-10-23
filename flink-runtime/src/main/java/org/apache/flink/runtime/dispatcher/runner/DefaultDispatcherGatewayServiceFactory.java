@@ -31,9 +31,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.util.Collection;
 
 /**
- * Factory for the {@link DefaultDispatcherService}.
+ * Factory for the {@link DefaultDispatcherGatewayService}.
  */
-class DefaultDispatcherServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherServiceFactory {
+class DefaultDispatcherGatewayServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
 
 	private final DispatcherFactory dispatcherFactory;
 
@@ -41,7 +41,7 @@ class DefaultDispatcherServiceFactory implements AbstractDispatcherLeaderProcess
 
 	private final PartialDispatcherServices partialDispatcherServices;
 
-	DefaultDispatcherServiceFactory(
+	DefaultDispatcherGatewayServiceFactory(
 			DispatcherFactory dispatcherFactory,
 			RpcService rpcService,
 			PartialDispatcherServices partialDispatcherServices) {
@@ -51,7 +51,7 @@ class DefaultDispatcherServiceFactory implements AbstractDispatcherLeaderProcess
 	}
 
 	@Override
-	public AbstractDispatcherLeaderProcess.DispatcherService create(
+	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter) {
@@ -68,6 +68,6 @@ class DefaultDispatcherServiceFactory implements AbstractDispatcherLeaderProcess
 
 		dispatcher.start();
 
-		return DefaultDispatcherService.from(dispatcher);
+		return DefaultDispatcherGatewayService.from(dispatcher);
 	}
 }
