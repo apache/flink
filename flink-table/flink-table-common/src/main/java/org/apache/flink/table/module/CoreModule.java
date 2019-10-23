@@ -16,34 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.module;
 
-import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 
-import org.junit.Test;
-
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
-
-import static org.junit.Assert.assertTrue;
+import java.util.stream.Collectors;
 
 /**
- * Test for {@link FunctionCatalog}.
+ * Module of default core metadata in Flink.
  */
-public class FunctionCatalogTest {
+public class CoreModule implements Module {
+	public static final CoreModule INSTANCE = new CoreModule();
 
-	@Test
-	public void testGetBuiltInFunctions() {
-		FunctionCatalog functionCatalog = new FunctionCatalog(
-			new CatalogManager("test", new GenericInMemoryCatalog("test")),
-			new ModuleManager());
+	private CoreModule() {
+	}
 
-		Set<String> actual = new HashSet<>();
-		Collections.addAll(actual, functionCatalog.getFunctions());
+	@Override
+	public Set<String> listFunctions() {
+		return BuiltInFunctionDefinitions.getDefinitions()
+			.stream()
+			.map(f -> f.getName())
+			.collect(Collectors.toSet());
+	}
 
-		Set<String> expected = new ModuleManager().listFunctions();
-
-		assertTrue(actual.containsAll(expected));
+	@Override
+	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
+		return Optional.ofNullable(
+			BuiltInFunctionDefinitions.getDefinitions().stream()
+				.filter(f -> f.getName().equalsIgnoreCase(name))
+				.findFirst()
+				.get());
 	}
 }
