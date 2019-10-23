@@ -151,7 +151,7 @@ object FlinkRuleSets {
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
-    )
+  )
 
   /**
     * RuleSet to normalize plans for batch / DataSet execution

@@ -114,24 +114,24 @@ abstract class PythonCalcSplitRuleBase(description: String)
   }
 
   /**
-   * Returns true if converting Python functions.
-   */
+    * Returns true if converting Python functions.
+    */
   def isConvertPythonFunction(program: RexProgram): Boolean
 
   /**
-   * Splits the specified [[RexProgram]] using the specified [[ScalarFunctionSplitter]].
-   * It returns a triple of (bottom calc condition, top calc condition, top calc projects)
-   * as the split result.
-   */
+    * Splits the specified [[RexProgram]] using the specified [[ScalarFunctionSplitter]].
+    * It returns a triple of (bottom calc condition, top calc condition, top calc projects)
+    * as the split result.
+    */
   def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode])
 }
 
 /**
- * Rule that splits [[FlinkLogicalCalc]]s which contain Python functions in the condition
- * into multiple [[FlinkLogicalCalc]]s. After this rule is applied, there will be no
- * Python functions in the condition of the [[FlinkLogicalCalc]]s.
- */
+  * Rule that splits [[FlinkLogicalCalc]]s which contain Python functions in the condition
+  * into multiple [[FlinkLogicalCalc]]s. After this rule is applied, there will be no
+  * Python functions in the condition of the [[FlinkLogicalCalc]]s.
+  */
 object PythonCalcSplitConditionRule extends PythonCalcSplitRuleBase(
   "PythonCalcSplitConditionRule") {
 
@@ -154,10 +154,10 @@ object PythonCalcSplitConditionRule extends PythonCalcSplitRuleBase(
 }
 
 /**
- * Rule that splits [[FlinkLogicalCalc]]s which contain both Java functions and Python functions
- * in the projection into multiple [[FlinkLogicalCalc]]s. After this rule is applied, it will
- * only contain Python functions or Java functions in the projection of each [[FlinkLogicalCalc]].
- */
+  * Rule that splits [[FlinkLogicalCalc]]s which contain both Java functions and Python functions
+  * in the projection into multiple [[FlinkLogicalCalc]]s. After this rule is applied, it will
+  * only contain Python functions or Java functions in the projection of each [[FlinkLogicalCalc]].
+  */
 object PythonCalcSplitProjectionRule extends PythonCalcSplitRuleBase(
   "PythonCalcSplitProjectionRule") {
 
@@ -184,9 +184,9 @@ object PythonCalcSplitProjectionRule extends PythonCalcSplitRuleBase(
 }
 
 /**
- * Rule that pushes the condition of [[FlinkLogicalCalc]]s before it for the
- * [[FlinkLogicalCalc]]s which contain Python functions in the projection.
- */
+  * Rule that pushes the condition of [[FlinkLogicalCalc]]s before it for the
+  * [[FlinkLogicalCalc]]s which contain Python functions in the projection.
+  */
 object PythonCalcPushConditionRule extends PythonCalcSplitRuleBase(
   "PythonCalcPushConditionRule") {
 
@@ -211,12 +211,12 @@ object PythonCalcPushConditionRule extends PythonCalcSplitRuleBase(
 }
 
 /**
- * Rule that ensures that it only contains [[RexInputRef]]s at the beginning of
- * the project list and [[RexCall]]s at the end of the project list for [[FlinkLogicalCalc]]s
- * which contain Python functions in the projection. This rule exists to keep
- * DataStreamPythonCalc as simple as possible and ensures that it only needs to
- * handle the Python function execution.
- */
+  * Rule that ensures that it only contains [[RexInputRef]]s at the beginning of
+  * the project list and [[RexCall]]s at the end of the project list for [[FlinkLogicalCalc]]s
+  * which contain Python functions in the projection. This rule exists to keep
+  * DataStreamPythonCalc as simple as possible and ensures that it only needs to
+  * handle the Python function execution.
+  */
 object PythonCalcRewriteProjectionRule extends PythonCalcSplitRuleBase(
   "PythonCalcRewriteProjectionRule") {
 
@@ -312,9 +312,9 @@ private class ExtractedFunctionInputRewriter(
 
 object PythonCalcSplitRule {
   /**
-   * These rules should be applied sequentially in the order of
-   * SPLIT_CONDITION, SPLIT_PROJECT, PUSH_CONDITION and REWRITE_PROJECT.
-   */
+    * These rules should be applied sequentially in the order of
+    * SPLIT_CONDITION, SPLIT_PROJECT, PUSH_CONDITION and REWRITE_PROJECT.
+    */
   val SPLIT_CONDITION: RelOptRule = PythonCalcSplitConditionRule
   val SPLIT_PROJECT: RelOptRule = PythonCalcSplitProjectionRule
   val PUSH_CONDITION: RelOptRule = PythonCalcPushConditionRule

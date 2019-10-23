@@ -358,7 +358,7 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
-    )
+  )
 
   /**
     * RuleSet to do physical optimize for batch

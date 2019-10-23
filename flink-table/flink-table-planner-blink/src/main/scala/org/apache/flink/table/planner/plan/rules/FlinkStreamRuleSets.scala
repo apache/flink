@@ -343,7 +343,7 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
-    )
+  )
 
   /**
     * RuleSet to do physical optimize for stream
