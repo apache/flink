@@ -20,7 +20,6 @@ package org.apache.flink.core.memory;
 
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -43,17 +42,8 @@ public class CrossSegmentTypeTest {
 
 	@Test
 	public void testCompareBytesMixedSegments() {
-		MemorySegment[] segs1 = {
-				new HeapMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(ByteBuffer.allocateDirect(pageSize))
-		};
-
-		MemorySegment[] segs2 = {
-				new HeapMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(ByteBuffer.allocateDirect(pageSize))
-		};
+		MemorySegment[] segs1 = createSegments(pageSize);
+		MemorySegment[] segs2 = createSegments(pageSize);
 
 		Random rnd = new Random();
 
@@ -107,18 +97,8 @@ public class CrossSegmentTypeTest {
 	@Test
 	public void testSwapBytesMixedSegments() {
 		final int halfPageSize = pageSize / 2;
-
-		MemorySegment[] segs1 = {
-				new HeapMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(ByteBuffer.allocateDirect(pageSize))
-		};
-
-		MemorySegment[] segs2 = {
-				new HeapMemorySegment(new byte[halfPageSize]),
-				new HybridMemorySegment(new byte[halfPageSize]),
-				new HybridMemorySegment(ByteBuffer.allocateDirect(halfPageSize))
-		};
+		MemorySegment[] segs1 = createSegments(pageSize);
+		MemorySegment[] segs2 = createSegments(halfPageSize);
 
 		Random rnd = new Random();
 
@@ -162,17 +142,8 @@ public class CrossSegmentTypeTest {
 
 	@Test
 	public void testCopyMixedSegments() {
-		MemorySegment[] segs1 = {
-				new HeapMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(ByteBuffer.allocateDirect(pageSize))
-		};
-
-		MemorySegment[] segs2 = {
-				new HeapMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(new byte[pageSize]),
-				new HybridMemorySegment(ByteBuffer.allocateDirect(pageSize))
-		};
+		MemorySegment[] segs1 = createSegments(pageSize);
+		MemorySegment[] segs2 = createSegments(pageSize);
 
 		Random rnd = new Random();
 
@@ -181,6 +152,16 @@ public class CrossSegmentTypeTest {
 				testCopy(seg1, seg2, rnd);
 			}
 		}
+	}
+
+	private static MemorySegment[] createSegments(int size) {
+		MemorySegment[] segments = {
+			new HeapMemorySegment(new byte[size]),
+			MemorySegmentFactory.allocateUnpooledSegment(size),
+			MemorySegmentFactory.allocateUnpooledOffHeapMemory(size),
+			MemorySegmentFactory.allocateOffHeapUnsafeMemory(size, null)
+		};
+		return segments;
 	}
 
 	private void testCopy(MemorySegment seg1, MemorySegment seg2, Random random) {

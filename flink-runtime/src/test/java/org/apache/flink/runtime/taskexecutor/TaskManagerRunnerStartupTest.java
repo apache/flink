@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -47,7 +46,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -120,7 +118,6 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	@Test
 	public void testMemoryConfigWrong() throws Exception {
 		Configuration cfg = new Configuration();
-		cfg.setBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE, true);
 
 		// something invalid
 		cfg.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "-42m");
@@ -134,23 +131,6 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 			fail("Should fail synchronously with an exception");
 		} catch (IllegalConfigurationException e) {
 			// splendid!
-		}
-
-		// something ridiculously high
-		final long memSize = (((long) Integer.MAX_VALUE - 1) *
-			MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()) >> 20;
-		cfg.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, memSize + "m");
-		try {
-
-			startTaskManager(
-				cfg,
-				rpcService,
-				highAvailabilityServices);
-
-			fail("Should fail synchronously with an exception");
-		} catch (Exception e) {
-			// splendid!
-			assertTrue(e.getCause() instanceof OutOfMemoryError);
 		}
 	}
 

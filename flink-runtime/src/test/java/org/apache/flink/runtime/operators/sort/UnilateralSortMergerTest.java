@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
@@ -51,7 +52,10 @@ public class UnilateralSortMergerTest extends TestLogger {
 		final TestingInMemorySorterFactory<Tuple2<Integer, Integer>> inMemorySorterFactory = new TestingInMemorySorterFactory<>();
 
 		final int numPages = 32;
-		final MemoryManager memoryManager = new MemoryManager(MemoryManager.DEFAULT_PAGE_SIZE * numPages, 1);
+		final MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(MemoryManager.DEFAULT_PAGE_SIZE * numPages)
+			.build();
 		final DummyInvokable parentTask = new DummyInvokable();
 
 		try (final IOManagerAsync ioManager = new IOManagerAsync()) {

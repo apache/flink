@@ -41,18 +41,18 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
 	@Override
 	MemorySegment createSegment(int size) {
-		return new HybridMemorySegment(new byte[size]);
+		return MemorySegmentFactory.allocateUnpooledSegment(size);
 	}
 
 	@Override
 	MemorySegment createSegment(int size, Object owner) {
-		return new HybridMemorySegment(new byte[size], owner);
+		return MemorySegmentFactory.allocateUnpooledSegment(size, owner);
 	}
 
 	@Test
 	public void testHybridHeapSegmentSpecifics() {
 		final byte[] buffer = new byte[411];
-		HybridMemorySegment seg = new HybridMemorySegment(buffer);
+		HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
 
 		assertFalse(seg.isFreed());
 		assertFalse(seg.isOffHeap());

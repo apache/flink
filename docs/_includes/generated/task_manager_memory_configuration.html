@@ -53,11 +53,6 @@
             <td>Managed Memory size for TaskExecutors. This is the size of memory managed by the memory manager, including both On-Heap Managed Memory and Off-Heap Managed Memory, reserved for sorting, hash tables, caching of intermediate results and state backends. Memory consumers can either allocate memory from the memory manager in the form of MemorySegments, or reserve bytes from the memory manager and keep their memory usage within that boundary. If unspecified, it will be derived to make up the configured fraction of the Total Flink Memory.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.memory.preallocate</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting. When <span markdown="span">`taskmanager.memory.off-heap`</span> is set to true, then it is advised that this configuration is also set to true. If this configuration is set to false cleaning up of the allocated off-heap memory happens only when the configured JVM parameter MaxDirectMemorySize is reached by triggering a full GC. For streaming setups, it is highly recommended to set this value to false as the core state backends currently do not use the managed memory.</td>
-        </tr>
-        <tr>
             <td><h5>taskmanager.memory.segment-size</h5></td>
             <td style="word-wrap: break-word;">"32kb"</td>
             <td>Size of memory buffers used by the network stack and the memory manager.</td>

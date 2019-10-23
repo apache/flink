@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_COMMENT_PREFIX;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DELIMITER;
@@ -62,6 +63,7 @@ public class OldCsv extends FormatDescriptor {
 	private Optional<String> commentPrefix = Optional.empty();
 	private Optional<Boolean> isIgnoreFirstLine = Optional.empty();
 	private Optional<Boolean> lenient = Optional.empty();
+	private Optional<Boolean> deriveSchema = Optional.empty();
 
 	public OldCsv() {
 		super(FORMAT_TYPE_VALUE, 1);
@@ -168,6 +170,19 @@ public class OldCsv extends FormatDescriptor {
 		return this;
 	}
 
+	/**
+	 * Derives the format schema from the table's schema. Required if no format schema is defined.
+	 *
+	 * <p>This allows for defining schema information only once.
+	 *
+	 * <p>The names, types, and fields' order of the format are determined by the table's
+	 * schema.
+	 */
+	public OldCsv deriveSchema() {
+		this.deriveSchema = Optional.of(true);
+		return this;
+	}
+
 	@Override
 	protected Map<String, String> toFormatProperties() {
 		DescriptorProperties properties = new DescriptorProperties();
@@ -175,15 +190,19 @@ public class OldCsv extends FormatDescriptor {
 		fieldDelim.ifPresent(s -> properties.putString(FORMAT_FIELD_DELIMITER, s));
 		lineDelim.ifPresent(s -> properties.putString(FORMAT_LINE_DELIMITER, s));
 
-		List<String> subKeys = Arrays.asList(
+		if (deriveSchema.isPresent() && deriveSchema.get()) {
+			properties.putBoolean(FORMAT_DERIVE_SCHEMA, true);
+		} else {
+			List<String> subKeys = Arrays.asList(
 				DescriptorProperties.TABLE_SCHEMA_NAME,
 				DescriptorProperties.TABLE_SCHEMA_TYPE);
 
-		List<List<String>> subValues = schema.entrySet().stream()
+			List<List<String>> subValues = schema.entrySet().stream()
 				.map(e -> Arrays.asList(e.getKey(), e.getValue()))
 				.collect(Collectors.toList());
 
-		properties.putIndexedFixedProperties(FORMAT_FIELDS, subKeys, subValues);
+			properties.putIndexedFixedProperties(FORMAT_FIELDS, subKeys, subValues);
+		}
 
 		quoteCharacter.ifPresent(character -> properties.putCharacter(FORMAT_QUOTE_CHARACTER, character));
 		commentPrefix.ifPresent(s -> properties.putString(FORMAT_COMMENT_PREFIX, s));

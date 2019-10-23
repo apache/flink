@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
@@ -86,7 +87,7 @@ public class MassiveStringValueSorting {
 			MemoryManager mm = null;
 
 			try (IOManager ioMan = new IOManagerAsync()) {
-				mm = new MemoryManager(1024 * 1024, 1);
+				mm = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 
 				TypeSerializer<StringValue> serializer = new CopyableValueSerializer<StringValue>(StringValue.class);
 				TypeComparator<StringValue> comparator = new CopyableValueComparator<StringValue>(true, StringValue.class);
@@ -183,7 +184,7 @@ public class MassiveStringValueSorting {
 			MemoryManager mm = null;
 
 			try (IOManager ioMan = new IOManagerAsync()) {
-				mm = new MemoryManager(1024 * 1024, 1);
+				mm = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 
 				TupleTypeInfo<Tuple2<StringValue, StringValue[]>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, StringValue[]>>)
 						new TypeHint<Tuple2<StringValue, StringValue[]>>(){}.getTypeInfo();
