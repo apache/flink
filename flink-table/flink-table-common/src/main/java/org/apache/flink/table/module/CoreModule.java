@@ -46,7 +46,7 @@ public class CoreModule implements Module {
 	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
 		return Optional.ofNullable(
 			BuiltInFunctionDefinitions.getDefinitions().stream()
-				.filter(f -> f.getName().equals(name))
+				.filter(f -> f.getName().equalsIgnoreCase(name))
 				.findFirst()
 				.get());
 	}
