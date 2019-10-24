@@ -51,7 +51,7 @@ public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraph
 		}
 	}
 
-	protected List<URL> getUserClassPaths() {
+	public List<URL> getUserClassPaths() {
 		return userClassPaths;
 	}
 }
