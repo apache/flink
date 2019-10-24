@@ -50,6 +50,8 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 
 	private final Object lock;
 
+	static final String COLUMN_FAMILY_KEY = "column_family";
+
 	@GuardedBy("lock")
 	private RocksDB rocksDB;
 
@@ -71,7 +73,11 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 	 * @param handle native handle to the column family
 	 */
 	void registerColumnFamily(String columnFamilyName, ColumnFamilyHandle handle) {
-		MetricGroup group = metricGroup.addGroup(columnFamilyName);
+
+		boolean columnFamilyAsVariable = options.isColumnFaminlyAsVariable();
+		MetricGroup group = columnFamilyAsVariable
+			? metricGroup.addGroup(COLUMN_FAMILY_KEY, columnFamilyName)
+			: metricGroup.addGroup(columnFamilyName);
 
 		for (String property : options.getProperties()) {
 			RocksDBNativeMetricView gauge = new RocksDBNativeMetricView(handle, property);
