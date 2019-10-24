@@ -18,8 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import org.apache.flink.api.common.io.InputFormat
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.core.io.InputSplit
 import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
@@ -135,5 +140,17 @@ class BatchExecTableSourceScan(
 
   def getEstimatedRowCount: lang.Double = {
     getCluster.getMetadataQuery.getRowCount(this)
+  }
+
+  override def createInput[IN](
+      env: StreamExecutionEnvironment,
+      format: InputFormat[IN, _ <: InputSplit],
+      t: TypeInformation[IN]): Transformation[IN] = {
+    // env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
+    // paths. If read partitioned source, after partition pruning, we need let InputFormat
+    // to read multiple partitions which are multiple paths.
+    // We can use InputFormatSourceFunction directly to support InputFormat.
+    val func = new InputFormatSourceFunction[IN](format, t)
+    env.addSource(func, tableSource.explainSource(), t).getTransformation
   }
 }
