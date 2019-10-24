@@ -182,12 +182,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 		if (this.watermark != null) {
 			// SqlIdentifier.toString() returns a qualified identifier string using "." separator
-			String rowtimeField = watermark.getColumnName().toString();
+			String rowtimeField = watermark.getEventTimeColumnName().toString();
 			if (!validator.contains(rowtimeField)) {
 				throw new SqlValidateException(
-					watermark.getColumnName().getParserPosition(),
+					watermark.getEventTimeColumnName().getParserPosition(),
 					"The rowtime attribute field \"" + rowtimeField + "\" is not defined in columns, at " +
-						watermark.getColumnName().getParserPosition());
+						watermark.getEventTimeColumnName().getParserPosition());
 			}
 		}
 	}

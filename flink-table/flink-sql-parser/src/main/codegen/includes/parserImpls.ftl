@@ -34,20 +34,20 @@ void TableColumn(TableCreationContext context) :
 
 void Watermark(TableCreationContext context) :
 {
-    SqlIdentifier columnName;
+    SqlIdentifier eventTimeColumnName;
     SqlParserPos pos;
     SqlNode watermarkStrategy;
 }
 {
     <WATERMARK> {pos = getPos();} <FOR>
-    columnName = CompoundIdentifier()
+    eventTimeColumnName = CompoundIdentifier()
     <AS>
     watermarkStrategy = Expression(ExprContext.ACCEPT_NON_QUERY) {
         if (context.watermark != null) {
             throw SqlUtil.newContextException(pos,
                 ParserResource.RESOURCE.multipleWatermarksUnsupported());
         } else {
-            context.watermark = new SqlWatermark(columnName, watermarkStrategy, pos);
+            context.watermark = new SqlWatermark(pos, eventTimeColumnName, watermarkStrategy);
         }
     }
 }

@@ -28,8 +28,6 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import javax.annotation.Nonnull;
-
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -42,38 +40,36 @@ public class SqlWatermark extends SqlCall {
 
 	private static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("WATERMARK", SqlKind.OTHER);
 
-	private final SqlIdentifier columnName;
+	private final SqlIdentifier eventTimeColumnName;
 	private final SqlNode watermarkStrategy;
 
-	public SqlWatermark(SqlIdentifier columnName, SqlNode watermarkStrategy, SqlParserPos pos) {
+	public SqlWatermark(SqlParserPos pos, SqlIdentifier eventTimeColumnName, SqlNode watermarkStrategy) {
 		super(pos);
-		this.columnName = requireNonNull(columnName);
+		this.eventTimeColumnName = requireNonNull(eventTimeColumnName);
 		this.watermarkStrategy = requireNonNull(watermarkStrategy);
 	}
 
-	@Nonnull
 	@Override
 	public SqlOperator getOperator() {
 		return OPERATOR;
 	}
 
-	@Nonnull
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(columnName, watermarkStrategy);
+		return ImmutableNullableList.of(eventTimeColumnName, watermarkStrategy);
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("WATERMARK");
 		writer.keyword("FOR");
-		columnName.unparse(writer, leftPrec, rightPrec);
+		eventTimeColumnName.unparse(writer, leftPrec, rightPrec);
 		writer.keyword("AS");
 		watermarkStrategy.unparse(writer, leftPrec, rightPrec);
 	}
 
-	public SqlIdentifier getColumnName() {
-		return columnName;
+	public SqlIdentifier getEventTimeColumnName() {
+		return eventTimeColumnName;
 	}
 
 	public SqlNode getWatermarkStrategy() {
