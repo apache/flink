@@ -65,6 +65,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.ExceptionUtils;
@@ -139,7 +140,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	private LeaderElectionService leaderElectionService;
 
 	/** The heartbeat manager with task managers. */
-	private HeartbeatManager<SlotReport, Void> taskManagerHeartbeatManager;
+	private HeartbeatManager<TaskExecutorHeartbeatPayload, Void> taskManagerHeartbeatManager;
 
 	/** The heartbeat manager with job managers. */
 	private HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
@@ -404,8 +405,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public void heartbeatFromTaskManager(final ResourceID resourceID, final SlotReport slotReport) {
-		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, slotReport);
+	public void heartbeatFromTaskManager(final ResourceID resourceID, final TaskExecutorHeartbeatPayload heartbeatPayload) {
+		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, heartbeatPayload);
 	}
 
 	@Override
@@ -1129,7 +1130,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
-	private class TaskManagerHeartbeatListener implements HeartbeatListener<SlotReport, Void> {
+	private class TaskManagerHeartbeatListener implements HeartbeatListener<TaskExecutorHeartbeatPayload, Void> {
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
@@ -1142,7 +1143,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 
 		@Override
-		public void reportPayload(final ResourceID resourceID, final SlotReport payload) {
+		public void reportPayload(final ResourceID resourceID, final TaskExecutorHeartbeatPayload payload) {
 			validateRunsInMainThread();
 			final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
 
@@ -1151,7 +1152,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			} else {
 				InstanceID instanceId = workerRegistration.getInstanceID();
 
-				slotManager.reportSlotStatus(instanceId, payload);
+				slotManager.reportSlotStatus(instanceId, payload.getSlotReport());
 			}
 		}
 
