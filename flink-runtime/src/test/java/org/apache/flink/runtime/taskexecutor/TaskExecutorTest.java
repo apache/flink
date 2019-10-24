@@ -42,7 +42,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorBuilder;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
@@ -58,7 +57,6 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
@@ -94,10 +92,8 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
-import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
-import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -655,65 +651,26 @@ public class TaskExecutorTest extends TestLogger {
 	 */
 	@Test(timeout = 10000L)
 	public void testTaskSubmission() throws Exception {
-		final AllocationID allocationId = new AllocationID();
 		final JobMasterId jobMasterId = JobMasterId.generate();
-		final JobVertexID jobVertexId = new JobVertexID();
-
-		final TaskDeploymentDescriptor tdd = TaskDeploymentDescriptorBuilder
+		final AllocationID allocationId = new AllocationID();
+		final TaskDeploymentDescriptor taskDeploymentDescriptor = TaskDeploymentDescriptorBuilder
 			.newBuilder(jobId, TestInvokable.class)
 			.setAllocationId(allocationId)
 			.build();
 
-		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
-		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
-
-		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
-		when(jobMasterGateway.getFencingToken()).thenReturn(jobMasterId);
-
 		final OneShotLatch taskInTerminalState = new OneShotLatch();
-		final TaskManagerActions taskManagerActions = new NoOpTaskManagerActions() {
-			@Override
-			public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-				if (taskExecutionState.getExecutionState().isTerminal()) {
-					taskInTerminalState.trigger();
-				}
-			}
-		};
-		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
-			jobId,
-			ResourceID.generate(),
-			jobMasterGateway,
-			taskManagerActions,
-			mock(CheckpointResponder.class),
-			new TestGlobalAggregateManager(),
-			libraryCacheManager,
-			new NoOpResultPartitionConsumableNotifier(),
-			mock(PartitionProducerStateChecker.class));
-
-		final JobManagerTable jobManagerTable = new JobManagerTable();
-		jobManagerTable.put(jobId, jobManagerConnection);
-
-		final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
-		when(taskSlotTable.tryMarkSlotActive(eq(jobId), eq(allocationId))).thenReturn(true);
-		when(taskSlotTable.addTask(any(Task.class))).thenReturn(true);
-
-		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
-
-		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setShuffleEnvironment(nettyShuffleEnvironment)
-			.setTaskSlotTable(taskSlotTable)
-			.setJobManagerTable(jobManagerTable)
-			.setTaskStateManager(localStateStoresManager)
-			.build();
-
-		TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
+		final TaskManagerActions taskManagerActions = createTaskManagerActionsWithTerminalStateTrigger(taskInTerminalState);
+		final JobManagerTable jobManagerTable = createJobManagerTableWithOneJob(jobMasterId, taskManagerActions);
+		final TaskExecutor taskExecutor = createTaskExecutorWithJobManagerTable(jobManagerTable);
 
 		try {
-			taskManager.start();
+			taskExecutor.start();
 
-			final TaskExecutorGateway tmGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
+			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+			final JobMasterGateway jobMasterGateway = jobManagerTable.get(jobId).getJobManagerGateway();
+			requestSlotFromTaskExecutor(taskExecutorGateway, jobMasterGateway, allocationId);
 
-			tmGateway.submitTask(tdd, jobMasterId, timeout);
+			taskExecutorGateway.submitTask(taskDeploymentDescriptor, jobMasterId, timeout);
 
 			CompletableFuture<Boolean> completionFuture = TestInvokable.COMPLETABLE_FUTURE;
 
@@ -721,7 +678,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			taskInTerminalState.await();
 		} finally {
-			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}
 	}
 
@@ -751,7 +708,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setAllocationId(allocationId)
 			.build();
 
-		final JobManagerTable jobManagerTable = createJobManagerTableWithOneJob(jobMasterId);
+		final JobManagerTable jobManagerTable = createJobManagerTableWithOneJob(jobMasterId, new NoOpTaskManagerActions());
 		final TaskExecutor taskExecutor = createTaskExecutorWithJobManagerTable(jobManagerTable);
 
 		try {
@@ -831,7 +788,9 @@ public class TaskExecutorTest extends TestLogger {
 			.build());
 	}
 
-	private JobManagerTable createJobManagerTableWithOneJob(JobMasterId jobMasterId) {
+	private JobManagerTable createJobManagerTableWithOneJob(
+			JobMasterId jobMasterId,
+			TaskManagerActions taskManagerActions) {
 		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
 			.setFencingTokenSupplier(() -> jobMasterId)
 			.setOfferSlotsFunction((resourceID, slotOffers) -> CompletableFuture.completedFuture(slotOffers))
@@ -842,7 +801,7 @@ public class TaskExecutorTest extends TestLogger {
 			jobId,
 			ResourceID.generate(),
 			jobMasterGateway,
-			new NoOpTaskManagerActions(),
+			taskManagerActions,
 			new TestCheckpointResponder(),
 			new TestGlobalAggregateManager(),
 			ContextClassLoaderLibraryCacheManager.INSTANCE,
@@ -852,6 +811,18 @@ public class TaskExecutorTest extends TestLogger {
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		jobManagerTable.put(jobId, jobManagerConnection);
 		return jobManagerTable;
+	}
+
+	private static TaskManagerActions createTaskManagerActionsWithTerminalStateTrigger(
+		final OneShotLatch taskInTerminalState) {
+		return new NoOpTaskManagerActions() {
+			@Override
+			public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
+				if (taskExecutionState.getExecutionState().isTerminal()) {
+					taskInTerminalState.trigger();
+				}
+			}
+		};
 	}
 
 	/**
