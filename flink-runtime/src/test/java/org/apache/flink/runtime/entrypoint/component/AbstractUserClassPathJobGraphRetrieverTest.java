@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FileUtilsTest;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -27,17 +29,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -49,7 +49,7 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private static class TestJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
-		public TestJobGraphRetriever(String jobDir) {
+		public TestJobGraphRetriever(@Nonnull final File jobDir) throws IOException {
 			super(jobDir);
 		}
 
@@ -59,86 +59,24 @@ public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 		}
 	}
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testGetUserClassPathFromAFile() throws IOException {
-		final String fileName = "a.jar";
-		File file = temporaryFolder.newFile(fileName);
-
-		TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(file.getAbsolutePath());
-
-		testJobGraphRetriever.getUserClassPaths();
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testGetUserClassPathFormADoesNotExistsFile() throws IOException {
-		final String fileName = "_does_not_exists_file";
-		final String doesNotExistsFilePath = temporaryFolder.getRoot() + "/" + fileName;
-
-		TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(doesNotExistsFilePath);
-
-		assertEquals(Collections.emptyList(), testJobGraphRetriever.getUserClassPaths());
-	}
-
 	@Test
 	public void testGetUserClassPath() throws IOException {
-		final Path jobDir = temporaryFolder.newFolder("_job_dir").toPath();
-		final Path jobSubDir1 = Files.createDirectory(jobDir.resolve("_sub_dir1"));
-		final Path jobSubDir2 = Files.createDirectory(jobDir.resolve("_sub_dir2"));
-		final Path jarFile1 = Files.createFile(jobDir.resolve("file1.jar"));
-		final Path jarFile2 = Files.createFile(jobDir.resolve("file2.jar"));
-		final Path jarFile3 = Files.createFile(jobSubDir1.resolve("file3.jar"));
-		final Path jarFile4 = Files.createFile(jobSubDir2.resolve("file4.jar"));
+		final Path testJobDir = temporaryFolder.newFolder("_test_job").toPath();
+		final Tuple3<Collection<File>, Collection<File>, Collection<URL>>
+			result = FileUtilsTest.prepareTestFiles(testJobDir);
+		final TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(testJobDir.toFile());
+		assertTrue(CollectionUtils.isEqualCollection(result.f2, testJobGraphRetriever.getUserClassPaths()));
+	}
 
-		Files.createFile(jobDir.resolve("file1.txt"));
-		Files.createFile(jobSubDir2.resolve("file2.txt"));
-
-		Path userDir = Paths.get(System.getProperty("user.dir"));
-		URL spec = new URL(jobDir.toUri().getScheme() + ":");
-		List<URL> expectedUrls = Arrays.asList(
-			new URL(spec, userDir.relativize(jarFile1).toString()),
-			new URL(spec, userDir.relativize(jarFile2).toString()),
-			new URL(spec, userDir.relativize(jarFile3).toString()),
-			new URL(spec, userDir.relativize(jarFile4).toString()));
-
-		TestJobGraphRetriever testJobGraphRetriever =
-			new TestJobGraphRetriever(jobDir.toString());
-
-		assertTrue(CollectionUtils.isEqualCollection(expectedUrls, testJobGraphRetriever.getUserClassPaths()));
+	@Test(expected = IllegalArgumentException.class)
+	public void testTheJobGraphRetrieverThrowExceptionBecauseJobDirDoesNotHaveAnyJars() throws IOException {
+		final Path testJobDir = temporaryFolder.newFolder("_test_job_").toPath();
+		new TestJobGraphRetriever(testJobDir.toFile());
 	}
 
 	@Test
-	public void testGetUserClassPathWithRelativeJobDir() throws IOException {
-		Path jobRelativeDir = Paths.get("_job_dir");
-		Path jobRelativeSubDir = Paths.get("_job_dir", "_sub_dir");
-		Path jarFile1 = Paths.get(jobRelativeDir.toString(), "file1.jar");
-		Path jarFile2 = Paths.get(jobRelativeSubDir.toString(), "file2.jar");
-
-		URL context = new URL(jobRelativeDir.toUri().getScheme() + ":");
-		List<URL> expectedURLs = Arrays.asList(
-			new URL(context, jarFile1.toString()), new URL(context, jarFile2.toString()));
-
-		try {
-			if (!Files.exists(jobRelativeDir)) {
-				Files.createDirectory(jobRelativeDir);
-			}
-			if (!Files.exists(jobRelativeSubDir)) {
-				Files.createDirectory(jobRelativeSubDir);
-			}
-			if (!Files.exists(jarFile1)) {
-				Files.createFile(jarFile1);
-			}
-			if (!Files.exists(jarFile2)) {
-				Files.createFile(jarFile2);
-			}
-
-			TestJobGraphRetriever testJobGraphRetriever =
-				new TestJobGraphRetriever(jobRelativeDir.toString());
-			assertTrue(CollectionUtils.isEqualCollection(expectedURLs, testJobGraphRetriever.getUserClassPaths()));
-		} finally {
-			Files.deleteIfExists(jarFile1);
-			Files.deleteIfExists(jarFile2);
-			Files.deleteIfExists(jobRelativeSubDir);
-			Files.deleteIfExists(jobRelativeDir);
-		}
+	public void testGetUserClassPathReturnEmptyListIfJobDirIsNull() throws IOException {
+		final TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(null);
+		assertTrue(Collections.<URL>emptyList() == testJobGraphRetriever.getUserClassPaths());
 	}
 }

@@ -18,23 +18,16 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.util.FileUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.FileVisitOption;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -42,76 +35,23 @@ import java.util.List;
  */
 public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraphRetriever {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(AbstractUserClassPathJobGraphRetriever.class);
+	/* A collection of relative jar paths to the working directory */
+	private final List<URL> userClassPaths;
 
-	/** The directory contains all the jars, which user code depends on. */
-	@Nullable
-	private final String jobDir;
-
-	private List<URL> userClassPaths;
-
-	public AbstractUserClassPathJobGraphRetriever(String jobDir) {
-		this.jobDir = jobDir;
+	protected AbstractUserClassPathJobGraphRetriever(@Nullable final File jobDir) throws IOException {
+		if (jobDir == null) {
+			userClassPaths = Collections.emptyList();
+		} else {
+			final Collection<File> jarFiles = FileUtils.listFilesInPath(jobDir, file -> file.getName().endsWith(".jar"));
+			final Collection<File> relativeFiles = FileUtils.relativizeToWorkingDir(jarFiles);
+			this.userClassPaths = new ArrayList<>(FileUtils.toRelativeURLs(relativeFiles));
+			if (this.userClassPaths.isEmpty()) {
+				throw new IllegalArgumentException(String.format("The job dir %s does not have any jars.", jobDir));
+			}
+		}
 	}
 
-	protected List<URL> getUserClassPaths() throws IOException {
-		if (userClassPaths == null) {
-			userClassPaths = getRelativeJarsURLFromDir(jobDir);
-		}
+	protected List<URL> getUserClassPaths() {
 		return userClassPaths;
-	}
-
-	/**
-	 * Scan all the jar files in the {@code dir} and return all these jar files' relative URLs to "user.dir".
-	 * @param dir the dir needed to scan the jar files
-	 * @return the jar files' relative URLs
-	 * @throws IOException
-	 */
-	private List<URL> getRelativeJarsURLFromDir(String dir) throws IOException {
-
-		if (dir == null) {
-			return Collections.emptyList();
-		}
-
-		if (!Files.exists(Paths.get(dir))) {
-			throw new IllegalArgumentException("the job dir " + dir + " dose not exists.");
-		}
-		if (!Files.isDirectory(Paths.get(dir))) {
-			throw new IllegalArgumentException("the job dir " + dir + " is not a directory.");
-		}
-
-		Path dirPath;
-		final List<URL> jarURLs = new LinkedList<>();
-
-		if (Paths.get(dir).isAbsolute()) {
-			dirPath = Paths.get(System.getProperty("user.dir")).relativize(Paths.get(dir));
-		} else {
-			dirPath = Paths.get(dir);
-		}
-		Files.walkFileTree(
-			dirPath,
-			EnumSet.of(FileVisitOption.FOLLOW_LINKS),
-			Integer.MAX_VALUE,
-			new SimpleFileVisitor<java.nio.file.Path>() {
-
-				@Override
-				public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
-						throws IOException {
-					FileVisitResult fileVisitResult = super.visitFile(file, attrs);
-					if (file.getFileName().toString().endsWith(".jar")) {
-						LOG.info("add " + file.toString() + " to user classpath");
-						jarURLs.add(
-							new URL(new URL(file.getFileName().toUri().getScheme() + ":"), file.toString())
-						);
-					}
-					return fileVisitResult;
-				}
-			});
-
-		if (jarURLs.isEmpty()) {
-			return Collections.emptyList();
-		} else {
-			return jarURLs;
-		}
 	}
 }

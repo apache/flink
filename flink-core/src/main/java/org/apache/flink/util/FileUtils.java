@@ -25,19 +25,34 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
+import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -525,6 +540,102 @@ public final class FileUtils {
 		return new Path(targetDirectory, rootDir);
 	}
 
+	/**
+	 * List the directory {@code directory} recursively and return the files that satisfies the {@code fileFilter}.
+	 *
+	 * @param directory the directory to be listed
+	 * @param fileFilter a file filter
+	 * @return a collection of {@code File}s
+	 *
+	 * @throws IOException if an I/O error occurs while listing the files in the given directory
+	 */
+	public static Collection<File> listFilesInPath(@Nonnull final File directory, @Nonnull final Predicate<File> fileFilter) throws IOException {
+		if (!Files.exists(directory.toPath())) {
+			throw new IllegalArgumentException(String.format("The directory %s dose not exist.", directory));
+		}
+		if (!Files.isDirectory(directory.toPath())) {
+			throw new IllegalArgumentException(String.format("The %s is not a directory.", directory));
+		}
+
+		final FilterFileVisitor filterFileVisitor = new FilterFileVisitor(fileFilter);
+
+		Files.walkFileTree(
+			directory.toPath(),
+			EnumSet.of(FileVisitOption.FOLLOW_LINKS),
+			Integer.MAX_VALUE,
+			filterFileVisitor
+		);
+		return filterFileVisitor.getFiles().isEmpty() ? Collections.emptyList() : filterFileVisitor.getFiles();
+	}
+
+	/**
+	 * Convert a collection of {@code File}s to a collection of relative path to the working dir.
+	 *
+	 * @param files a collection of files needed to be relatived
+	 * @return a collection of relative {@code File}s
+	 */
+	public static Collection<File> relativizeToWorkingDir(@Nonnull final Collection<File> files) {
+		final java.nio.file.Path workingDirPath = Paths.get(System.getProperty("user.dir"));
+
+		final List<File> relativeFiles = new LinkedList<>();
+
+		for (File file : files) {
+			if (file.isAbsolute()) {
+				relativeFiles.add(workingDirPath.relativize(file.toPath()).toFile());
+			} else {
+				relativeFiles.add(file);
+			}
+		}
+		return relativeFiles.isEmpty() ? Collections.emptyList() : relativeFiles;
+	}
+
+	/**
+	 * Convert a collection of relative {@code File}s to a collection of relative {@code URL}s.
+	 *
+	 * @param relativeFiles a collection of relative {@code File}s
+	 * @return a collection of relative URLs
+	 *
+	 * @throws MalformedURLException if error occurs while construct a url.
+	 */
+	public static Collection<URL> toRelativeURLs(@Nonnull final Collection<File> relativeFiles) throws MalformedURLException {
+		final List<URL> urls = new LinkedList<>();
+
+		for (File file : relativeFiles) {
+			urls.add(
+				new URL(
+					new URL(file.toURI().getScheme() + ":"),
+					file.toString()
+				)
+			);
+		}
+		return urls.isEmpty() ? Collections.emptyList() : urls;
+	}
+
+	private static final class FilterFileVisitor extends SimpleFileVisitor<java.nio.file.Path> {
+
+		private final List<File> files = new LinkedList<>();
+
+		private final Predicate<File> fileFilter;
+
+		FilterFileVisitor(Predicate<File> fileFilter) {
+			this.fileFilter = fileFilter;
+		}
+
+		@Override
+		public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
+			FileVisitResult fileVisitResult = super.visitFile(file, attrs);
+
+			if (this.fileFilter.test(file.toFile())) {
+				this.files.add(file.toFile());
+			}
+
+			return fileVisitResult;
+		}
+
+		Collection<File> getFiles() {
+			return files;
+		}
+	}
 	// ------------------------------------------------------------------------
 
 	/**
