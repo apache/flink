@@ -28,7 +28,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.util.PythonUtil
+import org.apache.flink.table.plan.util.PythonUtil.containsPythonCall
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
@@ -56,7 +56,7 @@ class ExpressionReducer(config: TableConfig)
 
       // Skip expressions that contain python functions because it's quite expensive to
       // call Python UDFs during optimization phase. They will be optimized during the runtime.
-      case (_, e) if PythonUtil.containsFunctionOf(e, findPythonFunction = true) =>
+      case (_, e) if containsPythonCall(e) =>
         pythonUDFExprs += e
         None
 

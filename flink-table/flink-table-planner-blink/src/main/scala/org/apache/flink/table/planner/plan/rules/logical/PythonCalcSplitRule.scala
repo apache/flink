@@ -24,7 +24,7 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
-import org.apache.flink.table.planner.plan.utils.PythonUtil.{containsFunctionOf, isPythonCall}
+import org.apache.flink.table.planner.plan.utils.PythonUtil.{containsPythonCall, containsNonPythonCall, isPythonCall, isNonPythonCall}
 import org.apache.flink.table.planner.plan.utils.{InputRefVisitor, RexDefaultVisitor}
 
 import scala.collection.JavaConverters._
@@ -138,8 +138,7 @@ object PythonCalcSplitConditionRule extends PythonCalcSplitRuleBase(
 
     // matches if it contains Python functions in condition
     Option(calc.getProgram.getCondition)
-      .map(calc.getProgram.expandLocalRef)
-      .exists(containsFunctionOf(_, findPythonFunction = true))
+      .map(calc.getProgram.expandLocalRef).exists(containsPythonCall)
   }
 
   override def isConvertPythonFunction(program: RexProgram): Boolean = true
@@ -164,14 +163,11 @@ object PythonCalcSplitProjectionRule extends PythonCalcSplitRuleBase(
     val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
 
     // matches if it contains both Python functions and Java functions in the projection
-    projects.exists(containsFunctionOf(_, findPythonFunction = true)) &&
-      projects.exists(containsFunctionOf(_, findPythonFunction = false))
+    projects.exists(containsPythonCall) && projects.exists(containsNonPythonCall)
   }
 
   override def isConvertPythonFunction(program: RexProgram): Boolean = {
-    program.getProjectList
-      .map(program.expandLocalRef)
-      .exists(containsFunctionOf(_, findPythonFunction = false, recursive = false))
+    program.getProjectList.map(program.expandLocalRef).exists(isNonPythonCall)
   }
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
@@ -195,8 +191,7 @@ object PythonCalcPushConditionRule extends PythonCalcSplitRuleBase(
     // matches if all the following conditions hold true:
     // 1) the condition is not null
     // 2) it contains Python functions in the projection
-    calc.getProgram.getCondition != null &&
-      projects.exists(containsFunctionOf(_, findPythonFunction = true))
+    calc.getProgram.getCondition != null && projects.exists(containsPythonCall)
   }
 
   override def isConvertPythonFunction(program: RexProgram): Boolean = false
@@ -226,7 +221,7 @@ object PythonCalcRewriteProjectionRule extends PythonCalcSplitRuleBase(
     // 1) it contains Python functions in the projection
     // 2) it contains RexNodes besides RexInputRef and RexCall or
     //    not all the RexCalls lying at the end of the project list
-    projects.exists(containsFunctionOf(_, findPythonFunction = true)) &&
+    projects.exists(containsPythonCall) &&
       (projects.exists(expr => !expr.isInstanceOf[RexCall] && !expr.isInstanceOf[RexInputRef]) ||
         projects.indexWhere(_.isInstanceOf[RexCall]) <
           projects.lastIndexWhere(_.isInstanceOf[RexInputRef]))

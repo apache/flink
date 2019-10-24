@@ -25,20 +25,38 @@ import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import scala.collection.JavaConversions._
 
 object PythonUtil {
+
   /**
-    * Checks whether it contains the specified kind of function in the specified node.
+    * Checks whether it contains Python function call in the specified node.
     *
     * @param node the RexNode to check
-    * @param findPythonFunction true to find python function, false to find non-python function
-    * @param recursive whether check the inputs of the specified node
-    * @return true if it contains the specified kind of function in the specified node.
+    * @return true if it contains the Python function call in the specified node.
     */
-  def containsFunctionOf(
-      node: RexNode,
-      findPythonFunction: Boolean,
-      recursive: Boolean = true): Boolean = {
-    node.accept(new FunctionFinder(findPythonFunction, recursive))
-  }
+  def containsPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(true, true))
+
+  /**
+    * Checks whether it contains non-Python function call in the specified node.
+    *
+    * @param node the RexNode to check
+    * @return true if it contains the non-Python function call in the specified node.
+    */
+  def containsNonPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(false, true))
+
+  /**
+    * Checks whether the specified node is a Python function call.
+    *
+    * @param node the RexNode to check
+    * @return true if the specified node is a Python function call.
+    */
+  def isPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(true, false))
+
+  /**
+    * Checks whether the specified node is a non-Python function call.
+    *
+    * @param node the RexNode to check
+    * @return true if the specified node is a non-Python function call.
+    */
+  def isNonPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(false, false))
 
   /**
     * Checks whether the specified rexCall is python function call.
@@ -46,7 +64,7 @@ object PythonUtil {
     * @param rexCall the RexCall to check.
     * @return true if it is python function call.
     */
-  def isPythonCall(rexCall: RexCall): Boolean = rexCall.getOperator match {
+  private def isPythonCall(rexCall: RexCall): Boolean = rexCall.getOperator match {
     case sfc: ScalarSqlFunction => sfc.scalarFunction.isInstanceOf[PythonFunction]
     case _ => false
   }
