@@ -96,7 +96,7 @@ public class ClusterClientServiceLoaderTest {
 	/**
 	 * Test {@link ClusterClientFactory} that is successfully discovered.
 	 */
-	public static class ValidClusterClientFactory extends DummyClusterClientFactory {
+	public static class ValidClusterClientFactory extends BaseTestingClusterClientFactory {
 
 		public static final String ID = VALID_TARGET;
 
@@ -115,7 +115,7 @@ public class ClusterClientServiceLoaderTest {
 	/**
 	 * Test {@link ClusterClientFactory} that has a duplicate.
 	 */
-	public static class FirstCollidingClusterClientFactory extends DummyClusterClientFactory {
+	public static class FirstCollidingClusterClientFactory extends BaseTestingClusterClientFactory {
 
 		public static final String ID = AMBIGUOUS_TARGET;
 
@@ -128,7 +128,7 @@ public class ClusterClientServiceLoaderTest {
 	/**
 	 * Test {@link ClusterClientFactory} that has a duplicate.
 	 */
-	public static class SecondCollidingClusterClientFactory extends DummyClusterClientFactory {
+	public static class SecondCollidingClusterClientFactory extends BaseTestingClusterClientFactory {
 
 		public static final String ID = AMBIGUOUS_TARGET;
 
@@ -141,7 +141,7 @@ public class ClusterClientServiceLoaderTest {
 	/**
 	 * A base test {@link ClusterClientFactory} that supports no operation and is meant to be extended.
 	 */
-	public static class DummyClusterClientFactory implements ClusterClientFactory<Integer> {
+	public static class BaseTestingClusterClientFactory implements ClusterClientFactory<Integer> {
 
 		@Override
 		public boolean isCompatibleWith(Configuration configuration) {
