@@ -78,8 +78,8 @@ class CollectorCodeGenerator(
            s"private $input2TypeClass $input2Term;")
 
     val inputAssignment =
-      List(s"$input1Term = ($input1TypeClass) getInput()",
-           s"$input2Term = ($input2TypeClass) record")
+      List(s"$input1Term = ($input1TypeClass) getInput();",
+           s"$input2Term = ($input2TypeClass) record;")
 
     reusableMemberStatements ++= filterGenerator.reusableMemberStatements
     reusableInitStatements ++= filterGenerator.reusableInitStatements
