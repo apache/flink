@@ -389,7 +389,7 @@ class OverWindowITCase extends BatchTestBase {
 
     // deal with input with 0 as the first row's rank field
     checkResult(
-      "SELECT f, dense_rank() over (order by d) FROM Table5",
+      "SELECT f, dense_rank() over (order by f) FROM Table5",
       Seq(
         row(0, 1),
         row(1, 2),
