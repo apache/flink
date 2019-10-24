@@ -44,6 +44,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 
+import static org.apache.flink.table.HiveVersionTestUtil.HIVE_110_OR_LATER;
+import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -51,8 +53,6 @@ import static org.junit.Assert.assertEquals;
  */
 public class HiveGenericUDFTest {
 	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
-	private static final boolean HIVE_120_OR_LATER = HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V1_2_0) >= 0;
-	private static final boolean HIVE_110_OR_LATER = HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V1_1_0) >= 0;
 
 	@Test
 	public void testAbs() {

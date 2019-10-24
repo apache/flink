@@ -24,8 +24,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -39,7 +37,6 @@ import org.apache.flink.table.functions.hive.HiveGenericUDTF;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 import org.apache.flink.types.Row;
 
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDAF;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
@@ -57,24 +54,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableFactory.class);
 
-	private final String hiveVersion;
 	private final HiveShim hiveShim;
 
-	public HiveFunctionDefinitionFactory(HiveConf hiveConf) {
-		// this has to come from hiveConf, otherwise we may lose what user specifies in the yaml file
-		this.hiveVersion = checkNotNull(hiveConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
-			"Hive version is not defined");
-		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+	public HiveFunctionDefinitionFactory(HiveShim hiveShim) {
+		checkNotNull(hiveShim, "hiveShim cannot be null");
+		this.hiveShim = hiveShim;
 	}
 
 	@Override
 	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
 		if (Boolean.valueOf(catalogFunction.getProperties().get(CatalogConfig.IS_GENERIC))) {
-			FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
+			return FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
 		}
 
-		String functionClassName = catalogFunction.getClassName();
+		return createFunctionDefinitionFromHiveFunction(name, catalogFunction.getClassName());
+	}
 
+	/**
+	 * Create a FunctionDefinition from a Hive function's class name.
+	 * Called directly by {@link org.apache.flink.table.module.hive.HiveModule}.
+	 */
+	public FunctionDefinition createFunctionDefinitionFromHiveFunction(String name, String functionClassName) {
 		Class clazz;
 		try {
 			clazz = Thread.currentThread().getContextClassLoader().loadClass(functionClassName);
@@ -114,16 +114,14 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 
 			if (GenericUDAFResolver2.class.isAssignableFrom(clazz)) {
 				LOG.info(
-					"Transforming Hive function '{}' into a HiveGenericUDAF with no UDAF bridging and Hive version %s",
-					name, hiveVersion);
+					"Transforming Hive function '{}' into a HiveGenericUDAF without UDAF bridging", name);
 
-				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), false, hiveVersion);
+				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), false, hiveShim);
 			} else {
 				LOG.info(
-					"Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging and Hive version %s",
-					name, hiveVersion);
+					"Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging", name);
 
-				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), true, hiveVersion);
+				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), true, hiveShim);
 			}
 
 			return new AggregateFunctionDefinition(

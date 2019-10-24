@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
@@ -31,6 +32,9 @@ import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.thrift.TException;
@@ -38,6 +42,9 @@ import org.apache.thrift.TException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Shim for Hive version 1.2.0.
@@ -166,6 +173,52 @@ public class HiveShimV120 extends HiveShimV111 {
 			return new CatalogColumnStatisticsDataDate(new Date(lowDateDays), new Date(highDateDays), numDV, numNull);
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new CatalogException("Failed to create Flink statistics for date column", e);
+		}
+	}
+
+	@Override
+	public Set<String> listBuiltInFunctions() {
+		try {
+			Method method = FunctionRegistry.class.getMethod("getFunctionNames");
+			// getFunctionNames is a static method
+			Set<String> names = (Set<String>) method.invoke(null);
+
+			return names.stream()
+				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n).get()))
+				.collect(Collectors.toSet());
+		} catch (Exception ex) {
+			throw new CatalogException("Failed to invoke FunctionRegistry.getFunctionNames()", ex);
+		}
+	}
+
+	@Override
+	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
+		Optional<FunctionInfo> functionInfo = getFunctionInfo(name);
+
+		if (functionInfo.isPresent() && isBuiltInFunctionInfo(functionInfo.get())) {
+			return functionInfo;
+		} else {
+			return Optional.empty();
+		}
+	}
+
+	private Optional<FunctionInfo> getFunctionInfo(String name) {
+		try {
+			return Optional.of(FunctionRegistry.getFunctionInfo(name));
+		} catch (SemanticException e) {
+			throw new FlinkHiveException(
+				String.format("Failed getting function info for %s", name), e);
+		} catch (NullPointerException e) {
+			return Optional.empty();
+		}
+	}
+
+	private boolean isBuiltInFunctionInfo(FunctionInfo info) {
+		try {
+			Method method = FunctionInfo.class.getMethod("isBuiltIn", null);
+			return (boolean) method.invoke(info);
+		} catch (Exception ex) {
+			throw new CatalogException("Failed to invoke FunctionInfo.isBuiltIn()", ex);
 		}
 	}
 }
