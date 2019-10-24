@@ -208,7 +208,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final HeartbeatManager<AllocatedSlotReport, AccumulatorReport> jobManagerHeartbeatManager;
 
 	/** The heartbeat manager for resource manager in the task manager. */
-	private final HeartbeatManager<Void, SlotReport> resourceManagerHeartbeatManager;
+	private final HeartbeatManager<Void, TaskExecutorHeartbeatPayload> resourceManagerHeartbeatManager;
 
 	private final PartitionTable<JobID> partitionTable;
 
@@ -281,7 +281,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.resourceManagerHeartbeatManager = createResourceManagerHeartbeatManager(heartbeatServices, resourceId);
 	}
 
-	private HeartbeatManager<Void, SlotReport> createResourceManagerHeartbeatManager(HeartbeatServices heartbeatServices, ResourceID resourceId) {
+	private HeartbeatManager<Void, TaskExecutorHeartbeatPayload> createResourceManagerHeartbeatManager(HeartbeatServices heartbeatServices, ResourceID resourceId) {
 		return heartbeatServices.createHeartbeatManager(
 			resourceId,
 			new ResourceManagerHeartbeatListener(),
@@ -1026,14 +1026,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			}, getMainThreadExecutor());
 
 		// monitor the resource manager as heartbeat target
-		resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget<SlotReport>() {
+		resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget<TaskExecutorHeartbeatPayload>() {
 			@Override
-			public void receiveHeartbeat(ResourceID resourceID, SlotReport slotReport) {
-				resourceManagerGateway.heartbeatFromTaskManager(resourceID, slotReport);
+			public void receiveHeartbeat(ResourceID resourceID, TaskExecutorHeartbeatPayload heartbeatPayload) {
+				resourceManagerGateway.heartbeatFromTaskManager(resourceID, heartbeatPayload);
 			}
 
 			@Override
-			public void requestHeartbeat(ResourceID resourceID, SlotReport slotReport) {
+			public void requestHeartbeat(ResourceID resourceID, TaskExecutorHeartbeatPayload heartbeatPayload) {
 				// the TaskManager won't send heartbeat requests to the ResourceManager
 			}
 		});
@@ -1634,7 +1634,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	@VisibleForTesting
-	HeartbeatManager<Void, SlotReport> getResourceManagerHeartbeatManager() {
+	HeartbeatManager<Void, TaskExecutorHeartbeatPayload> getResourceManagerHeartbeatManager() {
 		return resourceManagerHeartbeatManager;
 	}
 
@@ -1816,7 +1816,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private class ResourceManagerHeartbeatListener implements HeartbeatListener<Void, SlotReport> {
+	private class ResourceManagerHeartbeatListener implements HeartbeatListener<Void, TaskExecutorHeartbeatPayload> {
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceId) {
@@ -1838,9 +1838,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		@Override
-		public SlotReport retrievePayload(ResourceID resourceID) {
+		public TaskExecutorHeartbeatPayload retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
-			return taskSlotTable.createSlotReport(getResourceID());
+			return new TaskExecutorHeartbeatPayload(taskSlotTable.createSlotReport(getResourceID()));
 		}
 	}
 

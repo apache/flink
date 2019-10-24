@@ -40,6 +40,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 
 import javax.annotation.Nullable;
 
@@ -150,9 +151,9 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * Sends the heartbeat to resource manager from task manager
 	 *
 	 * @param heartbeatOrigin unique id of the task manager
-	 * @param slotReport Current slot allocation on the originating TaskManager
+	 * @param heartbeatPayload payload from the originating TaskManager
 	 */
-	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin, final SlotReport slotReport);
+	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin, final TaskExecutorHeartbeatPayload heartbeatPayload);
 
 	/**
 	 * Sends the heartbeat to resource manager from job manager

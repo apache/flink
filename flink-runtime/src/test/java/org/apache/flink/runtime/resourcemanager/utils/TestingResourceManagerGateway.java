@@ -43,6 +43,7 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.Preconditions;
 
@@ -246,11 +247,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public void heartbeatFromTaskManager(ResourceID heartbeatOrigin, SlotReport slotReport) {
+	public void heartbeatFromTaskManager(ResourceID heartbeatOrigin, TaskExecutorHeartbeatPayload heartbeatPayload) {
 		final BiConsumer<ResourceID, SlotReport> currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
 
 		if (currentTaskExecutorHeartbeatConsumer != null) {
-			currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, slotReport);
+			currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, heartbeatPayload.getSlotReport());
 		}
 	}
 
