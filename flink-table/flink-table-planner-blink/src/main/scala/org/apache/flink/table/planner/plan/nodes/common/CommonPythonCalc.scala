@@ -24,7 +24,6 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.functions.FunctionLanguage
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo, SimplePythonFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
@@ -57,11 +56,10 @@ trait CommonPythonCalc {
   private def createPythonScalarFunctionInfo(
       rexCall: RexCall,
       inputNodes: mutable.Map[RexNode, Integer]): PythonFunctionInfo = rexCall.getOperator match {
-    case sfc: ScalarSqlFunction if sfc.scalarFunction.getLanguage == FunctionLanguage.PYTHON =>
+    case sfc: ScalarSqlFunction =>
       val inputs = new mutable.ArrayBuffer[AnyRef]()
       rexCall.getOperands.foreach {
-        case pythonRexCall: RexCall if pythonRexCall.getOperator.asInstanceOf[ScalarSqlFunction]
-          .scalarFunction.getLanguage == FunctionLanguage.PYTHON =>
+        case pythonRexCall: RexCall =>
           // Continuous Python UDFs can be chained together
           val argPythonInfo = createPythonScalarFunctionInfo(pythonRexCall, inputNodes)
           inputs.append(argPythonInfo)

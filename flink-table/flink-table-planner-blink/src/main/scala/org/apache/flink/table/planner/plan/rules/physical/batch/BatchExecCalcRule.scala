@@ -24,7 +24,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecCalc
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.functions.FunctionLanguage
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsFunctionOf
 
 import scala.collection.JavaConverters._
@@ -42,7 +41,7 @@ class BatchExecCalcRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
     val program = calc.getProgram
-    !program.getExprList.asScala.exists(containsFunctionOf(_, FunctionLanguage.PYTHON))
+    !program.getExprList.asScala.exists(containsFunctionOf(_, findPythonFunction = true))
   }
 
   def convert(rel: RelNode): RelNode = {
