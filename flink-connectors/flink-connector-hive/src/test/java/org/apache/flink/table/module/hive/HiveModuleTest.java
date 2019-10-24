@@ -26,7 +26,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class HiveModuleTest {
 	@Test
-	public void test() {
+	public void testNumberOfBuiltinFunctions() {
 		assertEquals(287, new HiveModule("1.2.0").listFunctions().size());
 		assertEquals(287, new HiveModule("2.1.1").listFunctions().size());
 		assertEquals(287, new HiveModule("3.1.2").listFunctions().size());
