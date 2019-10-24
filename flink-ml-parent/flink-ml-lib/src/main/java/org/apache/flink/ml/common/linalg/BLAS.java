@@ -30,6 +30,12 @@ public class BLAS {
 	private static final com.github.fommil.netlib.BLAS NATIVE_BLAS = com.github.fommil.netlib.BLAS.getInstance();
 
 	// For level-2 and level-3 routines, we use the native BLAS.
+	// The NATIVE_BLAS instance tries to load BLAS implementations in the order:
+	//   1) optimized system libraries such as Intel MKL,
+	//   2) self-contained native builds using the reference Fortran from netlib.org,
+	//   3) F2J implementation.
+	// If to use optimized system libraries, it is important to turn of their multi-thread support.
+	// Otherwise, it will conflict with Flink's executor and leads to performance loss.
 	private static final com.github.fommil.netlib.BLAS F2J_BLAS = com.github.fommil.netlib.F2jBLAS.getInstance();
 
 	/**
