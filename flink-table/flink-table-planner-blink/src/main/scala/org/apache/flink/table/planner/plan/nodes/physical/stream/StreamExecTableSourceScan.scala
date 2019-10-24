@@ -192,6 +192,8 @@ class StreamExecTableSourceScan(
       env: StreamExecutionEnvironment,
       format: InputFormat[IN, _ <: InputSplit],
       t: TypeInformation[IN]): Transformation[IN] = {
+    // See StreamExecutionEnvironment.createInput, it is better to deal with checkpoint.
+    // The disadvantage is that streaming not support multi-paths.
     env.createInput(format, t).name(tableSource.explainSource()).getTransformation
   }
 }
