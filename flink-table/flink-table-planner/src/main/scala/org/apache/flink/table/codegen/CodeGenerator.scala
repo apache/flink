@@ -1060,38 +1060,47 @@ abstract class CodeGenerator(
     }
     reusableMemberStatements.add(s"private $resultTypeTerm ${expr.resultTerm};")
 
-    // create a method for the unboxing block
-    val methodName = newName(s"inputUnboxingSplit")
-    val method =
+    if (expr.code.isEmpty) {
       if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
-        s"""
-           |private final void $methodName() {
-           |  // read from input
-           |  ${expr.code}
-           |  // save to member variable
-           |  this.${expr.nullTerm} = ${expr.nullTerm};
-           |  this.${expr.resultTerm} = ${expr.resultTerm};
-           |}
-           """.stripMargin
-      } else {
-        s"""
-           |private final void $methodName() {
-           |  // read from input
-           |  ${expr.code}
-           |  // save to member variable
-           |  this.${expr.resultTerm} = ${expr.resultTerm};
-           |}
-           """.stripMargin
+        reusablePerRecordStatements.add(s"this.${expr.nullTerm} = ${expr.nullTerm};")
       }
-    // add this method to reusable section for later generation
-    reusableMemberStatements.add(method)
+      reusablePerRecordStatements.add(s"this.${expr.resultTerm} = ${expr.resultTerm};")
+      expr
+    } else {
+      // create a method for the unboxing block
+      val methodName = newName(s"inputUnboxingSplit")
+      val method =
+        if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
+          s"""
+             |private final void $methodName() throws Exception {
+             |  // read from input
+             |  ${expr.code}
+             |  // save to member variable
+             |  this.${expr.nullTerm} = ${expr.nullTerm};
+             |  this.${expr.resultTerm} = ${expr.resultTerm};
+             |}
+           """.stripMargin
+        } else {
+          s"""
+             |private final void $methodName() throws Exception {
+             |  // read from input
+             |  ${expr.code}
+             |  // save to member variable
+             |  this.${expr.resultTerm} = ${expr.resultTerm};
+             |}
+           """.stripMargin
+        }
 
-    // create method call
-    GeneratedExpression(
-      expr.resultTerm,
-      expr.nullTerm,
-      s"$methodName();",
-      expr.resultType)
+      // add this method to reusable section for later generation
+      reusableMemberStatements.add(method)
+
+      // create method call
+      GeneratedExpression(
+        expr.resultTerm,
+        expr.nullTerm,
+        s"$methodName();",
+        expr.resultType)
+    }
   }
 
   private def generateCodeSplits(splits: Seq[String]): String = {

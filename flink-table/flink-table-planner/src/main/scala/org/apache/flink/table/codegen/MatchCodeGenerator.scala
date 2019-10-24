@@ -545,11 +545,13 @@ class MatchCodeGenerator(
     } else {
       ""
     }
+
+    reusableMemberStatements.add(s"java.util.List $listName = new java.util.ArrayList();")
     val listCode = if (patternName == ALL_PATTERN_VARIABLE) {
       addReusablePatternNames()
       val patternTerm = newName("pattern")
       j"""
-         |java.util.List $listName = new java.util.ArrayList();
+         |$listName.clear();
          |for (String $patternTerm : $patternNamesTerm) {
          |  for ($eventTypeTerm $eventNameTerm :
          |  $contextTerm.getEventsForPattern($patternTerm)) {
@@ -560,7 +562,7 @@ class MatchCodeGenerator(
     } else {
       val escapedPatternName = EncodingUtils.escapeJava(patternName)
       j"""
-         |java.util.List $listName = new java.util.ArrayList();
+         |$listName.clear();
          |for ($eventTypeTerm $eventNameTerm :
          |  $contextTerm.getEventsForPattern("$escapedPatternName")) {
          |    $listName.add($eventNameTerm);
@@ -580,13 +582,14 @@ class MatchCodeGenerator(
   private def generateMeasurePatternVariableExp(patternName: String): GeneratedPatternList = {
     val listName = newName("patternEvents")
 
+    reusableMemberStatements.add(s"java.util.List $listName = new java.util.ArrayList();")
     val code = if (patternName == ALL_PATTERN_VARIABLE) {
       addReusablePatternNames()
 
       val patternTerm = newName("pattern")
 
       j"""
-         |java.util.List $listName = new java.util.ArrayList();
+         |$listName.clear();
          |for (String $patternTerm : $patternNamesTerm) {
          |  java.util.List rows = (java.util.List) $input1Term.get($patternTerm);
          |  if (rows != null) {
@@ -597,7 +600,7 @@ class MatchCodeGenerator(
     } else {
       val escapedPatternName = EncodingUtils.escapeJava(patternName)
       j"""
-         |java.util.List $listName = (java.util.List) $input1Term.get("$escapedPatternName");
+         |$listName = (java.util.List) $input1Term.get("$escapedPatternName");
          |if ($listName == null) {
          |  $listName = java.util.Collections.emptyList();
          |}
