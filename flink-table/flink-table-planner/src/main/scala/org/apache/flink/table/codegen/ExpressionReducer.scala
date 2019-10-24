@@ -105,9 +105,7 @@ class ExpressionReducer(config: TableConfig)
       new Configuration()
     }
     // generate MapFunction
-    val generator = new ConstantFunctionCodeGenerator(config,
-      false, EMPTY_ROW_INFO,
-      new ConstantFunctionContext(parameters), "parameters")
+    val generator = new ConstantFunctionCodeGenerator(config, false, EMPTY_ROW_INFO)
 
     val result = generator.generateResultExpression(
       resultType,
@@ -215,61 +213,20 @@ class ConstantFunctionContext(parameters: Configuration) extends FunctionContext
   * @param config configuration that determines runtime behavior
   * @param nullableInput input(s) can be null.
   * @param input1 type information about the first input of the Function
-  * @param functionContext functionContext that used for code generator
-  * @param parameters parameters that accessed by openFunction
   */
 class ConstantFunctionCodeGenerator(config: TableConfig,
                                     nullableInput: Boolean,
-                                    input1: TypeInformation[_ <: Any],
-                                    functionContext: FunctionContext,
-                                    parameters: String = null)
+                                    input1: TypeInformation[_ <: Any])
   extends FunctionCodeGenerator(config, nullableInput, input1) {
-
-  override def addReusableFunction(function: UserDefinedFunction,
-                                   contextTerm: String = null): String = {
-
-    val classQualifier = function.getClass.getCanonicalName
-    val functionSerializedData = EncodingUtils.encodeObjectToString(function)
-    val fieldTerm = s"function_${function.functionIdentifier}"
-
-    val fieldFunction =
-      s"""
-         |final $classQualifier $fieldTerm;
-         |""".stripMargin
-    reusableMemberStatements.add(fieldFunction)
-
-    val functionDeserialization =
-      s"""
-         |$fieldTerm = ($classQualifier)
-         |${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
-         |  "$functionSerializedData",
-         |  ${classOf[UserDefinedFunction].getCanonicalName}.class);
-       """.stripMargin
-
-    reusableInitStatements.add(functionDeserialization)
-
-    val openFunction = if (contextTerm != null) {
-      s"""
-         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}($contextTerm));
-       """.stripMargin
-    } else if (functionContext != null) {
-      s"""
-         |$fieldTerm.open(new ${functionContext.getClass.getCanonicalName}(${parameters}));
-       """.stripMargin
-    } else {
-      s"""
-         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}(getRuntimeContext()));
-       """.stripMargin
-    }
-
-    reusableOpenStatements.add(openFunction)
-
-    val closeFunction =
-      s"""
-         |$fieldTerm.close();
-       """.stripMargin
-    reusableCloseStatements.add(closeFunction)
-
-    fieldTerm
+  /**
+    * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
+    *
+    * @param function    [[UserDefinedFunction]] object to be instantiated during runtime
+    * @param contextTerm term to access the Context
+    * @return member variable term
+    */
+  override def addReusableFunction(function: UserDefinedFunction, contextTerm: String,
+                                   functionContextClass: Class[_ <: FunctionContext]): String = {
+    super.addReusableFunction(function, null, classOf[ConstantFunctionContext])
   }
 }
