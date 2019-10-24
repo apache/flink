@@ -18,8 +18,15 @@
 
 package org.apache.flink.table.module.hive;
 
-import org.apache.flink.table.api.*;
-import org.apache.flink.table.catalog.*;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Types;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableBuilder;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
@@ -27,7 +34,9 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.*;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
