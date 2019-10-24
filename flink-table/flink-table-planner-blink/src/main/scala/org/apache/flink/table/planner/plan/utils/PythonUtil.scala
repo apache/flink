@@ -72,7 +72,7 @@ object PythonUtil {
   /**
     * Checks whether it contains the specified kind of function in a RexNode.
     *
-    * @param findPythonFunction true to find python function, false to find java function
+    * @param findPythonFunction true to find python function, false to find non-python function
     * @param recursive whether check the inputs
     */
   private class FunctionFinder(findPythonFunction: Boolean, recursive: Boolean)
