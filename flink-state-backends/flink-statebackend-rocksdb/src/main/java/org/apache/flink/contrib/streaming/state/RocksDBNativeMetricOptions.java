@@ -156,8 +156,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	public static final ConfigOption<Boolean> COLUMN_FAMILY_AS_VARIABLE = ConfigOptions
 		.key(METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY)
 		.defaultValue(false)
-		.withDescription(String.format("Whether to expose the column family as a variable. " +
-			"The column-family-as-variable has default as '%s'", false));
+		.withDescription("Whether to expose the column family as a variable.");
 
 	/**
 	 * Creates a {@link RocksDBNativeMetricOptions} based on an
@@ -255,7 +254,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	}
 
 	private Set<String> properties;
-	private boolean columnFamilyAsVariable;
+	private boolean columnFamilyAsVariable = COLUMN_FAMILY_AS_VARIABLE.defaultValue();
 
 	public RocksDBNativeMetricOptions() {
 		this.properties = new HashSet<>();
