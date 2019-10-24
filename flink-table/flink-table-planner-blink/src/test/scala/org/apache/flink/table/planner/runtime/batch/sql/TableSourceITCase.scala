@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
@@ -251,12 +252,10 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testMultiPaths(): Unit = {
-    val tmpFile1 = File.createTempFile("flink-table-sink-test", ".tmp")
-    tmpFile1.deleteOnExit()
+    val tmpFile1 = TEMPORARY_FOLDER.newFile("tmpFile1.tmp")
     new FileWriter(tmpFile1).append("t1\n").append("t2\n").close()
 
-    val tmpFile2 = File.createTempFile("flink-table-sink-test", ".tmp")
-    tmpFile2.deleteOnExit()
+    val tmpFile2 = TEMPORARY_FOLDER.newFile("tmpFile2.tmp")
     new FileWriter(tmpFile2).append("t3\n").append("t4\n").close()
 
     val schema = new TableSchema(Array("a"), Array(Types.STRING))
