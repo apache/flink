@@ -26,7 +26,7 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
  */
 public class ExceptionShowSizeParameter extends MessageQueryParameter<Integer> {
 
-	private static final String QUERY_PARAMETER_NAME = "size";
+	public static final String QUERY_PARAMETER_NAME = "size";
 
 	public ExceptionShowSizeParameter() {
 		super(QUERY_PARAMETER_NAME, MessageParameterRequisiteness.OPTIONAL);

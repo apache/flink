@@ -81,6 +81,22 @@ public class JobExceptionsInfo implements ResponseBody {
 		return Objects.hash(rootException, rootTimestamp, allExceptions, truncated);
 	}
 
+	public String getRootException() {
+		return rootException;
+	}
+
+	public Long getRootTimestamp() {
+		return rootTimestamp;
+	}
+
+	public List<ExecutionExceptionInfo> getAllExceptions() {
+		return allExceptions;
+	}
+
+	public boolean isTruncated() {
+		return truncated;
+	}
+
 	//---------------------------------------------------------------------------------
 	// Static helper classes
 	//---------------------------------------------------------------------------------
