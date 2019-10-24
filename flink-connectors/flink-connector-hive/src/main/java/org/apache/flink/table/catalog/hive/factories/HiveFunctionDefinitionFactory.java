@@ -38,6 +38,7 @@ import org.apache.flink.table.functions.hive.HiveGenericUDF;
 import org.apache.flink.table.functions.hive.HiveGenericUDTF;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDAF;
@@ -49,6 +50,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -67,14 +69,26 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 	}
 
+	public HiveFunctionDefinitionFactory(String hiveVersion) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion),
+			"Hive version cannot be null or empty string");
+		this.hiveVersion = hiveVersion;
+		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+	}
+
 	@Override
 	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
 		if (Boolean.valueOf(catalogFunction.getProperties().get(CatalogConfig.IS_GENERIC))) {
 			FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
 		}
 
-		String functionClassName = catalogFunction.getClassName();
+		return createFunctionDefinitionFromHiveFunction(name, catalogFunction.getClassName());
+	}
 
+	/**
+	 * Create a FunctionDefinition from a Hive function's class name.
+	 */
+	public FunctionDefinition createFunctionDefinitionFromHiveFunction(String name, String functionClassName) {
 		Class clazz;
 		try {
 			clazz = Thread.currentThread().getContextClassLoader().loadClass(functionClassName);
