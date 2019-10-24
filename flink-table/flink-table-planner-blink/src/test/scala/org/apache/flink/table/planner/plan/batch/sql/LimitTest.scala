@@ -103,6 +103,12 @@ class LimitTest extends TableTestBase {
   }
 
   @Test
+  def testOrderByWithLimitSource(): Unit = {
+    val sqlQuery = "SELECT a, c FROM LimitTable ORDER BY c LIMIT 10"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
   def testLimitWithLimitSource(): Unit = {
     val sqlQuery = "SELECT a, c FROM LimitTable LIMIT 10"
     util.verifyPlan(sqlQuery)

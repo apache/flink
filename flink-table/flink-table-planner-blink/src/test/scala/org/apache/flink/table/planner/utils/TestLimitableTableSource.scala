@@ -58,8 +58,6 @@ class TestLimitableTableSource(
   }
 
   override def applyLimit(limit: Long): TableSource[Row] = {
-    this.limit = limit
-    limitablePushedDown = true
     new TestLimitableTableSource(data, rowType, limit, limitablePushedDown)
   }
 
@@ -68,7 +66,13 @@ class TestLimitableTableSource(
   override def getReturnType: TypeInformation[Row] = rowType
 
   override def explainSource(): String = {
-    if (limit > 0 && limit < Long.MaxValue) "limit: " + limit else ""
+    if (limit > 0 && limit < Long.MaxValue) {
+      "limit: " + limit
+    } else if (limitablePushedDown) {
+      "limitablePushedDown"
+    } else {
+      ""
+    }
   }
 
   override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(rowType)

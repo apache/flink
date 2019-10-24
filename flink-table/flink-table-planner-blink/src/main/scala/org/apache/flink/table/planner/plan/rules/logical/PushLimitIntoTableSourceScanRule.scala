@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalSort, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
@@ -72,6 +73,16 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
     val relBuilder = call.builder()
     val newRelOptTable = applyLimit(limit, relOptTable, relBuilder)
     val newScan = scan.copy(scan.getTraitSet, newRelOptTable)
+
+    val newTableSource = newRelOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+    val oldTableSource = relOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+
+    if (newTableSource.asInstanceOf[LimitableTableSource[_]].isLimitPushedDown
+        && newTableSource.explainSource().equals(oldTableSource.explainSource)) {
+      throw new TableException("Failed to push limit into table source! "
+          + "table source with pushdown capability must override and change "
+          + "explainSource() API to explain the pushdown applied!")
+    }
     call.transformTo(newScan)
   }
 
