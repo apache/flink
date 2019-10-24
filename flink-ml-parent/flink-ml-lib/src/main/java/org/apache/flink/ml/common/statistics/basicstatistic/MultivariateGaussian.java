@@ -94,8 +94,18 @@ public class MultivariateGaussian {
 	/**
 	 * Compute distribution dependent constants.
 	 *
-	 * <p>rootSigmaInv = D^(-1/2)^ * U.t, where sigma = U * D * U.t .
-	 * u = log((2*pi)^(-k/2)^ * det(sigma)^(-1/2)^) .
+	 * <p>The probability density function is calculated as:
+	 * pdf(x) = (2*pi)^(-k/2)^ * det(sigma)^(-1/2)^ * exp((-1/2) * (x-mu).t * inv(sigma) * (x-mu))
+	 *
+	 * <p>Here we compute the following distribution dependent constants that can be reused in each pdf computation:
+	 * A) u = log((2*pi)^(-k/2)^ * det(sigma)^(-1/2)^)
+	 * B) rootSigmaInv = sqrt(inv(sigma)) = D^(-1/2)^ * U.t
+	 *
+	 * <p><ul>
+	 * <li> sigma = U * D * U.t
+	 * <li> inv(sigma) = U * inv(D) * U.t = (D^{-1/2}^ * U.t).t * (D^{-1/2}^ * U.t)
+	 * <li> sqrt(inv(sigma)) = D^(-1/2)^ * U.t
+	 * </ul></p>
 	 */
 	private void calculateCovarianceConstants() {
 		int n = this.mean.size();
