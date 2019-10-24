@@ -33,6 +33,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThe
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.not;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+
 /**
  * built-in dense_rank aggregate function.
  */
