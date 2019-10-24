@@ -25,16 +25,15 @@ import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.functions.util.FunctionUtils
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.{FunctionContext, FunctionLanguage, UserDefinedFunction}
 import org.apache.flink.table.plan.util.PythonUtil
-import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
