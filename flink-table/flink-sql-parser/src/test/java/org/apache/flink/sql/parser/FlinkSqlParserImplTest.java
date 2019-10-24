@@ -269,6 +269,22 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTableWithQueryWatermarkExpression() {
+		String sql = "CREATE TABLE tbl1 (\n" +
+			"  f0 bigint,\n" +
+			"  f1 varchar,\n" +
+			"  f2 boolean,\n" +
+			"  WATERMARK FOR f0 AS ^(^SELECT f1 FROM tbl1)\n" +
+			")\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		sql(sql)
+			.fails("Query expression encountered in illegal context");
+	}
+
+	@Test
 	public void testCreateTableWithComplexType() {
 		check("CREATE TABLE tbl1 (\n" +
 			"  a ARRAY<bigint>, \n" +
