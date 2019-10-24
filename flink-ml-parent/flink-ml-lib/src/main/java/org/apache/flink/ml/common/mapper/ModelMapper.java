@@ -19,13 +19,10 @@
 
 package org.apache.flink.ml.common.mapper;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.ml.api.misc.param.Params;
-import org.apache.flink.ml.common.model.ModelSource;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 
@@ -33,11 +30,6 @@ import java.util.List;
  * Abstract class for mappers with model.
  */
 public abstract class ModelMapper extends Mapper {
-
-	/**
-	 * Specify where to load model data.
-	 */
-	private ModelSource modelSource;
 
 	/**
 	 * Field names of the model.
@@ -49,11 +41,10 @@ public abstract class ModelMapper extends Mapper {
 	 */
 	private final DataType[] modelFieldTypes;
 
-	public ModelMapper(TableSchema modelSchema, TableSchema dataSchema, Params params, ModelSource modelSource) {
+	public ModelMapper(TableSchema modelSchema, TableSchema dataSchema, Params params) {
 		super(dataSchema, params);
 		this.modelFieldNames = modelSchema.getFieldNames();
 		this.modelFieldTypes = modelSchema.getFieldDataTypes();
-		this.modelSource = modelSource;
 	}
 
 	protected TableSchema getModelSchema() {
@@ -66,13 +57,4 @@ public abstract class ModelMapper extends Mapper {
 	 * @param modelRows the list of Row type data
 	 */
 	public abstract void loadModel(List<Row> modelRows);
-
-	@Override
-	public final void open(Configuration parameters) {
-		Preconditions.checkState(this.modelSource != null, "model source not set.");
-		List<Row> rows = this.modelSource.getModelRows(getRuntimeContext());
-		if (rows != null) {
-			loadModel(rows);
-		}
-	}
 }

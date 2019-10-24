@@ -19,7 +19,6 @@
 
 package org.apache.flink.ml.common.mapper;
 
-import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
@@ -30,7 +29,7 @@ import java.io.Serializable;
 /**
  * Abstract class for mappers.
  */
-public abstract class Mapper extends RichMapFunction<Row, Row> implements Serializable {
+public abstract class Mapper implements Serializable {
 
 	/**
 	 * schema of the input.
@@ -60,9 +59,8 @@ public abstract class Mapper extends RichMapFunction<Row, Row> implements Serial
 	 * @param row the input Row type data
 	 * @return one Row type data
 	 * @throws Exception This method may throw exceptions. Throwing
-	 * an exception will cause the operation to fail.
+	 *                   an exception will cause the operation to fail.
 	 */
-	@Override
 	public abstract Row map(Row row) throws Exception;
 
 	/**
