@@ -1060,6 +1060,7 @@ abstract class CodeGenerator(
     }
     reusableMemberStatements.add(s"private $resultTypeTerm ${expr.resultTerm};")
 
+    // when expr has no code, no need to split it into a method, but still need to assign
     if (expr.code.isEmpty) {
       if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
         reusablePerRecordStatements.add(s"this.${expr.nullTerm} = ${expr.nullTerm};")
@@ -1073,9 +1074,7 @@ abstract class CodeGenerator(
         if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
           s"""
              |private final void $methodName() throws Exception {
-             |  // read from input
              |  ${expr.code}
-             |  // save to member variable
              |  this.${expr.nullTerm} = ${expr.nullTerm};
              |  this.${expr.resultTerm} = ${expr.resultTerm};
              |}
@@ -1083,9 +1082,7 @@ abstract class CodeGenerator(
         } else {
           s"""
              |private final void $methodName() throws Exception {
-             |  // read from input
              |  ${expr.code}
-             |  // save to member variable
              |  this.${expr.resultTerm} = ${expr.resultTerm};
              |}
            """.stripMargin
