@@ -110,8 +110,9 @@ public final class MemorySegmentFactory {
 	 * @return A new memory segment, backed by off-heap unsafe memory.
 	 */
 	public static MemorySegment allocateOffHeapUnsafeMemory(int size, Object owner) {
-		// TODO: rollbacked to direct memory because of FLINK-13985
-		return allocateUnpooledOffHeapMemory(size, owner);
+		long address = MemoryUtils.allocateUnsafe(size);
+		ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
+		return new HybridMemorySegment(offHeapBuffer, owner, MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address));
 	}
 
 	/**
