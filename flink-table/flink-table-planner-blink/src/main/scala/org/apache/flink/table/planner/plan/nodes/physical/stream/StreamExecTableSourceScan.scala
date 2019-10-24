@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.api.common.io.InputFormat
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{DataTypes, TableException}
@@ -182,6 +186,13 @@ class StreamExecTableSourceScan(
       tableSourceTable.selectedFields)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)
+  }
+
+  override def createInput[IN](
+      env: StreamExecutionEnvironment,
+      format: InputFormat[IN, _ <: InputSplit],
+      t: TypeInformation[IN]): Transformation[IN] = {
+    env.createInput(format, t).name(tableSource.explainSource()).getTransformation
   }
 }
 
