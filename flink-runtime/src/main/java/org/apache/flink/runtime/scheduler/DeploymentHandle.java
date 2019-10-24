@@ -20,12 +20,8 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.Preconditions;
-
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * This class is a tuple holding the information necessary to deploy an {@link ExecutionVertex}.
@@ -69,15 +65,5 @@ class DeploymentHandle {
 
 	public SlotExecutionVertexAssignment getSlotExecutionVertexAssignment() {
 		return slotExecutionVertexAssignment;
-	}
-
-	public Optional<LogicalSlot> getLogicalSlot() {
-		final CompletableFuture<LogicalSlot> logicalSlotFuture = slotExecutionVertexAssignment.getLogicalSlotFuture();
-		Preconditions.checkState(logicalSlotFuture.isDone(), "method can only be called after slot future is done");
-
-		if (logicalSlotFuture.isCompletedExceptionally() || logicalSlotFuture.isCancelled()) {
-			return Optional.empty();
-		}
-		return Optional.ofNullable(logicalSlotFuture.getNow(null));
 	}
 }
