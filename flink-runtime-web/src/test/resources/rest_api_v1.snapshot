@@ -1303,7 +1303,7 @@
     },
     "query-parameters" : {
       "queryParameters" : [ {
-        "key" : "size",
+        "key" : "maxExceptions",
         "mandatory" : false
       } ]
     },

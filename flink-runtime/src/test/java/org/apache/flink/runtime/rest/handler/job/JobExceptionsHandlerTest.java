@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -46,11 +47,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test for the {@link JobExceptionsHandler}.
@@ -66,23 +69,30 @@ public class JobExceptionsHandlerTest extends TestLogger {
 			JobExceptionsHeaders.getInstance(),
 			new ExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
 			TestingUtils.defaultExecutor());
+		List<Tuple2<Integer, Integer>> exceptionSize2QuerySizeList = new ArrayList<>();
+		exceptionSize2QuerySizeList.add(new Tuple2<>(50, 20));
+		exceptionSize2QuerySizeList.add(new Tuple2<>(30, 30));
+		exceptionSize2QuerySizeList.add(new Tuple2<>(10, 20));
+		for (Tuple2<Integer, Integer> exceptionSize2QuerySize: exceptionSize2QuerySizeList) {
+			final int exceptionSize = exceptionSize2QuerySize.f0;
+			final int querySize = exceptionSize2QuerySize.f1;
+			final AccessExecutionGraph archivedExecutionGraph = createAccessExecutionGraph(exceptionSize);
+			int finalShowSize = exceptionSize >= querySize ? querySize : exceptionSize;
+			final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> handlerRequest = createRequest(archivedExecutionGraph.getJobID(), querySize);
+			final JobExceptionsInfo jobExceptionsInfo = jobExceptionsHandler.handleRequest(handlerRequest, archivedExecutionGraph);
+			assertEquals(jobExceptionsInfo.getAllExceptions().size(), finalShowSize);
+		}
+	}
 
+	private AccessExecutionGraph createAccessExecutionGraph(int taskSize) {
 		Map<JobVertexID, ArchivedExecutionJobVertex> tasks = new HashMap<>();
-		final int exceptionSize = 50;
-		for (int i = 0; i < exceptionSize; i++) {
+		for (int i = 0; i < taskSize; i++) {
 			final JobVertexID jobVertexId = new JobVertexID();
 			tasks.put(jobVertexId, createArchivedExecutionJobVertex(jobVertexId));
 		}
-		final AccessExecutionGraph archivedExecutionGraph = new ArchivedExecutionGraphBuilder()
+		return new ArchivedExecutionGraphBuilder()
 			.setTasks(tasks)
 			.build();
-		final int querySize = 10;
-		int finalShowSize = exceptionSize >= querySize ? querySize : exceptionSize;
-		final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> handlerRequest = createRequest(archivedExecutionGraph.getJobID(), querySize);
-
-		final JobExceptionsInfo jobExceptionsInfo = jobExceptionsHandler.handleRequest(handlerRequest, archivedExecutionGraph);
-
-		assert(jobExceptionsInfo.getAllExceptions().size() == finalShowSize);
 	}
 
 	private ArchivedExecutionJobVertex createArchivedExecutionJobVertex(JobVertexID jobVertexID) {

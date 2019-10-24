@@ -22,12 +22,12 @@ import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
 /**
+ * Specifies the upper limit of exceptions to return for JobExceptionsHandler.
  * @see org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler
- * Specifies the upper limit of exceptions to return for JobExceptionsHandler
  */
 public class UpperLimitExceptionParameter extends MessageQueryParameter<Integer> {
 
-	public static final String KEY = "size";
+	public static final String KEY = "maxExceptions";
 
 	public UpperLimitExceptionParameter() {
 		super(KEY, MessageParameter.MessageParameterRequisiteness.OPTIONAL);
@@ -45,6 +45,6 @@ public class UpperLimitExceptionParameter extends MessageQueryParameter<Integer>
 
 	@Override
 	public String getDescription() {
-		return "Integer value that specifies the upper limit of exceptions to return.";
+		return "Comma-separated list of integer values that specifies the upper limit of exceptions to return.";
 	}
 }
