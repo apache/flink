@@ -37,8 +37,8 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfo;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.job.ExceptionShowSizeParameter;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.UpperLimitExceptionParameter;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.EvictingBoundedList;
@@ -126,7 +126,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
 		final Map<String, String> pathParameters = new HashMap<>();
 		pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
 		final Map<String, List<String>> queryParameters = new HashMap<>();
-		queryParameters.put(ExceptionShowSizeParameter.QUERY_PARAMETER_NAME, Collections.singletonList("" + size));
+		queryParameters.put(UpperLimitExceptionParameter.KEY, Collections.singletonList("" + size));
 
 		return new HandlerRequest<>(
 			EmptyRequestBody.getInstance(),

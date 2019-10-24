@@ -31,11 +31,11 @@ import java.util.Collections;
  */
 public class JobExceptionsMessageParameters extends JobMessageParameters {
 
-	private final ExceptionShowSizeParameter exceptionShowSizeParameter = new ExceptionShowSizeParameter();
+	private final UpperLimitExceptionParameter upperLimitExceptionParameter = new UpperLimitExceptionParameter();
 
 	@Override
 	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singletonList(exceptionShowSizeParameter);
+		return Collections.singletonList(upperLimitExceptionParameter);
 	}
 
 }

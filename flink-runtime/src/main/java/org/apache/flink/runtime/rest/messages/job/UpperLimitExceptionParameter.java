@@ -18,18 +18,19 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
 /**
  * @see org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler
- * show size for JobExceptionsHandler
+ * Specifies the upper limit of exceptions to return for JobExceptionsHandler
  */
-public class ExceptionShowSizeParameter extends MessageQueryParameter<Integer> {
+public class UpperLimitExceptionParameter extends MessageQueryParameter<Integer> {
 
-	public static final String QUERY_PARAMETER_NAME = "size";
+	public static final String KEY = "size";
 
-	public ExceptionShowSizeParameter() {
-		super(QUERY_PARAMETER_NAME, MessageParameterRequisiteness.OPTIONAL);
+	public UpperLimitExceptionParameter() {
+		super(KEY, MessageParameter.MessageParameterRequisiteness.OPTIONAL);
 	}
 
 	@Override
@@ -44,6 +45,6 @@ public class ExceptionShowSizeParameter extends MessageQueryParameter<Integer> {
 
 	@Override
 	public String getDescription() {
-		return "Show exception's size.";
+		return "Integer value that specifies the upper limit of exceptions to return.";
 	}
 }
