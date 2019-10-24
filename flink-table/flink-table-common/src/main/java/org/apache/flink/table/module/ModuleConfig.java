@@ -23,5 +23,5 @@ package org.apache.flink.table.module;
  */
 public class ModuleConfig {
 	// Name of the core module
-	public static final String CORE_MODULE = "core";
+	public static final String CORE_MODULE_NAME = "core";
 }

@@ -209,7 +209,7 @@ public class FunctionCatalog implements FunctionLookup {
 	private Set<String> getUserDefinedFunctionNames() {
 		Set<String> result = new HashSet<>();
 
-		// add catalog functions
+		// Get functions in catalog
 		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
 		try {
 			result.addAll(catalog.listFunctions(catalogManager.getCurrentDatabase()));
@@ -217,15 +217,9 @@ public class FunctionCatalog implements FunctionLookup {
 			// Ignore since there will always be a current database of the current catalog
 		}
 
-		// add temp system functions
+		// Get functions registered in memory
 		result.addAll(
 			tempSystemFunctions.values().stream()
-				.map(FunctionDefinition::toString)
-				.collect(Collectors.toSet()));
-
-		// add temp catalog functions
-		result.addAll(
-			tempCatalogFunctions.values().stream()
 				.map(FunctionDefinition::toString)
 				.collect(Collectors.toSet()));
 
@@ -234,7 +228,7 @@ public class FunctionCatalog implements FunctionLookup {
 
 	@Override
 	public Optional<FunctionLookup.Result> lookupFunction(String name) {
-		String functionName = FunctionCatalogUtil.normalizeName(name);
+		String normalizedName = FunctionCatalogUtil.normalizeName(name);
 
 		FunctionDefinition userCandidate;
 
@@ -242,12 +236,12 @@ public class FunctionCatalog implements FunctionLookup {
 
 		try {
 			CatalogFunction catalogFunction = catalog.getFunction(
-				new ObjectPath(catalogManager.getCurrentDatabase(), functionName));
+				new ObjectPath(catalogManager.getCurrentDatabase(), normalizedName));
 
 			if (catalog.getFunctionDefinitionFactory().isPresent()) {
-				userCandidate = catalog.getFunctionDefinitionFactory().get().createFunctionDefinition(functionName, catalogFunction);
+				userCandidate = catalog.getFunctionDefinitionFactory().get().createFunctionDefinition(normalizedName, catalogFunction);
 			} else {
-				userCandidate = FunctionDefinitionUtil.createFunctionDefinition(functionName, catalogFunction);
+				userCandidate = FunctionDefinitionUtil.createFunctionDefinition(normalizedName, catalogFunction);
 			}
 
 			return Optional.of(
@@ -260,14 +254,13 @@ public class FunctionCatalog implements FunctionLookup {
 		}
 
 		// If no corresponding function is found in catalog, check in-memory functions
-		userCandidate = tempSystemFunctions.get(functionName);
+		userCandidate = tempSystemFunctions.get(normalizedName);
 
 		final Optional<FunctionDefinition> foundDefinition;
 		if (userCandidate != null) {
 			foundDefinition = Optional.of(userCandidate);
 		} else {
-			foundDefinition = moduleManager.getFunctionDefinition(
-				FunctionCatalogUtil.normalizeName(functionName));
+			foundDefinition = moduleManager.getFunctionDefinition(normalizedName);
 		}
 
 		return foundDefinition.map(definition -> new FunctionLookup.Result(

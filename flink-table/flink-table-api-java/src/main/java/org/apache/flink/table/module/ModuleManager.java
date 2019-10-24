@@ -42,7 +42,7 @@ public class ModuleManager {
 	public ModuleManager() {
 		this.modules = new LinkedHashMap<>();
 
-		modules.put(ModuleConfig.CORE_MODULE, CoreModule.INSTANCE);
+		modules.put(ModuleConfig.CORE_MODULE_NAME, CoreModule.INSTANCE);
 	}
 
 	/**

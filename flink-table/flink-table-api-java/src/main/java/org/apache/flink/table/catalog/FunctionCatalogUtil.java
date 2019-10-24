@@ -26,6 +26,6 @@ public class FunctionCatalogUtil {
 	 * Normalize a function name.
 	 */
 	public static String normalizeName(String name) {
-		return name.toUpperCase();
+		return name.toLowerCase();
 	}
 }
