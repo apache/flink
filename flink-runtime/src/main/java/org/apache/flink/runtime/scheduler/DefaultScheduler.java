@@ -373,7 +373,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			if (executionVertexVersioner.isModified(requiredVertexVersion)) {
 				log.debug("Refusing to assign slot to execution vertex {} because this deployment was " +
 					"superseded by another deployment", executionVertexId);
-				stopDeployment(deploymentHandle);
 				return null;
 			}
 
@@ -409,7 +408,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			if (executionVertexVersioner.isModified(requiredVertexVersion)) {
 				log.debug("Refusing to deploy execution vertex {} because this deployment was " +
 					"superseded by another deployment", executionVertexId);
-				stopDeployment(deploymentHandle);
 				return null;
 			}
 
@@ -420,14 +418,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			}
 			return null;
 		};
-	}
-
-	private void stopDeployment(final DeploymentHandle deploymentHandle) {
-		// Canceling the vertex normally releases the slot. However, we might not have assigned
-		// the slot to the vertex yet.
-		deploymentHandle
-			.getLogicalSlot()
-			.ifPresent(logicalSlot -> logicalSlot.releaseSlot(null));
 	}
 
 	private void deployTaskSafe(final ExecutionVertexID executionVertexId) {
