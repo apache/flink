@@ -317,9 +317,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled. */
+	@Nullable
 	private CheckpointCoordinator checkpointCoordinator;
 
 	/** TODO, replace it with main thread executor. */
+	@Nullable
 	private ScheduledExecutorService checkpointCoordinatorTimer;
 
 	/** Checkpoint stats tracker separate from the coordinator in order to be
@@ -598,6 +600,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				}
 			}
 		);
+
+		checkState(checkpointCoordinatorTimer == null);
 
 		checkpointCoordinatorTimer = Executors.newSingleThreadScheduledExecutor(
 			new DispatcherThreadFactory(
