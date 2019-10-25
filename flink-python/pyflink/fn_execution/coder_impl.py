@@ -105,6 +105,14 @@ class SmallIntImpl(StreamCoderImpl):
         return struct.unpack('>h', in_stream.read(2))[0]
 
 
+class IntCoderImpl(StreamCoderImpl):
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_bigendian_int32(value)
+
+    def decode_from_stream(self, in_stream, nested):
+        return in_stream.read_bigendian_int32()
+
+
 class BooleanCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
