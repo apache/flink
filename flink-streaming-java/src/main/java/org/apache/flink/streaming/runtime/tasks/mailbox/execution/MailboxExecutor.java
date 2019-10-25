@@ -176,7 +176,7 @@ public interface MailboxExecutor {
 	 * @throws InterruptedException on interruption.
 	 * @throws IllegalStateException if the mailbox is closed and can no longer supply runnables for yielding.
 	 */
-	void yield() throws InterruptedException, IllegalStateException;
+	void yield() throws InterruptedException;
 
 	/**
 	 * This methods attempts to run the command at the head of the mailbox. This is intended to be used by the mailbox
@@ -187,7 +187,7 @@ public interface MailboxExecutor {
 	 * @return true on successful yielding to another command, false if there was no command to yield to.
 	 * @throws IllegalStateException if the mailbox is closed and can no longer supply runnables for yielding.
 	 */
-	boolean tryYield() throws IllegalStateException;
+	boolean tryYield();
 
 	/**
 	 * Check if the current thread is the mailbox thread.
