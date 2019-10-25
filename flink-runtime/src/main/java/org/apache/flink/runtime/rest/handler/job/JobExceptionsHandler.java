@@ -39,6 +39,8 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -80,7 +82,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphHandler<JobExcep
 
 	@Override
 	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		ResponseBody json = createJobExceptionsInfo(graph, MAX_NUMBER_EXCEPTION_TO_REPORT);
+		ResponseBody json = createJobExceptionsInfo(graph, Iterables.size(graph.getAllExecutionVertices()));
 		String path = getMessageHeaders().getTargetRestEndpointURL()
 			.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
 		return Collections.singletonList(new ArchivedJson(path, json));
