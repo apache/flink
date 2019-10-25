@@ -45,9 +45,9 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for the {@link PartitionTrackerImpl}.
+ * Tests for the {@link JobMasterPartitionTrackerImpl}.
  */
-public class PartitionTrackerImplTest extends TestLogger {
+public class JobMasterPartitionTrackerImplTest extends TestLogger {
 
 	@Test
 	public void testPipelinedPartitionIsNotTracked() {
@@ -60,7 +60,7 @@ public class PartitionTrackerImplTest extends TestLogger {
 	}
 
 	private void testReleaseOnConsumptionHandling(ResultPartitionType resultPartitionType) {
-		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			new JobID(),
 			new TestingShuffleMaster(),
 			ignored -> Optional.empty()
@@ -81,7 +81,7 @@ public class PartitionTrackerImplTest extends TestLogger {
 	@Test
 	public void testStartStopTracking() {
 		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
-		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			new JobID(),
 			new TestingShuffleMaster(),
 			resourceId -> Optional.of(createTaskExecutorGateway(resourceId, taskExecutorReleaseCalls))
@@ -112,7 +112,7 @@ public class PartitionTrackerImplTest extends TestLogger {
 		final JobID jobId = new JobID();
 
 		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
-		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			jobId,
 			shuffleMaster,
 			resourceId -> Optional.of(createTaskExecutorGateway(resourceId, taskExecutorReleaseCalls))
@@ -168,7 +168,7 @@ public class PartitionTrackerImplTest extends TestLogger {
 		final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
 		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
-		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			new JobID(),
 			shuffleMaster,
 			resourceId -> Optional.of(createTaskExecutorGateway(resourceId, taskExecutorReleaseCalls))
@@ -214,7 +214,7 @@ public class PartitionTrackerImplTest extends TestLogger {
 		final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
 
 		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
-		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			new JobID(),
 			shuffleMaster,
 			resourceId -> Optional.of(createTaskExecutorGateway(resourceId, taskExecutorReleaseCalls))

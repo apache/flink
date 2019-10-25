@@ -34,7 +34,7 @@ import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -464,7 +464,7 @@ public class DefaultSchedulerTest extends TestLogger {
 			UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
 			Time.seconds(300),
 			NettyShuffleMaster.INSTANCE,
-			NoOpPartitionTracker.INSTANCE,
+			NoOpJobMasterPartitionTracker.INSTANCE,
 			schedulingStrategyFactory,
 			new RestartPipelinedRegionStrategy.Factory(),
 			testRestartBackoffTimeStrategy,

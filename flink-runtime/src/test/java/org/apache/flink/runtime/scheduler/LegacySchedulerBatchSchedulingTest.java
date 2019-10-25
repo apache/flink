@@ -30,7 +30,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -207,7 +207,7 @@ public class LegacySchedulerBatchSchedulingTest extends TestLogger {
 			UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
 			slotRequestTimeout,
 			NettyShuffleMaster.INSTANCE,
-			NoOpPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE);
 
 		legacyScheduler.setMainThreadExecutor(mainThreadExecutor);
 

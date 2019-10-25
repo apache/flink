@@ -23,9 +23,9 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import java.util.Collection;
 
 /**
- * No-op implementation of {@link PartitionTracker}.
+ * No-op implementation of {@link JobMasterPartitionTracker}.
  */
-public enum NoOpPartitionTracker implements PartitionTracker {
+public enum NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
 	INSTANCE;
 
 	public static final PartitionTrackerFactory FACTORY = lookup -> INSTANCE;

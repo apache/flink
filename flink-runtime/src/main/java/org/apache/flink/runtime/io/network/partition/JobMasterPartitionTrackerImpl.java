@@ -39,7 +39,7 @@ import static java.util.stream.Collectors.toList;
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
-public class PartitionTrackerImpl implements PartitionTracker {
+public class JobMasterPartitionTrackerImpl implements JobMasterPartitionTracker {
 
 	private final JobID jobId;
 
@@ -50,7 +50,7 @@ public class PartitionTrackerImpl implements PartitionTracker {
 
 	private final PartitionTrackerFactory.TaskExecutorGatewayLookup taskExecutorGatewayLookup;
 
-	public PartitionTrackerImpl(
+	public JobMasterPartitionTrackerImpl(
 		JobID jobId,
 		ShuffleMaster<?> shuffleMaster,
 		PartitionTrackerFactory.TaskExecutorGatewayLookup taskExecutorGatewayLookup) {

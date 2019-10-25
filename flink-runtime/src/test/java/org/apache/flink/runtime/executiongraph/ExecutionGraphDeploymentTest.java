@@ -42,7 +42,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -791,7 +791,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			timeout,
 			LoggerFactory.getLogger(getClass()),
 			NettyShuffleMaster.INSTANCE,
-			NoOpPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE);
 	}
 
 	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {

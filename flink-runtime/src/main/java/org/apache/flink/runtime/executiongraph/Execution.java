@@ -39,7 +39,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -1343,7 +1343,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	private void startTrackingPartitions(final ResourceID taskExecutorId, final Collection<ResultPartitionDeploymentDescriptor> partitions) {
-		PartitionTracker partitionTracker = vertex.getExecutionGraph().getPartitionTracker();
+		JobMasterPartitionTracker partitionTracker = vertex.getExecutionGraph().getPartitionTracker();
 		for (ResultPartitionDeploymentDescriptor partition : partitions) {
 			partitionTracker.startTrackingPartition(
 				taskExecutorId,
@@ -1357,7 +1357,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 
 		final Collection<ResultPartitionID> partitionIds = getPartitionIds();
-		final PartitionTracker partitionTracker = getVertex().getExecutionGraph().getPartitionTracker();
+		final JobMasterPartitionTracker partitionTracker = getVertex().getExecutionGraph().getPartitionTracker();
 
 		if (!partitionIds.isEmpty()) {
 			if (releaseBlockingPartitions) {

@@ -25,7 +25,7 @@ import java.util.Collection;
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
-public interface PartitionTracker {
+public interface JobMasterPartitionTracker {
 
 	/**
 	 * Starts the tracking of the given partition for the given task executor ID.
