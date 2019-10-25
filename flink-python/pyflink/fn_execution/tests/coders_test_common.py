@@ -18,7 +18,7 @@
 import logging
 import unittest
 
-from pyflink.fn_execution.coders import BigIntCoder
+from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -30,6 +30,10 @@ class CodersTest(unittest.TestCase):
     def test_bigint_coder(self):
         coder = BigIntCoder()
         self.check_coder(coder, 1, 100, -100, -1000)
+
+    def test_tinyint_coder(self):
+        coder = TinyIntCoder()
+        self.check_coder(coder, 1, 10, 127)
 
 
 if __name__ == '__main__':
