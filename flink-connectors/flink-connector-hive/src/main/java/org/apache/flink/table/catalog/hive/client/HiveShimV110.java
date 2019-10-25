@@ -21,8 +21,8 @@ package org.apache.flink.table.catalog.hive.client;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
-import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -31,8 +31,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.common.HiveStatsUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.Function;
@@ -44,7 +44,9 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
@@ -56,17 +58,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Shim for Hive version 1.2.0.
+ * Shim for Hive version 1.1.0.
  */
-public class HiveShimV120 implements HiveShim {
+public class HiveShimV110 implements HiveShim {
 
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
 		try {
-			Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class);
-			// getProxy is a static method
-			return (IMetaStoreClient) method.invoke(null, (hiveConf));
-		} catch (Exception ex) {
+			return new HiveMetaStoreClient(hiveConf);
+		} catch (MetaException ex) {
 			throw new CatalogException("Failed to create Hive Metastore client", ex);
 		}
 	}
@@ -117,10 +117,6 @@ public class HiveShimV120 implements HiveShim {
 
 	@Override
 	public void alterTable(IMetaStoreClient client, String databaseName, String tableName, Table table) throws InvalidOperationException, MetaException, TException {
-		// For Hive-1.2.1, we need to tell HMS not to update stats. Otherwise, the stats we put in the table
-		// parameters can be overridden. The extra config we add here will be removed by HMS after it's used.
-		// Don't use StatsSetupConst.DO_NOT_UPDATE_STATS because it wasn't defined in Hive 1.1.x.
-		table.getParameters().put("DO_NOT_UPDATE_STATS", "true");
 		client.alter_table(databaseName, tableName, table);
 	}
 
@@ -203,53 +199,64 @@ public class HiveShimV120 implements HiveShim {
 	@Override
 	public ObjectInspector getObjectInspectorForConstant(PrimitiveTypeInfo primitiveTypeInfo, Object value) {
 		String className;
+		value = HiveInspectors.hivePrimitiveToWritable(value);
 		switch (primitiveTypeInfo.getPrimitiveCategory()) {
 			case BOOLEAN:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBooleanObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantBooleanObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case BYTE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantByteObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantByteObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case SHORT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantShortObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantShortObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case INT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantIntObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantIntObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case LONG:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantLongObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantLongObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case FLOAT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantFloatObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantFloatObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case DOUBLE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantDoubleObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantDoubleObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case STRING:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantStringObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantStringObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case CHAR:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveCharObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveCharObjectInspector";
+				try {
+					return (ObjectInspector) Class.forName(className).getDeclaredConstructor(
+							CharTypeInfo.class, value.getClass()).newInstance(primitiveTypeInfo, value);
+				} catch (Exception e) {
+					throw new FlinkHiveUDFException("Failed to create writable constant object inspector", e);
+				}
 			case VARCHAR:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveVarcharObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveVarcharObjectInspector";
+				try {
+					return (ObjectInspector) Class.forName(className).getDeclaredConstructor(
+							VarcharTypeInfo.class, value.getClass()).newInstance(primitiveTypeInfo, value);
+				} catch (Exception e) {
+					throw new FlinkHiveUDFException("Failed to create writable constant object inspector", e);
+				}
 			case DATE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantDateObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantDateObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case TIMESTAMP:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantTimestampObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantTimestampObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case DECIMAL:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveDecimalObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveDecimalObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case BINARY:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBinaryObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantBinaryObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case UNKNOWN:
 			case VOID:
 				// If type is null, we use the Java Constant String to replace
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantStringObjectInspector";
+				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantStringObjectInspector";
 				return HiveReflectionUtils.createConstantObjectInspector(className, value.toString());
 			default:
 				throw new FlinkHiveUDFException(
@@ -259,49 +266,16 @@ public class HiveShimV120 implements HiveShim {
 
 	@Override
 	public ColumnStatisticsData toHiveDateColStats(CatalogColumnStatisticsDataDate flinkDateColStats) {
-		try {
-			Class dateStatsClz = Class.forName("org.apache.hadoop.hive.metastore.api.DateColumnStatsData");
-			Object dateStats = dateStatsClz.getDeclaredConstructor(long.class, long.class)
-					.newInstance(flinkDateColStats.getNullCount(), flinkDateColStats.getNdv());
-			Class hmsDateClz = Class.forName("org.apache.hadoop.hive.metastore.api.Date");
-			Method setHigh = dateStatsClz.getDeclaredMethod("setHighValue", hmsDateClz);
-			Method setLow = dateStatsClz.getDeclaredMethod("setLowValue", hmsDateClz);
-			Constructor hmsDateConstructor = hmsDateClz.getConstructor(long.class);
-			setHigh.invoke(dateStats, hmsDateConstructor.newInstance(flinkDateColStats.getMax().getDaysSinceEpoch()));
-			setLow.invoke(dateStats, hmsDateConstructor.newInstance(flinkDateColStats.getMin().getDaysSinceEpoch()));
-			Class colStatsClz = ColumnStatisticsData.class;
-			return (ColumnStatisticsData) colStatsClz.getDeclaredMethod("dateStats", dateStatsClz).invoke(null, dateStats);
-		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to create Hive statistics for date column", e);
-		}
+		throw new UnsupportedOperationException("DATE column stats are not supported until Hive 1.2.0");
 	}
 
 	@Override
 	public boolean isDateStats(ColumnStatisticsData colStatsData) {
-		try {
-			Method method = ColumnStatisticsData.class.getDeclaredMethod("isSetDateStats");
-			return (boolean) method.invoke(colStatsData);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to decide whether ColumnStatisticsData is for DATE column", e);
-		}
+		return false;
 	}
 
 	@Override
 	public CatalogColumnStatisticsDataDate toFlinkDateColStats(ColumnStatisticsData hiveDateColStats) {
-		try {
-			Object dateStats = ColumnStatisticsData.class.getDeclaredMethod("getDateStats").invoke(hiveDateColStats);
-			Class dateStatsClz = dateStats.getClass();
-			long numDV = (long) dateStatsClz.getDeclaredMethod("getNumDVs").invoke(dateStats);
-			long numNull = (long) dateStatsClz.getDeclaredMethod("getNumNulls").invoke(dateStats);
-			Object hmsHighDate = dateStatsClz.getDeclaredMethod("getHighValue").invoke(dateStats);
-			Object hmsLowDate = dateStatsClz.getDeclaredMethod("getLowValue").invoke(dateStats);
-			Class hmsDateClz = hmsHighDate.getClass();
-			Method hmsDateDays = hmsDateClz.getDeclaredMethod("getDaysSinceEpoch");
-			long highDateDays = (long) hmsDateDays.invoke(hmsHighDate);
-			long lowDateDays = (long) hmsDateDays.invoke(hmsLowDate);
-			return new CatalogColumnStatisticsDataDate(new Date(lowDateDays), new Date(highDateDays), numDV, numNull);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to create Flink statistics for date column", e);
-		}
+		throw new UnsupportedOperationException("DATE column stats are not supported until Hive 1.2.0");
 	}
 }

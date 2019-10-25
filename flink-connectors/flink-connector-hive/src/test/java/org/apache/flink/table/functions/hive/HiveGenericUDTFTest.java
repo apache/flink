@@ -33,6 +33,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFInline;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFPosExplode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFStack;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
@@ -232,8 +233,15 @@ public class HiveGenericUDTFTest {
 	 * Test over sum int udtf.
 	 */
 	public static class TestOverSumIntUDTF extends GenericUDTF {
+
+		ObjectInspectorConverters.Converter[] converters;
+
 		@Override
 		public StructObjectInspector initialize(ObjectInspector[] argOIs) throws UDFArgumentException {
+			converters = new ObjectInspectorConverters.Converter[argOIs.length];
+			for (int i = 0; i < converters.length; i++) {
+				converters[i] = ObjectInspectorConverters.getConverter(argOIs[i], PrimitiveObjectInspectorFactory.javaIntObjectInspector);
+			}
 			return ObjectInspectorFactory.getStandardStructObjectInspector(
 				Collections.singletonList("col1"),
 				Collections.singletonList(PrimitiveObjectInspectorFactory.javaIntObjectInspector));
@@ -242,8 +250,8 @@ public class HiveGenericUDTFTest {
 		@Override
 		public void process(Object[] args) throws HiveException {
 			int total = 0;
-			for (Object arg : args) {
-				total += (int) arg;
+			for (int i = 0; i < args.length; i++) {
+				total += (int) converters[i].convert(args[i]);
 			}
 			for (Object ignored : args) {
 				forward(total);

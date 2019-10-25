@@ -64,7 +64,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
 	private transient boolean allIdentityConverter;
 	private transient HiveObjectConversion[] conversions;
-	private transient HiveShim hiveShim;
+	private HiveShim hiveShim;
 
 	public HiveGenericUDTF(HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper, HiveShim hiveShim) {
 		this.hiveFunctionWrapper = hiveFunctionWrapper;

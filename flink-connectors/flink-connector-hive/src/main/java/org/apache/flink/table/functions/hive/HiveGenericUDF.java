@@ -41,7 +41,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveGenericUDF.class);
 
 	private transient GenericUDF.DeferredObject[] deferredObjects;
-	private transient HiveShim hiveShim;
+	private HiveShim hiveShim;
 
 	public HiveGenericUDF(HiveFunctionWrapper<GenericUDF> hiveFunctionWrapper, HiveShim hiveShim) {
 		super(hiveFunctionWrapper);
@@ -56,9 +56,10 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
 		function = hiveFunctionWrapper.createFunction();
 
+		ObjectInspector[] argInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
+
 		try {
-			returnInspector = function.initializeAndFoldConstants(
-				HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes));
+			returnInspector = function.initializeAndFoldConstants(argInspectors);
 		} catch (UDFArgumentException e) {
 			throw new FlinkHiveUDFException(e);
 		}
@@ -67,8 +68,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
 		for (int i = 0; i < deferredObjects.length; i++) {
 			deferredObjects[i] = new DeferredObjectAdapter(
-				TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(
-					HiveTypeUtil.toHiveTypeInfo(argTypes[i])),
+				argInspectors[i],
 				argTypes[i].getLogicalType()
 			);
 		}
