@@ -120,9 +120,6 @@ class UserDefinedFunctionTests(object):
                                      bigint_param, decimal_param, float_param, double_param,
                                      boolean_param, str_param,
                                      date_param, time_param, timestamp_param):
-            # decide whether two floats are equal
-            def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
-                return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
             from decimal import Decimal
             import datetime
@@ -361,6 +358,11 @@ class UserDefinedFunctionTests(object):
             assert bigint_param is None, 'bigint_param %s should be None!' % bigint_param
             return bigint_param
 
+        def float_func(float_param):
+            assert isinstance(float_param, float) and float_equal(float_param, 1.23, 1e-6), \
+                'float_param is wrong value %s !' % float_param
+            return float_param
+
         self.t_env.register_function(
             "boolean_func", udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN()))
 
@@ -379,29 +381,40 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_function(
             "bigint_func_none", udf(bigint_func_none, [DataTypes.BIGINT()], DataTypes.BIGINT()))
 
+        self.t_env.register_function(
+            "float_func", udf(float_func, [DataTypes.FLOAT()], DataTypes.FLOAT()))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
-             DataTypes.BOOLEAN(), DataTypes.SMALLINT(), DataTypes.INT()])
+             DataTypes.BOOLEAN(), DataTypes.SMALLINT(), DataTypes.INT(),
+             DataTypes.FLOAT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
-            [(1, None, 1, True, 32767, -2147483648)],
+            [(1, None, 1, True, 32767, -2147483648, 1.23)],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
                  DataTypes.FIELD("c", DataTypes.TINYINT()),
                  DataTypes.FIELD("d", DataTypes.BOOLEAN()),
                  DataTypes.FIELD("e", DataTypes.SMALLINT()),
-                 DataTypes.FIELD("f", DataTypes.INT())]))
+                 DataTypes.FIELD("f", DataTypes.INT()),
+                 DataTypes.FIELD("g", DataTypes.FLOAT())]))
 
         t.select("bigint_func(a), bigint_func_none(b),"
                  "tinyint_func(c), boolean_func(d),"
-                 "smallint_func(e),int_func(f)") \
+                 "smallint_func(e),int_func(f),"
+                 "float_func(g)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,null,1,true,32767,-2147483648"])
+        self.assert_equals(actual, ["1,null,1,true,32767,-2147483648,1.23"])
+
+
+# decide whether two floats are equal
+def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
+    return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,

@@ -21,14 +21,23 @@ import logging
 import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
-    SmallIntCoder, IntCoder
+    SmallIntCoder, IntCoder, FloatCoder
 
 
 class CodersTest(unittest.TestCase):
 
     def check_coder(self, coder, *values):
         for v in values:
-            self.assertEqual(v, coder.decode(coder.encode(v)))
+            if isinstance(v, float):
+                from pyflink.table.tests.test_udf import float_equal
+                assert float_equal(v, coder.decode(coder.encode(v)), 1e-6)
+            else:
+                self.assertEqual(v, coder.decode(coder.encode(v)))
+
+    # decide whether two floats are equal
+    @staticmethod
+    def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
+        return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
     def test_bigint_coder(self):
         coder = BigIntCoder()
@@ -49,6 +58,10 @@ class CodersTest(unittest.TestCase):
     def test_int_coder(self):
         coder = IntCoder()
         self.check_coder(coder, -2147483648, 2147483647)
+
+    def test_float_coder(self):
+        coder = FloatCoder()
+        self.check_coder(coder, 1.02, 1.32)
 
 
 if __name__ == '__main__':
