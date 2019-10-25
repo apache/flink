@@ -58,17 +58,6 @@ object PythonUtil {
   def isNonPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(false, false))
 
   /**
-    * Checks whether the specified rexCall is python function call.
-    *
-    * @param rexCall the RexCall to check.
-    * @return true if it is python function call.
-    */
-  private def isPythonCall(rexCall: RexCall): Boolean = rexCall.getOperator match {
-    case sfc: ScalarSqlFunction => sfc.getScalarFunction.isInstanceOf[PythonFunction]
-    case _ => false
-  }
-
-  /**
     * Checks whether it contains the specified kind of function in a RexNode.
     *
     * @param findPythonFunction true to find python function, false to find non-python function
@@ -77,8 +66,19 @@ object PythonUtil {
   private class FunctionFinder(findPythonFunction: Boolean, recursive: Boolean)
     extends RexDefaultVisitor[Boolean] {
 
+    /**
+      * Checks whether the specified rexCall is python function call.
+      *
+      * @param rexCall the RexCall to check.
+      * @return true if it is python function call.
+      */
+    private def isPythonRexCall(rexCall: RexCall): Boolean = rexCall.getOperator match {
+      case sfc: ScalarSqlFunction => sfc.getScalarFunction.isInstanceOf[PythonFunction]
+      case _ => false
+    }
+
     override def visitCall(call: RexCall): Boolean = {
-      findPythonFunction == isPythonCall(call) ||
+      findPythonFunction == isPythonRexCall(call) ||
         (recursive && call.getOperands.exists(_.accept(this)))
     }
 

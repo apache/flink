@@ -54,37 +54,39 @@ trait CommonPythonCalc {
   }
 
   private def createPythonScalarFunctionInfo(
-      rexCall: RexCall,
-      inputNodes: mutable.Map[RexNode, Integer]): PythonFunctionInfo = rexCall.getOperator match {
-    case sfc: ScalarSqlFunction =>
-      val inputs = new mutable.ArrayBuffer[AnyRef]()
-      rexCall.getOperands.foreach {
-        case pythonRexCall: RexCall =>
-          // Continuous Python UDFs can be chained together
-          val argPythonInfo = createPythonScalarFunctionInfo(pythonRexCall, inputNodes)
-          inputs.append(argPythonInfo)
+      pythonRexCall: RexCall,
+      inputNodes: mutable.Map[RexNode, Integer]): PythonFunctionInfo = {
+    pythonRexCall.getOperator match {
+      case sfc: ScalarSqlFunction =>
+        val inputs = new mutable.ArrayBuffer[AnyRef]()
+        pythonRexCall.getOperands.foreach {
+          case pythonRexCall: RexCall =>
+            // Continuous Python UDFs can be chained together
+            val argPythonInfo = createPythonScalarFunctionInfo(pythonRexCall, inputNodes)
+            inputs.append(argPythonInfo)
 
-        case literal: RexLiteral =>
-          inputs.append(
-            convertLiteralToPython.invoke(null, literal, literal.getType.getSqlTypeName))
+          case literal: RexLiteral =>
+            inputs.append(
+              convertLiteralToPython.invoke(null, literal, literal.getType.getSqlTypeName))
 
-        case argNode: RexNode =>
-          // For input arguments of RexInputRef, it's replaced with an offset into the input row
-          inputNodes.get(argNode) match {
-            case Some(existing) => inputs.append(existing)
-            case None =>
-              val inputOffset = Integer.valueOf(inputNodes.size)
-              inputs.append(inputOffset)
-              inputNodes.put(argNode, inputOffset)
-          }
-      }
+          case argNode: RexNode =>
+            // For input arguments of RexInputRef, it's replaced with an offset into the input row
+            inputNodes.get(argNode) match {
+              case Some(existing) => inputs.append(existing)
+              case None =>
+                val inputOffset = Integer.valueOf(inputNodes.size)
+                inputs.append(inputOffset)
+                inputNodes.put(argNode, inputOffset)
+            }
+        }
 
-      // Extracts the necessary information for Python function execution, such as
-      // the serialized Python function, the Python env, etc
-      val pythonFunction = new SimplePythonFunction(
-        sfc.scalarFunction.asInstanceOf[PythonFunction].getSerializedPythonFunction,
-        sfc.scalarFunction.asInstanceOf[PythonFunction].getPythonEnv)
-      new PythonFunctionInfo(pythonFunction, inputs.toArray)
+        // Extracts the necessary information for Python function execution, such as
+        // the serialized Python function, the Python env, etc
+        val pythonFunction = new SimplePythonFunction(
+          sfc.scalarFunction.asInstanceOf[PythonFunction].getSerializedPythonFunction,
+          sfc.scalarFunction.asInstanceOf[PythonFunction].getPythonEnv)
+        new PythonFunctionInfo(pythonFunction, inputs.toArray)
+    }
   }
 
   private def getPythonScalarFunctionOperator(
