@@ -130,3 +130,12 @@ class FloatCoderImpl(StreamCoderImpl):
 
     def decode_from_stream(self, in_stream, nested):
         return struct.unpack('>f', in_stream.read(4))[0]
+
+
+class DoubleCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_bigendian_double(value)
+
+    def decode_from_stream(self, in_stream, nested):
+        return in_stream.read_bigendian_double()
