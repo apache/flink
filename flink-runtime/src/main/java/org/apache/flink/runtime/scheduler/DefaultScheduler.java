@@ -423,7 +423,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private void stopDeployment(final DeploymentHandle deploymentHandle) {
-		cancelExecutionVertex(deploymentHandle.getExecutionVertexId());
 		// Canceling the vertex normally releases the slot. However, we might not have assigned
 		// the slot to the vertex yet.
 		deploymentHandle
