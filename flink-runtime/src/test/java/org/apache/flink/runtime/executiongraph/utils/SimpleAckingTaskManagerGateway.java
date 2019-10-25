@@ -54,7 +54,13 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = (ignore1, ignore2) -> { };
 
-	private CheckpointConsumer checkpointConsumer = null;
+	private CheckpointConsumer checkpointConsumer = (
+		executionAttemptID,
+		jobId,
+		checkpointId,
+		timestamp,
+		checkpointOptions,
+		advanceToEndOfEventTime) -> { };
 
 	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
 		this.submitConsumer = submitConsumer;
@@ -129,15 +135,14 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			long timestamp,
 			CheckpointOptions checkpointOptions,
 			boolean advanceToEndOfEventTime) {
-		if (checkpointConsumer != null) {
-			checkpointConsumer.accept(
-				executionAttemptID,
-				jobId,
-				checkpointId,
-				timestamp,
-				checkpointOptions,
-				advanceToEndOfEventTime);
-		}
+
+		checkpointConsumer.accept(
+			executionAttemptID,
+			jobId,
+			checkpointId,
+			timestamp,
+			checkpointOptions,
+			advanceToEndOfEventTime);
 	}
 
 	@Override
