@@ -267,6 +267,11 @@ class UserDefinedFunctionTests(object):
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
                                             PyFlinkStreamTableTestCase):
+    pass
+
+
+class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
+                                                 PyFlinkBlinkStreamTableTestCase):
     def test_deterministic(self):
         add_one = udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT())
         self.assertTrue(add_one._deterministic)
@@ -331,11 +336,6 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             # test non-callable function
             self.t_env.register_function(
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
-
-
-class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                                 PyFlinkBlinkStreamTableTestCase):
-    pass
 
 
 class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
