@@ -20,7 +20,8 @@
 import logging
 import unittest
 
-from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, SmallIntCoder
+from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
+    SmallIntCoder, IntCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -44,6 +45,10 @@ class CodersTest(unittest.TestCase):
     def test_smallint_coder(self):
         coder = SmallIntCoder()
         self.check_coder(coder, 32767, -32768, 0)
+
+    def test_int_coder(self):
+        coder = IntCoder()
+        self.check_coder(coder, -2147483648, 2147483647)
 
 
 if __name__ == '__main__':
