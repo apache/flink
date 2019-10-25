@@ -115,8 +115,7 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
-				sender.getID(), pipelinedReceiver.getID(), blockingReceiver.getID());
+		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
 		sender.setSlotSharingGroup(slotSharingGroup);
 		pipelinedReceiver.setSlotSharingGroup(slotSharingGroup);
