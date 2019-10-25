@@ -211,11 +211,6 @@ public class YarnConfigOptions {
 				.noDefaultValue()
 				.withDescription("The location of the log config file, e.g. the path to your log4j.properties for log4j.");
 
-	public static final ConfigOption<String> DYNAMIC_PROPERTIES =
-			key("$internal.yarn.dynamic-properties")
-				.noDefaultValue()
-				.withDescription("**DO NOT USE** Specify YARN dynamic properties.");
-
 	public static final ConfigOption<String> SHIP_DIRECTORIES =
 			key("yarn.ship-directories")
 				.noDefaultValue()
