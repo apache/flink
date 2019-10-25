@@ -28,7 +28,7 @@ FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
 
 
 __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
-           'SmallIntCoder', 'IntCoder', 'FloatCoder']
+           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder']
 
 
 class RowCoder(FastCoder):
@@ -146,6 +146,18 @@ class FloatCoder(DeterministicCoder):
         return float
 
 
+class DoubleCoder(DeterministicCoder):
+    """
+    Coder for Double.
+    """
+
+    def _create_impl(self):
+        return coder_impl.DoubleCoderImpl()
+
+    def to_type_hint(self):
+        return float
+
+
 @Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
 def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
     return RowCoder([from_proto(f.type) for f in schema_proto.fields])
@@ -159,6 +171,7 @@ _type_name_mappings = {
     type_name.BIGINT: BigIntCoder(),
     type_name.BOOLEAN: BooleanCoder(),
     type_name.FLOAT: FloatCoder(),
+    type_name.DOUBLE: DoubleCoder(),
 }
 
 
