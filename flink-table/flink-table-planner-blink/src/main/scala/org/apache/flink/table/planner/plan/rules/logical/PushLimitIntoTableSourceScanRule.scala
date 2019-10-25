@@ -31,6 +31,8 @@ import org.apache.calcite.rel.core.{Sort, TableScan}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 
+import java.util.Collections
+
 /**
   * Planner rule that tries to push limit into a [[LimitableTableSource]].
   * The original limit will still be retained.
@@ -83,7 +85,8 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
           + "table source with pushdown capability must override and change "
           + "explainSource() API to explain the pushdown applied!")
     }
-    call.transformTo(newScan)
+
+    call.transformTo(sort.copy(sort.getTraitSet, Collections.singletonList(newScan)))
   }
 
   private def applyLimit(

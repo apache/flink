@@ -47,7 +47,10 @@ LogicalSort(fetch=[10])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, c])
-+- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
++- Limit(offset=[0], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[10], global=[false])
+         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -200,7 +203,10 @@ LogicalSort(fetch=[10])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, c])
-+- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
++- Limit(offset=[0], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[10], global=[false])
+         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

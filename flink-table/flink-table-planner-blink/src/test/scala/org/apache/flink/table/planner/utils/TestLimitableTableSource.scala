@@ -44,13 +44,10 @@ class TestLimitableTableSource(
   override def isBounded = true
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    if (limit < 0) {
-      throw new RuntimeException("This source can't generate data due abnormal limit " + limit)
-    }
     val dataSet = if (limit > 0) {
       data.take(limit.toInt).asJava
     } else {
-      new java.util.ArrayList[Row]
+      data.asJava
     }
     execEnv.createInput(
       new CollectionInputFormat(dataSet, rowType.createSerializer(new ExecutionConfig)),

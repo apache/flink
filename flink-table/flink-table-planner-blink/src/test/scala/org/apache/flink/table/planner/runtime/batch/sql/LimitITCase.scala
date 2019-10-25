@@ -107,7 +107,7 @@ class LimitITCase extends BatchTestBase {
       19)
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testLessThanOffsetWithLimitSource(): Unit = {
     checkSize(
       "SELECT * FROM LimitTable OFFSET 2 ROWS FETCH NEXT 50 ROWS ONLY",
