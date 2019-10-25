@@ -120,7 +120,7 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
     def setUp(self):
         super(PyFlinkStreamTableTestCase, self).setUp()
         self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(1)
+        self.env.set_parallelism(2)
         self.t_env = StreamTableEnvironment.create(self.env)
 
 
@@ -132,7 +132,7 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
     def setUp(self):
         super(PyFlinkBatchTableTestCase, self).setUp()
         self.env = ExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(1)
+        self.env.set_parallelism(2)
         self.t_env = BatchTableEnvironment.create(self.env)
 
     def collect(self, table):
@@ -152,7 +152,7 @@ class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
     def setUp(self):
         super(PyFlinkBlinkStreamTableTestCase, self).setUp()
         self.env = StreamExecutionEnvironment.get_execution_environment()
-
+        self.env.set_parallelism(2)
         self.t_env = StreamTableEnvironment.create(
             self.env, environment_settings=EnvironmentSettings.new_instance()
                 .in_streaming_mode().use_blink_planner().build())
@@ -168,6 +168,7 @@ class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
         self.t_env = BatchTableEnvironment.create(
             environment_settings=EnvironmentSettings.new_instance()
             .in_batch_mode().use_blink_planner().build())
+        self.t_env._j_tenv.getPlanner().getExecEnv().setParallelism(2)
 
 
 class PythonAPICompletenessTestCase(object):
