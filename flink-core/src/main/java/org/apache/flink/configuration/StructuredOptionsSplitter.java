@@ -23,6 +23,8 @@ import org.apache.flink.annotation.Internal;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Helper class for splitting a string on a given delimiter with quoting logic.
  */
@@ -46,7 +48,7 @@ class StructuredOptionsSplitter {
 	 * @return a list of splits
 	 */
 	static List<String> splitEscaped(String string, char delimiter) {
-		List<Token> tokens = tokenize(string, delimiter);
+		List<Token> tokens = tokenize(checkNotNull(string), delimiter);
 		return processTokens(tokens);
 	}
 

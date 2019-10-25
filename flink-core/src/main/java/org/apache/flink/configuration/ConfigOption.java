@@ -102,7 +102,7 @@ public class ConfigOption<T> {
 		this.description = description;
 		this.defaultValue = defaultValue;
 		this.fallbackKeys = fallbackKeys == null || fallbackKeys.length == 0 ? EMPTY : fallbackKeys;
-		this.clazz = clazz;
+		this.clazz = checkNotNull(clazz);
 		this.isList = isList;
 	}
 

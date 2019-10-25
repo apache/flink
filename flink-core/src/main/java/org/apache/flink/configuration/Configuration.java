@@ -905,9 +905,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 				.map(pair -> {
 					if (pair.size() != 2) {
 						throw new IllegalArgumentException("Could not parse pair in the map " + pair);
-					} else {
-						return pair;
 					}
+
+					return pair;
 				})
 				.collect(Collectors.toMap(
 					a -> a.get(0),
@@ -920,25 +920,25 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	private <E extends Enum<E>> E convertToEnum(Object o, Class<E> clazz) {
 		if (o.getClass().equals(clazz)) {
 			return (E) o;
-		} else {
-			return Enum.valueOf(clazz, o.toString().toUpperCase(Locale.ROOT));
 		}
+
+		return Enum.valueOf(clazz, o.toString().toUpperCase(Locale.ROOT));
 	}
 
 	private Duration convertToDuration(Object o) {
 		if (o.getClass() == Duration.class) {
 			return (Duration) o;
-		} else {
-			return TimeUtils.parseDuration(o.toString());
 		}
+
+		return TimeUtils.parseDuration(o.toString());
 	}
 
 	private MemorySize convertToMemorySize(Object o) {
 		if (o.getClass() == MemorySize.class) {
 			return (MemorySize) o;
-		} else {
-			return MemorySize.parse(o.toString());
 		}
+
+		return MemorySize.parse(o.toString());
 	}
 
 	private String convertToString(Object o) {
@@ -947,9 +947,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		} else if (o.getClass() == Duration.class) {
 			Duration duration = (Duration) o;
 			return String.format("%d ns", duration.toNanos());
-		} else {
-			return o.toString();
 		}
+
+		return o.toString();
 	}
 
 	private Integer convertToInt(Object o) {
@@ -964,9 +964,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 					"Configuration value %s overflows/underflows the integer type.",
 					value));
 			}
-		} else {
-			return Integer.parseInt(o.toString());
 		}
+
+		return Integer.parseInt(o.toString());
 	}
 
 	private Long convertToLong(Object o) {
@@ -974,25 +974,25 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return (Long) o;
 		} else if (o.getClass() == Integer.class) {
 			return ((Integer) o).longValue();
-		} else {
-			return Long.parseLong(o.toString());
 		}
+
+		return Long.parseLong(o.toString());
 	}
 
 	private Boolean convertToBoolean(Object o) {
 		if (o.getClass() == Boolean.class) {
 			return (Boolean) o;
-		} else {
-			switch (o.toString().toUpperCase()) {
-				case "TRUE":
-					return true;
-				case "FALSE":
-					return false;
-				default:
-					throw new IllegalArgumentException(String.format(
-						"Unrecognized option for boolean: %s. Expected either true or false(case insensitive)",
-						o));
-			}
+		}
+
+		switch (o.toString().toUpperCase()) {
+			case "TRUE":
+				return true;
+			case "FALSE":
+				return false;
+			default:
+				throw new IllegalArgumentException(String.format(
+					"Unrecognized option for boolean: %s. Expected either true or false(case insensitive)",
+					o));
 		}
 	}
 
@@ -1002,17 +1002,17 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		} else if (o.getClass() == Double.class) {
 			double value = ((Double) o);
 			if (value == 0.0
-				|| (value >= Float.MIN_VALUE && value <= Float.MAX_VALUE)
-				|| (value >= -Float.MAX_VALUE && value <= -Float.MIN_VALUE)) {
+					|| (value >= Float.MIN_VALUE && value <= Float.MAX_VALUE)
+					|| (value >= -Float.MAX_VALUE && value <= -Float.MIN_VALUE)) {
 				return (float) value;
 			} else {
 				throw new IllegalArgumentException(String.format(
 					"Configuration value %s overflows/underflows the float type.",
 					value));
 			}
-		} else {
-			return Float.parseFloat(o.toString());
 		}
+
+		return Float.parseFloat(o.toString());
 	}
 
 	private Double convertToDouble(Object o) {
@@ -1020,9 +1020,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return (Double) o;
 		} else if (o.getClass() == Float.class) {
 			return ((Float) o).doubleValue();
-		} else {
-			return Double.parseDouble(o.toString());
 		}
+
+		return Double.parseDouble(o.toString());
 	}
 
 	// --------------------------------------------------------------------------------------------
