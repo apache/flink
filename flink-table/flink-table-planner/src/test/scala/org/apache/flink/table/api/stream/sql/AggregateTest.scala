@@ -29,6 +29,7 @@ import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.functions.{AggregateFunction, AggregateFunctionDefinition}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
@@ -69,10 +70,11 @@ class AggregateTest extends TableTestBase {
     val defaultCatalog = "default_catalog"
     val catalogManager = new CatalogManager(
       defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
-
-    val functionCatalog = new FunctionCatalog(catalogManager)
+    val moduleManager = new ModuleManager
+    val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
     val tablEnv = new StreamTableEnvironmentImpl(
       catalogManager,
+      moduleManager,
       functionCatalog,
       new TableConfig,
       Mockito.mock(classOf[StreamExecutionEnvironment]),

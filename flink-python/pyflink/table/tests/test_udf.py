@@ -71,15 +71,17 @@ class UserDefinedFunctionTests(object):
             "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
         self.t_env.register_function("add", add)
 
-        table_sink = source_sink_utils.TestAppendSink(['a'], [DataTypes.BIGINT()])
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b', 'c'],
+            [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.INT()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("add(add_one(a), subtract_one(b))") \
+        t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])
+        t.select("add(add_one(a), subtract_one(b)), c, 1") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3", "7", "4"])
+        self.assert_equals(actual, ["3,1,1", "7,2,1", "4,3,1"])
 
     def test_udf_in_join_condition(self):
         t1 = self.t_env.from_elements([(2, "Hi")], ['a', 'b'])

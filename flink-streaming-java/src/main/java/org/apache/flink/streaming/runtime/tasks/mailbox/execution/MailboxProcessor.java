@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
@@ -88,7 +89,7 @@ public class MailboxProcessor {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.mailbox = new TaskMailboxImpl();
 		this.mailboxThread = Thread.currentThread();
-		this.mainMailboxExecutor = new MailboxExecutorImpl(mailbox.getMainMailbox(), mailboxThread);
+		this.mainMailboxExecutor = new MailboxExecutorImpl(mailbox, mailboxThread, TaskMailbox.MIN_PRIORITY);
 		this.mailboxPoisonLetter = () -> mailboxLoopRunning = false;
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
@@ -106,7 +107,7 @@ public class MailboxProcessor {
 	 * @param priority
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
-		return new MailboxExecutorImpl(mailbox.getDownstreamMailbox(priority), mailboxThread);
+		return new MailboxExecutorImpl(mailbox, mailboxThread, priority);
 	}
 
 	/**
@@ -157,24 +158,22 @@ public class MailboxProcessor {
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
 	public void reportThrowable(Throwable throwable) {
-		sendPriorityLetter(() -> {
-			throw new WrappingRuntimeException(throwable);
-		});
+		sendPriorityLetter(
+			() -> {
+				throw new WrappingRuntimeException(throwable);
+			},
+			"Report throwable %s", throwable);
 	}
 
 	/**
 	 * This method must be called to end the stream task when all actions for the tasks have been performed.
 	 */
 	public void allActionsCompleted() {
-		sendPriorityLetter(mailboxPoisonLetter);
+		sendPriorityLetter(mailboxPoisonLetter, "poison letter");
 	}
 
-	private void sendPriorityLetter(Runnable priorityLetter) {
-		try {
-			mailbox.putFirst(priorityLetter);
-		} catch (MailboxStateException me) {
-			LOG.debug("Action context could not submit priority letter to mailbox.", me);
-		}
+	private void sendPriorityLetter(Runnable priorityLetter, String descriptionFormat, Object... descriptionArgs) {
+		mainMailboxExecutor.executeFirst(priorityLetter, descriptionFormat, descriptionArgs);
 	}
 
 	/**
@@ -195,20 +194,15 @@ public class MailboxProcessor {
 
 		// TODO consider batched draining into list and/or limit number of executed letters
 		// Take letters in a non-blockingly and execute them.
-		Optional<Runnable> maybeLetter;
-		while (isMailboxLoopRunning() && (maybeLetter = mailbox.tryTakeMail(MIN_PRIORITY)).isPresent()) {
-			try {
-				maybeLetter.get().run();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+		Optional<Mail> maybeLetter;
+		while (isMailboxLoopRunning() && (maybeLetter = mailbox.tryTake(MIN_PRIORITY)).isPresent()) {
+			maybeLetter.get().run();
 		}
 
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
 		// action becomes available again.
 		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-			Runnable letter = mailbox.takeMail(MIN_PRIORITY);
-			letter.run();
+			mailbox.take(MIN_PRIORITY).run();
 		}
 
 		return isMailboxLoopRunning();
@@ -244,7 +238,7 @@ public class MailboxProcessor {
 	private void ensureControlFlowSignalCheck() {
 		// Make sure that mailbox#hasMail is true via a dummy letter so that the flag change is noticed.
 		if (!mailbox.hasMail()) {
-			sendPriorityLetter(() -> {});
+			sendPriorityLetter(() -> {}, "signal check");
 		}
 	}
 
@@ -281,7 +275,7 @@ public class MailboxProcessor {
 			if (isMailboxThread()) {
 				resumeInternal();
 			} else {
-				sendPriorityLetter(this::resumeInternal);
+				sendPriorityLetter(this::resumeInternal, "resume default action");
 			}
 		}
 

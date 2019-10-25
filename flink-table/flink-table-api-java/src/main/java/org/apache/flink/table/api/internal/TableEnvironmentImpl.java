@@ -48,6 +48,10 @@ import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
+import org.apache.flink.table.module.exceptions.ModuleNotFoundException;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -80,6 +84,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	// and this should always be true. This avoids too many hard code.
 	private static final boolean IS_STREAM_TABLE = true;
 	private final CatalogManager catalogManager;
+	private final ModuleManager moduleManager;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
 
@@ -90,12 +95,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	protected TableEnvironmentImpl(
 			CatalogManager catalogManager,
+			ModuleManager moduleManager,
 			TableConfig tableConfig,
 			Executor executor,
 			FunctionCatalog functionCatalog,
 			Planner planner,
 			boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
+		this.moduleManager = moduleManager;
 		this.execEnv = executor;
 
 		this.tableConfig = tableConfig;
@@ -118,7 +125,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			settings.getBuiltInCatalogName(),
 			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
 
-		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager);
+		ModuleManager moduleManager = new ModuleManager();
+		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
 
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = ComponentFactoryService.find(ExecutorFactory.class, executorProperties)
@@ -131,6 +139,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		return new TableEnvironmentImpl(
 			catalogManager,
+			moduleManager,
 			tableConfig,
 			executor,
 			functionCatalog,
@@ -159,6 +168,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	@Override
 	public Optional<Catalog> getCatalog(String catalogName) {
 		return catalogManager.getCatalog(catalogName);
+	}
+
+	@Override
+	public void loadModule(String moduleName, Module module) throws ModuleAlreadyExistException {
+		moduleManager.loadModule(moduleName, module);
+	}
+
+	@Override
+	public void unloadModule(String moduleName) throws ModuleNotFoundException {
+		moduleManager.unloadModule(moduleName);
 	}
 
 	@Override
@@ -227,6 +246,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	@Override
 	public String[] listCatalogs() {
 		return catalogManager.getCatalogs().toArray(new String[0]);
+	}
+
+	@Override
+	public String[] listModules() {
+		return moduleManager.listModules().toArray(new String[0]);
 	}
 
 	@Override

@@ -172,11 +172,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private CheckpointStorageWorkerView checkpointStorage;
 
 	/**
-	 * The internal {@link ProcessingTimeService} used to define the current
+	 * The internal {@link TimerService} used to define the current
 	 * processing time (default = {@code System.currentTimeMillis()}) and
 	 * register timers for tasks to be executed in the future.
 	 */
-	protected ProcessingTimeService timerService;
+	protected TimerService timerService;
 
 	private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
@@ -221,31 +221,31 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
 	 *
 	 * @param env The task environment for this task.
-	 * @param timeProvider Optionally, a specific time provider to use.
+	 * @param timerService Optionally, a specific timer service to use.
 	 */
-	protected StreamTask(Environment env, @Nullable ProcessingTimeService timeProvider) {
-		this(env, timeProvider, FatalExitExceptionHandler.INSTANCE);
+	protected StreamTask(Environment env, @Nullable TimerService timerService) {
+		this(env, timerService, FatalExitExceptionHandler.INSTANCE);
 	}
 
 	/**
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
 	 *
-	 * <p>This constructor accepts a special {@link ProcessingTimeService}. By default (and if
-	 * null is passes for the time provider) a {@link SystemProcessingTimeService DefaultTimerService}
+	 * <p>This constructor accepts a special {@link TimerService}. By default (and if
+	 * null is passes for the timer service) a {@link SystemProcessingTimeService DefaultTimerService}
 	 * will be used.
 	 *
 	 * @param environment The task environment for this task.
-	 * @param timeProvider Optionally, a specific time provider to use.
+	 * @param timerService Optionally, a specific timer service to use.
 	 * @param uncaughtExceptionHandler to handle uncaught exceptions in the async operations thread pool
 	 */
 	protected StreamTask(
 			Environment environment,
-			@Nullable ProcessingTimeService timeProvider,
+			@Nullable TimerService timerService,
 			Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
 
 		super(environment);
 
-		this.timerService = timeProvider;
+		this.timerService = timerService;
 		this.uncaughtExceptionHandler = Preconditions.checkNotNull(uncaughtExceptionHandler);
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
@@ -349,8 +349,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public StreamTaskStateInitializer createStreamTaskStateInitializer() {
 		return new StreamTaskStateInitializerImpl(
 			getEnvironment(),
-			stateBackend,
-			timerService);
+			stateBackend);
 	}
 
 	protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {
@@ -380,7 +379,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				ThreadFactory timerThreadFactory =
 					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
 
-				timerService = new SystemProcessingTimeService(new TimerInvocationContext(), timerThreadFactory);
+				timerService = new SystemProcessingTimeService(
+					this::handleTimerException,
+					timerThreadFactory);
 			}
 
 			operatorChain = new OperatorChain<>(this, recordWriters);
@@ -723,32 +724,41 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			CheckpointOptions checkpointOptions,
 			boolean advanceToEndOfEventTime) {
 
-		return mailboxProcessor.getMainMailboxExecutor().submit(() -> {
-			try {
-				// No alignment if we inject a checkpoint
-				CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
-					.setBytesBufferedInAlignment(0L)
-					.setAlignmentDurationNanos(0L);
+		return mailboxProcessor.getMainMailboxExecutor().submit(
+				() -> triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime),
+				"checkpoint %s with %s",
+			checkpointMetaData,
+			checkpointOptions);
+	}
 
-				boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
-				if (!success) {
-					declineCheckpoint(checkpointMetaData.getCheckpointId());
-				}
-				return success;
-			} catch (Exception e) {
-				// propagate exceptions only if the task is still in "running" state
-				if (isRunning) {
-					Exception exception = new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
-						" for operator " + getName() + '.', e);
-					handleCheckpointException(exception);
-					throw exception;
-				} else {
-					LOG.debug("Could not perform checkpoint {} for operator {} while the " +
-						"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
-					return false;
-				}
+	private boolean triggerCheckpoint(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime) throws Exception {
+		try {
+			// No alignment if we inject a checkpoint
+			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
+				.setBytesBufferedInAlignment(0L)
+				.setAlignmentDurationNanos(0L);
+
+			boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
+			if (!success) {
+				declineCheckpoint(checkpointMetaData.getCheckpointId());
 			}
-		});
+			return success;
+		} catch (Exception e) {
+			// propagate exceptions only if the task is still in "running" state
+			if (isRunning) {
+				Exception exception = new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
+					" for operator " + getName() + '.', e);
+				handleCheckpointException(exception);
+				throw exception;
+			} else {
+				LOG.debug("Could not perform checkpoint {} for operator {} while the " +
+					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
+				return false;
+			}
+		}
 	}
 
 	@Override
@@ -875,37 +885,37 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	@Override
 	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
-		return mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).submit(() -> {
-			try {
-				boolean success = false;
-				synchronized (lock) {
-					if (isRunning) {
-						LOG.debug("Notification of complete checkpoint for task {}", getName());
+		return mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).submit(
+				() -> notifyCheckpointComplete(checkpointId),
+				"checkpoint %d complete", checkpointId);
+	}
 
-						for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-							if (operator != null) {
-								operator.notifyCheckpointComplete(checkpointId);
-							}
+	private void notifyCheckpointComplete(long checkpointId) {
+		try {
+			boolean success = false;
+			synchronized (lock) {
+				if (isRunning) {
+					LOG.debug("Notification of complete checkpoint for task {}", getName());
+
+					for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+						if (operator != null) {
+							operator.notifyCheckpointComplete(checkpointId);
 						}
-						success = true;
-					} else {
-						LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
 					}
+					success = true;
+				} else {
+					LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
 				}
-				getEnvironment().getTaskStateManager().notifyCheckpointComplete(checkpointId);
-				if (success && isSynchronousSavepointId(checkpointId)) {
-					finishTask();
-					// Reset to "notify" the internal synchronous savepoint mailbox loop.
-					resetSynchronousSavepointId();
-				}
-				return null;
-			} catch (Exception e) {
-				handleException(new RuntimeException(
-					"Error while confirming checkpoint",
-					e));
-				throw e;
 			}
-		});
+			getEnvironment().getTaskStateManager().notifyCheckpointComplete(checkpointId);
+			if (success && isSynchronousSavepointId(checkpointId)) {
+				finishTask();
+				// Reset to "notify" the internal synchronous savepoint mailbox loop.
+				resetSynchronousSavepointId();
+			}
+		} catch (Exception e) {
+			handleException(new RuntimeException("Error while confirming checkpoint", e));
+		}
 	}
 
 	private void tryShutdownTimerService() {
@@ -972,14 +982,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Returns the {@link ProcessingTimeService} responsible for telling the current
-	 * processing time and registering timers.
+	 * Returns the {@link TimerService} responsible for telling the current processing time and registering actual timers.
 	 */
-	public ProcessingTimeService getProcessingTimeService() {
-		if (timerService == null) {
-			throw new IllegalStateException("The timer service has not been initialized.");
-		}
+	@VisibleForTesting
+	TimerService getTimerService() {
+		Preconditions.checkState(timerService != null, "The timer service has not been initialized.");
 		return timerService;
+	}
+
+	public ProcessingTimeService getProcessingTimeService(int operatorIndex) {
+		Preconditions.checkState(timerService != null, "The timer service has not been initialized.");
+		MailboxExecutor mailboxExecutor = mailboxProcessor.getMailboxExecutor(operatorIndex);
+		return new ProcessingTimeServiceImpl(timerService, callback -> deferCallbackToMailbox(mailboxExecutor, callback));
 	}
 
 	/**
@@ -1115,6 +1129,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						checkpointMetaData.getCheckpointId());
 				}
 			} catch (Exception e) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("{} - asynchronous part of checkpoint {} could not be completed.",
+						owner.getName(),
+						checkpointMetaData.getCheckpointId(),
+						e);
+				}
 				handleExecutionException(e);
 			} finally {
 				owner.cancelables.unregisterCloseable(this);
@@ -1422,19 +1442,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return output;
 	}
 
-	private class TimerInvocationContext implements SystemProcessingTimeService.ScheduledCallbackExecutionContext {
-		@Override
-		public void invoke(ProcessingTimeCallback callback, long timestamp) {
+	private void handleTimerException(Exception ex) {
+		handleAsyncException("Caught exception while processing timer.", new TimerException(ex));
+	}
+
+	private ProcessingTimeCallback deferCallbackToMailbox(MailboxExecutor mailboxExecutor, ProcessingTimeCallback callback) {
+		return timestamp -> {
+			mailboxExecutor.execute(
+				() -> invokeProcessingTimeCallback(callback, timestamp),
+				"Timer callback for %s @ %d",
+				callback,
+				timestamp);
+		};
+	}
+
+	private void invokeProcessingTimeCallback(ProcessingTimeCallback callback, long timestamp) {
+		synchronized (getCheckpointLock()) {
 			try {
-				mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).execute(() -> {
-					synchronized (getCheckpointLock()) {
-						try {
-							callback.onProcessingTime(timestamp);
-						} catch (Throwable t) {
-							handleAsyncException("Caught exception while processing timer.", new TimerException(t));
-						}
-					}
-				});
+				callback.onProcessingTime(timestamp);
 			} catch (Throwable t) {
 				handleAsyncException("Caught exception while processing timer.", new TimerException(t));
 			}

@@ -293,7 +293,7 @@ public class AsyncWaitOperator<IN, OUT>
 			}
 			// if there are more completed elements, emit them with subsequent mails
 			if (queue.hasCompletedElements()) {
-				mailboxExecutor.execute(this::outputCompletedElement);
+				mailboxExecutor.execute(this::outputCompletedElement, "AsyncWaitOperator#outputCompletedElement");
 			}
 		}
 	}
@@ -346,19 +346,23 @@ public class AsyncWaitOperator<IN, OUT>
 
 		private void processInMailbox(Collection<OUT> results) {
 			// move further processing into the mailbox thread
-			mailboxExecutor.execute(() -> {
-				// Cancel the timer once we've completed the stream record buffer entry. This will remove the registered
-				// timer task
-				if (timeoutTimer != null) {
-					// canceling in mailbox thread avoids https://issues.apache.org/jira/browse/FLINK-13635
-					timeoutTimer.cancel(true);
-				}
+			mailboxExecutor.execute(
+				() -> processResults(results),
+				"Result in AsyncWaitOperator of input %s", results);
+		}
 
-				// update the queue entry with the result
-				resultFuture.complete(results);
-				// now output all elements from the queue that have been completed (in the correct order)
-				outputCompletedElement();
-			});
+		private void processResults(Collection<OUT> results) {
+			// Cancel the timer once we've completed the stream record buffer entry. This will remove the registered
+			// timer task
+			if (timeoutTimer != null) {
+				// canceling in mailbox thread avoids https://issues.apache.org/jira/browse/FLINK-13635
+				timeoutTimer.cancel(true);
+			}
+
+			// update the queue entry with the result
+			resultFuture.complete(results);
+			// now output all elements from the queue that have been completed (in the correct order)
+			outputCompletedElement();
 		}
 
 		@Override

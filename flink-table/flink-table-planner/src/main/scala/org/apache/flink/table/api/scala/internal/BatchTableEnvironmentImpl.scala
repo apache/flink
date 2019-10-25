@@ -25,6 +25,7 @@ import org.apache.flink.table.api.scala.BatchTableEnvironment
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.module.ModuleManager
 
 import _root_.scala.reflect.ClassTag
 
@@ -38,11 +39,13 @@ import _root_.scala.reflect.ClassTag
 class BatchTableEnvironmentImpl(
     execEnv: ExecutionEnvironment,
     config: TableConfig,
-    catalogManager: CatalogManager)
+    catalogManager: CatalogManager,
+    moduleManager: ModuleManager)
   extends BatchTableEnvImpl(
     execEnv.getJavaEnv,
     config,
-    catalogManager)
+    catalogManager,
+    moduleManager)
   with org.apache.flink.table.api.scala.BatchTableEnvironment {
 
   override def fromDataSet[T](dataSet: DataSet[T]): Table = {

@@ -35,6 +35,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 /**
  * Tests for {@link MailboxExecutorImpl}.
  */
@@ -48,7 +51,7 @@ public class MailboxExecutorImplTest {
 	@Before
 	public void setUp() throws Exception {
 		this.mailbox = new TaskMailboxImpl();
-		this.mailboxExecutor = new MailboxExecutorImpl(mailbox.getDownstreamMailbox(DEFAULT_PRIORITY));
+		this.mailboxExecutor = new MailboxExecutorImpl(mailbox, DEFAULT_PRIORITY);
 		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
 	}
 
@@ -71,26 +74,30 @@ public class MailboxExecutorImplTest {
 	@Test
 	public void testOperations() throws Exception {
 		final TestRunnable testRunnable = new TestRunnable();
-		mailboxExecutor.execute(testRunnable);
-		Assert.assertEquals(testRunnable, mailbox.tryTakeMail(DEFAULT_PRIORITY).get());
-		CompletableFuture.runAsync(() -> mailboxExecutor.execute(testRunnable), otherThreadExecutor).get();
-		Assert.assertEquals(testRunnable, mailbox.takeMail(DEFAULT_PRIORITY));
+		mailboxExecutor.execute(testRunnable, "testRunnable");
+		Assert.assertEquals(testRunnable, mailbox.take(DEFAULT_PRIORITY).getRunnable());
+
+		CompletableFuture.runAsync(
+			() -> mailboxExecutor.execute(testRunnable, "testRunnable"),
+			otherThreadExecutor).get();
+		Assert.assertEquals(testRunnable, mailbox.take(DEFAULT_PRIORITY).getRunnable());
+
 		final TestRunnable yieldRun = new TestRunnable();
 		final TestRunnable leftoverRun = new TestRunnable();
-		mailboxExecutor.execute(yieldRun);
+		mailboxExecutor.execute(yieldRun, "yieldRun");
 		Future<?> leftoverFuture = CompletableFuture.supplyAsync(
-				() -> mailboxExecutor.submit(leftoverRun),
-				otherThreadExecutor).get();
+			() -> mailboxExecutor.submit(leftoverRun, "leftoverRun"),
+			otherThreadExecutor).get();
 
-		Assert.assertTrue(mailboxExecutor.tryYield());
+		assertTrue(mailboxExecutor.tryYield());
 		Assert.assertEquals(Thread.currentThread(), yieldRun.wasExecutedBy());
-		Assert.assertFalse(leftoverFuture.isDone());
+		assertFalse(leftoverFuture.isDone());
 
 		List<Runnable> leftoverTasks = mailbox.close();
 		Assert.assertEquals(1, leftoverTasks.size());
-		Assert.assertFalse(leftoverFuture.isCancelled());
+		assertFalse(leftoverFuture.isCancelled());
 		FutureUtils.cancelRunnableFutures(leftoverTasks);
-		Assert.assertTrue(leftoverFuture.isCancelled());
+		assertTrue(leftoverFuture.isCancelled());
 
 		try {
 			mailboxExecutor.tryYield();
@@ -108,9 +115,12 @@ public class MailboxExecutorImplTest {
 	@Test
 	public void testTryYield() throws Exception {
 		final TestRunnable testRunnable = new TestRunnable();
-		CompletableFuture.runAsync(() -> mailboxExecutor.execute(testRunnable), otherThreadExecutor).get();
-		Assert.assertTrue(mailboxExecutor.tryYield());
-		Assert.assertFalse(mailbox.tryTakeMail(DEFAULT_PRIORITY).isPresent());
+		CompletableFuture.runAsync(
+			() -> mailboxExecutor.execute(testRunnable, "testRunnable"),
+			otherThreadExecutor)
+			.get();
+		assertTrue(mailboxExecutor.tryYield());
+		assertFalse(mailboxExecutor.tryYield());
 		Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
 	}
 
@@ -120,7 +130,7 @@ public class MailboxExecutorImplTest {
 		final TestRunnable testRunnable = new TestRunnable();
 		final Thread submitThread = new Thread(() -> {
 			try {
-				mailboxExecutor.execute(testRunnable);
+				mailboxExecutor.execute(testRunnable, "testRunnable");
 			} catch (Exception e) {
 				exceptionReference.set(e);
 			}
@@ -132,6 +142,15 @@ public class MailboxExecutorImplTest {
 
 		Assert.assertNull(exceptionReference.get());
 		Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
+	}
+
+	@Test
+	public void testExecutorView() throws Exception {
+		CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {}, mailboxExecutor.asExecutor("runAsync"));
+		assertFalse(future.isDone());
+
+		mailboxExecutor.yield();
+		assertTrue(future.isDone());
 	}
 
 	/**

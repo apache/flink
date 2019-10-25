@@ -38,9 +38,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -155,8 +155,9 @@ public class StreamSourceOperatorWatermarksTest {
 
 		final List<StreamElement> output = new ArrayList<>();
 
-		StreamSourceContexts.getSourceContext(TimeCharacteristic.IngestionTime,
-			operator.getContainingTask().getProcessingTimeService(),
+		StreamSourceContexts.getSourceContext(
+			TimeCharacteristic.IngestionTime,
+			processingTimeService,
 			operator.getContainingTask().getCheckpointLock(),
 			operator.getContainingTask().getStreamStatusMaintainer(),
 			new CollectorOutput<String>(output),
@@ -184,17 +185,19 @@ public class StreamSourceOperatorWatermarksTest {
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
-	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
+	private static <T> void setupSourceOperator(
+			StreamSource<T, ?> operator,
 			TimeCharacteristic timeChar,
 			long watermarkInterval) throws Exception {
 		setupSourceOperator(operator, timeChar, watermarkInterval, new TestProcessingTimeService());
 	}
 
 	@SuppressWarnings("unchecked")
-	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
-												TimeCharacteristic timeChar,
-												long watermarkInterval,
-												final ProcessingTimeService timeProvider) throws Exception {
+	private static <T> void setupSourceOperator(
+			StreamSource<T, ?> operator,
+			TimeCharacteristic timeChar,
+			long watermarkInterval,
+			final TimerService timeProvider) throws Exception {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setAutoWatermarkInterval(watermarkInterval);
@@ -214,7 +217,7 @@ public class StreamSourceOperatorWatermarksTest {
 			.setConfig(cfg)
 			.setExecutionConfig(executionConfig)
 			.setStreamStatusMaintainer(streamStatusMaintainer)
-			.setProcessingTimeService(timeProvider)
+			.setTimerService(timeProvider)
 			.build();
 
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));

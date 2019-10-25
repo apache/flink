@@ -103,6 +103,11 @@ public class SqlToOperationConverter {
 			throw new SqlConversionException("Primary key and unique key are not supported yet.");
 		}
 
+		if (sqlCreateTable.getWatermark().isPresent()) {
+			// TODO: FLINK-14320
+			throw new SqlConversionException("Watermark statement is not supported yet.");
+		}
+
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateTable.getPropertyList().getList().forEach(p ->

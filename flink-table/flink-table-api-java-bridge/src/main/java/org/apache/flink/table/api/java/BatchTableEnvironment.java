@@ -33,6 +33,7 @@ import org.apache.flink.table.descriptors.BatchTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.sinks.TableSink;
 
 import java.lang.reflect.Constructor;
@@ -327,13 +328,14 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	static BatchTableEnvironment create(ExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
 		try {
 			Class<?> clazz = Class.forName("org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl");
-			Constructor con = clazz.getConstructor(ExecutionEnvironment.class, TableConfig.class, CatalogManager.class);
+			Constructor con = clazz.getConstructor(ExecutionEnvironment.class, TableConfig.class, CatalogManager.class, ModuleManager.class);
 			String defaultCatalog = "default_catalog";
 			CatalogManager catalogManager = new CatalogManager(
 				defaultCatalog,
 				new GenericInMemoryCatalog(defaultCatalog, "default_database")
 			);
-			return (BatchTableEnvironment) con.newInstance(executionEnvironment, tableConfig, catalogManager);
+			ModuleManager moduleManager = new ModuleManager();
+			return (BatchTableEnvironment) con.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager);
 		} catch (Throwable t) {
 			throw new TableException("Create BatchTableEnvironment failed.", t);
 		}

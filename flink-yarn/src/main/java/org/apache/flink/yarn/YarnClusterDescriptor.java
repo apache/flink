@@ -951,7 +951,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		if (UserGroupInformation.isSecurityEnabled()) {
 			// set HDFS delegation tokens when security is enabled
-			LOG.info("Adding delegation token to the AM container..");
+			LOG.info("Adding delegation token to the AM container.");
 			Utils.setTokensFor(amContainer, paths, yarnConfiguration);
 		}
 

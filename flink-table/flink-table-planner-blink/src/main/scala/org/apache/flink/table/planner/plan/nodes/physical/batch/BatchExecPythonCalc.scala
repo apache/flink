@@ -25,7 +25,6 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
 
@@ -53,17 +52,9 @@ class BatchExecPythonCalc(
   override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[BaseRow] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val config = planner.getTableConfig
-    val ctx = CodeGeneratorContext(config)
-    createOneInputTransformation(
+    createPythonOneInputTransformation(
       inputTransform,
-      inputsContainSingleton = false,
       calcProgram,
-      getRelDetailedDescription,
-      config,
-      ctx,
-      cluster,
-      getRowType,
-    "BatchExecCalc")
+      "BatchExecPythonCalc")
   }
 }

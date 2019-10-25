@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -71,7 +72,8 @@ public class SqlToOperationConverterTest {
 		"default");
 	private final CatalogManager catalogManager =
 		new CatalogManager("builtin", catalog);
-	private final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager);
+	private final ModuleManager moduleManager = new ModuleManager();
+	private final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
 	private final PlannerContext plannerContext =
 		new PlannerContext(tableConfig,
 			functionCatalog,

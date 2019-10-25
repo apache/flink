@@ -129,7 +129,7 @@ public final class JDBCDialects {
 					.map(f -> quoteIdentifier(f) + "=EXCLUDED." + quoteIdentifier(f))
 					.collect(Collectors.joining(", "));
 			return Optional.of(getInsertIntoStatement(tableName, fieldNames) +
-							" ON CONFLICT (" + uniqueColumns +
+							" ON CONFLICT (" + uniqueColumns + ")" +
 							" DO UPDATE SET " + updateClause
 			);
 		}

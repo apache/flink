@@ -281,4 +281,12 @@ public final class JoinedRow implements BaseRow {
 		throw new UnsupportedOperationException(
 				"JoinedRow do not support hashCode, please hash fields one by one!");
 	}
+
+	@Override
+	public String toString() {
+		return "JoinedRow{" +
+			"row1=" + row1 +
+			", row2=" + row2 +
+			'}';
+	}
 }

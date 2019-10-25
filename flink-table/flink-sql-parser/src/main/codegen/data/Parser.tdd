@@ -31,11 +31,13 @@
     "org.apache.flink.sql.parser.ddl.SqlDropView",
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
     "org.apache.flink.sql.parser.ddl.SqlTableOption",
+    "org.apache.flink.sql.parser.ddl.SqlWatermark",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
+    "org.apache.flink.sql.parser.utils.ParserResource",
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
     "org.apache.flink.sql.parser.SqlProperty",
     "org.apache.calcite.sql.SqlDrop",
@@ -51,10 +53,6 @@
     "PARTITIONED",
     "IF",
     "WATERMARK",
-    "ASCENDING",
-    "FROM_SOURCE",
-    "BOUNDED",
-    "DELAY",
     "OVERWRITE",
     "STRING",
     "BYTES"
@@ -368,10 +366,6 @@
     # not in core, added in Flink
     "PARTITIONED",
     "IF",
-    "ASCENDING",
-    "FROM_SOURCE",
-    "BOUNDED",
-    "DELAY",
     "OVERWRITE"
   ]
 

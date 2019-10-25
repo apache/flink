@@ -91,4 +91,9 @@ public class LegacyScheduler extends SchedulerBase {
 			executionGraph.failGlobal(t);
 		}
 	}
+
+	@Override
+	public void handleGlobalFailure(Throwable cause) {
+		throw new IllegalStateException("Unexpected handleGlobalFailure(...) call");
+	}
 }

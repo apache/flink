@@ -27,6 +27,9 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
+import org.apache.flink.table.module.exceptions.ModuleNotFoundException;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
@@ -102,6 +105,23 @@ public interface TableEnvironment {
 	 * @return The requested catalog, empty if there is no registered catalog with given name.
 	 */
 	Optional<Catalog> getCatalog(String catalogName);
+
+	/**
+	 * Loads a {@link Module} under a unique name. Modules will be kept in the loaded order.
+	 *
+	 * @param moduleName name of the {@link Module}
+	 * @param module the module instance
+	 * @throws ModuleAlreadyExistException thrown when there is already a module with the same name
+	 */
+	void loadModule(String moduleName, Module module) throws ModuleAlreadyExistException;
+
+	/**
+	 * Unloads a {@link Module} with given name.
+	 *
+	 * @param moduleName name of the {@link Module}
+	 * @throws ModuleNotFoundException thrown when there is no module with the given name
+	 */
+	void unloadModule(String moduleName) throws ModuleNotFoundException;
 
 	/**
 	 * Registers a {@link ScalarFunction} under a unique name. Replaces already existing
@@ -236,6 +256,13 @@ public interface TableEnvironment {
 	 * @return A list of the names of all registered catalogs.
 	 */
 	String[] listCatalogs();
+
+	/**
+	 * Gets an array of names of all modules in this environment in the loaded order.
+	 *
+	 * @return A list of the names of all modules in the loaded order.
+	 */
+	String[] listModules();
 
 	/**
 	 * Gets the names of all databases registered in the current catalog.

@@ -216,13 +216,13 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 	private StreamOperatorStateContext getStreamOperatorStateContext(Environment environment) throws IOException {
 		StreamTaskStateInitializer initializer = new StreamTaskStateInitializerImpl(
 			environment,
-			stateBackend,
-			new NeverFireProcessingTimeService());
+			stateBackend);
 
 		try {
 			return initializer.streamOperatorStateContext(
 				operatorState.getOperatorID(),
 				operatorState.getOperatorID().toString(),
+				new NeverFireProcessingTimeService(),
 				this,
 				keySerializer,
 				registry,

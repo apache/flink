@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -49,20 +50,15 @@ public class StreamConfigChainer {
 	private StreamConfig tailConfig;
 	private int chainIndex = 0;
 
-	public StreamConfigChainer(OperatorID headOperatorID, StreamOperator<?> headOperator, StreamConfig headConfig) {
-		this(headOperatorID, SimpleOperatorFactory.of(headOperator), headConfig);
-	}
-
-	public StreamConfigChainer(OperatorID headOperatorID, StreamOperatorFactory<?> headOperatorFactory, StreamConfig headConfig) {
+	StreamConfigChainer(OperatorID headOperatorID, StreamConfig headConfig) {
 		this.headConfig = checkNotNull(headConfig);
 		this.tailConfig = checkNotNull(headConfig);
 		this.bufferTimeout = headConfig.getBufferTimeout();
 
-		head(headOperatorID, headOperatorFactory);
+		head(headOperatorID);
 	}
 
-	private void head(OperatorID headOperatorID, StreamOperatorFactory<?> headOperatorFactory) {
-		headConfig.setStreamOperatorFactory(headOperatorFactory);
+	private void head(OperatorID headOperatorID) {
 		headConfig.setOperatorID(headOperatorID);
 		headConfig.setChainStart();
 		headConfig.setChainIndex(chainIndex);
@@ -81,18 +77,17 @@ public class StreamConfigChainer {
 			OperatorID operatorID,
 			OneInputStreamOperator<T, T> operator,
 			TypeSerializer<T> typeSerializer) {
-		return chain(operatorID, operator, typeSerializer, typeSerializer);
+		return chain(operatorID, operator, typeSerializer, typeSerializer, false);
 	}
 
-	public <IN, OUT> StreamConfigChainer chain(
+	public <T> StreamConfigChainer chain(
 			OperatorID operatorID,
-			OneInputStreamOperator<IN, OUT> operator,
-			TypeSerializer<IN> inputSerializer,
-			TypeSerializer<OUT> outputSerializer) {
-		return chain(operatorID, operator, inputSerializer, outputSerializer, false);
+			OneInputStreamOperatorFactory<T, T> operatorFactory,
+			TypeSerializer<T> typeSerializer) {
+		return chain(operatorID, operatorFactory, typeSerializer, typeSerializer, false);
 	}
 
-	public <IN, OUT> StreamConfigChainer chain(
+	private <IN, OUT> StreamConfigChainer chain(
 			OperatorID operatorID,
 			OneInputStreamOperator<IN, OUT> operator,
 			TypeSerializer<IN> inputSerializer,
@@ -112,6 +107,7 @@ public class StreamConfigChainer {
 			TypeSerializer<IN> inputSerializer,
 			TypeSerializer<OUT> outputSerializer,
 			boolean createKeyedStateBackend) {
+
 		chainIndex++;
 
 		tailConfig.setChainedOutputs(Collections.singletonList(

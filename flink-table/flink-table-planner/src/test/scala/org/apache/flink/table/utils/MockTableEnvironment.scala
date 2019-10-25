@@ -26,8 +26,9 @@ import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDesc
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
-
 import java.util.Optional
+
+import org.apache.flink.table.module.Module
 
 class MockTableEnvironment extends TableEnvironment {
 
@@ -51,6 +52,8 @@ class MockTableEnvironment extends TableEnvironment {
   override def connect(connectorDescriptor: ConnectorDescriptor): ConnectTableDescriptor = ???
 
   override def listCatalogs(): Array[String] = ???
+
+  override def listModules(): Array[String] = ???
 
   override def listDatabases(): Array[String] = ???
 
@@ -94,4 +97,8 @@ class MockTableEnvironment extends TableEnvironment {
     sinkPathContinued: String*): Unit = ???
 
   override def execute(jobName: String): JobExecutionResult = ???
+
+  override def loadModule(moduleName: String, module: Module): Unit = ???
+
+  override def unloadModule(moduleName: String): Unit = ???
 }

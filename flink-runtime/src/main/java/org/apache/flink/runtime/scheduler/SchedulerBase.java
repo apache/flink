@@ -310,7 +310,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	protected final void prepareExecutionGraphForNgScheduling() {
-		executionGraph.enableNgScheduling(new UpdateSchedulerNgOnInternalTaskFailuresListener(this, jobGraph.getJobID()));
+		executionGraph.enableNgScheduling(new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
 		executionGraph.transitionToRunning();
 	}
 
@@ -375,6 +375,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 	public CompletableFuture<Void> getTerminationFuture() {
 		return executionGraph.getTerminationFuture().thenApply(FunctionUtils.nullFn());
 	}
+
+	@Override
+	public abstract void handleGlobalFailure(final Throwable cause);
 
 	@Override
 	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {

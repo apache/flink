@@ -26,7 +26,6 @@ import org.apache.flink.table.planner.plan.schema._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.{JDouble, JLong}
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.plan.{AbstractRelOptPlanner, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
@@ -43,8 +42,9 @@ import org.junit.{Before, BeforeClass, Test}
 import org.powermock.api.mockito.PowerMockito._
 import org.powermock.core.classloader.annotations.PrepareForTest
 import org.powermock.modules.junit4.PowerMockRunner
-
 import java.math.BigDecimal
+
+import org.apache.flink.table.module.ModuleManager
 
 import scala.collection.JavaConverters._
 
@@ -85,7 +85,8 @@ class SelectivityEstimatorTest {
     val cluster = mock(classOf[RelOptCluster])
     val planner = mock(classOf[AbstractRelOptPlanner])
     val catalogManager = mock(classOf[CatalogManager])
-    val functionCatalog = new FunctionCatalog(catalogManager)
+    val moduleManager = mock(classOf[ModuleManager])
+    val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
     val context: FlinkContext = new FlinkContextImpl(tableConfig, functionCatalog)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)

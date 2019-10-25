@@ -779,7 +779,7 @@ public class StreamTaskTest extends TestLogger {
 
 				@Override
 				protected void processInput(DefaultActionContext context) throws Exception {
-					mailboxProcessor.getMailboxExecutor(0).execute(latch::trigger);
+					mailboxProcessor.getMailboxExecutor(0).execute(latch::trigger, "trigger");
 					context.allActionsCompleted();
 				}
 			});
@@ -849,9 +849,10 @@ public class StreamTaskTest extends TestLogger {
 	public void testRecordWriterClosedOnStreamOperatorFactoryDeserializationError() throws Exception {
 		Configuration taskConfiguration = new Configuration();
 		StreamConfig streamConfig = new StreamConfig(taskConfiguration);
+		streamConfig.setStreamOperatorFactory(new UnusedOperatorFactory());
 
 		// Make sure that there is some output edge in the config so that some RecordWriter is created
-		StreamConfigChainer cfg = new StreamConfigChainer(new OperatorID(42, 42), new UnusedOperatorFactory(), streamConfig);
+		StreamConfigChainer cfg = new StreamConfigChainer(new OperatorID(42, 42), streamConfig);
 		cfg.chain(
 			new OperatorID(44, 44),
 			new UnusedOperatorFactory(),
@@ -975,7 +976,7 @@ public class StreamTaskTest extends TestLogger {
 	public static class NoOpStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
 
 		public NoOpStreamTask(Environment environment) {
-			super(environment, null);
+			super(environment);
 		}
 
 		@Override
@@ -1257,11 +1258,12 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public StreamTaskStateInitializer createStreamTaskStateInitializer() {
 			final StreamTaskStateInitializer streamTaskStateManager = super.createStreamTaskStateInitializer();
-			return (operatorID, operatorClassName, keyContext, keySerializer, closeableRegistry, metricGroup) -> {
+			return (operatorID, operatorClassName, processingTimeService, keyContext, keySerializer, closeableRegistry, metricGroup) -> {
 
 				final StreamOperatorStateContext context = streamTaskStateManager.streamOperatorStateContext(
 					operatorID,
 					operatorClassName,
+					processingTimeService,
 					keyContext,
 					keySerializer,
 					closeableRegistry,
@@ -1425,7 +1427,7 @@ public class StreamTaskTest extends TestLogger {
 		private transient boolean hasTimerTriggered;
 
 		ThreadInspectingTask(Environment env) {
-			super(env, null);
+			super(env);
 			Thread currentThread = Thread.currentThread();
 			taskThreadId = currentThread.getId();
 			taskClassLoader = currentThread.getContextClassLoader();
@@ -1441,11 +1443,11 @@ public class StreamTaskTest extends TestLogger {
 			checkTaskThreadInfo();
 
 			// Create a time trigger to validate that it would also be invoked in the task's thread.
-			getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
+			getProcessingTimeService(0).registerTimer(0, new ProcessingTimeCallback() {
 				@Override
 				public void onProcessingTime(long timestamp) throws Exception {
-					hasTimerTriggered = true;
 					checkTaskThreadInfo();
+					hasTimerTriggered = true;
 				}
 			});
 		}

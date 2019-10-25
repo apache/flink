@@ -29,6 +29,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
+import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation, TableSourceQueryOperation, _}
@@ -37,12 +38,10 @@ import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSi
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.util.JavaScalaConversionUtil
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
-
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
@@ -55,11 +54,13 @@ import _root_.scala.collection.JavaConverters._
   */
 abstract class TableEnvImpl(
     val config: TableConfig,
-    private val catalogManager: CatalogManager)
+    private val catalogManager: CatalogManager,
+    private val moduleManager: ModuleManager)
   extends TableEnvironment {
 
   // Table API/SQL function catalog
-  private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(catalogManager)
+  private[flink] val functionCatalog: FunctionCatalog =
+    new FunctionCatalog(catalogManager, moduleManager)
 
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
@@ -154,6 +155,14 @@ abstract class TableEnvImpl(
 
   override def getCatalog(catalogName: String): Optional[Catalog] = {
     catalogManager.getCatalog(catalogName)
+  }
+
+  override def loadModule(moduleName: String, module: Module): Unit = {
+    moduleManager.loadModule(moduleName, module)
+  }
+
+  override def unloadModule(moduleName: String): Unit = {
+    moduleManager.unloadModule(moduleName)
   }
 
   override def getCurrentCatalog: String = {
@@ -327,6 +336,10 @@ abstract class TableEnvImpl(
     val objectIdentifier = catalogManager.qualifyIdentifier(tablePath: _*)
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
       .map(t => new CatalogQueryOperation(objectIdentifier, t.getSchema))
+  }
+
+  override def listModules(): Array[String] = {
+    moduleManager.listModules().asScala.toArray
   }
 
   override def listCatalogs(): Array[String] = {

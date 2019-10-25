@@ -62,6 +62,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * The HistoryServer provides a WebInterface and REST API to retrieve information about finished jobs for which
@@ -134,12 +135,23 @@ public class HistoryServer {
 	}
 
 	public HistoryServer(Configuration config) throws IOException, FlinkException {
-		this(config, new CountDownLatch(0));
+		this(config, (event) -> {});
 	}
 
-	public HistoryServer(Configuration config, CountDownLatch numArchivedJobs) throws IOException, FlinkException {
+	/**
+	 * Creates HistoryServer instance.
+	 * @param config configuration
+	 * @param jobArchiveEventListener Listener for job archive operations. First param is operation, second
+	 *                                    param is id of the job.
+	 * @throws IOException When creation of SSL factory failed
+	 * @throws FlinkException When configuration error occurred
+	 */
+	public HistoryServer(
+			Configuration config,
+			Consumer<HistoryServerArchiveFetcher.ArchiveEvent> jobArchiveEventListener
+	) throws IOException, FlinkException {
 		Preconditions.checkNotNull(config);
-		Preconditions.checkNotNull(numArchivedJobs);
+		Preconditions.checkNotNull(jobArchiveEventListener);
 
 		this.config = config;
 		if (HistoryServerUtils.isSSLEnabled(config)) {
@@ -163,6 +175,8 @@ public class HistoryServer {
 		}
 		webDir = new File(webDirectory);
 
+		boolean cleanupExpiredArchives = config.getBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
+
 		String refreshDirectories = config.getString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
 		if (refreshDirectories == null) {
 			throw new FlinkException(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS + " was not configured.");
@@ -184,7 +198,7 @@ public class HistoryServer {
 		}
 
 		long refreshIntervalMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, numArchivedJobs);
+		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, jobArchiveEventListener, cleanupExpiredArchives);
 
 		this.shutdownHook = ShutdownHookUtil.addShutdownHook(
 			HistoryServer.this::stop,

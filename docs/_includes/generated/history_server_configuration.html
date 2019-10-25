@@ -8,6 +8,11 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>historyserver.archive.clean-expired-jobs</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Whether HistoryServer should cleanup jobs that are no longer present `historyserver.archive.fs.dir`.</td>
+        </tr>
+        <tr>
             <td><h5>historyserver.archive.fs.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Comma separated list of directories to fetch archived jobs from. The history server will monitor these directories for archived jobs. You can configure the JobManager to archive jobs to a directory via `jobmanager.archive.fs.dir`.</td>

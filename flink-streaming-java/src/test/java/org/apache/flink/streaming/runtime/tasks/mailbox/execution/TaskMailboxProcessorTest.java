@@ -41,7 +41,7 @@ public class TaskMailboxProcessorTest {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
 		mailboxProcessor.prepareClose();
 		try {
-			mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {});
+			mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
 			Assert.fail("Should not be able to accept runnables if not opened.");
 		} catch (RejectedExecutionException expected) {
 		}
@@ -51,11 +51,11 @@ public class TaskMailboxProcessorTest {
 	public void testShutdown() {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
 		FutureTask<Void> testRunnableFuture = new FutureTask<>(() -> {}, null);
-		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(testRunnableFuture);
+		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(testRunnableFuture, "testRunnableFuture");
 		mailboxProcessor.prepareClose();
 
 		try {
-			mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {});
+			mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
 			Assert.fail("Should not be able to accept runnables if not opened.");
 		} catch (RejectedExecutionException expected) {
 		}
@@ -81,7 +81,7 @@ public class TaskMailboxProcessorTest {
 		};
 
 		MailboxProcessor mailboxProcessor = start(mailboxThread);
-		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> stop.set(true));
+		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> stop.set(true), "stop");
 		stop(mailboxThread);
 	}
 
@@ -130,7 +130,7 @@ public class TaskMailboxProcessorTest {
 		Assert.assertEquals(blockAfterInvocations, counter.get());
 
 		SuspendedMailboxDefaultAction suspendedMailboxDefaultAction = suspendedActionRef.get();
-		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspendedMailboxDefaultAction::resume);
+		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspendedMailboxDefaultAction::resume, "resume");
 		stop(mailboxThread);
 		Assert.assertEquals(totalInvocations, counter.get());
 	}
@@ -170,13 +170,12 @@ public class TaskMailboxProcessorTest {
 			while (!Thread.currentThread().isInterrupted()) {
 
 				final SuspendedMailboxDefaultAction resume =
-					suspendedActionRef.getAndSet(null);
+						suspendedActionRef.getAndSet(null);
 				if (resume != null) {
-					mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(resume::resume);
+					mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(resume::resume, "resume");
 				} else {
 					try {
-						mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {
-						});
+						mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
 					} catch (RejectedExecutionException ignore) {
 					}
 				}

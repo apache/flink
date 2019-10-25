@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.io.CollectionInputFormat
+import org.apache.flink.api.java.io.{CollectionInputFormat, RowCsvInputFormat}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -650,6 +650,21 @@ class TestStreamTableSource(
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
     execEnv.fromCollection(values, tableSchema.toRowType)
+  }
+
+  override def getReturnType: TypeInformation[Row] = tableSchema.toRowType
+
+  override def getTableSchema: TableSchema = tableSchema
+}
+
+class TestFileInputFormatTableSource(
+    paths: Array[String],
+    tableSchema: TableSchema) extends InputFormatTableSource[Row] {
+
+  override def getInputFormat: InputFormat[Row, _ <: InputSplit] = {
+    val format = new RowCsvInputFormat(null, tableSchema.getFieldTypes)
+    format.setFilePaths(paths: _*)
+    format
   }
 
   override def getReturnType: TypeInformation[Row] = tableSchema.toRowType

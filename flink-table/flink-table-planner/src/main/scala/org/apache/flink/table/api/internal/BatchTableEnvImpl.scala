@@ -34,6 +34,7 @@ import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor
 import org.apache.flink.table.expressions.{Expression, UnresolvedCallExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.DataSetQueryOperation
 import org.apache.flink.table.plan.BatchOptimizer
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
@@ -59,8 +60,9 @@ import _root_.scala.collection.JavaConversions._
 abstract class BatchTableEnvImpl(
     private[flink] val execEnv: ExecutionEnvironment,
     config: TableConfig,
-    catalogManager: CatalogManager)
-  extends TableEnvImpl(config, catalogManager) {
+    catalogManager: CatalogManager,
+    moduleManager: ModuleManager)
+  extends TableEnvImpl(config, catalogManager, moduleManager) {
 
   private[flink] val optimizer = new BatchOptimizer(
     () => config.getPlannerConfig.unwrap(classOf[CalciteConfig]).orElse(CalciteConfig.DEFAULT),
