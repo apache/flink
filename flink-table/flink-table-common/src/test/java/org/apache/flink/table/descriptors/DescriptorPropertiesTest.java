@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 
 import org.junit.Test;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -166,6 +169,40 @@ public class DescriptorPropertiesTest {
 		expected.putString("prefix.hello3", "14");
 
 		assertEquals(expected.asMap(), actual);
+	}
+
+	@Test
+	public void testTableSchema() {
+		TableSchema schema = TableSchema.builder()
+			.field("f0", DataTypes.BIGINT())
+			.field("f1", DataTypes.ROW(
+				DataTypes.FIELD("q1", DataTypes.STRING()),
+				// the "bridgedTo" is a temporary solution because the type string format is based on TypeInformation.
+				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class))))
+			.field("f2", DataTypes.STRING())
+			.watermark(
+				"f1.q2",
+				"`f1`.`q2` - INTERVAL '5' SECOND",
+				DataTypes.TIMESTAMP(3))
+			.build();
+
+		DescriptorProperties properties = new DescriptorProperties();
+		properties.putTableSchema("schema", schema);
+		Map<String, String> actual = properties.asMap();
+		Map<String, String> expected = new HashMap<>();
+		expected.put("schema.0.name", "f0");
+		expected.put("schema.0.type", "BIGINT");
+		expected.put("schema.1.name", "f1");
+		expected.put("schema.1.type", "ROW<q1 VARCHAR, q2 TIMESTAMP>");
+		expected.put("schema.2.name", "f2");
+		expected.put("schema.2.type", "VARCHAR");
+		expected.put("schema.watermark.0.rowtime", "f1.q2");
+		expected.put("schema.watermark.0.strategy.expression", "`f1`.`q2` - INTERVAL '5' SECOND");
+		expected.put("schema.watermark.0.strategy.datatype", "TIMESTAMP(3)");
+		assertEquals(expected, actual);
+
+		TableSchema restored = properties.getTableSchema("schema");
+		assertEquals(schema, restored);
 	}
 
 	private void testArrayValidation(
