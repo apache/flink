@@ -20,8 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -59,7 +57,7 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 		testReleaseOnConsumptionHandling(ResultPartitionType.BLOCKING);
 	}
 
-	private void testReleaseOnConsumptionHandling(ResultPartitionType resultPartitionType) {
+	private static void testReleaseOnConsumptionHandling(ResultPartitionType resultPartitionType) {
 		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			new JobID(),
 			new TestingShuffleMaster(),
@@ -70,40 +68,12 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 		final ResultPartitionID resultPartitionId = new ResultPartitionID();
 		partitionTracker.startTrackingPartition(
 			resourceId,
-			createResultPartitionDeploymentDescriptor(
+			AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(
 				resultPartitionId,
 				resultPartitionType,
 				false));
 
 		assertThat(partitionTracker.isTrackingPartitionsFor(resourceId), is(resultPartitionType.isBlocking()));
-	}
-
-	@Test
-	public void testStartStopTracking() {
-		final Queue<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
-		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
-			new JobID(),
-			new TestingShuffleMaster(),
-			resourceId -> Optional.of(createTaskExecutorGateway(resourceId, taskExecutorReleaseCalls))
-		);
-
-		final ResourceID executorWithTrackedPartition = new ResourceID("tracked");
-		final ResourceID executorWithoutTrackedPartition = new ResourceID("untracked");
-
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(false));
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition), is(false));
-
-		partitionTracker.startTrackingPartition(
-			executorWithTrackedPartition,
-			createResultPartitionDeploymentDescriptor(new ResultPartitionID(), true));
-
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(true));
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition), is(false));
-
-		partitionTracker.stopTrackingPartitionsFor(executorWithTrackedPartition);
-
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(false));
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition), is(false));
 	}
 
 	@Test
@@ -125,10 +95,10 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 
 		partitionTracker.startTrackingPartition(
 			taskExecutorId1,
-			createResultPartitionDeploymentDescriptor(resultPartitionId1, true));
+			AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(resultPartitionId1, true));
 		partitionTracker.startTrackingPartition(
 			taskExecutorId2,
-			createResultPartitionDeploymentDescriptor(resultPartitionId2, true));
+			AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(resultPartitionId2, true));
 
 		{
 			partitionTracker.stopTrackingAndReleasePartitionsFor(taskExecutorId1);
@@ -181,10 +151,10 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 
 		partitionTracker.startTrackingPartition(
 			taskExecutorId1,
-			createResultPartitionDeploymentDescriptor(resultPartitionId1, false));
+			AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(resultPartitionId1, false));
 		partitionTracker.startTrackingPartition(
 			taskExecutorId2,
-			createResultPartitionDeploymentDescriptor(resultPartitionId2, false));
+			AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(resultPartitionId2, false));
 
 		{
 			partitionTracker.stopTrackingAndReleasePartitionsFor(taskExecutorId1);
@@ -225,47 +195,12 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 
 		partitionTracker.startTrackingPartition(
 			taskExecutorId1,
-			createResultPartitionDeploymentDescriptor(resultPartitionId1, true));
+			AbstractPartitionTrackerTest.createResultPartitionDeploymentDescriptor(resultPartitionId1, true));
 
 		partitionTracker.stopTrackingPartitionsFor(taskExecutorId1);
 
 		assertEquals(0, taskExecutorReleaseCalls.size());
 		assertEquals(0, shuffleMaster.externallyReleasedPartitions.size());
-	}
-
-	private static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
-			ResultPartitionID resultPartitionId,
-			boolean hasLocalResources) {
-		return createResultPartitionDeploymentDescriptor(resultPartitionId, ResultPartitionType.BLOCKING, hasLocalResources);
-	}
-
-	private static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
-		ResultPartitionID resultPartitionId,
-		ResultPartitionType type,
-		boolean hasLocalResources) {
-
-		return new ResultPartitionDeploymentDescriptor(
-			new PartitionDescriptor(
-				new IntermediateDataSetID(),
-				resultPartitionId.getPartitionId(),
-				type,
-				1,
-				0),
-			new ShuffleDescriptor() {
-				@Override
-				public ResultPartitionID getResultPartitionID() {
-					return resultPartitionId;
-				}
-
-				@Override
-				public Optional<ResourceID> storesLocalResourcesOn() {
-					return hasLocalResources
-						? Optional.of(ResourceID.generate())
-						: Optional.empty();
-				}
-			},
-			1,
-			true);
 	}
 
 	private static TaskExecutorGateway createTaskExecutorGateway(ResourceID taskExecutorId, Collection<Tuple3<ResourceID, JobID, Collection<ResultPartitionID>>> releaseCalls) {

@@ -25,7 +25,7 @@ import java.util.Collection;
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
-public interface JobMasterPartitionTracker {
+public interface JobMasterPartitionTracker extends PartitionTracker<ResourceID, ResultPartitionDeploymentDescriptor> {
 
 	/**
 	 * Starts the tracking of the given partition for the given task executor ID.
@@ -36,32 +36,12 @@ public interface JobMasterPartitionTracker {
 	void startTrackingPartition(ResourceID producingTaskExecutorId, ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor);
 
 	/**
-	 * Stops the tracking of all partitions for the given task executor ID, without issuing any release calls.
-	 */
-	void stopTrackingPartitionsFor(ResourceID producingTaskExecutorId);
-
-	/**
 	 * Releases the given partitions and stop the tracking of partitions that were released.
 	 */
 	void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds);
 
 	/**
-	 * Stops the tracking of the given partitions.
-	 */
-	void stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds);
-
-	/**
 	 * Releases all partitions for the given task executor ID, and stop the tracking of partitions that were released.
 	 */
 	void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId);
-
-	/**
-	 * Returns whether any partition is being tracked for the given task executor ID.
-	 */
-	boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId);
-
-	/**
-	 * Returns whether the given partition is being tracked.
-	 */
-	boolean isPartitionTracked(ResultPartitionID resultPartitionID);
 }

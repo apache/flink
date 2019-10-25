@@ -21,6 +21,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -72,8 +73,9 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
 	}
 
 	@Override
-	public void stopTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
+	public Collection<PartitionTrackerEntry<ResourceID, ResultPartitionDeploymentDescriptor>> stopTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
 		stopTrackingAllPartitionsConsumer.accept(producingTaskExecutorId);
+		return Collections.emptyList();
 	}
 
 	@Override
@@ -82,8 +84,9 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
 	}
 
 	@Override
-	public void stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
+	public Collection<PartitionTrackerEntry<ResourceID, ResultPartitionDeploymentDescriptor>> stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
 		stopTrackingPartitionsConsumer.accept(resultPartitionIds);
+		return Collections.emptyList();
 	}
 
 	@Override
