@@ -329,6 +329,49 @@ class UserDefinedFunctionTests(object):
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,2", "1,2", "1,2"])
 
+    def test_all_data_types(self):
+        def tinyint_func(tinyint_param):
+            assert isinstance(tinyint_param, int), 'tinyint_param of wrong type %s !' \
+                                                   % type(tinyint_param)
+            return tinyint_param
+
+        def bigint_func(bigint_param):
+            assert isinstance(bigint_param, int), 'bigint_param of wrong type %s !' \
+                                                  % type(bigint_param)
+            return bigint_param
+
+        def bigint_func_none(bigint_param):
+            assert bigint_param is None, 'bigint_param %s should be None!' % bigint_param
+            return bigint_param
+
+        self.t_env.register_function(
+            "tinyint_func", udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT()))
+
+        self.t_env.register_function(
+            "bigint_func", udf(bigint_func, [DataTypes.BIGINT()], DataTypes.BIGINT()))
+
+        self.t_env.register_function(
+            "bigint_func_none", udf(bigint_func_none, [DataTypes.BIGINT()], DataTypes.BIGINT()))
+
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b', 'c'],
+            [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT()])
+        self.t_env.register_table_sink("Results", table_sink)
+
+        t = self.t_env.from_elements(
+            [(1, None, 1)],
+            DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                 DataTypes.FIELD("b", DataTypes.BIGINT()),
+                 DataTypes.FIELD("c", DataTypes.TINYINT())]))
+
+        t.select("bigint_func(a), bigint_func_none(b),"
+                 "tinyint_func(c)") \
+            .insert_into("Results")
+        self.t_env.execute("test")
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["1,null,1"])
+
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
                                             PyFlinkStreamTableTestCase):

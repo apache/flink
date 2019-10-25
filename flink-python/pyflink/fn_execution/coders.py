@@ -27,7 +27,7 @@ from pyflink.fn_execution import flink_fn_execution_pb2
 FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
 
 
-__all__ = ['RowCoder', 'BigIntCoder']
+__all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder']
 
 
 class RowCoder(FastCoder):
@@ -85,9 +85,28 @@ class BigIntCoder(DeterministicCoder):
         return int
 
 
+class TinyIntCoder(DeterministicCoder):
+    """
+    Coder for Byte.
+    """
+
+    def _create_impl(self):
+        return coder_impl.TinyIntCoderImpl()
+
+    def to_type_hint(self):
+        return int
+
+
 @Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
 def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
     return RowCoder([from_proto(f.type) for f in schema_proto.fields])
+
+
+type_name = flink_fn_execution_pb2.Schema.TypeName
+_type_name_mappings = {
+    type_name.TINYINT: TinyIntCoder(),
+    type_name.BIGINT: BigIntCoder(),
+}
 
 
 def from_proto(field_type):
@@ -97,9 +116,11 @@ def from_proto(field_type):
     :param field_type: the protocol representation of the field type
     :return: :class:`Coder`
     """
-    if field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.BIGINT:
-        return BigIntCoder()
-    elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
+    field_type_name = field_type.type_name
+    coder = _type_name_mappings.get(field_type_name)
+    if coder is not None:
+        return coder
+    if field_type_name == type_name.ROW:
         return RowCoder([from_proto(f.type) for f in field_type.row_schema.fields])
     else:
         raise ValueError("field_type %s is not supported." % field_type)
