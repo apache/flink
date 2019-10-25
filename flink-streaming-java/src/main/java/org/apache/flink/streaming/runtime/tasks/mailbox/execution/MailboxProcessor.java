@@ -66,10 +66,10 @@ public class MailboxProcessor {
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
 	private final MailboxDefaultAction mailboxDefaultAction;
 
-	/** The thread that executes the mailbox letters. */
+	/** The thread that executes the mailbox mails. */
 	private final Thread mailboxThread;
 
-	/** A pre-created instance of mailbox executor that executes all letters. */
+	/** A pre-created instance of mailbox executor that executes all mails. */
 	private final MailboxExecutor mainMailboxExecutor;
 
 	/** Control flag to terminate the mailbox loop. Must only be accessed from mailbox thread. */
@@ -83,14 +83,14 @@ public class MailboxProcessor {
 	private SuspendedMailboxDefaultAction suspendedDefaultAction;
 
 	/** Special action that is used to terminate the mailbox loop. */
-	private final Runnable mailboxPoisonLetter;
+	private final Runnable mailboxPoisonMail;
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.mailbox = new TaskMailboxImpl();
 		this.mailboxThread = Thread.currentThread();
 		this.mainMailboxExecutor = new MailboxExecutorImpl(mailbox, mailboxThread, TaskMailbox.MIN_PRIORITY);
-		this.mailboxPoisonLetter = () -> mailboxLoopRunning = false;
+		this.mailboxPoisonMail = () -> mailboxLoopRunning = false;
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
 	}
@@ -122,10 +122,10 @@ public class MailboxProcessor {
 	 * {@link java.util.concurrent.RunnableFuture} that are still contained in the mailbox.
 	 */
 	public void close() {
-		List<Runnable> droppedLetters = mailbox.close();
-		if (!droppedLetters.isEmpty()) {
-			LOG.debug("Closing the mailbox dropped letters {}.", droppedLetters);
-			FutureUtils.cancelRunnableFutures(droppedLetters);
+		List<Runnable> droppedMails = mailbox.close();
+		if (!droppedMails.isEmpty()) {
+			LOG.debug("Closing the mailbox dropped mails {}.", droppedMails);
+			FutureUtils.cancelRunnableFutures(droppedMails);
 		}
 	}
 
@@ -154,11 +154,11 @@ public class MailboxProcessor {
 	}
 
 	/**
-	 * Reports a throwable for rethrowing from the mailbox thread. This will clear and cancel all other pending letters.
+	 * Reports a throwable for rethrowing from the mailbox thread. This will clear and cancel all other pending mails.
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
 	public void reportThrowable(Throwable throwable) {
-		sendPriorityLetter(
+		sendPriorityMail(
 			() -> {
 				throw new WrappingRuntimeException(throwable);
 			},
@@ -170,16 +170,16 @@ public class MailboxProcessor {
 	 */
 	public void allActionsCompleted() {
 		mailbox.runExclusively(() -> {
-			// keep state check and poison letter enqueuing atomic, such that no intermediate #close may cause a
-			// MailboxStateException in #sendPriorityLetter.
+			// keep state check and poison mail enqueuing atomic, such that no intermediate #close may cause a
+			// MailboxStateException in #sendPriorityMail.
 			if (mailbox.getState() == TaskMailbox.State.OPEN) {
-				sendPriorityLetter(mailboxPoisonLetter, "poison letter");
+				sendPriorityMail(mailboxPoisonMail, "poison mail");
 			}
 		});
 	}
 
-	private void sendPriorityLetter(Runnable priorityLetter, String descriptionFormat, Object... descriptionArgs) {
-		mainMailboxExecutor.executeFirst(priorityLetter, descriptionFormat, descriptionArgs);
+	private void sendPriorityMail(Runnable priorityMail, String descriptionFormat, Object... descriptionArgs) {
+		mainMailboxExecutor.executeFirst(priorityMail, descriptionFormat, descriptionArgs);
 	}
 
 	/**
@@ -198,11 +198,11 @@ public class MailboxProcessor {
 			return true;
 		}
 
-		// TODO consider batched draining into list and/or limit number of executed letters
-		// Take letters in a non-blockingly and execute them.
-		Optional<Mail> maybeLetter;
-		while (isMailboxLoopRunning() && (maybeLetter = mailbox.tryTake(MIN_PRIORITY)).isPresent()) {
-			maybeLetter.get().run();
+		// TODO consider batched draining into list and/or limit number of executed mails
+		// Take mails in a non-blockingly and execute them.
+		Optional<Mail> maybeMail;
+		while (isMailboxLoopRunning() && (maybeMail = mailbox.tryTake(MIN_PRIORITY)).isPresent()) {
+			maybeMail.get().run();
 		}
 
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
@@ -242,9 +242,9 @@ public class MailboxProcessor {
 	 * Helper method to make sure that the mailbox loop will check the control flow flags in the next iteration.
 	 */
 	private void ensureControlFlowSignalCheck() {
-		// Make sure that mailbox#hasMail is true via a dummy letter so that the flag change is noticed.
+		// Make sure that mailbox#hasMail is true via a dummy mail so that the flag change is noticed.
 		if (!mailbox.hasMail()) {
-			sendPriorityLetter(() -> {}, "signal check");
+			sendPriorityMail(() -> {}, "signal check");
 		}
 	}
 
@@ -281,7 +281,7 @@ public class MailboxProcessor {
 			if (isMailboxThread()) {
 				resumeInternal();
 			} else {
-				sendPriorityLetter(this::resumeInternal, "resume default action");
+				sendPriorityMail(this::resumeInternal, "resume default action");
 			}
 		}
 

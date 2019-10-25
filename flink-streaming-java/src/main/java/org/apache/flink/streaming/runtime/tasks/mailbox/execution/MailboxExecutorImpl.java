@@ -32,7 +32,7 @@ import java.util.concurrent.RejectedExecutionException;
  */
 public final class MailboxExecutorImpl implements MailboxExecutor {
 
-	/** Reference to the thread that executes the mailbox letters.  */
+	/** Reference to the thread that executes the mailbox mails.  */
 	@Nonnull
 	private final Thread taskMailboxThread;
 

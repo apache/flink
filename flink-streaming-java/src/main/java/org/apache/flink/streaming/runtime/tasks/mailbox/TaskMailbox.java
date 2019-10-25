@@ -27,15 +27,15 @@ import java.util.List;
  * In the open state, the mailbox supports put and take operations.
  * In the quiesced state, the mailbox supports only take operations.
  *
- * <p>Additionally, letters have a priority that can be used to retrieve only relevant letters.
+ * <p>Additionally, mails have a priority that can be used to retrieve only relevant mails.
  */
 public interface TaskMailbox extends Mailbox {
 	/**
-	 * The minimal priority for letters. The priority is used when no operator is associated with the letter.
+	 * The minimal priority for mails. The priority is used when no operator is associated with the mail.
 	 */
 	int MIN_PRIORITY = -1;
 	/**
-	 * The maximal priority for letters. This priority indicates that the message should be performed before any letter
+	 * The maximal priority for mails. This priority indicates that the message should be performed before any mail
 	 * associated with an operator.
 	 */
 	int MAX_PRIORITY = Integer.MAX_VALUE;
@@ -55,9 +55,9 @@ public interface TaskMailbox extends Mailbox {
 
 	/**
 	 * Close the mailbox. In this state, all pending and future put operations and all pending and future take
-	 * operations will throw {@link MailboxStateException}. Returns all letters that were still enqueued.
+	 * operations will throw {@link MailboxStateException}. Returns all mails that were still enqueued.
 	 *
-	 * @return list with all letters that where enqueued in the mailbox at the time of closing.
+	 * @return list with all mails that where enqueued in the mailbox at the time of closing.
 	 */
 	@Nonnull
 	List<Runnable> close();

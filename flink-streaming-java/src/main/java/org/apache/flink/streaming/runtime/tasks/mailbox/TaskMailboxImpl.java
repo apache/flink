@@ -46,7 +46,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	private final ReentrantLock lock;
 
 	/**
-	 * Internal queue of letters.
+	 * Internal queue of mails.
 	 */
 	@GuardedBy("lock")
 	private final LinkedList<Mail> queue;
@@ -58,7 +58,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	private final Condition notEmpty;
 
 	/**
-	 * Number of letters in the mailbox. We track it separately from the queue#size to avoid locking on {@link #hasMail()}.
+	 * Number of mails in the mailbox. We track it separately from the queue#size to avoid locking on {@link #hasMail()}.
 	 */
 	@GuardedBy("lock")
 	private volatile int count;
@@ -98,11 +98,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
 		try {
-			Mail headLetter;
-			while ((headLetter = takeHeadInternal(priorty)) == null) {
+			Mail headMail;
+			while ((headMail = takeHeadInternal(priorty)) == null) {
 				notEmpty.await();
 			}
-			return headLetter;
+			return headMail;
 		} finally {
 			lock.unlock();
 		}
@@ -172,7 +172,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 		return null;
 	}
 
-	private void drainAllLetters(List<Runnable> drainInto) {
+	private void drainAllMails(List<Runnable> drainInto) {
 		assert lock.isHeldByCurrentThread();
 		for (Mail mail : queue) {
 			drainInto.add(mail.getRunnable());
@@ -229,12 +229,12 @@ public class TaskMailboxImpl implements TaskMailbox {
 			if (state == State.CLOSED) {
 				return Collections.emptyList();
 			}
-			List<Runnable> droppedLetters = new ArrayList<>(count);
-			drainAllLetters(droppedLetters);
+			List<Runnable> droppedMails = new ArrayList<>(count);
+			drainAllMails(droppedMails);
 			state = State.CLOSED;
 			// to unblock all
 			notEmpty.signalAll();
-			return droppedLetters;
+			return droppedMails;
 		} finally {
 			lock.unlock();
 		}

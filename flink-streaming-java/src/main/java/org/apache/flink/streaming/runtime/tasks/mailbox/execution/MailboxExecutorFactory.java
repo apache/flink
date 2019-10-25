@@ -24,7 +24,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 public interface MailboxExecutorFactory {
 
 	/**
-	 * Creates a new executor for the given priority. The priority is used when enqueuing new letters as well as
+	 * Creates a new executor for the given priority. The priority is used when enqueuing new mails as well as
 	 * yielding.
 	 *
 	 * @param priority the priority of the mailbox executor.
