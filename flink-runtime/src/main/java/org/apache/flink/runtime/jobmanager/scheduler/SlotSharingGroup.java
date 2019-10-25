@@ -38,14 +38,6 @@ public class SlotSharingGroup implements java.io.Serializable {
 
 	private final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
 
-	public SlotSharingGroup() {}
-
-	public SlotSharingGroup(JobVertexID ... sharedVertices) {
-		for (JobVertexID id : sharedVertices) {
-			this.ids.add(id);
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	public void addVertexToGroup(JobVertexID id) {

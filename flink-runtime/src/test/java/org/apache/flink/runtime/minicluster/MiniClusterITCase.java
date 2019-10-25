@@ -332,7 +332,7 @@ public class MiniClusterITCase extends TestLogger {
 			receiver.setInvokableClass(AgnosticReceiver.class);
 			receiver.setParallelism(parallelism);
 
-			final SlotSharingGroup sharingGroup = new SlotSharingGroup(sender.getID(), receiver.getID());
+			final SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			sender.setSlotSharingGroup(sharingGroup);
 			forwarder.setSlotSharingGroup(sharingGroup);
 			receiver.setSlotSharingGroup(sharingGroup);
