@@ -32,8 +32,11 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+
+import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
 
 /**
  * Entry point for Yarn per-job clusters.
@@ -61,10 +64,14 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
+		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
+			.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		final File usrLibDir =
+			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? tryFindUserLibDirectory().get() : null;
 		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
 			YarnResourceManagerFactory.getInstance(),
-			FileJobGraphRetriever.createFrom(configuration));
+			FileJobGraphRetriever.createFrom(configuration, usrLibDir));
 	}
 
 	// ------------------------------------------------------------------------
