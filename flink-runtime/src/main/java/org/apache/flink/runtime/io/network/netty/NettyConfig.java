@@ -63,7 +63,7 @@ public class NettyConfig {
 
 		this.serverAddress = checkNotNull(serverAddress);
 
-		checkArgument(serverPort >= 0 && serverPort <= 65536, "Invalid port number.");
+		checkArgument(serverPort >= 0 && serverPort <= 65535, "Invalid port number.");
 		this.serverPort = serverPort;
 
 		checkArgument(memorySegmentSize > 0, "Invalid memory segment size.");
