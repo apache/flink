@@ -22,16 +22,14 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.taskexecutor.partition.PartitionTable;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
@@ -39,12 +37,11 @@ import static java.util.stream.Collectors.toList;
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
-public class JobMasterPartitionTrackerImpl implements JobMasterPartitionTracker {
+public class JobMasterPartitionTrackerImpl
+	extends AbstractPartitionTracker<ResourceID, ResultPartitionDeploymentDescriptor>
+	implements JobMasterPartitionTracker {
 
 	private final JobID jobId;
-
-	private final PartitionTable<ResourceID> partitionTable = new PartitionTable<>();
-	private final Map<ResultPartitionID, PartitionInfo> partitionInfos = new HashMap<>();
 
 	private final ShuffleMaster<?> shuffleMaster;
 
@@ -72,20 +69,7 @@ public class JobMasterPartitionTrackerImpl implements JobMasterPartitionTracker 
 
 		final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
 
-		partitionInfos.put(resultPartitionId, new PartitionInfo(producingTaskExecutorId, resultPartitionDeploymentDescriptor));
-		partitionTable.startTrackingPartitions(producingTaskExecutorId, Collections.singletonList(resultPartitionId));
-	}
-
-	@Override
-	public void stopTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
-		Preconditions.checkNotNull(producingTaskExecutorId);
-
-		// this is a bit icky since we make 2 calls to pT#stopTrackingPartitions
-		final Collection<ResultPartitionID> resultPartitionIds = partitionTable.stopTrackingPartitions(producingTaskExecutorId);
-
-		for (ResultPartitionID resultPartitionId : resultPartitionIds) {
-			internalStopTrackingPartition(resultPartitionId);
-		}
+		startTrackingPartition(producingTaskExecutorId, resultPartitionId, resultPartitionDeploymentDescriptor);
 	}
 
 	@Override
@@ -93,58 +77,26 @@ public class JobMasterPartitionTrackerImpl implements JobMasterPartitionTracker 
 		Preconditions.checkNotNull(resultPartitionIds);
 
 		// stop tracking partitions to be released and group them by task executor ID
-		Map<ResourceID, List<ResultPartitionDeploymentDescriptor>> partitionsToReleaseByResourceId = resultPartitionIds.stream()
-			.map(this::internalStopTrackingPartition)
-			.filter(Optional::isPresent)
-			.map(Optional::get)
-			.collect(Collectors.groupingBy(
-				partitionMetaData -> partitionMetaData.producingTaskExecutorResourceId,
-				Collectors.mapping(
-					partitionMetaData -> partitionMetaData.resultPartitionDeploymentDescriptor,
-					toList())));
+		Map<ResourceID, List<ResultPartitionDeploymentDescriptor>> partitionsToReleaseByResourceId =
+			stopTrackingPartitions(resultPartitionIds)
+				.stream()
+				.collect(Collectors.groupingBy(
+					PartitionTrackerEntry::getKey,
+					Collectors.mapping(
+						PartitionTrackerEntry::getMetaInfo,
+						toList())));
 
 		partitionsToReleaseByResourceId.forEach(this::internalReleasePartitions);
-	}
-
-	@Override
-	public void stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
-		Preconditions.checkNotNull(resultPartitionIds);
-
-		resultPartitionIds.forEach(this::internalStopTrackingPartition);
 	}
 
 	@Override
 	public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {
 		Preconditions.checkNotNull(producingTaskExecutorId);
 
-		// this is a bit icky since we make 2 calls to pT#stopTrackingPartitions
-		Collection<ResultPartitionID> resultPartitionIds = partitionTable.stopTrackingPartitions(producingTaskExecutorId);
+		Collection<ResultPartitionDeploymentDescriptor> resultPartitionIds =
+			project(stopTrackingPartitionsFor(producingTaskExecutorId), PartitionTrackerEntry::getMetaInfo);
 
-		stopTrackingAndReleasePartitions(resultPartitionIds);
-	}
-
-	@Override
-	public boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
-		Preconditions.checkNotNull(producingTaskExecutorId);
-
-		return partitionTable.hasTrackedPartitions(producingTaskExecutorId);
-	}
-
-	@Override
-	public boolean isPartitionTracked(final ResultPartitionID resultPartitionID) {
-		Preconditions.checkNotNull(resultPartitionID);
-
-		return partitionInfos.containsKey(resultPartitionID);
-	}
-
-	private Optional<PartitionInfo> internalStopTrackingPartition(ResultPartitionID resultPartitionId) {
-		final PartitionInfo partitionInfo = partitionInfos.remove(resultPartitionId);
-		if (partitionInfo == null) {
-			return Optional.empty();
-		}
-		partitionTable.stopTrackingPartitions(partitionInfo.producingTaskExecutorResourceId, Collections.singletonList(resultPartitionId));
-
-		return Optional.of(partitionInfo);
+		internalReleasePartitions(producingTaskExecutorId, resultPartitionIds);
 	}
 
 	private void internalReleasePartitions(
@@ -179,13 +131,10 @@ public class JobMasterPartitionTrackerImpl implements JobMasterPartitionTracker 
 			.forEach(shuffleMaster::releasePartitionExternally);
 	}
 
-	private static final class PartitionInfo {
-		public final ResourceID producingTaskExecutorResourceId;
-		public final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor;
-
-		private PartitionInfo(ResourceID producingTaskExecutorResourceId, ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor) {
-			this.producingTaskExecutorResourceId = producingTaskExecutorResourceId;
-			this.resultPartitionDeploymentDescriptor = resultPartitionDeploymentDescriptor;
-		}
+	private static <I, O> Collection<O> project(Collection<I> collection, Function<I, O> projector) {
+		return collection
+			.stream()
+			.map(projector)
+			.collect(toList());
 	}
 }
