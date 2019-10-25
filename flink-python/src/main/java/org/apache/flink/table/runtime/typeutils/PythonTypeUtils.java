@@ -20,12 +20,14 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -53,6 +55,11 @@ public final class PythonTypeUtils {
 	}
 
 	private static class LogicalTypeToTypeSerializerConverter extends LogicalTypeDefaultVisitor<TypeSerializer> {
+		@Override
+		public TypeSerializer visit(BooleanType booleanType) {
+			return BooleanSerializer.INSTANCE;
+		}
+
 		@Override
 		public TypeSerializer visit(TinyIntType tinyIntType) {
 			return ByteSerializer.INSTANCE;
@@ -92,6 +99,14 @@ public final class PythonTypeUtils {
 	}
 
 	private static class LogicalTypeToProtoTypeConverter extends LogicalTypeDefaultVisitor<FlinkFnApi.Schema.FieldType> {
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(BooleanType booleanType) {
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.BOOLEAN)
+				.setNullable(booleanType.isNullable())
+				.build();
+		}
+
 		@Override
 		public FlinkFnApi.Schema.FieldType visit(TinyIntType tinyIntType) {
 			return FlinkFnApi.Schema.FieldType.newBuilder()

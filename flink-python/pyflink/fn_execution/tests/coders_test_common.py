@@ -15,10 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+"""Tests common to all coder implementations."""
 import logging
 import unittest
 
-from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder
+from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -34,6 +36,10 @@ class CodersTest(unittest.TestCase):
     def test_tinyint_coder(self):
         coder = TinyIntCoder()
         self.check_coder(coder, 1, 10, 127)
+
+    def test_boolean_coder(self):
+        coder = BooleanCoder()
+        self.check_coder(coder, True, False)
 
 
 if __name__ == '__main__':

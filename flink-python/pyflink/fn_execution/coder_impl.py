@@ -92,3 +92,12 @@ class TinyIntCoderImpl(StreamCoderImpl):
 
     def decode_from_stream(self, in_stream, nested):
         return int(in_stream.read_byte())
+
+
+class BooleanCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_byte(value)
+
+    def decode_from_stream(self, in_stream, nested):
+        return not not in_stream.read_byte()

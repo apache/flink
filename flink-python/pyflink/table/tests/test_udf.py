@@ -330,6 +330,11 @@ class UserDefinedFunctionTests(object):
         self.assert_equals(actual, ["1,2", "1,2", "1,2"])
 
     def test_all_data_types(self):
+        def boolean_func(bool_param):
+            assert isinstance(bool_param, bool), 'bool_param of wrong type %s !' \
+                                                 % type(bool_param)
+            return bool_param
+
         def tinyint_func(tinyint_param):
             assert isinstance(tinyint_param, int), 'tinyint_param of wrong type %s !' \
                                                    % type(tinyint_param)
@@ -345,6 +350,9 @@ class UserDefinedFunctionTests(object):
             return bigint_param
 
         self.t_env.register_function(
+            "boolean_func", udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN()))
+
+        self.t_env.register_function(
             "tinyint_func", udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT()))
 
         self.t_env.register_function(
@@ -354,23 +362,25 @@ class UserDefinedFunctionTests(object):
             "bigint_func_none", udf(bigint_func_none, [DataTypes.BIGINT()], DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c'],
-            [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT()])
+            ['a', 'b', 'c', 'd'],
+            [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
+             DataTypes.BOOLEAN()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
-            [(1, None, 1)],
+            [(1, None, 1, True)],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
-                 DataTypes.FIELD("c", DataTypes.TINYINT())]))
+                 DataTypes.FIELD("c", DataTypes.TINYINT()),
+                 DataTypes.FIELD("d", DataTypes.BOOLEAN())]))
 
         t.select("bigint_func(a), bigint_func_none(b),"
-                 "tinyint_func(c)") \
+                 "tinyint_func(c), boolean_func(d)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,null,1"])
+        self.assert_equals(actual, ["1,null,1,true"])
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
