@@ -27,7 +27,8 @@ class RowCoderImpl(StreamCoderImpl):
     def encode_to_stream(self, value, out_stream, nested):
         self.write_null_mask(value, out_stream)
         for i in range(len(self._field_coders)):
-            self._field_coders[i].encode_to_stream(value[i], out_stream, nested)
+            if value[i] is not None:
+                self._field_coders[i].encode_to_stream(value[i], out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
         from pyflink.table import Row
@@ -74,3 +75,11 @@ class RowCoderImpl(StreamCoderImpl):
 
     def __repr__(self):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+
+class BigIntCoderImpl(StreamCoderImpl):
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_bigendian_int64(value)
+
+    def decode_from_stream(self, in_stream, nested):
+        return in_stream.read_bigendian_int64()

@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.typeutils.coders;
+package org.apache.flink.table.runtime.typeutils.serializers.python;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
@@ -27,21 +30,17 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
-
 import java.util.Objects;
 
 /**
- * Tests for {@link BaseRowCoder}.
+ * Test for {@link org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer}.
  */
-public class BaseRowCoderTest extends CoderTestBase<BaseRow> {
-
-	public BaseRowCoderTest() {
+public class BaseRowSerializerTest extends SerializerTestBase<BaseRow> {
+	public BaseRowSerializerTest() {
 		super(
 			new DeeplyEqualsChecker()
 				.withCustomCheck(
-				(o1, o2) -> o1 instanceof BaseRow && o2 instanceof BaseRow,
+					(o1, o2) -> o1 instanceof BaseRow && o2 instanceof BaseRow,
 					(o1, o2, checker) -> {
 						LogicalType[] fieldTypes = new LogicalType[] {
 							new BigIntType(),
@@ -58,24 +57,29 @@ public class BaseRowCoderTest extends CoderTestBase<BaseRow> {
 	}
 
 	@Override
-	protected Coder<BaseRow> createCoder() {
-		Coder<?>[] fieldCoders = {
-			VarLongCoder.of(),
-			VarLongCoder.of()
+	protected TypeSerializer<BaseRow> createSerializer() {
+		TypeSerializer<?>[] fieldTypeSerializers = {
+			LongSerializer.INSTANCE,
+			LongSerializer.INSTANCE
 		};
 
 		LogicalType[] fieldTypes = {
 			new BigIntType(),
 			new BigIntType()
 		};
-		return new BaseRowCoder(fieldCoders, fieldTypes);
+		return new org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer(
+			fieldTypes,
+			fieldTypeSerializers);
 	}
 
 	@Override
-	protected BaseRow[] getTestData() {
-		BaseRow row1 = StreamRecordUtils.baserow(null, 1L);
-		BinaryRow row2 = StreamRecordUtils.binaryrow(1L, null);
-		return new BaseRow[]{row1, row2};
+	protected int getLength() {
+		return -1;
+	}
+
+	@Override
+	protected Class<BaseRow> getTypeClass() {
+		return BaseRow.class;
 	}
 
 	private static boolean deepEqualsBaseRow(
@@ -88,5 +92,12 @@ public class BaseRowCoderTest extends CoderTestBase<BaseRow> {
 		BinaryRow row2 = serializer2.toBinaryRow(is);
 
 		return Objects.equals(row1, row2);
+	}
+
+	@Override
+	protected BaseRow[] getTestData() {
+		BaseRow row1 = StreamRecordUtils.baserow(null, 1L);
+		BinaryRow row2 = StreamRecordUtils.binaryrow(1L, null);
+		return new BaseRow[]{row1, row2};
 	}
 }
