@@ -36,6 +36,14 @@ import java.util.Collections
 /**
   * Planner rule that tries to push limit into a [[LimitableTableSource]].
   * The original limit will still be retained.
+  *
+  * The reasons why the limit still be retained:
+  * 1.If the source is required to return the exact number of limit number, the implementation
+  * of the source is highly required. The source is required to accurately control the record
+  * number of split, and the parallelism setting also need to be adjusted accordingly.
+  * 2.When remove the limit, maybe filter will be pushed down to the source after limit pushed
+  * down. The source need know it should do limit first and do the filter later, it is hard to
+  * implement.
   */
 class PushLimitIntoTableSourceScanRule extends RelOptRule(
   operand(classOf[FlinkLogicalSort],
