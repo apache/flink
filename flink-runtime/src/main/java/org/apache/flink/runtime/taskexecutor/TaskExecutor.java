@@ -139,6 +139,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -626,9 +627,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			JobID jobId,
 			Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions,
 			CompletableFuture<ExecutionState> terminationFuture) {
-		final Set<ResultPartitionID> partitionsRequiringRelease = filterPartitionsRequiringRelease(producedResultPartitions);
-
-		partitionsRequiringRelease.forEach(resultPartitionId -> partitionTracker.startTrackingPartition(jobId, resultPartitionId));
+		final Set<ResultPartitionID> partitionsRequiringRelease = filterPartitionsRequiringRelease(producedResultPartitions)
+			.peek(rpdd -> partitionTracker.startTrackingPartition(jobId, rpdd.getShuffleDescriptor().getResultPartitionID(), rpdd.getResultId()))
+			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
+			.map(ShuffleDescriptor::getResultPartitionID)
+			.collect(Collectors.toSet());
 
 		final CompletableFuture<ExecutionState> taskTerminationWithResourceCleanupFuture =
 			terminationFuture.thenApplyAsync(
@@ -652,15 +655,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			});
 	}
 
-	private Set<ResultPartitionID> filterPartitionsRequiringRelease(Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions) {
+	private Stream<ResultPartitionDeploymentDescriptor> filterPartitionsRequiringRelease(Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions) {
 		return producedResultPartitions.stream()
 			// only blocking partitions require explicit release call
 			.filter(d -> d.getPartitionType().isBlocking())
-			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
 			// partitions without local resources don't store anything on the TaskExecutor
-			.filter(d -> d.storesLocalResourcesOn().isPresent())
-			.map(ShuffleDescriptor::getResultPartitionID)
-			.collect(Collectors.toSet());
+			.filter(d -> d.getShuffleDescriptor().storesLocalResourcesOn().isPresent());
 	}
 
 	@Override

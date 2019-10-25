@@ -166,7 +166,10 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			// baseline, jobmanager was added in test setup
 			runInTaskExecutorThreadAndWait(taskExecutor, () -> assertTrue(jobManagerTable.contains(jobId)));
 
-			runInTaskExecutorThreadAndWait(taskExecutor, () -> partitionTracker.startTrackingPartition(jobId, resultPartitionId));
+			runInTaskExecutorThreadAndWait(taskExecutor, () -> partitionTracker.startTrackingPartition(
+				jobId,
+				resultPartitionId,
+				resultPartitionDeploymentDescriptor.getResultId()));
 
 			final CompletableFuture<Collection<ResultPartitionID>> firstReleasePartitionsCallFuture = new CompletableFuture<>();
 			runInTaskExecutorThreadAndWait(taskExecutor, () -> shuffleEnvironment.releasePartitionsLocallyFuture = firstReleasePartitionsCallFuture);
