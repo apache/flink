@@ -66,6 +66,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -355,15 +356,52 @@ public class DefaultSchedulerTest extends TestLogger {
 		assertThat(deployedExecutionVertices, contains(executionVertexId, executionVertexId));
 	}
 
+	@Test
+	public void vertexIsNotAffectedByOutdatedDeployment() {
+		final JobGraph jobGraph = singleJobVertexJobGraph(2);
+
+		testExecutionSlotAllocator.disableAutoCompletePendingRequests();
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		final Iterator<ArchivedExecutionVertex> vertexIterator = scheduler.requestJob().getAllExecutionVertices().iterator();
+		final ArchivedExecutionVertex v1 = vertexIterator.next();
+		final ArchivedExecutionVertex v2 = vertexIterator.next();
+
+		final SchedulingExecutionVertex sv1 = scheduler.getSchedulingTopology().getVertices().iterator().next();
+
+		// fail v1 and let it recover to SCHEDULED
+		// the initial deployment of v1 will be outdated
+		scheduler.updateTaskExecutionState(new TaskExecutionState(
+			jobGraph.getJobID(),
+			v1.getCurrentExecutionAttempt().getAttemptId(),
+			ExecutionState.FAILED));
+		taskRestartExecutor.triggerScheduledTasks();
+
+		// fail v2 to get all pending slot requests in the initial deployments to be done
+		// this triggers the outdated deployment of v1
+		scheduler.updateTaskExecutionState(new TaskExecutionState(
+			jobGraph.getJobID(),
+			v2.getCurrentExecutionAttempt().getAttemptId(),
+			ExecutionState.FAILED));
+
+		// v1 should not be affected
+		assertThat(sv1.getState(), is(equalTo(ExecutionState.SCHEDULED)));
+	}
+
 	private void waitForTermination(final DefaultScheduler scheduler) throws Exception {
 		scheduler.getTerminationFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
 	}
 
 	private static JobGraph singleNonParallelJobVertexJobGraph() {
+		return singleJobVertexJobGraph(1);
+	}
+
+	private static JobGraph singleJobVertexJobGraph(final int parallelism) {
 		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 		final JobVertex vertex = new JobVertex("source");
 		vertex.setInvokableClass(NoOpInvokable.class);
+		vertex.setParallelism(parallelism);
 		jobGraph.addVertex(vertex);
 		return jobGraph;
 	}
