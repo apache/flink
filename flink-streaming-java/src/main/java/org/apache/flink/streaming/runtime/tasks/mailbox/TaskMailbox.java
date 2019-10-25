@@ -49,13 +49,13 @@ public interface TaskMailbox extends Mailbox {
 
 	/**
 	 * Quiesce the mailbox. In this state, the mailbox supports only take operations and all pending and future put
-	 * operations will throw {@link MailboxStateException}.
+	 * operations will throw {@link IllegalStateException}.
 	 */
 	void quiesce();
 
 	/**
 	 * Close the mailbox. In this state, all pending and future put operations and all pending and future take
-	 * operations will throw {@link MailboxStateException}. Returns all mails that were still enqueued.
+	 * operations will throw {@link IllegalStateException}. Returns all mails that were still enqueued.
 	 *
 	 * @return list with all mails that where enqueued in the mailbox at the time of closing.
 	 */

@@ -37,33 +37,33 @@ public interface Mailbox {
 	 *
 	 * @return an optional with either the oldest mail from the mailbox (head of queue) if the mailbox is not empty or
 	 * an empty optional otherwise.
-	 * @throws  MailboxStateException if mailbox is already closed.
+	 * @throws IllegalStateException if mailbox is already closed.
 	 */
-	Optional<Mail> tryTake(int priority) throws MailboxStateException;
+	Optional<Mail> tryTake(int priority);
 
 	/**
 	 * This method returns the oldest mail from the mailbox (head of queue) or blocks until a mail is available.
 	 *
 	 * @return the oldest mail from the mailbox (head of queue).
 	 * @throws InterruptedException on interruption.
-	 * @throws  MailboxStateException if mailbox is already closed.
+	 * @throws IllegalStateException if mailbox is already closed.
 	 */
 	@Nonnull
-	Mail take(int priority) throws InterruptedException, MailboxStateException;
+	Mail take(int priority) throws InterruptedException;
 
 	/**
 	 * Enqueues the given mail to the mailbox and blocks until there is capacity for a successful put.
 	 *
 	 * @param mail the mail to enqueue.
-	 * @throws MailboxStateException if the mailbox is quiesced or closed.
+	 * @throws IllegalStateException if the mailbox is quiesced or closed.
 	 */
-	void put(Mail mail) throws  MailboxStateException;
+	void put(Mail mail);
 
 	/**
 	 * Adds the given action to the head of the mailbox.
 	 *
 	 * @param mail the mail to enqueue.
-	 * @throws MailboxStateException if the mailbox is quiesced or closed.
+	 * @throws IllegalStateException if the mailbox is quiesced or closed.
 	 */
-	void putFirst(Mail mail) throws MailboxStateException;
+	void putFirst(Mail mail);
 }

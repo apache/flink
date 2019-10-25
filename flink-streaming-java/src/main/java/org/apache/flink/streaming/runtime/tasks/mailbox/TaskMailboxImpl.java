@@ -83,7 +83,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	@Override
-	public Optional<Mail> tryTake(int priority) throws MailboxStateException {
+	public Optional<Mail> tryTake(int priority) {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
@@ -94,7 +94,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	@Override
-	public @Nonnull Mail take(int priorty) throws InterruptedException, MailboxStateException {
+	public @Nonnull Mail take(int priorty) throws InterruptedException {
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
 		try {
@@ -111,7 +111,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
-	public void put(@Nonnull Mail mail) throws MailboxStateException {
+	public void put(@Nonnull Mail mail) {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
@@ -124,7 +124,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
-	public void putFirst(@Nonnull Mail mail) throws MailboxStateException {
+	public void putFirst(@Nonnull Mail mail) {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
@@ -136,7 +136,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	private void putHeadInternal(Mail newHead) throws MailboxStateException {
+	private void putHeadInternal(Mail newHead) {
 		assert lock.isHeldByCurrentThread();
 		checkPutStateConditions();
 		queue.addFirst(newHead);
@@ -144,7 +144,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 		notEmpty.signal();
 	}
 
-	private void putTailInternal(Mail newTail) throws MailboxStateException {
+	private void putTailInternal(Mail newTail) {
 		assert lock.isHeldByCurrentThread();
 		checkPutStateConditions();
 		queue.addLast(newTail);
@@ -157,7 +157,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	@Nullable
-	private Mail takeHeadInternal(int priority) throws MailboxStateException {
+	private Mail takeHeadInternal(int priority) {
 		assert lock.isHeldByCurrentThread();
 		checkTakeStateConditions();
 		Iterator<Mail> iterator = queue.iterator();
@@ -193,18 +193,18 @@ public class TaskMailboxImpl implements TaskMailbox {
 		return state != State.CLOSED;
 	}
 
-	private void checkPutStateConditions() throws MailboxStateException {
+	private void checkPutStateConditions() {
 		final State state = this.state;
 		if (!isPutAbleState()) {
-			throw new MailboxStateException("Mailbox is in state " + state + ", but is required to be in state " +
+			throw new IllegalStateException("Mailbox is in state " + state + ", but is required to be in state " +
 				State.OPEN + " for put operations.");
 		}
 	}
 
-	private void checkTakeStateConditions() throws MailboxStateException {
+	private void checkTakeStateConditions() {
 		final State state = this.state;
 		if (!isTakeAbleState()) {
-			throw new MailboxStateException("Mailbox is in state " + state + ", but is required to be in state " +
+			throw new IllegalStateException("Mailbox is in state " + state + ", but is required to be in state " +
 				State.OPEN + " or " + State.QUIESCED + " for take operations.");
 		}
 	}

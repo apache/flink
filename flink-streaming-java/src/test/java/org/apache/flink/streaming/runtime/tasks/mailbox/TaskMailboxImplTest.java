@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
-import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -60,7 +59,7 @@ public class TaskMailboxImplTest {
 	}
 
 	@Test
-	public void testPutAsHead() throws Exception {
+	public void testPutAsHead() throws InterruptedException {
 
 		Mail mailA = new Mail(() -> {}, MAX_PRIORITY, "mailA");
 		Mail mailB = new Mail(() -> {}, MAX_PRIORITY, "mailB");
@@ -81,7 +80,7 @@ public class TaskMailboxImplTest {
 	}
 
 	@Test
-	public void testContracts() throws Exception {
+	public void testContracts() throws InterruptedException {
 		final Queue<Mail> testObjects = new LinkedList<>();
 		Assert.assertFalse(taskMailbox.hasMail());
 
@@ -102,7 +101,7 @@ public class TaskMailboxImplTest {
 	 * Test the producer-consumer pattern using the blocking methods on the mailbox.
 	 */
 	@Test
-	public void testConcurrentPutTakeBlocking() throws Exception {
+	public void testConcurrentPutTakeBlocking() throws InterruptedException {
 		testPutTake(mailbox -> mailbox.take(DEFAULT_PRIORITY));
 	}
 
@@ -110,7 +109,7 @@ public class TaskMailboxImplTest {
 	 * Test the producer-consumer pattern using the non-blocking methods & waits on the mailbox.
 	 */
 	@Test
-	public void testConcurrentPutTakeNonBlockingAndWait() throws Exception {
+	public void testConcurrentPutTakeNonBlockingAndWait() throws InterruptedException {
 		testPutTake((mailbox -> {
 				Optional<Mail> optionalMail = mailbox.tryTake(DEFAULT_PRIORITY);
 				while (!optionalMail.isPresent()) {
@@ -134,12 +133,12 @@ public class TaskMailboxImplTest {
 	 * Test that silencing the mailbox unblocks pending accesses with correct exceptions.
 	 */
 	@Test
-	public void testQuiesceUnblocks() throws Exception {
+	public void testQuiesceUnblocks() throws InterruptedException {
 		testAllPuttingUnblocksInternal(TaskMailbox::quiesce);
 	}
 
 	@Test
-	public void testLifeCycleQuiesce() throws Exception {
+	public void testLifeCycleQuiesce() throws InterruptedException {
 		taskMailbox.put(new Mail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"));
 		taskMailbox.put(new Mail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"));
 		taskMailbox.quiesce();
@@ -150,33 +149,33 @@ public class TaskMailboxImplTest {
 	}
 
 	@Test
-	public void testLifeCycleClose() throws Exception {
+	public void testLifeCycleClose() throws InterruptedException {
 		taskMailbox.close();
 		testLifecyclePuttingInternal();
 
 		try {
 			taskMailbox.take(DEFAULT_PRIORITY);
 			Assert.fail();
-		} catch (MailboxStateException ignore) {
+		} catch (IllegalStateException ignore) {
 		}
 
 		try {
 			taskMailbox.tryTake(DEFAULT_PRIORITY);
 			Assert.fail();
-		} catch (MailboxStateException ignore) {
+		} catch (IllegalStateException ignore) {
 		}
 	}
 
-	private void testLifecyclePuttingInternal() throws Exception {
+	private void testLifecyclePuttingInternal() {
 		try {
 			taskMailbox.put(new Mail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"));
 			Assert.fail();
-		} catch (MailboxStateException ignore) {
+		} catch (IllegalStateException ignore) {
 		}
 		try {
 			taskMailbox.putFirst(new Mail(NO_OP, MAX_PRIORITY, "NO_OP"));
 			Assert.fail();
-		} catch (MailboxStateException ignore) {
+		} catch (IllegalStateException ignore) {
 		}
 	}
 
@@ -220,7 +219,7 @@ public class TaskMailboxImplTest {
 		}
 
 		for (Exception exception : exceptions) {
-			Assert.assertEquals(MailboxStateException.class, exception.getClass());
+			Assert.assertEquals(IllegalStateException.class, exception.getClass());
 		}
 
 	}
@@ -228,7 +227,8 @@ public class TaskMailboxImplTest {
 	/**
 	 * Test producer-consumer pattern through the mailbox in a concurrent setting (n-writer / 1-reader).
 	 */
-	private void testPutTake(FunctionWithException<Mailbox, Mail, Exception> takeMethod) throws Exception {
+	private void testPutTake(FunctionWithException<Mailbox, Mail, InterruptedException> takeMethod)
+			throws InterruptedException {
 		final int numThreads = 10;
 		final int numMailsPerThread = 1000;
 		final int[] results = new int[numThreads];
@@ -267,7 +267,7 @@ public class TaskMailboxImplTest {
 	}
 
 	@Test
-	public void testPutAsHeadWithPriority() throws Exception {
+	public void testPutAsHeadWithPriority() throws InterruptedException {
 
 		Mail mailA = new Mail(() -> {}, 2, "mailA");
 		Mail mailB = new Mail(() -> {}, 2, "mailB");
@@ -290,7 +290,7 @@ public class TaskMailboxImplTest {
 	}
 
 	@Test
-	public void testPutWithPriorityAndReadingFromMainMailbox() throws Exception {
+	public void testPutWithPriorityAndReadingFromMainMailbox() throws InterruptedException {
 
 		Mail mailA = new Mail(() -> {}, 2, "mailA");
 		Mail mailB = new Mail(() -> {}, 2, "mailB");

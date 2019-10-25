@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 
 import javax.annotation.Nonnull;
 
@@ -59,7 +58,7 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 		final Object... descriptionArgs) {
 		try {
 			mailbox.put(new Mail(command, priority, descriptionFormat, descriptionArgs));
-		} catch (MailboxStateException mbex) {
+		} catch (IllegalStateException mbex) {
 			throw new RejectedExecutionException(mbex);
 		}
 	}
@@ -71,34 +70,26 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 		final Object... descriptionArgs) {
 		try {
 			mailbox.putFirst(new Mail(command, priority, descriptionFormat, descriptionArgs));
-		} catch (MailboxStateException mbex) {
+		} catch (IllegalStateException mbex) {
 			throw new RejectedExecutionException(mbex);
 		}
 	}
 
 	@Override
-	public void yield() throws InterruptedException, IllegalStateException {
+	public void yield() throws InterruptedException {
 		checkIsMailboxThread();
-		try {
-			mailbox.take(priority).run();
-		} catch (MailboxStateException e) {
-			throw new IllegalStateException("Mailbox can no longer supply runnables for yielding.", e);
-		}
+		mailbox.take(priority).run();
 	}
 
 	@Override
-	public boolean tryYield() throws IllegalStateException {
+	public boolean tryYield() {
 		checkIsMailboxThread();
-		try {
-			Optional<Mail> optionalMail = mailbox.tryTake(priority);
-			if (optionalMail.isPresent()) {
-				optionalMail.get().run();
-				return true;
-			} else {
-				return false;
-			}
-		} catch (MailboxStateException e) {
-			throw new IllegalStateException("Mailbox can no longer supply runnables for yielding.", e);
+		Optional<Mail> optionalMail = mailbox.tryTake(priority);
+		if (optionalMail.isPresent()) {
+			optionalMail.get().run();
+			return true;
+		} else {
+			return false;
 		}
 	}
 

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.Preconditions;
@@ -188,7 +187,7 @@ public class MailboxProcessor {
 	 * changes. This keeps the hot path in {@link #runMailboxLoop()} free from any other flag checking, at the cost
 	 * that all flag changes must make sure that the mailbox signals mailbox#hasMail.
 	 */
-	private boolean processMail(TaskMailbox mailbox) throws MailboxStateException, InterruptedException {
+	private boolean processMail(TaskMailbox mailbox) throws InterruptedException {
 
 		// Doing this check is an optimization to only have a volatile read in the expected hot path, locks are only
 		// acquired after this point.
