@@ -27,10 +27,12 @@ import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
+import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -39,6 +41,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 /**
@@ -96,6 +99,16 @@ public final class PythonTypeUtils {
 		@Override
 		public TypeSerializer visit(DoubleType doubleType) {
 			return DoubleSerializer.INSTANCE;
+		}
+
+		@Override
+		public TypeSerializer visit(BinaryType binaryType) {
+			return BytePrimitiveArraySerializer.INSTANCE;
+		}
+
+		@Override
+		public TypeSerializer visit(VarBinaryType varBinaryType) {
+			return BytePrimitiveArraySerializer.INSTANCE;
 		}
 
 		@Override
@@ -180,6 +193,22 @@ public final class PythonTypeUtils {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.DOUBLE)
 				.setNullable(doubleType.isNullable())
+				.build();
+		}
+
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(BinaryType binaryType) {
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.BINARY)
+				.setNullable(binaryType.isNullable())
+				.build();
+		}
+
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(VarBinaryType varBinaryType) {
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.VARBINARY)
+				.setNullable(varBinaryType.isNullable())
 				.build();
 		}
 
