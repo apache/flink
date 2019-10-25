@@ -340,6 +340,12 @@ class UserDefinedFunctionTests(object):
                                                    % type(tinyint_param)
             return tinyint_param
 
+        def smallint_func(smallint_param):
+            assert isinstance(smallint_param, int), 'smallint_param of wrong type %s !' \
+                                                    % type(smallint_param)
+            assert smallint_param == 32767, 'smallint_param of wrong value %s' % smallint_param
+            return smallint_param
+
         def bigint_func(bigint_param):
             assert isinstance(bigint_param, int), 'bigint_param of wrong type %s !' \
                                                   % type(bigint_param)
@@ -356,31 +362,36 @@ class UserDefinedFunctionTests(object):
             "tinyint_func", udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT()))
 
         self.t_env.register_function(
+            "smallint_func", udf(smallint_func, [DataTypes.SMALLINT()], DataTypes.SMALLINT()))
+
+        self.t_env.register_function(
             "bigint_func", udf(bigint_func, [DataTypes.BIGINT()], DataTypes.BIGINT()))
 
         self.t_env.register_function(
             "bigint_func_none", udf(bigint_func_none, [DataTypes.BIGINT()], DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd'],
+            ['a', 'b', 'c', 'd', 'e'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
-             DataTypes.BOOLEAN()])
+             DataTypes.BOOLEAN(), DataTypes.SMALLINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
-            [(1, None, 1, True)],
+            [(1, None, 1, True, 32767)],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
                  DataTypes.FIELD("c", DataTypes.TINYINT()),
-                 DataTypes.FIELD("d", DataTypes.BOOLEAN())]))
+                 DataTypes.FIELD("d", DataTypes.BOOLEAN()),
+                 DataTypes.FIELD("e", DataTypes.SMALLINT())]))
 
         t.select("bigint_func(a), bigint_func_none(b),"
-                 "tinyint_func(c), boolean_func(d)") \
+                 "tinyint_func(c), boolean_func(d),"
+                 "smallint_func(e)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,null,1,true"])
+        self.assert_equals(actual, ["1,null,1,true,32767"])
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
