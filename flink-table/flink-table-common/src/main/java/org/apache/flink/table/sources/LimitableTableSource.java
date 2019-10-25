@@ -24,8 +24,8 @@ import org.apache.flink.annotation.Experimental;
  * Adds support for limiting push-down to a {@link TableSource}.
  * A {@link TableSource} extending this interface is able to limit the number of records.
  *
- * <p>After pushing down, if the total record number of source is greater than the limit number,
- * source should emit record number greater than or equal to the limit number.
+ * <p>After pushing down, source only needs to try its best to limit, and does not need to
+ * guarantee that the number of output lines must be less than or equal to the limit number.
  */
 @Experimental
 public interface LimitableTableSource<T> {
