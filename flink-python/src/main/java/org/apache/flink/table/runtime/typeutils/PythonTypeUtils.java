@@ -31,9 +31,11 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -42,6 +44,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 /**
@@ -112,6 +115,16 @@ public final class PythonTypeUtils {
 		}
 
 		@Override
+		public TypeSerializer visit(VarCharType varCharType) {
+			return StringSerializer.INSTANCE;
+		}
+
+		@Override
+		public TypeSerializer visit(CharType charType) {
+			return StringSerializer.INSTANCE;
+		}
+
+		@Override
 		public TypeSerializer visit(RowType rowType) {
 			final TypeSerializer[] fieldTypeSerializers = rowType.getFields()
 				.stream()
@@ -136,6 +149,16 @@ public final class PythonTypeUtils {
 				.map(f -> f.getType().accept(this))
 				.toArray(TypeSerializer[]::new);
 			return new BaseRowSerializer(rowType.getChildren().toArray(new LogicalType[0]), fieldTypeSerializers);
+		}
+
+		@Override
+		public TypeSerializer visit(VarCharType varCharType) {
+			return BinaryStringSerializer.INSTANCE;
+		}
+
+		@Override
+		public TypeSerializer visit(CharType charType) {
+			return BinaryStringSerializer.INSTANCE;
 		}
 	}
 
@@ -209,6 +232,22 @@ public final class PythonTypeUtils {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.VARBINARY)
 				.setNullable(varBinaryType.isNullable())
+				.build();
+		}
+
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(CharType charType) {
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.CHAR)
+				.setNullable(charType.isNullable())
+				.build();
+		}
+
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(VarCharType varCharType) {
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.VARCHAR)
+				.setNullable(varCharType.isNullable())
 				.build();
 		}
 

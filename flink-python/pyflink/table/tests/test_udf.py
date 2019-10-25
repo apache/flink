@@ -373,6 +373,11 @@ class UserDefinedFunctionTests(object):
                 'bytes_param is wrong value %s !' % bytes_param
             return bytes_param
 
+        def str_func(str_param):
+            assert str_param == 'pyflink', \
+                'str_param is wrong value %s !' % str_param
+            return str_param
+
         self.t_env.register_function(
             "boolean_func", udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN()))
 
@@ -400,16 +405,20 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_function(
             "bytes_func", udf(bytes_func, [DataTypes.BYTES()], DataTypes.BYTES()))
 
+        self.t_env.register_function(
+            "str_func", udf(str_func, [DataTypes.STRING()], DataTypes.STRING()))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
              DataTypes.BOOLEAN(), DataTypes.SMALLINT(), DataTypes.INT(),
-             DataTypes.FLOAT(), DataTypes.DOUBLE(), DataTypes.BYTES()])
+             DataTypes.FLOAT(), DataTypes.DOUBLE(), DataTypes.BYTES(),
+             DataTypes.STRING()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
             [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
-              bytearray(b'flink'))],
+              bytearray(b'flink'), 'pyflink')],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
@@ -419,19 +428,20 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("f", DataTypes.INT()),
                  DataTypes.FIELD("g", DataTypes.FLOAT()),
                  DataTypes.FIELD("h", DataTypes.DOUBLE()),
-                 DataTypes.FIELD("i", DataTypes.BYTES())]))
+                 DataTypes.FIELD("i", DataTypes.BYTES()),
+                 DataTypes.FIELD("j", DataTypes.STRING())]))
 
         t.select("bigint_func(a), bigint_func_none(b),"
                  "tinyint_func(c), boolean_func(d),"
                  "smallint_func(e),int_func(f),"
                  "float_func(g),double_func(h),"
-                 "bytes_func(i)") \
+                 "bytes_func(i),str_func(j)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,null,1,true,32767,-2147483648,1.23,1.98932,"
-                            "[102, 108, 105, 110, 107]"])
+                            "[102, 108, 105, 110, 107],pyflink"])
 
 
 # decide whether two floats are equal

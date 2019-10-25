@@ -29,7 +29,7 @@ FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
 
 __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
-           'BinaryCoder']
+           'BinaryCoder', 'CharCoder']
 
 
 class RowCoder(FastCoder):
@@ -171,6 +171,17 @@ class BinaryCoder(DeterministicCoder):
         return bytes
 
 
+class CharCoder(DeterministicCoder):
+    """
+    Coder for Character String.
+    """
+    def _create_impl(self):
+        return coder_impl.CharCoderImpl()
+
+    def to_type_hint(self):
+        return str
+
+
 @Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
 def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
     return RowCoder([from_proto(f.type) for f in schema_proto.fields])
@@ -187,6 +198,8 @@ _type_name_mappings = {
     type_name.DOUBLE: DoubleCoder(),
     type_name.BINARY: BinaryCoder(),
     type_name.VARBINARY: BinaryCoder(),
+    type_name.CHAR: CharCoder(),
+    type_name.VARCHAR: CharCoder(),
 }
 
 
