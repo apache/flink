@@ -24,6 +24,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
@@ -219,6 +220,29 @@ class MatchRecognizeValidationTest extends TableTestBase {
   // * Those validations are temporary. We should remove those tests once we support those *
   // * features.                                                                           *
   // ***************************************************************************************
+
+  /** Python Function can not be used in MATCH_RECOGNIZE for now **/
+  @Test
+  def testMatchPythonFunction() = {
+    thrown.expectMessage("Python Function can not be used in MATCH_RECOGNIZE for now.")
+    thrown.expect(classOf[TableException])
+
+    streamUtil.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    val sql =
+      """SELECT T.aa as ta
+        |FROM MyTable
+        |MATCH_RECOGNIZE (
+        |  ORDER BY proctime
+        |  MEASURES
+        |    A.a as aa,
+        |    pyFunc(1,2) as bb
+        |  PATTERN (A B)
+        |  DEFINE
+        |    A AS a = 1,
+        |    B AS b = 'b'
+        |) AS T""".stripMargin
+    streamUtil.verifyExplain(sql)
+  }
 
   @Test
   def testAllRowsPerMatch(): Unit = {
