@@ -31,11 +31,13 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -125,6 +127,11 @@ public final class PythonTypeUtils {
 		}
 
 		@Override
+		public TypeSerializer visit(DateType dateType) {
+			return DateSerializer.INSTANCE;
+		}
+
+		@Override
 		public TypeSerializer visit(RowType rowType) {
 			final TypeSerializer[] fieldTypeSerializers = rowType.getFields()
 				.stream()
@@ -159,6 +166,11 @@ public final class PythonTypeUtils {
 		@Override
 		public TypeSerializer visit(CharType charType) {
 			return BinaryStringSerializer.INSTANCE;
+		}
+
+		@Override
+		public TypeSerializer visit(DateType dateType) {
+			return IntSerializer.INSTANCE;
 		}
 	}
 
@@ -248,6 +260,14 @@ public final class PythonTypeUtils {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.VARCHAR)
 				.setNullable(varCharType.isNullable())
+				.build();
+		}
+
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(DateType dateType) {
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.DATE)
+				.setNullable(dateType.isNullable())
 				.build();
 		}
 
