@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -25,10 +26,12 @@ import org.apache.flink.util.Preconditions;
  */
 public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<JobID, TaskExecutorPartitionInfo> implements TaskExecutorPartitionTracker {
 
-	public void startTrackingPartition(JobID producingJobId, ResultPartitionID resultPartitionId) {
+	@Override
+	public void startTrackingPartition(JobID producingJobId, ResultPartitionID resultPartitionId, IntermediateDataSetID intermediateDataSetId) {
 		Preconditions.checkNotNull(producingJobId);
 		Preconditions.checkNotNull(resultPartitionId);
+		Preconditions.checkNotNull(intermediateDataSetId);
 
-		startTrackingPartition(producingJobId, resultPartitionId, new TaskExecutorPartitionInfo());
+		startTrackingPartition(producingJobId, resultPartitionId, new TaskExecutorPartitionInfo(intermediateDataSetId));
 	}
 }

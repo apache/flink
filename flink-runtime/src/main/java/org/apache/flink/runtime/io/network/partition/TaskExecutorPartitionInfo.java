@@ -17,8 +17,20 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+
 /**
  * Encapsulates meta-information the TaskExecutor requires to be kept for each partition.
  */
 public final class TaskExecutorPartitionInfo {
+
+	private final IntermediateDataSetID intermediateDataSetId;
+
+	public TaskExecutorPartitionInfo(IntermediateDataSetID intermediateDataSetId) {
+		this.intermediateDataSetId = intermediateDataSetId;
+	}
+
+	public IntermediateDataSetID getIntermediateDataSetId() {
+		return intermediateDataSetId;
+	}
 }
