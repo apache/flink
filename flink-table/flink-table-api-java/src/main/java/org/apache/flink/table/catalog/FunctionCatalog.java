@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -29,6 +28,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinitionUtil;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -227,49 +227,100 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	@Override
-	public Optional<FunctionLookup.Result> lookupFunction(String name) {
-		String normalizedName = FunctionCatalogUtil.normalizeName(name);
+	public Optional<FunctionLookup.Result> lookupFunction(FunctionIdentifier identifier) {
 
-		FunctionDefinition userCandidate;
+		// precise function reference
+		if (identifier.getIdentifier().isPresent()) {
+			return resolvePreciseFunctionReference(identifier.getIdentifier().get());
+		} else {
+			// ambiguous function reference
 
-		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+			String functionName = identifier.getSimpleName().get();
 
-		try {
-			CatalogFunction catalogFunction = catalog.getFunction(
-				new ObjectPath(catalogManager.getCurrentDatabase(), normalizedName));
+			FunctionDefinition userCandidate;
 
-			if (catalog.getFunctionDefinitionFactory().isPresent()) {
-				userCandidate = catalog.getFunctionDefinitionFactory().get().createFunctionDefinition(normalizedName, catalogFunction);
-			} else {
-				userCandidate = FunctionDefinitionUtil.createFunctionDefinition(normalizedName, catalogFunction);
+			Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+			try {
+				CatalogFunction catalogFunction = catalog.getFunction(
+					new ObjectPath(catalogManager.getCurrentDatabase(), functionName)
+				);
+
+				if (catalog.getFunctionDefinitionFactory().isPresent()) {
+					userCandidate = catalog.getFunctionDefinitionFactory().get().createFunctionDefinition(functionName, catalogFunction);
+				} else {
+					userCandidate = FunctionDefinitionUtil.createFunctionDefinition(functionName, catalogFunction);
+				}
+
+				return Optional.of(
+					new FunctionLookup.Result(
+						FunctionIdentifier.of(
+							ObjectIdentifier.of(
+								catalogManager.getCurrentCatalog(),
+								catalogManager.getCurrentDatabase(),
+								functionName)),
+						userCandidate)
+				);
+
+			} catch (FunctionNotExistException e) {
+				// ignore
 			}
 
+			// If no corresponding function is found in catalog, check in-memory functions
+			userCandidate = tempSystemFunctions.get(functionName);
+
+			final Optional<FunctionDefinition> foundDefinition;
+			if (userCandidate != null) {
+				foundDefinition = Optional.of(userCandidate);
+			} else {
+				foundDefinition = moduleManager.getFunctionDefinition(functionName);
+			}
+
+			return foundDefinition.map(d -> new FunctionLookup.Result(
+				FunctionIdentifier.of(identifier.getSimpleName().get()),
+				d)
+			);
+		}
+	}
+
+	private Optional<FunctionLookup.Result> resolvePreciseFunctionReference(ObjectIdentifier oi) {
+		// resolve order:
+		// 1. Temporary functions
+		// 2. Catalog functions
+
+		FunctionDefinition potentialResult = tempCatalogFunctions.get(oi);
+
+		if (potentialResult != null) {
 			return Optional.of(
 				new FunctionLookup.Result(
-					ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), name),
-					userCandidate)
+					FunctionIdentifier.of(oi),
+					potentialResult
+				)
 			);
-		} catch (FunctionNotExistException e) {
-			// Ignore
 		}
 
-		// If no corresponding function is found in catalog, check in-memory functions
-		userCandidate = tempSystemFunctions.get(normalizedName);
+		Catalog catalog = catalogManager.getCatalog(oi.getCatalogName()).get();
 
-		final Optional<FunctionDefinition> foundDefinition;
-		if (userCandidate != null) {
-			foundDefinition = Optional.of(userCandidate);
-		} else {
-			foundDefinition = moduleManager.getFunctionDefinition(normalizedName);
+		if (catalog != null) {
+			try {
+				CatalogFunction catalogFunction = catalog.getFunction(
+					new ObjectPath(oi.getDatabaseName(), oi.getObjectName()));
+
+				FunctionDefinition fd;
+				if (catalog.getFunctionDefinitionFactory().isPresent()) {
+					fd = catalog.getFunctionDefinitionFactory().get()
+						.createFunctionDefinition(oi.getObjectName(), catalogFunction);
+				} else {
+					fd = FunctionDefinitionUtil.createFunctionDefinition(oi.getObjectName(), catalogFunction);
+				}
+
+				return Optional.of(
+					new FunctionLookup.Result(FunctionIdentifier.of(oi), fd));
+			} catch (FunctionNotExistException e) {
+				// Ignore
+			}
 		}
 
-		return foundDefinition.map(definition -> new FunctionLookup.Result(
-			ObjectIdentifier.of(
-				catalogManager.getBuiltInCatalogName(),
-				catalogManager.getBuiltInDatabaseName(),
-				name),
-			definition)
-		);
+		return Optional.empty();
 	}
 
 	@Override
@@ -281,18 +332,10 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	private void registerTempSystemFunction(String name, FunctionDefinition functionDefinition) {
-		tempSystemFunctions.put(FunctionCatalogUtil.normalizeName(name), functionDefinition);
+		tempSystemFunctions.put(FunctionIdentifier.normalizeName(name), functionDefinition);
 	}
 
 	private void registerTempCatalogFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
-		tempCatalogFunctions.put(normalizeObjectIdentifier(oi), functionDefinition);
-	}
-
-	@VisibleForTesting
-	static ObjectIdentifier normalizeObjectIdentifier(ObjectIdentifier oi) {
-		return ObjectIdentifier.of(
-			oi.getCatalogName(),
-			oi.getDatabaseName(),
-			FunctionCatalogUtil.normalizeName(oi.getObjectName()));
+		tempCatalogFunctions.put(FunctionIdentifier.normalizeObjectIdentifier(oi), functionDefinition);
 	}
 }

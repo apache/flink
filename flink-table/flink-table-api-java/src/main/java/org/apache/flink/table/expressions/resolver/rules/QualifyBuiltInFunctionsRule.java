@@ -49,14 +49,14 @@ class QualifyBuiltInFunctionsRule implements ResolverRule {
 
 		@Override
 		public Expression visit(UnresolvedCallExpression unresolvedCall) {
-			if (!unresolvedCall.getObjectIdentifier().isPresent() &&
+			if (!unresolvedCall.getFunctionIdentifier().isPresent() &&
 					unresolvedCall.getFunctionDefinition() instanceof BuiltInFunctionDefinition) {
 				final FunctionLookup.Result functionLookup = resolutionContext
 					.functionLookup()
 					.lookupBuiltInFunction(((BuiltInFunctionDefinition) unresolvedCall.getFunctionDefinition()));
 
 				return new UnresolvedCallExpression(
-					functionLookup.getObjectIdentifier(),
+					functionLookup.getFunctionIdentifier(),
 					functionLookup.getFunctionDefinition(),
 					unresolvedCall.getChildren().stream()
 						.map(c -> c.accept(this))

@@ -31,14 +31,14 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
 import org.apache.calcite.util.Util
-
 import java.util.{TimeZone, List => JList}
+
+import org.apache.flink.table.functions.FunctionIdentifier
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -433,7 +433,7 @@ class RexNodeToExpressionConverter(
       name: String,
       operands: Seq[ResolvedExpression],
       outputType: DataType): Option[ResolvedExpression] = {
-    Try(functionCatalog.lookupFunction(name)) match {
+    Try(functionCatalog.lookupFunction(FunctionIdentifier.of(name))) match {
       case Success(f: java.util.Optional[FunctionLookup.Result]) =>
         if (f.isPresent) {
           Some(new CallExpression(f.get().getFunctionDefinition, operands, outputType))

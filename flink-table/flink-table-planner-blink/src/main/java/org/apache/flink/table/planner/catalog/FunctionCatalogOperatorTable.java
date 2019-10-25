@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -84,7 +85,8 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		}
 
 		String name = opName.getSimple();
-		Optional<FunctionLookup.Result> candidateFunction = functionCatalog.lookupFunction(name);
+		Optional<FunctionLookup.Result> candidateFunction = functionCatalog.lookupFunction(
+			FunctionIdentifier.of(name));
 
 		candidateFunction.flatMap(lookupResult ->
 			convertToSqlFunction(category, name, lookupResult.getFunctionDefinition())
