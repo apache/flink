@@ -2035,6 +2035,9 @@ public final class ConfigConstants {
 	/** The environment variable name which contains the Flink installation root directory. */
 	public static final String ENV_FLINK_HOME_DIR = "FLINK_HOME";
 
+	/** The default job directory name in the per-job mode. */
+	public static final String DEFAULT_JOB_DIRECTORY_NAME = "job";
+
 	// ---------------------------- Encoding ------------------------------
 
 	public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;

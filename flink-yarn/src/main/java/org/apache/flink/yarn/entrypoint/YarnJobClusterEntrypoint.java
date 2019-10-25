@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.entrypoint;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
@@ -32,6 +33,7 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
@@ -61,10 +63,15 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
+		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
+			.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		final File jobDir =
+			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ?
+				new File(ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME) : null;
 		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
 			YarnResourceManagerFactory.getInstance(),
-			FileJobGraphRetriever.createFrom(configuration));
+			FileJobGraphRetriever.createFrom(configuration, jobDir));
 	}
 
 	// ------------------------------------------------------------------------

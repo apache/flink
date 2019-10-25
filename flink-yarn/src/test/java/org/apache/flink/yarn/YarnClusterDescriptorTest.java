@@ -54,9 +54,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -90,22 +88,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	@AfterClass
 	public static void tearDownClass() {
 		yarnClient.stop();
-	}
-
-	/**
-	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-11781">FLINK-11781</a>
-	 */
-	@Test
-	public void testThrowsExceptionIfUserTriesToDisableUserJarInclusionInSystemClassPath() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR, "DISABLED");
-
-		try {
-			createYarnClusterDescriptor(configuration);
-			fail("Expected exception not thrown");
-		} catch (final IllegalArgumentException e) {
-			assertThat(e.getMessage(), containsString("cannot be set to DISABLED anymore"));
-		}
 	}
 
 	@Test
