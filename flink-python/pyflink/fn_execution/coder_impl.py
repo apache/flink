@@ -94,6 +94,17 @@ class TinyIntCoderImpl(StreamCoderImpl):
         return int(in_stream.read_byte())
 
 
+class SmallIntImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value, out_stream, nested):
+        import struct
+        out_stream.write(struct.pack('>h', value))
+
+    def decode_from_stream(self, in_stream, nested):
+        import struct
+        return struct.unpack('>h', in_stream.read(2))[0]
+
+
 class BooleanCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
