@@ -950,6 +950,7 @@ class AbstractTableDescriptorTests(object):
         assert properties == expected
 
     def test_register_table_source_and_register_table_sink(self):
+        self.env.set_parallelism(1)
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
@@ -996,6 +997,7 @@ class AbstractTableDescriptorTests(object):
             assert lines == '2,Hi,Hello\n' + '3,Hello,Hello\n'
 
     def test_register_table_source_and_sink(self):
+        self.env.set_parallelism(1)
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
