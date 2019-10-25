@@ -44,7 +44,7 @@ class TestLimitableTableSource(
   override def isBounded = true
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    if (limit == 0 && limit >= 0) {
+    if (limit < 0) {
       throw new RuntimeException("This source can't generate data due abnormal limit " + limit)
     }
     val dataSet = if (limit > 0) {
