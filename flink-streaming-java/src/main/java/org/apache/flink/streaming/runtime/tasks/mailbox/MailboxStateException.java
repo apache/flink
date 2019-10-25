@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 /**
  * This exception signals that a method of the mailbox was invoked in a state that does not support the invocation,
- * e.g. on the attempt to put a letter into a closed mailbox.
+ * e.g. on the attempt to put a mail into a closed mailbox.
  */
 public class MailboxStateException extends Exception {
 

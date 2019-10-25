@@ -67,7 +67,7 @@ public class TaskMailboxProcessorTest {
 	}
 
 	@Test
-	public void testRunDefaultActionAndLetters() throws Exception {
+	public void testRunDefaultActionAndMails() throws Exception {
 		AtomicBoolean stop = new AtomicBoolean(false);
 		MailboxThread mailboxThread = new MailboxThread() {
 			@Override

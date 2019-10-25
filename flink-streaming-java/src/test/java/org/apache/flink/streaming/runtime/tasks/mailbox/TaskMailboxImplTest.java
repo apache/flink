@@ -42,7 +42,7 @@ import static org.junit.Assert.assertEquals;
 public class TaskMailboxImplTest {
 
 	private static final Runnable NO_OP = () -> {};
-	private static final Runnable POISON_LETTER = NO_OP;
+	private static final Runnable POISON_MAIL = NO_OP;
 	private static final int DEFAULT_PRIORITY = 0;
 	/**
 	 * Object under test.
@@ -86,7 +86,7 @@ public class TaskMailboxImplTest {
 		Assert.assertFalse(taskMailbox.hasMail());
 
 		for (int i = 0; i < 10; ++i) {
-			final Mail mail = new Mail(NO_OP, DEFAULT_PRIORITY, "letter, DEFAULT_PRIORITY");
+			final Mail mail = new Mail(NO_OP, DEFAULT_PRIORITY, "mail, DEFAULT_PRIORITY");
 			testObjects.add(mail);
 			taskMailbox.put(mail);
 			Assert.assertTrue(taskMailbox.hasMail());
@@ -230,12 +230,12 @@ public class TaskMailboxImplTest {
 	 */
 	private void testPutTake(FunctionWithException<Mailbox, Mail, Exception> takeMethod) throws Exception {
 		final int numThreads = 10;
-		final int numLettersPerThread = 1000;
+		final int numMailsPerThread = 1000;
 		final int[] results = new int[numThreads];
 		Thread[] writerThreads = new Thread[numThreads];
 		Thread readerThread = new Thread(ThrowingRunnable.unchecked(() -> {
 			Mail mail;
-			while ((mail = takeMethod.apply(taskMailbox)).getRunnable() != POISON_LETTER) {
+			while ((mail = takeMethod.apply(taskMailbox)).getRunnable() != POISON_MAIL) {
 				mail.run();
 			}
 		}));
@@ -244,7 +244,7 @@ public class TaskMailboxImplTest {
 		for (int i = 0; i < writerThreads.length; ++i) {
 			final int threadId = i;
 			writerThreads[i] = new Thread(ThrowingRunnable.unchecked(() -> {
-				for (int k = 0; k < numLettersPerThread; ++k) {
+				for (int k = 0; k < numMailsPerThread; ++k) {
 					taskMailbox.put(new Mail(() -> ++results[threadId], DEFAULT_PRIORITY, "result " + k));
 				}
 			}));
@@ -258,11 +258,11 @@ public class TaskMailboxImplTest {
 			writerThread.join();
 		}
 
-		taskMailbox.put(new Mail(POISON_LETTER, DEFAULT_PRIORITY, "POISON_LETTER, DEFAULT_PRIORITY"));
+		taskMailbox.put(new Mail(POISON_MAIL, DEFAULT_PRIORITY, "POISON_MAIL, DEFAULT_PRIORITY"));
 
 		readerThread.join();
 		for (int perThreadResult : results) {
-			Assert.assertEquals(numLettersPerThread, perThreadResult);
+			Assert.assertEquals(numMailsPerThread, perThreadResult);
 		}
 	}
 

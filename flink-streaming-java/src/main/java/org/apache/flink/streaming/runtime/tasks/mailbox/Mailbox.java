@@ -32,19 +32,19 @@ import java.util.Optional;
  */
 public interface Mailbox {
 	/**
-	 * Returns an optional with either the oldest letter from the mailbox (head of queue) if the mailbox is not empty or
+	 * Returns an optional with either the oldest mail from the mailbox (head of queue) if the mailbox is not empty or
 	 * an empty optional otherwise.
 	 *
-	 * @return an optional with either the oldest letter from the mailbox (head of queue) if the mailbox is not empty or
+	 * @return an optional with either the oldest mail from the mailbox (head of queue) if the mailbox is not empty or
 	 * an empty optional otherwise.
 	 * @throws  MailboxStateException if mailbox is already closed.
 	 */
 	Optional<Mail> tryTake(int priority) throws MailboxStateException;
 
 	/**
-	 * This method returns the oldest letter from the mailbox (head of queue) or blocks until a letter is available.
+	 * This method returns the oldest mail from the mailbox (head of queue) or blocks until a mail is available.
 	 *
-	 * @return the oldest letter from the mailbox (head of queue).
+	 * @return the oldest mail from the mailbox (head of queue).
 	 * @throws InterruptedException on interruption.
 	 * @throws  MailboxStateException if mailbox is already closed.
 	 */
@@ -52,7 +52,7 @@ public interface Mailbox {
 	Mail take(int priority) throws InterruptedException, MailboxStateException;
 
 	/**
-	 * Enqueues the given letter to the mailbox and blocks until there is capacity for a successful put.
+	 * Enqueues the given mail to the mailbox and blocks until there is capacity for a successful put.
 	 *
 	 * @param mail the mail to enqueue.
 	 * @throws MailboxStateException if the mailbox is quiesced or closed.
