@@ -158,7 +158,7 @@ public class ExecutionContextTest {
 	public void testFunctions() throws Exception {
 		final ExecutionContext<?> context = createDefaultExecutionContext();
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
-		final String[] expected = new String[]{"scalarUDF", "tableUDF", "aggregateUDF"};
+		final String[] expected = new String[]{"scalarudf", "tableudf", "aggregateudf"};
 		final String[] actual = tableEnv.listUserDefinedFunctions();
 		Arrays.sort(expected);
 		Arrays.sort(actual);
@@ -225,7 +225,7 @@ public class ExecutionContextTest {
 			tableEnv.listTables());
 
 		assertArrayEquals(
-			new String[]{"SourceTemporalTable", "ViewTemporalTable"},
+			new String[]{"sourcetemporaltable", "viewtemporaltable"},
 			tableEnv.listUserDefinedFunctions());
 
 		assertArrayEquals(

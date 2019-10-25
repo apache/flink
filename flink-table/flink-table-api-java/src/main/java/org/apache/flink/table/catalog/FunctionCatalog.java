@@ -193,14 +193,22 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
+	/**
+	 * Get names of all user defined functions, including temp system functions, temp catalog functions and catalog functions
+	 * in the current catalog and current database.
+	 */
 	public String[] getUserDefinedFunctions() {
 		return getUserDefinedFunctionNames().toArray(new String[0]);
 	}
 
+	/**
+	 * Get names of all functions, including temp system functions, system functions, temp catalog functions and catalog functions
+	 * in the current catalog and current database.
+	 */
 	public String[] getFunctions() {
 		Set<String> result = getUserDefinedFunctionNames();
 
-		// Get built-in functions
+		// add system functions
 		result.addAll(moduleManager.listFunctions());
 
 		return result.toArray(new String[0]);
@@ -209,19 +217,27 @@ public class FunctionCatalog implements FunctionLookup {
 	private Set<String> getUserDefinedFunctionNames() {
 		Set<String> result = new HashSet<>();
 
-		// Get functions in catalog
-		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+		// add temp system functions
+		result.addAll(tempSystemFunctions.keySet());
+
+		String currentCatalog = catalogManager.getCurrentCatalog();
+		String currentDatabase = catalogManager.getCurrentDatabase();
+
+		// add temp catalog functions
+		result.addAll(tempCatalogFunctions.keySet().stream()
+			.filter(oi -> oi.getCatalogName().equals(currentCatalog)
+				&& oi.getDatabaseName().equals(currentDatabase))
+			.map(oi -> oi.getObjectName())
+			.collect(Collectors.toSet())
+		);
+
+		// add catalog functions
+		Catalog catalog = catalogManager.getCatalog(currentCatalog).get();
 		try {
-			result.addAll(catalog.listFunctions(catalogManager.getCurrentDatabase()));
+			result.addAll(catalog.listFunctions(currentDatabase));
 		} catch (DatabaseNotExistException e) {
 			// Ignore since there will always be a current database of the current catalog
 		}
-
-		// Get functions registered in memory
-		result.addAll(
-			tempSystemFunctions.values().stream()
-				.map(FunctionDefinition::toString)
-				.collect(Collectors.toSet()));
 
 		return result;
 	}
