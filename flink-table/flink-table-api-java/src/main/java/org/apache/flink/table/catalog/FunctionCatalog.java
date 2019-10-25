@@ -200,7 +200,7 @@ public class FunctionCatalog implements FunctionLookup {
 	public String[] getFunctions() {
 		Set<String> result = getUserDefinedFunctionNames();
 
-		// Get built-in functions
+		// add system functions
 		result.addAll(moduleManager.listFunctions());
 
 		return result.toArray(new String[0]);
@@ -209,19 +209,22 @@ public class FunctionCatalog implements FunctionLookup {
 	private Set<String> getUserDefinedFunctionNames() {
 		Set<String> result = new HashSet<>();
 
-		// Get functions in catalog
+		// add temp system functions
+		result.addAll(tempSystemFunctions.keySet());
+
+		// add temp catalog functions
+		result.addAll(tempCatalogFunctions.keySet().stream()
+			.map(oi -> oi.getObjectName())
+			.collect(Collectors.toSet())
+		);
+
+		// add catalog functions
 		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
 		try {
 			result.addAll(catalog.listFunctions(catalogManager.getCurrentDatabase()));
 		} catch (DatabaseNotExistException e) {
 			// Ignore since there will always be a current database of the current catalog
 		}
-
-		// Get functions registered in memory
-		result.addAll(
-			tempSystemFunctions.values().stream()
-				.map(FunctionDefinition::toString)
-				.collect(Collectors.toSet()));
 
 		return result;
 	}
