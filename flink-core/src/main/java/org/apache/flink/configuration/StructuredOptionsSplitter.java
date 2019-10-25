@@ -20,28 +20,14 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Helper class for splitting a string on a given delimiter with quoting logic.
  */
 @Internal
 class StructuredOptionsSplitter {
-
-	private enum State {
-		CONSUMING,
-		SINGLE_QUOTED_CONSUMING,
-		DOUBLE_QUOTED_CONSUMING,
-		UNKNOWN
-	}
-
-	private State state = State.UNKNOWN;
-	private final List<String> splits = new ArrayList<>();
-	private StringBuilder builder = new StringBuilder();
 
 	/**
 	 * Splits the given string on the given delimiter. It supports quoting parts of the string with
@@ -60,87 +46,127 @@ class StructuredOptionsSplitter {
 	 * @return a list of splits
 	 */
 	static List<String> splitEscaped(String string, char delimiter) {
-		StructuredOptionsSplitter splitter = new StructuredOptionsSplitter();
-		return splitter.split(string, delimiter);
+		List<Token> tokens = tokenize(string, delimiter);
+		return processTokens(tokens);
 	}
 
-	private List<String> split(String string, char delimiter) {
-		for (int cursor = 0; cursor < string.length(); cursor++) {
-			final char c = string.charAt(cursor);
-			final Character nextChar;
-			if (cursor + 1 < string.length()) {
-				nextChar = string.charAt(cursor + 1);
-			} else {
-				nextChar = null;
-			}
-
-			switch (state) {
-				case CONSUMING:
-					if (c == '\'' || c == '"') {
+	private static List<String> processTokens(List<Token> tokens) {
+		final List<String> splits = new ArrayList<>();
+		for (int i = 0; i < tokens.size(); i++) {
+			Token token = tokens.get(i);
+			switch (token.getTokenType()) {
+				case DOUBLE_QUOTED:
+				case SINGLE_QUOTED:
+					if (i + 1 < tokens.size() && tokens.get(i + 1).getTokenType() != TokenType.DELIMITER) {
+						int illegalPosition = tokens.get(i + 1).getPosition() - 1;
 						throw new IllegalArgumentException(
-							"Could not split string. Illegal quoting at position: " + cursor);
-					} else if (c == delimiter) {
-						endSplit(builder);
-					} else {
-						builder.append(c);
+							"Could not split string. Illegal quoting at position: " + illegalPosition);
 					}
-					continue;
-				case SINGLE_QUOTED_CONSUMING:
-					cursor = consumeInQuotes(c, nextChar, cursor, delimiter, '\'');
-					continue;
-				case DOUBLE_QUOTED_CONSUMING:
-					cursor = consumeInQuotes(c, nextChar, cursor, delimiter, '\"');
-					continue;
-				case UNKNOWN:
-					if (c == '\'') {
-						state = State.SINGLE_QUOTED_CONSUMING;
-					} else if (c == '\"') {
-						state = State.DOUBLE_QUOTED_CONSUMING;
-					} else if (c == delimiter) {
-						endSplit(builder);
-					} else {
-						builder.append(c);
-						state = State.CONSUMING;
+					splits.add(token.getString());
+					break;
+				case UNQUOTED:
+					splits.add(token.getString());
+					break;
+				case DELIMITER:
+					if (i + 1 < tokens.size() && tokens.get(i + 1).getTokenType() == TokenType.DELIMITER) {
+						splits.add("");
 					}
+					break;
 			}
-		}
-
-		if (state == State.CONSUMING || state == State.UNKNOWN) {
-			splits.add(builder.toString());
-		} else {
-			throw new IllegalArgumentException("Could not split string. Quoting was not closed properly.");
 		}
 
 		return splits;
 	}
 
-	private int consumeInQuotes(
-			char currentChar,
-			@Nullable Character nextChar,
-			int cursor,
-			char delimiter,
-			char quote) {
-		if (currentChar == quote) {
-			if (Objects.equals(nextChar, quote)) {
-				builder.append(currentChar);
-				cursor += 1;
-			} else if (Objects.equals(nextChar, delimiter)) {
-				endSplit(builder);
-				cursor += 1;
-			} else {
-				throw new IllegalArgumentException(
-					"Could not split string. Illegal quoting at position: " + cursor);
+	private static List<Token> tokenize(String string, char delimiter) {
+		final List<Token> tokens = new ArrayList<>();
+		final StringBuilder builder = new StringBuilder();
+		for (int cursor = 0; cursor < string.length(); ) {
+			final char c = string.charAt(cursor);
+
+			int nextChar = cursor + 1;
+			if (c == '\'') {
+				nextChar = consumeInQuotes(string, '\'', cursor, builder);
+				tokens.add(new Token(TokenType.SINGLE_QUOTED, builder.toString(), cursor));
+			} else if (c == '"') {
+				nextChar = consumeInQuotes(string, '"', cursor, builder);
+				tokens.add(new Token(TokenType.DOUBLE_QUOTED, builder.toString(), cursor));
+			} else if (c == delimiter) {
+				tokens.add(new Token(TokenType.DELIMITER, String.valueOf(c), cursor));
+			} else if (!Character.isWhitespace(c)) {
+				nextChar = consumeUnquoted(string, delimiter, cursor, builder);
+				tokens.add(new Token(TokenType.UNQUOTED, builder.toString().trim(), cursor));
 			}
-		} else {
-			builder.append(currentChar);
+			builder.setLength(0);
+			cursor = nextChar;
 		}
-		return cursor;
+
+		return tokens;
 	}
 
-	private void endSplit(StringBuilder builder) {
-		splits.add(builder.toString());
-		builder.setLength(0);
-		state = State.UNKNOWN;
+	private static int consumeInQuotes(String string, char quote, int cursor, StringBuilder builder) {
+		for (int i = cursor + 1; i < string.length(); i++) {
+			char c = string.charAt(i);
+			if (c == quote) {
+				if (i + 1 < string.length() && string.charAt(i + 1) == quote) {
+					builder.append(c);
+					i += 1;
+				} else {
+					return i + 1;
+				}
+			} else {
+				builder.append(c);
+			}
+		}
+
+		throw new IllegalArgumentException("Could not split string. Quoting was not closed properly.");
+	}
+
+	private static int consumeUnquoted(String string, char delimiter, int cursor, StringBuilder builder) {
+		int i;
+		for (i = cursor; i < string.length(); i++) {
+			char c = string.charAt(i);
+			if (c == delimiter) {
+				return i;
+			} else if (c == '\'' || c == '"') {
+				throw new IllegalArgumentException("Could not split string. Illegal quoting at position: " + i);
+			} else {
+				builder.append(c);
+			}
+		}
+
+		return i;
+	}
+
+	private enum TokenType {
+		DOUBLE_QUOTED,
+		SINGLE_QUOTED,
+		UNQUOTED,
+		DELIMITER
+	}
+
+	private static class Token {
+		private final TokenType tokenType;
+		private final String string;
+		private final int position;
+
+		private Token(TokenType tokenType, String string, int position) {
+			this.tokenType = tokenType;
+			this.string = string;
+			this.position = position;
+		}
+
+		public TokenType getTokenType() {
+			return tokenType;
+		}
+
+		public String getString() {
+			return string;
+		}
+
+		public int getPosition() {
+			return position;
+		}
 	}
 
 	private StructuredOptionsSplitter() {

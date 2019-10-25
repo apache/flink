@@ -50,6 +50,7 @@ public class StructuredOptionsSplitterTest {
 
 			// Use single quotes for quoting
 			TestSpec.split("'A;B';C", ';').expect("A;B", "C"),
+			TestSpec.split("'A;B';'C'", ';').expect("A;B", "C"),
 			TestSpec.split("A;B;C", ';').expect("A", "B", "C"),
 			TestSpec.split("'AB''D;B';C", ';').expect("AB'D;B", "C"),
 			TestSpec.split("A'BD;B';C", ';').expectException("Could not split string. Illegal quoting at position: 1"),
@@ -59,6 +60,7 @@ public class StructuredOptionsSplitterTest {
 
 			// Use double quotes for quoting
 			TestSpec.split("\"A;B\";C", ';').expect("A;B", "C"),
+			TestSpec.split("\"A;B\";\"C\"", ';').expect("A;B", "C"),
 			TestSpec.split("A;B;C", ';').expect("A", "B", "C"),
 			TestSpec.split("\"AB\"\"D;B\";C", ';').expect("AB\"D;B", "C"),
 			TestSpec.split("A\"BD;B\";C", ';')
@@ -78,7 +80,13 @@ public class StructuredOptionsSplitterTest {
 
 			// Use different delimiter
 			TestSpec.split("'A,B',C", ',').expect("A,B", "C"),
-			TestSpec.split("A,B,C", ',').expect("A", "B", "C")
+			TestSpec.split("A,B,C", ',').expect("A", "B", "C"),
+
+			// Whitespaces handling
+			TestSpec.split("   'A;B'    ;   C   ", ';').expect("A;B", "C"),
+			TestSpec.split("   A;B    ;   C   ", ';').expect("A", "B", "C"),
+			TestSpec.split("'A;B'    ;C A", ';').expect("A;B", "C A"),
+			TestSpec.split("' A    ;B'    ;'   C'", ';').expect(" A    ;B", "   C")
 		);
 	}
 
