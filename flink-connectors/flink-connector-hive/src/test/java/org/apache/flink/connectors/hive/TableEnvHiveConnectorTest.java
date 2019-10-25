@@ -77,7 +77,7 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		hiveShell.execute("create table db1.src (x int, y int)");
 		hiveShell.execute("create table db1.part (x int) partitioned by (y int)");
-		hiveShell.insertInto("db1", "src").addRow(1, 1).addRow(2, null).commit();
+		HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src").addRow(new Object[]{1, 1}).addRow(new Object[]{2, null}).commit();
 
 		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 
@@ -186,7 +186,7 @@ public class TableEnvHiveConnectorTest {
 		try {
 			// non-partitioned
 			hiveShell.execute("create table db1.dest (x int, y string)");
-			hiveShell.insertInto("db1", "dest").addRow(1, "a").addRow(2, "b").commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "dest").addRow(new Object[]{1, "a"}).addRow(new Object[]{2, "b"}).commit();
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert overwrite db1.dest values (3,'c')");
@@ -195,7 +195,8 @@ public class TableEnvHiveConnectorTest {
 
 			// static partition
 			hiveShell.execute("create table db1.part(x int) partitioned by (y int)");
-			hiveShell.insertInto("db1", "part").addRow(1, 1).addRow(2, 2).commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part").addRow(new Object[]{1}).commit("y=1");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part").addRow(new Object[]{2}).commit("y=2");
 			tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert overwrite db1.part partition (y=1) select 100");
 			tableEnv.execute("insert overwrite static partition");
@@ -217,7 +218,7 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.src (x int)");
-			hiveShell.insertInto("db1", "src").addRow(1).addRow(2).commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src").addRow(new Object[]{1}).addRow(new Object[]{2}).commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert into db1.dest partition (p1='1''1', p2=1.1) select x from db1.src");
@@ -234,7 +235,11 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.src (x int, y string, z double)");
-			hiveShell.insertInto("db1", "src").addRow(1, "a", 1.1).addRow(2, "a", 2.2).addRow(3, "b", 3.3).commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{1, "a", 1.1})
+					.addRow(new Object[]{2, "a", 2.2})
+					.addRow(new Object[]{3, "b", 3.3})
+					.commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
@@ -251,7 +256,7 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.src (x int, y string)");
-			hiveShell.insertInto("db1", "src").addRow(1, "a").addRow(2, "b").commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src").addRow(new Object[]{1, "a"}).addRow(new Object[]{2, "b"}).commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 double, p2 string)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert into db1.dest partition (p1=1.1) select x,y from db1.src");

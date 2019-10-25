@@ -28,8 +28,7 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantDateObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantTimestampObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -88,25 +87,14 @@ public class HiveReflectionUtils {
 		}
 	}
 
-	public static JavaConstantDateObjectInspector createJavaConstantDateObjectInspector(HiveShim hiveShim, Object value) {
-		Constructor<?> meth = null;
+	public static ObjectInspector createConstantObjectInspector(String className, Object value) {
 		try {
-			meth = JavaConstantDateObjectInspector.class.getDeclaredConstructor(hiveShim.getDateDataTypeClass());
-			meth.setAccessible(true);
-			return (JavaConstantDateObjectInspector) meth.newInstance(value);
-		} catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to instantiate JavaConstantDateObjectInspector");
-		}
-	}
-
-	public static JavaConstantTimestampObjectInspector createJavaConstantTimestampObjectInspector(HiveShim hiveShim, Object value) {
-		Constructor<?> meth = null;
-		try {
-			meth = JavaConstantTimestampObjectInspector.class.getDeclaredConstructor(hiveShim.getDateDataTypeClass());
-			meth.setAccessible(true);
-			return (JavaConstantTimestampObjectInspector) meth.newInstance(value);
-		} catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to instantiate JavaConstantTimestampObjectInspector");
+			Constructor<?>  method = Class.forName(className).getDeclaredConstructor(value.getClass());
+			method.setAccessible(true);
+			return (ObjectInspector) method.newInstance(value);
+		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException
+				| InvocationTargetException e) {
+			throw new FlinkHiveUDFException("Failed to instantiate JavaConstantDateObjectInspector", e);
 		}
 	}
 

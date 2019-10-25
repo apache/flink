@@ -416,6 +416,10 @@ under the License.
 					<artifactId>hive-hcatalog-core</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>org.apache.hive.hcatalog</groupId>
+					<artifactId>hive-webhcat-java-client</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.apache.tez</groupId>
 					<artifactId>tez-common</artifactId>
 				</exclusion>
@@ -601,8 +605,19 @@ under the License.
 					<artifactId>hadoop-mapreduce-client-core</artifactId>
 					<groupId>org.apache.hadoop</groupId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+				</exclusion>
             </exclusions>
         </dependency>
+
+		<dependency>
+			<groupId>org.apache.hive.hcatalog</groupId>
+			<artifactId>hive-webhcat-java-client</artifactId>
+			<version>${hive.version}</version>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- TODO: move to flink-connector-hive-test end-to-end test module once it's setup -->
 		<dependency>
@@ -652,6 +667,14 @@ under the License.
 
 	<profiles>
 		<!-- Activate this profile with -Phive-1.2.1 to build and test against hive-1.2.1 -->
+		<profile>
+			<id>hive-1.1.1</id>
+			<properties>
+				<hive.version>1.1.1</hive.version>
+				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
+				<hiverunner.version>3.1.1</hiverunner.version>
+			</properties>
+		</profile>
 		<profile>
 			<id>hive-1.2.1</id>
 			<properties>

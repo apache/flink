@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -79,26 +80,32 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
 	// ------ table and column stats ------
 	@Test
 	public void testAlterTableColumnStatistics() throws Exception {
+		String hiveVersion = ((HiveCatalog) catalog).getHiveVersion();
+		boolean supportDateStats = hiveVersion.compareTo(HiveShimLoader.HIVE_VERSION_V1_2_0) >= 0;
 		catalog.createDatabase(db1, createDb(), false);
-		TableSchema tableSchema = TableSchema.builder()
-											.field("first", DataTypes.STRING())
-											.field("second", DataTypes.INT())
-											.field("third", DataTypes.BOOLEAN())
-											.field("fourth", DataTypes.DATE())
-											.field("fifth", DataTypes.DOUBLE())
-											.field("sixth", DataTypes.BIGINT())
-											.field("seventh", DataTypes.BYTES())
-											.build();
+		TableSchema.Builder builder = TableSchema.builder()
+				.field("first", DataTypes.STRING())
+				.field("second", DataTypes.INT())
+				.field("third", DataTypes.BOOLEAN())
+				.field("fourth", DataTypes.DOUBLE())
+				.field("fifth", DataTypes.BIGINT())
+				.field("sixth", DataTypes.BYTES());
+		if (supportDateStats) {
+			builder.field("seventh", DataTypes.DATE());
+		}
+		TableSchema tableSchema = builder.build();
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
 		catalog.createTable(path1, catalogTable, false);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
 		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
 		columnStatisticsDataBaseMap.put("second", new CatalogColumnStatisticsDataLong(0, 1000, 3, 0));
 		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataBoolean(15, 20, 3));
-		columnStatisticsDataBaseMap.put("fourth", new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 1321, 0L));
-		columnStatisticsDataBaseMap.put("fifth", new CatalogColumnStatisticsDataDouble(15.02, 20.01, 3, 10));
-		columnStatisticsDataBaseMap.put("sixth", new CatalogColumnStatisticsDataLong(0, 20, 3, 2));
-		columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataBinary(150, 20, 3));
+		columnStatisticsDataBaseMap.put("fourth", new CatalogColumnStatisticsDataDouble(15.02, 20.01, 3, 10));
+		columnStatisticsDataBaseMap.put("fifth", new CatalogColumnStatisticsDataLong(0, 20, 3, 2));
+		columnStatisticsDataBaseMap.put("sixth", new CatalogColumnStatisticsDataBinary(150, 20, 3));
+		if (supportDateStats) {
+			columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 1321, 0L));
+		}
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
 		catalog.alterTableColumnStatistics(path1, catalogColumnStatistics, false);
 

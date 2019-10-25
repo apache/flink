@@ -34,11 +34,11 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCase;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCeil;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateDiff;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDecode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFMapKeys;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStruct;
+import org.junit.Assume;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -52,6 +52,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class HiveGenericUDFTest {
 	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+	private static final boolean HIVE_120_OR_LATER = HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V1_2_0) >= 0;
 
 	@Test
 	public void testAbs() {
@@ -111,12 +112,13 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testDateFormat() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+	public void testDateFormat() throws Exception {
+		Assume.assumeTrue(HIVE_120_OR_LATER);
 		String constYear = "y";
 		String constMonth = "M";
 
 		HiveGenericUDF udf = init(
-			GenericUDFDateFormat.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat"),
 			new Object[] {
 				null,
 				constYear
@@ -130,7 +132,7 @@ public class HiveGenericUDFTest {
 		assertEquals("2009", udf.eval("2009-08-31", constYear));
 
 		udf = init(
-			GenericUDFDateFormat.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat"),
 			new Object[] {
 				null,
 				constMonth

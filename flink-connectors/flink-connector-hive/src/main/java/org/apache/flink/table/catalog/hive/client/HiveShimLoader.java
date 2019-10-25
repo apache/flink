@@ -32,6 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HiveShimLoader {
 
+	public static final String HIVE_VERSION_V1_1_0 = "1.1.0";
+	public static final String HIVE_VERSION_V1_1_1 = "1.1.1";
 	public static final String HIVE_VERSION_V1_2_0 = "1.2.0";
 	public static final String HIVE_VERSION_V1_2_1 = "1.2.1";
 	public static final String HIVE_VERSION_V1_2_2 = "1.2.2";
@@ -60,6 +62,12 @@ public class HiveShimLoader {
 
 	public static HiveShim loadHiveShim(String version) {
 		return hiveShims.computeIfAbsent(version, (v) -> {
+			if (v.startsWith(HIVE_VERSION_V1_1_0)) {
+				return new HiveShimV110();
+			}
+			if (v.startsWith(HIVE_VERSION_V1_1_1)) {
+				return new HiveShimV111();
+			}
 			if (v.startsWith(HIVE_VERSION_V1_2_0)) {
 				return new HiveShimV120();
 			}
