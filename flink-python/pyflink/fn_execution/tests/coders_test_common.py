@@ -21,7 +21,7 @@ import logging
 import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
-    SmallIntCoder, IntCoder, FloatCoder, DoubleCoder
+    SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -66,6 +66,10 @@ class CodersTest(unittest.TestCase):
     def test_double_coder(self):
         coder = DoubleCoder()
         self.check_coder(coder, -12.02, 1.98932)
+
+    def test_binary_coder(self):
+        coder = BinaryCoder()
+        self.check_coder(coder, b'pyflink')
 
 
 if __name__ == '__main__':

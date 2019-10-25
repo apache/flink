@@ -139,3 +139,14 @@ class DoubleCoderImpl(StreamCoderImpl):
 
     def decode_from_stream(self, in_stream, nested):
         return in_stream.read_bigendian_double()
+
+
+class BinaryCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_bigendian_int32(len(value))
+        out_stream.write(value, False)
+
+    def decode_from_stream(self, in_stream, nested):
+        size = in_stream.read_bigendian_int32()
+        return in_stream.read(size)

@@ -368,6 +368,11 @@ class UserDefinedFunctionTests(object):
                 'double_param is wrong value %s !' % double_param
             return double_param
 
+        def bytes_func(bytes_param):
+            assert bytes_param == b'flink', \
+                'bytes_param is wrong value %s !' % bytes_param
+            return bytes_param
+
         self.t_env.register_function(
             "boolean_func", udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN()))
 
@@ -392,15 +397,19 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_function(
             "double_func", udf(double_func, [DataTypes.DOUBLE()], DataTypes.DOUBLE()))
 
+        self.t_env.register_function(
+            "bytes_func", udf(bytes_func, [DataTypes.BYTES()], DataTypes.BYTES()))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
              DataTypes.BOOLEAN(), DataTypes.SMALLINT(), DataTypes.INT(),
-             DataTypes.FLOAT(), DataTypes.DOUBLE()])
+             DataTypes.FLOAT(), DataTypes.DOUBLE(), DataTypes.BYTES()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements(
-            [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932)],
+            [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+              bytearray(b'flink'))],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
@@ -409,16 +418,20 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("e", DataTypes.SMALLINT()),
                  DataTypes.FIELD("f", DataTypes.INT()),
                  DataTypes.FIELD("g", DataTypes.FLOAT()),
-                 DataTypes.FIELD("h", DataTypes.DOUBLE())]))
+                 DataTypes.FIELD("h", DataTypes.DOUBLE()),
+                 DataTypes.FIELD("i", DataTypes.BYTES())]))
 
         t.select("bigint_func(a), bigint_func_none(b),"
                  "tinyint_func(c), boolean_func(d),"
                  "smallint_func(e),int_func(f),"
-                 "float_func(g),double_func(h)") \
+                 "float_func(g),double_func(h),"
+                 "bytes_func(i)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,null,1,true,32767,-2147483648,1.23,1.98932"])
+        self.assert_equals(actual,
+                           ["1,null,1,true,32767,-2147483648,1.23,1.98932,"
+                            "[102, 108, 105, 110, 107]"])
 
 
 # decide whether two floats are equal
