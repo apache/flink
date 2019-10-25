@@ -31,6 +31,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.FunctionIdentifier
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.util.Preconditions
 import org.slf4j.{Logger, LoggerFactory}
@@ -279,7 +280,7 @@ class RexNodeToExpressionConverter(
     val expressionBridge = new ExpressionBridge[PlannerExpression](
       functionCatalog,
       PlannerExpressionConverter.INSTANCE)
-    JavaScalaConversionUtil.toScala(functionCatalog.lookupFunction(name))
+    JavaScalaConversionUtil.toScala(functionCatalog.lookupFunction(FunctionIdentifier.of(name)))
       .flatMap(result =>
         Try(expressionBridge.bridge(
           unresolvedCall(result.getFunctionDefinition, operands: _*))).toOption

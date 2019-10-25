@@ -340,10 +340,12 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	// ------ functions ------
 
 	@Override
-	public void createFunction(ObjectPath functionPath, CatalogFunction function, boolean ignoreIfExists)
+	public void createFunction(ObjectPath path, CatalogFunction function, boolean ignoreIfExists)
 			throws FunctionAlreadyExistException, DatabaseNotExistException {
-		checkNotNull(functionPath);
+		checkNotNull(path);
 		checkNotNull(function);
+
+		ObjectPath functionPath = normalize(path);
 
 		if (!databaseExists(functionPath.getDatabaseName())) {
 			throw new DatabaseNotExistException(getName(), functionPath.getDatabaseName());
@@ -359,10 +361,12 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public void alterFunction(ObjectPath functionPath, CatalogFunction newFunction, boolean ignoreIfNotExists)
+	public void alterFunction(ObjectPath path, CatalogFunction newFunction, boolean ignoreIfNotExists)
 			throws FunctionNotExistException {
-		checkNotNull(functionPath);
+		checkNotNull(path);
 		checkNotNull(newFunction);
+
+		ObjectPath functionPath = normalize(path);
 
 		CatalogFunction existingFunction = functions.get(functionPath);
 
@@ -381,8 +385,10 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists) throws FunctionNotExistException {
-		checkNotNull(functionPath);
+	public void dropFunction(ObjectPath path, boolean ignoreIfNotExists) throws FunctionNotExistException {
+		checkNotNull(path);
+
+		ObjectPath functionPath = normalize(path);
 
 		if (functionExists(functionPath)) {
 			functions.remove(functionPath);
@@ -400,13 +406,16 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 		}
 
 		return functions.keySet().stream()
-			.filter(k -> k.getDatabaseName().equals(databaseName)).map(k -> k.getObjectName())
+			.filter(k -> k.getDatabaseName().equals(databaseName))
+			.map(k -> k.getObjectName())
 			.collect(Collectors.toList());
 	}
 
 	@Override
-	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException {
-		checkNotNull(functionPath);
+	public CatalogFunction getFunction(ObjectPath path) throws FunctionNotExistException {
+		checkNotNull(path);
+
+		ObjectPath functionPath = normalize(path);
 
 		if (!functionExists(functionPath)) {
 			throw new FunctionNotExistException(getName(), functionPath);
@@ -416,9 +425,16 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public boolean functionExists(ObjectPath functionPath) {
-		checkNotNull(functionPath);
+	public boolean functionExists(ObjectPath path) {
+		checkNotNull(path);
+
+		ObjectPath functionPath = normalize(path);
+
 		return databaseExists(functionPath.getDatabaseName()) && functions.containsKey(functionPath);
+	}
+
+	private ObjectPath normalize(ObjectPath path) {
+		return new ObjectPath(path.getDatabaseName(), path.getObjectName().toLowerCase());
 	}
 
 	// ------ partitions ------

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -33,6 +32,7 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -145,8 +145,8 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				TypeInference inference,
 				List<ResolvedExpression> resolvedArgs) {
 
-			final String name = unresolvedCall.getObjectIdentifier()
-				.map(ObjectIdentifier::toString)
+			final String name = unresolvedCall.getFunctionIdentifier()
+				.map(FunctionIdentifier::toString)
 				.orElseGet(() -> unresolvedCall.getFunctionDefinition().toString());
 
 			final TypeInferenceUtil.Result inferenceResult = TypeInferenceUtil.runTypeInference(

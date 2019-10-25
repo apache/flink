@@ -375,6 +375,7 @@ public interface Catalog {
 
 	/**
 	 * Get the function.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath path of the function
 	 * @return the requested function
@@ -385,6 +386,7 @@ public interface Catalog {
 
 	/**
 	 * Check whether a function exists or not.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath path of the function
 	 * @return true if the function exists in the catalog
@@ -395,6 +397,7 @@ public interface Catalog {
 
 	/**
 	 * Create a function.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath      path of the function
 	 * @param function          the function to be created
@@ -410,6 +413,7 @@ public interface Catalog {
 
 	/**
 	 * Modify an existing function.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath       path of the function
 	 * @param newFunction        the function to be modified
@@ -424,6 +428,7 @@ public interface Catalog {
 
 	/**
 	 * Drop a function.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath       path of the function to be dropped
 	 * @param ignoreIfNotExists  plag to specify behavior if the function does not exist:
@@ -434,8 +439,6 @@ public interface Catalog {
 	 */
 	void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
 		throws FunctionNotExistException, CatalogException;
-
-	// ------ statistics ------
 
 	// ------ statistics ------
 
