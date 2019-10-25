@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
+import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
@@ -30,6 +31,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -82,6 +84,11 @@ public final class PythonTypeUtils {
 		@Override
 		public TypeSerializer visit(BigIntType bigIntType) {
 			return LongSerializer.INSTANCE;
+		}
+
+		@Override
+		public TypeSerializer visit(FloatType floatType) {
+			return FloatSerializer.INSTANCE;
 		}
 
 		@Override
@@ -150,6 +157,14 @@ public final class PythonTypeUtils {
 			return FlinkFnApi.Schema.FieldType.newBuilder()
 				.setTypeName(FlinkFnApi.Schema.TypeName.BIGINT)
 				.setNullable(bigIntType.isNullable())
+				.build();
+		}
+
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(FloatType floatType) {
+			return FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.FLOAT)
+				.setNullable(floatType.isNullable())
 				.build();
 		}
 

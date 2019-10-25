@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+import struct
 from apache_beam.coders.coder_impl import StreamCoderImpl
 
 
@@ -120,3 +121,12 @@ class BooleanCoderImpl(StreamCoderImpl):
 
     def decode_from_stream(self, in_stream, nested):
         return not not in_stream.read_byte()
+
+
+class FloatCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write(struct.pack('>f', value))
+
+    def decode_from_stream(self, in_stream, nested):
+        return struct.unpack('>f', in_stream.read(4))[0]
