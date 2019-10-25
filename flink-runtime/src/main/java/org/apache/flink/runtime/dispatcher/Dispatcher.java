@@ -252,7 +252,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		try {
 			jobManagerSharedServices.shutdown();
 		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			exception = e;
 		}
 
 		jobManagerMetricGroup.close();
