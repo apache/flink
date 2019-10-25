@@ -47,18 +47,30 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         t = t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.where("a > 1 && b = 'Hello'")
         query_operation = result._j_table.getQueryOperation()
+<<<<<<< Updated upstream
         self.assertEqual("`and`("
                          "`greaterThan`(a, 1), "
                          "`equals`(b, 'Hello'))",
+=======
+        self.assertEqual("`default_catalog`.`default_database`.`and`("
+                         "`default_catalog`.`default_database`.`greaterthan`(a, 1), "
+                         "`default_catalog`.`default_database`.`equals`(b, 'Hello'))",
+>>>>>>> Stashed changes
                          query_operation.getCondition().toString())
 
     def test_filter(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.filter("a > 1 && b = 'Hello'")
         query_operation = result._j_table.getQueryOperation()
+<<<<<<< Updated upstream
         self.assertEqual("`and`("
                          "`greaterThan`(a, 1), "
                          "`equals`(b, 'Hello'))",
+=======
+        self.assertEqual("`default_catalog`.`default_database`.`and`("
+                         "`default_catalog`.`default_database`.`greaterthan`(a, 1), "
+                         "`default_catalog`.`default_database`.`equals`(b, 'Hello'))",
+>>>>>>> Stashed changes
                          query_operation.getCondition().toString())
 
     def test_from_element(self):

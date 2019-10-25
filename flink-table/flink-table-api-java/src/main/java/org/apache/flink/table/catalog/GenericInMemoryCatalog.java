@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
@@ -434,7 +435,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	}
 
 	private ObjectPath normalize(ObjectPath path) {
-		return new ObjectPath(path.getDatabaseName(), path.getObjectName().toLowerCase());
+		return new ObjectPath(path.getDatabaseName(), FunctionIdentifier.normalizeName(path.getObjectName()));
 	}
 
 	// ------ partitions ------

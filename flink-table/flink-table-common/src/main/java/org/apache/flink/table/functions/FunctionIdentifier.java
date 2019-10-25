@@ -55,22 +55,28 @@ public final class FunctionIdentifier implements Serializable {
 		this.functionName = null;
 	}
 
-	static ObjectIdentifier normalizeObjectIdentifier(ObjectIdentifier oi) {
-		return ObjectIdentifier.of(
-			oi.getCatalogName(),
-			oi.getDatabaseName(),
-			normalizeName(oi.getObjectName()));
-	}
-
-	static String normalizeName(String name) {
-		return name.toLowerCase();
-	}
-
 	private FunctionIdentifier(String functionName){
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(functionName),
 		"function name cannot be null or empty string");
 		this.functionName = normalizeName(functionName);
 		this.objectIdentifier = null;
+	}
+
+	/**
+	 * Normalize a function name.
+	 */
+	public static String normalizeName(String name) {
+		return name.toLowerCase();
+	}
+
+	/**
+	 * Normalize an object identifier by only normalizing the function name.
+	 */
+	public static ObjectIdentifier normalizeObjectIdentifier(ObjectIdentifier oi) {
+		return ObjectIdentifier.of(
+			oi.getCatalogName(),
+			oi.getDatabaseName(),
+			normalizeName(oi.getObjectName()));
 	}
 
 	public Optional<ObjectIdentifier> getIdentifier(){

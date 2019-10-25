@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -236,7 +235,7 @@ public class FunctionCatalog implements FunctionLookup {
 		} else {
 			// ambiguous function reference
 
-			String functionName = FunctionCatalogUtil.normalizeName(fi.getSimpleName().get());
+			String functionName = fi.getSimpleName().get();
 
 			FunctionDefinition userCandidate;
 
@@ -287,9 +286,8 @@ public class FunctionCatalog implements FunctionLookup {
 		// resolve order:
 		// 1. Temporary functions
 		// 2. Catalog functions
-		ObjectIdentifier normalized = normalizeObjectIdentifier(oi);
 
-		FunctionDefinition potentialResult = tempCatalogFunctions.get(normalized);
+		FunctionDefinition potentialResult = tempCatalogFunctions.get(oi);
 
 		if (potentialResult != null) {
 			return Optional.of(
@@ -300,19 +298,19 @@ public class FunctionCatalog implements FunctionLookup {
 			);
 		}
 
-		Catalog catalog = catalogManager.getCatalog(normalized.getCatalogName()).get();
+		Catalog catalog = catalogManager.getCatalog(oi.getCatalogName()).get();
 
 		if (catalog != null) {
 			try {
 				CatalogFunction catalogFunction = catalog.getFunction(
-					new ObjectPath(normalized.getDatabaseName(), normalized.getObjectName()));
+					new ObjectPath(oi.getDatabaseName(), oi.getObjectName()));
 
 				FunctionDefinition fd;
 				if (catalog.getFunctionDefinitionFactory().isPresent()) {
 					fd = catalog.getFunctionDefinitionFactory().get()
-						.createFunctionDefinition(normalized.getObjectName(), catalogFunction);
+						.createFunctionDefinition(oi.getObjectName(), catalogFunction);
 				} else {
-					fd = FunctionDefinitionUtil.createFunctionDefinition(normalized.getObjectName(), catalogFunction);
+					fd = FunctionDefinitionUtil.createFunctionDefinition(oi.getObjectName(), catalogFunction);
 				}
 
 				return Optional.of(
@@ -334,21 +332,10 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	private void registerTempSystemFunction(String name, FunctionDefinition functionDefinition) {
-		tempSystemFunctions.put(FunctionCatalogUtil.normalizeName(name), functionDefinition);
+		tempSystemFunctions.put(FunctionIdentifier.normalizeName(name), functionDefinition);
 	}
 
 	private void registerTempCatalogFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
-		tempCatalogFunctions.put(normalizeObjectIdentifier(oi), functionDefinition);
-	}
-
-	/**
-	 * Only normalize the function name.
-	 */
-	@VisibleForTesting
-	static ObjectIdentifier normalizeObjectIdentifier(ObjectIdentifier oi) {
-		return ObjectIdentifier.of(
-			oi.getCatalogName(),
-			oi.getDatabaseName(),
-			FunctionCatalogUtil.normalizeName(oi.getObjectName()));
+		tempCatalogFunctions.put(FunctionIdentifier.normalizeObjectIdentifier(oi), functionDefinition);
 	}
 }
