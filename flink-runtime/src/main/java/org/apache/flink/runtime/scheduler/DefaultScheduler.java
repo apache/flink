@@ -32,7 +32,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ThrowingRestartStrategy;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -106,7 +106,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final JobManagerJobMetricGroup jobManagerJobMetricGroup,
 		final Time slotRequestTimeout,
 		final ShuffleMaster<?> shuffleMaster,
-		final PartitionTracker partitionTracker,
+		final JobMasterPartitionTracker partitionTracker,
 		final SchedulingStrategyFactory schedulingStrategyFactory,
 		final FailoverStrategy.Factory failoverStrategyFactory,
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy,

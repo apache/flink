@@ -26,9 +26,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Test {@link PartitionTracker} implementation.
+ * Test {@link JobMasterPartitionTracker} implementation.
  */
-public class TestingPartitionTracker implements PartitionTracker {
+public class TestingJobMasterPartitionTracker implements JobMasterPartitionTracker {
 
 	private Function<ResourceID, Boolean> isTrackingPartitionsForFunction = ignored -> false;
 	private Function<ResultPartitionID, Boolean> isPartitionTrackedFunction = ignored -> false;

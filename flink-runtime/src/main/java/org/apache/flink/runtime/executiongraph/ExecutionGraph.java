@@ -57,8 +57,8 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.P
 import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
-import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -309,7 +309,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * strong reference to any user-defined classes.*/
 	private volatile ErrorInfo failureInfo;
 
-	private final PartitionTracker partitionTracker;
+	private final JobMasterPartitionTracker partitionTracker;
 
 	private final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker;
 
@@ -442,7 +442,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			allocationTimeout,
 			new NotReleasingPartitionReleaseStrategy.Factory(),
 			NettyShuffleMaster.INSTANCE,
-			new PartitionTrackerImpl(
+			new JobMasterPartitionTrackerImpl(
 				jobInformation.getJobId(),
 				NettyShuffleMaster.INSTANCE,
 				ignored -> Optional.empty()),
@@ -464,7 +464,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			Time allocationTimeout,
 			PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
 			ShuffleMaster<?> shuffleMaster,
-			PartitionTracker partitionTracker,
+			JobMasterPartitionTracker partitionTracker,
 			ScheduleMode scheduleMode,
 			boolean allowQueuedScheduling) throws IOException {
 
@@ -1858,7 +1858,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return shuffleMaster;
 	}
 
-	public PartitionTracker getPartitionTracker() {
+	public JobMasterPartitionTracker getPartitionTracker() {
 		return partitionTracker;
 	}
 
