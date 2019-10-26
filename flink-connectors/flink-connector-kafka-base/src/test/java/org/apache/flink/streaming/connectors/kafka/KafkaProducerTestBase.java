@@ -243,6 +243,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		properties.putAll(secureProps);
 		// decrease timeout and block time from 60s down to 10s - this is how long KafkaProducer will try send pending (not flushed) data on close()
 		properties.setProperty("timeout.ms", "10000");
+		// KafkaProducer prior to KIP-91 (release 2.1) uses request timeout to expire the unsent records.
+		properties.setProperty("request.timeout.ms", "3000");
+		// KafkaProducer in 2.1.0 and above uses delivery timeout to expire the the records.
+		properties.setProperty("delivery.timeout.ms", "5000");
 		properties.setProperty("max.block.ms", "10000");
 		// increase batch.size and linger.ms - this tells KafkaProducer to batch produced events instead of flushing them immediately
 		properties.setProperty("batch.size", "10240000");
