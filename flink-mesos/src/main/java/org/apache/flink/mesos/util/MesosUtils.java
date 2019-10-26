@@ -119,15 +119,14 @@ public class MesosUtils {
 		return taskManagerParameters;
 	}
 
-	public static ContainerSpecification createContainerSpec(Configuration configuration, Configuration dynamicProperties)
+	public static ContainerSpecification createContainerSpec(Configuration flinkConfiguration)
 		throws Exception {
 		// generate a container spec which conveys the artifacts/vars needed to launch a TM
 		ContainerSpecification spec = new ContainerSpecification();
 
-		// propagate the AM dynamic configuration to the TM
-		spec.getFlinkConfiguration().addAll(dynamicProperties);
+		spec.getFlinkConfiguration().addAll(flinkConfiguration);
 
-		applyOverlays(configuration, spec);
+		applyOverlays(flinkConfiguration, spec);
 
 		return spec;
 	}
