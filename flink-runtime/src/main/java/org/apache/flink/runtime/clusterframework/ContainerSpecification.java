@@ -53,13 +53,13 @@ public class ContainerSpecification implements java.io.Serializable {
 
 	private final Map<String, String> environmentVariables;
 
-	private final Configuration dynamicConfiguration;
+	private final Configuration flinkConfiguration;
 
 	public ContainerSpecification() {
 		this.artifacts = new LinkedList<>();
 		this.environmentVariables = new HashMap<String, String>();
 		this.systemProperties = new Configuration();
-		this.dynamicConfiguration = new Configuration();
+		this.flinkConfiguration = new Configuration();
 	}
 
 	/**
@@ -79,8 +79,8 @@ public class ContainerSpecification implements java.io.Serializable {
 	/**
 	 * Get the dynamic configuration.
      */
-	public Configuration getDynamicConfiguration() {
-		return dynamicConfiguration;
+	public Configuration getFlinkConfiguration() {
+		return flinkConfiguration;
 	}
 
 	/**
@@ -96,7 +96,7 @@ public class ContainerSpecification implements java.io.Serializable {
 		clone.artifacts.addAll(this.artifacts);
 		clone.environmentVariables.putAll(this.environmentVariables);
 		clone.systemProperties.addAll(this.systemProperties);
-		clone.dynamicConfiguration.addAll(this.dynamicConfiguration);
+		clone.flinkConfiguration.addAll(this.flinkConfiguration);
 		return clone;
 	}
 
@@ -105,7 +105,7 @@ public class ContainerSpecification implements java.io.Serializable {
 		return "ContainerSpecification{" +
 			"environmentVariables=" + environmentVariables +
 			", systemProperties=" + systemProperties +
-			", dynamicConfiguration=" + dynamicConfiguration +
+			", dynamicConfiguration=" + flinkConfiguration +
 			", artifacts=" + artifacts +
 			'}';
 	}

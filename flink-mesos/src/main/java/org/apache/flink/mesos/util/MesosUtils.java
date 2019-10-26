@@ -125,7 +125,7 @@ public class MesosUtils {
 		ContainerSpecification spec = new ContainerSpecification();
 
 		// propagate the AM dynamic configuration to the TM
-		spec.getDynamicConfiguration().addAll(dynamicProperties);
+		spec.getFlinkConfiguration().addAll(dynamicProperties);
 
 		applyOverlays(configuration, spec);
 
