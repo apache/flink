@@ -280,12 +280,11 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		try {
 			env.execute("One-to-one at least once test");
 			fail("Job should fail!");
-		}
-		catch (JobExecutionException ex) {
+		} catch (JobExecutionException ex) {
 			// ignore error, it can be one of many errors so it would be hard to check the exception message/cause
+		} finally {
+			kafkaServer.unblockProxyTraffic();
 		}
-
-		kafkaServer.unblockProxyTraffic();
 
 		// assert that before failure we successfully snapshot/flushed all expected elements
 		assertAtLeastOnceForTopic(
