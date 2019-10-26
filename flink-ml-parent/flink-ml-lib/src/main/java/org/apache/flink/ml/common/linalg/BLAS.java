@@ -34,7 +34,7 @@ public class BLAS {
 	/**
 	 * For level-2 and level-3 routines, we use the native BLAS.
 	 *
-	 * The NATIVE_BLAS instance tries to load BLAS implementations in the order:
+	 * <p>The NATIVE_BLAS instance tries to load BLAS implementations in the order:
 	 *   1) optimized system libraries such as Intel MKL,
 	 *   2) self-contained native builds using the reference Fortran from netlib.org,
 	 *   3) F2J implementation.
