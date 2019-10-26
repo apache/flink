@@ -293,25 +293,25 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
 ]]>
     </Resource>
   </TestCase>
-	<TestCase name="testLowerPushdown">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM MTable WHERE LOWER(a) like 'foo']]>
-		</Resource>
-		<Resource name="planBefore">
-			<![CDATA[
-LogicalProject(a=[$0], b=[$1])
-+- LogicalFilter(condition=[LIKE(LOWER($0), _UTF-16LE'foo')])
+  <TestCase name="testLowerPushdown">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MTable WHERE LOWER(a) like 'foo']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+  LogicalProject(a=[$0], b=[$1])
+  +- LogicalFilter(condition=[LIKE(LOWER($0), _UTF-16LE'foo')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
-]]>
-		</Resource>
-		<Resource name="planAfter">
-			<![CDATA[
-LogicalProject(a=[$0], b=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filter=[like(lower(a), 'foo')]]]])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testUpperPushdown">
+  ]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+  LogicalProject(a=[$0], b=[$1])
+  +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filter=[like(lower(a), 'foo')]]]])
+  ]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpperPushdown">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MTable WHERE UPPER(a) like 'foo']]>
     </Resource>
@@ -328,5 +328,5 @@ LogicalProject(a=[$0], b=[$1])
   +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filter=[like(upper(a), 'foo')]]]])
   ]]>
     </Resource>
-    </TestCase>
+  </TestCase>
 </Root>
