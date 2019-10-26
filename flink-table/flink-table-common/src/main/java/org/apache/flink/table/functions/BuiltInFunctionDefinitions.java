@@ -247,7 +247,7 @@ public final class BuiltInFunctionDefinitions {
 			.build();
 	public static final BuiltInFunctionDefinition LOWER =
 		new BuiltInFunctionDefinition.Builder()
-			.name("lowerCase")
+			.name("lower")
 			.kind(SCALAR)
 			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();
@@ -277,7 +277,7 @@ public final class BuiltInFunctionDefinitions {
 			.build();
 	public static final BuiltInFunctionDefinition UPPER =
 		new BuiltInFunctionDefinition.Builder()
-			.name("upperCase")
+			.name("upper")
 			.kind(SCALAR)
 			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();

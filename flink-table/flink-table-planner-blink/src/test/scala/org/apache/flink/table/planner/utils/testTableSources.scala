@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression, UnresolvedCallExpression, ValueLiteralExpression}
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.functions.{BuiltInFunctionDefinition, BuiltInFunctionDefinitions}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
@@ -41,7 +41,6 @@ import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, Preserv
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.types.Row
-
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
 import java.util.{Collections, List => JList, Map => JMap}
@@ -349,6 +348,7 @@ class TestFilterableTableSource(
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
     filterPredicates: Seq[Expression] = Seq(),
+    filterBuiltInFunctions: Set[String] = Set(),
     val filterPushedDown: Boolean = false)
   extends StreamTableSource[Row]
   with FilterableTableSource[Row] {
@@ -409,10 +409,17 @@ class TestFilterableTableSource(
     (children.head, children.last) match {
       case (f: FieldReferenceExpression, _: ValueLiteralExpression) =>
         filterableFields.contains(f.getName)
+      case (f: UnresolvedCallExpression, _: ValueLiteralExpression) =>
+        f.getFunctionDefinition match {
+          case b: BuiltInFunctionDefinition =>
+            filterBuiltInFunctions.contains(b.getName)
+          case _ => false
+        }
       case (_: ValueLiteralExpression, f: FieldReferenceExpression) =>
         filterableFields.contains(f.getName)
       case (f1: FieldReferenceExpression, f2: FieldReferenceExpression) =>
         filterableFields.contains(f1.getName) && filterableFields.contains(f2.getName)
+
       case (_, _) => false
     }
   }
@@ -515,6 +522,29 @@ object TestFilterableTableSource {
       filterableFields: Set[String]): TestFilterableTableSource = {
     new TestFilterableTableSource(isBounded, rowTypeInfo, rows, filterableFields)
   }
+
+  /**
+    * A filterable data source with custom data.
+    *
+    * @param isBounded whether this is a bounded source
+    * @param rowTypeInfo The type of the data. Its expected that both types and field
+    *                    names are provided.
+    * @param rows The data as a sequence of rows.
+    * @param filterableFields The fields that are allowed to be filtered on.
+    * @return The table source.
+    */
+  def apply(isBounded: Boolean,
+            rowTypeInfo: RowTypeInfo,
+            rows: Seq[Row],
+            filterableFields: Set[String],
+            filterableBuiltInFunctions: Set[String]): TestFilterableTableSource =
+    new TestFilterableTableSource(
+      isBounded,
+      rowTypeInfo,
+      rows,
+      filterableFields,
+      filterBuiltInFunctions = filterableBuiltInFunctions
+    )
 
   private lazy val defaultFilterableFields = Set("amount")
 
