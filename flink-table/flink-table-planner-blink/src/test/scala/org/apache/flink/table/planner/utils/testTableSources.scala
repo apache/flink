@@ -341,6 +341,7 @@ class TestNestedProjectableTableSource(
   * @param filterableFields The fields that are allowed to be filtered.
   * @param filterPredicates The predicates that should be used to filter.
   * @param filterPushedDown Whether predicates have been pushed down yet.
+  * @param filterBuiltInFunctions BuiltInFunctionDefinition names we want to push down.
   */
 class TestFilterableTableSource(
     override val isBounded: Boolean,
