@@ -91,16 +91,6 @@ public class ContainerSpecification implements java.io.Serializable {
 	}
 
 	@Override
-	protected Object clone() throws CloneNotSupportedException {
-		ContainerSpecification clone = new ContainerSpecification();
-		clone.artifacts.addAll(this.artifacts);
-		clone.environmentVariables.putAll(this.environmentVariables);
-		clone.systemProperties.addAll(this.systemProperties);
-		clone.flinkConfiguration.addAll(this.flinkConfiguration);
-		return clone;
-	}
-
-	@Override
 	public String toString() {
 		return "ContainerSpecification{" +
 			"environmentVariables=" + environmentVariables +
