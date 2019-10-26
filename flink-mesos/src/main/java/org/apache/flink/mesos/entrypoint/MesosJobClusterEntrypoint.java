@@ -36,7 +36,6 @@ import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -62,8 +61,6 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 				.addOption(BootstrapTools.newDynamicPropertiesOption());
 	}
 
-	private final Configuration dynamicProperties;
-
 	private MesosConfiguration schedulerConfiguration;
 
 	private MesosServices mesosServices;
@@ -72,10 +69,8 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 
 	private ContainerSpecification taskManagerContainerSpec;
 
-	public MesosJobClusterEntrypoint(Configuration config, Configuration dynamicProperties) {
+	public MesosJobClusterEntrypoint(Configuration config) {
 		super(config);
-
-		this.dynamicProperties = Preconditions.checkNotNull(dynamicProperties);
 	}
 
 	@Override
@@ -92,7 +87,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 
 		// TM configuration
 		taskManagerParameters = MesosUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosUtils.createContainerSpec(config, dynamicProperties);
+		taskManagerContainerSpec = MesosUtils.createContainerSpec(config);
 	}
 
 	@Override
@@ -140,7 +135,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
 		Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
 
-		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration, dynamicProperties);
+		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
 	}
