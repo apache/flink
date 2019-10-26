@@ -175,6 +175,12 @@ public class ContainerSpecification implements java.io.Serializable {
 		}
 	}
 
+	public static ContainerSpecification from(Configuration flinkConfiguration) {
+		final ContainerSpecification containerSpecification = new ContainerSpecification();
+		containerSpecification.getFlinkConfiguration().addAll(flinkConfiguration);
+		return containerSpecification;
+	}
+
 	/**
 	 * Format the system properties as a shell-compatible command-line argument.
      */

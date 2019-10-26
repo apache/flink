@@ -122,9 +122,7 @@ public class MesosUtils {
 	public static ContainerSpecification createContainerSpec(Configuration flinkConfiguration)
 		throws Exception {
 		// generate a container spec which conveys the artifacts/vars needed to launch a TM
-		ContainerSpecification spec = new ContainerSpecification();
-
-		spec.getFlinkConfiguration().addAll(flinkConfiguration);
+		ContainerSpecification spec = ContainerSpecification.from(flinkConfiguration);
 
 		applyOverlays(flinkConfiguration, spec);
 
