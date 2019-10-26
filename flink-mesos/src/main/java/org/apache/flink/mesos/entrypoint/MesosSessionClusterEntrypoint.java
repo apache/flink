@@ -21,13 +21,11 @@ package org.apache.flink.mesos.entrypoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerFactory;
-import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.mesos.util.MesosUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
@@ -65,10 +63,6 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
 	private MesosServices mesosServices;
 
-	private MesosTaskManagerParameters taskManagerParameters;
-
-	private ContainerSpecification taskManagerContainerSpec;
-
 	public MesosSessionClusterEntrypoint(Configuration config) {
 		super(config);
 	}
@@ -84,10 +78,6 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
 		// services
 		mesosServices = MesosServicesUtils.createMesosServices(config, hostname);
-
-		// TM configuration
-		taskManagerParameters = MesosUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosUtils.createContainerSpec(config);
 	}
 
 	@Override
@@ -108,9 +98,7 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 		return new SessionDispatcherResourceManagerComponentFactory(
 			new MesosResourceManagerFactory(
 				mesosServices,
-				mesosConfig,
-				taskManagerParameters,
-				taskManagerContainerSpec));
+				mesosConfig));
 	}
 
 	public static void main(String[] args) {
