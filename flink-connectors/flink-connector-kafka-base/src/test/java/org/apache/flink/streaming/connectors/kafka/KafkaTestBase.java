@@ -222,6 +222,10 @@ public abstract class KafkaTestBase extends TestLogger {
 		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
 			properties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
 			properties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+			// We need to set these two properties so that they are lower than request.timeout.ms. This is
+			// required for some old KafkaConsumer versions.
+			properties.put("session.timeout.ms", "2000");
+			properties.put("heartbeat.interval.ms", "500");
 
 			// query kafka for new records ...
 			Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(properties, topic, partition, 100);
