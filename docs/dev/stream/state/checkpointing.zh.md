@@ -27,9 +27,9 @@ under the License.
 
 Flink 中的每个方法或算子都能够是**有状态的**（阅读 [working with state](state.html) 查看详细）。
 状态化的方法在处理单个 元素/事件 的时候存储数据，让状态成为使各个类型的算子更加精细的重要部分。
-为了让状态容错，Flink 需要为状态添加**Checkpoint（检查点）**。Checkpoint 使得 Flink 能够恢复状态和在流中的位置，从而向应用提供和无故障执行时一样的语义。
+为了让状态容错，Flink 需要为状态添加 **Checkpoint（检查点）**。Checkpoint 使得 Flink 能够恢复状态和在流中的位置，从而向应用提供和无故障执行时一样的语义。
 
-[Documentation on streaming fault tolerance]({{ site.baseurl }}/zh/internals/stream_checkpointing.html) 介绍了 Flink 流计算容错机制内部的技术原理。
+[容错文档]({{ site.baseurl }}/zh/internals/stream_checkpointing.html) 中介绍了 Flink 流计算容错机制内部的技术原理。
 
 
 ## 前提条件
@@ -41,29 +41,29 @@ Flink 的 Checkpoint 机制会和持久化存储进行交互，交换流与状�
 
 ## 激活与配置 Checkpoint
 
-默认情况下，Checkpoint 是禁用的。通过调用 `StreamExecutionEnvironment` 的 `enableCheckpointing(n)` 来激活 Checkpoint，里面的 *n* 是进行 Checkpoint 的间隔，单位毫秒。
+默认情况下 Checkpoint 是禁用的。通过调用 `StreamExecutionEnvironment` 的 `enableCheckpointing(n)` 来激活 Checkpoint，里面的 *n* 是进行 Checkpoint 的间隔，单位毫秒。
 
 Checkpoint 其他的属性包括：
 
   - *精确一次（exactly-once） 对比 至少一次（at-least-once）*：你可以选择向 `enableCheckpointing(n)` 方法中传入一个模式来选择使用两种保证等级中的哪一种。
     对于大多数应用来说，精确一次是较好的选择。至少一次可能与某些延迟超低（始终只有几毫秒）的应用的关联较大。
   
-  - *Checkpoint超时（checkpoint timeout）*：如果过了这个时间，还在进行中的 checkpoint 操作就会被抛弃。
+  - *checkpoint超时*：如果过了这个时间，还在进行中的 checkpoint 操作就会被抛弃。
   
   - *checkpoint 之间的最小时间（minimum time between checkpoints）*： 为了确保流应用在 checkpoint 之间有足够的进展，可以定义在 checkpoint 之间需要多久的时间。如果值设置为了 *5000*，
-    无论 checkpoint 持续时间与间隔是多久，在前一个 checkpoint 完成的五秒后才会开始下一个 checkpoint。
+    无论 checkpoint 持续时间与间隔是多久，在前一个 checkpoint 完成的至少五秒后会才开始下一个 checkpoint。
     
-    往往使用" checkpoint 之间的时间"来配置应用会比 checkpoint间隔 容易很多，因为" checkpoint 之间的时间"在 checkpoint 的执行时间在超过平均值时不会受到影响（例如如果目标的存储系统忽然变得很慢）。
+    往往使用“checkpoints 之间的最小时间”来配置应用会比 checkpoint间隔 容易很多，因为“checkpoints 之间的最小时间”在 checkpoint 的执行时间超过平均值时不会受到影响（例如如果目标的存储系统忽然变得很慢）。
     
     注意这个值也意味着并发 checkpoint 的数目是*一*。
 
-  - *并发 checkpoint 的数目*: 默认情况下，系统不会在有一个 checkpoint 在进行时触发另一个 checkpoint。这确保了拓扑不会在 checkpoint 上花费太多时间，并且不会和流处理同时进行。
-    允许多个 checkpoint 重叠进行是可行的，对于有确定的处理延迟（例如是因为某方法所调用的外部服务需要些时间来回复），但是仍然想进行频繁的 checkpoint 去最小化故障重跑的 pipelines 来说，是有意义的。
+  - *并发 checkpoint 的数目*: 默认情况下，在上一个 checkpoint 未完成（失败或者成功）的情况下，系统不会触发另一个 checkpoint。这确保了拓扑不会在 checkpoint 上花费太多时间，从而影响正常的处理流程。
+    允许多个 checkpoint 并行进行是可行的，对于有确定的处理延迟（例如某方法所调用比较耗时的外部服务），但是仍然想进行频繁的 checkpoint 去最小化故障后重跑的 pipelines 来说，是有意义的。
     
     该选项在 checkpoint 间的最小时间被定义时不能使用。
     
   - *外部 checkpoint（externalized checkpoints）*: 你可以配置周期 checkpoint 存储到外部系统中。外部 checkpoint 将他们的元数据写到持久化存储上并且在 job 失败的时候*不会*被自动删除。
-    这种方式下，如果你的 job 失败，你将会有一个现有的 checkpoint 去恢复。更多的细节请看 [deployment notes on externalized checkpoints]({{ site.baseurl }}/zh/ops/state/checkpoints.html#externalized-checkpoints)。
+    这种方式下，如果你的 job 失败，你将会有一个现有的 checkpoint 去恢复。更多的细节请看 [外部 checkpoint 的部署文档]({{ site.baseurl }}/zh/ops/state/checkpoints.html#externalized-checkpoints)。
   
   - *在 checkpoint 出错时 置错/继续 task*：他决定了在 task checkpoint 的过程中发生错误时，一个 task 是否会被置为失败。这个是默认的行为。
      或者被禁用时，这个任务将会简单的吧 checkpoint 削减为 checkpoint 协调器并继续运行。
@@ -156,7 +156,7 @@ env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 
 ### 相关的配置选项
 
-更多的属性 与/或 默认值能在 `conf/flink-conf.yaml` 中设置（完整教程请阅读 [configuration]({{ site.baseurl }}/zh/ops/config.html)）。
+更多的参数和默认值能在 `conf/flink-conf.yaml` 中设置（完整教程请阅读 [配置]({{ site.baseurl }}/zh/ops/config.html)）。
 
 {% include generated/checkpointing_configuration.html %}
 
@@ -166,15 +166,15 @@ env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 ## Selecting a State Backend
 
 Flink 的 [checkpointing mechanism]({{ site.baseurl }}/zh/internals/stream_checkpointing.html) 存储在定时器与状态操作里的持久化快照，
-包括连接器（connectors），窗口（windows）以及任何用户[自定义的状态](state.html)
-checkpoint 存储在那里取决于所配置的 **State Backend**（比如 JobManager memory、 file system、 database）。
+包括连接器（connectors），窗口（windows）以及任何用户[自定义的状态](state.html)。
+checkpoint 存储在哪里取决于所配置的 **State Backend**（比如 JobManager memory、 file system、 database）。
 
-默认情况下，状态是保持在 TaskManagers 的内存中，checkpoint 保存在 JobManager 的内存中。为了体量大的状态的能完全恰当的持久化，
-Flink 支持各种各样的途径去存储，来 checkpoint 状态到其他的 state backends。通过 `StreamExecutionEnvironment.setStateBackend(…)` 来配置所选的 state backends。
+默认情况下，状态是保持在 TaskManagers 的内存中，checkpoint 保存在 JobManager 的内存中。为了合适地持久化大体量状态，
+Flink 支持各种各样的途径去存储 checkpoint 状态到其他的 state backends。通过 `StreamExecutionEnvironment.setStateBackend(…)` 来配置所选的 state backends。
 
-阅读 [state backends]({{ site.baseurl }}/zh/ops/state/state_backends.html) 来查看在可用 state backends 上的更多细节，选择 job范围 与 集群返回 的配置。
+阅读 [state backends]({{ site.baseurl }}/zh/ops/state/state_backends.html) 来查看在可用 state backends 上的更多细节，选择 job 范围 与 集群范围 的配置。
 
-## 在 Iterative Jobs 中的状态 checkpoint
+## Iterative Jobs 中的状态 和 checkpoint
 
 Flink 现在只提供没有 iterations 的 job 的处理保证。在 iterative job 上激活 checkpoint 会导致异常。为了在迭代程序中强制进行 checkpoint，用于需要在激活 checkpoint 时设置一个特殊的标志： `env.enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE, force = true)`。
 
@@ -184,7 +184,7 @@ Flink 现在只提供没有 iterations 的 job 的处理保证。在 iterative j
 
 ## 重启策略
 
-Flink 支持不同的重启策略，来控制 job 万一故障时该如何重启。更多信息请阅读 [Restart Strategies]({{ site.baseurl }}/zh/dev/restart_strategies.html)。
+Flink 支持不同的重启策略，来控制 job 万一故障时该如何重启。更多信息请阅读 [重启策略]({{ site.baseurl }}/zh/dev/restart_strategies.html)。
 
 {% top %}
 
