@@ -36,7 +36,6 @@ import org.apache.flink.runtime.entrypoint.component.SessionDispatcherResourceMa
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -62,8 +61,6 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 				.addOption(BootstrapTools.newDynamicPropertiesOption());
 	}
 
-	private final Configuration dynamicProperties;
-
 	private MesosConfiguration mesosConfig;
 
 	private MesosServices mesosServices;
@@ -72,10 +69,8 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
 	private ContainerSpecification taskManagerContainerSpec;
 
-	public MesosSessionClusterEntrypoint(Configuration config, Configuration dynamicProperties) {
+	public MesosSessionClusterEntrypoint(Configuration config) {
 		super(config);
-
-		this.dynamicProperties = Preconditions.checkNotNull(dynamicProperties);
 	}
 
 	@Override
@@ -92,7 +87,7 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
 		// TM configuration
 		taskManagerParameters = MesosUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosUtils.createContainerSpec(config, dynamicProperties);
+		taskManagerContainerSpec = MesosUtils.createContainerSpec(config);
 	}
 
 	@Override
@@ -139,7 +134,7 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
 		Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
 
-		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration, dynamicProperties);
+		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
 	}
