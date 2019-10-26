@@ -17,38 +17,14 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.topology.Vertex;
 
 /**
- * Represents an ExecutionVertex.
+ * Represents an {@link ExecutionVertex}.
  */
-public interface FailoverVertex {
-
-	/**
-	 * Returns the ID of this vertex.
-	 *
-	 * @return ID of this vertex
-	 */
-	ExecutionVertexID getExecutionVertexID();
-
-	/**
-	 * Returns the name of this vertex.
-	 *
-	 * @return name of this vertex
-	 */
-	String getExecutionVertexName();
-
-	/**
-	 * Returns all input edges of this vertex.
-	 *
-	 * @return input edges of this vertex
-	 */
-	Iterable<? extends FailoverEdge> getInputEdges();
-
-	/**
-	 * Returns all output edges of this vertex.
-	 *
-	 * @return output edges of this vertex
-	 */
-	Iterable<? extends FailoverEdge> getOutputEdges();
+public interface FailoverVertex<V extends FailoverVertex<V, R>, R extends FailoverResultPartition<V, R>>
+	extends Vertex<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
 }

@@ -23,14 +23,21 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{SqlDialect, TableSchema, ValidationException}
+import org.apache.flink.table.api.{SqlDialect, TableException, TableSchema, ValidationException}
+import org.apache.flink.table.catalog.{CatalogTableImpl, ObjectPath}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.DescriptorProperties
+import org.apache.flink.table.descriptors.Schema.SCHEMA
+import org.apache.flink.table.factories.{TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, TableSink}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
 
@@ -38,9 +45,11 @@ import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
 
-import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
+import java.util
+import java.util.{function, ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.Seq
 
 /**
@@ -115,11 +124,9 @@ class PartitionableSinkITCase extends BatchTestBase {
 
   @Test
   def testInsertWithStaticPartitions(): Unit = {
-    val testSink = registerTableSink()
+    registerTableSink()
     tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
     tEnv.execute("testJob")
-    // this sink should have been set up with static partitions
-    assertEquals(testSink.getStaticPartitions.toMap, Map("a" -> "1"))
     assertEquals(List("1,2,Hi",
       "1,1,Hello world",
       "1,2,Hello",
@@ -138,11 +145,9 @@ class PartitionableSinkITCase extends BatchTestBase {
 
   @Test
   def testInsertWithStaticAndDynamicPartitions(): Unit = {
-    val testSink = registerTableSink(partitionColumns = Array("a", "b"))
+    registerTableSink(partitionColumns = Array("a", "b"))
     tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
     tEnv.execute("testJob")
-    // this sink should have been set up with static partitions
-    assertEquals(testSink.getStaticPartitions.toMap, Map("a" -> "1"))
     assertEquals(List("1,3,I'm fine, thank",
       "1,3,I'm fine, thank you",
       "1,3,I'm fine, thank you, and you?"),
@@ -160,20 +165,8 @@ class PartitionableSinkITCase extends BatchTestBase {
   }
 
   @Test
-  def testDynamicPartitionInFrontOfStaticPartition(): Unit = {
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Static partition column b "
-      + "should appear before dynamic partition a")
-    registerTableSink(partitionColumns = Array("a", "b"))
-    tEnv.sqlUpdate("insert into sinkTable partition(b=1) select a, c from sortTable")
-    tEnv.execute("testJob")
-  }
-
-  @Test
   def testStaticPartitionNotInPartitionFields(): Unit = {
     expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Static partition column c " +
-      "should be in the partition fields list [a, b].")
     registerTableSink(tableName = "sinkTable2", rowType = type4,
       partitionColumns = Array("a", "b"))
     tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sinkTable2")
@@ -182,9 +175,7 @@ class PartitionableSinkITCase extends BatchTestBase {
 
   @Test
   def testInsertStaticPartitionOnNonPartitionedSink(): Unit = {
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage(
-      "Can't insert static partitions into a non-partitioned table sink.")
+    expectedEx.expect(classOf[TableException])
     registerTableSink(tableName = "sinkTable2", rowType = type4, partitionColumns = Array())
     tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sinkTable2")
     tEnv.execute("testJob")
@@ -194,51 +185,22 @@ class PartitionableSinkITCase extends BatchTestBase {
       tableName: String = "sinkTable",
       rowType: RowTypeInfo = type3,
       grouping: Boolean = true,
-      partitionColumns: Array[String] = Array[String]("a")): TestSink = {
-    val testSink = new TestSink(rowType, grouping, partitionColumns)
-    tEnv.registerTableSink(tableName, testSink)
-    testSink
-  }
-
-  private class TestSink(
-      rowType: RowTypeInfo,
-      supportsGrouping: Boolean,
-      partitionColumns: Array[String])
-    extends StreamTableSink[Row]
-    with PartitionableTableSink {
-    private var staticPartitions: JMap[String, String] = _
-
-    override def getPartitionFieldNames: JList[String] = partitionColumns.toList
-
-    override def setStaticPartition(partitions: JMap[String, String]): Unit =
-      this.staticPartitions = partitions
-
-    override def configure(fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
-
-    override def configurePartitionGrouping(s: Boolean): Boolean = {
-      supportsGrouping
+      partitionColumns: Array[String] = Array[String]("a")): Unit = {
+    val properties = new DescriptorProperties()
+    properties.putString("supports-grouping", grouping.toString)
+    properties.putString(CONNECTOR_TYPE, "TestPartitionableSink")
+    partitionColumns.zipWithIndex.foreach { case (part, i) =>
+      properties.putString("partition-column." + i, part)
     }
 
-    override def getTableSchema: TableSchema = {
-      new TableSchema(Array("a", "b", "c"), type3.getFieldTypes)
-    }
-
-    override def getOutputType: RowTypeInfo = type3
-
-    override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-      dataStream.addSink(new UnsafeMemorySinkFunction(type3))
-        .setParallelism(dataStream.getParallelism)
-    }
-
-    override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
-      dataStream.addSink(new UnsafeMemorySinkFunction(type3))
-        .setParallelism(dataStream.getParallelism)
-    }
-
-    def getStaticPartitions: JMap[String, String] = {
-      staticPartitions
-    }
+    val table = new CatalogTableImpl(
+      new TableSchema(Array("a", "b", "c"), rowType.getFieldTypes),
+      util.Arrays.asList[String](partitionColumns: _*),
+      properties.asMap(),
+      ""
+    )
+    tEnv.getCatalog(tEnv.getCurrentCatalog).get()
+        .createTable(new ObjectPath(tEnv.getCurrentDatabase, tableName), table, false)
   }
 }
 
@@ -311,3 +273,91 @@ object PartitionableSinkITCase {
     row(4, 4L, "你好，陌生人，我是中国人，你来自哪里？")
   )
 }
+
+private class TestSink(
+    rowType: RowTypeInfo,
+    supportsGrouping: Boolean,
+    partitionColumns: Array[String])
+    extends StreamTableSink[Row]
+        with PartitionableTableSink {
+  private var staticPartitions: JMap[String, String] = _
+
+  override def setStaticPartition(partitions: JMap[String, String]): Unit =
+    this.staticPartitions = partitions
+
+  override def configure(fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
+
+  override def configurePartitionGrouping(s: Boolean): Boolean = {
+    supportsGrouping
+  }
+
+  override def getTableSchema: TableSchema = {
+    new TableSchema(Array("a", "b", "c"), type3.getFieldTypes)
+  }
+
+  override def getOutputType: RowTypeInfo = type3
+
+  override def emitDataStream(dataStream: DataStream[Row]): Unit = {
+    dataStream.addSink(new UnsafeMemorySinkFunction(type3))
+        .setParallelism(dataStream.getParallelism)
+  }
+
+  override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
+    dataStream.addSink(new UnsafeMemorySinkFunction(type3))
+        .setParallelism(dataStream.getParallelism)
+  }
+
+  def getStaticPartitions: JMap[String, String] = {
+    staticPartitions
+  }
+}
+
+class TestPartitionableSinkFactory extends TableSinkFactory[Row] with TableSourceFactory[Row] {
+
+  override def requiredContext(): util.Map[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "TestPartitionableSink")
+    context
+  }
+
+  override def supportedProperties(): util.List[String] = {
+    val supported = new util.ArrayList[String]()
+    supported.add("*")
+    supported
+  }
+
+  override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
+    val dp = new DescriptorProperties()
+    dp.putProperties(properties)
+
+    val schema = dp.getTableSchema(SCHEMA)
+    val supportsGrouping = dp.getBoolean("supports-grouping")
+    val partitionColumns = dp.getArray("partition-column", new function.Function[String, String] {
+      override def apply(t: String): String = dp.getString(t)
+    })
+    new TestSink(
+      schema.toRowType.asInstanceOf[RowTypeInfo],
+      supportsGrouping,
+      partitionColumns.asScala.toArray[String])
+  }
+
+  /**
+    * Remove it after FLINK-14387.
+    */
+  override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
+    val dp = new DescriptorProperties()
+    dp.putProperties(properties)
+
+    new StreamTableSource[Row] {
+      override def getTableSchema: TableSchema = {
+        dp.getTableSchema(SCHEMA)
+      }
+
+      override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+        throw new RuntimeException
+      }
+    }
+  }
+}
+

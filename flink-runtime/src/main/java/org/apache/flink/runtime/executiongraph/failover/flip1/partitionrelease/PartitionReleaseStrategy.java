@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -53,6 +52,6 @@ public interface PartitionReleaseStrategy {
 	 * Factory for {@link PartitionReleaseStrategy}.
 	 */
 	interface Factory {
-		PartitionReleaseStrategy createInstance(SchedulingTopology schedulingStrategy, FailoverTopology failoverTopology);
+		PartitionReleaseStrategy createInstance(SchedulingTopology<?, ?> schedulingStrategy);
 	}
 }

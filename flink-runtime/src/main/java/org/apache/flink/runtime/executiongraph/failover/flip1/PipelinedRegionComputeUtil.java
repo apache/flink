@@ -21,6 +21,10 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PipelinedRegion;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.topology.Result;
+import org.apache.flink.runtime.topology.Topology;
+import org.apache.flink.runtime.topology.Vertex;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,43 +44,47 @@ public final class PipelinedRegionComputeUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedRegionComputeUtil.class);
 
-	public static Set<PipelinedRegion> toPipelinedRegionsSet(final Set<Set<FailoverVertex>> distinctRegions) {
+	public static Set<PipelinedRegion> toPipelinedRegionsSet(
+			final Set<? extends Set<? extends SchedulingExecutionVertex<?, ?>>> distinctRegions) {
+
 		return distinctRegions.stream()
 			.map(toExecutionVertexIdSet())
 			.map(PipelinedRegion::from)
 			.collect(Collectors.toSet());
 	}
 
-	private static Function<Set<FailoverVertex>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
+	private static Function<Set<? extends SchedulingExecutionVertex<?, ?>>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
 		return failoverVertices -> failoverVertices.stream()
-			.map(FailoverVertex::getExecutionVertexID)
+			.map(SchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet());
 	}
 
-	public static Set<Set<FailoverVertex>> computePipelinedRegions(final FailoverTopology topology) {
+	public static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Set<Set<V>> computePipelinedRegions(
+			final Topology<?, ?, V, R> topology) {
+
 		// currently we let a job with co-location constraints fail as one region
 		// putting co-located vertices in the same region with each other can be a future improvement
 		if (topology.containsCoLocationConstraints()) {
 			return uniqueRegions(buildOneRegionForAllVertices(topology));
 		}
 
-		final Map<FailoverVertex, Set<FailoverVertex>> vertexToRegion = new IdentityHashMap<>();
+		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
 
 		// iterate all the vertices which are topologically sorted
-		for (FailoverVertex vertex : topology.getFailoverVertices()) {
-			Set<FailoverVertex> currentRegion = new HashSet<>(1);
+		for (V vertex : topology.getVertices()) {
+			Set<V> currentRegion = new HashSet<>(1);
 			currentRegion.add(vertex);
 			vertexToRegion.put(vertex, currentRegion);
 
-			for (FailoverEdge inputEdge : vertex.getInputEdges()) {
-				if (inputEdge.getResultPartitionType().isPipelined()) {
-					final FailoverVertex producerVertex = inputEdge.getSourceVertex();
-					final Set<FailoverVertex> producerRegion = vertexToRegion.get(producerVertex);
+			for (R consumedResult : vertex.getConsumedResults()) {
+				if (consumedResult.getResultType().isPipelined()) {
+					final V producerVertex = consumedResult.getProducer();
+					final Set<V> producerRegion = vertexToRegion.get(producerVertex);
 
 					if (producerRegion == null) {
-						throw new IllegalStateException("Producer task " + producerVertex.getExecutionVertexName()
+						throw new IllegalStateException("Producer task " + producerVertex.getId()
 							+ " failover region is null while calculating failover region for the consumer task "
-							+ vertex.getExecutionVertexName() + ". This should be a failover region building bug.");
+							+ vertex.getId() + ". This should be a failover region building bug.");
 					}
 
 					// check if it is the same as the producer region, if so skip the merge
@@ -84,8 +92,8 @@ public final class PipelinedRegionComputeUtil {
 					if (currentRegion != producerRegion) {
 						// merge current region and producer region
 						// merge the smaller region into the larger one to reduce the cost
-						final Set<FailoverVertex> smallerSet;
-						final Set<FailoverVertex> largerSet;
+						final Set<V> smallerSet;
+						final Set<V> largerSet;
 						if (currentRegion.size() < producerRegion.size()) {
 							smallerSet = currentRegion;
 							largerSet = producerRegion;
@@ -93,7 +101,7 @@ public final class PipelinedRegionComputeUtil {
 							smallerSet = producerRegion;
 							largerSet = currentRegion;
 						}
-						for (FailoverVertex v : smallerSet) {
+						for (V v : smallerSet) {
 							vertexToRegion.put(v, largerSet);
 						}
 						largerSet.addAll(smallerSet);
@@ -106,22 +114,24 @@ public final class PipelinedRegionComputeUtil {
 		return uniqueRegions(vertexToRegion);
 	}
 
-	private static Map<FailoverVertex, Set<FailoverVertex>> buildOneRegionForAllVertices(final FailoverTopology topology) {
+	private static <V extends Vertex<?, ?, V, ?>> Map<V, Set<V>> buildOneRegionForAllVertices(
+			final Topology<?, ?, V, ?> topology) {
+
 		LOG.warn("Cannot decompose the topology into individual failover regions due to use of " +
 			"Co-Location constraints (iterations). Job will fail over as one holistic unit.");
 
-		final Map<FailoverVertex, Set<FailoverVertex>> vertexToRegion = new IdentityHashMap<>();
+		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
 
-		final Set<FailoverVertex> allVertices = new HashSet<>();
-		for (FailoverVertex vertex : topology.getFailoverVertices()) {
+		final Set<V> allVertices = new HashSet<>();
+		for (V vertex : topology.getVertices()) {
 			allVertices.add(vertex);
 			vertexToRegion.put(vertex, allVertices);
 		}
 		return vertexToRegion;
 	}
 
-	private static Set<Set<FailoverVertex>> uniqueRegions(final Map<FailoverVertex, Set<FailoverVertex>> vertexToRegion) {
-		final Set<Set<FailoverVertex>> distinctRegions = Collections.newSetFromMap(new IdentityHashMap<>());
+	private static <V extends Vertex<?, ?, V, ?>> Set<Set<V>> uniqueRegions(final Map<V, Set<V>> vertexToRegion) {
+		final Set<Set<V>> distinctRegions = Collections.newSetFromMap(new IdentityHashMap<>());
 		distinctRegions.addAll(vertexToRegion.values());
 		return distinctRegions;
 	}

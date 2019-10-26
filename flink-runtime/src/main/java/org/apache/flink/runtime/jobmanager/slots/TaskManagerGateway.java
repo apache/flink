@@ -30,7 +30,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
-import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -105,7 +105,7 @@ public interface TaskManagerGateway {
 	 * @param jobId id of the job that the partitions belong to
 	 * @param partitionIds partition ids to release
 	 */
-	void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds);
+	void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds);
 
 	/**
 	 * Notify the given task about a completed checkpoint.

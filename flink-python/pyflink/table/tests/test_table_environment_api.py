@@ -208,6 +208,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             "org.apache.flink.table.planner.delegation.StreamPlanner")
 
     def test_table_environment_with_blink_planner(self):
+        self.env.set_parallelism(1)
         t_env = StreamTableEnvironment.create(
             self.env,
             environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())

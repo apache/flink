@@ -142,11 +142,6 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 	}
 
 	@Override
-	public List<String> getPartitionFieldNames() {
-		return catalogTable.getPartitionKeys();
-	}
-
-	@Override
 	public TableSource applyPartitionPruning(List<Map<String, String>> remainingPartitions) {
 		if (catalogTable.getPartitionKeys() == null || catalogTable.getPartitionKeys().size() == 0) {
 			return this;

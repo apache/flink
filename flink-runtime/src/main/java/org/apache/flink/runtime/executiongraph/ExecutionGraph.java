@@ -49,7 +49,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
-import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.NotReleasingPartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
@@ -70,7 +70,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
-import org.apache.flink.runtime.scheduler.adapter.ExecutionGraphToSchedulingTopologyAdapter;
+import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
@@ -261,7 +261,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	private PartitionReleaseStrategy partitionReleaseStrategy;
 
-	private SchedulingTopology schedulingTopology;
+	private DefaultExecutionTopology executionTopology;
 
 	@Nullable
 	private InternalFailuresListener internalTaskFailuresListener;
@@ -541,6 +541,14 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public boolean isQueuedSchedulingAllowed() {
 		return this.allowQueuedScheduling;
+	}
+
+	public SchedulingTopology<?, ?> getSchedulingTopology() {
+		return executionTopology;
+	}
+
+	public FailoverTopology<?, ?> getFailoverTopology() {
+		return executionTopology;
 	}
 
 	public ScheduleMode getScheduleMode() {
@@ -946,12 +954,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			newExecJobVertices.add(ejv);
 		}
 
+		// the topology assigning should happen before notifying new vertices to failoverStrategy
+		executionTopology = new DefaultExecutionTopology(this);
+
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
 
-		schedulingTopology = new ExecutionGraphToSchedulingTopologyAdapter(this);
-		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(
-			schedulingTopology,
-			new DefaultFailoverTopology(this));
+		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(getSchedulingTopology());
 	}
 
 	public boolean isLegacyScheduling() {
@@ -1649,8 +1657,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	ResultPartitionID createResultPartitionId(final IntermediateResultPartitionID resultPartitionId) {
-		final SchedulingResultPartition schedulingResultPartition = schedulingTopology.getResultPartitionOrThrow(resultPartitionId);
-		final SchedulingExecutionVertex producer = schedulingResultPartition.getProducer();
+		final SchedulingResultPartition<?, ?> schedulingResultPartition =
+			getSchedulingTopology().getResultPartitionOrThrow(resultPartitionId);
+		final SchedulingExecutionVertex<?, ?> producer = schedulingResultPartition.getProducer();
 		final ExecutionVertexID producerId = producer.getId();
 		final JobVertexID jobVertexId = producerId.getJobVertexId();
 		final ExecutionJobVertex jobVertex = getJobVertex(jobVertexId);

@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestPartitionableTableSource}
+import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestPartitionableSourceFactory}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
@@ -44,7 +44,7 @@ class PushPartitionIntoTableSourceScanRuleTest extends TableTestBase {
         .build()
     )
 
-    util.tableEnv.registerTableSource("MyTable", new TestPartitionableTableSource(true))
+    TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "MyTable", true)
   }
 
   @Test

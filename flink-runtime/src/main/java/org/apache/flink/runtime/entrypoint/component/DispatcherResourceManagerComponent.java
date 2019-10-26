@@ -29,6 +29,9 @@ import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -42,6 +45,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * in the same process.
  */
 public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
+
+	private static final Logger LOG = LoggerFactory.getLogger(DispatcherResourceManagerComponent.class);
 
 	@Nonnull
 	private final DispatcherRunner dispatcherRunner;
@@ -89,16 +94,6 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 		return shutDownFuture;
 	}
 
-	@Nonnull
-	public DispatcherRunner getDispatcherRunner() {
-		return dispatcherRunner;
-	}
-
-	@Nonnull
-	public WebMonitorEndpoint<?> getWebMonitorEndpoint() {
-		return webMonitorEndpoint;
-	}
-
 	/**
 	 * Deregister the Flink application from the resource management system by signalling
 	 * the {@link ResourceManager}.
@@ -130,6 +125,8 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 	}
 
 	private CompletableFuture<Void> closeAsyncInternal() {
+		LOG.info("Closing components.");
+
 		Exception exception = null;
 
 		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);

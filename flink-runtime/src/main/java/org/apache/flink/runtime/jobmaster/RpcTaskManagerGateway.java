@@ -32,7 +32,8 @@ import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -88,8 +89,8 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds) {
-		taskExecutorGateway.releasePartitions(jobId, partitionIds);
+	public void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds) {
+		taskExecutorGateway.releaseOrPromotePartitions(jobId, partitionIds, Collections.emptySet());
 	}
 
 	@Override

@@ -22,7 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{Func1, RichFunc1}
-import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction}
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.{Ignore, Test}
@@ -568,11 +569,11 @@ object DeterministicNullFunc extends ScalarFunction {
   override def isDeterministic = true
 }
 
-object DeterministicPythonFunc extends ScalarFunction {
-
-  override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
+object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
 
   def eval(): Long = 1L
 
-  override def isDeterministic = true
+  override def getSerializedPythonFunction: Array[Byte] = null
+
+  override def getPythonEnv: PythonEnv = null
 }

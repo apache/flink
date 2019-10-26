@@ -39,13 +39,12 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
@@ -75,6 +74,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -107,8 +107,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	private Configuration configuration;
 
-	private TestingLeaderElectionService dispatcherLeaderElectionService;
-
 	private SingleRunningJobsRegistry runningJobsRegistry;
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
@@ -130,7 +128,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	private CompletableFuture<BlobKey> storedHABlobFuture;
 	private CompletableFuture<JobID> deleteAllHABlobsFuture;
 	private CompletableFuture<JobID> cleanupJobFuture;
-	private TestingJobGraphStore jobGraphStore;
+	private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
 
 	@BeforeClass
 	public static void setupClass() {
@@ -149,13 +147,9 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
 		highAvailabilityServices = new TestingHighAvailabilityServices();
-		dispatcherLeaderElectionService = new TestingLeaderElectionService();
-		highAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
 		clearedJobLatch = new OneShotLatch();
 		runningJobsRegistry = new SingleRunningJobsRegistry(jobId, clearedJobLatch);
 		highAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
-		jobGraphStore = TestingJobGraphStore.newBuilder().build();
-		highAvailabilityServices.setJobGraphStore(jobGraphStore);
 
 		storedHABlobFuture = new CompletableFuture<>();
 		deleteAllHABlobsFuture = new CompletableFuture<>();
@@ -197,25 +191,30 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	private void startDispatcher(JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
 		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+		final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
-			configuration,
-			highAvailabilityServices,
-			() -> CompletableFuture.completedFuture(resourceManagerGateway),
-			blobServer,
-			new HeartbeatServices(1000L, 1000L),
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-			null,
-			new MemoryArchivedExecutionGraphStore(),
-			jobManagerRunnerFactory,
-			fatalErrorHandler);
+			DispatcherId.generate(),
+			Collections.emptyList(),
+			new DispatcherServices(
+				configuration,
+				highAvailabilityServices,
+				() -> CompletableFuture.completedFuture(resourceManagerGateway),
+				blobServer,
+				heartbeatServices,
+				archivedExecutionGraphStore,
+				fatalErrorHandler,
+				VoidHistoryServerArchivist.INSTANCE,
+				null,
+				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+				jobGraphWriter,
+				jobManagerRunnerFactory));
 
 		dispatcher.start();
 
 		dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-
-		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 	}
 
 	@After
@@ -405,29 +404,35 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		assertThat(blobFile.exists(), is(true));
 	}
 
+	@Test
+	public void testDispatcherTerminationTerminatesRunningJobMasters() throws Exception {
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+
+		dispatcher.closeAsync().get();
+
+		final TestingJobManagerRunner jobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+		assertThat(jobManagerRunner.getTerminationFuture().isDone(), is(true));
+	}
+
 	/**
-	 * Tests that recovered jobs will only be started after the complete termination of any
-	 * other previously running JobMasters for the same job.
+	 * Tests that terminating the Dispatcher will wait for all JobMasters to be terminated.
 	 */
 	@Test
-	public void testJobRecoveryWithPendingTermination() throws Exception {
+	public void testDispatcherTerminationWaitsForJobMasterTerminations() throws Exception {
 		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob(1);
-		runningJobsRegistry.setJobRunning(jobId);
 
-		dispatcherLeaderElectionService.notLeader();
-		final UUID leaderSessionId = UUID.randomUUID();
-		final CompletableFuture<UUID> leaderFuture = dispatcherLeaderElectionService.isLeader(leaderSessionId);
+		final CompletableFuture<Void> dispatcherTerminationFuture = dispatcher.closeAsync();
 
 		try {
-			leaderFuture.get(10L, TimeUnit.MILLISECONDS);
-			fail("We should not become leader before all previously running JobMasters have terminated.");
+			dispatcherTerminationFuture.get(10L, TimeUnit.MILLISECONDS);
+			fail("We should not terminate before all running JobMasters have terminated.");
 		} catch (TimeoutException ignored) {
 			// expected
 		} finally {
 			jobManagerRunnerFactory.takeCreatedJobManagerRunner().completeTerminationFuture();
 		}
 
-		assertThat(leaderFuture.get(), equalTo(leaderSessionId));
+		dispatcherTerminationFuture.get();
 	}
 
 	private static final class SingleRunningJobsRegistry implements RunningJobsRegistry {
@@ -486,14 +491,14 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	@Test
 	public void testHABlobsAreNotRemovedIfHAJobGraphRemovalFails() throws Exception {
-		final JobGraphStore jobGraphStore = TestingJobGraphStore.newBuilder()
+		jobGraphWriter = TestingJobGraphStore.newBuilder()
 			.setRemoveJobGraphConsumer(
 				ignored -> {
 					throw new Exception("Failed to Remove future");
 				})
+			.withAutomaticStart()
 			.build();
 
-		highAvailabilityServices.setJobGraphStore(jobGraphStore);
 		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
 
 		ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder()

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.executiongraph.SchedulingUtils;
-import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -295,7 +294,8 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		// currently it's safe to add it here, as this method is invoked only once in production code.
 		checkState(restartPipelinedRegionStrategy == null, "notifyNewVertices() must be called only once");
 		this.restartPipelinedRegionStrategy = new RestartPipelinedRegionStrategy(
-			new DefaultFailoverTopology(executionGraph), executionGraph.getResultPartitionAvailabilityChecker());
+			executionGraph.getFailoverTopology(),
+			executionGraph.getResultPartitionAvailabilityChecker());
 	}
 
 	@Override

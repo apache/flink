@@ -30,13 +30,6 @@ import java.util.concurrent.CompletableFuture;
 public interface DispatcherRunner extends AutoCloseableAsync {
 
 	/**
-	 * Get the currently running {@link Dispatcher}.
-	 *
-	 * @return the currently running dispatcher
-	 */
-	Dispatcher getDispatcher();
-
-	/**
 	 * Return shut down future of this runner. The shut down future is being
 	 * completed with the final {@link ApplicationStatus} once the runner wants
 	 * to shut down.

@@ -41,13 +41,6 @@ public interface FunctionDefinition {
 	FunctionKind getKind();
 
 	/**
-	 * Returns the language of function this definition describes.
-	 */
-	default FunctionLanguage getLanguage() {
-		return FunctionLanguage.JVM;
-	}
-
-	/**
 	 * Returns the set of requirements this definition demands.
 	 */
 	default Set<FunctionRequirement> getRequirements() {

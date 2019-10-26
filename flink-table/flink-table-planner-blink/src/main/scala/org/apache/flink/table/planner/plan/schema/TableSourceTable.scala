@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.schema
 
+import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.sources.TableSourceUtil
@@ -37,11 +38,16 @@ class TableSourceTable[T](
     val tableSource: TableSource[T],
     val isStreamingMode: Boolean,
     val statistic: FlinkStatistic,
-    val selectedFields: Option[Array[Int]])
+    val selectedFields: Option[Array[Int]],
+    val catalogTable: CatalogTable)
   extends FlinkTable {
 
-  def this(tableSource: TableSource[T], isStreamingMode: Boolean, statistic: FlinkStatistic) {
-    this(tableSource, isStreamingMode, statistic, None)
+  def this(
+      tableSource: TableSource[T],
+      isStreamingMode: Boolean,
+      statistic: FlinkStatistic,
+      catalogTable: CatalogTable) {
+    this(tableSource, isStreamingMode, statistic, None, catalogTable)
   }
 
   // TODO implements this
@@ -62,7 +68,7 @@ class TableSourceTable[T](
     * @return Copy of this table, substituting statistic.
     */
   override def copy(statistic: FlinkStatistic): TableSourceTable[T] = {
-    new TableSourceTable(tableSource, isStreamingMode, statistic)
+    new TableSourceTable(tableSource, isStreamingMode, statistic, catalogTable)
   }
 
   /**
@@ -77,6 +83,7 @@ class TableSourceTable[T](
     * @return new TableSourceTable
     */
   def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T] = {
-    new TableSourceTable[T](tableSource, isStreamingMode, statistic)
+    new TableSourceTable[T](
+      tableSource, isStreamingMode, statistic, catalogTable)
   }
 }

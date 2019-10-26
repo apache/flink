@@ -488,9 +488,7 @@ abstract class TableEnvImpl(
           tableSink)
         // set static partitions if it is a partitioned table sink
         tableSink match {
-          case partitionableSink: PartitionableTableSink
-            if partitionableSink.getPartitionFieldNames != null
-              && partitionableSink.getPartitionFieldNames.nonEmpty =>
+          case partitionableSink: PartitionableTableSink =>
             partitionableSink.setStaticPartition(insertOptions.staticPartitions)
           case _ =>
         }

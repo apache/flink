@@ -50,6 +50,6 @@ public interface FailoverStrategy {
 		 * @param topology of the graph to failover
 		 * @return The instantiated failover strategy.
 		 */
-		FailoverStrategy create(FailoverTopology topology);
+		FailoverStrategy create(FailoverTopology<?, ?> topology);
 	}
 }

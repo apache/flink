@@ -56,6 +56,8 @@ public class TestingLogicalSlot implements LogicalSlot {
 	@Nullable
 	private final SlotSharingGroupId slotSharingGroupId;
 
+	private boolean released;
+
 	TestingLogicalSlot(
 			TaskManagerLocation taskManagerLocation,
 			TaskManagerGateway taskManagerGateway,
@@ -111,10 +113,14 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	@Override
 	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
-		slotOwner.returnLogicalSlot(this);
+		if (!released) {
+			released = true;
 
-		if (automaticallyCompleteReleaseFuture) {
-			releaseFuture.complete(null);
+			slotOwner.returnLogicalSlot(this);
+
+			if (automaticallyCompleteReleaseFuture) {
+				releaseFuture.complete(null);
+			}
 		}
 
 		return releaseFuture;

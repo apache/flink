@@ -39,7 +39,7 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 
 	private final SchedulerOperations schedulerOperations;
 
-	private final SchedulingTopology schedulingTopology;
+	private final SchedulingTopology<?, ?> schedulingTopology;
 
 	private final DeploymentOption deploymentOption = new DeploymentOption(false);
 
@@ -47,7 +47,7 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 
 	public TestSchedulingStrategy(
 			final SchedulerOperations schedulerOperations,
-			final SchedulingTopology schedulingTopology) {
+			final SchedulingTopology<?, ?> schedulingTopology) {
 
 		this.schedulerOperations = checkNotNull(schedulerOperations);
 		this.schedulingTopology = checkNotNull(schedulingTopology);
@@ -74,7 +74,7 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 		allocateSlotsAndDeploy(verticesToSchedule);
 	}
 
-	public SchedulingTopology getSchedulingTopology() {
+	public SchedulingTopology<?, ?> getSchedulingTopology() {
 		return schedulingTopology;
 	}
 
@@ -108,7 +108,7 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 		@Override
 		public SchedulingStrategy createInstance(
 				final SchedulerOperations schedulerOperations,
-				final SchedulingTopology schedulingTopology,
+				final SchedulingTopology<?, ?> schedulingTopology,
 				final JobGraph jobGraph) {
 
 			lastInstance = new TestSchedulingStrategy(schedulerOperations, schedulingTopology);

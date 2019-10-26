@@ -22,11 +22,11 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.throwable.ThrowableClassifier;
 import org.apache.flink.runtime.throwable.ThrowableType;
+import org.apache.flink.util.IterableUtils;
 
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ExecutionFailureHandler {
 
-	private final FailoverTopology failoverTopology;
+	private final FailoverTopology<?, ?> failoverTopology;
 
 	/** Strategy to judge which tasks should be restarted. */
 	private final FailoverStrategy failoverStrategy;
@@ -52,7 +52,7 @@ public class ExecutionFailureHandler {
 	 * @param restartBackoffTimeStrategy helps to decide whether to restart failed tasks and the restarting delay
 	 */
 	public ExecutionFailureHandler(
-		FailoverTopology failoverTopology,
+		FailoverTopology<?, ?> failoverTopology,
 		FailoverStrategy failoverStrategy,
 		RestartBackoffTimeStrategy restartBackoffTimeStrategy) {
 
@@ -83,9 +83,8 @@ public class ExecutionFailureHandler {
 	public FailureHandlingResult getGlobalFailureHandlingResult(final Throwable cause) {
 		return handleFailure(
 			cause,
-			StreamSupport
-				.stream(failoverTopology.getFailoverVertices().spliterator(), false)
-				.map(FailoverVertex::getExecutionVertexID)
+			IterableUtils.toStream(failoverTopology.getVertices())
+				.map(FailoverVertex::getId)
 				.collect(Collectors.toSet()));
 	}
 

@@ -32,7 +32,8 @@ to running a Python Table API program.
 ## Setting up a Python Project
 
 Firstly, you can fire up your favorite IDE and create a Python project and then
-you need to install the PyFlink package. Please
+you need to install the PyFlink package. You can install the latest PyFlink from PyPI via 
+this command: `pip install apache-flink`. If you want to build and install PyFlink from source code, please
 see [Build PyFlink]({{ site.baseurl }}/flinkDev/building.html#build-pyflink)
 for more details about this.
 

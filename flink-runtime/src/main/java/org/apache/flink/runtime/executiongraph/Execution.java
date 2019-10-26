@@ -1385,12 +1385,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final ShuffleMaster<?> shuffleMaster = getVertex().getExecutionGraph().getShuffleMaster();
 
-			Collection<ResultPartitionID> partitionIds = producedPartitions.values().stream()
+			Set<ResultPartitionID> partitionIds = producedPartitions.values().stream()
 				.filter(resultPartitionDeploymentDescriptor -> resultPartitionDeploymentDescriptor.getPartitionType().isPipelined())
 				.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
 				.peek(shuffleMaster::releasePartitionExternally)
 				.map(ShuffleDescriptor::getResultPartitionID)
-				.collect(Collectors.toList());
+				.collect(Collectors.toSet());
 
 			if (!partitionIds.isEmpty()) {
 				// TODO For some tests this could be a problem when querying too early if all resources were released

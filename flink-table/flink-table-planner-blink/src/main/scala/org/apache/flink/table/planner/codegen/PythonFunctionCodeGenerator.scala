@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
-import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, primitiveDefaultValue, primitiveTypeTermForType}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.GeneratedFunction
@@ -97,11 +97,6 @@ object PythonFunctionCodeGenerator {
       |  @Override
       |  public $typeInfoTypeTerm getResultType(Class<?>[] signature) {
       |    return $resultTypeNameTerm;
-      |  }
-      |
-      |  @Override
-      |  public ${classOf[FunctionLanguage].getCanonicalName} getLanguage() {
-      |    return ${classOf[FunctionLanguage].getCanonicalName}.PYTHON;
       |  }
       |
       |  @Override

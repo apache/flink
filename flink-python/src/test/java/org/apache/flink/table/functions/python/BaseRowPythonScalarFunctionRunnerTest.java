@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.functions.python;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
-import org.apache.flink.table.runtime.typeutils.coders.BaseRowCoder;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.junit.Test;
 
@@ -42,69 +41,48 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() {
 		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createSingleUDFRunner();
 
-		// check input coder
-		Coder<BaseRow> inputCoder = runner.getInputCoder();
-		assertTrue(inputCoder instanceof BaseRowCoder);
+		// check input TypeSerializer
+		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+		assertTrue(inputTypeSerializer instanceof BaseRowSerializer);
 
-		Coder<?>[] inputFieldCoders = ((BaseRowCoder) inputCoder).getFieldCoders();
-		assertEquals(1, inputFieldCoders.length);
-		assertTrue(inputFieldCoders[0] instanceof VarLongCoder);
+		assertEquals(1, ((BaseRowSerializer) inputTypeSerializer).getArity());
 
-		// check output coder
-		Coder<BaseRow> outputCoder = runner.getOutputCoder();
-		assertTrue(outputCoder instanceof BaseRowCoder);
-		Coder<?>[] outputFieldCoders = ((BaseRowCoder) outputCoder).getFieldCoders();
-		assertEquals(1, outputFieldCoders.length);
-		assertTrue(outputFieldCoders[0] instanceof VarLongCoder);
+		// check output TypeSerializer
+		TypeSerializer outputTypeSerializer = runner.getOutputTypeSerializer();
+		assertTrue(outputTypeSerializer instanceof BaseRowSerializer);
+		assertEquals(1, ((BaseRowSerializer) outputTypeSerializer).getArity());
 	}
 
 	@Test
 	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() {
 		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createMultipleUDFRunner();
 
-		// check input coder
-		Coder<BaseRow> inputCoder = runner.getInputCoder();
-		assertTrue(inputCoder instanceof BaseRowCoder);
+		// check input TypeSerializer
+		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+		assertTrue(inputTypeSerializer instanceof BaseRowSerializer);
 
-		Coder<?>[] inputFieldCoders = ((BaseRowCoder) inputCoder).getFieldCoders();
-		assertEquals(3, inputFieldCoders.length);
-		assertTrue(inputFieldCoders[0] instanceof VarLongCoder);
-		assertTrue(inputFieldCoders[1] instanceof VarLongCoder);
-		assertTrue(inputFieldCoders[2] instanceof VarLongCoder);
+		assertEquals(3, ((BaseRowSerializer) inputTypeSerializer).getArity());
 
-		// check output coder
-		Coder<BaseRow> outputCoder = runner.getOutputCoder();
-		assertTrue(outputCoder instanceof BaseRowCoder);
-		Coder<?>[] outputFieldCoders = ((BaseRowCoder) outputCoder).getFieldCoders();
-		assertEquals(2, outputFieldCoders.length);
-		assertTrue(outputFieldCoders[0] instanceof VarLongCoder);
-		assertTrue(outputFieldCoders[1] instanceof VarLongCoder);
+		// check output TypeSerializer
+		TypeSerializer outputTypeSerializer = runner.getOutputTypeSerializer();
+		assertTrue(outputTypeSerializer instanceof BaseRowSerializer);
+		assertEquals(2, ((BaseRowSerializer) outputTypeSerializer).getArity());
 	}
 
 	@Test
 	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() {
 		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createChainedUDFRunner();
 
-		// check input coder
-		Coder<BaseRow> inputCoder = runner.getInputCoder();
-		assertTrue(inputCoder instanceof BaseRowCoder);
+		// check input TypeSerializer
+		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+		assertTrue(inputTypeSerializer instanceof BaseRowSerializer);
 
-		Coder<?>[] inputFieldCoders = ((BaseRowCoder) inputCoder).getFieldCoders();
-		assertEquals(5, inputFieldCoders.length);
-		assertTrue(inputFieldCoders[0] instanceof VarLongCoder);
-		assertTrue(inputFieldCoders[1] instanceof VarLongCoder);
-		assertTrue(inputFieldCoders[2] instanceof VarLongCoder);
-		assertTrue(inputFieldCoders[3] instanceof VarLongCoder);
-		assertTrue(inputFieldCoders[4] instanceof VarLongCoder);
+		assertEquals(5, ((BaseRowSerializer) inputTypeSerializer).getArity());
 
-		// check output coder
-		Coder<BaseRow> outputCoder = runner.getOutputCoder();
-		assertTrue(outputCoder instanceof BaseRowCoder);
-		Coder<?>[] outputFieldCoders = ((BaseRowCoder) outputCoder).getFieldCoders();
-		assertEquals(3, outputFieldCoders.length);
-		assertTrue(outputFieldCoders[0] instanceof VarLongCoder);
-		assertTrue(outputFieldCoders[1] instanceof VarLongCoder);
-		assertTrue(outputFieldCoders[2] instanceof VarLongCoder);
+		// check output TypeSerializer
+		TypeSerializer outputTypeSerializer = runner.getOutputTypeSerializer();
+		assertTrue(outputTypeSerializer instanceof BaseRowSerializer);
+		assertEquals(3, ((BaseRowSerializer) outputTypeSerializer).getArity());
 	}
 
 	@Override

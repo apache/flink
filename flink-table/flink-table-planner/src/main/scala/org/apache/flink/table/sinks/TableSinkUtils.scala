@@ -24,8 +24,6 @@ import org.apache.flink.table.operations.QueryOperation
 
 import java.util.{Map => JMap}
 
-import scala.collection.JavaConversions._
-
 object TableSinkUtils {
 
   /**
@@ -72,30 +70,10 @@ object TableSinkUtils {
     // check partitions are valid
     if (staticPartitions != null && !staticPartitions.isEmpty) {
       val invalidMsg = "Can't insert static partitions into a non-partitioned table sink. " +
-        "A partitioned sink should implement 'PartitionableTableSink' and return partition " +
-        "field names via 'getPartitionFieldNames()' method."
+        "A partitioned sink should implement 'PartitionableTableSink'."
       sink match {
-        case pts: PartitionableTableSink =>
-          val partitionFields = pts.getPartitionFieldNames
-          if (partitionFields == null || partitionFields.isEmpty) {
-            throw new ValidationException(invalidMsg)
-          }
-          staticPartitions.map(_._1) foreach { p =>
-            if (!partitionFields.contains(p)) {
-              throw new ValidationException(s"Static partition column $p " +
-                s"should be in the partition fields list $partitionFields.")
-            }
-          }
-          staticPartitions.map(_._1).zip(partitionFields).foreach {
-            case (p1, p2) =>
-              if (p1 != p2) {
-                throw new ValidationException(s"Static partition column $p1 " +
-                  s"should appear before dynamic partition $p2.")
-              }
-          }
-        case _ =>
-          throw new ValidationException(invalidMsg)
-
+        case _: PartitionableTableSink =>
+        case _ => throw new ValidationException(invalidMsg)
       }
     }
   }

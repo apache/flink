@@ -24,10 +24,10 @@ import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.BinaryStringUtil.safeToString
 import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
-import org.apache.flink.table.functions.{FunctionContext, FunctionLanguage, UserDefinedFunction}
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
-import org.apache.flink.table.planner.plan.utils.PythonUtil
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.types.logical.RowType
 
@@ -68,7 +68,7 @@ class ExpressionReducer(
 
       // Skip expressions that contain python functions because it's quite expensive to
       // call Python UDFs during optimization phase. They will be optimized during the runtime.
-      case (_, e) if PythonUtil.containsFunctionOf(e, FunctionLanguage.PYTHON) =>
+      case (_, e) if containsPythonCall(e) =>
         pythonUDFExprs += e
         None
 

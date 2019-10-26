@@ -20,40 +20,38 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import javax.annotation.Nonnull;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
+import java.util.Collection;
 
 import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MODE;
 
 /**
  * {@link DispatcherFactory} which creates a {@link MiniDispatcher}.
  */
-public class JobDispatcherFactory implements DispatcherFactory {
-
-	private final JobGraphRetriever jobGraphRetriever;
-
-	public JobDispatcherFactory(JobGraphRetriever jobGraphRetriever) {
-		this.jobGraphRetriever = jobGraphRetriever;
-	}
+public enum JobDispatcherFactory implements DispatcherFactory {
+	INSTANCE;
 
 	@Override
 	public MiniDispatcher createDispatcher(
-			@Nonnull RpcService rpcService,
-			@Nonnull PartialDispatcherServices partialDispatcherServices) throws Exception {
-		final Configuration configuration = partialDispatcherServices.getConfiguration();
-		final JobGraph jobGraph = jobGraphRetriever.retrieveJobGraph(configuration);
+			RpcService rpcService,
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
+		final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
 
+		final Configuration configuration = partialDispatcherServicesWithJobGraphStore.getConfiguration();
 		final String executionModeValue = configuration.getString(EXECUTION_MODE);
-
 		final ClusterEntrypoint.ExecutionMode executionMode = ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
 
 		return new MiniDispatcher(
 			rpcService,
 			getEndpointId(),
-			DispatcherServices.from(partialDispatcherServices, DefaultJobManagerRunnerFactory.INSTANCE),
+			fencingToken,
+			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE),
 			jobGraph,
 			executionMode);
 	}

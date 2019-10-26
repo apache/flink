@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.flink.table.functions.FunctionLanguage
+import org.apache.flink.table.functions.python.PythonFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 
 import scala.collection.JavaConversions._
@@ -26,43 +26,62 @@ import scala.collection.JavaConversions._
 object PythonUtil {
 
   /**
-    * Checks whether it contains the specified kind of function in the specified node.
+    * Checks whether it contains Python function call in the specified node.
     *
     * @param node the RexNode to check
-    * @param language the expected kind of function to find
-    * @param recursive whether check the inputs of the specified node
-    * @return true if it contains the specified kind of function in the specified node.
+    * @return true if it contains the Python function call in the specified node.
     */
-  def containsFunctionOf(
-      node: RexNode,
-      language: FunctionLanguage,
-      recursive: Boolean = true): Boolean = {
-    node.accept(new FunctionFinder(language, recursive))
-  }
+  def containsPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(true, true))
+
+  /**
+    * Checks whether it contains non-Python function call in the specified node.
+    *
+    * @param node the RexNode to check
+    * @return true if it contains the non-Python function call in the specified node.
+    */
+  def containsNonPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(false, true))
+
+  /**
+    * Checks whether the specified node is a Python function call.
+    *
+    * @param node the RexNode to check
+    * @return true if the specified node is a Python function call.
+    */
+  def isPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(true, false))
+
+  /**
+    * Checks whether the specified node is a non-Python function call.
+    *
+    * @param node the RexNode to check
+    * @return true if the specified node is a non-Python function call.
+    */
+  def isNonPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(false, false))
 
   /**
     * Checks whether it contains the specified kind of function in a RexNode.
     *
-    * @param expectedLanguage the expected kind of function to find
+    * @param findPythonFunction true to find python function, false to find non-python function
     * @param recursive whether check the inputs
     */
-  private class FunctionFinder(expectedLanguage: FunctionLanguage, recursive: Boolean)
+  private class FunctionFinder(findPythonFunction: Boolean, recursive: Boolean)
     extends RexDefaultVisitor[Boolean] {
 
+    /**
+      * Checks whether the specified rexCall is python function call.
+      *
+      * @param rexCall the RexCall to check.
+      * @return true if it is python function call.
+      */
+    private def isPythonRexCall(rexCall: RexCall): Boolean = rexCall.getOperator match {
+      case sfc: ScalarSqlFunction => sfc.getScalarFunction.isInstanceOf[PythonFunction]
+      case _ => false
+    }
+
     override def visitCall(call: RexCall): Boolean = {
-      call.getOperator match {
-        case sfc: ScalarSqlFunction if sfc.getScalarFunction.getLanguage ==
-          FunctionLanguage.PYTHON =>
-          findInternal(FunctionLanguage.PYTHON, call)
-        case _ =>
-          findInternal(FunctionLanguage.JVM, call)
-      }
+      findPythonFunction == isPythonRexCall(call) ||
+        (recursive && call.getOperands.exists(_.accept(this)))
     }
 
     override def visitNode(rexNode: RexNode): Boolean = false
-
-    private def findInternal(actualLanguage: FunctionLanguage, call: RexCall): Boolean =
-      actualLanguage == expectedLanguage ||
-        (recursive && call.getOperands.exists(_.accept(this)))
   }
 }

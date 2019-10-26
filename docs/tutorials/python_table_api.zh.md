@@ -30,8 +30,8 @@ under the License.
 
 ## 创建一个Python Table API项目
 
-首先，你可以使用你最熟悉的IDE，创建一个Python项目。然后，你需要安装PyFlink包，
-请参考[构建PyFlink]({{ site.baseurl }}/zh/flinkDev/building.html#build-pyflink)了解详细信息。
+首先，使用您最熟悉的IDE创建一个Python项目。之后执行命令`pip install apache-flink`从PyPI下载安装PyFlink包。
+如果您想从源码安装，请参考[构建PyFlink]({{ site.baseurl }}/zh/flinkDev/building.html#build-pyflink)了解详细信息。
 
 ## 编写一个Flink Python Table API程序
 

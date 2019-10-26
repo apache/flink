@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.functions.{FunctionLanguage, ScalarFunction}
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils.{Func1, RichFunc1}
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.junit.Test
 
 /**
@@ -55,11 +55,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
   }
 }
 
-object DeterministicPythonFunc extends ScalarFunction {
-
-  override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
+object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
 
   def eval(): Long = 1
 
-  override def isDeterministic = true
+  override def getSerializedPythonFunction: Array[Byte] = null
+
+  override def getPythonEnv: PythonEnv = null
 }

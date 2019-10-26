@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.module.ModuleManager;
 
 import org.junit.Test;
@@ -26,7 +25,6 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertTrue;
 
@@ -44,10 +42,7 @@ public class FunctionCatalogTest {
 		Set<String> actual = new HashSet<>();
 		Collections.addAll(actual, functionCatalog.getFunctions());
 
-		Set<String> expected = BuiltInFunctionDefinitions.getDefinitions()
-			.stream()
-			.map(f -> FunctionCatalog.normalizeName(f.getName()))
-			.collect(Collectors.toSet());
+		Set<String> expected = new ModuleManager().listFunctions();
 
 		assertTrue(actual.containsAll(expected));
 	}
