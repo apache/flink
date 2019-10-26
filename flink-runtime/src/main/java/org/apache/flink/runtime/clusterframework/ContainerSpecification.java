@@ -192,15 +192,29 @@ public class ContainerSpecification implements java.io.Serializable {
 			if(sb.length() > 0) {
 				sb.append(" ");
 			}
-			boolean quoted = entry.getValue().contains(" ");
-			if(quoted) {
-				sb.append("\"");
-			}
-			sb.append("-D").append(entry.getKey()).append('=').append(entry.getValue());
-			if(quoted) {
-				sb.append("\"");
-			}
+			final String dynamicProperty = createDynamicProperty(entry.getKey(), entry.getValue());
+			sb.append(dynamicProperty);
 		}
 		return sb.toString();
+	}
+
+	/**
+	 * Create a dynamic property from the given key and value of the format {@code -Dkey=value}.
+	 *
+	 * @param key of the dynamic property
+	 * @param value of the dynamic property
+	 * @return dynamic property
+	 */
+	public static String createDynamicProperty(String key, String value) {
+		final String keyPart = "-D" + key + '=';
+		final String valuePart;
+
+		if (value.contains(" ")) {
+			valuePart = "\"" + value + "\"";
+		} else {
+			valuePart = value;
+		}
+
+		return  keyPart + valuePart;
 	}
 }
