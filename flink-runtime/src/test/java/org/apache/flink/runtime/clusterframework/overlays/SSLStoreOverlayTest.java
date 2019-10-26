@@ -46,10 +46,10 @@ public class SSLStoreOverlayTest extends ContainerOverlayTestBase {
 		ContainerSpecification spec = new ContainerSpecification();
 		overlay.configure(spec);
 
-		assertEquals(TARGET_KEYSTORE_PATH.getPath(), spec.getDynamicConfiguration().getString(SecurityOptions.SSL_KEYSTORE));
+		assertEquals(TARGET_KEYSTORE_PATH.getPath(), spec.getFlinkConfiguration().getString(SecurityOptions.SSL_KEYSTORE));
 		checkArtifact(spec, TARGET_KEYSTORE_PATH);
 
-		assertEquals(TARGET_TRUSTSTORE_PATH.getPath(), spec.getDynamicConfiguration().getString(SecurityOptions.SSL_TRUSTSTORE));
+		assertEquals(TARGET_TRUSTSTORE_PATH.getPath(), spec.getFlinkConfiguration().getString(SecurityOptions.SSL_TRUSTSTORE));
 		checkArtifact(spec, TARGET_TRUSTSTORE_PATH);
 	}
 
