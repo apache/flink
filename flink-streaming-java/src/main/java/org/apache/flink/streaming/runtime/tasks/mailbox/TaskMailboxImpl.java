@@ -18,68 +18,61 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
-import org.apache.flink.util.Preconditions;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.State.*;
+
 /**
  * Implementation of {@link TaskMailbox} in a {@link java.util.concurrent.BlockingQueue} fashion and tailored towards
- * our use case with multiple writers, single reader and volatile reads.
+ * our use case with multiple writers and single reader.
  */
 @ThreadSafe
 public class TaskMailboxImpl implements TaskMailbox {
 	/**
 	 * Lock for all concurrent ops.
 	 */
-	private final ReentrantLock lock;
+	private final ReentrantLock lock = new ReentrantLock();
 
 	/**
 	 * Internal queue of mails.
 	 */
 	@GuardedBy("lock")
-	private final LinkedList<Mail> queue;
+	private final Deque<Mail> queue = new ArrayDeque<>();
 
 	/**
 	 * Condition that is triggered when the mailbox is no longer empty.
 	 */
 	@GuardedBy("lock")
-	private final Condition notEmpty;
-
-	/**
-	 * Number of mails in the mailbox. We track it separately from the queue#size to avoid locking on {@link #hasMail()}.
-	 */
-	@GuardedBy("lock")
-	private volatile int count;
+	private final Condition notEmpty = lock.newCondition();
 
 	/**
 	 * The state of the mailbox in the lifecycle of open, quiesced, and closed.
 	 */
 	@GuardedBy("lock")
-	private volatile State state;
-
-	public TaskMailboxImpl() {
-		this.lock = new ReentrantLock();
-		this.notEmpty = lock.newCondition();
-		this.state = State.OPEN;
-		this.queue = new LinkedList<>();
-		this.count = 0;
-	}
+	private State state = OPEN;
 
 	@Override
 	public boolean hasMail() {
-		return !isEmpty();
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try {
+			return !queue.isEmpty();
+		} finally {
+			lock.unlock();
+		}
 	}
 
 	@Override
@@ -140,7 +133,6 @@ public class TaskMailboxImpl implements TaskMailbox {
 		assert lock.isHeldByCurrentThread();
 		checkPutStateConditions();
 		queue.addFirst(newHead);
-		incrementCountAndCheckOverflow();
 		notEmpty.signal();
 	}
 
@@ -148,12 +140,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 		assert lock.isHeldByCurrentThread();
 		checkPutStateConditions();
 		queue.addLast(newTail);
-		incrementCountAndCheckOverflow();
 		notEmpty.signal();
-	}
-
-	private void incrementCountAndCheckOverflow() {
-		Preconditions.checkState(++count > 0, "Mailbox overflow.");
 	}
 
 	@Nullable
@@ -164,7 +151,6 @@ public class TaskMailboxImpl implements TaskMailbox {
 		while (iterator.hasNext()) {
 			Mail mail = iterator.next();
 			if (mail.getPriority() >= priority) {
-				--count;
 				iterator.remove();
 				return mail;
 			}
@@ -185,31 +171,19 @@ public class TaskMailboxImpl implements TaskMailbox {
 		}
 	}
 
-	private boolean isEmpty() {
-		return count == 0;
-	}
-
-	private boolean isPutAbleState() {
-		return state == State.OPEN;
-	}
-
-	private boolean isTakeAbleState() {
-		return state != State.CLOSED;
-	}
-
 	private void checkPutStateConditions() {
 		final State state = this.state;
-		if (!isPutAbleState()) {
+		if (this.state != OPEN) {
 			throw new IllegalStateException("Mailbox is in state " + state + ", but is required to be in state " +
-				State.OPEN + " for put operations.");
+				OPEN + " for put operations.");
 		}
 	}
 
 	private void checkTakeStateConditions() {
 		final State state = this.state;
-		if (!isTakeAbleState()) {
+		if (this.state == CLOSED) {
 			throw new IllegalStateException("Mailbox is in state " + state + ", but is required to be in state " +
-				State.OPEN + " or " + State.QUIESCED + " for take operations.");
+				OPEN + " or " + QUIESCED + " for take operations.");
 		}
 	}
 
@@ -218,8 +192,8 @@ public class TaskMailboxImpl implements TaskMailbox {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
-			if (state == State.OPEN) {
-				state = State.QUIESCED;
+			if (state == OPEN) {
+				state = QUIESCED;
 			}
 		} finally {
 			this.lock.unlock();
@@ -232,11 +206,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
-			if (state == State.CLOSED) {
+			if (state == CLOSED) {
 				return Collections.emptyList();
 			}
 			List<Mail> droppedMails = drain();
-			state = State.CLOSED;
+			state = CLOSED;
 			// to unblock all
 			notEmpty.signalAll();
 			return droppedMails;
@@ -248,7 +222,13 @@ public class TaskMailboxImpl implements TaskMailbox {
 	@Nonnull
 	@Override
 	public State getState() {
-		return state;
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try {
+			return state;
+		} finally {
+			lock.unlock();
+		}
 	}
 
 	@Override
