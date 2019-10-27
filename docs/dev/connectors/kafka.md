@@ -216,7 +216,7 @@ For convenience, Flink provides the following schemas:
     a schema based on a Flink's `TypeInformation`. This is useful if the data is both written and read by Flink.
     This schema is a performant Flink-specific alternative to other generic serialization approaches.
 
-2. `JsonDeserializationSchema` (and `JSONKeyValueDeserializationSchema`) which turns the serialized JSON
+2. `JSONDeserializationSchema` (and `JSONKeyValueDeserializationSchema`) which turns the serialized JSON
     into an ObjectNode object, from which fields can be accessed using `objectNode.get("field").as(Int/String/...)()`.
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
