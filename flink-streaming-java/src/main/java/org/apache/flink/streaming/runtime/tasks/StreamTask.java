@@ -449,10 +449,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// See FLINK-7430
 				isRunning = false;
 			}
-			MailboxExecutor mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
-			while (mainMailboxExecutor.tryYield()) {
-				// Run until we have processed all remaining letters.
-			}
+			// processes the remaining mails; no new mails can be enqueued
+			mailboxProcessor.drain();
 
 			// make sure all timers finish
 			timerService.awaitPendingAfterQuiesce();

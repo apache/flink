@@ -48,6 +48,13 @@ public interface TaskMailbox extends Mailbox {
 	}
 
 	/**
+	 * Drains the mailbox and returns all mails that were still enqueued.
+	 *
+	 * @return list with all mails that where enqueued in the mailbox.
+	 */
+	List<Mail> drain();
+
+	/**
 	 * Quiesce the mailbox. In this state, the mailbox supports only take operations and all pending and future put
 	 * operations will throw {@link IllegalStateException}.
 	 */
@@ -60,7 +67,7 @@ public interface TaskMailbox extends Mailbox {
 	 * @return list with all mails that where enqueued in the mailbox at the time of closing.
 	 */
 	@Nonnull
-	List<Runnable> close();
+	List<Mail> close();
 
 	/**
 	 * Returns the current state of the mailbox as defined by the lifecycle enum {@link State}.

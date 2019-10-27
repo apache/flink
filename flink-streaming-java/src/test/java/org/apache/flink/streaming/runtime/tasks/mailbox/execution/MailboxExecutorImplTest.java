@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.Preconditions;
 
@@ -34,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -93,10 +95,10 @@ public class MailboxExecutorImplTest {
 		Assert.assertEquals(Thread.currentThread(), yieldRun.wasExecutedBy());
 		assertFalse(leftoverFuture.isDone());
 
-		List<Runnable> leftoverTasks = mailbox.close();
+		List<Mail> leftoverTasks = mailbox.close();
 		Assert.assertEquals(1, leftoverTasks.size());
 		assertFalse(leftoverFuture.isCancelled());
-		FutureUtils.cancelRunnableFutures(leftoverTasks);
+		FutureUtils.cancelRunnableFutures(leftoverTasks.stream().map(Mail::getRunnable).collect(Collectors.toList()));
 		assertTrue(leftoverFuture.isCancelled());
 
 		try {
