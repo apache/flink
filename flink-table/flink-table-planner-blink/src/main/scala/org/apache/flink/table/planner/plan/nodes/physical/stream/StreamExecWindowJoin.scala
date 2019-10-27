@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, UpdatingPlanChecker, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
@@ -66,6 +67,12 @@ class StreamExecWindowJoin(
   extends BiRel(cluster, traitSet, leftRel, rightRel)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
+
+  if (containsPythonCall(remainCondition.get)) {
+    throw new TableException("Only inner join condition with equality predicates supports the " +
+      "Python UDF taking the inputs from the left table and the right table at the same time, " +
+      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+  }
 
   // TODO remove FlinkJoinType
   private lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.getFlinkJoinType(joinType)

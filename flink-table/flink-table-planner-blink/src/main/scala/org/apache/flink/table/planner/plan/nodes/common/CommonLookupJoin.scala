@@ -36,6 +36,7 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.table.runtime.operators.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
@@ -93,6 +94,12 @@ abstract class CommonLookupJoin(
     joinKeyPairs,
     tableSource.getTableSchema,
     calcOnTemporalTable)
+
+  if (containsPythonCall(joinInfo.getRemaining(cluster.getRexBuilder))) {
+    throw new TableException("Only inner join condition with equality predicates supports the " +
+      "Python UDF taking the inputs from the left table and the right table at the same time, " +
+      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+  }
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
