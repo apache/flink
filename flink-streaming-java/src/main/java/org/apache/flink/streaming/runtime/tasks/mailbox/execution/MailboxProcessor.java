@@ -78,16 +78,12 @@ public class MailboxProcessor {
 	 */
 	private SuspendedMailboxDefaultAction suspendedDefaultAction;
 
-	/** Special action that is used to terminate the mailbox loop. */
-	private final Runnable mailboxPoisonMail;
-
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
-		this.mailbox = new TaskMailboxImpl(Thread.currentThread());
-		this.mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY);
-		this.mailboxPoisonMail = () -> mailboxLoopRunning = false;
-		this.mailboxLoopRunning = true;
-		this.suspendedDefaultAction = null;
+		mailbox = new TaskMailboxImpl(Thread.currentThread());
+		mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY);
+		mailboxLoopRunning = true;
+		suspendedDefaultAction = null;
 	}
 
 	/**
@@ -99,7 +95,8 @@ public class MailboxProcessor {
 
 	/**
 	 * Returns an executor service facade to submit actions to the mailbox.
-	 * @param priority
+	 *
+	 * @param priority the priority of the {@link MailboxExecutor}.
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
 		return new MailboxExecutorImpl(mailbox, priority);
@@ -166,7 +163,7 @@ public class MailboxProcessor {
 	public void reportThrowable(Throwable throwable) {
 		sendPriorityMail(
 			() -> {
-				throw new WrappingRuntimeException(throwable);
+				throw WrappingRuntimeException.wrapIfNecessary(throwable);
 			},
 			"Report throwable %s", throwable);
 	}
@@ -179,7 +176,7 @@ public class MailboxProcessor {
 			// keep state check and poison mail enqueuing atomic, such that no intermediate #close may cause a
 			// MailboxStateException in #sendPriorityMail.
 			if (mailbox.getState() == TaskMailbox.State.OPEN) {
-				sendPriorityMail(mailboxPoisonMail, "poison mail");
+				sendPriorityMail(() -> mailboxLoopRunning = false, "poison mail");
 			}
 		});
 	}
