@@ -172,13 +172,17 @@ public class TaskMailboxImpl implements TaskMailbox {
 		return null;
 	}
 
-	private void drainAllMails(List<Runnable> drainInto) {
-		assert lock.isHeldByCurrentThread();
-		for (Mail mail : queue) {
-			drainInto.add(mail.getRunnable());
+	@Override
+	public List<Mail> drain() {
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try {
+			List<Mail> drainedMails = new ArrayList<>(queue);
+			queue.clear();
+			return drainedMails;
+		} finally {
+			lock.unlock();
 		}
-		queue.clear();
-		count = 0;
 	}
 
 	private boolean isEmpty() {
@@ -211,26 +215,27 @@ public class TaskMailboxImpl implements TaskMailbox {
 
 	@Override
 	public void quiesce() {
+		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
 			if (state == State.OPEN) {
 				state = State.QUIESCED;
 			}
 		} finally {
-			lock.unlock();
+			this.lock.unlock();
 		}
 	}
 
 	@Nonnull
 	@Override
-	public List<Runnable> close() {
+	public List<Mail> close() {
+		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
 			if (state == State.CLOSED) {
 				return Collections.emptyList();
 			}
-			List<Runnable> droppedMails = new ArrayList<>(count);
-			drainAllMails(droppedMails);
+			List<Mail> droppedMails = drain();
 			state = State.CLOSED;
 			// to unblock all
 			notEmpty.signalAll();
