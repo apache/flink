@@ -35,23 +35,22 @@ import java.util.Optional;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MIN_PRIORITY;
 
 /**
- * This class encapsulates the logic of the mailbox-based execution model. At the core of this model
- * {@link #runMailboxLoop()} that continuously executes the provided {@link MailboxDefaultAction} in a loop. On each
- * iteration, the method also checks if there are pending actions in the mailbox and executes such actions. This model
- * ensures single-threaded execution between the default action (e.g. record processing) and mailbox actions (e.g.
- * checkpoint trigger, timer firing, ...).
+ * This class encapsulates the logic of the mailbox-based execution model. At the core of this model {@link
+ * #runMailboxLoop()} that continuously executes the provided {@link MailboxDefaultAction} in a loop. On each iteration,
+ * the method also checks if there are pending actions in the mailbox and executes such actions. This model ensures
+ * single-threaded execution between the default action (e.g. record processing) and mailbox actions (e.g. checkpoint
+ * trigger, timer firing, ...).
  *
  * <p>The {@link MailboxDefaultAction} interacts with this class through the {@link MailboxDefaultActionContext} to
- * communicate control flow changes to the mailbox loop, e.g. that invocations of the default action are temporarily
- * or permanently exhausted.
+ * communicate control flow changes to the mailbox loop, e.g. that invocations of the default action are temporarily or
+ * permanently exhausted.
  *
  * <p>The design of {@link #runMailboxLoop()} is centered around the idea of keeping the expected hot path
- * (default action, no mail) as fast as possible, with just a single volatile read per iteration in
- * {@link TaskMailbox#hasMail}. This means that all checking of mail and other control flags (mailboxLoopRunning,
- * suspendedDefaultAction) are always connected to #hasMail indicating true. This means that control flag changes in
- * the mailbox thread can be done directly, but we must ensure that there is at least one action in the mailbox so that
- * the change is picked up. For control flag changes by all other threads, that must happen through mailbox actions,
- * this is automatically the case.
+ * (default action, no mail) as fast as possible. This means that all checking of mail and other control flags
+ * (mailboxLoopRunning, suspendedDefaultAction) are always connected to #hasMail indicating true. This means that
+ * control flag changes in the mailbox thread can be done directly, but we must ensure that there is at least one action
+ * in the mailbox so that the change is picked up. For control flag changes by all other threads, that must happen
+ * through mailbox actions, this is automatically the case.
  *
  * <p>This class has a open-prepareClose-close lifecycle that is connected with and maps to the lifecycle of the
  * encapsulated {@link TaskMailbox} (which is open-quiesce-close).
