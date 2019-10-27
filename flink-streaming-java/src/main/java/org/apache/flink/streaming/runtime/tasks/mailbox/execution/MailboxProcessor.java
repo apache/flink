@@ -65,9 +65,6 @@ public class MailboxProcessor {
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
 	private final MailboxDefaultAction mailboxDefaultAction;
 
-	/** The thread that executes the mailbox mails. */
-	private final Thread mailboxThread;
-
 	/** A pre-created instance of mailbox executor that executes all mails. */
 	private final MailboxExecutor mainMailboxExecutor;
 
@@ -86,9 +83,8 @@ public class MailboxProcessor {
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
-		this.mailbox = new TaskMailboxImpl();
-		this.mailboxThread = Thread.currentThread();
-		this.mainMailboxExecutor = new MailboxExecutorImpl(mailbox, mailboxThread, TaskMailbox.MIN_PRIORITY);
+		this.mailbox = new TaskMailboxImpl(Thread.currentThread());
+		this.mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY);
 		this.mailboxPoisonMail = () -> mailboxLoopRunning = false;
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
@@ -106,7 +102,7 @@ public class MailboxProcessor {
 	 * @param priority
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
-		return new MailboxExecutorImpl(mailbox, mailboxThread, priority);
+		return new MailboxExecutorImpl(mailbox, priority);
 	}
 
 	/**
@@ -143,20 +139,16 @@ public class MailboxProcessor {
 		}
 	}
 
-	private boolean isMailboxThread() {
-		return Thread.currentThread() == mailboxThread;
-	}
-
 	/**
 	 * Runs the mailbox processing loop. This is where the main work is done.
 	 */
 	public void runMailboxLoop() throws Exception {
 
-		Preconditions.checkState(
-			isMailboxThread(),
-			"Method must be executed by declared mailbox thread!");
-
 		final TaskMailbox localMailbox = mailbox;
+
+		Preconditions.checkState(
+			localMailbox.isMailboxThread(),
+			"Method must be executed by declared mailbox thread!");
 
 		assert localMailbox.getState() == TaskMailbox.State.OPEN : "Mailbox must be opened!";
 
@@ -206,16 +198,15 @@ public class MailboxProcessor {
 
 		// Doing this check is an optimization to only have a volatile read in the expected hot path, locks are only
 		// acquired after this point.
-		if (!mailbox.hasMail()) {
+		if (!mailbox.createBatch()) {
 			// We can also directly return true because all changes to #isMailboxLoopRunning must be connected to
 			// mailbox.hasMail() == true.
 			return true;
 		}
 
-		// TODO consider batched draining into list and/or limit number of executed mails
 		// Take mails in a non-blockingly and execute them.
 		Optional<Mail> maybeMail;
-		while (isMailboxLoopRunning() && (maybeMail = mailbox.tryTake(MIN_PRIORITY)).isPresent()) {
+		while (isMailboxLoopRunning() && (maybeMail = mailbox.tryTakeFromBatch()).isPresent()) {
 			maybeMail.get().run();
 		}
 
@@ -234,7 +225,7 @@ public class MailboxProcessor {
 	 */
 	private SuspendedMailboxDefaultAction suspendDefaultAction() {
 
-		Preconditions.checkState(isMailboxThread(), "Suspending must only be called from the mailbox thread!");
+		Preconditions.checkState(mailbox.isMailboxThread(), "Suspending must only be called from the mailbox thread!");
 
 		if (suspendedDefaultAction == null) {
 			suspendedDefaultAction = new SuspendDefaultActionRunnable();
@@ -292,7 +283,7 @@ public class MailboxProcessor {
 
 		@Override
 		public void resume() {
-			if (isMailboxThread()) {
+			if (mailbox.isMailboxThread()) {
 				resumeInternal();
 			} else {
 				sendPriorityMail(this::resumeInternal, "resume default action");

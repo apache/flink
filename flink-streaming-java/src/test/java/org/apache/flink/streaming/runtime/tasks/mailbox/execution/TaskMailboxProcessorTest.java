@@ -218,6 +218,42 @@ public class TaskMailboxProcessorTest {
 		return mailboxProcessor;
 	}
 
+	/**
+	 * FLINK-14304: Avoid newly spawned letters to prevent input processing from ever happening.
+	 */
+	@Test
+	public void testAvoidStarvation() throws Exception {
+
+		final int expectedInvocations = 3;
+		final AtomicInteger counter = new AtomicInteger(0);
+		MailboxThread mailboxThread = new MailboxThread() {
+			@Override
+			public void runDefaultAction(DefaultActionContext context) {
+				if (counter.incrementAndGet() == expectedInvocations) {
+					context.allActionsCompleted();
+				}
+			}
+		};
+
+		mailboxThread.start();
+		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
+		final MailboxExecutor mailboxExecutor = mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY);
+		AtomicInteger index = new AtomicInteger();
+		mailboxExecutor.execute(
+			new Runnable() {
+				@Override
+				public void run() {
+					mailboxExecutor.execute(this, "Blocking mail" + index.incrementAndGet());
+				}
+			},
+			"Blocking mail" + index);
+
+		mailboxThread.signalStart();
+		stop(mailboxThread);
+		Assert.assertEquals(expectedInvocations, counter.get());
+		Assert.assertEquals(expectedInvocations, index.get());
+	}
+
 	private static void stop(MailboxThread mailboxThread) throws Exception {
 		mailboxThread.join();
 		MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();

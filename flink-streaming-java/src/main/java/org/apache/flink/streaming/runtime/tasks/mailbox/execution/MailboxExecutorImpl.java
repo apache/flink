@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
-import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 
 import javax.annotation.Nonnull;
 
@@ -31,23 +31,14 @@ import java.util.concurrent.RejectedExecutionException;
  */
 public final class MailboxExecutorImpl implements MailboxExecutor {
 
-	/** Reference to the thread that executes the mailbox mails.  */
-	@Nonnull
-	private final Thread taskMailboxThread;
-
 	/** The mailbox that manages the submitted runnable objects. */
 	@Nonnull
-	private final Mailbox mailbox;
+	private final TaskMailbox mailbox;
 
 	private final int priority;
 
-	public MailboxExecutorImpl(@Nonnull Mailbox mailbox, int priority) {
-		this(mailbox, Thread.currentThread(), priority);
-	}
-
-	public MailboxExecutorImpl(@Nonnull Mailbox mailbox, @Nonnull Thread taskMailboxThread, int priority) {
+	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority) {
 		this.mailbox = mailbox;
-		this.taskMailboxThread = taskMailboxThread;
 		this.priority = priority;
 	}
 
@@ -77,41 +68,17 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	@Override
 	public void yield() throws InterruptedException {
-		checkIsMailboxThread();
 		mailbox.take(priority).run();
 	}
 
 	@Override
 	public boolean tryYield() {
-		checkIsMailboxThread();
 		Optional<Mail> optionalMail = mailbox.tryTake(priority);
 		if (optionalMail.isPresent()) {
 			optionalMail.get().run();
 			return true;
 		} else {
 			return false;
-		}
-	}
-
-	@Override
-	public boolean isMailboxThread() {
-		return Thread.currentThread() == taskMailboxThread;
-	}
-
-	/**
-	 * Returns the mailbox that manages the execution order.
-	 *
-	 * @return the mailbox.
-	 */
-	@Nonnull
-	public Mailbox getMailbox() {
-		return mailbox;
-	}
-
-	private void checkIsMailboxThread() {
-		if (!isMailboxThread()) {
-			throw new IllegalStateException(
-				"Illegal thread detected. This method must be called from inside the mailbox thread!");
 		}
 	}
 }
