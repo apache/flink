@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
+import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -26,11 +27,16 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.junit.Assert.assertEquals;
@@ -92,8 +98,8 @@ public class TaskMailboxImplTest {
 		}
 
 		while (!testObjects.isEmpty()) {
-			Assert.assertEquals(testObjects.remove(), taskMailbox.take(DEFAULT_PRIORITY));
-			Assert.assertEquals(!testObjects.isEmpty(), taskMailbox.hasMail());
+			assertEquals(testObjects.remove(), taskMailbox.take(DEFAULT_PRIORITY));
+			assertEquals(!testObjects.isEmpty(), taskMailbox.hasMail());
 		}
 	}
 
@@ -219,7 +225,7 @@ public class TaskMailboxImplTest {
 		}
 
 		for (Exception exception : exceptions) {
-			Assert.assertEquals(IllegalStateException.class, exception.getClass());
+			assertEquals(IllegalStateException.class, exception.getClass());
 		}
 
 	}
@@ -227,20 +233,13 @@ public class TaskMailboxImplTest {
 	/**
 	 * Test producer-consumer pattern through the mailbox in a concurrent setting (n-writer / 1-reader).
 	 */
-	private void testPutTake(FunctionWithException<Mailbox, Mail, InterruptedException> takeMethod)
+	private void testPutTake(FunctionWithException<TaskMailbox, Mail, InterruptedException> takeMethod)
 			throws InterruptedException {
 		final int numThreads = 10;
 		final int numMailsPerThread = 1000;
 		final int[] results = new int[numThreads];
 		Thread[] writerThreads = new Thread[numThreads];
-		Thread readerThread = new Thread(ThrowingRunnable.unchecked(() -> {
-			Mail mail;
-			while ((mail = takeMethod.apply(taskMailbox)).getRunnable() != POISON_MAIL) {
-				mail.run();
-			}
-		}));
 
-		readerThread.start();
 		for (int i = 0; i < writerThreads.length; ++i) {
 			final int threadId = i;
 			writerThreads[i] = new Thread(ThrowingRunnable.unchecked(() -> {
@@ -260,9 +259,12 @@ public class TaskMailboxImplTest {
 
 		taskMailbox.put(new Mail(POISON_MAIL, DEFAULT_PRIORITY, "POISON_MAIL, DEFAULT_PRIORITY"));
 
-		readerThread.join();
+		Mail mail;
+		while ((mail = takeMethod.apply(taskMailbox)).getRunnable() != POISON_MAIL) {
+			mail.run();
+		}
 		for (int perThreadResult : results) {
-			Assert.assertEquals(numMailsPerThread, perThreadResult);
+			assertEquals(numMailsPerThread, perThreadResult);
 		}
 	}
 
@@ -307,6 +309,54 @@ public class TaskMailboxImplTest {
 		Assert.assertSame(mailC, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
 		Assert.assertSame(mailB, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
 		Assert.assertSame(mailD, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
+	}
+
+	/**
+	 * Tests the interaction of batch and non-batch methods.
+	 *
+	 * <p>Both {@link TaskMailbox#take(int)} and {@link TaskMailbox#tryTake(int)} consume the batch but once drained
+	 * will fetch elements from the remaining mails.
+	 *
+	 * <p>In contrast, {@link TaskMailbox#tryTakeFromBatch()} will not return any mail once the batch is drained.
+	 */
+	@Test
+	public void testBatchAndNonBatchTake() throws InterruptedException {
+		final List<Mail> mails = IntStream.range(0, 6).mapToObj(i -> new Mail(
+			NO_OP,
+			DEFAULT_PRIORITY,
+			String.valueOf(i))).collect(Collectors.toList());
+
+		// create a batch with 3 mails
+		mails.subList(0, 3).forEach(taskMailbox::put);
+		Assert.assertTrue(taskMailbox.createBatch());
+		// add 3 more mails after the batch
+		mails.subList(3, 6).forEach(taskMailbox::put);
+
+		// now take all mails in the batch with all available methods
+		assertEquals(Optional.ofNullable(mails.get(0)), taskMailbox.tryTakeFromBatch());
+		assertEquals(Optional.ofNullable(mails.get(1)), taskMailbox.tryTake(DEFAULT_PRIORITY));
+		assertEquals(mails.get(2), taskMailbox.take(DEFAULT_PRIORITY));
+
+		// batch empty, so only regular methods work
+		assertEquals(Optional.empty(), taskMailbox.tryTakeFromBatch());
+		assertEquals(Optional.ofNullable(mails.get(3)), taskMailbox.tryTake(DEFAULT_PRIORITY));
+		assertEquals(mails.get(4), taskMailbox.take(DEFAULT_PRIORITY));
+
+		// one unprocessed mail left
+		assertEquals(Collections.singletonList(mails.get(5)), taskMailbox.close());
+	}
+
+	@Test
+	public void testBatchDrain() throws Exception {
+
+		Mail mailA = new Mail(() -> {}, MAX_PRIORITY, "mailA");
+		Mail mailB = new Mail(() -> {}, MAX_PRIORITY, "mailB");
+
+		taskMailbox.put(mailA);
+		Assert.assertTrue(taskMailbox.createBatch());
+		taskMailbox.put(mailB);
+
+		assertEquals(Arrays.asList(mailA, mailB), taskMailbox.drain());
 	}
 
 	/**

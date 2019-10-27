@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
-import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 
 import javax.annotation.Nonnull;
 
@@ -30,7 +30,10 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * Interface for an {@link Executor} build around a {@link Mailbox}-based execution model.
+ * Interface for an {@link Executor} build around a mailbox-based execution model (see {@link TaskMailbox}).
+ *
+ * <p>All submission functions can be called from any thread and will enqueue the action for further processing in a
+ * FIFO fashion.
  */
 public interface MailboxExecutor {
 	/**
@@ -188,13 +191,6 @@ public interface MailboxExecutor {
 	 * @throws IllegalStateException if the mailbox is closed and can no longer supply runnables for yielding.
 	 */
 	boolean tryYield();
-
-	/**
-	 * Check if the current thread is the mailbox thread.
-	 *
-	 * @return only true if called from the mailbox thread.
-	 */
-	boolean isMailboxThread();
 
 	/**
 	 * Provides an {@link Executor} view on this {@code MailboxExecutor}, where submitted tasks will receive the
