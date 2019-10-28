@@ -190,8 +190,8 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return targetPartition.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return targetPartition.getAvailableFuture();
 	}
 
 	/**

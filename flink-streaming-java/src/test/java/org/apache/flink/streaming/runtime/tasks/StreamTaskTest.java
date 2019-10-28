@@ -1213,7 +1213,7 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<?> isAvailable() {
+		public CompletableFuture<?> getAvailableFuture() {
 			return AVAILABLE;
 		}
 

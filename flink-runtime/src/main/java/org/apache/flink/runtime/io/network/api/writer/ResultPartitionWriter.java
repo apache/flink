@@ -99,6 +99,5 @@ public interface ResultPartitionWriter extends AutoCloseable {
 	 *
 	 * @return a future that is completed if it is available for output.
 	 */
-
-	CompletableFuture<?> isAvailable();
+	CompletableFuture<?> getAvailableFuture();
 }

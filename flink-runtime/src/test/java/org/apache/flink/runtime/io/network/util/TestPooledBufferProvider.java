@@ -97,7 +97,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
+	public CompletableFuture<?> getAvailableFuture() {
 		return AVAILABLE;
 	}
 
