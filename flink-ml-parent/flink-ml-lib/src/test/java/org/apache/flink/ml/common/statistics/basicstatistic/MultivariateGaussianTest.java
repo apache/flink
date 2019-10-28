@@ -26,10 +26,27 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Test cases for MultivariateGaussian.
+ * Test cases for {@link MultivariateGaussian}.
  */
 public class MultivariateGaussianTest {
 	private static final double TOL = 1.0e-5;
+
+	@Test
+	public void testUnivariate() throws Exception {
+		DenseVector x1 = new DenseVector(new double[]{0.0});
+		DenseVector x2 = new DenseVector(new double[]{1.5});
+		DenseVector mu = DenseVector.zeros(1);
+		DenseMatrix sigma1 = DenseMatrix.ones(1, 1);
+		MultivariateGaussian dist1 = new MultivariateGaussian(mu, sigma1);
+		Assert.assertEquals(dist1.pdf(x1), 0.39894, TOL);
+		Assert.assertEquals(dist1.pdf(x2), 0.12952, TOL);
+
+		DenseMatrix sigma2 = DenseMatrix.ones(1, 1);
+		sigma2.scaleEqual(4.0);
+		MultivariateGaussian dist2 = new MultivariateGaussian(mu, sigma2);
+		Assert.assertEquals(dist2.pdf(x1), 0.19947, TOL);
+		Assert.assertEquals(dist2.pdf(x2), 0.15057, TOL);
+	}
 
 	@Test
 	public void testMultivariate() throws Exception {
