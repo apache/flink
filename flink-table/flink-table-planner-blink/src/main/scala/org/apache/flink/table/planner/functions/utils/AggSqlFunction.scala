@@ -51,7 +51,7 @@ import java.util
 class AggSqlFunction(
     name: String,
     displayName: String,
-    aggregateFunction: UserDefinedAggregateFunction[_, _],
+    val aggregateFunction: UserDefinedAggregateFunction[_, _],
     val externalResultType: DataType,
     val externalAccType: DataType,
     typeFactory: FlinkTypeFactory,
