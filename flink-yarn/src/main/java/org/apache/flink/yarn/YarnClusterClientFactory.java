@@ -20,33 +20,18 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.yarn.cli.YarnConfigUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-
-import java.io.File;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.nio.charset.Charset;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,8 +39,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link ClusterClientFactory} for a YARN cluster.
  */
 public class YarnClusterClientFactory implements ClusterClientFactory<ApplicationId> {
-
-	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterClientFactory.class);
 
 	public static final String ID = "yarn-cluster";
 
@@ -68,23 +51,7 @@ public class YarnClusterClientFactory implements ClusterClientFactory<Applicatio
 	@Override
 	public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
 		checkNotNull(configuration);
-
-		final YarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(configuration);
-		yarnClusterDescriptor.setDetachedMode(!configuration.getBoolean(DeploymentOptions.ATTACHED));
-
-		getLocalFlinkDistPath(configuration, yarnClusterDescriptor)
-				.ifPresent(yarnClusterDescriptor::setLocalJarPath);
-
-		decodeDirsToShipToCluster(configuration)
-				.ifPresent(yarnClusterDescriptor::addShipFiles);
-
-		handleConfigOption(configuration, YarnConfigOptions.APPLICATION_QUEUE, yarnClusterDescriptor::setQueue);
-		handleConfigOption(configuration, YarnConfigOptionsInternal.DYNAMIC_PROPERTIES, yarnClusterDescriptor::setDynamicPropertiesEncoded);
-		handleConfigOption(configuration, YarnConfigOptions.APPLICATION_NAME, yarnClusterDescriptor::setName);
-		handleConfigOption(configuration, YarnConfigOptions.APPLICATION_TYPE, yarnClusterDescriptor::setApplicationType);
-		handleConfigOption(configuration, YarnConfigOptions.NODE_LABEL, yarnClusterDescriptor::setNodeLabel);
-		handleConfigOption(configuration, HighAvailabilityOptions.HA_CLUSTER_ID, yarnClusterDescriptor::setZookeeperNamespace);
-		return yarnClusterDescriptor;
+		return getClusterDescriptor(configuration);
 	}
 
 	@Nullable
@@ -112,50 +79,6 @@ public class YarnClusterClientFactory implements ClusterClientFactory<Applicatio
 				.setTaskManagerMemoryMB(taskManagerMemoryMB)
 				.setSlotsPerTaskManager(slotsPerTaskManager)
 				.createClusterSpecification();
-	}
-
-	private Optional<List<File>> decodeDirsToShipToCluster(final Configuration configuration) {
-		checkNotNull(configuration);
-
-		final List<File> files = YarnConfigUtils.decodeListFromConfig(configuration, YarnConfigOptions.SHIP_DIRECTORIES, File::new);
-		return files.isEmpty() ? Optional.empty() : Optional.of(files);
-	}
-
-	private Optional<Path> getLocalFlinkDistPath(final Configuration configuration, final YarnClusterDescriptor yarnClusterDescriptor) {
-		final String localJarPath = configuration.getString(YarnConfigOptions.FLINK_DIST_JAR);
-		if (localJarPath != null) {
-			return Optional.of(new Path(localJarPath));
-		}
-
-		LOG.info("No path for the flink jar passed. Using the location of " + yarnClusterDescriptor.getClass() + " to locate the jar");
-
-		// check whether it's actually a jar file --> when testing we execute this class without a flink-dist jar
-		final String decodedPath = getDecodedJarPath(yarnClusterDescriptor);
-		return decodedPath.endsWith(".jar")
-				? Optional.of(new Path(new File(decodedPath).toURI()))
-				: Optional.empty();
-	}
-
-	private String getDecodedJarPath(final YarnClusterDescriptor yarnClusterDescriptor) {
-		final String encodedJarPath = yarnClusterDescriptor
-				.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
-		try {
-			return URLDecoder.decode(encodedJarPath, Charset.defaultCharset().name());
-		} catch (UnsupportedEncodingException e) {
-			throw new RuntimeException("Couldn't decode the encoded Flink dist jar path: " + encodedJarPath +
-					" You can supply a path manually via the command line.");
-		}
-	}
-
-	private void handleConfigOption(final Configuration configuration, final ConfigOption<String> option, final Consumer<String> consumer) {
-		checkNotNull(configuration);
-		checkNotNull(option);
-		checkNotNull(consumer);
-
-		final String value = configuration.getString(option);
-		if (value != null) {
-			consumer.accept(value);
-		}
 	}
 
 	private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {
