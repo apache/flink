@@ -44,6 +44,20 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantBinaryObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantBooleanObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantByteObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantDateObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantDoubleObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantFloatObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveCharObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveDecimalObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveVarcharObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantIntObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantLongObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantShortObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantStringObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantTimestampObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
@@ -200,33 +214,35 @@ public class HiveShimV110 implements HiveShim {
 	public ObjectInspector getObjectInspectorForConstant(PrimitiveTypeInfo primitiveTypeInfo, Object value) {
 		String className;
 		value = HiveInspectors.hivePrimitiveToWritable(value);
+		// Java constant object inspectors are not available until 1.2.0 -- https://issues.apache.org/jira/browse/HIVE-9766
+		// So we have to use writable constant object inspectors for 1.1.x
 		switch (primitiveTypeInfo.getPrimitiveCategory()) {
 			case BOOLEAN:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantBooleanObjectInspector";
+				className = WritableConstantBooleanObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case BYTE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantByteObjectInspector";
+				className = WritableConstantByteObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case SHORT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantShortObjectInspector";
+				className = WritableConstantShortObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case INT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantIntObjectInspector";
+				className = WritableConstantIntObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case LONG:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantLongObjectInspector";
+				className = WritableConstantLongObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case FLOAT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantFloatObjectInspector";
+				className = WritableConstantFloatObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case DOUBLE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantDoubleObjectInspector";
+				className = WritableConstantDoubleObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case STRING:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantStringObjectInspector";
+				className = WritableConstantStringObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case CHAR:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveCharObjectInspector";
+				className = WritableConstantHiveCharObjectInspector.class.getName();
 				try {
 					return (ObjectInspector) Class.forName(className).getDeclaredConstructor(
 							CharTypeInfo.class, value.getClass()).newInstance(primitiveTypeInfo, value);
@@ -234,7 +250,7 @@ public class HiveShimV110 implements HiveShim {
 					throw new FlinkHiveUDFException("Failed to create writable constant object inspector", e);
 				}
 			case VARCHAR:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveVarcharObjectInspector";
+				className = WritableConstantHiveVarcharObjectInspector.class.getName();
 				try {
 					return (ObjectInspector) Class.forName(className).getDeclaredConstructor(
 							VarcharTypeInfo.class, value.getClass()).newInstance(primitiveTypeInfo, value);
@@ -242,21 +258,21 @@ public class HiveShimV110 implements HiveShim {
 					throw new FlinkHiveUDFException("Failed to create writable constant object inspector", e);
 				}
 			case DATE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantDateObjectInspector";
+				className = WritableConstantDateObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case TIMESTAMP:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantTimestampObjectInspector";
+				className = WritableConstantTimestampObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case DECIMAL:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantHiveDecimalObjectInspector";
+				className = WritableConstantHiveDecimalObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case BINARY:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantBinaryObjectInspector";
+				className = WritableConstantBinaryObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case UNKNOWN:
 			case VOID:
-				// If type is null, we use the Java Constant String to replace
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantStringObjectInspector";
+				// If type is null, we use the Constant String to replace
+				className = WritableConstantStringObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value.toString());
 			default:
 				throw new FlinkHiveUDFException(

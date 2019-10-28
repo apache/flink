@@ -457,7 +457,9 @@ public class HiveInspectors {
 		}
 	}
 
-	// converts a primitive Hive object to corresponding Writable object
+	/**
+	 * Converts a Hive primitive java object to corresponding Writable object.
+	 */
 	public static Writable hivePrimitiveToWritable(Object value) {
 		Writable writable;
 		// in case value is already a Writable

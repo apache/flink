@@ -149,28 +149,28 @@ public class HiveTestUtils {
 	}
 
 	// Insert into a single partition of a text table.
-	public static InsertTextTable insertToTextTable(HiveShell hiveShell, String dbName, String tableName) {
-		return new InsertTextTable(hiveShell, dbName, tableName);
+	public static TextTableInserter createTextTableInserter(HiveShell hiveShell, String dbName, String tableName) {
+		return new TextTableInserter(hiveShell, dbName, tableName);
 	}
 
 	/**
 	 * insert table operation.
 	 */
-	public static class InsertTextTable {
+	public static class TextTableInserter {
 
 		private final HiveShell hiveShell;
 		private final String dbName;
 		private final String tableName;
 		private final List<Object[]> rows;
 
-		public InsertTextTable(HiveShell hiveShell, String dbName, String tableName) {
+		public TextTableInserter(HiveShell hiveShell, String dbName, String tableName) {
 			this.hiveShell = hiveShell;
 			this.dbName = dbName;
 			this.tableName = tableName;
 			rows = new ArrayList<>();
 		}
 
-		public InsertTextTable addRow(Object[] row) {
+		public TextTableInserter addRow(Object[] row) {
 			rows.add(row);
 			return this;
 		}

@@ -84,7 +84,7 @@ public class HiveTableSourceTest {
 		final String dbName = "source_db";
 		final String tblName = "test";
 		hiveShell.execute("CREATE TABLE source_db.test ( a INT, b INT, c STRING, d BIGINT, e DOUBLE)");
-		HiveTestUtils.insertToTextTable(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{1, 1, "a", 1000L, 1.11})
 				.addRow(new Object[]{2, 2, "b", 2000L, 2.22})
 				.addRow(new Object[]{3, 3, "c", 3000L, 3.33})
@@ -115,7 +115,7 @@ public class HiveTableSourceTest {
 		map.put(1, "a");
 		map.put(2, "b");
 		Object[] struct = new Object[]{3, 3L};
-		HiveTestUtils.insertToTextTable(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{array, map, struct})
 				.commit();
 		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
@@ -139,11 +139,11 @@ public class HiveTableSourceTest {
 		final String tblName = "test_table_pt";
 		hiveShell.execute("CREATE TABLE source_db.test_table_pt " +
 						"(year STRING, value INT) partitioned by (pt int);");
-		HiveTestUtils.insertToTextTable(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{"2014", 3})
 				.addRow(new Object[]{"2014", 4})
 				.commit("pt=0");
-		HiveTestUtils.insertToTextTable(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
@@ -164,11 +164,11 @@ public class HiveTableSourceTest {
 		final String tblName = "test_table_pt_1";
 		hiveShell.execute("CREATE TABLE source_db.test_table_pt_1 " +
 						"(year STRING, value INT) partitioned by (pt int);");
-		HiveTestUtils.insertToTextTable(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{"2014", 3})
 				.addRow(new Object[]{"2014", 4})
 				.commit("pt=0");
-		HiveTestUtils.insertToTextTable(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
@@ -196,11 +196,11 @@ public class HiveTableSourceTest {
 		hiveShell.execute("create table src(x int,y string) partitioned by (p1 bigint, p2 string)");
 		final String catalogName = "hive";
 		try {
-			HiveTestUtils.insertToTextTable(hiveShell, "default", "src")
+			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
 					.addRow(new Object[]{1, "a"})
 					.addRow(new Object[]{2, "b"})
 					.commit("p1=2013, p2='2013'");
-			HiveTestUtils.insertToTextTable(hiveShell, "default", "src")
+			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
 					.addRow(new Object[]{3, "c"})
 					.commit("p1=2014, p2='2014'");
 			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
