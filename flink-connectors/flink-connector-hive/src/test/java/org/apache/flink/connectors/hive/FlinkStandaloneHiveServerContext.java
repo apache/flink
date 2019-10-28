@@ -107,6 +107,9 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 		hiveConf.setBoolVar(HIVE_SERVER2_LOGGING_OPERATION_ENABLED, false);
 
 		hiveConf.setVar(HADOOPBIN, "NO_BIN!");
+
+		// To avoid https://issues.apache.org/jira/browse/HIVE-13185 when loading data into tables
+		hiveConf.setBoolVar(HiveConf.ConfVars.HIVECHECKFILEFORMAT, false);
 	}
 
 	private void overrideHiveConf(HiveConf hiveConf) {
