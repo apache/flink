@@ -606,9 +606,11 @@ public class TwoInputStreamTaskTest {
 		testHarness.waitForTaskCompletion();
 
 		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Bye"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-1]: EndOfInput"));
 		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Bye"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-2]: EndOfInput"));
+		expectedOutput.add(new StreamRecord<>("[Operator0]: Bye"));
+		expectedOutput.add(new StreamRecord<>("[Operator1]: EndOfInput"));
 		expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",

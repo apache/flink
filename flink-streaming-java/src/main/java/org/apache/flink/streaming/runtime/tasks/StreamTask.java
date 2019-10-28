@@ -583,6 +583,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (operator != null) {
 				operator.close();
 			}
+
+			// The operators on the chain, except for the head operator, must be one-input operators.
+			// So after the upstream operator on the chain is closed, the input of its downstream operator
+			// reaches the end.
+			if (i > 0) {
+				operatorChain.endNonHeadOperatorInput(allOperators[i - 1]);
+			}
 		}
 	}
 
