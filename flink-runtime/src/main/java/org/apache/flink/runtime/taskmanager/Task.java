@@ -469,7 +469,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		}
 		final CompletableFuture<?>[] outputFutures = new CompletableFuture[consumableNotifyingPartitionWriters.length];
 		for (int i = 0; i < outputFutures.length; ++i) {
-			outputFutures[i] = consumableNotifyingPartitionWriters[i].isAvailable();
+			outputFutures[i] = consumableNotifyingPartitionWriters[i].getAvailableFuture();
 		}
 		return !CompletableFuture.allOf(outputFutures).isDone();
 	}
