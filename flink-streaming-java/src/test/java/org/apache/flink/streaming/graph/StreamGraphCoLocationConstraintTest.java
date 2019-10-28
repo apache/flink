@@ -30,6 +30,7 @@ import org.junit.Test;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
@@ -98,5 +99,85 @@ public class StreamGraphCoLocationConstraintTest {
 			fail("exception expected");
 		}
 		catch (IllegalStateException ignored) {}
+	}
+
+	@Test
+	public void testCoLocationWithChaining() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(7);
+
+		// set up the test program
+		DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+		source.getTransformation().setCoLocationGroupKey("group1");
+
+		DataStream<Long> step1 = source.keyBy(v -> v).map(v -> v).map(v -> v);
+		step1.getTransformation().setCoLocationGroupKey("group2");
+
+		DataStream<Long> step2 = step1.keyBy(v -> v).map(v -> v).map(v -> v);
+		step2.getTransformation().setCoLocationGroupKey("group1");
+
+		DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
+		result.getTransformation().setCoLocationGroupKey("group2");
+
+		// get the graph
+		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+		assertEquals(4, jobGraph.getNumberOfVertices());
+
+		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		for (JobVertex vertex : vertices) {
+			assertNotNull(vertex.getCoLocationGroup());
+		}
+
+		assertEquals(vertices.get(0).getCoLocationGroup(), vertices.get(2).getCoLocationGroup());
+		assertEquals(vertices.get(1).getCoLocationGroup(), vertices.get(3).getCoLocationGroup());
+	}
+
+	@Test
+	public void testCoLocationWithMultiOutputsChainingAndRootNotSet() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(7);
+
+		// set up the test program
+		DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+
+		DataStream<Long> step1 = source.map(v -> v);
+		step1.getTransformation().setCoLocationGroupKey("group1");
+
+		DataStream<Long> step2 = source.map(v -> v).map(v -> v);
+		step2.getTransformation().setCoLocationGroupKey("group1");
+
+		// get the graph
+		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+		assertEquals(1, jobGraph.getNumberOfVertices());
+
+		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertNotNull(vertices.get(0).getCoLocationGroup());
+	}
+
+	@Test
+	public void testCoLocationConstraintWithMultiOutputsChainingAndRootSet() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(7);
+
+		// set up the test program
+		DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+		source.getTransformation().setCoLocationGroupKey("group1");
+
+		DataStream<Long> step1 = source.map(v -> v);
+		step1.getTransformation().setCoLocationGroupKey("group2");
+
+		DataStream<Long> step2 = source.map(v -> v).map(v -> v);
+		step2.getTransformation().setCoLocationGroupKey("group1");
+
+		// get the graph
+		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+		assertEquals(2, jobGraph.getNumberOfVertices());
+
+		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		for (JobVertex vertex : vertices) {
+			assertNotNull(vertex.getCoLocationGroup());
+		}
+
+		assertNotEquals(vertices.get(0).getCoLocationGroup(), vertices.get(1).getCoLocationGroup());
 	}
 }
