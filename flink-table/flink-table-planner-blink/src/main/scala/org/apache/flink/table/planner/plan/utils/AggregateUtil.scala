@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BaseRow, Decimal}
+import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
@@ -39,7 +39,6 @@ import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
@@ -500,7 +499,12 @@ object AggregateUtil extends Enumeration {
       case INTERVAL_YEAR_MONTH => DataTypes.INT
       case INTERVAL_DAY_TIME => DataTypes.BIGINT
 
-      case VARCHAR | CHAR => fromLegacyInfoToDataType(BinaryStringTypeInfo.INSTANCE)
+      case VARCHAR =>
+        val dt = argTypes(0).asInstanceOf[VarCharType]
+        DataTypes.VARCHAR(dt.getLength).bridgedTo(classOf[BinaryString])
+      case CHAR =>
+        val dt = argTypes(0).asInstanceOf[CharType]
+        DataTypes.CHAR(dt.getLength).bridgedTo(classOf[BinaryString])
       case DECIMAL =>
         val dt = argTypes(0).asInstanceOf[DecimalType]
         DataTypes.DECIMAL(dt.getPrecision, dt.getScale).bridgedTo(classOf[Decimal])
