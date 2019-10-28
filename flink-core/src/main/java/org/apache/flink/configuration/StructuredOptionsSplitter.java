@@ -132,9 +132,9 @@ class StructuredOptionsSplitter {
 				return i;
 			} else if (c == '\'' || c == '"') {
 				throw new IllegalArgumentException("Could not split string. Illegal quoting at position: " + i);
-			} else {
-				builder.append(c);
 			}
+
+			builder.append(c);
 		}
 
 		return i;

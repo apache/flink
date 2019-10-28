@@ -138,6 +138,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @param defaultValue
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
+	 * @deprecated use {@link #getString(ConfigOption, String)} or {@link #getOptional(ConfigOption)}
 	 */
 	@Deprecated
 	public String getString(String key, String defaultValue) {
@@ -206,6 +207,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @param defaultValue
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
+	 * @deprecated use {@link #getInteger(ConfigOption, int)} or {@link #getOptional(ConfigOption)}
 	 */
 	@Deprecated
 	public int getInteger(String key, int defaultValue) {
@@ -275,6 +277,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @param defaultValue
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
+	 * @deprecated use {@link #getLong(ConfigOption, long)} or {@link #getOptional(ConfigOption)}
 	 */
 	@Deprecated
 	public long getLong(String key, long defaultValue) {
@@ -344,6 +347,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @param defaultValue
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
+	 * @deprecated use {@link #getBoolean(ConfigOption, boolean)} or {@link #getOptional(ConfigOption)}
 	 */
 	@Deprecated
 	public boolean getBoolean(String key, boolean defaultValue) {
@@ -413,6 +417,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @param defaultValue
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
+	 * @deprecated use {@link #getFloat(ConfigOption, float)} or {@link #getOptional(ConfigOption)}
 	 */
 	@Deprecated
 	public float getFloat(String key, float defaultValue) {
@@ -482,6 +487,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @param defaultValue
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
+	 * @deprecated use {@link #getDouble(ConfigOption, double)} or {@link #getOptional(ConfigOption)}
 	 */
 	@Deprecated
 	public double getDouble(String key, double defaultValue) {
