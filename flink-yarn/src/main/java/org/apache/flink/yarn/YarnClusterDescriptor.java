@@ -695,15 +695,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 	}
 
-	private boolean containsFileWithEnding(final Set<File> files, final String suffix) {
-		for (File file: files) {
-			if (file.getPath().endsWith(suffix)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	private ApplicationReport startAppMaster(
 			Configuration configuration,
 			String applicationName,

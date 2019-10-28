@@ -146,33 +146,25 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static void verifyCliFrontend(
-		AbstractCustomCommandLine cli,
-		String[] parameters,
-		int expectedParallelism,
-		boolean isDetached) throws Exception {
+	private static void verifyCliFrontend(
+			AbstractCustomCommandLine cli,
+			String[] parameters,
+			int expectedParallelism,
+			boolean isDetached) throws Exception {
 		RunTestingCliFrontend testFrontend =
 			new RunTestingCliFrontend(new DefaultClusterClientServiceLoader(), cli, expectedParallelism, isDetached);
 		testFrontend.run(parameters); // verifies the expected values (see below)
 	}
 
-	public static void verifyCliFrontend(
-		ClusterClientServiceLoader clusterClientServiceLoader,
-		AbstractCustomCommandLine cli,
-		String[] parameters,
-		int expectedParallelism,
-		boolean isDetached) throws Exception {
-		RunTestingCliFrontend testFrontend =
-			new RunTestingCliFrontend(clusterClientServiceLoader, cli, expectedParallelism, isDetached);
-		testFrontend.run(parameters); // verifies the expected values (see below)
-	}
-
-	private static final class RunTestingCliFrontend extends CliFrontend {
+	/**
+	 * A mock {@link CliFrontend}.
+	 */
+	public static final class RunTestingCliFrontend extends CliFrontend {
 
 		private final int expectedParallelism;
 		private final boolean isDetached;
 
-		private RunTestingCliFrontend(
+		public RunTestingCliFrontend(
 				ClusterClientServiceLoader clusterClientServiceLoader,
 				AbstractCustomCommandLine cli,
 				int expectedParallelism,

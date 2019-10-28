@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.cli.AbstractCustomCommandLine;
+import org.apache.flink.client.cli.CliFrontendRunTest;
 import org.apache.flink.client.cli.CliFrontendTestBase;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.deployment.ClusterClientFactory;
@@ -37,7 +39,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import static org.apache.flink.client.cli.CliFrontendRunTest.verifyCliFrontend;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
 
@@ -92,6 +93,17 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-yd", testJarPath};
 			verifyCliFrontend(testServiceLoader, yarnCLI, parameters, 2, true);
 		}
+	}
+
+	private static void verifyCliFrontend(
+			ClusterClientServiceLoader clusterClientServiceLoader,
+			AbstractCustomCommandLine cli,
+			String[] parameters,
+			int expectedParallelism,
+			boolean isDetached) throws Exception {
+		CliFrontendRunTest.RunTestingCliFrontend testFrontend =
+				new CliFrontendRunTest.RunTestingCliFrontend(clusterClientServiceLoader, cli, expectedParallelism, isDetached);
+		testFrontend.run(parameters); // verifies the expected values (see below)
 	}
 
 	private static class TestingYarnClusterClientServiceLoader implements ClusterClientServiceLoader {
