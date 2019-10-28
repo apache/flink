@@ -103,9 +103,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * multiple queries as long as the session context does not change. This must be thread-safe as
  * it might be reused across different query submissions.
  *
- * @param <T> cluster id
+ * @param <ClusterID> cluster id
  */
-public class ExecutionContext<T> {
+public class ExecutionContext<ClusterID> {
 
 	private final SessionContext sessionContext;
 	private final Environment mergedEnv;
@@ -117,9 +117,9 @@ public class ExecutionContext<T> {
 	private final Map<String, UserDefinedFunction> functions;
 	private final Configuration flinkConfig;
 	private final Configuration executorConfig;
-	private final ClusterClientFactory<T> clusterClientFactory;
+	private final ClusterClientFactory<ClusterID> clusterClientFactory;
 	private final RunOptions runOptions;
-	private final T clusterId;
+	private final ClusterID clusterId;
 	private final ClusterSpecification clusterSpec;
 
 	public ExecutionContext(Environment defaultEnvironment, SessionContext sessionContext, List<URL> dependencies,
@@ -194,11 +194,11 @@ public class ExecutionContext<T> {
 		return clusterSpec;
 	}
 
-	public T getClusterId() {
+	public ClusterID getClusterId() {
 		return clusterId;
 	}
 
-	public ClusterDescriptor<T> createClusterDescriptor() {
+	public ClusterDescriptor<ClusterID> createClusterDescriptor() {
 		return clusterClientFactory.createClusterDescriptor(executorConfig);
 	}
 
