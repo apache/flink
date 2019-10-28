@@ -472,9 +472,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				return new RexNodeExpression(convertedNode, ((ResolvedExpression) expr).getOutputDataType());
 			}).collect(Collectors.toList());
 
-			CallExpression newCall = new CallExpression(
+			CallExpression newCall;
+			if (callExpression.getFunctionIdentifier().isPresent()) {
+				newCall = new CallExpression(
 					callExpression.getFunctionIdentifier().get(), callExpression.getFunctionDefinition(), newChildren,
 					callExpression.getOutputDataType());
+			} else {
+				newCall = new CallExpression(
+					callExpression.getFunctionDefinition(), newChildren, callExpression.getOutputDataType());
+			}
 			return convertExprToRexNode(newCall);
 		}
 
