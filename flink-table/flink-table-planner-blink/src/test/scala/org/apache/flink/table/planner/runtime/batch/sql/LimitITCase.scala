@@ -86,6 +86,13 @@ class LimitITCase extends BatchTestBase {
   }
 
   @Test
+  def testLimit0WithLimitTable(): Unit = {
+    checkSize(
+      "SELECT * FROM LimitTable LIMIT 0",
+      0)
+  }
+
+  @Test
   def testLimitWithLimitTable(): Unit = {
     checkSize(
       "SELECT * FROM LimitTable LIMIT 5",

@@ -44,6 +44,7 @@ import java.util.Collections
   * 2.When remove the limit, maybe filter will be pushed down to the source after limit pushed
   * down. The source need know it should do limit first and do the filter later, it is hard to
   * implement.
+  * 3.We can support limit with offset, we can push down offset + fetch to table source.
   */
 class PushLimitIntoTableSourceScanRule extends RelOptRule(
   operand(classOf[FlinkLogicalSort],
@@ -51,35 +52,28 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort = call.rel(0).asInstanceOf[Sort]
-    val fetch = sort.fetch
-    val offset = sort.offset
-    // Only push-down the limit whose offset equal zero. Because it is difficult to source based
-    // push to handle the non-zero offset. And the non-zero offset usually appear together with
-    // sort.
-    val onlyLimit = sort.getCollation.getFieldCollations.isEmpty &&
-        (offset == null || RexLiteral.intValue(offset) == 0) &&
-        fetch != null
-
-    var supportPushDown = false
+    val onlyLimit = sort.getCollation.getFieldCollations.isEmpty && sort.fetch != null
     if (onlyLimit) {
-      supportPushDown = call.rel(1).asInstanceOf[TableScan]
+      call.rel(1).asInstanceOf[TableScan]
           .getTable.unwrap(classOf[TableSourceTable[_]]) match {
         case table: TableSourceTable[_] =>
           table.tableSource match {
-            case source: LimitableTableSource[_] => !source.isLimitPushedDown
-            case _ => false
+            case source: LimitableTableSource[_] =>
+              return !source.isLimitPushedDown
+            case _ =>
           }
-        case _ => false
+        case _ =>
       }
     }
-    supportPushDown
+    false
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val sort = call.rel(0).asInstanceOf[Sort]
     val scan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
     val relOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
-    val limit = RexLiteral.intValue(sort.fetch)
+    val offset = if (sort.offset == null) 0 else RexLiteral.intValue(sort.offset)
+    val limit = offset + RexLiteral.intValue(sort.fetch)
     val relBuilder = call.builder()
     val newRelOptTable = applyLimit(limit, relOptTable, relBuilder)
     val newScan = scan.copy(scan.getTraitSet, newRelOptTable)

@@ -44,6 +44,9 @@ class TestLimitableTableSource(
   override def isBounded = true
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    if (limit == 0) {
+      throw new RuntimeException("limit 0 should be optimize to single values.")
+    }
     val dataSet = if (limit > 0) {
       data.take(limit.toInt).asJava
     } else {
@@ -63,10 +66,8 @@ class TestLimitableTableSource(
   override def getReturnType: TypeInformation[Row] = rowType
 
   override def explainSource(): String = {
-    if (limit > 0 && limit < Long.MaxValue) {
+    if (limit > 0) {
       "limit: " + limit
-    } else if (limitablePushedDown) {
-      "limitablePushedDown"
     } else {
       ""
     }
