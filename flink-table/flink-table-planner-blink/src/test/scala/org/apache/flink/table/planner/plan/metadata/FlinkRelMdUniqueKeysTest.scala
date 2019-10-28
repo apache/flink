@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
-
 import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.junit.Assert._
 import org.junit.Test
 
@@ -63,6 +63,59 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     val project1 = relBuilder.project(exprs).build()
     assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(project1).toSet)
     assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(project1, true).toSet)
+  }
+
+  /**
+    * Tests a fix for FLINK-14539
+    *
+    * @see <a href="https://issues.apache.org/jira/browse/FLINK-14539">FLINK-14539</a>
+    */
+  @Test
+  def testGetUniqueKeysOnProjectWithConcat(): Unit = {
+    assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(logicalProject).toSet)
+
+    relBuilder.push(studentLogicalScan)
+    // concat(id, "x"), concat(cast(id as bigint not null), 'x'), concat_ws('-', id, $1)
+    // concat(cast(id as int), 'x'), cast(concat(id, $1) as varchar)
+    val exprs = List(
+      relBuilder.call(
+        FlinkSqlOperatorTable.CONCAT_FUNCTION,
+        relBuilder.field(0),
+        relBuilder.literal("x")
+      ),
+      relBuilder.call(
+        FlinkSqlOperatorTable.CONCAT_FUNCTION,
+        rexBuilder.makeCast(longType, relBuilder.field(0)),
+        relBuilder.literal("x")
+      ),
+      relBuilder.call(
+        FlinkSqlOperatorTable.CONCAT_WS,
+        relBuilder.literal("-"),
+        relBuilder.field(0),
+        relBuilder.field(1)
+      ),
+      relBuilder.call(
+        FlinkSqlOperatorTable.CONCAT_FUNCTION,
+        rexBuilder.makeCast(intType, relBuilder.field(0)),
+        relBuilder.literal("x")
+      ),
+      rexBuilder.makeCast(stringType, rexBuilder.makeCall(
+        FlinkSqlOperatorTable.CONCAT_FUNCTION,
+        relBuilder.field(0),
+        relBuilder.field(1))
+      )
+    )
+
+    val project1 = relBuilder.project(exprs).build()
+
+    assertEquals(
+      uniqueKeys(Array(0), Array(2)),
+      mq.getUniqueKeys(project1).toSet
+    )
+    assertEquals(
+      uniqueKeys(Array(0), Array(1), Array(2), Array(4)),
+      mq.getUniqueKeys(project1, true).toSet
+    )
   }
 
   @Test

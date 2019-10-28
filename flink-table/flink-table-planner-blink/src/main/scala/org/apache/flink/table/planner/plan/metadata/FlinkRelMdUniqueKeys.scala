@@ -26,10 +26,9 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
-import org.apache.flink.table.planner.{JArrayList, JBoolean, JHashMap, JHashSet, JList, JSet}
+import org.apache.flink.table.planner._
 import org.apache.flink.table.runtime.operators.rank.RankType
 import org.apache.flink.table.sources.TableSource
-
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.volcano.RelSubset
@@ -37,12 +36,13 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rel.{RelNode, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlOperator}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
-
 import java.util
+
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 
 import scala.collection.JavaConversions._
 
@@ -107,42 +107,15 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     //
     // Further more, the unique bitset coming from the child needs
     val projUniqueKeySet = new JHashSet[ImmutableBitSet]()
-    val mapInToOutPos = new JHashMap[Int, JArrayList[Int]]()
 
-    def appendMapInToOutPos(inIndex: Int, outIndex: Int): Unit = {
-      if (mapInToOutPos.contains(inIndex)) {
-        mapInToOutPos(inIndex).add(outIndex)
-      } else {
-        val arrayBuffer = new JArrayList[Int]()
-        arrayBuffer.add(outIndex)
-        mapInToOutPos.put(inIndex, arrayBuffer)
-      }
-    }
     // Build an input to output position map.
+    val visitor = new BuildInToOutMapVisitor(input, ignoreNulls)
     projects.zipWithIndex.foreach {
       case (projExpr, i) =>
-        projExpr match {
-          case ref: RexInputRef => appendMapInToOutPos(ref.getIndex, i)
-          case a: RexCall if ignoreNulls && a.getOperator.equals(SqlStdOperatorTable.CAST) =>
-            val castOperand = a.getOperands.get(0)
-            castOperand match {
-              case castRef: RexInputRef =>
-                val typeFactory = input.getCluster.getTypeFactory
-                val castType = typeFactory.createTypeWithNullability(projExpr.getType, true)
-                val origType = typeFactory.createTypeWithNullability(castOperand.getType, true)
-                if (castType == origType) {
-                  appendMapInToOutPos(castRef.getIndex, i)
-                }
-              case _ => // ignore
-            }
-          //rename
-          case a: RexCall if a.getKind.equals(SqlKind.AS) &&
-            a.getOperands.get(0).isInstanceOf[RexInputRef] =>
-            appendMapInToOutPos(a.getOperands.get(0).asInstanceOf[RexInputRef].getIndex, i)
-          case _ => // ignore
-        }
+        projExpr.accept(visitor, i)
     }
-    if (mapInToOutPos.isEmpty) {
+
+    if (visitor.mapInToOutPos.isEmpty) {
       // if there's no RexInputRef in the projected expressions
       // return empty set.
       return projUniqueKeySet
@@ -153,7 +126,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       // Now add to the projUniqueKeySet the child keys that are fully
       // projected.
       childUniqueKeySet.foreach { colMask =>
-        val filerInToOutPos = mapInToOutPos.filter { inToOut =>
+        val filerInToOutPos = visitor.mapInToOutPos.filter { inToOut =>
           colMask.asList().contains(inToOut._1)
         }
         val keys = filerInToOutPos.keys
@@ -554,6 +527,75 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     }
   }
 
+  class BuildInToOutMapVisitor(input: RelNode, ignoreNulls: Boolean)
+    extends RexBiVisitor[RexNode, Int] {
+    val mapInToOutPos = new JHashMap[Int, JArrayList[Int]]()
+
+    def appendMapInToOutPos(inIndex: Int, outIndex: Int): Unit = {
+      if (mapInToOutPos.contains(inIndex)) {
+        mapInToOutPos(inIndex).add(outIndex)
+      } else {
+        val arrayBuffer = new JArrayList[Int]()
+        arrayBuffer.add(outIndex)
+        mapInToOutPos.put(inIndex, arrayBuffer)
+      }
+    }
+
+    override def visitInputRef(inputRef: RexInputRef, outIndex: Int): RexNode = {
+      appendMapInToOutPos(inputRef.getIndex, outIndex)
+      inputRef
+    }
+
+    override def visitCall(call: RexCall, outIndex: Int): RexNode = {
+      call.getOperator match {
+
+        case function: SqlFunction
+          if function.getName.equals(FlinkSqlOperatorTable.CONCAT_FUNCTION.getName) =>
+          call.getOperands.foreach(_.accept(this, outIndex))
+
+        case function: SqlFunction
+          if function.getName.equals(FlinkSqlOperatorTable.CONCAT_WS.getName) =>
+          call.getOperands.tail.foreach(_.accept(this, outIndex))
+
+        case operator: SqlOperator if ignoreNulls && operator.equals(SqlStdOperatorTable.CAST) =>
+          val typeFactory = input.getCluster.getTypeFactory
+          val castOperand = call.getOperands.get(0)
+          val castType = typeFactory.createTypeWithNullability(call.getType, true)
+          val origType = typeFactory.createTypeWithNullability(castOperand.getType, true)
+          if (castType == origType) {
+            castOperand.accept(this, outIndex)
+          }
+
+        case _: SqlOperator if call.getKind.equals(SqlKind.AS) =>
+          call.operands.get(0).accept(this, outIndex)
+
+        case _ =>
+      }
+      call
+    }
+
+    override def visitLocalRef(localRef: RexLocalRef, outIndex: Int): RexNode = localRef
+
+    override def visitLiteral(literal: RexLiteral, outIndex: Int): RexNode = literal
+
+    override def visitOver(over: RexOver, outIndex: Int): RexNode = over
+
+    override def visitCorrelVariable(correlVariable: RexCorrelVariable,
+                                     outIndex: Int): RexNode = correlVariable
+
+    override def visitDynamicParam(dynamicParam: RexDynamicParam,
+                                   outIndex: Int): RexNode = dynamicParam
+
+    override def visitRangeRef(rangeRef: RexRangeRef, outIndex: Int): RexNode = rangeRef
+
+    override def visitFieldAccess(fieldAccess: RexFieldAccess, outIndex: Int): RexNode = fieldAccess
+
+    override def visitSubQuery(subQuery: RexSubQuery, outIndex: Int): RexNode = subQuery
+
+    override def visitTableInputRef(ref: RexTableInputRef, outIndex: Int): RexNode = ref
+
+    override def visitPatternFieldRef(ref: RexPatternFieldRef, outIndex: Int): RexNode = ref
+  }
 }
 
 object FlinkRelMdUniqueKeys {
