@@ -822,7 +822,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * Get whether an input of the vertex is consumable.
 	 * An input is consumable when when any partition in it is consumable.
 	 *
-	 * Note that a BLOCKING result partition is only consumable when all partitions in the result are FINISHED.
+	 * <p>Note that a BLOCKING result partition is only consumable when all partitions in the result are FINISHED.
 	 *
 	 * @return whether the input is consumable
 	 */
