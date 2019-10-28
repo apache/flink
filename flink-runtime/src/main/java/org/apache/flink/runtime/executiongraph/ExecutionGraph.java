@@ -116,7 +116,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -167,11 +166,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  * yield before the global failover.
  */
 public class ExecutionGraph implements AccessExecutionGraph {
-
-	/** In place updater for the execution graph's current state. Avoids having to use an
-	 * AtomicReference and thus makes the frequent read access a bit faster. */
-	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
-			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
 
 	/** In place updater for the execution graph's current global recovery version.
 	 * Avoids having to use an AtomicLong and thus makes the frequent read access a bit faster */
@@ -1362,7 +1356,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 
 		// now do the actual state transition
-		if (STATE_UPDATER.compareAndSet(this, current, newState)) {
+		if (state == current) {
+			state = newState;
 			LOG.info("Job {} ({}) switched from state {} to {}.", getJobName(), getJobID(), current, newState, error);
 
 			stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
