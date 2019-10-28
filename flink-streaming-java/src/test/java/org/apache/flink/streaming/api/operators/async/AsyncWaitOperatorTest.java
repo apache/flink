@@ -205,30 +205,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	/**
-	 * AsyncFunction supports a specific delay(ms) before async invocation.
-	 */
-	private static class DelayedAsyncFunction extends MyAsyncFunction {
-
-		private final long delayed;
-
-		public DelayedAsyncFunction(long delayed) {
-			this.delayed = delayed;
-		}
-
-		@Override
-		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
-			executorService.submit(() -> {
-				try {
-					Thread.sleep(delayed);
-				} catch (InterruptedException e) {
-					resultFuture.completeExceptionally(e);
-				}
-				resultFuture.complete(Collections.singletonList(input * 2));
-			});
-		}
-	}
-
-	/**
 	 * A special {@link LazyAsyncFunction} for timeout handling.
 	 * Complete the result future with 3 times the input when the timeout occurred.
 	 */
@@ -1021,44 +997,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		factory.setChainingStrategy(ChainingStrategy.ALWAYS);
 
 		return in.transform("async wait operator", outTypeInfo, factory);
-	}
-
-	/**
-	 * Delay a while before async invocation to check whether end input waits for all elements finished or not.
-	 */
-	@Test
-	public void testEndInput() throws Exception {
-		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-			createTestHarness(new DelayedAsyncFunction(10), -1, 2, AsyncDataStream.OutputMode.ORDERED);
-
-		final long initialTime = 0L;
-		final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
-		expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
-		expectedOutput.add(new Watermark(initialTime + 2));
-		expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
-
-		testHarness.open();
-
-		try {
-			synchronized (testHarness.getCheckpointLock()) {
-				testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
-				testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
-				testHarness.processWatermark(new Watermark(initialTime + 2));
-				testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
-			}
-
-			// wait until all async collectors in the buffer have been emitted out.
-			synchronized (testHarness.getCheckpointLock()) {
-				testHarness.endInput();
-			}
-
-			TestHarnessUtil.assertOutputEquals("Output with watermark was not correct.", expectedOutput, testHarness.getOutput());
-		} finally {
-			synchronized (testHarness.getCheckpointLock()) {
-				testHarness.close();
-			}
-		}
 	}
 
 	private static <OUT> OneInputStreamOperatorTestHarness<Integer, OUT> createTestHarness(

@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -76,7 +75,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Internal
 public class AsyncWaitOperator<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+		implements OneInputStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private static final String STATE_NAME = "_async_wait_operator_state_";
@@ -232,11 +231,6 @@ public class AsyncWaitOperator<IN, OUT>
 			.getOperatorStateStore()
 			.getListState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 
-	}
-
-	@Override
-	public void endInput() throws Exception {
-		waitInFlightInputsFinished();
 	}
 
 	@Override
