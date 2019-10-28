@@ -115,7 +115,7 @@ public class TestUtils {
 
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink
 				.forRowFormat(new Path(outDir.toURI()), writer)
-				.withNewBucketAssignerAndPolicy(bucketer, rollingPolicy)
+				.withNewBucketAssignerAndRollingPolicy(bucketer, rollingPolicy)
 				.withBucketCheckInterval(bucketCheckInterval)
 				.withBucketFactory(bucketFactory)
 				.build();
