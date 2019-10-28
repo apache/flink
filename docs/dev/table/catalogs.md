@@ -36,8 +36,7 @@ Or permanent metadata, like that in a Hive Metastore. Catalogs provide a unified
 
 ### GenericInMemoryCatalog
 
-Flink sessions always have a built-in `GenericInMemoryCatalog` named `default_catalog`, which has a built-in default database named `default_database`.
-All temporary metadata, such tables defined using `TableEnvironment#registerTable` is registered to this catalog. 
+Flink sessions always have a built-in `GenericInMemoryCatalog` named `default_catalog`, which has a built-in default database named `default_database`. 
 
 ### HiveCatalog
 
@@ -124,7 +123,7 @@ Metadata from catalogs that are not the current catalog are accessible by provid
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
-tableEnv.scan("not_the_current_catalog", "not_the_current_db", "my_table");
+tableEnv.from("not_the_current_catalog", "not_the_current_db", "my_table");
 {% endhighlight %}
 </div>
 <div data-lang="SQL" markdown="1">

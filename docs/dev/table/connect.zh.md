@@ -99,7 +99,7 @@ tableEnvironment
   .withFormat(...)
   .withSchema(...)
   .inAppendMode()
-  .registerTableSource("MyTable")
+  .createTemporaryTable("MyTable")
 {% endhighlight %}
 </div>
 
@@ -110,7 +110,7 @@ table_environment \
     .with_format(...) \
     .with_schema(...) \
     .in_append_mode() \
-    .register_table_source("MyTable")
+    .createTemporaryTable("MyTable")
 {% endhighlight %}
 </div>
 

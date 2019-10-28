@@ -99,7 +99,7 @@ tableEnvironment
   .withFormat(...)
   .withSchema(...)
   .inAppendMode()
-  .registerTableSource("MyTable")
+  .createTemporaryTable("MyTable")
 {% endhighlight %}
 </div>
 
@@ -184,8 +184,8 @@ tableEnvironment
   // specify the update-mode for streaming tables
   .inAppendMode()
 
-  // register as source, sink, or both and under a name
-  .registerTableSource("MyUserTable");
+  // create a table with given name
+  .createTemporaryTable("MyUserTable");
 {% endhighlight %}
 </div>
 
