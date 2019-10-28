@@ -199,11 +199,11 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
 	// --------------------------------------------------------------------------------------------
 
-	private interface RuntimeConverter extends Serializable {
+	interface RuntimeConverter extends Serializable {
 		JsonNode convert(CsvMapper csvMapper, ContainerNode<?> container, Object obj);
 	}
 
-	private static RuntimeConverter createRowRuntimeConverter(RowTypeInfo rowTypeInfo, boolean isTopLevel) {
+	static RuntimeConverter createRowRuntimeConverter(RowTypeInfo rowTypeInfo, boolean isTopLevel) {
 		final TypeInformation[] fieldTypes = rowTypeInfo.getFieldTypes();
 		final String[] fieldNames = rowTypeInfo.getFieldNames();
 
