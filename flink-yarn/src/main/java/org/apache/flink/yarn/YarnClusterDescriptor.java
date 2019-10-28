@@ -1031,7 +1031,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		setApplicationTags(appContext);
 
 		// add a hook to clean up in case deployment fails
-		Thread deploymentFailureHook = new DeploymentFailureHook(yarnClient, yarnApplication, yarnFilesDir);
+		Thread deploymentFailureHook = new DeploymentFailureHook(yarnApplication, yarnFilesDir);
 		Runtime.getRuntime().addShutdownHook(deploymentFailureHook);
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
@@ -1241,7 +1241,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			// call (we don't know if the application has been deployed when the error occured).
 			LOG.debug("Error while killing YARN application", e);
 		}
-		yarnClient.stop();
 	}
 
 	private static class ClusterResourceDescription {
@@ -1526,16 +1525,22 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		private final YarnClientApplication yarnApplication;
 		private final Path yarnFilesDir;
 
-		DeploymentFailureHook(YarnClient yarnClient, YarnClientApplication yarnApplication, Path yarnFilesDir) {
-			this.yarnClient = Preconditions.checkNotNull(yarnClient);
+		DeploymentFailureHook(YarnClientApplication yarnApplication, Path yarnFilesDir) {
 			this.yarnApplication = Preconditions.checkNotNull(yarnApplication);
 			this.yarnFilesDir = Preconditions.checkNotNull(yarnFilesDir);
+
+			// A new yarn client need to be created in shutdown hook in order to avoid
+			// the yarn client has been closed by YarnClusterDescriptor.
+			this.yarnClient = YarnClient.createYarnClient();
+			this.yarnClient.init(yarnConfiguration);
 		}
 
 		@Override
 		public void run() {
 			LOG.info("Cancelling deployment from Deployment Failure Hook");
+			yarnClient.start();
 			failSessionDuringDeployment(yarnClient, yarnApplication);
+			yarnClient.stop();
 			LOG.info("Deleting files in {}.", yarnFilesDir);
 			try {
 				FileSystem fs = FileSystem.get(yarnConfiguration);
