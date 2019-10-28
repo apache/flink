@@ -775,8 +775,9 @@ StreamTableEnvironment tableEnv = // ...
 
 tableEnv
   .connect(new MySystemConnector(true))
+  .withSchema(...)
   .inAppendMode()
-  .registerTableSource("MySystemTable");
+  .createTemporaryTable("MySystemTable");
 {% endhighlight %}
 </div>
 
@@ -786,8 +787,9 @@ val tableEnv: StreamTableEnvironment = // ...
 
 tableEnv
   .connect(new MySystemConnector(isDebug = true))
+  .withSchema(...)
   .inAppendMode()
-  .registerTableSource("MySystemTable")
+  .createTemporaryTable("MySystemTable")
 {% endhighlight %}
 </div>
 </div>
