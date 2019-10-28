@@ -356,6 +356,8 @@ object FlinkBatchRuleSets {
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
     // transpose calc past snapshot
     CalcSnapshotTransposeRule.INSTANCE,
+    // Rule that splits python ScalarFunctions from join conditions
+    SplitPythonConditionFromJoinRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions
