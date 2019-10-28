@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -47,7 +46,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -69,24 +67,23 @@ public class JobExceptionsHandlerTest extends TestLogger {
 			JobExceptionsHeaders.getInstance(),
 			new ExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
 			TestingUtils.defaultExecutor());
-		List<Tuple2<Integer, Integer>> exceptionSize2QuerySizeList = new ArrayList<>();
-		exceptionSize2QuerySizeList.add(new Tuple2<>(50, 20));
-		exceptionSize2QuerySizeList.add(new Tuple2<>(30, 30));
-		exceptionSize2QuerySizeList.add(new Tuple2<>(10, 20));
-		for (Tuple2<Integer, Integer> exceptionSize2QuerySize: exceptionSize2QuerySizeList) {
-			final int exceptionSize = exceptionSize2QuerySize.f0;
-			final int querySize = exceptionSize2QuerySize.f1;
-			final AccessExecutionGraph archivedExecutionGraph = createAccessExecutionGraph(exceptionSize);
-			int finalShowSize = exceptionSize >= querySize ? querySize : exceptionSize;
-			final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> handlerRequest = createRequest(archivedExecutionGraph.getJobID(), querySize);
-			final JobExceptionsInfo jobExceptionsInfo = jobExceptionsHandler.handleRequest(handlerRequest, archivedExecutionGraph);
-			assertEquals(jobExceptionsInfo.getAllExceptions().size(), finalShowSize);
-		}
+		final int numExceptions = 20;
+		final AccessExecutionGraph archivedExecutionGraph = createAccessExecutionGraph(numExceptions);
+		checkExceptionLimit(jobExceptionsHandler, archivedExecutionGraph, numExceptions, 10);
+		checkExceptionLimit(jobExceptionsHandler, archivedExecutionGraph, numExceptions, numExceptions);
+		checkExceptionLimit(jobExceptionsHandler, archivedExecutionGraph, numExceptions, 30);
 	}
 
-	private AccessExecutionGraph createAccessExecutionGraph(int taskSize) {
+	private static void checkExceptionLimit(JobExceptionsHandler jobExceptionsHandler, AccessExecutionGraph graph, int maxNumExceptions, int numExpectedException) throws HandlerRequestException {
+		final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> handlerRequest = createRequest(graph.getJobID(), numExpectedException);
+		final JobExceptionsInfo jobExceptionsInfo = jobExceptionsHandler.handleRequest(handlerRequest, graph);
+		final int numReportedException = maxNumExceptions >= numExpectedException ? numExpectedException : maxNumExceptions;
+		assertEquals(jobExceptionsInfo.getAllExceptions().size(), numReportedException);
+	}
+
+	private static AccessExecutionGraph createAccessExecutionGraph(int numTasks) {
 		Map<JobVertexID, ArchivedExecutionJobVertex> tasks = new HashMap<>();
-		for (int i = 0; i < taskSize; i++) {
+		for (int i = 0; i < numTasks; i++) {
 			final JobVertexID jobVertexId = new JobVertexID();
 			tasks.put(jobVertexId, createArchivedExecutionJobVertex(jobVertexId));
 		}
@@ -95,7 +92,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
 			.build();
 	}
 
-	private ArchivedExecutionJobVertex createArchivedExecutionJobVertex(JobVertexID jobVertexID) {
+	private static ArchivedExecutionJobVertex createArchivedExecutionJobVertex(JobVertexID jobVertexID) {
 		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
 		final long[] timestamps = new long[ExecutionState.values().length];
 		final ExecutionState expectedState = ExecutionState.RUNNING;
@@ -132,7 +129,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
 			emptyAccumulators);
 	}
 
-	private HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> createRequest(JobID jobId, int size) throws HandlerRequestException {
+	private static HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> createRequest(JobID jobId, int size) throws HandlerRequestException {
 		final Map<String, String> pathParameters = new HashMap<>();
 		pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
 		final Map<String, List<String>> queryParameters = new HashMap<>();
