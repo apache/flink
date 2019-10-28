@@ -74,7 +74,6 @@ public class SourceStreamTaskTest {
 	 * This test verifies that open() and close() are correctly called by the StreamTask.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testOpenClose() throws Exception {
 		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
 				SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
@@ -288,7 +287,6 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void run(SourceContext<Tuple2<Long, Integer>> ctx) {
-			final Object lockObject = ctx.getCheckpointLock();
 			while (isRunning && count < maxElements) {
 				// simulate some work
 				try {
@@ -299,8 +297,8 @@ public class SourceStreamTaskTest {
 					Thread.currentThread().interrupt();
 				}
 
-				synchronized (lockObject) {
-					ctx.collect(new Tuple2<Long, Integer>(lastCheckpointId, count));
+				synchronized (ctx.getCheckpointLock()) {
+					ctx.collect(new Tuple2<>(lastCheckpointId, count));
 					count++;
 				}
 			}
@@ -330,7 +328,7 @@ public class SourceStreamTaskTest {
 				Assert.fail("Count is different at start end end of snapshot.");
 			}
 			semaphore.release();
-			return Collections.<Serializable>singletonList(sum);
+			return Collections.singletonList(sum);
 		}
 
 		@Override
