@@ -223,7 +223,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final List<String> actualTables = executor.listUserDefinedFunctions(session);
 
-		final List<String> expectedTables = Arrays.asList("aggregateUDF", "tableUDF", "scalarUDF");
+		final List<String> expectedTables = Arrays.asList("aggregateudf", "tableudf", "scalarudf");
 		assertEquals(expectedTables, actualTables);
 	}
 
