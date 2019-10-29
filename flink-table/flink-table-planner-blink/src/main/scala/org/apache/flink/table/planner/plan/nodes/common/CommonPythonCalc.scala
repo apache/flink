@@ -37,7 +37,11 @@ import scala.collection.mutable
 trait CommonPythonCalc {
 
   private lazy val convertLiteralToPython = {
-    val clazz = Class.forName("org.apache.flink.api.common.python.PythonBridgeUtils")
+    val clazz = Class.forName(
+      "org.apache.flink.api.common.python.PythonBridgeUtils",
+      false,
+      Thread.currentThread.getContextClassLoader
+    )
     clazz.getMethod("convertLiteralToPython", classOf[RexLiteral], classOf[SqlTypeName])
   }
 
@@ -95,7 +99,8 @@ trait CommonPythonCalc {
       udfInputOffsets: Array[Int],
       pythonFunctionInfos: Array[PythonFunctionInfo],
       forwardedFields: Array[Int])= {
-    val clazz = Class.forName(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
+    val clazz = Class.forName(
+      PYTHON_SCALAR_FUNCTION_OPERATOR_NAME, false, Thread.currentThread.getContextClassLoader)
     val ctor = clazz.getConstructor(
       classOf[Array[PythonFunctionInfo]],
       classOf[RowType],

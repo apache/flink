@@ -28,7 +28,11 @@ import scala.collection.mutable
 trait CommonPythonCalc {
 
   private lazy val convertLiteralToPython = {
-    val clazz = Class.forName("org.apache.flink.api.common.python.PythonBridgeUtils")
+    val clazz = Class.forName(
+      "org.apache.flink.api.common.python.PythonBridgeUtils",
+      false,
+      Thread.currentThread.getContextClassLoader
+    )
     clazz.getMethod("convertLiteralToPython", classOf[RexLiteral], classOf[SqlTypeName])
   }
 
