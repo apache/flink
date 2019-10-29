@@ -68,10 +68,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -2252,7 +2254,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
 		coord.setCheckpointStatsTracker(tracker);
 
-		assertTrue(coord.restoreLatestCheckpointedState(Collections.<JobVertexID, ExecutionJobVertex>emptyMap(), false, true));
+		assertTrue(coord.restoreLatestCheckpointedState(Collections.emptySet(), false, true));
 
 		verify(tracker, times(1))
 			.reportRestoredCheckpoint(any(RestoredCheckpointStats.class));
@@ -2380,8 +2382,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		store.shutdown(JobStatus.SUSPENDED);
 
 		// restore the store
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
-		tasks.put(jobVertexID1, jobVertex1);
+		Set<ExecutionJobVertex> tasks = new HashSet<>();
+		tasks.add(jobVertex1);
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		// validate that all shared states are registered again after the recovery.

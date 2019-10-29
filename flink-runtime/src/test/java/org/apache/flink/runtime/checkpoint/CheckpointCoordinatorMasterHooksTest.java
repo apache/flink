@@ -24,10 +24,8 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -144,7 +142,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		// initialize the hooks
 		cc.restoreLatestCheckpointedState(
-			Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+			Collections.emptySet(),
 			false,
 			false);
 		verify(hook1, times(1)).reset();
@@ -284,7 +282,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		cc.getCheckpointStore().addCheckpoint(checkpoint);
 		cc.restoreLatestCheckpointedState(
-				Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+				Collections.emptySet(),
 				true,
 				false);
 
@@ -339,7 +337,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 		// since we have unmatched state, this should fail
 		try {
 			cc.restoreLatestCheckpointedState(
-					Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+					Collections.emptySet(),
 					true,
 					false);
 			fail("exception expected");
@@ -348,7 +346,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		// permitting unmatched state should succeed
 		cc.restoreLatestCheckpointedState(
-				Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+				Collections.emptySet(),
 				true,
 				true);
 

@@ -88,6 +88,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -202,7 +203,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		if (checkpointCoordinator != null) {
 			// check whether we find a valid checkpoint
 			if (!checkpointCoordinator.restoreLatestCheckpointedState(
-				newExecutionGraph.getAllVertices(),
+				new HashSet<>(newExecutionGraph.getAllVertices().values()),
 				false,
 				false)) {
 
