@@ -36,6 +36,7 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -101,11 +102,11 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
-import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_PLUGINS_DIR;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
@@ -1581,16 +1582,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	}
 
 	private void addPluginsFoldersToShipFiles(Collection<File> effectiveShipFiles) {
-		String pluginsDir = System.getenv().get(ENV_FLINK_PLUGINS_DIR);
-		if (pluginsDir != null) {
-			File directoryFile = new File(pluginsDir);
-			if (directoryFile.isDirectory()) {
-				effectiveShipFiles.add(directoryFile);
-			} else {
-				LOG.warn("The environment variable '" + ENV_FLINK_PLUGINS_DIR +
-						"' is set to '" + pluginsDir + "' but the directory doesn't exist.");
-			}
-		}
+		final Optional<File> pluginsDir = PluginConfig.getPluginsDir();
+		pluginsDir.ifPresent(effectiveShipFiles::add);
 	}
 
 	ContainerLaunchContext setupApplicationMasterContainer(
