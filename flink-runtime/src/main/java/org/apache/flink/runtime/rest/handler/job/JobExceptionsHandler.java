@@ -39,8 +39,6 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
