@@ -24,8 +24,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -38,9 +36,7 @@ import org.apache.flink.table.functions.hive.HiveGenericUDF;
 import org.apache.flink.table.functions.hive.HiveGenericUDTF;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.StringUtils;
 
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDAF;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
@@ -50,7 +46,6 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -59,21 +54,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableFactory.class);
 
-	private final String hiveVersion;
 	private final HiveShim hiveShim;
 
-	public HiveFunctionDefinitionFactory(HiveConf hiveConf) {
-		// this has to come from hiveConf, otherwise we may lose what user specifies in the yaml file
-		this.hiveVersion = checkNotNull(hiveConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
-			"Hive version is not defined");
-		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-	}
-
-	public HiveFunctionDefinitionFactory(String hiveVersion) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion),
-			"Hive version cannot be null or empty string");
-		this.hiveVersion = hiveVersion;
-		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+	public HiveFunctionDefinitionFactory(HiveShim hiveShim) {
+		checkNotNull(hiveShim, "hiveShim cannot be null or empty string");
+		this.hiveShim = hiveShim;
 	}
 
 	@Override
@@ -128,16 +113,16 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 
 			if (GenericUDAFResolver2.class.isAssignableFrom(clazz)) {
 				LOG.info(
-					"Transforming Hive function '{}' into a HiveGenericUDAF with no UDAF bridging and Hive version %s",
-					name, hiveVersion);
+					"Transforming Hive function '{}' into a HiveGenericUDAF with no UDAF bridging",
+					name, hiveShim);
 
-				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), false, hiveVersion);
+				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), false, hiveShim);
 			} else {
 				LOG.info(
 					"Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging and Hive version %s",
-					name, hiveVersion);
+					name, hiveShim);
 
-				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), true, hiveVersion);
+				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), true, hiveShim);
 			}
 
 			return new AggregateFunctionDefinition(

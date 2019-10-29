@@ -19,6 +19,7 @@
 package org.apache.flink.table.module.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.module.Module;
@@ -39,7 +40,7 @@ public class HiveModule implements Module {
 	private final HiveFunctionDefinitionFactory factory;
 
 	public HiveModule(String hiveVersion) {
-		this.factory = new HiveFunctionDefinitionFactory(hiveVersion);
+		this.factory = new HiveFunctionDefinitionFactory(HiveShimLoader.loadHiveShim(hiveVersion));
 	}
 
 	@Override
@@ -54,7 +55,7 @@ public class HiveModule implements Module {
 		FunctionInfo info = getFunctionInfo(name);
 
 		if (info.isBuiltIn()) {
-			return Optional.of(factory.createFunctionDefinitionFromHiveFunction(name, info.getClassName()));
+			return Optional.of(factory.createFunctionDefinitionFromHiveFunction(name, info.getFunctionClass().getName()));
 		} else {
 			return Optional.empty();
 		}
