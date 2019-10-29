@@ -116,7 +116,7 @@ class DataStreamPythonCalc(
       inputRowType: RowType,
       outputRowType: RowType,
       udfInputOffsets: Array[Int]) = {
-    val clazz = Class.forName(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
+    val clazz = loadClass(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
     val ctor = clazz.getConstructor(
       classOf[Array[PythonFunctionInfo]],
       classOf[RowType],
