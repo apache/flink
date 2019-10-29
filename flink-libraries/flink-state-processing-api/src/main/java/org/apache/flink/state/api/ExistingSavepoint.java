@@ -214,13 +214,14 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 		return env.createInput(inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
 	}
 
-	/*
+	/**
 	 * Read keyed state from an operator in a {@code Savepoint}.
 	 * @param uid The uid of the operator.
 	 * @param function The {@link KeyedStateReaderFunction} that is called for each key in state.
 	 * @param <K> The type of the key in state.
 	 * @param <OUT> The output type of the transform function.
 	 * @return A {@code DataSet} of objects read from keyed state.
+	 * @throws IOException If the savepoint does not contain operator state with the given uid.
 	 */
 	public <K, OUT> DataSet<OUT> readKeyedState(String uid, KeyedStateReaderFunction<K, OUT> function) throws IOException {
 
@@ -265,6 +266,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 	 * @param <K> The type of the key in state.
 	 * @param <OUT> The output type of the transform function.
 	 * @return A {@code DataSet} of objects read from keyed state.
+	 * @throws IOException If the savepoint does not contain operator state with the given uid.
 	 */
 	public <K, OUT> DataSet<OUT> readKeyedState(
 		String uid,
