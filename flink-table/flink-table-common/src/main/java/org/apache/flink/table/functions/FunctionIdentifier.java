@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Identifies a temporary function with function name or a catalog function with a fully qualified identifier.
+ * Identifies a system function with function name or a catalog function with a fully qualified identifier.
  * Function catalog is responsible for resolving an identifier to a function.
  */
 @PublicEvolving

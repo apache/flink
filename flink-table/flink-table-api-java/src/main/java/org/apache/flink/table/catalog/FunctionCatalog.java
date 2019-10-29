@@ -227,15 +227,15 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	@Override
-	public Optional<FunctionLookup.Result> lookupFunction(FunctionIdentifier fi) {
+	public Optional<FunctionLookup.Result> lookupFunction(FunctionIdentifier identifier) {
 
 		// precise function reference
-		if (fi.getIdentifier().isPresent()) {
-			return resolvePreciseFunctionReference(fi.getIdentifier().get());
+		if (identifier.getIdentifier().isPresent()) {
+			return resolvePreciseFunctionReference(identifier.getIdentifier().get());
 		} else {
 			// ambiguous function reference
 
-			String functionName = fi.getSimpleName().get();
+			String functionName = identifier.getSimpleName().get();
 
 			FunctionDefinition userCandidate;
 
@@ -276,7 +276,7 @@ public class FunctionCatalog implements FunctionLookup {
 			}
 
 			return foundDefinition.map(d -> new FunctionLookup.Result(
-				FunctionIdentifier.of(fi.getSimpleName().get()),
+				FunctionIdentifier.of(identifier.getSimpleName().get()),
 				d)
 			);
 		}

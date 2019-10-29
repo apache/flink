@@ -36,7 +36,7 @@ public interface FunctionLookup {
 	/**
 	 * Lookup a function by function identifier. The lookup is case insensitive.
 	 */
-	Optional<Result> lookupFunction(FunctionIdentifier name);
+	Optional<Result> lookupFunction(FunctionIdentifier identifier);
 
 	/**
 	 * Helper method for looking up a built-in function.
