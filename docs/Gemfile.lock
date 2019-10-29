@@ -10,7 +10,7 @@ GEM
     eventmachine (1.2.5)
     faraday (0.9.2)
       multipart-post (>= 1.2, < 3)
-    ffi (1.9.18)
+    ffi (1.11.1)
     forwardable-extended (2.6.0)
     hawkins (2.0.5)
       em-websocket (~> 0.5)
