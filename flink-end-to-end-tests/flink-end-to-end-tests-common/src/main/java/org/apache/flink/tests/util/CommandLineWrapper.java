@@ -39,6 +39,7 @@ public enum CommandLineWrapper {
 
 		private final String url;
 		private Path targetDir;
+		private String fileName;
 
 		WGetBuilder(String url) {
 			this.url = url;
@@ -49,11 +50,19 @@ public enum CommandLineWrapper {
 			return this;
 		}
 
+		public WGetBuilder saveAs(String fileName) {
+			this.fileName = fileName;
+			return this;
+		}
+
 		public String[] build() {
 			final List<String> commandsList = new ArrayList<>(5);
 			commandsList.add("wget");
 			commandsList.add("-q"); // silent
-			//commandsList.add("--show-progress"); // enable progress bar
+			if (this.fileName != null) {
+				commandsList.add("-O");
+				commandsList.add(fileName);
+			}
 			if (targetDir != null) {
 				commandsList.add("-P");
 				commandsList.add(targetDir.toAbsolutePath().toString());

@@ -20,6 +20,7 @@ package org.apache.flink.tests.util;
 
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,6 +125,7 @@ public class AutoClosableProcess implements AutoCloseable {
 	private static Process createProcess(final String[] commands, Consumer<String> stdoutProcessor, Consumer<String> stderrProcessor) throws IOException {
 		final ProcessBuilder processBuilder = new ProcessBuilder();
 		processBuilder.command(commands);
+		LOG.info("Create the process: {}", StringUtils.join(commands, " "));
 
 		final Process process = processBuilder.start();
 

@@ -76,6 +76,7 @@ public final class FlinkDistribution implements ExternalResource {
 	private final Path conf;
 	private final Path log;
 	private final Path bin;
+	private int restPort = 8081;
 
 	private Configuration defaultConfig;
 
@@ -84,6 +85,14 @@ public final class FlinkDistribution implements ExternalResource {
 		if (distDirProperty == null) {
 			Assert.fail("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
 		}
+		final String restPortStr = System.getProperty("restPort");
+		if (restPortStr == null || !restPortStr.matches("-?\\d+(\\.\\d+)?")) {
+			LOG.warn("The restPort was not set successfully, you can set it when running maven via -DrestPort=8081, "
+				+ "now use the default 8081");
+		} else {
+			restPort = Integer.parseInt(restPortStr);
+		}
+
 		final String backupDirProperty = System.getProperty("logBackupDir");
 		logBackupDir = backupDirProperty == null
 			? Optional.empty()
@@ -154,7 +163,7 @@ public final class FlinkDistribution implements ExternalResource {
 
 		final Request request = new Request.Builder()
 			.get()
-			.url("http://localhost:8081/taskmanagers")
+			.url("http://localhost:" + restPort + "/taskmanagers")
 			.build();
 
 		Exception reportedException = null;
@@ -242,5 +251,9 @@ public final class FlinkDistribution implements ExternalResource {
 			}
 		}
 		return matches.stream();
+	}
+
+	public FlinkSQLClient newSQLClient() {
+		return new FlinkSQLClient(bin);
 	}
 }

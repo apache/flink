@@ -1,0 +1,125 @@
+tables:
+  - name: $TABLE_NAME
+    type: source-table
+    update-mode: append
+    schema:
+      - name: rowtime
+        type: TIMESTAMP
+        rowtime:
+          timestamps:
+            type: from-field
+            from: timestamp
+          watermarks:
+            type: periodic-bounded
+            delay: 2000
+      - name: user
+        type: VARCHAR
+      - name: event
+        type: ROW<type VARCHAR, message VARCHAR>
+    connector:
+      type: kafka
+      version: "$KAFKA_SQL_VERSION"
+      topic: $TOPIC_NAME
+      startup-mode: earliest-offset
+      properties:
+        - key: zookeeper.connect
+          value: localhost:2181
+        - key: bootstrap.servers
+          value: localhost:9092
+    format:
+      type: json
+      json-schema: >
+        {
+          "type": "object",
+          "properties": {
+            "timestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "user": {
+              "type": ["string", "null"]
+            },
+            "event": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+  - name: AvroBothTable
+    type: source-sink-table
+    update-mode: append
+    schema:
+      - name: event_timestamp
+        type: VARCHAR
+      - name: user
+        type: VARCHAR
+      - name: message
+        type: VARCHAR
+      - name: duplicate_count
+        type: BIGINT
+    connector:
+      type: kafka
+      version: "$KAFKA_SQL_VERSION"
+      topic: test-avro
+      startup-mode: earliest-offset
+      properties:
+        - key: zookeeper.connect
+          value: localhost:2181
+        - key: bootstrap.servers
+          value: localhost:9092
+    format:
+      type: avro
+      avro-schema: >
+        {
+          "namespace": "org.apache.flink.table.tests",
+          "type": "record",
+          "name": "NormalizedEvent",
+            "fields": [
+              {"name": "event_timestamp", "type": "string"},
+              {"name": "user", "type": ["string", "null"]},
+              {"name": "message", "type": "string"},
+              {"name": "duplicate_count", "type": "long"}
+            ]
+        }
+  - name: CsvSinkTable
+    type: sink-table
+    update-mode: append
+    schema:
+      - name: event_timestamp
+        type: VARCHAR
+      - name: user
+        type: VARCHAR
+      - name: message
+        type: VARCHAR
+      - name: duplicate_count
+        type: BIGINT
+      - name: constant
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: $RESULT
+    format:
+      type: csv
+      fields:
+        - name: event_timestamp
+          type: VARCHAR
+        - name: user
+          type: VARCHAR
+        - name: message
+          type: VARCHAR
+        - name: duplicate_count
+          type: BIGINT
+        - name: constant
+          type: VARCHAR
+
+functions:
+  - name: RegReplace
+    from: class
+    class: org.apache.flink.table.toolbox.StringRegexReplaceFunction
