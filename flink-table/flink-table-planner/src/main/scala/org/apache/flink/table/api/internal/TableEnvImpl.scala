@@ -376,8 +376,16 @@ abstract class TableEnvImpl(
 
   override def sqlQuery(query: String): Table = {
     val planner = getFlinkPlanner
+
     // parse the sql query
-    val parsed = planner.parse(query)
+    val parsedList = planner.parse(query)
+    if (parsedList.size != 1) {
+      throw new ValidationException("Unsupported SQL query! " +
+        "sqlQuery() only accepts a single SQL query.")
+    }
+
+    val parsed = parsedList.get(0)
+
     if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
       // validate the sql query
       val validated = planner.validate(parsed)
@@ -394,8 +402,8 @@ abstract class TableEnvImpl(
   override def sqlUpdate(stmt: String): Unit = {
     val planner = getFlinkPlanner
     // parse the sql query
-    val parsed = planner.parse(stmt)
-    parsed match {
+    val parsedList = planner.parse(stmt)
+    parsedList.foreach {
       case insert: RichSqlInsert =>
         // validate the insert
         val validatedInsert = planner.validate(insert).asInstanceOf[RichSqlInsert]

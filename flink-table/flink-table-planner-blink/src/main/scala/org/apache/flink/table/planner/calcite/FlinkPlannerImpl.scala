@@ -31,7 +31,7 @@ import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.parser.{SqlParser, SqlParseException => CSqlParseException}
 import org.apache.calcite.sql.validate.SqlValidator
-import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
+import org.apache.calcite.sql.{SqlKind, SqlNode, SqlNodeList, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 
@@ -109,12 +109,12 @@ class FlinkPlannerImpl(
     validator
   }
 
-  def parse(sql: String): SqlNode = {
+  def parse(sql: String): SqlNodeList = {
     try {
       ready()
       val parser: SqlParser = SqlParser.create(sql, parserConfig)
-      val sqlNode: SqlNode = parser.parseStmt
-      sqlNode
+      val sqlNodeList: SqlNodeList = parser.parseStmtList()
+      sqlNodeList
     } catch {
       case e: CSqlParseException =>
         throw new SqlParserException(s"SQL parse failed. ${e.getMessage}", e)

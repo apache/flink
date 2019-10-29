@@ -179,7 +179,7 @@ abstract class ExpressionTestBase {
 
   private def addSqlTestExpr(sqlExpr: String, expected: String): Unit = {
     // create RelNode from SQL expression
-    val parsed = planner.parse(s"SELECT $sqlExpr FROM $tableName")
+    val parsed = planner.parse(s"SELECT $sqlExpr FROM $tableName").get(0)
     val validated = planner.validate(parsed)
     val converted = planner.rel(validated).rel
 

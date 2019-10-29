@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.operations.QueryOperation
+import org.apache.flink.table.operations.{Operation, QueryOperation}
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamMatch, DataStreamScan}
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.types.Row
@@ -35,6 +35,8 @@ import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}
+
+import java.util.function.Consumer
 
 abstract class PatternTranslatorTestBase extends TestLogger{
 
@@ -73,9 +75,11 @@ abstract class PatternTranslatorTestBase extends TestLogger{
          |SELECT *
          |FROM $tableName
          |$matchRecognize
-         |""".stripMargin)
+         |""".stripMargin, new Consumer[Operation] {
+        override def accept(t: Operation): Unit = {}
+      })
 
-    val queryOperation = parsed.get(0).asInstanceOf[QueryOperation]
+    val queryOperation = parsed.iterator.next().asInstanceOf[QueryOperation]
     val relNode = context._3.getRelBuilder.tableOperation(queryOperation).build()
 
     val optimized = context._3.optimizer

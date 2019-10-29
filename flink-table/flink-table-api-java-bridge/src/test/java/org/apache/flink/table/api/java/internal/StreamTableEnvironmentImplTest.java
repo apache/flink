@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -114,7 +115,7 @@ public class StreamTableEnvironmentImplTest {
 		}
 
 		@Override
-		public List<Operation> parse(String statement) {
+		public Iterable<Operation> parse(String statement, Consumer<Operation> operationPreConsumer) {
 			throw new AssertionError("Should not be called");
 		}
 
