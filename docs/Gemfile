@@ -20,7 +20,7 @@ source 'https://rubygems.org'
 
 ruby '>= 2.1.0'
 
-gem 'jekyll', '3.7.2'
+gem 'jekyll', '3.7.4'
 gem 'addressable', '2.4.0'
 gem 'octokit', '~> 4.3.0'
 gem 'therubyracer', '0.12.2'
