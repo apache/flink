@@ -73,14 +73,6 @@ class CollectorCodeGenerator(
     val input1TypeClass = boxedTypeTermForTypeInfo(input1)
     val input2TypeClass = boxedTypeTermForTypeInfo(collectedType)
 
-    val inputDecleration =
-      List(s"private $input1TypeClass $input1Term;",
-           s"private $input2TypeClass $input2Term;")
-
-    val inputAssignment =
-      List(s"$input1Term = ($input1TypeClass) getInput();",
-           s"$input2Term = ($input2TypeClass) record;")
-
     reusableMemberStatements ++= filterGenerator.reusableMemberStatements
     reusableInitStatements ++= filterGenerator.reusableInitStatements
     reusablePerRecordStatements ++= filterGenerator.reusablePerRecordStatements
@@ -88,7 +80,9 @@ class CollectorCodeGenerator(
     val funcCode = j"""
       |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
       |
-      |  ${inputDecleration.mkString("\n")}
+      |  private $input1TypeClass $input1Term;
+      |  private $input2TypeClass $input2Term;
+      |
       |  ${reuseMemberCode()}
       |
       |  public $className() throws Exception {
@@ -103,7 +97,8 @@ class CollectorCodeGenerator(
       |  @Override
       |  public void collect(Object record) throws Exception {
       |    super.collect(record);
-      |    ${inputAssignment.mkString("\n")}
+      |    $input1Term = ($input1TypeClass) getInput();
+      |    $input2Term = ($input2TypeClass) record;
       |    ${reuseInputUnboxingCode()}
       |    ${reusePerRecordCode()}
       |    $bodyCode

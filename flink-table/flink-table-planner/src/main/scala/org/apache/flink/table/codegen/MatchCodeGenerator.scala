@@ -553,7 +553,7 @@ class MatchCodeGenerator(
       addReusablePatternNames()
       val patternTerm = newName("pattern")
       j"""
-         |$listName.clear();
+         |$listName = new java.util.ArrayList();
          |for (String $patternTerm : $patternNamesTerm) {
          |  for ($eventTypeTerm $eventNameTerm :
          |  $contextTerm.getEventsForPattern($patternTerm)) {
@@ -564,7 +564,7 @@ class MatchCodeGenerator(
     } else {
       val escapedPatternName = EncodingUtils.escapeJava(patternName)
       j"""
-         |$listName.clear();
+         |$listName = new java.util.ArrayList();
          |for ($eventTypeTerm $eventNameTerm :
          |  $contextTerm.getEventsForPattern("$escapedPatternName")) {
          |    $listName.add($eventNameTerm);
@@ -591,7 +591,7 @@ class MatchCodeGenerator(
       val patternTerm = newName("pattern")
 
       j"""
-         |$listName.clear();
+         |$listName = new java.util.ArrayList();
          |for (String $patternTerm : $patternNamesTerm) {
          |  java.util.List rows = (java.util.List) $input1Term.get($patternTerm);
          |  if (rows != null) {
