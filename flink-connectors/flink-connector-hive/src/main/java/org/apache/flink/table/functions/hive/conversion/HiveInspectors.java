@@ -410,7 +410,7 @@ public class HiveInspectors {
 		switch (inspector.getCategory()) {
 			case PRIMITIVE: {
 				PrimitiveObjectInspector primitiveOI = (PrimitiveObjectInspector) inspector;
-				switch (primitiveOI.getPrimitiveCategory()) {
+				switch (HiveTypeUtil.HivePrimitiveCategory.valueOf(primitiveOI.getPrimitiveCategory().name())) {
 					case STRING:
 					case CHAR:
 					case VARCHAR:
