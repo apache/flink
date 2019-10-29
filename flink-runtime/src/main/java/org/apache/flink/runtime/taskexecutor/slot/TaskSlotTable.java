@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -78,7 +80,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	private SlotActions slotActions;
 
 	/** Whether the table has been started. */
-	private boolean started;
+	private volatile boolean started;
 
 	public TaskSlotTable(
 		final List<TaskSlot> taskSlots,
@@ -120,7 +122,13 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	public void stop() {
 		started = false;
 		timerService.stop();
+		taskSlots.forEach(TaskSlot::close);
 		slotActions = null;
+	}
+
+	@VisibleForTesting
+	public boolean isStopped() {
+		return !started && taskSlots.stream().allMatch(slot -> slot.getMemoryManager().isShutdown());
 	}
 
 	/**
@@ -548,6 +556,21 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 */
 	public AllocationID getCurrentAllocation(int index) {
 		return taskSlots.get(index).getAllocationId();
+	}
+
+	/**
+	 * Get the memory manager of the slot allocated for the task.
+	 *
+	 * @param allocationID allocation id of the slot allocated for the task
+	 * @return the memory manager of the slot allocated for the task
+	 */
+	public MemoryManager getTaskMemoryManager(AllocationID allocationID) throws SlotNotFoundException {
+		TaskSlot taskSlot = getTaskSlot(allocationID);
+		if (taskSlot != null) {
+			return taskSlot.getMemoryManager();
+		} else {
+			throw new SlotNotFoundException(allocationID);
+		}
 	}
 
 	// ---------------------------------------------------------------------

@@ -51,12 +51,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 
@@ -73,7 +74,7 @@ public class TaskManagerServices {
 
 	/** TaskManager services. */
 	private final TaskManagerLocation taskManagerLocation;
-	private final MemoryManager memoryManager;
+	private final long managedMemorySize;
 	private final IOManager ioManager;
 	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 	private final KvStateService kvStateService;
@@ -86,7 +87,7 @@ public class TaskManagerServices {
 
 	TaskManagerServices(
 		TaskManagerLocation taskManagerLocation,
-		MemoryManager memoryManager,
+		long managedMemorySize,
 		IOManager ioManager,
 		ShuffleEnvironment<?, ?> shuffleEnvironment,
 		KvStateService kvStateService,
@@ -98,7 +99,7 @@ public class TaskManagerServices {
 		TaskEventDispatcher taskEventDispatcher) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
-		this.memoryManager = Preconditions.checkNotNull(memoryManager);
+		this.managedMemorySize = managedMemorySize;
 		this.ioManager = Preconditions.checkNotNull(ioManager);
 		this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
@@ -114,8 +115,8 @@ public class TaskManagerServices {
 	//  Getter/Setter
 	// --------------------------------------------------------------------------------------------
 
-	public MemoryManager getMemoryManager() {
-		return memoryManager;
+	long getManagedMemorySize() {
+		return managedMemorySize;
 	}
 
 	public IOManager getIOManager() {
@@ -173,12 +174,6 @@ public class TaskManagerServices {
 			taskManagerStateStore.shutdown();
 		} catch (Exception e) {
 			exception = e;
-		}
-
-		try {
-			memoryManager.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
 		try {
@@ -258,15 +253,15 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getTaskManagerAddress(),
 			dataPort);
 
-		// this call has to happen strictly after the network stack has been initialized
-		final MemoryManager memoryManager = createMemoryManager(taskManagerServicesConfiguration);
-
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
+		// this call has to happen strictly after the network stack has been initialized
+		Map<MemoryType, Long> memorySizeByType = calculateMemorySizeByType(taskManagerServicesConfiguration);
 		final TaskSlotTable taskSlotTable = createTaskSlotTable(
 			taskManagerServicesConfiguration.getNumberOfSlots(),
-			memoryManager.getMemorySize(),
-			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout());
+			memorySizeByType,
+			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
+			taskManagerServicesConfiguration.getPageSize());
 
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 
@@ -287,7 +282,7 @@ public class TaskManagerServices {
 
 		return new TaskManagerServices(
 			taskManagerLocation,
-			memoryManager,
+			memorySizeByType.values().stream().mapToLong(s -> s).sum(),
 			ioManager,
 			shuffleEnvironment,
 			kvStateService,
@@ -300,27 +295,25 @@ public class TaskManagerServices {
 	}
 
 	private static TaskSlotTable createTaskSlotTable(
-			int numberOfSlots,
-			long managedMemorySize,
-			long timerServiceShutdownTimeout) {
+			final int numberOfSlots,
+			final Map<MemoryType, Long> memorySizeByType,
+			final long timerServiceShutdownTimeout,
+			final int pageSize) {
 		final List<ResourceProfile> resourceProfiles =
-			Collections.nCopies(numberOfSlots, computeSlotResourceProfile(numberOfSlots, managedMemorySize));
+			Collections.nCopies(numberOfSlots, computeSlotResourceProfile(numberOfSlots, memorySizeByType));
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
 			timerServiceShutdownTimeout);
-		return new TaskSlotTable(createTaskSlotsFromResources(resourceProfiles), timerService);
+		return new TaskSlotTable(createTaskSlotsFromResources(resourceProfiles, pageSize), timerService);
 	}
 
-	private static List<TaskSlot> createTaskSlotsFromResources(Collection<ResourceProfile> resourceProfiles) {
-		int numberSlots = resourceProfiles.size();
-		Preconditions.checkArgument(0 < numberSlots, "The number of task slots must be greater than 0.");
-		List<TaskSlot> taskSlots = new ArrayList<>(numberSlots);
-		int index = 0;
-		for (ResourceProfile resourceProfile: resourceProfiles) {
-			taskSlots.add(new TaskSlot(index, resourceProfile));
-			++index;
-		}
-		return taskSlots;
+	private static List<TaskSlot> createTaskSlotsFromResources(
+			List<ResourceProfile> resourceProfiles,
+			int memoryPageSize) {
+		return IntStream
+			.range(0, resourceProfiles.size())
+			.mapToObj(index -> new TaskSlot(index, resourceProfiles.get(index), memoryPageSize))
+			.collect(Collectors.toList());
 	}
 
 	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
@@ -343,12 +336,12 @@ public class TaskManagerServices {
 	}
 
 	/**
-	 * Creates a {@link MemoryManager} from the given {@link TaskManagerServicesConfiguration}.
+	 * Computes memory size for each {@link MemoryType} from the given {@link TaskManagerServicesConfiguration}.
 	 *
 	 * @param taskManagerServicesConfiguration to create the memory manager from
-	 * @return Memory manager
+	 * @return map of {@link MemoryType} (heap/off-heap) to its size
 	 */
-	private static MemoryManager createMemoryManager(
+	private static Map<MemoryType, Long> calculateMemorySizeByType(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration) {
 		// computing the amount of memory to use depends on how much memory is available
 		// it strictly needs to happen AFTER the network stack has been initialized
@@ -386,12 +379,7 @@ public class TaskManagerServices {
 				throw new RuntimeException("No supported memory type detected.");
 			}
 		}
-
-		// now start the memory manager
-		return new MemoryManager(
-			Collections.singletonMap(memType, memorySize),
-			taskManagerServicesConfiguration.getNumberOfSlots(),
-			taskManagerServicesConfiguration.getPageSize());
+		return Collections.singletonMap(memType, memorySize);
 	}
 
 	/**
@@ -511,14 +499,17 @@ public class TaskManagerServices {
 	}
 
 	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
-		int managedMemoryPerSlotMB = (int) bytesToMegabytes(managedMemorySize / numOfSlots);
+		// TODO: before operators separate on-heap/off-heap managed memory, we use on-heap managed memory to denote total managed memory
+		return computeSlotResourceProfile(numOfSlots, Collections.singletonMap(MemoryType.HEAP, managedMemorySize));
+	}
+
+	private static ResourceProfile computeSlotResourceProfile(int numOfSlots, Map<MemoryType, Long> memorySizeByType) {
 		return new ResourceProfile(
 			Double.MAX_VALUE,
 			MemorySize.MAX_VALUE,
 			MemorySize.MAX_VALUE,
-			// TODO: before operators separate on-heap/off-heap managed memory, we use on-heap managed memory to denote total managed memory
-			MemorySize.parse(managedMemoryPerSlotMB + "m"),
-			MemorySize.MAX_VALUE,
+			new MemorySize(memorySizeByType.getOrDefault(MemoryType.HEAP, 0L) / numOfSlots),
+			new MemorySize(memorySizeByType.getOrDefault(MemoryType.OFF_HEAP, 0L) / numOfSlots),
 			MemorySize.MAX_VALUE,
 			Collections.emptyMap());
 	}

@@ -19,12 +19,18 @@
 package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -48,7 +54,8 @@ import java.util.Map;
  * <p>An allocated or active slot can only be freed if it is empty. If it is not empty, then it's state
  * can be set to releasing indicating that it can be freed once it becomes empty.
  */
-public class TaskSlot {
+public class TaskSlot implements AutoCloseable {
+	private static final Logger LOG = LoggerFactory.getLogger(TaskSlot.class);
 
 	/** Index of the task slot. */
 	private final int index;
@@ -59,6 +66,8 @@ public class TaskSlot {
 	/** Tasks running in this slot. */
 	private final Map<ExecutionAttemptID, Task> tasks;
 
+	private final MemoryManager memoryManager;
+
 	/** State of this slot. */
 	private TaskSlotState state;
 
@@ -68,7 +77,7 @@ public class TaskSlot {
 	/** Allocation id of this slot; null if not allocated. */
 	private AllocationID allocationId;
 
-	public TaskSlot(final int index, final ResourceProfile resourceProfile) {
+	public TaskSlot(final int index, final ResourceProfile resourceProfile, final int memoryPageSize) {
 		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
 		this.index = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
@@ -78,6 +87,8 @@ public class TaskSlot {
 
 		this.jobId = null;
 		this.allocationId = null;
+
+		this.memoryManager = createMemoryManager(resourceProfile, memoryPageSize);
 	}
 
 	// ----------------------------------------------------------------------------------
@@ -140,6 +151,10 @@ public class TaskSlot {
 	 */
 	public Iterator<Task> getTasks() {
 		return tasks.values().iterator();
+	}
+
+	public MemoryManager getMemoryManager() {
+		return memoryManager;
 	}
 
 	// ----------------------------------------------------------------------------------
@@ -268,6 +283,7 @@ public class TaskSlot {
 	public boolean markFree() {
 		if (isEmpty()) {
 			state = TaskSlotState.FREE;
+			verifyMemoryFreed();
 			this.jobId = null;
 			this.allocationId = null;
 
@@ -304,5 +320,24 @@ public class TaskSlot {
 	public String toString() {
 		return "TaskSlot(index:" + index + ", state:" + state + ", resource profile: " + resourceProfile +
 			", allocationId: " + (allocationId != null ? allocationId.toString() : "none") + ", jobId: " + (jobId != null ? jobId.toString() : "none") + ')';
+	}
+
+	@Override
+	public void close() {
+		verifyMemoryFreed();
+		this.memoryManager.shutdown();
+	}
+
+	private void verifyMemoryFreed() {
+		if (!memoryManager.verifyEmpty()) {
+			LOG.warn("Not all slot memory is freed, potential memory leak at {}", this);
+		}
+	}
+
+	private static MemoryManager createMemoryManager(ResourceProfile resourceProfile, int pageSize) {
+		Map<MemoryType, Long> memorySizeByType = new EnumMap<>(MemoryType.class);
+		memorySizeByType.put(MemoryType.HEAP, resourceProfile.getOnHeapManagedMemory().getBytes());
+		memorySizeByType.put(MemoryType.OFF_HEAP, resourceProfile.getOffHeapManagedMemory().getBytes());
+		return new MemoryManager(memorySizeByType, pageSize);
 	}
 }

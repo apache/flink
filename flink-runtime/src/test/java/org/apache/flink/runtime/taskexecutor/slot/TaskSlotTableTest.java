@@ -77,6 +77,7 @@ public class TaskSlotTableTest extends TestLogger {
 			assertThat(Sets.newHashSet(taskSlotTable.getActiveSlots(jobId1)), is(equalTo(new HashSet<>(Arrays.asList(allocationId2, allocationId1)))));
 		} finally {
 			taskSlotTable.stop();
+			assertThat(taskSlotTable.isStopped(), is(true));
 		}
 	}
 

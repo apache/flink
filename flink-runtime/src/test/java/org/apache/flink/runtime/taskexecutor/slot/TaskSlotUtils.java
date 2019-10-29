@@ -71,7 +71,7 @@ public enum TaskSlotUtils {
 	public static List<TaskSlot> createDefaultSlots(int numberOfSlots) {
 		return IntStream
 			.range(0, numberOfSlots)
-			.mapToObj(index -> new TaskSlot(index, DEFAULT_RESOURCE_PROFILE))
+			.mapToObj(index -> new TaskSlot(index, DEFAULT_RESOURCE_PROFILE, MemoryManager.MIN_PAGE_SIZE))
 			.collect(Collectors.toList());
 	}
 }
