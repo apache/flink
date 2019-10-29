@@ -24,20 +24,26 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.ml.common.model.ModelSource;
 import org.apache.flink.types.Row;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**
- * Adapt a {@link ModelMapper} to run within flink.
+ * A class that adapts a {@link ModelMapper} to a Flink {@link RichMapFunction} so the model can be
+ * loaded in a Flink job.
  *
  * <p>This adapter class hold the target {@link ModelMapper} and it's {@link ModelSource}. Upon open(),
  * it will load model rows from {@link ModelSource} into {@link ModelMapper}.
  */
-public class ModelMapperAdapter extends RichMapFunction<Row, Row> implements Serializable {
+public class ModelMapperAdapter extends RichMapFunction<Row, Row> {
 
 	private final ModelMapper mapper;
 	private final ModelSource modelSource;
 
+	/**
+	 * Construct a ModelMapperAdapter with the given ModelMapper and ModelSource.
+	 *
+	 * @param mapper The {@link ModelMapper} to adapt.
+	 * @param modelSource The {@link ModelSource} to load the model from.
+	 */
 	public ModelMapperAdapter(ModelMapper mapper, ModelSource modelSource) {
 		this.mapper = mapper;
 		this.modelSource = modelSource;
