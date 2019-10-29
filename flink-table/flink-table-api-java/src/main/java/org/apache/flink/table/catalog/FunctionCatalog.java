@@ -193,10 +193,18 @@ public class FunctionCatalog implements FunctionLookup {
 		);
 	}
 
+	/**
+	 * Get names of all user defined functions, including temp system functions, temp catalog functions and catalog functions
+	 * in the current catalog and current database.
+	 */
 	public String[] getUserDefinedFunctions() {
 		return getUserDefinedFunctionNames().toArray(new String[0]);
 	}
 
+	/**
+	 * Get names of all functions, including temp system functions, system functions, temp catalog functions and catalog functions
+	 * in the current catalog and current database.
+	 */
 	public String[] getFunctions() {
 		Set<String> result = getUserDefinedFunctionNames();
 
@@ -214,6 +222,8 @@ public class FunctionCatalog implements FunctionLookup {
 
 		// add temp catalog functions
 		result.addAll(tempCatalogFunctions.keySet().stream()
+			.filter(oi -> oi.getCatalogName().equals(catalogManager.getCurrentCatalog())
+				&& oi.getDatabaseName().equals(catalogManager.getCurrentDatabase()))
 			.map(oi -> oi.getObjectName())
 			.collect(Collectors.toSet())
 		);
