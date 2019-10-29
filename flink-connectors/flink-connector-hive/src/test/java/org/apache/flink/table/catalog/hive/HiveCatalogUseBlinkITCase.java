@@ -242,10 +242,10 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 		Assert.assertEquals(Arrays.asList("1,1,2,2", "2,2,4,4", "3,3,6,6"), results);
 	}
 
-	private static class JavaToScala implements MapFunction<Tuple2<Boolean,Row>, scala.Tuple2<Boolean,Row>> {
+	private static class JavaToScala implements MapFunction<Tuple2<Boolean, Row>, scala.Tuple2<Boolean, Row>> {
 
 		@Override
-		public scala.Tuple2<Boolean,Row> map(Tuple2<Boolean, Row> value) throws Exception {
+		public scala.Tuple2<Boolean, Row> map(Tuple2<Boolean, Row> value) throws Exception {
 			return new scala.Tuple2<>(value.f0, value.f1);
 		}
 	}
