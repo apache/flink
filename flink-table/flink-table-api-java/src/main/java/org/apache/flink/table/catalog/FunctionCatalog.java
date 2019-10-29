@@ -220,18 +220,21 @@ public class FunctionCatalog implements FunctionLookup {
 		// add temp system functions
 		result.addAll(tempSystemFunctions.keySet());
 
+		String currentCatalog = catalogManager.getCurrentCatalog();
+		String currentDatabase = catalogManager.getCurrentDatabase();
+
 		// add temp catalog functions
 		result.addAll(tempCatalogFunctions.keySet().stream()
-			.filter(oi -> oi.getCatalogName().equals(catalogManager.getCurrentCatalog())
-				&& oi.getDatabaseName().equals(catalogManager.getCurrentDatabase()))
+			.filter(oi -> oi.getCatalogName().equals(currentCatalog)
+				&& oi.getDatabaseName().equals(currentDatabase))
 			.map(oi -> oi.getObjectName())
 			.collect(Collectors.toSet())
 		);
 
 		// add catalog functions
-		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+		Catalog catalog = catalogManager.getCatalog(currentCatalog).get();
 		try {
-			result.addAll(catalog.listFunctions(catalogManager.getCurrentDatabase()));
+			result.addAll(catalog.listFunctions(currentDatabase));
 		} catch (DatabaseNotExistException e) {
 			// Ignore since there will always be a current database of the current catalog
 		}
