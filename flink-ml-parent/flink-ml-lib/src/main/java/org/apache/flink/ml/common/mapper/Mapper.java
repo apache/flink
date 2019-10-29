@@ -27,46 +27,56 @@ import org.apache.flink.types.Row;
 import java.io.Serializable;
 
 /**
- * Abstract class for mappers.
+ * Abstract class for mappers. A mapper takes one row as input and transform it into another row.
  */
 public abstract class Mapper implements Serializable {
 
 	/**
-	 * schema of the input.
+	 * Schema of the input rows.
 	 */
 	private final String[] dataFieldNames;
 	private final DataType[] dataFieldTypes;
 
 	/**
-	 * params used for Mapper.
-	 * User can set the params before that the Mapper is executed.
+	 * Parameters for the Mapper.
+	 * Users can set the params before the Mapper is executed.
 	 */
-	protected Params params;
+	protected final Params params;
 
+	/**
+	 * Construct a Mapper.
+	 *
+	 * @param dataSchema The schema of input rows.
+	 * @param params The parameters for this mapper.
+	 */
 	public Mapper(TableSchema dataSchema, Params params) {
 		this.dataFieldNames = dataSchema.getFieldNames();
 		this.dataFieldTypes = dataSchema.getFieldDataTypes();
 		this.params = (null == params) ? new Params() : params.clone();
 	}
 
+	/**
+	 * Get the schema of input rows.
+	 *
+	 * @return The schema of input rows.
+	 */
 	protected TableSchema getDataSchema() {
 		return TableSchema.builder().fields(dataFieldNames, dataFieldTypes).build();
 	}
 
 	/**
-	 * map operation method that maps a row to a new row.
+	 * Map a row to a new row.
 	 *
-	 * @param row the input Row type data
-	 * @return one Row type data
-	 * @throws Exception This method may throw exceptions. Throwing
-	 *                   an exception will cause the operation to fail.
+	 * @param row The input row.
+	 * @return A new row.
+	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation to fail.
 	 */
 	public abstract Row map(Row row) throws Exception;
 
 	/**
-	 * Get the table schema(includes column names and types) of the calculation result.
+	 * Get the schema of the output rows of {@link #map(Row)} method.
 	 *
-	 * @return the table schema of output Row type data
+	 * @return The table schema of the output rows of {@link #map(Row)} method.
 	 */
 	public abstract TableSchema getOutputSchema();
 

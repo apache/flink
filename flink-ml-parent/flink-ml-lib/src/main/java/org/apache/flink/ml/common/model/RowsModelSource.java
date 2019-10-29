@@ -34,6 +34,11 @@ public class RowsModelSource implements ModelSource {
 	 */
 	private final List<Row> modelRows;
 
+	/**
+	 * Construct a RowsModelSource with the given rows containing a model.
+	 *
+	 * @param modelRows The rows that contains a model.
+	 */
 	public RowsModelSource(List<Row> modelRows) {
 		this.modelRows = modelRows;
 	}

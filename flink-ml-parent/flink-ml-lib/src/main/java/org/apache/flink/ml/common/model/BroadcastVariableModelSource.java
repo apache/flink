@@ -34,6 +34,11 @@ public class BroadcastVariableModelSource implements ModelSource {
 	 */
 	private final String modelVariableName;
 
+	/**
+	 * Construct a BroadcastVariableModelSource.
+	 *
+	 * @param modelVariableName The name of the broadcast variable that hosts a BroadcastVariableModelSource.
+	 */
 	public BroadcastVariableModelSource(String modelVariableName) {
 		this.modelVariableName = modelVariableName;
 	}
