@@ -417,12 +417,15 @@ public abstract class SchedulerBase implements SchedulerNG {
 	@Override
 	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
 		final Optional<ExecutionVertexID> executionVertexId = getExecutionVertexId(taskExecutionState.getID());
-		if (executionVertexId.isPresent()) {
-			executionGraph.updateState(taskExecutionState);
+
+		boolean updateSuccess = executionGraph.updateState(taskExecutionState);
+
+		if (updateSuccess && executionVertexId.isPresent()) {
 			updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
 			return true;
+		} else {
+			return false;
 		}
-		return false;
 	}
 
 	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionState taskExecutionState) {
