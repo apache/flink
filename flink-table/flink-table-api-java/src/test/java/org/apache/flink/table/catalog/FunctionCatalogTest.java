@@ -21,21 +21,24 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -44,13 +47,18 @@ import static org.junit.Assert.assertTrue;
 public class FunctionCatalogTest {
 	private FunctionCatalog functionCatalog;
 	private Catalog catalog;
+	private ModuleManager moduleManager;
+
+	private final String testCatalogName = "test";
+
+	private static final String TEST_FUNCTION_NAME = "test_function";
 
 	@Before
 	public void init() throws DatabaseAlreadyExistException {
-		catalog = new GenericInMemoryCatalog("test");
-		catalog.createDatabase("test", new CatalogDatabaseImpl(Collections.EMPTY_MAP, null), false);
+		catalog = new GenericInMemoryCatalog(testCatalogName);
+		moduleManager = new ModuleManager();
 		functionCatalog = new FunctionCatalog(
-			new CatalogManager("test", catalog), new ModuleManager());
+			new CatalogManager(testCatalogName, catalog), moduleManager);
 	}
 
 	@Test
@@ -65,7 +73,7 @@ public class FunctionCatalogTest {
 
 	@Test
 	public void testPreciseFunctionReference() throws FunctionAlreadyExistException, DatabaseNotExistException {
-		ObjectIdentifier oi = ObjectIdentifier.of("test", "test", "test_function");
+		ObjectIdentifier oi = ObjectIdentifier.of(testCatalogName, GenericInMemoryCatalog.DEFAULT_DB, TEST_FUNCTION_NAME);
 
 		// test no function is found
 		assertFalse(functionCatalog.lookupFunction(FunctionIdentifier.of(oi)).isPresent());
@@ -79,7 +87,6 @@ public class FunctionCatalogTest {
 
 		assertFalse(result.getFunctionIdentifier().getSimpleName().isPresent());
 		assertEquals(oi, result.getFunctionIdentifier().getIdentifier().get());
-		assertNotNull(result.getFunctionDefinition());
 		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction1);
 
 		// test temp catalog function is found
@@ -92,8 +99,71 @@ public class FunctionCatalogTest {
 
 		assertFalse(result.getFunctionIdentifier().getSimpleName().isPresent());
 		assertEquals(oi, result.getFunctionIdentifier().getIdentifier().get());
-		assertNotNull(result.getFunctionDefinition());
 		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction2);
+	}
+
+	@Test
+	public void testAmbiguousFunctionReference() throws FunctionAlreadyExistException, DatabaseNotExistException, ModuleAlreadyExistException {
+		ObjectIdentifier oi = ObjectIdentifier.of(
+			testCatalogName,
+			GenericInMemoryCatalog.DEFAULT_DB,
+			TEST_FUNCTION_NAME);
+
+		// test no function is found
+		assertFalse(functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).isPresent());
+
+		// test catalog function is found
+		catalog.createFunction(
+			oi.toObjectPath(),
+			new CatalogFunctionImpl(TestFunction1.class.getName(), Collections.emptyMap()), false);
+
+		FunctionLookup.Result result = functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).get();
+
+		assertFalse(result.getFunctionIdentifier().getSimpleName().isPresent());
+		assertEquals(oi, result.getFunctionIdentifier().getIdentifier().get());
+		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction1);
+
+		// test temp catalog function is found
+		functionCatalog.registerTempCatalogScalarFunction(
+			oi,
+			new TestFunction2()
+		);
+
+		result = functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).get();
+
+		assertFalse(result.getFunctionIdentifier().getSimpleName().isPresent());
+		assertEquals(oi, result.getFunctionIdentifier().getIdentifier().get());
+		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction2);
+
+		// test system function is found
+		moduleManager.loadModule("test_module", new TestModule());
+
+		result = functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).get();
+
+		assertEquals(TEST_FUNCTION_NAME, result.getFunctionIdentifier().getSimpleName().get());
+		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction3);
+
+		// test temp system function is found
+		functionCatalog.registerTempSystemScalarFunction(TEST_FUNCTION_NAME, new TestFunction4());
+
+		result = functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).get();
+
+		assertEquals(TEST_FUNCTION_NAME, result.getFunctionIdentifier().getSimpleName().get());
+		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction4);
+	}
+
+	private static class TestModule implements Module {
+		@Override
+		public Set<String> listFunctions() {
+			return new HashSet<String>() {{
+				add(TEST_FUNCTION_NAME);
+			}};
+		}
+
+		@Override
+		public Optional<FunctionDefinition> getFunctionDefinition(String name) {
+			return Optional.of(new ScalarFunctionDefinition(TEST_FUNCTION_NAME, new TestFunction3()));
+		}
 	}
 
 	/**
@@ -107,6 +177,20 @@ public class FunctionCatalogTest {
 	 * Testing function.
 	 */
 	public static class TestFunction2 extends ScalarFunction {
+
+	}
+
+	/**
+	 * Testing function.
+	 */
+	public static class TestFunction3 extends ScalarFunction {
+
+	}
+
+	/**
+	 * Testing function.
+	 */
+	public static class TestFunction4 extends ScalarFunction {
 
 	}
 }
