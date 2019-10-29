@@ -60,9 +60,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.compareKeyedState;
@@ -212,10 +214,10 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		store.shutdown(JobStatus.SUSPENDED);
 
 		// restore the store
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+		Set<ExecutionJobVertex> tasks = new HashSet<>();
 
-		tasks.put(jobVertexID1, jobVertex1);
-		tasks.put(jobVertexID2, jobVertex2);
+		tasks.add(jobVertex1);
+		tasks.add(jobVertex2);
 
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 
@@ -273,9 +275,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			ExecutionJobVertex stateless = mockExecutionJobVertex(statelessId,
 				new ExecutionVertex[] { stateless1 });
 
-			Map<JobVertexID, ExecutionJobVertex> map = new HashMap<JobVertexID, ExecutionJobVertex>();
-			map.put(statefulId, stateful);
-			map.put(statelessId, stateless);
+			Set<ExecutionJobVertex> tasks = new HashSet<>();
+			tasks.add(stateful);
+			tasks.add(stateless);
 
 			CompletedCheckpointStore store = new RecoverableCompletedCheckpointStore(2);
 
@@ -357,7 +359,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			assertNotNull(savepointFuture.get());
 
 			//restore and jump the latest savepoint
-			coord.restoreLatestCheckpointedState(map, true, false);
+			coord.restoreLatestCheckpointedState(tasks, true, false);
 
 			//compare and see if it used the checkpoint's subtaskStates
 			BaseMatcher<JobManagerTaskRestore> matcher = new BaseMatcher<JobManagerTaskRestore>() {
@@ -516,7 +518,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		assertEquals(1, completedCheckpoints.size());
 
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+		Set<ExecutionJobVertex> tasks = new HashSet<>();
 
 		List<KeyGroupRange> newKeyGroupPartitions2 =
 			StateAssignmentOperation.createKeyGroupPartitions(maxParallelism2, newParallelism2);
@@ -532,8 +534,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			newParallelism2,
 			maxParallelism2);
 
-		tasks.put(jobVertexID1, newJobVertex1);
-		tasks.put(jobVertexID2, newJobVertex2);
+		tasks.add(newJobVertex1);
+		tasks.add(newJobVertex2);
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		// verify the restored state
@@ -679,7 +681,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		assertEquals(1, completedCheckpoints.size());
 
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+		Set<ExecutionJobVertex> tasks = new HashSet<>();
 
 		int newMaxParallelism1 = 20;
 		int newMaxParallelism2 = 42;
@@ -694,8 +696,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			parallelism2,
 			newMaxParallelism2);
 
-		tasks.put(jobVertexID1, newJobVertex1);
-		tasks.put(jobVertexID2, newJobVertex2);
+		tasks.add(newJobVertex1);
+		tasks.add(newJobVertex2);
 
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 
@@ -846,10 +848,10 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			newParallelism2,
 			maxParallelism2);
 
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+		Set<ExecutionJobVertex> tasks = new HashSet<>();
 
-		tasks.put(id5.f0, newJobVertex1);
-		tasks.put(id3.f0, newJobVertex2);
+		tasks.add(newJobVertex1);
+		tasks.add(newJobVertex2);
 
 		JobID jobID = new JobID();
 		StandaloneCompletedCheckpointStore standaloneCompletedCheckpointStore =

@@ -46,9 +46,11 @@ import org.mockito.hamcrest.MockitoHamcrest;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -108,9 +110,9 @@ public class CheckpointStateRestoreTest {
 			ExecutionJobVertex stateless = mockExecutionJobVertex(statelessId,
 					new ExecutionVertex[] { stateless1, stateless2 });
 
-			Map<JobVertexID, ExecutionJobVertex> map = new HashMap<JobVertexID, ExecutionJobVertex>();
-			map.put(statefulId, stateful);
-			map.put(statelessId, stateless);
+			Set<ExecutionJobVertex> tasks = new HashSet<>();
+			tasks.add(stateful);
+			tasks.add(stateless);
 
 			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				200000L,
@@ -163,7 +165,7 @@ public class CheckpointStateRestoreTest {
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 
 			// let the coordinator inject the state
-			coord.restoreLatestCheckpointedState(map, true, false);
+			coord.restoreLatestCheckpointedState(tasks, true, false);
 
 			// verify that each stateful vertex got the state
 
@@ -222,7 +224,7 @@ public class CheckpointStateRestoreTest {
 				failureManager);
 
 			try {
-				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);
+				coord.restoreLatestCheckpointedState(Collections.emptySet(), true, false);
 				fail("this should throw an exception");
 			}
 			catch (IllegalStateException e) {
@@ -259,9 +261,9 @@ public class CheckpointStateRestoreTest {
 		ExecutionJobVertex jobVertex1 = mockExecutionJobVertex(jobVertexId1, new ExecutionVertex[] { vertex11, vertex12, vertex13 });
 		ExecutionJobVertex jobVertex2 = mockExecutionJobVertex(jobVertexId2, new ExecutionVertex[] { vertex21, vertex22 });
 
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
-		tasks.put(jobVertexId1, jobVertex1);
-		tasks.put(jobVertexId2, jobVertex2);
+		Set<ExecutionJobVertex> tasks = new HashSet<>();
+		tasks.add(jobVertex1);
+		tasks.add(jobVertex2);
 
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			Integer.MAX_VALUE,
