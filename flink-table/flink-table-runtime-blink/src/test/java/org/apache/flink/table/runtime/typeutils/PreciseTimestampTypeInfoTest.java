@@ -18,20 +18,33 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link BinaryStringTypeInfo}, {@link DecimalTypeInfo}.
- */
-public class InternalTypeInfoTest extends TypeInformationTestBase<TypeInformation<?>> {
+import org.junit.Assert;
+import org.junit.Test;
 
+/**
+ * Test for {@link PreciseTimestampTypeInfo}.
+ */
+public class PreciseTimestampTypeInfoTest extends TypeInformationTestBase<PreciseTimestampTypeInfo> {
 	@Override
-	protected TypeInformation[] getTestData() {
-		return new TypeInformation[] {
-				BinaryStringTypeInfo.INSTANCE,
-				new DecimalTypeInfo(5, 2),
-				new PreciseTimestampTypeInfo(3)
+	protected PreciseTimestampTypeInfo[] getTestData() {
+		return new PreciseTimestampTypeInfo[]{
+			new PreciseTimestampTypeInfo(9),
+			new PreciseTimestampTypeInfo(6),
+			new PreciseTimestampTypeInfo(3),
+			new PreciseTimestampTypeInfo(0)
 		};
+	}
+
+	@Test
+	public void testEquality() {
+		PreciseTimestampTypeInfo ti1 = new PreciseTimestampTypeInfo(9);
+		PreciseTimestampTypeInfo ti2 = new PreciseTimestampTypeInfo(9);
+		PreciseTimestampTypeInfo ti3 = new PreciseTimestampTypeInfo(3);
+
+		Assert.assertEquals(ti1, ti2);
+		Assert.assertEquals(ti1.hashCode(), ti2.hashCode());
+		Assert.assertNotEquals(ti1, ti3);
 	}
 }

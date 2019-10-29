@@ -18,20 +18,36 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.dataformat.PreciseTimestamp;
 
 /**
- * Test for {@link BinaryStringTypeInfo}, {@link DecimalTypeInfo}.
+ * Test for {@link PreciseTimestampSerializer}.
  */
-public class InternalTypeInfoTest extends TypeInformationTestBase<TypeInformation<?>> {
+public class PreciseTimestampSerializerTest extends SerializerTestBase<PreciseTimestamp> {
+	@Override
+	protected TypeSerializer<PreciseTimestamp> createSerializer() {
+		return new PreciseTimestampSerializer(3);
+	}
 
 	@Override
-	protected TypeInformation[] getTestData() {
-		return new TypeInformation[] {
-				BinaryStringTypeInfo.INSTANCE,
-				new DecimalTypeInfo(5, 2),
-				new PreciseTimestampTypeInfo(3)
+	protected int getLength() {
+		return -1;
+	}
+
+	@Override
+	protected Class<PreciseTimestamp> getTypeClass() {
+		return PreciseTimestamp.class;
+	}
+
+	@Override
+	protected PreciseTimestamp[] getTestData() {
+		return new PreciseTimestamp[] {
+			PreciseTimestamp.fromLong(1, 3),
+			PreciseTimestamp.fromLong(2, 3),
+			PreciseTimestamp.fromLong(3, 3),
+			PreciseTimestamp.fromLong(4, 3)
 		};
 	}
 }
