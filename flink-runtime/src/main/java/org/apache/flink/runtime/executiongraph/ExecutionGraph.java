@@ -1643,7 +1643,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			case FAILED:
 				// this deserialization is exception-free
 				accumulators = deserializeAccumulators(state);
-				attempt.markFailed(state.getError(userClassLoader), accumulators, state.getIOMetrics(), !isLegacyScheduling());
+				attempt.markFailed(state.getError(userClassLoader), accumulators, state.getIOMetrics());
 				return true;
 
 			default:

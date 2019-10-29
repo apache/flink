@@ -1041,17 +1041,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		processFail(t, true);
 	}
 
-	/**
-	 * @deprecated Only used in tests.
-	 */
-	@Deprecated
 	@VisibleForTesting
 	void markFailed(Throwable t, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
-		markFailed(t, userAccumulators, metrics, false);
-	}
-
-	void markFailed(Throwable t, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean fromSchedulerNg) {
-		processFail(t, true, userAccumulators, metrics, false, fromSchedulerNg);
+		processFail(t, true, userAccumulators, metrics, false);
 	}
 
 	@VisibleForTesting
@@ -1201,10 +1193,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	private void processFail(Throwable t, boolean isCallback) {
-		processFail(t, isCallback, null, null, true, false);
+		processFail(t, isCallback, null, null, true);
 	}
 
-	private void processFail(Throwable t, boolean isCallback, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean releasePartitions, boolean fromSchedulerNg) {
+	private void processFail(Throwable t, boolean isCallback, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean releasePartitions) {
 		// damn, we failed. This means only that we keep our books and notify our parent JobExecutionVertex
 		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
 
