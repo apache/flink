@@ -30,6 +30,8 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -90,6 +92,7 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -278,9 +281,36 @@ public abstract class SchedulerBase implements SchedulerNG {
 		}
 	}
 
-	protected void resetForNewExecutionIfInTerminalState(final Collection<ExecutionVertexID> verticesToDeploy) {
-		verticesToDeploy.forEach(executionVertexId -> getExecutionVertex(executionVertexId)
-			.resetForNewExecutionIfInTerminalState());
+	protected void resetForNewExecutions(final Collection<ExecutionVertexID> vertices) {
+		vertices.forEach(executionVertexId -> getExecutionVertex(executionVertexId)
+			.resetForNewExecution());
+	}
+
+	protected void restoreState(final Set<ExecutionVertexID> vertices) throws Exception {
+		// if there is checkpointed state, reload it into the executions
+		if (executionGraph.getCheckpointCoordinator() != null) {
+			// abort pending checkpoints to
+			// i) enable new checkpoint triggering without waiting for last checkpoint expired.
+			// ii) ensure the EXACTLY_ONCE semantics if needed.
+			executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(
+				new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
+
+			executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
+				getInvolvedExecutionJobVertices(vertices),
+				false,
+				true);
+		}
+	}
+
+	private Set<ExecutionJobVertex> getInvolvedExecutionJobVertices(
+			final Set<ExecutionVertexID> executionVertices) {
+
+		final Set<ExecutionJobVertex> tasks = new HashSet<>();
+		for (ExecutionVertexID executionVertexID : executionVertices) {
+			final ExecutionVertex executionVertex = getExecutionVertex(executionVertexID);
+			tasks.add(executionVertex.getJobVertex());
+		}
+		return tasks;
 	}
 
 	protected void transitionToScheduled(final Collection<ExecutionVertexID> verticesToDeploy) {

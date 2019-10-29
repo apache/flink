@@ -616,14 +616,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	public void resetForNewExecutionIfInTerminalState() {
-		if (isExecutionInTerminalState()) {
-			resetForNewExecutionInternal(System.currentTimeMillis(), getExecutionGraph().getGlobalModVersion());
-		}
-	}
-
-	private boolean isExecutionInTerminalState() {
-		return currentExecution.getState().isTerminal();
+	public void resetForNewExecution() {
+		resetForNewExecutionInternal(System.currentTimeMillis(), getExecutionGraph().getGlobalModVersion());
 	}
 
 	private Execution resetForNewExecutionInternal(final long timestamp, final long originatingGlobalModVersion) {

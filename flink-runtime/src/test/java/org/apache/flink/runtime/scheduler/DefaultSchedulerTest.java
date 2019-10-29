@@ -24,7 +24,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -40,8 +43,12 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
@@ -65,6 +72,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -386,6 +394,140 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		// v1 should not be affected
 		assertThat(sv1.getState(), is(equalTo(ExecutionState.SCHEDULED)));
+	}
+
+	@Test
+	public void abortPendingCheckpointsWhenRestartingTasks() {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		enableCheckpointing(jobGraph);
+
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
+		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.RUNNING));
+
+		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
+
+		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
+		assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints(), is(equalTo(1)));
+
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.FAILED));
+		taskRestartExecutor.triggerScheduledTasks();
+		assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints(), is(equalTo(0)));
+	}
+
+	@Test
+	public void restoreStateWhenRestartingTasks() throws Exception {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		enableCheckpointing(jobGraph);
+
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
+		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.RUNNING));
+
+		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
+
+		// register a stateful master hook to help verify state restore
+		final TestMasterHook masterHook = TestMasterHook.fromId("testHook");
+		checkpointCoordinator.addMasterHook(masterHook);
+
+		// complete one checkpoint for state restore
+		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
+		final long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
+		acknowledgePendingCheckpoint(scheduler, checkpointId);
+
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.FAILED));
+		taskRestartExecutor.triggerScheduledTasks();
+		assertThat(masterHook.getRestoreCount(), is(equalTo(1)));
+	}
+
+	@Test
+	public void failGlobalWhenRestoringStateFails() throws Exception {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
+		enableCheckpointing(jobGraph);
+
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
+		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.RUNNING));
+
+		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
+
+		// register a master hook to fail state restore
+		final TestMasterHook masterHook = TestMasterHook.fromId("testHook");
+		masterHook.enableFailOnRestore();
+		checkpointCoordinator.addMasterHook(masterHook);
+
+		// complete one checkpoint for state restore
+		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
+		final long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
+		acknowledgePendingCheckpoint(scheduler, checkpointId);
+
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.FAILED));
+		taskRestartExecutor.triggerScheduledTasks();
+		final List<ExecutionVertexID> deployedExecutionVertices = testExecutionVertexOperations.getDeployedVertices();
+
+		// the first task failover should be skipped on state restore failure
+		final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
+		assertThat(deployedExecutionVertices, contains(executionVertexId));
+
+		// a global failure should be triggered on state restore failure
+		masterHook.disableFailOnRestore();
+		taskRestartExecutor.triggerScheduledTasks();
+		assertThat(deployedExecutionVertices, contains(executionVertexId, executionVertexId));
+	}
+
+	private void acknowledgePendingCheckpoint(final SchedulerBase scheduler, final long checkpointId) throws Exception {
+		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
+
+		for (ArchivedExecutionVertex executionVertex : scheduler.requestJob().getAllExecutionVertices()) {
+			final ExecutionAttemptID attemptId = executionVertex.getCurrentExecutionAttempt().getAttemptId();
+			final AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				scheduler.getJobGraph().getJobID(),
+				attemptId,
+				checkpointId);
+			checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "Unknown location");
+		}
+	}
+
+	private void enableCheckpointing(final JobGraph jobGraph) {
+		final List<JobVertexID> triggerVertices = new ArrayList<>();
+		final List<JobVertexID> ackVertices = new ArrayList<>();
+		final List<JobVertexID> commitVertices = new ArrayList<>();
+
+		for (JobVertex vertex : jobGraph.getVertices()) {
+			if (vertex.isInputVertex()) {
+				triggerVertices.add(vertex.getID());
+			}
+			commitVertices.add(vertex.getID());
+			ackVertices.add(vertex.getID());
+		}
+
+		jobGraph.setSnapshotSettings(
+			new JobCheckpointingSettings(
+				triggerVertices,
+				ackVertices,
+				commitVertices,
+				new CheckpointCoordinatorConfiguration(
+					Long.MAX_VALUE, // disable periodical checkpointing
+					10 * 60 * 1000,
+					0,
+					1,
+					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+					false,
+					false,
+					0),
+				null));
+	}
+
+	private CheckpointCoordinator getCheckpointCoordinator(final SchedulerBase scheduler) {
+		// TODO: get CheckpointCoordinator from the scheduler directly after it is factored out from ExecutionGraph
+		return scheduler.getExecutionGraph().getCheckpointCoordinator();
 	}
 
 	private void waitForTermination(final DefaultScheduler scheduler) throws Exception {
