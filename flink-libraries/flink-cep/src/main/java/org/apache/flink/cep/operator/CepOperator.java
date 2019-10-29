@@ -292,12 +292,7 @@ public class CepOperator<IN, KEY, OUT>
 			elementsForTimestamp = new ArrayList<>();
 		}
 
-		if (getExecutionConfig().isObjectReuseEnabled()) {
-			// copy the StreamRecord so that it cannot be changed
-			elementsForTimestamp.add(inputSerializer.copy(event));
-		} else {
-			elementsForTimestamp.add(event);
-		}
+		elementsForTimestamp.add(event);
 		elementQueueState.put(currentTime, elementsForTimestamp);
 	}
 
