@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
@@ -64,6 +65,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +94,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -120,6 +122,7 @@ import static org.junit.Assert.assertThat;
  *   lost results.
  * </ul>
  */
+@RunWith(Parameterized.class)
 public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(BatchFineGrainedRecoveryITCase.class);
 
@@ -177,11 +180,22 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
 	private static GlobalMapFailureTracker failureTracker;
 
+	@Parameterized.Parameter
+	public String failoverStrategyName;
+
+	@Parameterized.Parameters(name = "[{index}] failover strategy: {0}")
+	public static Object[] failoverStrategies() {
+		return new Object[] {
+			FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME,
+			FailoverStrategyLoader.FAST_PIPELINED_REGION_RESTART_STRATEGY_NAME
+		};
+	}
+
 	@SuppressWarnings("OverlyBroadThrowsClause")
 	@Before
 	public void setup() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, PIPELINED_REGION_RESTART_STRATEGY_NAME);
+		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, failoverStrategyName);
 
 		miniCluster = new TestingMiniCluster(
 			new Builder()

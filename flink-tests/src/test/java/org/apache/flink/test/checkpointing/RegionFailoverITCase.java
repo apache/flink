@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.restart.FailingRestartStrategy;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
@@ -64,6 +65,10 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -83,6 +88,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for region failover with multi regions.
  */
+@RunWith(Parameterized.class)
 public class RegionFailoverITCase extends TestLogger {
 
 	private static final int FAIL_BASE = 1000;
@@ -109,10 +115,21 @@ public class RegionFailoverITCase extends TestLogger {
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
+	@Parameter
+	public String failoverStrategyName;
+
+	@Parameters(name = "[{index}] failover strategy: {0}")
+	public static Object[] failoverStrategies() {
+		return new Object[] {
+			FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME,
+			FailoverStrategyLoader.FAST_PIPELINED_REGION_RESTART_STRATEGY_NAME
+		};
+	}
+
 	@Before
 	public void setup() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, failoverStrategyName);
 		configuration.setString(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
 		// global failover times: 3, region failover times: NUM_OF_RESTARTS
