@@ -250,51 +250,7 @@ public class FunctionCatalog implements FunctionLookup {
 			return resolvePreciseFunctionReference(identifier.getIdentifier().get());
 		} else {
 			// ambiguous function reference
-
-			String functionName = identifier.getSimpleName().get();
-
-			FunctionDefinition userCandidate;
-
-			Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
-			try {
-				CatalogFunction catalogFunction = catalog.getFunction(
-					new ObjectPath(catalogManager.getCurrentDatabase(), functionName)
-				);
-
-				if (catalog.getFunctionDefinitionFactory().isPresent()) {
-					userCandidate = catalog.getFunctionDefinitionFactory().get().createFunctionDefinition(functionName, catalogFunction);
-				} else {
-					userCandidate = FunctionDefinitionUtil.createFunctionDefinition(functionName, catalogFunction);
-				}
-
-				return Optional.of(
-					new FunctionLookup.Result(
-						FunctionIdentifier.of(
-							ObjectIdentifier.of(
-								catalogManager.getCurrentCatalog(),
-								catalogManager.getCurrentDatabase(),
-								functionName)),
-						userCandidate)
-				);
-
-			} catch (FunctionNotExistException e) {
-				// ignore
-			}
-
-			// If no corresponding function is found in catalog, check in-memory functions
-			userCandidate = tempSystemFunctions.get(functionName);
-
-			final Optional<FunctionDefinition> foundDefinition;
-			if (userCandidate != null) {
-				foundDefinition = Optional.of(userCandidate);
-			} else {
-				foundDefinition = moduleManager.getFunctionDefinition(functionName);
-			}
-
-			return foundDefinition.map(d -> new FunctionLookup.Result(
-				FunctionIdentifier.of(identifier.getSimpleName().get()),
-				d)
-			);
+			return resolveAmbiguousFunctionReference(identifier.getSimpleName().get());
 		}
 	}
 
@@ -339,7 +295,31 @@ public class FunctionCatalog implements FunctionLookup {
 		return Optional.empty();
 	}
 
-	@Override
+	private Optional<FunctionLookup.Result> resolveAmbiguousFunctionReference(String funcName) {
+		// resolve order:
+		// 1. Temporary system functions
+		// 2. System functions
+		// 3. Temporary catalog functions
+		// 4. Catalog functions
+
+		if (tempSystemFunctions.containsKey(funcName)) {
+			return Optional.of(
+				new FunctionLookup.Result(FunctionIdentifier.of(funcName), tempSystemFunctions.get(funcName))
+			);
+		}
+
+		Optional<FunctionDefinition> candidate = moduleManager.getFunctionDefinition(funcName);
+		if (candidate.isPresent()) {
+			return Optional.of(
+				new FunctionLookup.Result(FunctionIdentifier.of(funcName), candidate.get())
+			);
+		}
+
+		return resolvePreciseFunctionReference(
+			ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), funcName));
+	}
+
+		@Override
 	public PlannerTypeInferenceUtil getPlannerTypeInferenceUtil() {
 		Preconditions.checkNotNull(
 			plannerTypeInferenceUtil,
