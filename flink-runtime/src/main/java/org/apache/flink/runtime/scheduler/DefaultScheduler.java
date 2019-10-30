@@ -141,7 +141,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		this.executionFailureHandler = new ExecutionFailureHandler(
 			getFailoverTopology(),
-			failoverStrategyFactory.create(getFailoverTopology()),
+			failoverStrategyFactory.create(getFailoverTopology(), getResultPartitionAvailabilityChecker()),
 			restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology(), getJobGraph());
 		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getInputsLocationsRetriever());

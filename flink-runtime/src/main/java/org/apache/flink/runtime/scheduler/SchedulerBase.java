@@ -51,6 +51,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
+import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyResolving;
@@ -333,6 +334,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	protected final SchedulingTopology<?, ?> getSchedulingTopology() {
 		return schedulingTopology;
+	}
+
+	protected final ResultPartitionAvailabilityChecker getResultPartitionAvailabilityChecker() {
+		return getExecutionGraph().getResultPartitionAvailabilityChecker();
 	}
 
 	protected final InputsLocationsRetriever getInputsLocationsRetriever() {
