@@ -267,8 +267,11 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	public static class Factory implements FailoverStrategy.Factory {
 
 		@Override
-		public FailoverStrategy create(final FailoverTopology<?, ?> topology) {
-			return new RestartPipelinedRegionStrategy(topology);
+		public FailoverStrategy create(
+				final FailoverTopology<?, ?> topology,
+				final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
+
+			return new RestartPipelinedRegionStrategy(topology, resultPartitionAvailabilityChecker);
 		}
 	}
 }
