@@ -25,9 +25,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
-import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_HOUR;
-import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_MINUTE;
-import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_SECOND;
 import static org.apache.calcite.avatica.util.DateTimeUtils.unixTimestamp;
 
 /**
