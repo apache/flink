@@ -102,7 +102,7 @@ public class Timestamp implements Comparable<Timestamp> {
 	}
 
 	/**
-	 * Obtains an instance of {@code Timestamp} from a millisecond.
+	 * Obtains an instance of {@code Timestamp} from a millisecond and a nanoOfMillisecond.
 	 *
 	 * <p>This returns a {@code Timestamp} with the specified millisecond and nanoOfMillisecond.
 	 *
