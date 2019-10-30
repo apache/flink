@@ -315,20 +315,22 @@ class MatchCodeGenerator(
         val baseClass = classOf[RichIterativeCondition[_]]
         val inputTypeTerm = boxedTypeTermForTypeInfo(input)
         val contextType = classOf[IterativeCondition.Context[_]].getCanonicalName
-
+        // declaration: make variable accessible for separated methods
+        reusableMemberStatements.add(s"private $inputTypeTerm $input1Term;")
         (baseClass,
           s"boolean filter(Object _in1, $contextType $contextTerm)",
-          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
+          List(s"$input1Term = ($inputTypeTerm) _in1;"))
       } else if (clazz == classOf[PatternProcessFunction[_, _]]) {
         val baseClass = classOf[PatternProcessFunction[_, _]]
         val inputTypeTerm =
           s"java.util.Map<String, java.util.List<${boxedTypeTermForTypeInfo(input)}>>"
         val contextTypeTerm = classOf[PatternProcessFunction.Context].getCanonicalName
-
+        // declaration: make variable accessible for separated method
+        reusableMemberStatements.add(s"private $inputTypeTerm $input1Term;")
         (baseClass,
-          s"void processMatch($inputTypeTerm $input1Term, $contextTypeTerm $contextTerm, " +
+          s"void processMatch($inputTypeTerm _in1, $contextTypeTerm $contextTerm, " +
             s"$collectorTypeTerm $collectorTerm)",
-          List())
+          List(s"this.$input1Term = ($inputTypeTerm) _in1;"))
       } else {
         throw new CodeGenException("Unsupported Function.")
       }
@@ -432,7 +434,7 @@ class MatchCodeGenerator(
       returnType.fieldNames)
     aggregatesPerVariable.values.foreach(_.generateAggFunction())
     if (hasCodeSplits) {
-      makeReusableInSplits(reusableAggregationExpr.values)
+      makeReusableInSplits()
     }
 
     exp
@@ -442,10 +444,16 @@ class MatchCodeGenerator(
     val exp = call.accept(this)
     aggregatesPerVariable.values.foreach(_.generateAggFunction())
     if (hasCodeSplits) {
-      makeReusableInSplits(reusableAggregationExpr.values)
+      makeReusableInSplits()
     }
 
     exp
+  }
+
+  private def makeReusableInSplits(): Unit = {
+    reusableAggregationExpr.keys.foreach(
+      key =>
+        reusableAggregationExpr(key) = makeReusableInSplits(reusableAggregationExpr(key)))
   }
 
   override def visitCall(call: RexCall): GeneratedExpression = {
@@ -537,11 +545,13 @@ class MatchCodeGenerator(
     } else {
       ""
     }
+
+    reusableMemberStatements.add(s"java.util.List $listName = new java.util.ArrayList();")
     val listCode = if (patternName == ALL_PATTERN_VARIABLE) {
       addReusablePatternNames()
       val patternTerm = newName("pattern")
       j"""
-         |java.util.List $listName = new java.util.ArrayList();
+         |$listName = new java.util.ArrayList();
          |for (String $patternTerm : $patternNamesTerm) {
          |  for ($eventTypeTerm $eventNameTerm :
          |  $contextTerm.getEventsForPattern($patternTerm)) {
@@ -552,7 +562,7 @@ class MatchCodeGenerator(
     } else {
       val escapedPatternName = EncodingUtils.escapeJava(patternName)
       j"""
-         |java.util.List $listName = new java.util.ArrayList();
+         |$listName = new java.util.ArrayList();
          |for ($eventTypeTerm $eventNameTerm :
          |  $contextTerm.getEventsForPattern("$escapedPatternName")) {
          |    $listName.add($eventNameTerm);
@@ -572,13 +582,14 @@ class MatchCodeGenerator(
   private def generateMeasurePatternVariableExp(patternName: String): GeneratedPatternList = {
     val listName = newName("patternEvents")
 
+    reusableMemberStatements.add(s"java.util.List $listName = new java.util.ArrayList();")
     val code = if (patternName == ALL_PATTERN_VARIABLE) {
       addReusablePatternNames()
 
       val patternTerm = newName("pattern")
 
       j"""
-         |java.util.List $listName = new java.util.ArrayList();
+         |$listName = new java.util.ArrayList();
          |for (String $patternTerm : $patternNamesTerm) {
          |  java.util.List rows = (java.util.List) $input1Term.get($patternTerm);
          |  if (rows != null) {
@@ -589,7 +600,7 @@ class MatchCodeGenerator(
     } else {
       val escapedPatternName = EncodingUtils.escapeJava(patternName)
       j"""
-         |java.util.List $listName = (java.util.List) $input1Term.get("$escapedPatternName");
+         |$listName = (java.util.List) $input1Term.get("$escapedPatternName");
          |if ($listName == null) {
          |  $listName = java.util.Collections.emptyList();
          |}
