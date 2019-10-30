@@ -39,15 +39,6 @@ import static org.apache.calcite.avatica.util.DateTimeUtils.unixTimestamp;
  */
 public class Timestamp implements Comparable<Timestamp> {
 
-	// nanos per second
-	public static final long NANOS_PER_SECOND = 1000_000_000L;
-
-	// nanos per minute
-	public static final long NANOS_PER_MINUTE = NANOS_PER_SECOND * 60;
-
-	// nanos per second
-	public static final long NANOS_PER_HOUR = NANOS_PER_MINUTE * 60;
-
 	// this field holds the integral second and the milli-of-second
 	private final long millisecond;
 
@@ -107,13 +98,10 @@ public class Timestamp implements Comparable<Timestamp> {
 	 * @param millisecond the number of milliseconds since January 1, 1970, 00:00:00 GMT
 	 *                    A negative number is the number of milliseconds before
 	 *                    January 1, 1970, 00:00:00 GMT
-	 * @param precision the precision of fractional seconds
 	 * @return an instance of {@code Timestamp}
 	 */
-	public static Timestamp fromLong(long millisecond, int precision) {
-		long milli = isCompact(precision) ?
-			zeroLastNDigits(millisecond, 3 - precision) : millisecond;
-		return new Timestamp(milli, 0);
+	public static Timestamp fromLong(long millisecond) {
+		return new Timestamp(millisecond, 0);
 	}
 
 	/**
@@ -131,11 +119,10 @@ public class Timestamp implements Comparable<Timestamp> {
 	 * <p>This returns a {@code Timestamp} with the specified {@link java.sql.Timestamp}.
 	 *
 	 * @param ts an instance of {@link java.sql.Timestamp}
-	 * @param precision the precision of fractional seconds
 	 * @return an instance of {@code Timestamp}
 	 */
-	public static Timestamp fromTimestamp(java.sql.Timestamp ts, int precision) {
-		return fromLocalDateTime(ts.toLocalDateTime(), precision);
+	public static Timestamp fromTimestamp(java.sql.Timestamp ts) {
+		return fromLocalDateTime(ts.toLocalDateTime());
 	}
 
 	/**
@@ -150,20 +137,7 @@ public class Timestamp implements Comparable<Timestamp> {
 			--date;
 			time += MILLIS_PER_DAY;
 		}
-
-		int hour = time / (int) MILLIS_PER_HOUR;
-		int time2 = time % (int) MILLIS_PER_HOUR;
-		int minute = time2 / (int) MILLIS_PER_MINUTE;
-		int time3 = time2 % (int) MILLIS_PER_MINUTE;
-		int second = time3 / (int) MILLIS_PER_SECOND;
-		int nano = time3 % (int) MILLIS_PER_SECOND * 1_000_000;
-
-		long nanoOfDay = hour * NANOS_PER_HOUR +
-			minute * NANOS_PER_MINUTE +
-			second * NANOS_PER_SECOND +
-			nano +
-			nanoOfMillisecond;
-
+		long nanoOfDay = time * 1_000_000L + nanoOfMillisecond;
 		LocalDate localDate = LocalDate.ofEpochDay(date);
 		LocalTime localTime = LocalTime.ofNanoOfDay(nanoOfDay);
 		return LocalDateTime.of(localDate, localTime);
@@ -175,11 +149,10 @@ public class Timestamp implements Comparable<Timestamp> {
 	 * <p>This returns a {@code Timestamp} with the specified {@link LocalDateTime}.
 	 *
 	 * @param dateTime an instance of {@link LocalDateTime}
-	 * @param precision the precision of fractional seconds
 	 * @return an instance of {@code Timestamp}
 	 */
-	public static Timestamp fromLocalDateTime(LocalDateTime dateTime, int precision) {
-		int nano = (int) zeroLastNDigits((long) dateTime.getNano(), 9 - precision);
+	public static Timestamp fromLocalDateTime(LocalDateTime dateTime) {
+		int nano = dateTime.getNano();
 		long millis = unixTimestamp(
 			dateTime.getYear(),
 			dateTime.getMonthValue(),
@@ -193,10 +166,5 @@ public class Timestamp implements Comparable<Timestamp> {
 
 	public static boolean isCompact(int precision) {
 		return precision <= 3;
-	}
-
-	private static long zeroLastNDigits(long number, int n) {
-		long tenToTheN = (long) Math.pow(10, n);
-		return (number / tenToTheN) * tenToTheN;
 	}
 }

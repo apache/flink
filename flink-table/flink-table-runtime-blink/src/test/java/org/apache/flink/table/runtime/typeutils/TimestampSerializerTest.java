@@ -22,18 +22,38 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.Timestamp;
 
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
+
 /**
  * Test for {@link TimestampSerializer}.
  */
+@RunWith(Parameterized.class)
 public class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
+
+	@Parameterized.Parameters
+	public static Collection<Object[]> data(){
+		return Arrays.asList(new Object[][]{{0}, {3}, {6}, {9}});
+	}
+
+	private int precision;
+
+	public TimestampSerializerTest(int precision) {
+		super();
+		this.precision = precision;
+	}
+
 	@Override
 	protected TypeSerializer<Timestamp> createSerializer() {
-		return new TimestampSerializer(3);
+		return new TimestampSerializer(precision);
 	}
 
 	@Override
 	protected int getLength() {
-		return 8;
+		return (precision <= 3) ? 8 : 12;
 	}
 
 	@Override
@@ -44,10 +64,10 @@ public class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
 	@Override
 	protected Timestamp[] getTestData() {
 		return new Timestamp[] {
-			Timestamp.fromLong(1, 3),
-			Timestamp.fromLong(2, 3),
-			Timestamp.fromLong(3, 3),
-			Timestamp.fromLong(4, 3)
+			Timestamp.fromLong(1),
+			Timestamp.fromLong(2),
+			Timestamp.fromLong(3),
+			Timestamp.fromLong(4)
 		};
 	}
 }

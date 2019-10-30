@@ -52,7 +52,7 @@ public class TimestampSerializer extends TypeSerializer<Timestamp> {
 
 	@Override
 	public Timestamp createInstance() {
-		return Timestamp.fromLong(0, precision);
+		return Timestamp.fromLong(0);
 	}
 
 	@Override
