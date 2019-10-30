@@ -27,7 +27,6 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -108,7 +107,11 @@ public class FunctionCatalogTest {
 	}
 
 	@Test
-	public void testAmbiguousFunctionReference() throws FunctionAlreadyExistException, DatabaseNotExistException, ModuleAlreadyExistException {
+	public void testAmbiguousFunctionReference() throws FunctionAlreadyExistException, DatabaseNotExistException {
+		ObjectIdentifier oi = ObjectIdentifier.of(
+			testCatalogName,
+			GenericInMemoryCatalog.DEFAULT_DB,
+			TEST_FUNCTION_NAME);
 
 		// test no function is found
 		assertFalse(functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).isPresent());
