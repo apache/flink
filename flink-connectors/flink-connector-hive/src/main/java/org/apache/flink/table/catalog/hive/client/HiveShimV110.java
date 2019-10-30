@@ -36,6 +36,7 @@ import org.apache.hadoop.mapred.Reporter;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Shim for Hive version 1.1.0.
@@ -72,5 +73,12 @@ public class HiveShimV110 extends HiveShimV101 {
 		} catch (Exception e) {
 			throw new CatalogException("Failed to get table schema from deserializer", e);
 		}
+	}
+
+	@Override
+	public Set<String> listBuiltInFunctions() {
+		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
+		// prior to Hive 1.2.0
+		throw new UnsupportedOperationException("Listing built in functions are not supported until Hive 1.2.0");
 	}
 }

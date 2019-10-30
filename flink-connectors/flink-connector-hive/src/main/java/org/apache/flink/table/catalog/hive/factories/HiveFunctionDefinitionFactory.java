@@ -72,6 +72,7 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 
 	/**
 	 * Create a FunctionDefinition from a Hive function's class name.
+	 * Called directly by {@link org.apache.flink.table.module.hive.HiveModule}.
 	 */
 	public FunctionDefinition createFunctionDefinitionFromHiveFunction(String name, String functionClassName) {
 		Class clazz;

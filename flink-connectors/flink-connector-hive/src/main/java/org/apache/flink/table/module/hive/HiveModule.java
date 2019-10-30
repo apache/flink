@@ -19,6 +19,7 @@
 package org.apache.flink.table.module.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -30,7 +31,10 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
 
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
+
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V1_1_0;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V1_1_1;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Module to provide Hive built-in metadata.
@@ -38,16 +42,22 @@ import java.util.stream.Collectors;
 public class HiveModule implements Module {
 
 	private final HiveFunctionDefinitionFactory factory;
+	private final HiveShim hiveShim;
 
 	public HiveModule(String hiveVersion) {
-		this.factory = new HiveFunctionDefinitionFactory(HiveShimLoader.loadHiveShim(hiveVersion));
+		// Fail early to warn users
+		// Should be re-evaluated if metadata other than Hive built-in functions are supported
+		checkArgument(!(hiveVersion.equals(HIVE_VERSION_V1_1_0) || hiveVersion.equals(HIVE_VERSION_V1_1_1)),
+			"HiveModule is not supported for versions prior to 1.2.0, " +
+				"since Hive cannot list built-in functions before 1.2.0.");
+
+		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+		this.factory = new HiveFunctionDefinitionFactory(hiveShim);
 	}
 
 	@Override
 	public Set<String> listFunctions() {
-		return FunctionRegistry.getFunctionNames().stream()
-			.filter(n -> getFunctionInfo(n).isBuiltIn())
-			.collect(Collectors.toSet());
+		return hiveShim.listBuiltInFunctions();
 	}
 
 	@Override

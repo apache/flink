@@ -48,6 +48,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * A shim layer to support different versions of Hive.
@@ -200,4 +201,8 @@ public interface HiveShim extends Serializable {
 	 */
 	List<FieldSchema> getFieldsFromDeserializer(Configuration conf, Table table, boolean skipConfError);
 
+	/**
+	 * List names of all built-in functions.
+	 */
+	Set<String> listBuiltInFunctions();
 }

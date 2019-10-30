@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
@@ -31,6 +32,9 @@ import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.thrift.TException;
@@ -38,6 +42,8 @@ import org.apache.thrift.TException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Shim for Hive version 1.2.0.
@@ -166,6 +172,30 @@ public class HiveShimV120 extends HiveShimV111 {
 			return new CatalogColumnStatisticsDataDate(new Date(lowDateDays), new Date(highDateDays), numDV, numNull);
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new CatalogException("Failed to create Flink statistics for date column", e);
+		}
+	}
+
+	@Override
+	public Set<String> listBuiltInFunctions() {
+		try {
+			Method method = FunctionRegistry.class.getMethod("getFunctionNames");
+			// makeSpecFromName is a static method
+			Set<String> names = (Set<String>) method.invoke(null);
+
+			return names.stream()
+				.filter(n -> getFunctionInfo(n).isBuiltIn())
+				.collect(Collectors.toSet());
+		} catch (Exception ex) {
+			throw new CatalogException("Failed to invoke Warehouse.makeSpecFromName()", ex);
+		}
+	}
+
+	private FunctionInfo getFunctionInfo(String name) {
+		try {
+			return FunctionRegistry.getFunctionInfo(name);
+		} catch (SemanticException e) {
+			throw new FlinkHiveException(
+				String.format("Failed getting function info for %s", name), e);
 		}
 	}
 }

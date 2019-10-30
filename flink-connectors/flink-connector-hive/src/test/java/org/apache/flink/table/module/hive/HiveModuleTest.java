@@ -18,6 +18,7 @@
 package org.apache.flink.table.module.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
@@ -26,7 +27,14 @@ import org.apache.flink.table.types.DataType;
 
 import org.junit.Test;
 
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V1_2_0;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_0_0;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_1_1;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_2_0;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_4;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Test for {@link HiveModule}.
@@ -34,14 +42,25 @@ import static org.junit.Assert.assertEquals;
 public class HiveModuleTest {
 	@Test
 	public void testNumberOfBuiltinFunctions() {
-		assertEquals(287, new HiveModule("1.2.0").listFunctions().size());
-		assertEquals(287, new HiveModule("2.1.1").listFunctions().size());
-		assertEquals(287, new HiveModule("3.1.2").listFunctions().size());
+		String hiveVersion = HiveShimLoader.getHiveVersion();
+
+		assumeTrue(hiveVersion.equals(HIVE_VERSION_V1_2_0));
+		assertEquals(232, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+
+		assumeTrue(hiveVersion.equals(HIVE_VERSION_V2_0_0));
+		assertEquals(243, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+
+		assumeTrue(hiveVersion.equals(HIVE_VERSION_V2_1_1)
+			|| hiveVersion.equals(HIVE_VERSION_V2_2_0));
+		assertEquals(253, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+
+		assumeTrue(hiveVersion.equals(HIVE_VERSION_V2_3_4) || hiveVersion.equals(HIVE_VERSION_V3_1_1));
+		assertEquals(287, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
 	}
 
 	@Test
 	public void testHiveBuiltInFunction() {
-		FunctionDefinition fd = new HiveModule("2.1.1").getFunctionDefinition("reverse").get();
+		FunctionDefinition fd = new HiveModule(HiveShimLoader.getHiveVersion()).getFunctionDefinition("reverse").get();
 
 		ScalarFunction func = ((ScalarFunctionDefinition) fd).getScalarFunction();
 		HiveSimpleUDF udf = (HiveSimpleUDF) func;
