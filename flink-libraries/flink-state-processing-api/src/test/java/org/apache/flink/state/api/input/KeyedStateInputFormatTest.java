@@ -145,10 +145,10 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new TimeReaderFunction());
+		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new TimerReaderFunction());
 		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
-		KeyedStateReaderFunction<Integer, Integer> userFunction = new TimeReaderFunction();
+		KeyedStateReaderFunction<Integer, Integer> userFunction = new TimerReaderFunction();
 
 		List<Integer> data = readInputSplit(split, userFunction);
 
@@ -269,7 +269,7 @@ public class KeyedStateInputFormatTest {
 		}
 	}
 
-	static class TimeReaderFunction extends KeyedStateReaderFunction<Integer, Integer> {
+	static class TimerReaderFunction extends KeyedStateReaderFunction<Integer, Integer> {
 		ValueState<Integer> state;
 
 		@Override
