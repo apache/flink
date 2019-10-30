@@ -52,7 +52,7 @@ public class TimestampSerializer extends TypeSerializer<Timestamp> {
 
 	@Override
 	public Timestamp createInstance() {
-		return Timestamp.fromLong(0);
+		return Timestamp.fromEpochMillis(0);
 	}
 
 	@Override
@@ -85,11 +85,11 @@ public class TimestampSerializer extends TypeSerializer<Timestamp> {
 	public Timestamp deserialize(DataInputView source) throws IOException {
 		if (Timestamp.isCompact(precision)) {
 			long val = source.readLong();
-			return new Timestamp(val, 0);
+			return Timestamp.fromEpochMillis(val);
 		} else {
 			long longVal = source.readLong();
 			int intVal = source.readInt();
-			return new Timestamp(longVal, intVal);
+			return Timestamp.fromEpochMillis(longVal, intVal);
 		}
 	}
 

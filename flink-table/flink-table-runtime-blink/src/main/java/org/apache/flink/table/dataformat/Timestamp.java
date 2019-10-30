@@ -24,9 +24,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
-import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
-import static org.apache.calcite.avatica.util.DateTimeUtils.unixTimestamp;
-
 /**
  * Immutable SQL TIMESTAMP type with nanosecond precision.
  *
@@ -36,13 +33,16 @@ import static org.apache.calcite.avatica.util.DateTimeUtils.unixTimestamp;
  */
 public class Timestamp implements Comparable<Timestamp> {
 
+	// the number of milliseconds in a day
+	private static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
+
 	// this field holds the integral second and the milli-of-second
 	private final long millisecond;
 
 	// this field holds the nano-of-millisecond
 	private final int nanoOfMillisecond;
 
-	public Timestamp(long millisecond, int nanoOfMillisecond) {
+	private Timestamp(long millisecond, int nanoOfMillisecond) {
 		Preconditions.checkArgument(nanoOfMillisecond >= 0 && nanoOfMillisecond <= 999_999);
 		this.millisecond = millisecond;
 		this.nanoOfMillisecond = nanoOfMillisecond;
@@ -97,8 +97,23 @@ public class Timestamp implements Comparable<Timestamp> {
 	 *                    January 1, 1970, 00:00:00 GMT
 	 * @return an instance of {@code Timestamp}
 	 */
-	public static Timestamp fromLong(long millisecond) {
+	public static Timestamp fromEpochMillis(long millisecond) {
 		return new Timestamp(millisecond, 0);
+	}
+
+	/**
+	 * Obtains an instance of {@code Timestamp} from a millisecond.
+	 *
+	 * <p>This returns a {@code Timestamp} with the specified millisecond and nanoOfMillisecond.
+	 *
+	 * @param millisecond the number of milliseconds since January 1, 1970, 00:00:00 GMT
+	 *                    A negative number is the number of milliseconds before
+	 *                    January 1, 1970, 00:00:00 GMT
+	 * @param nanoOfMillisecond the nanosecond within the millisecond, from 0 to 999,999
+	 * @return an instance of {@code Timestamp}
+	 */
+	public static Timestamp fromEpochMillis(long millisecond, int nanoOfMillisecond) {
+		return new Timestamp(millisecond, nanoOfMillisecond);
 	}
 
 	/**
@@ -149,16 +164,13 @@ public class Timestamp implements Comparable<Timestamp> {
 	 * @return an instance of {@code Timestamp}
 	 */
 	public static Timestamp fromLocalDateTime(LocalDateTime dateTime) {
-		int nano = dateTime.getNano();
-		long millis = unixTimestamp(
-			dateTime.getYear(),
-			dateTime.getMonthValue(),
-			dateTime.getDayOfMonth(),
-			dateTime.getHour(),
-			dateTime.getMinute(),
-			dateTime.getSecond()) + (long) (nano / 1_000_000);
-		int nanosOfMilli = nano % 1_000_000;
-		return new Timestamp(millis, nanosOfMilli);
+		long epochDay = dateTime.toLocalDate().toEpochDay();
+		long nanoOfDay = dateTime.toLocalTime().toNanoOfDay();
+
+		long millisecond = epochDay * MILLIS_PER_DAY + nanoOfDay / 1_000_000;
+		int nanoOfMillisecond = (int) (nanoOfDay % 1_000_000);
+
+		return new Timestamp(millisecond, nanoOfMillisecond);
 	}
 
 	public static boolean isCompact(int precision) {

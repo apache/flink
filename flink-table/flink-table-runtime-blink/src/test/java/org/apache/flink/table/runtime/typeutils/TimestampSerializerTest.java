@@ -64,10 +64,10 @@ public class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
 	@Override
 	protected Timestamp[] getTestData() {
 		return new Timestamp[] {
-			Timestamp.fromLong(1),
-			Timestamp.fromLong(2),
-			Timestamp.fromLong(3),
-			Timestamp.fromLong(4)
+			Timestamp.fromEpochMillis(1),
+			Timestamp.fromEpochMillis(2),
+			Timestamp.fromEpochMillis(3),
+			Timestamp.fromEpochMillis(4)
 		};
 	}
 }

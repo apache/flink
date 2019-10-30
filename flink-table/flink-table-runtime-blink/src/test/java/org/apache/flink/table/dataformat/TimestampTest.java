@@ -31,8 +31,14 @@ public class TimestampTest {
 	@Test
 	public void testNormal() {
 		// From long to Timestamp and vice versa
-		Assert.assertEquals(1123L, Timestamp.fromLong(1123L).getMillisecond());
-		Assert.assertEquals(-1123L, Timestamp.fromLong(-1123L).getMillisecond());
+		Assert.assertEquals(1123L, Timestamp.fromEpochMillis(1123L).getMillisecond());
+		Assert.assertEquals(-1123L, Timestamp.fromEpochMillis(-1123L).getMillisecond());
+
+		Assert.assertEquals(1123L, Timestamp.fromEpochMillis(1123L, 45678).getMillisecond());
+		Assert.assertEquals(45678, Timestamp.fromEpochMillis(1123L, 45678).getNanoOfMillisecond());
+
+		Assert.assertEquals(-1123L, Timestamp.fromEpochMillis(-1123L, 45678).getMillisecond());
+		Assert.assertEquals(45678, Timestamp.fromEpochMillis(-1123L, 45678).getNanoOfMillisecond());
 
 		// From Timestamp to Timestamp and vice versa
 		java.sql.Timestamp t19 = java.sql.Timestamp.valueOf("1969-01-02 00:00:00.123456789");
@@ -79,9 +85,11 @@ public class TimestampTest {
 		java.sql.Timestamp t = java.sql.Timestamp.valueOf("1969-01-02 00:00:00.123456789");
 		Assert.assertEquals("1969-01-02T00:00:00.123456789", Timestamp.fromTimestamp(t).toString());
 
-		Assert.assertEquals("1970-01-01T00:00:00.123", Timestamp.fromLong(123L).toString());
+		Assert.assertEquals("1970-01-01T00:00:00.123", Timestamp.fromEpochMillis(123L).toString());
+		Assert.assertEquals("1970-01-01T00:00:00.123456789", Timestamp.fromEpochMillis(123L, 456789).toString());
 
-		Assert.assertEquals("1969-12-31T23:59:59.877", Timestamp.fromLong(-123L).toString());
+		Assert.assertEquals("1969-12-31T23:59:59.877", Timestamp.fromEpochMillis(-123L).toString());
+		Assert.assertEquals("1969-12-31T23:59:59.877456789", Timestamp.fromEpochMillis(-123L, 456789).toString());
 
 		LocalDateTime ldt = LocalDateTime.of(1969, 1, 2, 0, 0, 0, 123456789);
 		Assert.assertEquals("1969-01-02T00:00:00.123456789", Timestamp.fromLocalDateTime(ldt).toString());
