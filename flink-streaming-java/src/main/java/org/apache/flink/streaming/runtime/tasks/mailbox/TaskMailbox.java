@@ -74,4 +74,15 @@ public interface TaskMailbox extends Mailbox {
 	 * Returns <code>true</code> if the mailbox contains mail.
 	 */
 	boolean hasMail();
+
+	/**
+	 * Runs the given code exclusively on this mailbox. No synchronized operations can be run concurrently to the
+	 * given runnable (e.g., {@link #put(Mail)} or modifying lifecycle methods).
+	 *
+	 * <p>Use this methods when you want to atomically execute code that uses different methods (e.g., check for
+	 * state and then put message if open).
+	 *
+	 * @param runnable the runnable to execute
+	 */
+	void runExclusively(Runnable runnable);
 }

@@ -245,4 +245,14 @@ public class TaskMailboxImpl implements TaskMailbox {
 	public State getState() {
 		return state;
 	}
+
+	@Override
+	public void runExclusively(Runnable runnable) {
+		lock.lock();
+		try {
+			runnable.run();
+		} finally {
+			lock.unlock();
+		}
+	}
 }

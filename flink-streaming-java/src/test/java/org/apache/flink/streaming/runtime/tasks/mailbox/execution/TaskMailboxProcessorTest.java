@@ -201,6 +201,16 @@ public class TaskMailboxProcessorTest {
 		mailboxThread.checkException();
 	}
 
+	/**
+	 * Testing that canceling after closing will not lead to an exception.
+	 */
+	@Test
+	public void testCancelAfterClose() {
+		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
+		mailboxProcessor.close();
+		mailboxProcessor.allActionsCompleted();
+	}
+
 	private static MailboxProcessor start(MailboxThread mailboxThread) {
 		mailboxThread.start();
 		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
