@@ -307,9 +307,10 @@ public class FunctionCatalog implements FunctionLookup {
 			);
 		}
 
-		Catalog catalog = catalogManager.getCatalog(oi.getCatalogName()).get();
+		Optional<Catalog> catalogOptional = catalogManager.getCatalog(oi.getCatalogName());
 
-		if (catalog != null) {
+		if (catalogOptional.isPresent()) {
+			Catalog catalog = catalogOptional.get();
 			try {
 				CatalogFunction catalogFunction = catalog.getFunction(
 					new ObjectPath(oi.getDatabaseName(), oi.getObjectName()));
