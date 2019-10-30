@@ -169,7 +169,13 @@ public class MailboxProcessor {
 	 * This method must be called to end the stream task when all actions for the tasks have been performed.
 	 */
 	public void allActionsCompleted() {
-		sendPriorityLetter(mailboxPoisonLetter, "poison letter");
+		mailbox.runExclusively(() -> {
+			// keep state check and poison letter enqueuing atomic, such that no intermediate #close may cause a
+			// MailboxStateException in #sendPriorityLetter.
+			if (mailbox.getState() == TaskMailbox.State.OPEN) {
+				sendPriorityLetter(mailboxPoisonLetter, "poison letter");
+			}
+		});
 	}
 
 	private void sendPriorityLetter(Runnable priorityLetter, String descriptionFormat, Object... descriptionArgs) {

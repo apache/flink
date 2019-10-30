@@ -34,6 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Unit tests for {@link TaskMailboxImpl}.
@@ -306,5 +307,32 @@ public class TaskMailboxImplTest {
 		Assert.assertSame(mailC, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
 		Assert.assertSame(mailB, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
 		Assert.assertSame(mailD, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
+	}
+
+	/**
+	 * Testing that we cannot close while running exclusively.
+	 */
+	@Test
+	public void testRunExclusively() throws InterruptedException {
+		CountDownLatch exclusiveCodeStarted = new CountDownLatch(1);
+
+		final int numMails = 10;
+
+		// send 10 mails in an atomic operation
+		new Thread(() ->
+			taskMailbox.runExclusively(() -> {
+				exclusiveCodeStarted.countDown();
+				for (int index = 0; index < numMails; index++) {
+					try {
+						taskMailbox.put(new Mail(() -> {}, 1, "mailD"));
+						Thread.sleep(1);
+					} catch (Exception e) {
+					}
+				}
+			})).start();
+
+		exclusiveCodeStarted.await();
+		// make sure that all 10 messages have been actually enqueued.
+		assertEquals(numMails, taskMailbox.close().size());
 	}
 }
