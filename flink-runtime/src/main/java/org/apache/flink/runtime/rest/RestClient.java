@@ -248,7 +248,7 @@ public class RestClient implements AutoCloseableAsync {
 		String versionedHandlerURL = "/" + apiVersion.getURLVersionPrefix() + messageHeaders.getTargetRestEndpointURL();
 		String targetUrl = MessageParameters.resolveUrl(versionedHandlerURL, messageParameters);
 
-		LOG.info("Sending request of class {} to {}:{}{}", request.getClass(), targetAddress, targetPort, targetUrl);
+		LOG.debug("Sending request of class {} to {}:{}{}", request.getClass(), targetAddress, targetPort, targetUrl);
 		// serialize payload
 		StringWriter sw = new StringWriter();
 		objectMapper.writeValue(sw, request);

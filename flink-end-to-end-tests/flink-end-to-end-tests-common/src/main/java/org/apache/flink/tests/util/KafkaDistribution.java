@@ -18,10 +18,12 @@
 
 package org.apache.flink.tests.util;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,9 +34,9 @@ public class KafkaDistribution {
 
 	private final String fileURL;
 	private final String packageName;
-	private final String testDataDir;
+	private final Path testDataDir;
 
-	public KafkaDistribution(String fileURL, String packageName, String testDataDir) {
+	public KafkaDistribution(String fileURL, String packageName, Path testDataDir) {
 		this.fileURL = fileURL;
 		this.packageName = packageName;
 		this.testDataDir = testDataDir;
@@ -67,7 +69,7 @@ public class KafkaDistribution {
 			.create(
 				CommandLineWrapper
 					.tar(Paths.get(kafkaTarGz))
-					.targetDir(Paths.get(testDataDir))
+					.targetDir(testDataDir)
 					.extract()
 					.zipped()
 					.build())
@@ -136,13 +138,18 @@ public class KafkaDistribution {
 	}
 
 	public void sendMessage(String topic, String message) throws IOException {
-		String[] args = new String[]{
-			"echo", "-e", message, "|",
+		String[] pipelineArgs = new String[]{
+			"echo", message, "|",
 			getKafkaDir() + "/bin/kafka-console-producer.sh",
 			"--broker-list", "localhost:9092",
-			"--topic", topic,
-			message};
-		AutoClosableProcess.create(args).runBlocking();
+			"--topic", topic
+		};
+		String[] commands = new String[]{
+			"/bin/sh",
+			"-c",
+			StringUtils.join(pipelineArgs, " ")
+		};
+		AutoClosableProcess.create(commands).runBlocking();
 	}
 
 	public void readMessage(int maxMessage, String topic, String groupId) throws IOException {
@@ -158,11 +165,9 @@ public class KafkaDistribution {
 
 	public void shutdown() throws IOException {
 		LOG.info("Try to shutdown the zookeeper cluster in kafka.");
-		String[] args = new String[]{getKafkaDir() + "/bin/zookeeper-server-stop.sh"};
-		AutoClosableProcess.create(args).runBlocking(Duration.ofSeconds(5));
+		AutoClosableProcess.killJavaProcess("QuorumPeerMain", false);
 
 		LOG.info("Try to shutdown the kafka cluster");
-		args = new String[]{"jps | grep -i kafka | grep -v grep  | awk '{print $1}'  | xargs kill -9"};
-		AutoClosableProcess.create(args).runBlocking(Duration.ofSeconds(5));
+		AutoClosableProcess.killJavaProcess("kafka", true);
 	}
 }

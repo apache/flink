@@ -156,11 +156,16 @@ public final class FlinkDistribution implements ExternalResource {
 	}
 
 	public void startFlinkCluster() throws IOException {
+		startFlinkCluster(1);
+	}
+
+	public void startFlinkCluster(int taskManagerNumber) throws IOException {
 		LOG.info("Starting Flink cluster.");
-		AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
+		for (int i = 0; i < taskManagerNumber; i++) {
+			AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
+		}
 
 		final OkHttpClient client = new OkHttpClient();
-
 		final Request request = new Request.Builder()
 			.get()
 			.url("http://localhost:" + restPort + "/taskmanagers")
@@ -174,7 +179,7 @@ public final class FlinkDistribution implements ExternalResource {
 					final JsonNode taskManagerList = OBJECT_MAPPER.readTree(json)
 						.get("taskmanagers");
 
-					if (taskManagerList != null && taskManagerList.size() > 0) {
+					if (taskManagerList != null && taskManagerList.size() >= taskManagerNumber) {
 						LOG.info("Dispatcher REST endpoint is up.");
 						return;
 					}
@@ -194,9 +199,20 @@ public final class FlinkDistribution implements ExternalResource {
 		throw new AssertionError("Dispatcher REST endpoint did not start in time.", reportedException);
 	}
 
+	private void stopJobManager() throws IOException {
+		LOG.info("Stopping the job managers");
+		AutoClosableProcess.killJavaProcess("StandaloneSessionClusterEntrypoint", false);
+	}
+
+	private void stopTaskMangers() throws IOException {
+		LOG.info("Stopping all task managers.");
+		AutoClosableProcess.killJavaProcess("TaskManagerRunner", false);
+	}
+
 	public void stopFlinkCluster() throws IOException {
 		LOG.info("Stopping Flink cluster.");
-		AutoClosableProcess.runBlocking(bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
+		stopJobManager();
+		stopTaskMangers();
 	}
 
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {

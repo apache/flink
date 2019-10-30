@@ -18,21 +18,16 @@
 
 package org.apache.flink.tests.util;
 
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
 
-import static org.apache.flink.tests.util.FlinkSQLClient.findSQLJarPaths;
+public class TestSQLClientKafka011 extends TestSQLClientKafka {
+	private static final Path TEST_DATA_PATH = End2EndUtil.getTestDataDir();
 
-public class TestFlinkSQLClient {
-
-	@Test
-	public void testFindSQLJarPaths() throws IOException {
-		List<Path> paths = findSQLJarPaths("/Users/openinx/software/flink/flink-end-to-end-tests/flink-sql-client-test/target/sql-jars", "avro");
-		Assert.assertEquals(paths.size(), 1);
-		System.out.println(paths);
+	public TestSQLClientKafka011() {
+		super(TEST_DATA_PATH,
+			"http://archive.apache.org/dist/kafka/0.11.0.2/kafka_2.11-0.11.0.2.tgz",
+			"kafka_2.11-0.11.0.2.tgz",
+			"0.11",
+			"kafka-0.11");
 	}
 }

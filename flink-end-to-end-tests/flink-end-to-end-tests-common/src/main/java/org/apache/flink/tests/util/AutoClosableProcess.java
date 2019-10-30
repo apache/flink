@@ -66,15 +66,23 @@ public class AutoClosableProcess implements AutoCloseable {
 		return new AutoClosableProcessBuilder(commands);
 	}
 
+	public static void killJavaProcess(String pattern, boolean ignoreCase) throws IOException {
+		String ignoreCaseFlag = ignoreCase ? "-i" : "";
+		String[] args = new String[]{
+			"/bin/sh",
+			"-c",
+			String.format("jps | grep %s %s | grep -v grep | awk '{print $1}' | xargs kill -9", ignoreCaseFlag, pattern)
+		};
+		AutoClosableProcess.create(args).runBlocking();
+	}
+
 	/**
 	 * Builder for most sophisticated processes.
 	 */
 	public static final class AutoClosableProcessBuilder {
 		private final String[] commands;
-		private Consumer<String> stdoutProcessor = line -> {
-		};
-		private Consumer<String> stderrProcessor = line -> {
-		};
+		private Consumer<String> stdoutProcessor = line -> LOG.info("stdout: {}", line);
+		private Consumer<String> stderrProcessor = line -> LOG.info("stderr:{}", line);
 
 		AutoClosableProcessBuilder(final String... commands) {
 			this.commands = commands;

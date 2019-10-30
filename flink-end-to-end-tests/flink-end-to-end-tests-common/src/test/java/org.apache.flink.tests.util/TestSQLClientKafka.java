@@ -21,59 +21,85 @@ package org.apache.flink.tests.util;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.commons.io.Charsets;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.internal.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.tests.util.FlinkSQLClient.findSQLJarPath;
+import static org.apache.flink.util.StringUtils.byteToHexString;
 
-public class TestDemo {
-	private static final Logger LOG = LoggerFactory.getLogger(TestDemo.class);
-
-	private static final String KAFKA_SQL_VERSION = "universal";
-	private static final String KAFKA_SQL_JAR_VERSION = "kafka";
-	private static final String TEST_DATA_DIR = "/Users/openinx/test/tmp-" + System.currentTimeMillis();
-	private static final String SQL_CLIENT_SESSION_CONF = TEST_DATA_DIR + "/sql-client-session.conf";
+public class TestSQLClientKafka {
+	private static final Logger LOG = LoggerFactory.getLogger(TestSQLClientKafka.class);
 
 	@Rule
 	public final FlinkDistribution flinkDist = new FlinkDistribution();
-	private final KafkaDistribution kafkaDist;
 
-	public TestDemo() {
-		kafkaDist = new KafkaDistribution(
+	private final KafkaDistribution kafkaDist;
+	private final Path testDataDir;
+	private final String kafkaSQLVersion;
+	private final String kafkaSQLJarVersion;
+	private final Path sqlClientSessionConf;
+	private final Path result;
+
+	public TestSQLClientKafka() {
+		this(
+			DEFAULT_TEST_DATA_DIR,
 			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
 			"kafka_2.11-2.1.1.tgz",
-			TEST_DATA_DIR);
+			"universal",
+			"kafka"
+		);
 	}
 
-	private static final String END_TO_END_TEST_DIR = "/Users/openinx/software/flink/flink-end-to-end-tests";
-	private static final String SQL_JARS = END_TO_END_TEST_DIR + "/flink-sql-client-test/target/sql-jars";
-	private static final String SQL_TOOL_BOX_JAR = END_TO_END_TEST_DIR + "/flink-sql-client-test/target/SqlToolbox.jar";
+	protected TestSQLClientKafka(
+		Path testDataDir,
+		String kafkaDistURL,
+		String kafkaDistName,
+		String kafkaSQLVersion,
+		String kafkaSQLJarVersion) {
+		this.testDataDir = testDataDir;
+		this.kafkaSQLVersion = kafkaSQLVersion;
+		this.kafkaSQLJarVersion = kafkaSQLJarVersion;
+		this.kafkaDist = new KafkaDistribution(
+			kafkaDistURL,
+			kafkaDistName,
+			testDataDir);
+		this.sqlClientSessionConf = testDataDir.resolve("sql-client-session.conf");
+		this.result = this.testDataDir.resolve("result");
+	}
+
+	private static final String END_TO_END_TEST_DIR = End2EndUtil.getEnd2EndModuleDir();
+	private static final Path DEFAULT_TEST_DATA_DIR = End2EndUtil.getTestDataDir();
+	private static final String SQL_JARS = END_TO_END_TEST_DIR + "flink-sql-client-test/target/sql-jars";
+	private static final String SQL_TOOL_BOX_JAR = END_TO_END_TEST_DIR + "flink-sql-client-test/target/SqlToolbox.jar";
 	private static final String KAFKA_JSON_SOURCE_SCHEMA_YAML = "kafka_json_source_schema.yaml";
-	private static final String RESULT_FILE = TEST_DATA_DIR + "/result";
 
 	public void setUpFlinkCluster() throws IOException {
-		flinkDist.startFlinkCluster();
+		flinkDist.startFlinkCluster(3);
 	}
 
 	private String initializeSessionYaml(Map<String, String> vars) throws IOException {
-		URL url = TestDemo.class.getClassLoader().getResource(KAFKA_JSON_SOURCE_SCHEMA_YAML);
+		URL url = TestSQLClientKafka.class.getClassLoader().getResource(KAFKA_JSON_SOURCE_SCHEMA_YAML);
 		if (url == null) {
 			throw new FileNotFoundException(KAFKA_JSON_SOURCE_SCHEMA_YAML);
 		}
@@ -85,8 +111,21 @@ public class TestDemo {
 		return schema;
 	}
 
+	@Before
+	public void setUp() throws IOException {
+		if (!Files.exists(testDataDir)) {
+			Files.createDirectory(testDataDir);
+		}
+	}
+
+	@After
+	public void tearDown() throws IOException {
+		this.shutdown();
+		FileUtils.deleteDirectory(testDataDir.toFile());
+	}
+
 	@Test
-	public void testKafka() throws IOException, InterruptedException {
+	public void testKafka() throws Exception {
 		// setup flink cluster
 		setUpFlinkCluster();
 
@@ -117,14 +156,16 @@ public class TestDemo {
 		// Initialize the SQL client session configuration file
 		Map<String, String> varsMap = new HashMap<>();
 		varsMap.put("$TABLE_NAME", "JsonSourceTable");
-		varsMap.put("$KAFKA_SQL_VERSION", KAFKA_SQL_VERSION);
+		varsMap.put("$KAFKA_SQL_VERSION", this.kafkaSQLVersion);
 		varsMap.put("$TOPIC_NAME", "test-json");
-		varsMap.put("$RESULT", RESULT_FILE);
+		varsMap.put("$RESULT", this.result.toAbsolutePath().toString());
 		String schemaContent = initializeSessionYaml(varsMap);
-		LOG.info("===> schema content: {}", schemaContent);
-		Files.write(Paths.get(SQL_CLIENT_SESSION_CONF), schemaContent.getBytes(Charsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+		Files.write(this.sqlClientSessionConf,
+			schemaContent.getBytes(Charsets.UTF_8),
+			StandardOpenOption.CREATE,
+			StandardOpenOption.WRITE);
 
-		LOG.info("Executing SQL: Kafka 2.1.1 JSON -> Kafka 2.1.1 Avro");
+		LOG.info("Executing SQL: Kafka {} JSON -> Kafka {} Avro", kafkaSQLVersion, kafkaSQLVersion);
 		String sqlStatement1 = "INSERT INTO AvroBothTable\n" +
 			"  SELECT\n" +
 			"    CAST(TUMBLE_START(rowtime, INTERVAL '1' HOUR) AS VARCHAR) AS event_timestamp,\n" +
@@ -141,16 +182,10 @@ public class TestDemo {
 			.embedded(true)
 			.addJAR(findSQLJarPath(SQL_JARS, "avro"))
 			.addJAR(findSQLJarPath(SQL_JARS, "json"))
-			.addJAR(findSQLJarPath(SQL_JARS, KAFKA_SQL_JAR_VERSION + "_"))
+			.addJAR(findSQLJarPath(SQL_JARS, this.kafkaSQLJarVersion + "_"))
 			.addJAR(SQL_TOOL_BOX_JAR)
-			.sessionEnvironmentFile(SQL_CLIENT_SESSION_CONF)
+			.sessionEnvironmentFile(this.sqlClientSessionConf.toAbsolutePath().toString())
 			.createProcess(sqlStatement1)
-			.setStdoutProcessor(line -> {
-				LOG.info("stdout => {}", line);
-			})
-			.setStderrProcessor(line -> {
-				LOG.info("stderr => {}", line);
-			})
 			.runBlocking(Duration.ofMinutes(1));
 
 		String sqlStatement2 = "INSERT INTO CsvSinkTable\n" +
@@ -161,64 +196,58 @@ public class TestDemo {
 			.embedded(true)
 			.addJAR(findSQLJarPath(SQL_JARS, "avro"))
 			.addJAR(findSQLJarPath(SQL_JARS, "json"))
-			.addJAR(findSQLJarPath(SQL_JARS, KAFKA_SQL_JAR_VERSION + "_"))
+			.addJAR(findSQLJarPath(SQL_JARS, this.kafkaSQLJarVersion + "_"))
 			.addJAR(SQL_TOOL_BOX_JAR)
-			.sessionEnvironmentFile(SQL_CLIENT_SESSION_CONF)
+			.sessionEnvironmentFile(this.sqlClientSessionConf.toAbsolutePath().toString())
 			.createProcess(sqlStatement2)
-			.setStdoutProcessor(line -> {
-				LOG.info("stdout => {}", line);
-			})
-			.setStderrProcessor(line -> {
-				LOG.info("stderr => {}", line);
-			})
 			.runBlocking(Duration.ofMinutes(1));
 
 		// Wait until all the results flushed to the CSV file.
-		waitUntilFlushToTheCSV();
+		checkCsvResultFile();
+		LOG.info("The Kafka({}) SQL client test run successfully.", this.kafkaSQLVersion);
 	}
 
-	private void waitUntilFlushToTheCSV() throws IOException, InterruptedException {
-		Path target = Paths.get(RESULT_FILE);
+	private void checkCsvResultFile() throws IOException, InterruptedException, NoSuchAlgorithmException {
 		boolean success = false;
-		for (int i = 0; i < 10; i++) {
-			if (Files.exists(target)) {
-				List<String> lines = Files.readAllLines(target);
-				LOG.info("content ==> {}", StringUtil.join(lines, "\n"));
+		long maxRetries = 10, duration = 5000L;
+		for (int i = 0; i < maxRetries; i++) {
+			if (Files.exists(result)) {
+				List<String> lines = Files.readAllLines(result);
 				if (lines.size() == 4) {
 					success = true;
+					// Check the MD5SUM of the result file.
+					Assert.assertEquals("MD5 checksum mismatch", "390b2985cbb001fbf4d301980da0e7f0", getMd5Sum(result));
 					break;
 				}
 			} else {
-				LOG.info("The target CSV {} does not exist now", target);
+				LOG.info("The target CSV {} does not exist now", result);
 			}
-			Thread.sleep(5000L);
+			Thread.sleep(duration);
 		}
-		Assert.assertTrue("Timeout(50 sec) to read the correct CSV results.", success);
+		Assert.assertTrue("Timeout(" + (maxRetries * duration) + " sec) to read the correct CSV results.", success);
 	}
 
-	public void shutdown() {
+	private static String getMd5Sum(Path path) throws IOException, NoSuchAlgorithmException {
+		MessageDigest md = MessageDigest.getInstance("MD5");
+		try (InputStream is = Files.newInputStream(path)) {
+			DigestInputStream dis = new DigestInputStream(is, md);
+			byte[] buf = new byte[1024];
+			for (; dis.read(buf) > 0; ) {
+			}
+		}
+		return byteToHexString(md.digest());
+	}
+
+	private void shutdown() {
 		try {
 			kafkaDist.shutdown();
 		} catch (IOException e) {
-			LOG.info("Failed to shutdown the kafka cluster.");
+			LOG.info("Failed to shutdown the kafka cluster.", e);
 		}
 		try {
 			flinkDist.stopFlinkCluster();
 		} catch (IOException e) {
-			LOG.info("Failed to shutdown the flink cluster.");
-		}
-	}
-
-	public static void main(String[] args) throws IOException {
-		Path testDataDir = Files.createDirectory(Paths.get(TEST_DATA_DIR));
-		TestDemo testDemo = new TestDemo();
-		try {
-			testDemo.testKafka();
-		} catch (IOException | InterruptedException e) {
-			LOG.error("The kafka testing encountered error", e);
-		} finally {
-			testDemo.shutdown();
-			//Files.deleteIfExists(testDataDir);
+			LOG.info("Failed to shutdown the flink cluster.", e);
 		}
 	}
 }

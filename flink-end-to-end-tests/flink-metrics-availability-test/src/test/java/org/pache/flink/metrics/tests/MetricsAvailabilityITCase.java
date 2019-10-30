@@ -66,7 +66,7 @@ import java.util.stream.Collectors;
 public class MetricsAvailabilityITCase extends TestLogger {
 
 	private static final String HOST = "localhost";
-	private static final int PORT = 8085;
+	private static final int PORT = 8081;
 
 	@Rule
 	public final FlinkDistribution dist = new FlinkDistribution();
@@ -148,7 +148,7 @@ public class MetricsAvailabilityITCase extends TestLogger {
 				}
 			},
 			Time.seconds(1),
-			Deadline.fromNow(Duration.ofSeconds(30)),
+			Deadline.fromNow(Duration.ofSeconds(5)),
 			predicate,
 			new ScheduledExecutorServiceAdapter(scheduledExecutorService));
 
