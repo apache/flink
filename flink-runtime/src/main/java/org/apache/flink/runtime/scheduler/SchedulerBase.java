@@ -309,7 +309,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	protected final void prepareExecutionGraphForNgScheduling() {
-		executionGraph.enableNgScheduling(new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
+		executionGraph.enableNgScheduling(new UpdateSchedulerNgOnInternalStateAndFailureListener(this));
 		executionGraph.transitionToRunning();
 	}
 
@@ -380,20 +380,13 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	@Override
 	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
-		final Optional<ExecutionVertexID> executionVertexId = getExecutionVertexId(taskExecutionState.getID());
-
-		boolean updateSuccess = executionGraph.updateState(taskExecutionState);
-
-		if (updateSuccess && executionVertexId.isPresent()) {
-			updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
-			return true;
-		} else {
-			return false;
-		}
+		return executionGraph.updateState(taskExecutionState);
 	}
 
-	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionState taskExecutionState) {
-	}
+	public abstract void handleInternalTaskExecutionStateChange(
+			final ExecutionVertexID executionVertexId,
+			final ExecutionState executionState,
+			final Throwable error);
 
 	@Override
 	public SerializedInputSplit requestNextInputSplit(JobVertexID vertexID, ExecutionAttemptID executionAttempt) throws IOException {

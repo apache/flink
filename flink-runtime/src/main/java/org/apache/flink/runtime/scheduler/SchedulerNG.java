@@ -42,6 +42,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.FlinkException;
@@ -80,6 +81,8 @@ public interface SchedulerNG {
 	void handleGlobalFailure(Throwable cause);
 
 	boolean updateTaskExecutionState(TaskExecutionState taskExecutionState);
+
+	void handleInternalTaskExecutionStateChange(ExecutionVertexID executionVertexId, ExecutionState executionState, Throwable error);
 
 	SerializedInputSplit requestNextInputSplit(JobVertexID vertexID, ExecutionAttemptID executionAttempt) throws IOException;
 

@@ -63,6 +63,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
 /**
@@ -676,6 +677,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
 				resultPartition.resetForNewExecution();
 			}
+
+			getExecutionGraph().notifySchedulerNgAboutInternalStateChange(
+				executionVertexId,
+				CREATED,
+				null);
 
 			return newExecution;
 		}

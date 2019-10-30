@@ -70,7 +70,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
-import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.InternalStateAndFailureListener;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -267,7 +267,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private DefaultExecutionTopology executionTopology;
 
 	@Nullable
-	private InternalFailuresListener internalTaskFailuresListener;
+	private InternalStateAndFailureListener internalStateAndFailureListener;
 
 	/** Counts all restarts. Used by other Gauges/Meters and does not register to metric group. */
 	private final Counter numberOfRestartsCounter = new SimpleCounter();
@@ -908,10 +908,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 	}
 
-	public void enableNgScheduling(final InternalFailuresListener internalTaskFailuresListener) {
-		checkNotNull(internalTaskFailuresListener);
-		checkState(this.internalTaskFailuresListener == null, "enableNgScheduling can be only called once");
-		this.internalTaskFailuresListener = internalTaskFailuresListener;
+	public void enableNgScheduling(final InternalStateAndFailureListener internalStateAndFailureListener) {
+		checkNotNull(internalStateAndFailureListener);
+		checkState(this.internalStateAndFailureListener == null, "enableNgScheduling can be only called once");
+		this.internalStateAndFailureListener = internalStateAndFailureListener;
 		this.legacyScheduling = false;
 	}
 
@@ -1179,7 +1179,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 */
 	public void failGlobal(Throwable t) {
 		if (!isLegacyScheduling()) {
-			internalTaskFailuresListener.notifyGlobalFailure(t);
+			internalStateAndFailureListener.notifyGlobalFailure(t);
 			return;
 		}
 
@@ -1815,6 +1815,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			final Throwable error) {
 
 		if (!isLegacyScheduling()) {
+			notifySchedulerNgAboutInternalStateChange(execution.getVertex().getID(), newExecutionState, error);
 			return;
 		}
 
@@ -1848,9 +1849,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
-	void notifySchedulerNgAboutInternalTaskFailure(final ExecutionAttemptID attemptId, final Throwable t) {
-		if (internalTaskFailuresListener != null) {
-			internalTaskFailuresListener.notifyTaskFailure(attemptId, t);
+	void notifySchedulerNgAboutInternalStateChange(
+			final ExecutionVertexID vertexID,
+			final ExecutionState executionState,
+			final Throwable error) {
+
+		if (internalStateAndFailureListener != null) {
+			internalStateAndFailureListener.notifyInternalExecutionStateChange(vertexID, executionState, error);
 		}
 	}
 

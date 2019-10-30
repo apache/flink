@@ -1232,15 +1232,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				return;
 			}
 
-			if (!fromSchedulerNg && !isLegacyScheduling()) {
-				vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(attemptId, t);
-				// HACK: We informed the new generation scheduler about an internally detected task
-				// failure. The scheduler will call processFail() again with releasePartitions
-				// always set to false and fromSchedulerNg set to true. Because the original value
-				// of releasePartitions will be lost, we need to invoke handlePartitionCleanup() here.
-				handlePartitionCleanup(releasePartitions, releasePartitions);
-				return;
-			} else if (transitionState(current, FAILED, t)) {
+			if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
 				this.failureCause = t;
 

@@ -45,7 +45,6 @@ import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStra
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -159,14 +158,14 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	@Override
-	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionState taskExecutionState) {
-		schedulingStrategy.onExecutionStateChange(executionVertexId, taskExecutionState.getExecutionState());
-		maybeHandleTaskFailure(taskExecutionState, executionVertexId);
-	}
+	public void handleInternalTaskExecutionStateChange(
+			final ExecutionVertexID executionVertexId,
+			final ExecutionState executionState,
+			final Throwable error) {
 
-	private void maybeHandleTaskFailure(final TaskExecutionState taskExecutionState, final ExecutionVertexID executionVertexId) {
-		if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
-			final Throwable error = taskExecutionState.getError(userCodeLoader);
+		schedulingStrategy.onExecutionStateChange(executionVertexId, executionState);
+
+		if (executionState == ExecutionState.FAILED) {
 			handleTaskFailure(executionVertexId, error);
 		}
 	}
