@@ -889,7 +889,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     val fieldNames = new ArrayBuffer[String]()
     rowData.foreach { i =>
       row.setField(i, i)
-      fieldTypes += Types.INT()
+      fieldTypes += Types.INT
       fieldNames += s"f$i"
     }
 
