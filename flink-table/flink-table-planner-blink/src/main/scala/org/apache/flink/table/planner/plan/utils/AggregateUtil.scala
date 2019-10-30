@@ -749,7 +749,7 @@ object AggregateUtil extends Enumeration {
   private[flink] def isTableAggregate(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls
       .filter(e => e.getAggregation.isInstanceOf[AggSqlFunction])
-      .map(e => e.getAggregation.asInstanceOf[AggSqlFunction].makeFunction(null, null))
+      .map(e => e.getAggregation.asInstanceOf[AggSqlFunction].aggregateFunction)
       .exists(_.isInstanceOf[TableAggregateFunction[_, _]])
   }
 }
