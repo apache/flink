@@ -774,7 +774,7 @@ public class CheckpointCoordinator {
 	 * @param message Checkpoint ack from the task manager
 	 *
 	 * @param taskManagerLocationInfo The location of the acknowledge checkpoint message's sender
-	 * @return Flag indicating whether the ack'd checkpoint was associated
+	 * @return Flag indicating whether the acknowledged checkpoint was associated
 	 * with a pending checkpoint.
 	 *
 	 * @throws CheckpointException If the checkpoint cannot be added to the completed checkpoint store.
