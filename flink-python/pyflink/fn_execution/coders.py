@@ -31,7 +31,7 @@ FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
 
 __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
-           'BinaryCoder', 'CharCoder', 'DateCoder']
+           'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder']
 
 
 class RowCoder(FastCoder):
@@ -196,6 +196,18 @@ class DateCoder(DeterministicCoder):
         return datetime.date
 
 
+class TimeCoder(DeterministicCoder):
+    """
+    Coder for Time.
+    """
+
+    def _create_impl(self):
+        return coder_impl.TimeCoderImpl()
+
+    def to_type_hint(self):
+        return datetime.time
+
+
 @Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
 def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
     return RowCoder([from_proto(f.type) for f in schema_proto.fields])
@@ -215,6 +227,7 @@ _type_name_mappings = {
     type_name.CHAR: CharCoder(),
     type_name.VARCHAR: CharCoder(),
     type_name.DATE: DateCoder(),
+    type_name.TIME: TimeCoder(),
 }
 
 
