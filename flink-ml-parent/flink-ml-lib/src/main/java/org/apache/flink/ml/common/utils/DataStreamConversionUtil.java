@@ -32,16 +32,19 @@ import org.apache.flink.types.Row;
 /**
  * Provide functions of conversions between DataStream and Table.
  */
-public class RowTypeDataStream {
+public class DataStreamConversionUtil {
 	/**
-	 * Convert the given Table to {@link DataStream DataStream&lt;Row&gt;}.
+	 * Convert the given Table to {@link DataStream}<{@link Row}>.
 	 *
 	 * @param sessionId the sessionId of {@link MLEnvironmentFactory}
 	 * @param table the Table to convert.
 	 * @return the converted DataStream.
 	 */
 	public static DataStream <Row> fromTable(Long sessionId, Table table) {
-		return MLEnvironmentFactory.get(sessionId).getStreamTableEnvironment().toAppendStream(table, Row.class);
+		return MLEnvironmentFactory
+			.get(sessionId)
+			.getStreamTableEnvironment()
+			.toAppendStream(table, Row.class);
 	}
 
 	/**

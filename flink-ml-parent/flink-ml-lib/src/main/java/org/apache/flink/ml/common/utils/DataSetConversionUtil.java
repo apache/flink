@@ -34,16 +34,19 @@ import org.apache.flink.types.Row;
 /**
  * Provide functions of conversions between DataSet and Table.
  */
-public class RowTypeDataSet {
+public class DataSetConversionUtil {
 	/**
-	 * Convert the given Table to {@link DataSet DataSet&lt;Row&gt;}.
+	 * Convert the given Table to {@link DataSet}<{@link Row}>.
 	 *
 	 * @param sessionId the sessionId of {@link MLEnvironmentFactory}
 	 * @param table the Table to convert.
 	 * @return the converted DataSet.
 	 */
 	public static DataSet <Row> fromTable(Long sessionId, Table table) {
-		return MLEnvironmentFactory.get(sessionId).getBatchTableEnvironment().toDataSet(table, Row.class);
+		return MLEnvironmentFactory
+			.get(sessionId)
+			.getBatchTableEnvironment()
+			.toDataSet(table, Row.class);
 	}
 
 	/**

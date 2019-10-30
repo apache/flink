@@ -49,7 +49,7 @@ public class RowTypeDataSetTest {
 		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
 
 		DataSet<Row> input = env.fromElements(Row.of("s1")).map(new GenericTypeMap());
-		Table table2 = RowTypeDataSet.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
+		Table table2 = DataSetConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
 			input,
 			new String[]{"word"},
 			new TypeInformation[]{TypeInformation.of(Integer.class)}
@@ -65,7 +65,7 @@ public class RowTypeDataSetTest {
 		thrown.expect(ValidationException.class);
 		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
 		DataSet<Row> input = env.fromElements(Row.of("s1")).map(new GenericTypeMap());
-		RowTypeDataSet.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"f0"});
+		DataSetConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"f0"});
 	}
 
 	@Test
@@ -74,12 +74,12 @@ public class RowTypeDataSetTest {
 
 		DataSet<Row> input = env.fromElements(Row.of("a"));
 
-		Table table1 = RowTypeDataSet.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"word"});
+		Table table1 = DataSetConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"word"});
 		Assert.assertEquals(
 			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(String.class)}),
 			table1.getSchema()
 		);
-		List<Row> list = RowTypeDataSet.fromTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1).collect();
+		List<Row> list = DataSetConversionUtil.fromTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1).collect();
 		Assert.assertEquals(Collections.singletonList(Row.of("a")), list);
 	}
 

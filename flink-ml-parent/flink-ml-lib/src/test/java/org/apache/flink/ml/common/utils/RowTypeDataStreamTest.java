@@ -47,14 +47,14 @@ public class RowTypeDataStreamTest {
 
 		DataStream<Row> input = env.fromElements(Row.of("a"));
 
-		Table table1 = RowTypeDataStream.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"word"});
+		Table table1 = DataStreamConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"word"});
 		Assert.assertEquals(
 			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(String.class)}),
 			table1.getSchema()
 		);
 
 		input = input.map(new GenericTypeMap());
-		Table table2 = RowTypeDataStream.toTable(
+		Table table2 = DataStreamConversionUtil.toTable(
 			MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
 			input,
 			new String[]{"word"},
@@ -66,9 +66,9 @@ public class RowTypeDataStreamTest {
 		);
 
 		thrown.expect(ValidationException.class);
-		RowTypeDataStream.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"f0"});
+		DataStreamConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"f0"});
 
-		DataStream<Row> output = RowTypeDataStream.fromTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1);
+		DataStream<Row> output = DataStreamConversionUtil.fromTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1);
 
 		output.print();
 
