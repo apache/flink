@@ -89,6 +89,9 @@ public class FileSystemTableFactory implements
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
 
+		// partition
+		properties.add(DescriptorProperties.PARTITION_KEYS + ".#." +
+				DescriptorProperties.PARTITION_KEYS_NAME);
 		properties.add(PARTITION_DEFAULT_NAME.key());
 
 		// format
