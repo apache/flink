@@ -84,6 +84,12 @@ public class Timestamp implements Comparable<Timestamp> {
 		return toLocalDateTime().toString();
 	}
 
+	@Override
+	public int hashCode() {
+		int ret = (int) millisecond ^ (int) (millisecond >> 32);
+		return 31 * ret + nanoOfMillisecond;
+	}
+
 	public long getMillisecond() {
 		return millisecond;
 	}
