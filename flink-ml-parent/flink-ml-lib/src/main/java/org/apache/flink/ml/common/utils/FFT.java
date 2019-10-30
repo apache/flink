@@ -49,10 +49,15 @@ public class FFT {
 	/**
 	 * Cooley-Tukey algorithm, can perform fft for any composite base.
 	 * Specifically, it can perform power-of-2 base fft(with some modification to make it an in-place algorithm).
-	 * See:
-	 * "An algorithm for the machine calculation of complex Fourier series", JW Cooley, JW Tukey, 1965
-	 * for a rough reference.
-	 * Detail of radix-2 in-place Cooley-Tukey algorithm can be found in many places, e.g. CLRS textbook.
+	 *
+	 * <p>See reference for more details
+	 *
+	 * <p><ul>
+	 *   <li>"An algorithm for the machine calculation of complex Fourier series", JW Cooley, JW Tukey, 1965
+	 *   for a rough reference.
+	 *   <li>Detail of radix-2 in-place Cooley-Tukey algorithm can be found in many places, e.g. CLRS textbook.
+	 *   </ul>
+	 * </p>
 	 */
 	public static Complex[] fftRadix2CooleyTukey(Complex[] input, boolean inverse, Complex[] omega) {
 
@@ -63,13 +68,13 @@ public class FFT {
 		//notice: only support power of 2
 		//fftChirpZ support other lengths
 		if ((1 << logl) != length) {
-			throw new RuntimeException("Radix-2 Cooley-Tukey only supports lengths of power-of-2.");
+			throw new IllegalArgumentException("Radix-2 Cooley-Tukey only supports lengths of power-of-2.");
 		}
 
 		//2. copy data
-		Complex[] inputCopy = new Complex[length];
+		Complex[] inPlaceFFT = new Complex[length];
 		for (int index = 0; index < length; index++) {
-			inputCopy[index] = new Complex(input[index].getReal(), input[index].getImaginary());
+			inPlaceFFT[index] = new Complex(input[index].getReal(), input[index].getImaginary());
 		}
 
 		//3. bit reverse
@@ -87,9 +92,9 @@ public class FFT {
 		//4. reverse the input
 		for (int index = 0; index < length; index++) {
 			if (index < reverse[index]) {
-				Complex t = inputCopy[index];
-				inputCopy[index] = inputCopy[reverse[index]];
-				inputCopy[reverse[index]] = t;
+				Complex t = inPlaceFFT[index];
+				inPlaceFFT[index] = inPlaceFFT[reverse[index]];
+				inPlaceFFT[reverse[index]] = t;
 			}
 		}
 
@@ -101,15 +106,15 @@ public class FFT {
 				for (int step = 0; step < length; step += len) {
 					for (int index = 0; index < mid; index++) {
 						Complex t = omega[length / len * index]
-							.multiply(inputCopy[step + mid + index]);
-						inputCopy[step + mid + index] = inputCopy[step + index].subtract(t);
-						inputCopy[step + index] = inputCopy[step + index].add(t);
+							.multiply(inPlaceFFT[step + mid + index]);
+						inPlaceFFT[step + mid + index] = inPlaceFFT[step + index].subtract(t);
+						inPlaceFFT[step + index] = inPlaceFFT[step + index].add(t);
 					}
 				}
 			}
 
 			for (int index = 0; index < length; index++) {
-				inputCopy[index] = inputCopy[index].divide(length);
+				inPlaceFFT[index] = inPlaceFFT[index].divide(length);
 			}
 		} else {
 			//forward fft
@@ -118,15 +123,15 @@ public class FFT {
 				for (int step = 0; step < length; step += len) {
 					for (int index = 0; index < mid; index++) {
 						Complex t = omega[length / len * index].conjugate()
-							.multiply(inputCopy[step + mid + index]);
-						inputCopy[step + mid + index] = inputCopy[step + index].subtract(t);
-						inputCopy[step + index] = inputCopy[step + index].add(t);
+							.multiply(inPlaceFFT[step + mid + index]);
+						inPlaceFFT[step + mid + index] = inPlaceFFT[step + index].subtract(t);
+						inPlaceFFT[step + index] = inPlaceFFT[step + index].add(t);
 					}
 				}
 			}
 		}
 
-		return inputCopy;
+		return inPlaceFFT;
 
 	}
 
@@ -134,9 +139,13 @@ public class FFT {
 	 * Chirp-Z algorithm, also called Bluestein algorithm,
 	 * can perform fft with any base.
 	 * It use convolution and "chirp-z", and the convolution can be performed by a power-of-2 base fft.
-	 * See:
-	 * "The chirp z-transform algorithm", L Rabiner, RW Schafer, C Rader, 1969
-	 * for details.
+	 *
+	 * <p>See reference for more details
+	 *
+	 * <p><ul>
+	 *   <li>"The chirp z-transform algorithm", L Rabiner, RW Schafer, C Rader, 1969
+	 *   </ul>
+	 * </p>
 	 **/
 	public static Complex[] fftChirpZ(Complex[] input, boolean inverse, Complex[] omega, Complex[] omega2) {
 
@@ -144,7 +153,7 @@ public class FFT {
 		int length = input.length;
 		int logl = (int) (Math.log(length + 0.01) * INVERSE_LOG_2);
 		if ((1 << logl) == length) {
-			throw new RuntimeException(
+			throw new IllegalArgumentException(
 				"Chirp-Z is not efficient for lengths of power-of-2. Use Radix-2 Cooley-Tukey instead.");
 		}
 
