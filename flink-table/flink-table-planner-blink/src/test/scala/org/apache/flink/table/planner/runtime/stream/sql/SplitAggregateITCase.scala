@@ -83,63 +83,105 @@ class SplitAggregateITCase(
 
   @Test
   def testCountDistinct(): Unit = {
+    val ids = List(
+      Int.box(1),
+      Int.box(2), Int.box(2),
+      Int.box(3), Int.box(3), Int.box(3),
+      Int.box(4), Int.box(4), Int.box(4), Int.box(4),
+      Int.box(5), Int.box(5), Int.box(5), Int.box(5), Int.box(5))
+
+    val dateTimes = List(
+      localDateTime("1970-01-01 00:00:01"),
+      localDateTime("1970-01-01 00:00:02"), null,
+
+      localDateTime("1970-01-01 00:00:04"), localDateTime("1970-01-01 00:00:05"),
+      localDateTime("1970-01-01 00:00:06"),
+
+      localDateTime("1970-01-01 00:00:07"), null, null, localDateTime("1970-01-01 00:00:10"),
+
+      localDateTime("1970-01-01 00:00:11"), localDateTime("1970-01-01 00:00:11"),
+      localDateTime("1970-01-01 00:00:13"), localDateTime("1970-01-01 00:00:14"),
+      localDateTime("1970-01-01 00:00:15"))
+
+    val dates = List(
+      localDate("1970-01-01"),
+      localDate("1970-01-02"), null,
+      localDate("1970-01-04"), localDate("1970-01-05"), localDate("1970-01-06"),
+
+      localDate("1970-01-07"), null, null, localDate("1970-01-10"),
+
+      localDate("1970-01-11"), localDate("1970-01-11"), localDate("1970-01-13"),
+      localDate("1970-01-14"), localDate("1970-01-15"))
+
+    val times = List(
+      mLocalTime("00:00:01"),
+      mLocalTime("00:00:02"), null,
+      mLocalTime("00:00:04"), mLocalTime("00:00:05"), mLocalTime("00:00:06"),
+
+      mLocalTime("00:00:07"), null, null, mLocalTime("00:00:10"),
+
+      mLocalTime("00:00:11"), mLocalTime("00:00:11"), mLocalTime("00:00:13"),
+      mLocalTime("00:00:14"), mLocalTime("00:00:15"))
+
+    val decimals = List(
+      BigDecimal(1).bigDecimal,
+      BigDecimal(2).bigDecimal, null,
+      BigDecimal(4).bigDecimal, BigDecimal(5).bigDecimal, BigDecimal(6).bigDecimal,
+
+      BigDecimal(7).bigDecimal, null, null, BigDecimal(10).bigDecimal,
+
+      BigDecimal(11).bigDecimal, BigDecimal(11).bigDecimal, BigDecimal(13).bigDecimal,
+      BigDecimal(14).bigDecimal, BigDecimal(15).bigDecimal
+    )
+
+    val ints = List(
+      JInt.valueOf(1),
+      JInt.valueOf(2), null,
+      JInt.valueOf(4), JInt.valueOf(5), JInt.valueOf(6),
+      JInt.valueOf(7), null, null, JInt.valueOf(10),
+      JInt.valueOf(11), JInt.valueOf(11), JInt.valueOf(13), JInt.valueOf(14), JInt.valueOf(15))
+
+    val longs = List(
+      JLong.valueOf(1L),
+      JLong.valueOf(2L), null,
+      JLong.valueOf(4L), JLong.valueOf(5L), JLong.valueOf(6L),
+      JLong.valueOf(7L), null, null, JLong.valueOf(10L),
+
+      JLong.valueOf(11L), JLong.valueOf(11L), JLong.valueOf(13L), JLong.valueOf(14L),
+      JLong.valueOf(15L))
+
+    val chars = List(
+      "A",
+      "B", null,
+      "D", "E", "F",
+      "H", null, null, "K",
+      "L", "L", "N", "O", "P")
 
     val data = new mutable.MutableList[Row]
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:01"), localDate("1970-01-01"),
-      mLocalTime("00:00:01"), BigDecimal(1).bigDecimal, JInt.valueOf(1), JLong.valueOf(1L),
-      Long.box(1L), "A"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:02"), localDate("1970-01-02"),
-      mLocalTime("00:00:02"), BigDecimal(2).bigDecimal, JInt.valueOf(2), JLong.valueOf(2L),
-      Long.box(2L), "B"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:03"), localDate("1970-01-03"),
-      mLocalTime("00:00:03"), BigDecimal(3).bigDecimal, null, JLong.valueOf(3L),
-      Long.box(2L), "B"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:04"), localDate("1970-01-04"),
-      mLocalTime("00:00:04"), BigDecimal(4).bigDecimal, JInt.valueOf(4), JLong.valueOf(4L),
-      Long.box(3L), "C"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:05"), localDate("1970-01-05"),
-      mLocalTime("00:00:05"), BigDecimal(5).bigDecimal, JInt.valueOf(5), JLong.valueOf(5L),
-      Long.box(3L), "C"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:06"), localDate("1970-01-06"),
-      mLocalTime("00:00:06"), BigDecimal(6).bigDecimal, JInt.valueOf(6), JLong.valueOf(6L),
-      Long.box(3L), "C"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:07"), localDate("1970-01-07"),
-      mLocalTime("00:00:07"), BigDecimal(7).bigDecimal, JInt.valueOf(7), JLong.valueOf(7L),
-      Long.box(4L), "B"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:08"), localDate("1970-01-08"),
-      mLocalTime("00:00:08"), BigDecimal(8).bigDecimal, JInt.valueOf(8), JLong.valueOf(8L),
-      Long.box(4L), "A"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:09"), localDate("1970-01-09"),
-      mLocalTime("00:00:09"), BigDecimal(9).bigDecimal, JInt.valueOf(9), JLong.valueOf(9L),
-      Long.box(4L), "D"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:10"), localDate("1970-01-10"),
-      mLocalTime("00:00:10"), BigDecimal(10).bigDecimal, null, JLong.valueOf(10L),
-      Long.box(4L), "E"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:11"), localDate("1970-01-11"),
-      mLocalTime("00:00:11"), BigDecimal(11).bigDecimal, JInt.valueOf(11), JLong.valueOf(11L),
-      Long.box(5L), "A"))
-    data.+=(Row.of(localDateTime("1970-01-01 00:00:12"), localDate("1970-01-12"),
-      mLocalTime("00:00:12"), BigDecimal(12).bigDecimal, JInt.valueOf(12), JLong.valueOf(12L),
-      Long.box(5L), "B"))
 
-    val t = failingDataSource(data)(new RowTypeInfo(
-      Types.LOCAL_DATE_TIME, Types.LOCAL_DATE, Types.LOCAL_TIME, Types.DECIMAL,
-      Types.INT, Types.LONG, Types.LONG, Types.STRING)).toTable(
-      tEnv, 'a, 'b, 'c, 'd, 'e, 'f, 'x, 'y)
+    for (i <- ids.indices) {
+      data.+=(Row.of(
+        ids(i), dateTimes(i), dates(i), times(i), decimals(i), ints(i), longs(i), chars(i)))
+    }
+
+    val rowType = new RowTypeInfo(
+      Types.INT, Types.LOCAL_DATE_TIME, Types.LOCAL_DATE, Types.LOCAL_TIME, Types.DECIMAL,
+      Types.INT, Types.LONG, Types.STRING)
+
+    val t = failingDataSource(data)(rowType).toTable(tEnv, 'id, 'a, 'b, 'c, 'd, 'e, 'f, 'g)
     tEnv.registerTable("MyTable", t)
-
     val t1 = tEnv.sqlQuery(
       s"""
          |SELECT
-         | x,
-         | count(distinct y),
+         | id,
          | count(distinct a),
          | count(distinct b),
          | count(distinct c),
          | count(distinct d),
          | count(distinct e),
-         | count(distinct f)
-         |FROM MyTable GROUP BY x
+         | count(distinct f),
+         | count(distinct g)
+         |FROM MyTable GROUP BY id
        """.stripMargin)
 
     val sink = new TestingRetractSink
@@ -147,9 +189,14 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List(
-      "1,1,1,1,1,1,1,1", "2,1,2,2,2,2,1,2", "3,1,3,3,3,3,3,3", "4,4,4,4,4,4,3,4", "5,2,2,2,2,2,2,2")
+      "1,1,1,1,1,1,1,1",
+      "2,1,1,1,1,1,1,1",
+      "3,3,3,3,3,3,3,3",
+      "4,2,2,2,2,2,2,2",
+      "5,4,4,4,4,4,4,4")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
 
   @Test
   def testSingleDistinctAgg(): Unit = {
