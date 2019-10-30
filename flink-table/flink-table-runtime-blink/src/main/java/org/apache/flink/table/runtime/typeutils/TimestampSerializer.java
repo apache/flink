@@ -23,20 +23,20 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.table.dataformat.PreciseTimestamp;
+import org.apache.flink.table.dataformat.Timestamp;
 
 import java.io.IOException;
 
 /**
- * Serializer of {@link PreciseTimestamp}.
+ * Serializer of {@link Timestamp}.
  */
-public class PreciseTimestampSerializer extends TypeSerializer<PreciseTimestamp> {
+public class TimestampSerializer extends TypeSerializer<Timestamp> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final int precision;
 
-	public PreciseTimestampSerializer(int precision) {
+	public TimestampSerializer(int precision) {
 		this.precision = precision;
 	}
 
@@ -46,68 +46,65 @@ public class PreciseTimestampSerializer extends TypeSerializer<PreciseTimestamp>
 	}
 
 	@Override
-	public TypeSerializer<PreciseTimestamp> duplicate() {
-		return new PreciseTimestampSerializer(precision);
+	public TypeSerializer<Timestamp> duplicate() {
+		return new TimestampSerializer(precision);
 	}
 
 	@Override
-	public PreciseTimestamp createInstance() {
-		return PreciseTimestamp.zero(precision);
+	public Timestamp createInstance() {
+		return Timestamp.fromLong(0, precision);
 	}
 
 	@Override
-	public PreciseTimestamp copy(PreciseTimestamp from) {
-		return from.copy();
+	public Timestamp copy(Timestamp from) {
+		return from;
 	}
 
 	@Override
-	public PreciseTimestamp copy(PreciseTimestamp from, PreciseTimestamp reuse) {
+	public Timestamp copy(Timestamp from, Timestamp reuse) {
 		return copy(from);
 	}
 
 	@Override
 	public int getLength() {
-		return -1;
+		return ((precision <= 3) ? 8 : 12);
 	}
 
 	@Override
-	public void serialize(PreciseTimestamp record, DataOutputView target) throws IOException {
-		if (PreciseTimestamp.isCompact(precision)) {
-			assert record.isCompact();
-			target.writeLong(record.toLong());
+	public void serialize(Timestamp record, DataOutputView target) throws IOException {
+		if (Timestamp.isCompact(precision)) {
+			assert record.getNanoOfMillisecond() == 0;
+			target.writeLong(record.getMillisecond());
 		} else {
-			byte[] bytes = record.toUnscaledBytes();
-			target.writeInt(bytes.length);
-			target.write(bytes);
+			target.writeLong(record.getMillisecond());
+			target.writeInt(record.getNanoOfMillisecond());
 		}
 	}
 
 	@Override
-	public PreciseTimestamp deserialize(DataInputView source) throws IOException {
-		if (PreciseTimestamp.isCompact(precision)) {
+	public Timestamp deserialize(DataInputView source) throws IOException {
+		if (Timestamp.isCompact(precision)) {
 			long val = source.readLong();
-			return PreciseTimestamp.fromLong(val, precision);
+			return new Timestamp(val, 0);
 		} else {
-			int length = source.readInt();
-			byte[] bytes = new byte[length];
-			source.readFully(bytes);
-			return PreciseTimestamp.fromUnscaledBytes(bytes, precision);
+			long longVal = source.readLong();
+			int intVal = source.readInt();
+			return new Timestamp(longVal, intVal);
 		}
 	}
 
 	@Override
-	public PreciseTimestamp deserialize(PreciseTimestamp reuse, DataInputView source) throws IOException {
+	public Timestamp deserialize(Timestamp reuse, DataInputView source) throws IOException {
 		return deserialize(source);
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		if (PreciseTimestamp.isCompact(precision)) {
+		if (Timestamp.isCompact(precision)) {
 			target.writeLong(source.readLong());
 		} else {
-			int length = source.readInt();
-			target.writeInt(length);
-			target.write(source, length);
+			target.writeLong(source.readLong());
+			target.writeInt(source.readInt());
 		}
 	}
 
@@ -121,7 +118,7 @@ public class PreciseTimestampSerializer extends TypeSerializer<PreciseTimestamp>
 			return false;
 		}
 
-		PreciseTimestampSerializer that = (PreciseTimestampSerializer) obj;
+		TimestampSerializer that = (TimestampSerializer) obj;
 		return precision == that.precision;
 	}
 
@@ -131,14 +128,14 @@ public class PreciseTimestampSerializer extends TypeSerializer<PreciseTimestamp>
 	}
 
 	@Override
-	public TypeSerializerSnapshot<PreciseTimestamp> snapshotConfiguration() {
+	public TypeSerializerSnapshot<Timestamp> snapshotConfiguration() {
 		return new PreciseTimestampSerializerSnapshot(precision);
 	}
 
 	/**
-	 * {@link TypeSerializerSnapshot} for {@link PreciseTimestampSerializer}.
+	 * {@link TypeSerializerSnapshot} for {@link TimestampSerializer}.
 	 */
-	public static final class PreciseTimestampSerializerSnapshot implements TypeSerializerSnapshot<PreciseTimestamp> {
+	public static final class PreciseTimestampSerializerSnapshot implements TypeSerializerSnapshot<Timestamp> {
 
 		private static final int CURRENT_VERSION = 1;
 
@@ -168,17 +165,17 @@ public class PreciseTimestampSerializer extends TypeSerializer<PreciseTimestamp>
 		}
 
 		@Override
-		public TypeSerializer<PreciseTimestamp> restoreSerializer() {
-			return new PreciseTimestampSerializer(previousPrecision);
+		public TypeSerializer<Timestamp> restoreSerializer() {
+			return new TimestampSerializer(previousPrecision);
 		}
 
 		@Override
-		public TypeSerializerSchemaCompatibility<PreciseTimestamp> resolveSchemaCompatibility(TypeSerializer<PreciseTimestamp> newSerializer) {
-			if (!(newSerializer instanceof PreciseTimestampSerializer)) {
+		public TypeSerializerSchemaCompatibility<Timestamp> resolveSchemaCompatibility(TypeSerializer<Timestamp> newSerializer) {
+			if (!(newSerializer instanceof TimestampSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 
-			PreciseTimestampSerializer precisionTimestampSerializer = (PreciseTimestampSerializer) newSerializer;
+			TimestampSerializer precisionTimestampSerializer = (TimestampSerializer) newSerializer;
 			if (previousPrecision != precisionTimestampSerializer.precision) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			} else {

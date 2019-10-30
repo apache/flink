@@ -18,36 +18,33 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.PreciseTimestamp;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
- * Test for {@link PreciseTimestampSerializer}.
+ * Test for {@link TimestampTypeInfo}.
  */
-public class PreciseTimestampSerializerTest extends SerializerTestBase<PreciseTimestamp> {
+public class TimestampTypeInfoTest extends TypeInformationTestBase<TimestampTypeInfo> {
 	@Override
-	protected TypeSerializer<PreciseTimestamp> createSerializer() {
-		return new PreciseTimestampSerializer(3);
-	}
-
-	@Override
-	protected int getLength() {
-		return -1;
-	}
-
-	@Override
-	protected Class<PreciseTimestamp> getTypeClass() {
-		return PreciseTimestamp.class;
-	}
-
-	@Override
-	protected PreciseTimestamp[] getTestData() {
-		return new PreciseTimestamp[] {
-			PreciseTimestamp.fromLong(1, 3),
-			PreciseTimestamp.fromLong(2, 3),
-			PreciseTimestamp.fromLong(3, 3),
-			PreciseTimestamp.fromLong(4, 3)
+	protected TimestampTypeInfo[] getTestData() {
+		return new TimestampTypeInfo[]{
+			new TimestampTypeInfo(9),
+			new TimestampTypeInfo(6),
+			new TimestampTypeInfo(3),
+			new TimestampTypeInfo(0)
 		};
+	}
+
+	@Test
+	public void testEquality() {
+		TimestampTypeInfo ti1 = new TimestampTypeInfo(9);
+		TimestampTypeInfo ti2 = new TimestampTypeInfo(9);
+		TimestampTypeInfo ti3 = new TimestampTypeInfo(3);
+
+		Assert.assertEquals(ti1, ti2);
+		Assert.assertEquals(ti1.hashCode(), ti2.hashCode());
+		Assert.assertNotEquals(ti1, ti3);
 	}
 }
