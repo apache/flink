@@ -198,8 +198,8 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		}
 
 		@Override
-		protected void executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
-			assertEquals(isDetached, client.isDetached());
+		protected void executeProgram(PackagedProgram program, ClusterClient client, int parallelism, boolean detached) {
+			assertEquals(isDetached, detached);
 			assertEquals(expectedParallelism, parallelism);
 		}
 	}

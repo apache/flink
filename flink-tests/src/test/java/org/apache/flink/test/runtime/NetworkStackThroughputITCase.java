@@ -19,6 +19,7 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -269,9 +270,9 @@ public class NetworkStackThroughputITCase extends TestLogger {
 			final boolean isSlowReceiver,
 			final int parallelism) throws Exception {
 		ClusterClient<?> client = cluster.getClusterClient();
-		client.setDetached(false);
 
-		JobExecutionResult jer = (JobExecutionResult) client.submitJob(
+		JobExecutionResult jer = ClientUtils.submitJobAndWaitForResult(
+			client,
 			createJobGraph(
 				dataVolumeGb,
 				useForwarder,

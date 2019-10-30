@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -190,8 +191,7 @@ public class SavepointITCase extends TestLogger {
 		ClusterClient<?> client = cluster.getClusterClient();
 
 		try {
-			client.setDetached(true);
-			client.submitJob(jobGraph, SavepointITCase.class.getClassLoader());
+			ClientUtils.submitJob(client, jobGraph);
 
 			StatefulCounter.getProgressLatch().await();
 
@@ -232,8 +232,7 @@ public class SavepointITCase extends TestLogger {
 		ClusterClient<?> client = cluster.getClusterClient();
 
 		try {
-			client.setDetached(true);
-			client.submitJob(jobGraph, SavepointITCase.class.getClassLoader());
+			ClientUtils.submitJob(client, jobGraph);
 
 			// Await state is restored
 			StatefulCounter.getRestoreLatch().await();
@@ -317,8 +316,7 @@ public class SavepointITCase extends TestLogger {
 		final JobGraph graph = new JobGraph(vertex);
 
 		try {
-			client.setDetached(true);
-			client.submitJob(graph, SavepointITCase.class.getClassLoader());
+			ClientUtils.submitJob(client, graph);
 
 			client.triggerSavepoint(graph.getJobID(), null).get();
 
@@ -367,8 +365,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
 
 			try {
-				client.setDetached(false);
-				client.submitJob(jobGraph, SavepointITCase.class.getClassLoader());
+				ClientUtils.submitJobAndWaitForResult(client, jobGraph, SavepointITCase.class.getClassLoader());
 			} catch (Exception e) {
 				Optional<JobExecutionException> expectedJobExecutionException = ExceptionUtils.findThrowable(e, JobExecutionException.class);
 				Optional<FileNotFoundException> expectedFileNotFoundException = ExceptionUtils.findThrowable(e, FileNotFoundException.class);
@@ -434,8 +431,7 @@ public class SavepointITCase extends TestLogger {
 
 			JobGraph originalJobGraph = env.getStreamGraph().getJobGraph();
 
-			client.setDetached(true);
-			JobSubmissionResult submissionResult = client.submitJob(originalJobGraph, SavepointITCase.class.getClassLoader());
+			JobSubmissionResult submissionResult = ClientUtils.submitJob(client, originalJobGraph);
 			JobID jobID = submissionResult.getJobID();
 
 			// wait for the Tasks to be ready
@@ -485,8 +481,7 @@ public class SavepointITCase extends TestLogger {
 					"savepoint path " + savepointPath + " in detached mode.");
 
 			// Submit the job
-			client.setDetached(true);
-			client.submitJob(modifiedJobGraph, SavepointITCase.class.getClassLoader());
+			ClientUtils.submitJob(client, modifiedJobGraph);
 			// Await state is restored
 			StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
@@ -680,8 +675,7 @@ public class SavepointITCase extends TestLogger {
 
 		String savepointPath = null;
 		try {
-			client.setDetached(true);
-			client.submitJob(jobGraph, SavepointITCase.class.getClassLoader());
+			ClientUtils.submitJob(client, jobGraph);
 			for (OneShotLatch latch : iterTestSnapshotWait) {
 				latch.await();
 			}
@@ -695,8 +689,7 @@ public class SavepointITCase extends TestLogger {
 			jobGraph = streamGraph.getJobGraph();
 			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
-			client.setDetached(true);
-			client.submitJob(jobGraph, SavepointITCase.class.getClassLoader());
+			ClientUtils.submitJob(client, jobGraph);
 			for (OneShotLatch latch : iterTestRestoreWait) {
 				latch.await();
 			}

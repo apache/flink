@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -90,7 +91,6 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 			miniClusterResource.getClusterClient() instanceof MiniClusterClient);
 
 		clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
-		clusterClient.setDetached(true);
 
 		jobGraph = new JobGraph();
 
@@ -113,7 +113,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 				0),
 			null));
 
-		clusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+		ClientUtils.submitJob(clusterClient, jobGraph);
 		invokeLatch.await(60, TimeUnit.SECONDS);
 		waitForJob();
 	}

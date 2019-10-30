@@ -23,12 +23,16 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.ContextEnvironmentFactory;
+import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +42,11 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarFile;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility functions for Flink client.
@@ -95,15 +102,61 @@ public enum ClientUtils {
 		return FlinkUserCodeClassLoaders.parentFirst(urls, parent);
 	}
 
+	public static JobExecutionResult submitJob(
+			ClusterClient<?> client,
+			JobGraph jobGraph) throws ProgramInvocationException {
+		checkNotNull(client);
+		checkNotNull(jobGraph);
+		try {
+			return client
+				.submitJob(jobGraph)
+				.thenApply(JobSubmissionResult::getJobID)
+				.thenApply(DetachedJobExecutionResult::new)
+				.get();
+		} catch (InterruptedException | ExecutionException e) {
+			ExceptionUtils.checkInterrupted(e);
+			throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
+		}
+	}
+
+	public static JobExecutionResult submitJobAndWaitForResult(
+			ClusterClient<?> client,
+			JobGraph jobGraph,
+			ClassLoader classLoader) throws ProgramInvocationException {
+		checkNotNull(client);
+		checkNotNull(jobGraph);
+		checkNotNull(classLoader);
+
+		JobResult jobResult;
+
+		try {
+			jobResult = client
+				.submitJob(jobGraph)
+				.thenApply(JobSubmissionResult::getJobID)
+				.thenCompose(client::requestJobResult)
+				.get();
+		} catch (InterruptedException | ExecutionException e) {
+			ExceptionUtils.checkInterrupted(e);
+			throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
+		}
+
+		try {
+			return jobResult.toJobExecutionResult(classLoader);
+		} catch (JobExecutionException | IOException | ClassNotFoundException e) {
+			throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
+		}
+	}
+
 	public static JobSubmissionResult executeProgram(
-		ClusterClient<?> client,
-		PackagedProgram program,
-		int parallelism) throws ProgramMissingJobException, ProgramInvocationException {
+			ClusterClient<?> client,
+			PackagedProgram program,
+			int parallelism,
+			boolean detached) throws ProgramMissingJobException, ProgramInvocationException {
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		try {
 			Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());
 
-			LOG.info("Starting program (detached: {})", client.isDetached());
+			LOG.info("Starting program (detached: {})", detached);
 
 			final List<URL> libraries = program.getAllLibraries();
 
@@ -115,7 +168,7 @@ public enum ClientUtils {
 				program.getClasspaths(),
 				program.getUserCodeClassLoader(),
 				parallelism,
-				client.isDetached(),
+				detached,
 				program.getSavepointSettings(),
 				jobExecutionResult);
 			ContextEnvironment.setAsContext(factory);

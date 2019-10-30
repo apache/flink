@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -224,7 +225,6 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 				miniClusterResource.getClusterClient() instanceof MiniClusterClient);
 
 		clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
-		clusterClient.setDetached(true);
 
 		jobGraph = new JobGraph();
 
@@ -252,7 +252,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 						0),
 				null));
 
-		clusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+		ClientUtils.submitJob(clusterClient, jobGraph);
 		invokeLatch.await(60, TimeUnit.SECONDS);
 		waitForJob();
 	}

@@ -273,17 +273,15 @@ public class CliFrontend {
 				}
 
 				try {
-					client.setDetached(executionParameters.getDetachedMode());
-
 					int userParallelism = executionParameters.getParallelism();
 					LOG.debug("User parallelism is set to {}", userParallelism);
 					if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
 						userParallelism = defaultParallelism;
 					}
 
-					executeProgram(program, client, userParallelism);
+					executeProgram(program, client, userParallelism, executionParameters.getDetachedMode());
 				} finally {
-					if (clusterId == null && !client.isDetached()) {
+					if (clusterId == null && !executionParameters.getDetachedMode()) {
 						// terminate the cluster only if we have started it before and if it's not detached
 						try {
 							client.shutDownCluster();
@@ -745,10 +743,14 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected void executeProgram(PackagedProgram program, ClusterClient<?> client, int parallelism) throws ProgramMissingJobException, ProgramInvocationException {
+	protected void executeProgram(
+			PackagedProgram program,
+			ClusterClient<?> client,
+			int parallelism,
+			boolean detached) throws ProgramMissingJobException, ProgramInvocationException {
 		logAndSysout("Starting execution of program");
 
-		JobSubmissionResult result = ClientUtils.executeProgram(client, program, parallelism);
+		JobSubmissionResult result = ClientUtils.executeProgram(client, program, parallelism, detached);
 
 		if (result.isJobExecutionResult()) {
 			logAndSysout("Program execution finished");

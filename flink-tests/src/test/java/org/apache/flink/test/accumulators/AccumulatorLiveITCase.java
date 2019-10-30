@@ -26,6 +26,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -147,7 +148,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 		final CheckedThread submissionThread = new CheckedThread() {
 			@Override
 			public void go() throws Exception {
-				client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+				ClientUtils.submitJobAndWaitForResult(client, jobGraph, AccumulatorLiveITCase.class.getClassLoader());
 			}
 		};
 

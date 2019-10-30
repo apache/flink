@@ -21,6 +21,7 @@ package org.apache.flink.test.state.operator.restore;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
@@ -109,18 +110,16 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 
 	@Test
 	public void testMigrationAndRestore() throws Throwable {
-		ClassLoader classLoader = this.getClass().getClassLoader();
 		ClusterClient<?> clusterClient = cluster.getClusterClient();
-		clusterClient.setDetached(true);
 		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 
 		// submit job with old version savepoint and create a migrated savepoint in the new version
-		String savepointPath = migrateJob(classLoader, clusterClient, deadline);
+		String savepointPath = migrateJob(clusterClient, deadline);
 		// restore from migrated new version savepoint
-		restoreJob(classLoader, clusterClient, deadline, savepointPath);
+		restoreJob(clusterClient, deadline, savepointPath);
 	}
 
-	private String migrateJob(ClassLoader classLoader, ClusterClient<?> clusterClient, Deadline deadline) throws Throwable {
+	private String migrateJob(ClusterClient<?> clusterClient, Deadline deadline) throws Throwable {
 
 		URL savepointResource = AbstractOperatorRestoreTestBase.class.getClassLoader().getResource("operatorstate/" + getMigrationSavepointName());
 		if (savepointResource == null) {
@@ -131,7 +130,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 
 		assertNotNull(jobToMigrate.getJobID());
 
-		clusterClient.submitJob(jobToMigrate, classLoader);
+		ClientUtils.submitJob(clusterClient, jobToMigrate);
 
 		CompletableFuture<JobStatus> jobRunningFuture = FutureUtils.retrySuccessfulWithDelay(
 			() -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
@@ -177,13 +176,13 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 		return savepointPath;
 	}
 
-	private void restoreJob(ClassLoader classLoader, ClusterClient<?> clusterClient, Deadline deadline, String savepointPath) throws Exception {
+	private void restoreJob(ClusterClient<?> clusterClient, Deadline deadline, String savepointPath) throws Exception {
 		JobGraph jobToRestore = createJobGraph(ExecutionMode.RESTORE);
 		jobToRestore.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState));
 
 		assertNotNull("Job doesn't have a JobID.", jobToRestore.getJobID());
 
-		clusterClient.submitJob(jobToRestore, classLoader);
+		ClientUtils.submitJob(clusterClient, jobToRestore);
 
 		CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccessfulWithDelay(
 			() -> clusterClient.getJobStatus(jobToRestore.getJobID()),
