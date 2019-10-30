@@ -82,7 +82,7 @@ public class FlinkDistributionOverlayTest extends ContainerOverlayTestBase {
 			pluginsFolder);
 		overlay.configure(containerSpecification);
 
-		for(Path file : files) {
+		for (Path file : files) {
 			checkArtifact(containerSpecification, new Path(TARGET_ROOT, file.toString()));
 		}
 	}
@@ -102,7 +102,7 @@ public class FlinkDistributionOverlayTest extends ContainerOverlayTestBase {
 		map.put(ENV_FLINK_LIB_DIR, libFolder.getAbsolutePath());
 		map.put(ENV_FLINK_PLUGINS_DIR, pluginsFolder.getAbsolutePath());
 		map.put(ENV_FLINK_CONF_DIR, confFolder.getAbsolutePath());
- 		CommonTestUtils.setEnv(map);
+		CommonTestUtils.setEnv(map);
 
 		FlinkDistributionOverlay.Builder builder = FlinkDistributionOverlay.newBuilder().fromEnvironment(conf);
 
@@ -133,8 +133,7 @@ public class FlinkDistributionOverlayTest extends ContainerOverlayTestBase {
 		try {
 			FlinkDistributionOverlay.Builder builder = FlinkDistributionOverlay.newBuilder().fromEnvironment(conf);
 			fail();
-		}
-		catch(IllegalStateException e) {
+		} catch (IllegalStateException e) {
 			// expected
 		}
 	}
