@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
@@ -191,6 +192,42 @@ public class FunctionCatalog implements FunctionLookup {
 			oi,
 			definition
 		);
+	}
+
+	/**
+	 * Drop a temporary system function.
+	 *
+	 * @param funcName name of the function
+	 * @param ignoreIfNotExist Flag to specify behavior when the function does not exist:
+	 *                         if set to false, throw an exception,
+	 *                         if set to true, do nothing.
+	 */
+	public void dropTempSystemFunction(String funcName, boolean ignoreIfNotExist) {
+		String normalizedName = FunctionIdentifier.normalizeName(funcName);
+
+		FunctionDefinition fd = tempSystemFunctions.remove(normalizedName);
+
+		if (fd == null && !ignoreIfNotExist) {
+			throw new ValidationException(String.format("Temporary system function %s doesn't exist", funcName));
+		}
+	}
+
+	/**
+	 * Drop a temporary catalog function.
+	 *
+	 * @param identifier identifier of the function
+	 * @param ignoreIfNotExist Flag to specify behavior when the function does not exist:
+	 *                         if set to false, throw an exception,
+	 *                         if set to true, do nothing.
+	 */
+	public void dropTempCatalogFunction(ObjectIdentifier identifier, boolean ignoreIfNotExist) {
+		ObjectIdentifier normalizedName = FunctionIdentifier.normalizeObjectIdentifier(identifier);
+
+		FunctionDefinition fd = tempCatalogFunctions.remove(normalizedName);
+
+		if (fd == null && !ignoreIfNotExist) {
+			throw new ValidationException(String.format("Temporary catalog function %s doesn't exist", identifier));
+		}
 	}
 
 	/**

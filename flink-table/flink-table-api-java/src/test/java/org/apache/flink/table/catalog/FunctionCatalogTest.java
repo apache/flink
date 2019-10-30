@@ -32,6 +32,7 @@ import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
@@ -50,6 +51,10 @@ public class FunctionCatalogTest {
 	private ModuleManager moduleManager;
 
 	private final String testCatalogName = "test";
+	private final ObjectIdentifier oi = ObjectIdentifier.of(
+		testCatalogName,
+		GenericInMemoryCatalog.DEFAULT_DB,
+		TEST_FUNCTION_NAME);
 
 	private static final String TEST_FUNCTION_NAME = "test_function";
 
@@ -104,10 +109,6 @@ public class FunctionCatalogTest {
 
 	@Test
 	public void testAmbiguousFunctionReference() throws FunctionAlreadyExistException, DatabaseNotExistException, ModuleAlreadyExistException {
-		ObjectIdentifier oi = ObjectIdentifier.of(
-			testCatalogName,
-			GenericInMemoryCatalog.DEFAULT_DB,
-			TEST_FUNCTION_NAME);
 
 		// test no function is found
 		assertFalse(functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).isPresent());
@@ -164,6 +165,34 @@ public class FunctionCatalogTest {
 		public Optional<FunctionDefinition> getFunctionDefinition(String name) {
 			return Optional.of(new ScalarFunctionDefinition(TEST_FUNCTION_NAME, new TestFunction3()));
 		}
+	}
+
+	@Test
+	public void testRegisterAndDropTempSystemFunction() {
+		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(TEST_FUNCTION_NAME));
+
+		functionCatalog.registerTempSystemScalarFunction(TEST_FUNCTION_NAME, new TestFunction1());
+		assertTrue(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(TEST_FUNCTION_NAME));
+
+		functionCatalog.dropTempSystemFunction(TEST_FUNCTION_NAME, false);
+		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(TEST_FUNCTION_NAME));
+
+		functionCatalog.dropTempSystemFunction(TEST_FUNCTION_NAME, true);
+		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(TEST_FUNCTION_NAME));
+	}
+
+	@Test
+	public void testRegisterAndDropTempCatalogFunction() {
+		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(TEST_FUNCTION_NAME));
+
+		functionCatalog.registerTempCatalogScalarFunction(oi, new TestFunction1());
+		assertTrue(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(oi.getObjectName()));
+
+		functionCatalog.dropTempCatalogFunction(oi, false);
+		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(oi.getObjectName()));
+
+		functionCatalog.dropTempCatalogFunction(oi, true);
+		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(oi.getObjectName()));
 	}
 
 	/**
