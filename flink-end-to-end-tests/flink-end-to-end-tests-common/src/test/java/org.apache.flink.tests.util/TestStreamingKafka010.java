@@ -18,24 +18,17 @@
 
 package org.apache.flink.tests.util;
 
-import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+public class TestStreamingKafka010 extends TestStreamingKafka {
 
-public class End2EndUtil {
-
-	private static final String END_TO_END_TESTS_MODULE = "/flink-end-to-end-tests/";
-
-	public static Path getEnd2EndModuleDir() {
-		URL url = End2EndUtil.class.getResource("End2EndUtil.class");
-		assert url != null;
-		String path = url.getPath();
-		assert path.contains(END_TO_END_TESTS_MODULE);
-		int index = path.indexOf(END_TO_END_TESTS_MODULE);
-		return Paths.get(path.substring(0, index), END_TO_END_TESTS_MODULE);
-	}
-
-	public static Path getTestDataDir() {
-		return getEnd2EndModuleDir().resolve("test-scripts").resolve("temp-test-directory-" + System.nanoTime());
+	@Override
+	protected void prepareKafkaEnv() {
+		this.kafkaDist = new KafkaDistribution(
+			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
+			"kafka_2.11-2.1.1.tgz",
+			End2EndUtil.getTestDataDir()
+		);
+		this.jarFile = End2EndUtil
+			.getEnd2EndModuleDir()
+			.resolve("flink-streaming-kafka010-test/target/Kafka010Example.jar");
 	}
 }

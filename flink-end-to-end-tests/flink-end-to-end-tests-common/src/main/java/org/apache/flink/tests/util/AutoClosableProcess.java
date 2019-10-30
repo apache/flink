@@ -32,6 +32,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -166,6 +168,24 @@ public class AutoClosableProcess implements AutoCloseable {
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 			}
+		}
+	}
+
+	public static class LineFetcher implements Consumer<String> {
+
+		private List<String> lines = new ArrayList<>();
+
+		@Override
+		public void accept(String line) {
+			lines.add(line);
+		}
+
+		public String toString() {
+			return StringUtils.join(lines, "\n");
+		}
+
+		public List<String> getLines() {
+			return lines;
 		}
 	}
 }

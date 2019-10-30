@@ -88,14 +88,14 @@ public class TestSQLClientKafka {
 		this.result = this.testDataDir.resolve("result");
 	}
 
-	private static final String END_TO_END_TEST_DIR = End2EndUtil.getEnd2EndModuleDir();
+	private static final Path END_TO_END_TEST_DIR = End2EndUtil.getEnd2EndModuleDir();
 	private static final Path DEFAULT_TEST_DATA_DIR = End2EndUtil.getTestDataDir();
-	private static final String SQL_JARS = END_TO_END_TEST_DIR + "flink-sql-client-test/target/sql-jars";
-	private static final String SQL_TOOL_BOX_JAR = END_TO_END_TEST_DIR + "flink-sql-client-test/target/SqlToolbox.jar";
+	private static final Path SQL_JARS = END_TO_END_TEST_DIR.resolve("flink-sql-client-test/target/sql-jars");
+	private static final Path SQL_TOOL_BOX_JAR = END_TO_END_TEST_DIR.resolve("flink-sql-client-test/target/SqlToolbox.jar");
 	private static final String KAFKA_JSON_SOURCE_SCHEMA_YAML = "kafka_json_source_schema.yaml";
 
 	public void setUpFlinkCluster() throws IOException {
-		flinkDist.startFlinkCluster(3);
+		flinkDist.startFlinkCluster(2);
 	}
 
 	private String initializeSessionYaml(Map<String, String> vars) throws IOException {
@@ -180,9 +180,9 @@ public class TestSQLClientKafka {
 			"    TUMBLE(rowtime, INTERVAL '1' HOUR)";
 		flinkDist.newSQLClient()
 			.embedded(true)
-			.addJAR(findSQLJarPath(SQL_JARS, "avro"))
-			.addJAR(findSQLJarPath(SQL_JARS, "json"))
-			.addJAR(findSQLJarPath(SQL_JARS, this.kafkaSQLJarVersion + "_"))
+			.addJAR(findSQLJarPath(SQL_JARS.toString(), "avro"))
+			.addJAR(findSQLJarPath(SQL_JARS.toString(), "json"))
+			.addJAR(findSQLJarPath(SQL_JARS.toString(), this.kafkaSQLJarVersion + "_"))
 			.addJAR(SQL_TOOL_BOX_JAR)
 			.sessionEnvironmentFile(this.sqlClientSessionConf.toAbsolutePath().toString())
 			.createProcess(sqlStatement1)
@@ -194,9 +194,9 @@ public class TestSQLClientKafka {
 
 		flinkDist.newSQLClient()
 			.embedded(true)
-			.addJAR(findSQLJarPath(SQL_JARS, "avro"))
-			.addJAR(findSQLJarPath(SQL_JARS, "json"))
-			.addJAR(findSQLJarPath(SQL_JARS, this.kafkaSQLJarVersion + "_"))
+			.addJAR(findSQLJarPath(SQL_JARS.toString(), "avro"))
+			.addJAR(findSQLJarPath(SQL_JARS.toString(), "json"))
+			.addJAR(findSQLJarPath(SQL_JARS.toString(), this.kafkaSQLJarVersion + "_"))
 			.addJAR(SQL_TOOL_BOX_JAR)
 			.sessionEnvironmentFile(this.sqlClientSessionConf.toAbsolutePath().toString())
 			.createProcess(sqlStatement2)

@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -40,6 +41,10 @@ public class KafkaDistribution {
 		this.fileURL = fileURL;
 		this.packageName = packageName;
 		this.testDataDir = testDataDir;
+	}
+
+	public Path getTestDataDir(){
+		return this.testDataDir;
 	}
 
 	private String getKafkaDir() {
@@ -137,6 +142,14 @@ public class KafkaDistribution {
 		AutoClosableProcess.create(args).runBlocking();
 	}
 
+	/**
+	 * Send a single message to the Kafka Producer, Note that the message shouldn't contain any new line char, otherwise
+	 * the command will be broken.
+	 *
+	 * @param topic   to send the message to.
+	 * @param message content of message.
+	 * @throws IOException
+	 */
 	public void sendMessage(String topic, String message) throws IOException {
 		String[] pipelineArgs = new String[]{
 			"echo", message, "|",
@@ -152,15 +165,63 @@ public class KafkaDistribution {
 		AutoClosableProcess.create(commands).runBlocking();
 	}
 
-	public void readMessage(int maxMessage, String topic, String groupId) throws IOException {
-		String[] args = new String[]{getKafkaDir() + "/bin/kafka-console-consumer.sh",
+	public List<String> readMessage(int maxMessage, String topic, String groupId) throws IOException {
+		String[] args = new String[]{
+			getKafkaDir() + "/bin/kafka-console-consumer.sh",
 			"--bootstrap-server", "localhost:9092",
-			"--from-begining",
+			"--from-beginning",
 			"--max-messages", String.valueOf(maxMessage),
 			"--topic", topic,
 			"--consumer-property",
-			"group.id=" + groupId};
+			"group.id=" + groupId,
+		};
+		AutoClosableProcess.LineFetcher lineFetcher = new AutoClosableProcess.LineFetcher();
+		AutoClosableProcess.create(args).setStdoutProcessor(lineFetcher).runBlocking();
+		return lineFetcher.getLines();
+	}
+
+	public void modifyNumPartitions(String topic, int num) throws IOException {
+		String[] args = new String[]{
+			getKafkaDir() + "/bin/kafka-topics.sh",
+			"--alter",
+			"--topic", topic,
+			"--partitions", String.valueOf(num),
+			"--zookeeper", "localhost:2181"
+		};
 		AutoClosableProcess.create(args).runBlocking();
+	}
+
+	public int getNumPartitions(String topic) throws IOException {
+		String[] pipelineCommands = new String[]{
+			getKafkaDir() + "/bin/kafka-topics.sh",
+			"--describe",
+			"--topic", topic,
+			"--zookeeper", "localhost:2181",
+			"|", "grep -Eo \"PartitionCount:[0-9]+\"",
+			"|", "cut -d \":\" -f 2"
+		};
+		String[] args = new String[]{
+			"/bin/sh",
+			"-c",
+			StringUtils.join(pipelineCommands, " ")
+		};
+		AutoClosableProcess.LineFetcher lineFetcher = new AutoClosableProcess.LineFetcher();
+		AutoClosableProcess.create(args).setStdoutProcessor(lineFetcher).runBlocking();
+		return Integer.parseInt(lineFetcher.toString());
+	}
+
+	public int getPartitionEndOffset(String topic, int partition) throws IOException {
+		String[] args = new String[]{
+			getKafkaDir() + "/bin/kafka-run-class.sh",
+			"kafka.tools.GetOffsetShell",
+			"--broker-list", "localhost:9092",
+			"--topic", topic,
+			"--partitions", String.valueOf(partition),
+			"--time", "-1"
+		};
+		AutoClosableProcess.LineFetcher lineFetcher = new AutoClosableProcess.LineFetcher();
+		AutoClosableProcess.create(args).setStdoutProcessor(lineFetcher).runBlocking();
+		return Integer.parseInt(lineFetcher.toString().split(":")[2]);
 	}
 
 	public void shutdown() throws IOException {

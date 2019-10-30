@@ -272,4 +272,8 @@ public final class FlinkDistribution implements ExternalResource {
 	public FlinkSQLClient newSQLClient() {
 		return new FlinkSQLClient(bin);
 	}
+
+	public FlinkClient newFlinkClient() {
+		return new FlinkClient(bin);
+	}
 }
