@@ -28,8 +28,6 @@ import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.module.Module;
-import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
-import org.apache.flink.table.module.exceptions.ModuleNotFoundException;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
@@ -116,20 +114,20 @@ public interface TableEnvironment {
 
 	/**
 	 * Loads a {@link Module} under a unique name. Modules will be kept in the loaded order.
+	 * ValidationException is thrown when there is already a module with the same name.
 	 *
 	 * @param moduleName name of the {@link Module}
 	 * @param module the module instance
-	 * @throws ModuleAlreadyExistException thrown when there is already a module with the same name
 	 */
-	void loadModule(String moduleName, Module module) throws ModuleAlreadyExistException;
+	void loadModule(String moduleName, Module module);
 
 	/**
 	 * Unloads a {@link Module} with given name.
+	 * ValidationException is thrown when there is no module with the given name
 	 *
 	 * @param moduleName name of the {@link Module}
-	 * @throws ModuleNotFoundException thrown when there is no module with the given name
 	 */
-	void unloadModule(String moduleName) throws ModuleNotFoundException;
+	void unloadModule(String moduleName);
 
 	/**
 	 * Registers a {@link ScalarFunction} under a unique name. Replaces already existing

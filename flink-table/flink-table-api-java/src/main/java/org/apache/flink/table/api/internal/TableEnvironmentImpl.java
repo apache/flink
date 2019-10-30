@@ -52,8 +52,6 @@ import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
-import org.apache.flink.table.module.exceptions.ModuleNotFoundException;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -207,12 +205,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public void loadModule(String moduleName, Module module) throws ModuleAlreadyExistException {
+	public void loadModule(String moduleName, Module module) {
 		moduleManager.loadModule(moduleName, module);
 	}
 
 	@Override
-	public void unloadModule(String moduleName) throws ModuleNotFoundException {
+	public void unloadModule(String moduleName) {
 		moduleManager.unloadModule(moduleName);
 	}
 
