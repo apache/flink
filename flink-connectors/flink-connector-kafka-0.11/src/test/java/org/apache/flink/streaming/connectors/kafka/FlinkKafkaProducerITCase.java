@@ -55,6 +55,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 
 		Properties serverProperties = new Properties();
 		serverProperties.put("transaction.state.log.num.partitions", Integer.toString(1));
+		serverProperties.put("auto.leader.rebalance.enable", Boolean.toString(false));
 		startClusters(KafkaTestEnvironment.createConfig()
 			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
 			.setSecureMode(false)
