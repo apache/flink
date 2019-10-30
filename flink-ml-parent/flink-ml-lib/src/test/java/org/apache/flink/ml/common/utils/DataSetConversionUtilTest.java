@@ -21,9 +21,9 @@ package org.apache.flink.ml.common.utils;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.ml.common.MLEnvironmentFactory;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -34,28 +34,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
- * Unit Test for RowTypeDataStream.
+ * Unit test for DataSetConversionUtil.
  */
-public class RowTypeDataStreamTest {
+public class DataSetConversionUtilTest {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
-	public void test() throws Exception {
-		StreamExecutionEnvironment env = MLEnvironmentFactory.getDefault().getStreamExecutionEnvironment();
+	public void testForceTypeSchema() {
+		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
 
-		DataStream<Row> input = env.fromElements(Row.of("a"));
-
-		Table table1 = DataStreamConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"word"});
-		Assert.assertEquals(
-			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(String.class)}),
-			table1.getSchema()
-		);
-
-		input = input.map(new GenericTypeMap());
-		Table table2 = DataStreamConversionUtil.toTable(
-			MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
+		DataSet<Row> input = env.fromElements(Row.of("s1")).map(new GenericTypeMap());
+		Table table2 = DataSetConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
 			input,
 			new String[]{"word"},
 			new TypeInformation[]{TypeInformation.of(Integer.class)}
@@ -64,15 +58,29 @@ public class RowTypeDataStreamTest {
 			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(Integer.class)}),
 			table2.getSchema()
 		);
+	}
 
+	@Test
+	public void testExceptionWithoutTypeSchema() {
 		thrown.expect(ValidationException.class);
-		DataStreamConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"f0"});
+		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
+		DataSet<Row> input = env.fromElements(Row.of("s1")).map(new GenericTypeMap());
+		DataSetConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"f0"});
+	}
 
-		DataStream<Row> output = DataStreamConversionUtil.fromTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1);
+	@Test
+	public void testBasicConvert() throws Exception {
+		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
 
-		output.print();
+		DataSet<Row> input = env.fromElements(Row.of("a"));
 
-		env.execute();
+		Table table1 = DataSetConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"word"});
+		Assert.assertEquals(
+			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(String.class)}),
+			table1.getSchema()
+		);
+		List<Row> list = DataSetConversionUtil.fromTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1).collect();
+		Assert.assertEquals(Collections.singletonList(Row.of("a")), list);
 	}
 
 	private static class GenericTypeMap implements MapFunction<Row, Row> {
