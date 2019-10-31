@@ -19,6 +19,7 @@ package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo, SimplePythonFunction}
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 
@@ -27,12 +28,17 @@ import scala.collection.mutable
 
 trait CommonPythonCalc {
 
+  def loadClass(className: String): Class[_] = {
+    try {
+      Class.forName(className, false, Thread.currentThread.getContextClassLoader)
+    } catch {
+      case ex: ClassNotFoundException => throw new TableException(
+        "flink-python dependency is not present on the classpath.", ex)
+    }
+  }
+
   private lazy val convertLiteralToPython = {
-    val clazz = Class.forName(
-      "org.apache.flink.api.common.python.PythonBridgeUtils",
-      false,
-      Thread.currentThread.getContextClassLoader
-    )
+    val clazz = loadClass("org.apache.flink.api.common.python.PythonBridgeUtils")
     clazz.getMethod("convertLiteralToPython", classOf[RexLiteral], classOf[SqlTypeName])
   }
 
