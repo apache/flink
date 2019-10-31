@@ -85,9 +85,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
-import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
-import org.apache.hive.common.util.HiveStringUtils;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -525,12 +523,7 @@ public class HiveCatalog extends AbstractCatalog {
 			fields = hiveTable.getSd().getCols();
 		} else {
 			// get schema from deserializer
-			try {
-				fields = HiveReflectionUtils.getFieldsFromDeserializer(hiveShim, hiveTable.getTableName(),
-						HiveReflectionUtils.getDeserializer(hiveShim, hiveConf, hiveTable, true));
-			} catch (SerDeException | MetaException e) {
-				throw new CatalogException("Failed to get Hive table schema from deserializer", e);
-			}
+			fields = hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
 		}
 		TableSchema tableSchema =
 			HiveTableUtil.createTableSchema(fields, hiveTable.getPartitionKeys());
@@ -1099,7 +1092,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		return new Function(
 			// due to https://issues.apache.org/jira/browse/HIVE-22053, we have to normalize function name ourselves
-			HiveStringUtils.normalizeIdentifier(functionPath.getObjectName()),
+			functionPath.getObjectName().trim().toLowerCase(),
 			functionPath.getDatabaseName(),
 			functionClassName,
 			null,			// Owner name
