@@ -334,9 +334,7 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 		else {
 			// other types of byte buffers
-			for (int i = 0; i < numBytes; i++) {
-				target.put(get(offset++));
-			}
+			throw new IllegalArgumentException("The target buffer is not direct, and has no array.");
 		}
 	}
 

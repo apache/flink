@@ -1955,7 +1955,7 @@ public abstract class MemorySegmentTestBase {
 		assertArrayEquals(bytes, result);
 	}
 
-	@Test(expected = ReadOnlyBufferException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testHeapByteBufferGetReadOnly() {
 		testByteBufferGetReadOnly(false);
 	}
@@ -1975,7 +1975,7 @@ public abstract class MemorySegmentTestBase {
 	 * @throws ReadOnlyBufferException
 	 * 		expected exception due to writing to a read-only buffer
 	 */
-	private void testByteBufferGetReadOnly(boolean directBuffer) throws ReadOnlyBufferException {
+	protected void testByteBufferGetReadOnly(boolean directBuffer) throws ReadOnlyBufferException {
 		MemorySegment seg = createSegment(pageSize);
 
 		ByteBuffer target = (directBuffer ?

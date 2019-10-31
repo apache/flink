@@ -23,6 +23,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.nio.ByteBuffer;
+import java.nio.ReadOnlyBufferException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -47,6 +48,11 @@ public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 	@Override
 	MemorySegment createSegment(int size, Object owner) {
 		return new HeapMemorySegment(new byte[size], owner);
+	}
+
+	@Test(expected = ReadOnlyBufferException.class)
+	public void testHeapByteBufferGetReadOnly() {
+		testByteBufferGetReadOnly(false);
 	}
 
 	@Test

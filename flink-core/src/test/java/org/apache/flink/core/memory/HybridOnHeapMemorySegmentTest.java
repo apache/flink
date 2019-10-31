@@ -23,7 +23,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.nio.ByteBuffer;
-import java.nio.ReadOnlyBufferException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -82,7 +81,7 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 	@Test
 	public void testReadOnlyByteBufferPut() {
 		final byte[] buffer = new byte[100];
-		HybridMemorySegment seg = new HybridMemorySegment(buffer);
+		HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
 
 		String content = "hello world";
 		ByteBuffer bb = ByteBuffer.allocate(20);
@@ -110,22 +109,5 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 		for (int i = offset + numBytes; i < buffer.length; i++) {
 			assertEquals(0, buffer[i]);
 		}
-	}
-
-	@Test(expected = ReadOnlyBufferException.class)
-	public void testReadOnlyByteBufferGet() {
-		final byte[] buffer = new byte[100];
-		HybridMemorySegment seg = new HybridMemorySegment(buffer);
-
-		// write some data to the segment.
-		String content = "hello world";
-		seg.put(0, content.getBytes());
-
-		ByteBuffer readOnlyBuf = ByteBuffer.allocate(20).asReadOnlyBuffer();
-		assertFalse(readOnlyBuf.isDirect());
-		assertFalse(readOnlyBuf.hasArray());
-
-		// get the data to a read-only byte buffer, and expect an exception
-		seg.get(0, readOnlyBuf, content.length());
 	}
 }
