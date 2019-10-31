@@ -245,28 +245,24 @@ class TableEnvironment(object):
         """
         return Table(get_method(self._j_tenv, "from")(path))
 
-    def insert_into(self, table, table_path, *table_path_continued):
+    def insert_into(self, target_path, table):
         """
-        Writes the :class:`Table` to a :class:`TableSink` that was registered under
-        the specified name. For the path resolution algorithm see
-        :func:`~TableEnvironment.use_database`.
+        Instructs to write the content of a :class:`Table` API object into a table.
+
+        See the documentation of :func:`use_database` or :func:`use_catalog` for the rules on the
+        path resolution.
 
         Example:
         ::
 
             >>> tab = table_env.scan("tableName")
-            >>> table_env.insert_into(tab, "sink")
+            >>> table_env.insert_into("sink", tab)
 
-        :param table: :class:`Table` to write to the sink.
-        :param table_path: The first part of the path of the registered :class:`TableSink` to which
-               the :class:`Table` is written. This is to ensure at least the name of the
-               :class:`Table` is provided.
-        :param table_path_continued: The remaining part of the path of the registered
-                :class:`TableSink` to which the :class:`Table`  is written.
+        :param target_path: The path of the registered :class:`TableSink` to which the
+                            :class:`Table` is written.
+        :param table: table The Table to write to the sink.
         """
-        gateway = get_gateway()
-        j_table_path = utils.to_jarray(gateway.jvm.String, table_path_continued)
-        self._j_tenv.insertInto(table._j_table, table_path, j_table_path)
+        self._j_tenv.insertInto(target_path, table._j_table)
 
     def list_catalogs(self):
         """

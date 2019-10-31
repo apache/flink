@@ -151,6 +151,21 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             ', fields: [a, b, c])',
             result._j_table.getQueryOperation().asSummaryString())
 
+    def test_insert_into(self):
+        t_env = self.t_env
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink(
+            "Sinks",
+            source_sink_utils.TestAppendSink(field_names, field_types))
+
+        t_env.insert_into("Sinks", t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]))
+        self.t_env.execute("test")
+
+        actual = source_sink_utils.results()
+        expected = ['1,Hi,Hello']
+        self.assert_equals(actual, expected)
+
     def test_explain(self):
         schema = RowType()\
             .add('a', DataTypes.INT())\
