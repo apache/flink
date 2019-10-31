@@ -175,7 +175,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.customName = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_NAME);
 		this.applicationType = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_TYPE);
 		this.nodeLabel = flinkConfiguration.getString(YarnConfigOptions.NODE_LABEL);
-		this.zookeeperNamespace = flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+
+		// ignore the default value at this point
+		this.zookeeperNamespace = flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, null);
 	}
 
 	private Optional<List<File>> decodeDirsToShipToCluster(final Configuration configuration) {
