@@ -1934,7 +1934,7 @@ public class TaskExecutorTest extends TestLogger {
 			metricQueryServiceAddress,
 			dummyBlobCacheService,
 			testingFatalErrorHandler,
-			new TaskExecutorPartitionTrackerImpl());
+			new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
 	}
 
 	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) {
@@ -1952,7 +1952,7 @@ public class TaskExecutorTest extends TestLogger {
 			metricQueryServiceAddress,
 			dummyBlobCacheService,
 			testingFatalErrorHandler,
-			new TaskExecutorPartitionTrackerImpl());
+			new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
 	}
 
 	private static final class StartStopNotifyingLeaderRetrievalService implements LeaderRetrievalService {

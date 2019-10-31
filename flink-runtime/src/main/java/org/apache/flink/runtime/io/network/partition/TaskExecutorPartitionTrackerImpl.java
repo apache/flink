@@ -19,12 +19,22 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Collection;
 
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
 public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<JobID, TaskExecutorPartitionInfo> implements TaskExecutorPartitionTracker {
+
+	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
+
+	public TaskExecutorPartitionTrackerImpl(ShuffleEnvironment<?, ?> shuffleEnvironment) {
+		this.shuffleEnvironment = shuffleEnvironment;
+	}
 
 	@Override
 	public void startTrackingPartition(JobID producingJobId, ResultPartitionID resultPartitionId, IntermediateDataSetID intermediateDataSetId) {
@@ -33,5 +43,19 @@ public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<J
 		Preconditions.checkNotNull(intermediateDataSetId);
 
 		startTrackingPartition(producingJobId, resultPartitionId, new TaskExecutorPartitionInfo(intermediateDataSetId));
+	}
+
+	@Override
+	public void stopTrackingAndReleaseJobPartitions(Collection<ResultPartitionID> partitionsToRelease) {
+		stopTrackingPartitions(partitionsToRelease);
+		shuffleEnvironment.releasePartitionsLocally(partitionsToRelease);
+	}
+
+	@Override
+	public void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId) {
+		Collection<ResultPartitionID> partitionsForJob = CollectionUtil.project(
+			stopTrackingPartitionsFor(producingJobId),
+			PartitionTrackerEntry::getResultPartitionId);
+		shuffleEnvironment.releasePartitionsLocally(partitionsForJob);
 	}
 }
