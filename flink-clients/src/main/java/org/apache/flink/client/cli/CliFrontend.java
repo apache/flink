@@ -219,20 +219,20 @@ public class CliFrontend {
 		}
 	}
 
-	private <T> void runProgram(
+	private <ClusterID> void runProgram(
 			Configuration executorConfig,
 			Configuration executionConfig,
 			PackagedProgram program) throws ProgramInvocationException, FlinkException {
 
-		final ClusterClientFactory<T> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
+		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
 		checkNotNull(clusterClientFactory);
 
-		final ClusterDescriptor<T> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig);
+		final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig);
 
 		try {
-			final T clusterId = clusterClientFactory.getClusterId(executorConfig);
+			final ClusterID clusterId = clusterClientFactory.getClusterId(executorConfig);
 			final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromConfiguration(executionConfig);
-			final ClusterClient<T> client;
+			final ClusterClient<ClusterID> client;
 
 			// directly deploy the job if the cluster is started in job mode and detached
 			if (clusterId == null && executionParameters.getDetachedMode()) {
@@ -422,8 +422,8 @@ public class CliFrontend {
 
 	}
 
-	private <T> void listJobs(
-			ClusterClient<T> clusterClient,
+	private <ClusterID> void listJobs(
+			ClusterClient<ClusterID> clusterClient,
 			boolean showRunning,
 			boolean showScheduled,
 			boolean showAll) throws FlinkException {
@@ -968,10 +968,10 @@ public class CliFrontend {
 	 * Internal interface to encapsulate cluster actions which are executed via
 	 * the {@link ClusterClient}.
 	 *
-	 * @param <T> type of the cluster id
+	 * @param <ClusterID> type of the cluster id
 	 */
 	@FunctionalInterface
-	private interface ClusterAction<T> {
+	private interface ClusterAction<ClusterID> {
 
 		/**
 		 * Run the cluster action with the given {@link ClusterClient}.
@@ -979,7 +979,7 @@ public class CliFrontend {
 		 * @param clusterClient to run the cluster action against
 		 * @throws FlinkException if something goes wrong
 		 */
-		void runAction(ClusterClient<T> clusterClient) throws FlinkException;
+		void runAction(ClusterClient<ClusterID> clusterClient) throws FlinkException;
 	}
 
 	// --------------------------------------------------------------------------------------------
