@@ -23,9 +23,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -41,26 +38,24 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Overlays Flink into a container, based on supplied bin/conf/lib directories.
  *
- * The overlayed Flink is indistinguishable from (and interchangeable with)
+ * <p>The overlayed Flink is indistinguishable from (and interchangeable with)
  * a normal installation of Flink.  For a docker image-based container, it should be
  * possible to bypass this overlay and rely on the normal installation method.
  *
- * The following files are copied to the container:
+ * <p>The following files are copied to the container:
  *  - flink/bin/
  *  - flink/conf/
  *  - flink/lib/
  */
 public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkDistributionOverlay.class);
-
 	static final Path TARGET_ROOT = new Path("flink");
 
-	final File flinkBinPath;
-	final File flinkConfPath;
-	final File flinkLibPath;
+	private final File flinkBinPath;
+	private final File flinkConfPath;
+	private final File flinkLibPath;
 	@Nullable
-	final File flinkPluginsPath;
+	private final File flinkPluginsPath;
 
 	FlinkDistributionOverlay(File flinkBinPath, File flinkConfPath, File flinkLibPath, @Nullable File flinkPluginsPath) {
 		this.flinkBinPath = checkNotNull(flinkBinPath);
@@ -100,7 +95,7 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		/**
 		 * Configures the overlay using the current environment.
 		 *
-		 * Locates Flink using FLINK_???_DIR environment variables as provided to all Flink processes by config.sh.
+		 * <p>Locates Flink using FLINK_???_DIR environment variables as provided to all Flink processes by config.sh.
 		 *
 		 * @param globalConfiguration the current configuration.
 		 */
