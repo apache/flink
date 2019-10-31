@@ -37,14 +37,9 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
 
     @classmethod
     def excluded_methods(cls):
-        # registerFunction and listUserDefinedFunctions should be supported when UDFs supported.
-        # registerCatalog, getCatalog and listTables should be supported when catalog supported in
-        # python. getCompletionHints has been deprecated. It will be removed in the next release.
+        # getCompletionHints has been deprecated. It will be removed in the next release.
         # TODO add TableEnvironment#create method with EnvironmentSettings as a parameter
         return {
-            'registerCatalog',
-            'getCatalog',
-            'listTables',
             'getCompletionHints',
             'create',
             'loadModule',
