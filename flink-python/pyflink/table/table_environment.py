@@ -20,7 +20,7 @@ import tempfile
 import warnings
 from abc import ABCMeta, abstractmethod
 
-from py4j.java_gateway import get_java_class
+from py4j.java_gateway import get_java_class, get_method
 
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
@@ -201,11 +201,49 @@ class TableEnvironment(object):
         :param table_path: The path of the table to scan.
         :throws: Exception if no table is found using the given table path.
         :return: The resulting :class:`Table`
+
+        .. note:: Deprecated in 1.10. Use :func:`from_path` instead.
         """
+        warnings.warn("Deprecated in 1.10. Use from_path instead.", DeprecationWarning)
         gateway = get_gateway()
         j_table_paths = utils.to_jarray(gateway.jvm.String, table_path)
         j_table = self._j_tenv.scan(j_table_paths)
         return Table(j_table)
+
+    def from_path(self, path):
+        """
+        Reads a registered table and returns the resulting :class:`Table`.
+
+        A table to scan must be registered in the :class:`TableEnvironment`.
+
+        See the documentation of :func:`use_database` or :func:`use_catalog` for the rules on the
+        path resolution.
+
+        Examples:
+
+        Reading a table from default catalog and database.
+        ::
+
+            >>> tab = table_env.from_path("tableName")
+
+        Reading a table from a registered catalog.
+        ::
+
+            >>> tab = table_env.from_path("catalogName.dbName.tableName")
+
+        Reading a table from a registered catalog with escaping. (`Table` is a reserved keyword).
+        Dots in e.g. a database name also must be escaped.
+        ::
+
+            >>> tab = table_env.from_path("catalogName.`db.Name`.`Table`")
+
+        :param path: The path of a table API object to scan.
+        :return: Either a table or virtual table (=view).
+
+        .. seealso:: :func:`user_catalog`
+        .. seealso:: :func:`user_database`
+        """
+        return Table(get_method(self._j_tenv, "from")(path))
 
     def insert_into(self, table, table_path, *table_path_continued):
         """
