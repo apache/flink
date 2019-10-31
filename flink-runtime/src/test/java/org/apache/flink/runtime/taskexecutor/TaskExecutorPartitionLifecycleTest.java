@@ -151,7 +151,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			.setTaskSlotTable(createTaskSlotTable())
 			.build();
 
-		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl();
+		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(shuffleEnvironment);
 		final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = PartitionTestUtils.createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
 		final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
 
@@ -307,7 +307,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			})
 			.build();
 
-		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl();
+		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(shuffleEnvironment);
 
 		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker);
 

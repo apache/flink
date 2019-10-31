@@ -387,7 +387,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			metricQueryServiceAddress,
 			blobCacheService,
 			fatalErrorHandler,
-			new TaskExecutorPartitionTrackerImpl());
+			new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
 	}
 
 	/**

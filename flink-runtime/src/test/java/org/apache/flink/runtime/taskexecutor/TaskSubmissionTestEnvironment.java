@@ -207,7 +207,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			null,
 			blobCacheService,
 			testingFatalErrorHandler,
-			new TaskExecutorPartitionTrackerImpl()
+			new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment())
 		);
 	}
 

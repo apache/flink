@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
+import java.util.Collection;
+
 /**
  * Utility for tracking partitions.
  */
@@ -32,4 +34,14 @@ public interface TaskExecutorPartitionTracker extends PartitionTracker<JobID, Ta
 	 * @param intermediateDataSetId the corresponding dataset ID
 	 */
 	void startTrackingPartition(JobID producingJobId, ResultPartitionID resultPartitionId, IntermediateDataSetID intermediateDataSetId);
+
+	/**
+	 * Releases the given partitions and stop the tracking of partitions that were released.
+	 */
+	void stopTrackingAndReleaseJobPartitions(Collection<ResultPartitionID> resultPartitionIds);
+
+	/**
+	 * Releases all partitions for the given job and stop the tracking of partitions that were released.
+	 */
+	void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId);
 }
