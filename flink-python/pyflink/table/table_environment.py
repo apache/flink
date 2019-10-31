@@ -17,6 +17,7 @@
 ################################################################################
 import os
 import tempfile
+import warnings
 from abc import ABCMeta, abstractmethod
 
 from py4j.java_gateway import get_java_class
@@ -42,7 +43,33 @@ __all__ = [
 
 class TableEnvironment(object):
     """
-    The abstract base class for batch and stream TableEnvironments.
+    A table environment is the base class, entry point, and central context for creating Table
+    and SQL API programs.
+
+    It is unified for bounded and unbounded data processing.
+
+    A table environment is responsible for:
+
+        - Connecting to external systems.
+        - Registering and retrieving :class:`Table` and other meta objects from a catalog.
+        - Executing SQL statements.
+        - Offering further configuration options.
+
+    The path in methods such as :func:`create_temporary_view`
+    should be a proper SQL identifier. The syntax is following
+    [[catalog-name.]database-name.]object-name, where the catalog name and database are optional.
+    For path resolution see :func:`use_catalog` and :func:`use_database`. All keywords or other
+    special characters need to be escaped.
+
+    Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' (table is a reserved
+    keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db'.
+
+    .. note::
+
+        This environment is meant for pure table programs. If you would like to convert from or to
+        other Flink APIs, it might be necessary to use one of the available language-specific table
+        environments in the corresponding bridging modules.
+
     """
 
     __metaclass__ = ABCMeta
@@ -105,7 +132,10 @@ class TableEnvironment(object):
 
         :param name: The name under which the table will be registered.
         :param table: The table to register.
+
+        .. note:: Deprecated in 1.10. Use :func:`create_temporary_view` instead.
         """
+        warnings.warn("Deprecated in 1.10. Use create_temporary_view instead.", DeprecationWarning)
         self._j_tenv.registerTable(name, table._j_table)
 
     def register_table_source(self, name, table_source):
@@ -255,6 +285,54 @@ class TableEnvironment(object):
         """
         j_function_name_array = self._j_tenv.listFunctions()
         return [item for item in j_function_name_array]
+
+    def list_temporary_tables(self):
+        """
+        Gets the names of all temporary tables and views available in the current namespace
+        (the current database of the current catalog).
+
+        :return: A list of the names of all registered temporary tables and views in the current
+                 database of the current catalog.
+
+        .. seealso:: :func:`list_tables`
+        """
+        j_table_name_array = self._j_tenv.listTemporaryTables()
+        return [item for item in j_table_name_array]
+
+    def list_temporary_views(self):
+        """
+        Gets the names of all temporary views available in the current namespace (the current
+        database of the current catalog).
+
+        :return: A list of the names of all registered temporary views in the current database
+                 of the current catalog.
+
+        .. seealso:: :func:`list_tables`
+        """
+        j_view_name_array = self._j_tenv.listTemporaryViews()
+        return [item for item in j_view_name_array]
+
+    def drop_temporary_table(self, table_path):
+        """
+        Drops a temporary table registered in the given path.
+
+        If a permanent table with a given path exists, it will be used
+        from now on for any queries that reference this path.
+
+        :return: true if a table existed in the given path and was removed
+        """
+        return self._j_tenv.dropTemporaryTable(table_path)
+
+    def drop_temporary_view(self, view_path):
+        """
+        Drops a temporary view registered in the given path.
+
+        If a permanent table or view with a given path exists, it will be used
+        from now on for any queries that reference this path.
+
+        :return: true if a view existed in the given path and was removed
+        """
+        return self._j_tenv.dropTemporaryView(view_path)
 
     def explain(self, table=None, extended=False):
         """
@@ -582,6 +660,20 @@ class TableEnvironment(object):
         """
         self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
                                                            self.get_config()._j_table_config))
+
+    def create_temporary_view(self, view_path, table):
+        """
+        Registers a :class:`Table` API object as a temporary view similar to SQL temporary views.
+
+        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+        it will be inaccessible in the current session. To make the permanent object available
+        again you can drop the corresponding temporary object.
+
+        :param view_path: The path under which the view will be registered. See also the
+                          :class:`TableEnvironment` class description for the format of the path.
+        :param table: The view to register.
+        """
+        self._j_tenv.createTemporaryView(view_path, table._j_table)
 
     def execute(self, job_name):
         """
