@@ -48,8 +48,18 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
             'getCompletionHints',
             'create',
             'loadModule',
-            'unloadModule',
-            'from'}
+            'unloadModule'}
+
+    @classmethod
+    def java_method_name(cls, python_method_name):
+        """
+        Due to 'from' is python keyword, so we use 'from_path'
+        in Python API corresponding 'from' in Java API.
+
+        :param python_method_name:
+        :return:
+        """
+        return {'from_path': 'from'}.get(python_method_name, python_method_name)
 
 
 if __name__ == '__main__':

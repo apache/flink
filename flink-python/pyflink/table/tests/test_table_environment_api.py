@@ -140,6 +140,17 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         expected = ['temporary_view_2']
         self.assert_equals(actual, expected)
 
+    def test_from_path(self):
+        t_env = self.t_env
+        t_env.create_temporary_view(
+            "temporary_view_1",
+            t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']))
+        result = t_env.from_path("temporary_view_1")
+        self.assertEqual(
+            'CatalogTable: (identifier: [`default_catalog`.`default_database`.`temporary_view_1`]'
+            ', fields: [a, b, c])',
+            result._j_table.getQueryOperation().asSummaryString())
+
     def test_explain(self):
         schema = RowType()\
             .add('a', DataTypes.INT())\
