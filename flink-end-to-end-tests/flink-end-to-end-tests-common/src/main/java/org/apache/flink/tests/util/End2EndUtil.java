@@ -36,6 +36,6 @@ public class End2EndUtil {
 	}
 
 	public static Path getTestDataDir() {
-		return getEnd2EndModuleDir().resolve("test-scripts").resolve("temp-test-directory-" + System.nanoTime());
+		return getEnd2EndModuleDir().resolve("target").resolve("temp-test-directory-" + System.nanoTime());
 	}
 }

@@ -18,16 +18,18 @@
 
 package org.apache.flink.tests.util;
 
-import java.nio.file.Path;
-
 public class TestSQLClientKafka011 extends TestSQLClientKafka {
-	private static final Path TEST_DATA_PATH = End2EndUtil.getTestDataDir();
 
-	public TestSQLClientKafka011() {
-		super(TEST_DATA_PATH,
-			"http://archive.apache.org/dist/kafka/0.11.0.2/kafka_2.11-0.11.0.2.tgz",
-			"kafka_2.11-0.11.0.2.tgz",
-			"0.11",
-			"kafka-0.11");
+	@Override
+	protected void prepareKafkaEnv() {
+		this.flinkResource = FlinkResourceFactory.create();
+		this.testDataDir = End2EndUtil.getTestDataDir();
+		this.kafkaDist = new KafkaDistribution(
+			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
+			"kafka_2.11-2.1.1.tgz",
+			this.testDataDir
+		);
+		this.kafkaSQLVersion = "0.11";
+		this.kafkaSQLJarVersion = "kafka-0.11";
 	}
 }

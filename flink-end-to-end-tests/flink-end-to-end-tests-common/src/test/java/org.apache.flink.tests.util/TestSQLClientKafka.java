@@ -19,12 +19,12 @@
 package org.apache.flink.tests.util;
 
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.io.Charsets;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,51 +51,74 @@ import static org.apache.flink.util.StringUtils.byteToHexString;
 public class TestSQLClientKafka {
 	private static final Logger LOG = LoggerFactory.getLogger(TestSQLClientKafka.class);
 
-	@Rule
-	public final FlinkDistribution flinkDist = new FlinkDistribution();
-
-	private final KafkaDistribution kafkaDist;
-	private final Path testDataDir;
-	private final String kafkaSQLVersion;
-	private final String kafkaSQLJarVersion;
-	private final Path sqlClientSessionConf;
-	private final Path result;
-
-	public TestSQLClientKafka() {
-		this(
-			DEFAULT_TEST_DATA_DIR,
-			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
-			"kafka_2.11-2.1.1.tgz",
-			"universal",
-			"kafka"
-		);
-	}
-
-	protected TestSQLClientKafka(
-		Path testDataDir,
-		String kafkaDistURL,
-		String kafkaDistName,
-		String kafkaSQLVersion,
-		String kafkaSQLJarVersion) {
-		this.testDataDir = testDataDir;
-		this.kafkaSQLVersion = kafkaSQLVersion;
-		this.kafkaSQLJarVersion = kafkaSQLJarVersion;
-		this.kafkaDist = new KafkaDistribution(
-			kafkaDistURL,
-			kafkaDistName,
-			testDataDir);
-		this.sqlClientSessionConf = testDataDir.resolve("sql-client-session.conf");
-		this.result = this.testDataDir.resolve("result");
-	}
-
 	private static final Path END_TO_END_TEST_DIR = End2EndUtil.getEnd2EndModuleDir();
-	private static final Path DEFAULT_TEST_DATA_DIR = End2EndUtil.getTestDataDir();
 	private static final Path SQL_JARS = END_TO_END_TEST_DIR.resolve("flink-sql-client-test/target/sql-jars");
 	private static final Path SQL_TOOL_BOX_JAR = END_TO_END_TEST_DIR.resolve("flink-sql-client-test/target/SqlToolbox.jar");
 	private static final String KAFKA_JSON_SOURCE_SCHEMA_YAML = "kafka_json_source_schema.yaml";
 
-	public void setUpFlinkCluster() throws IOException {
-		flinkDist.startFlinkCluster(2);
+	protected FlinkResource flinkResource;
+	protected KafkaDistribution kafkaDist;
+	protected Path testDataDir;
+	protected String kafkaSQLVersion;
+	protected String kafkaSQLJarVersion;
+
+	private Path sqlClientSessionConf;
+	private Path result;
+
+	protected void prepareKafkaEnv() {
+		this.flinkResource = FlinkResourceFactory.create();
+		this.testDataDir = End2EndUtil.getTestDataDir();
+		this.kafkaDist = new KafkaDistribution(
+			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
+			"kafka_2.11-2.1.1.tgz",
+			this.testDataDir
+		);
+		this.kafkaSQLVersion = "universal";
+		this.kafkaSQLJarVersion = "kafka";
+	}
+
+	@Before
+	public void setUp() throws IOException {
+		// Prepare the Kafka variables, such as version, sql-version, sql-jar version.
+		prepareKafkaEnv();
+
+		// Check all the variables.
+		Preconditions.checkNotNull(flinkResource);
+		Preconditions.checkNotNull(testDataDir);
+		Preconditions.checkNotNull(kafkaDist);
+		Preconditions.checkNotNull(kafkaSQLVersion);
+		Preconditions.checkNotNull(kafkaSQLJarVersion);
+		Preconditions.checkNotNull(testDataDir);
+
+		this.sqlClientSessionConf = testDataDir.resolve("sql-client-session.conf");
+		this.result = testDataDir.resolve("result");
+
+		// Initialize the test data directory.
+		if (!Files.exists(testDataDir)) {
+			Files.createDirectory(testDataDir);
+		}
+
+		// Setup and start the Kafka cluster.
+		flinkResource.startCluster(2);
+
+		// Setup and start the Kafka cluster.
+		kafkaDist.setUp();
+		kafkaDist.start();
+	}
+
+	@After
+	public void tearDown() throws IOException {
+		try {
+			kafkaDist.shutdown();
+		} catch (IOException e) {
+			LOG.info("Failed to shutdown the kafka cluster.", e);
+		}
+		try {
+			flinkResource.stopCluster();
+		} catch (IOException e) {
+			LOG.info("Failed to shutdown the flink cluster.", e);
+		}
+		FileUtils.deleteDirectory(testDataDir.toFile());
 	}
 
 	private String initializeSessionYaml(Map<String, String> vars) throws IOException {
@@ -111,28 +134,8 @@ public class TestSQLClientKafka {
 		return schema;
 	}
 
-	@Before
-	public void setUp() throws IOException {
-		if (!Files.exists(testDataDir)) {
-			Files.createDirectory(testDataDir);
-		}
-	}
-
-	@After
-	public void tearDown() throws IOException {
-		this.shutdown();
-		FileUtils.deleteDirectory(testDataDir.toFile());
-	}
-
 	@Test
 	public void testKafka() throws Exception {
-		// setup flink cluster
-		setUpFlinkCluster();
-
-		// setup kafa cluster
-		kafkaDist.setUp();
-		kafkaDist.start();
-
 		// Create topic and send message
 		String testJsonTopic = "test-json";
 		kafkaDist.createTopic(1, 1, testJsonTopic);
@@ -157,7 +160,7 @@ public class TestSQLClientKafka {
 		Map<String, String> varsMap = new HashMap<>();
 		varsMap.put("$TABLE_NAME", "JsonSourceTable");
 		varsMap.put("$KAFKA_SQL_VERSION", this.kafkaSQLVersion);
-		varsMap.put("$TOPIC_NAME", "test-json");
+		varsMap.put("$TOPIC_NAME", testJsonTopic);
 		varsMap.put("$RESULT", this.result.toAbsolutePath().toString());
 		String schemaContent = initializeSessionYaml(varsMap);
 		Files.write(this.sqlClientSessionConf,
@@ -178,7 +181,7 @@ public class TestSQLClientKafka {
 			"    user,\n" +
 			"    event.message,\n" +
 			"    TUMBLE(rowtime, INTERVAL '1' HOUR)";
-		flinkDist.newSQLClient()
+		flinkResource.createFlinkSQLClient()
 			.embedded(true)
 			.addJAR(findSQLJarPath(SQL_JARS.toString(), "avro"))
 			.addJAR(findSQLJarPath(SQL_JARS.toString(), "json"))
@@ -192,7 +195,7 @@ public class TestSQLClientKafka {
 			"   SELECT AvroBothTable.*, RegReplace('Test constant folding.', 'Test', 'Success') AS constant\n" +
 			"   FROM AvroBothTable";
 
-		flinkDist.newSQLClient()
+		flinkResource.createFlinkSQLClient()
 			.embedded(true)
 			.addJAR(findSQLJarPath(SQL_JARS.toString(), "avro"))
 			.addJAR(findSQLJarPath(SQL_JARS.toString(), "json"))
@@ -236,18 +239,5 @@ public class TestSQLClientKafka {
 			}
 		}
 		return byteToHexString(md.digest());
-	}
-
-	private void shutdown() {
-		try {
-			kafkaDist.shutdown();
-		} catch (IOException e) {
-			LOG.info("Failed to shutdown the kafka cluster.", e);
-		}
-		try {
-			flinkDist.stopFlinkCluster();
-		} catch (IOException e) {
-			LOG.info("Failed to shutdown the flink cluster.", e);
-		}
 	}
 }

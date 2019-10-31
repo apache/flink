@@ -19,13 +19,13 @@
 package org.apache.flink.tests.util;
 
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +40,7 @@ import java.util.stream.Collectors;
 public class TestStreamingKafka {
 	private static final Logger LOG = LoggerFactory.getLogger(TestStreamingKafka.class);
 
-	@Rule
-	public final FlinkDistribution flinkDist = new FlinkDistribution();
+	private FlinkResource flinkResource;
 	protected KafkaDistribution kafkaDist;
 	protected Path jarFile;
 
@@ -49,6 +48,9 @@ public class TestStreamingKafka {
 	public void setUp() throws IOException {
 		// Prepare the Kafka environment.
 		this.prepareKafkaEnv();
+		Preconditions.checkNotNull(kafkaDist);
+		Preconditions.checkNotNull(jarFile);
+		this.flinkResource = FlinkResourceFactory.create();
 
 		// Initialize the Kafka Distribution directory.
 		if (!Files.exists(kafkaDist.getTestDataDir())) {
@@ -56,7 +58,7 @@ public class TestStreamingKafka {
 		}
 
 		// Start the Flink cluster
-		flinkDist.startFlinkCluster(2);
+		flinkResource.startCluster(2);
 
 		// Prepare the Kafka binary package and configurations
 		kafkaDist.setUp();
@@ -79,7 +81,7 @@ public class TestStreamingKafka {
 	@After
 	public void tearDown() throws IOException {
 		kafkaDist.shutdown();
-		flinkDist.stopFlinkCluster();
+		flinkResource.stopCluster();
 		if (Files.exists(kafkaDist.getTestDataDir())) {
 			FileUtils.deleteDirectory(kafkaDist.getTestDataDir().toFile());
 		}
@@ -107,7 +109,7 @@ public class TestStreamingKafka {
 			"--flink.partition-discovery.interval-millis", "1000"
 		};
 
-		flinkDist.newFlinkClient()
+		flinkResource.createFlinkClient()
 			.action(FlinkClient.Action.RUN)
 			.dettached(true)
 			.extraArgs(extraArgs)

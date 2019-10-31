@@ -18,18 +18,23 @@
 
 package org.apache.flink.tests.util;
 
-public class TestSQLClientKafka010 extends TestSQLClientKafka {
+import java.io.IOException;
 
-	@Override
-	protected void prepareKafkaEnv() {
-		this.flinkResource = FlinkResourceFactory.create();
-		this.testDataDir = End2EndUtil.getTestDataDir();
-		this.kafkaDist = new KafkaDistribution(
-			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
-			"kafka_2.11-2.1.1.tgz",
-			this.testDataDir
-		);
-		this.kafkaSQLVersion = "0.10";
-		this.kafkaSQLJarVersion = "kafka-0.10";
+public interface FlinkResource {
+
+	default void startCluster() throws IOException {
+		startCluster(1);
 	}
+
+	void startCluster(int taskManagerNum) throws IOException;
+
+	void stopJobManager() throws IOException;
+
+	void stopTaskMangers() throws IOException;
+
+	void stopCluster() throws IOException;
+
+	FlinkClient createFlinkClient() throws IOException;
+
+	FlinkSQLClient createFlinkSQLClient() throws IOException;
 }

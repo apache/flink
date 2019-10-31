@@ -34,6 +34,7 @@ public class FlinkClient {
 	private final Path bin;
 	private Action action;
 	private boolean dettached;
+	private String jobManagerAddress = null;
 	private Path jarFile;
 	private final List<String> extraArgList = new ArrayList<>();
 
@@ -43,6 +44,11 @@ public class FlinkClient {
 
 	public FlinkClient action(Action action) {
 		this.action = action;
+		return this;
+	}
+
+	public FlinkClient jobManagerAddress(String jobManagerAddress) {
+		this.jobManagerAddress = jobManagerAddress;
 		return this;
 	}
 
@@ -68,9 +74,18 @@ public class FlinkClient {
 		Preconditions.checkNotNull(this.jarFile);
 
 		commands.add(this.action.toString().toLowerCase());
+
+		// Make it in dettached mode if set.
 		if (dettached) {
 			commands.add("-d");
 		}
+
+		// Add the job manager address if set.
+		if (this.jobManagerAddress != null) {
+			commands.add("--jobmanager");
+			commands.add(this.jobManagerAddress);
+		}
+
 		commands.add(this.jarFile.toAbsolutePath().toString());
 		commands.addAll(extraArgList);
 		return AutoClosableProcess.create(commands.toArray(new String[0]));
