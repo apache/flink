@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.metrics.util;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 
@@ -34,13 +33,9 @@ import oshi.hardware.HardwareAbstractionLayer;
 public class SystemResourcesMetricsInitializer {
 	private static final Logger LOG = LoggerFactory.getLogger(SystemResourcesMetricsInitializer.class);
 
-	public static void instantiateSystemMetrics(MetricGroup metricGroup, Time probeInterval) {
+	public static void instantiateSystemMetrics(MetricGroup metricGroup, SystemResourcesCounter systemResourcesCounter) {
 		try {
 			MetricGroup system = metricGroup.addGroup("System");
-
-			SystemResourcesCounter systemResourcesCounter = new SystemResourcesCounter(probeInterval);
-			systemResourcesCounter.start();
-
 			SystemInfo systemInfo = new SystemInfo();
 			HardwareAbstractionLayer hardwareAbstractionLayer = systemInfo.getHardware();
 

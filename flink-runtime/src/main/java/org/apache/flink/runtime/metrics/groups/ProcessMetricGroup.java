@@ -18,12 +18,16 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.util.SystemResourcesCounter;
 
 /**
  * {@link AbstractImitatingJobManagerMetricGroup} implementation for process related metrics.
  */
 public class ProcessMetricGroup extends AbstractImitatingJobManagerMetricGroup {
+
+	private volatile SystemResourcesCounter systemResourcesCounter;
 
 	ProcessMetricGroup(MetricRegistry registry, String hostname) {
 		super(registry, hostname);
@@ -31,5 +35,23 @@ public class ProcessMetricGroup extends AbstractImitatingJobManagerMetricGroup {
 
 	public static ProcessMetricGroup create(MetricRegistry metricRegistry, String hostname) {
 		return new ProcessMetricGroup(metricRegistry, hostname);
+	}
+
+	public SystemResourcesCounter createSystemResourcesCounter(Time systemResourceProbeInterval) {
+		systemResourcesCounter = new SystemResourcesCounter(systemResourceProbeInterval);
+		systemResourcesCounter.start();
+		return systemResourcesCounter;
+	}
+
+	@Override
+	public void close() {
+		super.close();
+		if (systemResourcesCounter != null) {
+			try {
+				systemResourcesCounter.shutdown();
+			} catch (InterruptedException e) {
+				LOG.warn("Cannot properly shut down SystemResourcesCounter.", e);
+			}
+		}
 	}
 }

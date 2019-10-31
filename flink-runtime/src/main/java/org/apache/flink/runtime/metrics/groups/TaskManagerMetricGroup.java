@@ -20,12 +20,14 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.runtime.metrics.util.SystemResourcesCounter;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
@@ -46,6 +48,8 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 
 	private final String taskManagerId;
 
+	private volatile SystemResourcesCounter systemResourcesCounter;
+
 	public TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
 		super(registry, registry.getScopeFormats().getTaskManagerFormat().formatScope(hostname, taskManagerId), null);
 		this.hostname = hostname;
@@ -63,6 +67,12 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 	@Override
 	protected QueryScopeInfo.TaskManagerQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
 		return new QueryScopeInfo.TaskManagerQueryScopeInfo(this.taskManagerId);
+	}
+
+	public SystemResourcesCounter createSystemResourcesCounter(Time systemResourceProbeInterval) {
+		systemResourcesCounter = new SystemResourcesCounter(systemResourceProbeInterval);
+		systemResourcesCounter.start();
+		return systemResourcesCounter;
 	}
 
 	// ------------------------------------------------------------------------
@@ -133,6 +143,18 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 
 	public int numRegisteredJobMetricGroups() {
 		return jobs.size();
+	}
+
+	@Override
+	public void close() {
+		super.close();
+		if (systemResourcesCounter != null) {
+			try {
+				systemResourcesCounter.shutdown();
+			} catch (InterruptedException e) {
+				LOG.warn("Cannot properly shut down SystemResourcesCounter.", e);
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------

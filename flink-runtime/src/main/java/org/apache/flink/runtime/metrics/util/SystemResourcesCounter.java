@@ -29,6 +29,7 @@ import oshi.hardware.NetworkIF;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -50,7 +51,7 @@ public class SystemResourcesCounter extends Thread {
 	private final SystemInfo systemInfo = new SystemInfo();
 	private final HardwareAbstractionLayer hardwareAbstractionLayer = systemInfo.getHardware();
 
-	private volatile boolean running = true;
+	private final AtomicBoolean running = new AtomicBoolean(true);
 
 	private long[] previousCpuTicks;
 	private long[] bytesReceivedPerInterface;
@@ -99,22 +100,23 @@ public class SystemResourcesCounter extends Thread {
 	@Override
 	public void run() {
 		try {
-			while (running) {
+			while (running.get()) {
 				calculateCPUUsage(hardwareAbstractionLayer.getProcessor());
 				calculateNetworkUsage(hardwareAbstractionLayer.getNetworkIFs());
 				Thread.sleep(probeIntervalMs);
 			}
 		} catch (InterruptedException e) {
-			if (running) {
+			if (running.get()) {
 				LOG.warn("{} has failed", SystemResourcesCounter.class.getSimpleName(), e);
 			}
 		}
 	}
 
 	public void shutdown() throws InterruptedException {
-		running = false;
-		interrupt();
-		join();
+		if (running.compareAndSet(true, false)) {
+			interrupt();
+			join();
+		}
 	}
 
 	public double getCpuUser() {

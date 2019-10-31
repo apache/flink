@@ -81,7 +81,9 @@ public class MetricUtils {
 
 		createAndInitializeStatusMetricGroup(processMetricGroup);
 
-		systemResourceProbeInterval.ifPresent(interval -> instantiateSystemMetrics(processMetricGroup, interval));
+		systemResourceProbeInterval.ifPresent(interval -> instantiateSystemMetrics(
+			processMetricGroup,
+			processMetricGroup.createSystemResourcesCounter(interval)));
 
 		return processMetricGroup;
 	}
@@ -108,9 +110,9 @@ public class MetricUtils {
 
 		MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
 
-		if (systemResourceProbeInterval.isPresent()) {
-			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
-		}
+		systemResourceProbeInterval.ifPresent(time -> instantiateSystemMetrics(
+			taskManagerMetricGroup,
+			taskManagerMetricGroup.createSystemResourcesCounter(time)));
 		return Tuple2.of(taskManagerMetricGroup, statusGroup);
 	}
 
