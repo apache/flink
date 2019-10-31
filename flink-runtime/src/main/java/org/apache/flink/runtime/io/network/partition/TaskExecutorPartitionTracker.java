@@ -44,4 +44,14 @@ public interface TaskExecutorPartitionTracker extends PartitionTracker<JobID, Ta
 	 * Releases all partitions for the given job and stop the tracking of partitions that were released.
 	 */
 	void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId);
+
+	/**
+	 * Promotes the given partitions.
+	 */
+	void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote);
+
+	/**
+	 * Releases and stops tracking all partitions.
+	 */
+	void stopTrackingAndReleaseAllClusterPartitions();
 }

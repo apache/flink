@@ -727,6 +727,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public void releaseOrPromotePartitions(JobID jobId, Set<ResultPartitionID> partitionToRelease, Set<ResultPartitionID> partitionsToPromote) {
 		try {
 			partitionTracker.stopTrackingAndReleaseJobPartitions(partitionToRelease);
+			partitionTracker.promoteJobPartitions(partitionsToPromote);
 
 			closeJobManagerConnectionIfNoAllocatedResources(jobId);
 		} catch (Throwable t) {
@@ -1069,6 +1070,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			resourceManagerGateway.disconnectTaskManager(getResourceID(), cause);
 
 			establishedResourceManagerConnection = null;
+
+			partitionTracker.stopTrackingAndReleaseAllClusterPartitions();
 		}
 
 		if (resourceManagerConnection != null) {
