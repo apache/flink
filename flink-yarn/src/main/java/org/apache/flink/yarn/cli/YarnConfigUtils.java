@@ -36,12 +36,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utilities for parsing {@link org.apache.flink.configuration.ConfigOption configuration options}.
  */
 public class YarnConfigUtils {
-	// TODO: 16.10.19 test this and test LOG FILES discovery.
-	private static final String COLLECTION_DELIMITER = ";";
 
 	public static <T> void encodeListToConfig(
 			final Configuration configuration,
-			final ConfigOption<String> key,
+			final ConfigOption<List<String>> key,
 			final Collection<T> value,
 			final Function<T, String> mapper) {
 		encodeListToConfig(configuration, key, value.stream(), mapper);
@@ -49,7 +47,7 @@ public class YarnConfigUtils {
 
 	public static <T> void encodeListToConfig(
 			final Configuration configuration,
-			final ConfigOption<String> key,
+			final ConfigOption<List<String>> key,
 			final T[] value,
 			final Function<T, String> mapper) {
 		encodeListToConfig(configuration, key, Arrays.stream(value), mapper);
@@ -57,7 +55,7 @@ public class YarnConfigUtils {
 
 	private static <T> void encodeListToConfig(
 			final Configuration configuration,
-			final ConfigOption<String> key,
+			final ConfigOption<List<String>> key,
 			final Stream<T> values,
 			final Function<T, String> mapper) {
 
@@ -65,23 +63,23 @@ public class YarnConfigUtils {
 		checkNotNull(key);
 		checkNotNull(configuration);
 
-		final String encodedString = values.map(mapper).filter(Objects::nonNull).collect(Collectors.joining(COLLECTION_DELIMITER));
-		if (encodedString != null && !encodedString.isEmpty()) {
-			configuration.setString(key, encodedString);
+		final List<String> encodedString = values.map(mapper).filter(Objects::nonNull).collect(Collectors.toList());
+		if (!encodedString.isEmpty()) {
+			configuration.set(key, encodedString);
 		}
 	}
 
 	public static <R> List<R> decodeListFromConfig(
 			final Configuration configuration,
-			final ConfigOption<String> key,
+			final ConfigOption<List<String>> key,
 			final Function<String, R> mapper) {
 
 		checkNotNull(configuration);
 		checkNotNull(key);
 
-		final String encodedString = configuration.getString(key);
+		final List<String> encodedString = configuration.get(key);
 		return encodedString != null
-				? Arrays.stream(encodedString.split(COLLECTION_DELIMITER)).map(mapper).collect(Collectors.toList())
+				? encodedString.stream().map(mapper).collect(Collectors.toList())
 				: Collections.emptyList();
 	}
 }

@@ -74,7 +74,6 @@ public class ExecutionConfigAccessor {
 	private static void parseClasspathURLsToConfig(final List<URL> classpathURLs, final Configuration configuration) {
 		ExecutionConfigurationUtils.urlListToConfig(
 				classpathURLs,
-				PipelineOptions.LIST_SEPARATOR,
 				configuration,
 				PipelineOptions.CLASSPATHS);
 	}
@@ -87,7 +86,7 @@ public class ExecutionConfigAccessor {
 		try {
 			final URL jarUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
 			final List<URL> jarUrlSingleton = Collections.singletonList(jarUrl);
-			ExecutionConfigurationUtils.urlListToConfig(jarUrlSingleton, PipelineOptions.LIST_SEPARATOR, configuration, PipelineOptions.JARS);
+			ExecutionConfigurationUtils.urlListToConfig(jarUrlSingleton, configuration, PipelineOptions.JARS);
 		} catch (MalformedURLException e) {
 			throw new IllegalArgumentException("JAR file path invalid", e);
 		}
@@ -98,7 +97,7 @@ public class ExecutionConfigAccessor {
 	}
 
 	public String getJarFilePath() {
-		final List<URL> jarURL = ExecutionConfigurationUtils.urlListFromConfig(configuration, PipelineOptions.JARS, PipelineOptions.LIST_SEPARATOR);
+		final List<URL> jarURL = ExecutionConfigurationUtils.urlListFromConfig(configuration, PipelineOptions.JARS);
 		if (jarURL != null && !jarURL.isEmpty()) {
 			return jarURL.get(0).getPath();
 		}
@@ -106,7 +105,7 @@ public class ExecutionConfigAccessor {
 	}
 
 	public List<URL> getClasspaths() {
-		return ExecutionConfigurationUtils.urlListFromConfig(configuration, PipelineOptions.CLASSPATHS, PipelineOptions.LIST_SEPARATOR);
+		return ExecutionConfigurationUtils.urlListFromConfig(configuration, PipelineOptions.CLASSPATHS);
 	}
 
 	public int getParallelism() {

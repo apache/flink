@@ -21,6 +21,8 @@ package org.apache.flink.yarn.configuration;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Description;
 
+import java.util.List;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -208,42 +210,51 @@ public class YarnConfigOptions {
 
 	public static final ConfigOption<String> APPLICATION_LOG_CONFIG_FILE =
 			key("yarn.log-config-file")
+				.stringType()
 				.noDefaultValue()
 				.withDescription("The location of the log config file, e.g. the path to your log4j.properties for log4j.");
 
-	public static final ConfigOption<String> SHIP_DIRECTORIES =
+	public static final ConfigOption<List<String>> SHIP_DIRECTORIES =
 			key("yarn.ship-directories")
+				.stringType()
+				.asList()
 				.noDefaultValue()
 				.withDescription("A semicolon-separated list of directories to be shipped to the YARN cluster.");
 
 	public static final ConfigOption<String> FLINK_DIST_JAR =
 			key("yarn.flink-dist-jar")
+				.stringType()
 				.noDefaultValue()
 				.withDescription("The location of the Flink dist jar.");
 
 	public static final ConfigOption<String> APPLICATION_ID =
 			key("yarn.application.id")
+				.stringType()
 				.noDefaultValue()
 				.withDescription("The YARN application id of the running yarn cluster." +
 						" This is the YARN cluster where the pipeline is going to be executed.");
 
 	public static final ConfigOption<String> APPLICATION_QUEUE =
 			key("yarn.application.queue")
+				.stringType()
 				.noDefaultValue()
 				.withDescription("The YARN queue on which to put the current pipeline.");
 
 	public static final ConfigOption<String> APPLICATION_NAME =
 			key("yarn.application.name")
+				.stringType()
 				.noDefaultValue()
 				.withDescription("A custom name for your YARN application.");
 
 	public static final ConfigOption<String> APPLICATION_TYPE =
 			key("yarn.application.type")
+				.stringType()
 				.noDefaultValue()
 				.withDescription("A custom type for your YARN application..");
 
 	public static final ConfigOption<String> NODE_LABEL =
 			key("yarn.application.node-label")
+				.stringType()
 				.noDefaultValue()
 				.withDescription("Specify YARN node label for the YARN application.");
 

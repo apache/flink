@@ -30,16 +30,19 @@ public class DeploymentOptions {
 
 	public static final ConfigOption<String> TARGET =
 			key("execution.target")
+					.stringType()
 					.noDefaultValue()
 					.withDescription("The deployment target for the execution, e.g. \"local\" for local execution.");
 
 	public static final ConfigOption<Boolean> ATTACHED =
 			key("execution.attached")
+					.booleanType()
 					.defaultValue(false)
 					.withDescription("Specifies if the pipeline is submitted in attached or detached mode.");
 
 	public static final ConfigOption<Boolean> SHUTDOWN_IF_ATTACHED =
 			key("execution.shutdown-on-attached-exit")
+					.booleanType()
 					.defaultValue(false)
 					.withDescription("If the job is submitted in attached mode, perform a best-effort cluster shutdown " +
 							"when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.");
