@@ -118,7 +118,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -169,11 +168,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  * yield before the global failover.
  */
 public class ExecutionGraph implements AccessExecutionGraph {
-
-	/** In place updater for the execution graph's current global recovery version.
-	 * Avoids having to use an AtomicLong and thus makes the frequent read access a bit faster */
-	private static final AtomicLongFieldUpdater<ExecutionGraph> GLOBAL_VERSION_UPDATER =
-			AtomicLongFieldUpdater.newUpdater(ExecutionGraph.class, "globalModVersion");
 
 	/** The log object used for debugging. */
 	static final Logger LOG = LoggerFactory.getLogger(ExecutionGraph.class);
@@ -1386,7 +1380,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	private long incrementGlobalModVersion() {
 		incrementRestarts();
-		return GLOBAL_VERSION_UPDATER.incrementAndGet(this);
+		return ++globalModVersion;
 	}
 
 	public void incrementRestarts() {
