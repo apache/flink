@@ -41,6 +41,9 @@ public class FailoverStrategyLoader {
 	/** Config name for the {@link AdaptedRestartPipelinedRegionStrategyNG}. */
 	public static final String PIPELINED_REGION_RESTART_STRATEGY_NAME = "region";
 
+	/** Config name for the {@link AdaptedRestartPipelinedRegionStrategyNG} but use it in fast mode. */
+	public static final String FAST_PIPELINED_REGION_RESTART_STRATEGY_NAME = "region-fast";
+
 	/** Config name for the {@link NoOpFailoverStrategy}. */
 	public static final String NO_OP_FAILOVER_STRATEGY = "noop";
 
@@ -70,7 +73,10 @@ public class FailoverStrategyLoader {
 					return new RestartAllStrategy.Factory();
 
 				case PIPELINED_REGION_RESTART_STRATEGY_NAME:
-					return new AdaptedRestartPipelinedRegionStrategyNG.Factory();
+					return new AdaptedRestartPipelinedRegionStrategyNG.Factory(false);
+
+				case FAST_PIPELINED_REGION_RESTART_STRATEGY_NAME:
+					return new AdaptedRestartPipelinedRegionStrategyNG.Factory(true);
 
 				case INDIVIDUAL_RESTART_STRATEGY_NAME:
 					return new RestartIndividualStrategy.Factory();

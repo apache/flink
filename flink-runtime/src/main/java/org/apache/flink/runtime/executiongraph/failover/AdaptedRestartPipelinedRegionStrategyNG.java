@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.executiongraph.SchedulingUtils;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FastRestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -72,12 +73,21 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	/** The versioner helps to maintain execution vertex versions. */
 	private final ExecutionVertexVersioner executionVertexVersioner;
 
+	/** Whether to use the {@link FastRestartPipelinedRegionStrategy} instead of
+	 * {@link RestartPipelinedRegionStrategy} as the underlying failover strategy. */
+	private final boolean fastMode;
+
 	/** The underlying new generation region failover strategy. */
 	private RestartPipelinedRegionStrategy restartPipelinedRegionStrategy;
 
 	public AdaptedRestartPipelinedRegionStrategyNG(final ExecutionGraph executionGraph) {
+		this(executionGraph, false);
+	}
+
+	public AdaptedRestartPipelinedRegionStrategyNG(final ExecutionGraph executionGraph, final boolean fastMode) {
 		this.executionGraph = checkNotNull(executionGraph);
 		this.executionVertexVersioner = new ExecutionVertexVersioner();
+		this.fastMode = fastMode;
 	}
 
 	@Override
@@ -293,9 +303,16 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		// otherwise the failover topology will not be correctly built.
 		// currently it's safe to add it here, as this method is invoked only once in production code.
 		checkState(restartPipelinedRegionStrategy == null, "notifyNewVertices() must be called only once");
-		this.restartPipelinedRegionStrategy = new RestartPipelinedRegionStrategy(
-			executionGraph.getFailoverTopology(),
-			executionGraph.getResultPartitionAvailabilityChecker());
+
+		if (fastMode) {
+			this.restartPipelinedRegionStrategy = new FastRestartPipelinedRegionStrategy(
+				executionGraph.getFailoverTopology(),
+				executionGraph.getResultPartitionAvailabilityChecker());
+		} else {
+			this.restartPipelinedRegionStrategy = new RestartPipelinedRegionStrategy(
+				executionGraph.getFailoverTopology(),
+				executionGraph.getResultPartitionAvailabilityChecker());
+		}
 	}
 
 	@Override
@@ -312,9 +329,15 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	 */
 	public static class Factory implements FailoverStrategy.Factory {
 
+		private final boolean fastMode;
+
+		Factory(final boolean fastMode) {
+			this.fastMode = fastMode;
+		}
+
 		@Override
 		public FailoverStrategy create(final ExecutionGraph executionGraph) {
-			return new AdaptedRestartPipelinedRegionStrategyNG(executionGraph);
+			return new AdaptedRestartPipelinedRegionStrategyNG(executionGraph, fastMode);
 		}
 	}
 }

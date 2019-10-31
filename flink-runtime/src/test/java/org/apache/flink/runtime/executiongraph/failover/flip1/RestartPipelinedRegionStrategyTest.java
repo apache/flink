@@ -58,7 +58,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 	 * Each vertex is in an individual region.
 	 */
 	@Test
-	public void testRegionFailoverForRegionInternalErrors() throws Exception {
+	public void testRegionFailoverForRegionInternalErrors() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -76,7 +76,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionStrategy strategy = createFailoverStrategy(topology);
 
 		// when v1 fails, {v1,v4,v5} should be restarted
 		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
@@ -138,7 +138,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 	 * Each vertex is in an individual region.
 	 */
 	@Test
-	public void testRegionFailoverForDataConsumptionErrors() throws Exception {
+	public void testRegionFailoverForDataConsumptionErrors() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -156,7 +156,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionStrategy strategy = createFailoverStrategy(topology);
 
 		// when v4 fails to consume data from v1, {v1,v4,v5} should be restarted
 		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
@@ -239,7 +239,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 	 * rp1, rp2 are result partitions.
 	 */
 	@Test
-	public void testRegionFailoverForVariousResultPartitionAvailabilityCombinations() throws Exception {
+	public void testRegionFailoverForVariousResultPartitionAvailabilityCombinations() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -354,7 +354,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 	 * Component 1: 1,2; component 2: 3,4; component 3: 5,6
 	 */
 	@Test
-	public void testRegionFailoverForMultipleVerticesRegions() throws Exception {
+	public void testRegionFailoverForMultipleVerticesRegions() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -372,7 +372,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionStrategy strategy = createFailoverStrategy(topology);
 
 		// when v3 fails due to internal error, {v3,v4,v5,v6} should be restarted
 		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
@@ -403,6 +403,10 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
+
+	protected RestartPipelinedRegionStrategy createFailoverStrategy(FailoverTopology topology) {
+		return new RestartPipelinedRegionStrategy(topology);
+	}
 
 	private static class TestResultPartitionAvailabilityChecker implements ResultPartitionAvailabilityChecker {
 

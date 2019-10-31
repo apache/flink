@@ -44,7 +44,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testIndividualVertices() throws Exception {
+	public void testIndividualVertices() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -74,7 +74,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testEmbarrassinglyParallelCase() throws Exception {
+	public void testEmbarrassinglyParallelCase() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
@@ -118,7 +118,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testOneComponentViaTwoExchanges() throws Exception {
+	public void testOneComponentViaTwoExchanges() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
@@ -167,7 +167,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testOneComponentViaCascadeOfJoins() throws Exception {
+	public void testOneComponentViaCascadeOfJoins() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -216,7 +216,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testOneComponentInstanceFromOneSource() throws Exception {
+	public void testOneComponentInstanceFromOneSource() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -263,7 +263,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testTwoComponentsViaBlockingExchange() throws Exception {
+	public void testTwoComponentsViaBlockingExchange() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
@@ -310,7 +310,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testTwoComponentsViaBlockingExchange2() throws Exception {
+	public void testTwoComponentsViaBlockingExchange2() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
@@ -365,7 +365,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * <p>Component 1: 1, 2, 5; component 2: 3,4,6; component 3: 7
 	 */
 	@Test
-	public void testMultipleComponentsViaCascadeOfJoins() throws Exception {
+	public void testMultipleComponentsViaCascadeOfJoins() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -416,7 +416,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testDiamondWithMixedPipelinedAndBlockingExchanges() throws Exception {
+	public void testDiamondWithMixedPipelinedAndBlockingExchanges() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
@@ -457,7 +457,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testBlockingAllToAllTopologyWithCoLocation() throws Exception {
+	public void testBlockingAllToAllTopologyWithCoLocation() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
@@ -495,7 +495,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	 * </pre>
 	 */
 	@Test
-	public void testPipelinedOneToOneTopologyWithCoLocation() throws Exception {
+	public void testPipelinedOneToOneTopologyWithCoLocation() {
 		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
 
 		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();

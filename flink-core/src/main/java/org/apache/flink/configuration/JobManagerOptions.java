@@ -124,7 +124,10 @@ public class JobManagerOptions {
 						"More details can be found %s.",
 						link(
 							"../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
-							"here"))
+							"here")),
+					text("'region-fast': It behaves the same as 'region' but has better performance to " +
+						"determine tasks to restart. This improvement would help if the job scale is large. " +
+						"The side effect is longer region building time and more memory for cache.")
 				).build());
 
 	/**
