@@ -57,14 +57,14 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 	private final HiveShim hiveShim;
 
 	public HiveFunctionDefinitionFactory(HiveShim hiveShim) {
-		checkNotNull(hiveShim, "hiveShim cannot be null or empty string");
+		checkNotNull(hiveShim, "hiveShim cannot be null");
 		this.hiveShim = hiveShim;
 	}
 
 	@Override
 	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
 		if (Boolean.valueOf(catalogFunction.getProperties().get(CatalogConfig.IS_GENERIC))) {
-			FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
+			return FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
 		}
 
 		return createFunctionDefinitionFromHiveFunction(name, catalogFunction.getClassName());
@@ -114,14 +114,12 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 
 			if (GenericUDAFResolver2.class.isAssignableFrom(clazz)) {
 				LOG.info(
-					"Transforming Hive function '{}' into a HiveGenericUDAF with no UDAF bridging",
-					name, hiveShim);
+					"Transforming Hive function '{}' into a HiveGenericUDAF without UDAF bridging", name);
 
 				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), false, hiveShim);
 			} else {
 				LOG.info(
-					"Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging and Hive version %s",
-					name, hiveShim);
+					"Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging", name);
 
 				udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), true, hiveShim);
 			}

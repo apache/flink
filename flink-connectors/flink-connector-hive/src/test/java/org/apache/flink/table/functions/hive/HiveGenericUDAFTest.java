@@ -27,7 +27,6 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFMin;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
-import org.apache.hive.common.util.HiveVersionInfo;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -131,7 +130,7 @@ public class HiveGenericUDAFTest {
 	private static HiveGenericUDAF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
 		HiveFunctionWrapper<GenericUDAFResolver2> wrapper = new HiveFunctionWrapper(hiveUdfClass.getName());
 
-		HiveGenericUDAF udf = new HiveGenericUDAF(wrapper, HiveShimLoader.loadHiveShim(HiveVersionInfo.getVersion()));
+		HiveGenericUDAF udf = new HiveGenericUDAF(wrapper, HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()));
 
 		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
 		udf.getHiveResultType(constantArgs, argTypes);

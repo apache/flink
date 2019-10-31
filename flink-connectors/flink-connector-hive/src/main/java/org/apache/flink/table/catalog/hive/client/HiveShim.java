@@ -36,6 +36,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
@@ -205,4 +206,9 @@ public interface HiveShim extends Serializable {
 	 * List names of all built-in functions.
 	 */
 	Set<String> listBuiltInFunctions();
+
+	/**
+	 * Get a Hive built-in function by name.
+	 */
+	FunctionInfo getBuiltInFunctionInfo(String name);
 }

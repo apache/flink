@@ -198,4 +198,23 @@ public class HiveShimV120 extends HiveShimV111 {
 				String.format("Failed getting function info for %s", name), e);
 		}
 	}
+
+	@Override
+	public FunctionInfo getBuiltInFunctionInfo(String name) {
+		FunctionInfo functionInfo;
+
+		try {
+			functionInfo = FunctionRegistry.getFunctionInfo(name);
+		} catch (SemanticException e) {
+			throw new FlinkHiveException(
+				String.format("Failed getting function info for %s", name), e);
+		}
+
+		if (functionInfo.isBuiltIn()) {
+			return functionInfo;
+		} else {
+			throw new FlinkHiveUDFException(
+				String.format("Function %s is not a built in function", functionInfo.getFunctionClass().getName()));
+		}
+	}
 }

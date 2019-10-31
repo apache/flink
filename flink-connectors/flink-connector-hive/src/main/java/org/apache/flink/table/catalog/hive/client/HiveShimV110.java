@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.io.Writable;
@@ -81,4 +82,12 @@ public class HiveShimV110 extends HiveShimV101 {
 		// prior to Hive 1.2.0
 		throw new UnsupportedOperationException("Listing built in functions are not supported until Hive 1.2.0");
 	}
+
+	@Override
+	public FunctionInfo getBuiltInFunctionInfo(String name) {
+		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
+		// prior to Hive 1.2.0
+		throw new UnsupportedOperationException("Getting built in functions are not supported until Hive 1.2.0");
+	}
+
 }
