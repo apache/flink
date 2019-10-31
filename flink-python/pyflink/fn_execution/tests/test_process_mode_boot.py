@@ -92,9 +92,13 @@ class PythonBootTests(PyFlinkTestCase):
         self.env = dict(os.environ)
         self.env["python"] = sys.executable
         self.env["FLINK_BOOT_TESTING"] = "1"
+        self.env["FLINK_LOG_DIR"] = os.path.join(self.env["FLINK_HOME"], "log")
 
         self.tmp_dir = None
-        self.runner_path = os.path.join(os.environ["FLINK_HOME"], "bin", "pyflink-udf-runner.sh")
+        # assume that this file is in flink-python source code directory.
+        flink_python_source_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        self.runner_path = os.path.join(flink_python_source_root, "bin", "pyflink-udf-runner.sh")
 
     def check_downloaded_files(self, staged_dir, manifest):
         expected_files_info = json.loads(manifest)["manifest"]["artifact"]
