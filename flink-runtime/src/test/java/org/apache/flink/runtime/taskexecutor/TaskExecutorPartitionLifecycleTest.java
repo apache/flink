@@ -72,6 +72,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriConsumer;
 
+import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -93,6 +94,7 @@ import java.util.stream.StreamSupport;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -129,7 +131,20 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	}
 
 	@Test
-	public void testConnectionTerminationAfterExternalRelease() throws Exception {
+	public void testJobMasterConnectionTerminationAfterExternalRelease() throws Exception {
+		testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
+			((taskExecutorGateway, jobID, resultPartitionID) -> taskExecutorGateway.releaseOrPromotePartitions(jobID, Collections.singleton(resultPartitionID), Collections.emptySet()))
+		);
+	}
+
+	@Test
+	public void testJobMasterConnectionTerminationAfterExternalPromotion() throws Exception {
+		testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
+			((taskExecutorGateway, jobID, resultPartitionID) -> taskExecutorGateway.releaseOrPromotePartitions(jobID, Collections.emptySet(), Collections.singleton(resultPartitionID)))
+		);
+	}
+
+	private void testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(TriConsumer<TaskExecutorGateway, JobID, ResultPartitionID> releaseOrPromoteCall) throws Exception {
 		final CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
 		final JobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
 			.setDisconnectTaskManagerFunction(resourceID -> {
@@ -188,7 +203,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			runInTaskExecutorThreadAndWait(taskExecutor, () -> shuffleEnvironment.releasePartitionsLocallyFuture = secondReleasePartitionsCallFuture);
 
 			// the TM should check whether partitions are still stored, and afterwards terminate the connection
-			taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(resultPartitionId), Collections.emptySet());
+			releaseOrPromoteCall.accept(taskExecutor, jobId, resultPartitionId);
 
 			disconnectFuture.get();
 		} finally {
@@ -197,17 +212,19 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	}
 
 	@Test
-	public void testBlockingPartitionReleaseAfterDisconnect() throws Exception {
+	public void testBlockingPartitionReleaseAfterJobMasterDisconnect() throws Exception {
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.disconnectJobManager(jobId, new Exception("test")),
+			true,
 			true,
 			ResultPartitionType.BLOCKING);
 	}
 
 	@Test
-	public void testPipelinedPartitionNotReleasedAfterDisconnect() throws Exception {
+	public void testPipelinedPartitionNotReleasedAfterJobMasterDisconnect() throws Exception {
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.disconnectJobManager(jobId, new Exception("test")),
+			false,
 			false,
 			ResultPartitionType.PIPELINED);
 	}
@@ -217,6 +234,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(partitionId), Collections.emptySet()),
 			true,
+			true,
 			ResultPartitionType.BLOCKING);
 	}
 
@@ -224,6 +242,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	public void testPipelinedPartitionReleaseAfterReleaseCall() throws Exception {
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(partitionId), Collections.emptySet()),
+			true,
 			true,
 			ResultPartitionType.PIPELINED);
 	}
@@ -234,6 +253,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> { },
 			false,
+			false,
 			ResultPartitionType.BLOCKING);
 	}
 
@@ -243,12 +263,45 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> { },
 			false,
+			false,
 			ResultPartitionType.PIPELINED);
+	}
+
+	@Test
+	public void testPromotedBlockingPartitionNotReleasedAfterPromotionCall() throws Exception {
+		testPartitionRelease(
+			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.emptySet(), Collections.singleton(partitionId)),
+			true,
+			false,
+			ResultPartitionType.BLOCKING);
+	}
+
+	@Test
+	public void testPromotedBlockingPartitionReleasedAfterShutdown() throws Exception {
+		// don't do any explicit release action, so that the partition must be cleaned up on shutdown
+		testPartitionRelease(
+			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.emptySet(), Collections.singleton(partitionId)),
+			false,
+			false,
+			ResultPartitionType.BLOCKING);
+	}
+
+	@Test
+	public void testPromotedBlockingPartitionNotReleasedAfterJobMasterDisconnect() throws Exception {
+		testPartitionRelease(
+			(jobId, partitionId, taskExecutorGateway) -> {
+				taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.emptySet(), Collections.singleton(partitionId));
+				taskExecutorGateway.disconnectJobManager(jobId, new Exception("test"));
+			},
+			true,
+			false,
+			ResultPartitionType.BLOCKING);
 	}
 
 	private void testPartitionRelease(
 		TriConsumer<JobID, ResultPartitionID, TaskExecutorGateway> releaseAction,
 		boolean waitForRelease,
+		boolean shouldBeReleasedAfterWait,
 		ResultPartitionType resultPartitionType) throws Exception {
 
 		final ResultPartitionDeploymentDescriptor taskResultPartitionDescriptor =
@@ -401,7 +454,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 			if (waitForRelease) {
 				Collection<ResultPartitionID> resultPartitionIDS = releasePartitionsFuture.get();
-				assertThat(resultPartitionIDS, contains(taskResultPartitionDescriptor.getShuffleDescriptor().getResultPartitionID()));
+				Matcher<Iterable<? extends ResultPartitionID>> resultPartitionIdMatcher = contains(taskResultPartitionDescriptor.getShuffleDescriptor().getResultPartitionID());
+				assertThat(resultPartitionIDS, shouldBeReleasedAfterWait ? resultPartitionIdMatcher : not(resultPartitionIdMatcher));
 			}
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);

@@ -19,6 +19,8 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
+import java.util.Objects;
+
 /**
  * Encapsulates meta-information the TaskExecutor requires to be kept for each partition.
  */
@@ -32,5 +34,24 @@ public final class TaskExecutorPartitionInfo {
 
 	public IntermediateDataSetID getIntermediateDataSetId() {
 		return intermediateDataSetId;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		TaskExecutorPartitionInfo that = (TaskExecutorPartitionInfo) o;
+		// only use the dataset ID here, so we can use this as an efficient place for meta data
+		return Objects.equals(intermediateDataSetId, that.intermediateDataSetId);
+	}
+
+	@Override
+	public int hashCode() {
+		// only use the dataset ID here, so we can use this as an efficient place for meta data
+		return Objects.hash(intermediateDataSetId);
 	}
 }

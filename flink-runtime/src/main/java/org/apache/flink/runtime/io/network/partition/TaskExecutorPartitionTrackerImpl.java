@@ -24,12 +24,18 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
 public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<JobID, TaskExecutorPartitionInfo> implements TaskExecutorPartitionTracker {
 
+	private final Map<TaskExecutorPartitionInfo, Set<ResultPartitionID>> clusterPartitions = new HashMap<>();
 	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 
 	public TaskExecutorPartitionTrackerImpl(ShuffleEnvironment<?, ?> shuffleEnvironment) {
@@ -57,5 +63,31 @@ public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<J
 			stopTrackingPartitionsFor(producingJobId),
 			PartitionTrackerEntry::getResultPartitionId);
 		shuffleEnvironment.releasePartitionsLocally(partitionsForJob);
+	}
+
+	@Override
+	public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
+		final Collection<PartitionTrackerEntry<JobID, TaskExecutorPartitionInfo>> partitionTrackerEntries = stopTrackingPartitions(partitionsToPromote);
+
+		final Map<TaskExecutorPartitionInfo, Set<ResultPartitionID>> newClusterPartitions = partitionTrackerEntries.stream()
+			.collect(Collectors.groupingBy(
+				PartitionTrackerEntry::getMetaInfo,
+				Collectors.mapping(PartitionTrackerEntry::getResultPartitionId, Collectors.toSet())));
+
+		newClusterPartitions.forEach(
+			(dataSetMetaInfo, newPartitionEntries) -> clusterPartitions.compute(dataSetMetaInfo, (ignored, existingPartitions) -> {
+				if (existingPartitions == null) {
+					return newPartitionEntries;
+				} else {
+					existingPartitions.addAll(newPartitionEntries);
+					return existingPartitions;
+				}
+			}));
+	}
+
+	@Override
+	public void stopTrackingAndReleaseAllClusterPartitions() {
+		clusterPartitions.values().forEach(shuffleEnvironment::releasePartitionsLocally);
+		clusterPartitions.clear();
 	}
 }
