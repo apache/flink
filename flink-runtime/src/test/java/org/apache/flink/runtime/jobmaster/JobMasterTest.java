@@ -67,7 +67,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
-import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
@@ -91,6 +90,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -110,7 +110,6 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.scheduler.LegacySchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -221,8 +220,6 @@ public class JobMasterTest extends TestLogger {
 
 	private static HeartbeatServices heartbeatServices;
 
-	private static TestingHeartbeatServices testingHeartbeatService;
-
 	private Configuration configuration;
 
 	private ResourceID jmResourceId;
@@ -241,7 +238,6 @@ public class JobMasterTest extends TestLogger {
 
 		fastHeartbeatServices = new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout);
 		heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
-		testingHeartbeatService = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout);
 	}
 
 	@Before
@@ -311,7 +307,7 @@ public class JobMasterTest extends TestLogger {
 				jobManagerSharedServices,
 				heartbeatServices,
 				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-				new TestingOnCompletionActions(),
+				new JobMasterBuilder.TestingOnCompletionActions(),
 				testingFatalErrorHandler,
 				JobMasterTest.class.getClassLoader(),
 				schedulerNGFactory,
@@ -440,8 +436,7 @@ public class JobMasterTest extends TestLogger {
 
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 
-		final JobMaster jobMaster = new JobMasterBuilder()
-			.withJobGraph(createSingleVertexJobGraph())
+		final JobMaster jobMaster = new JobMasterBuilder(createSingleVertexJobGraph(), rpcService)
 			.withHeartbeatServices(new HeartbeatServices(5L, 1000L))
 			.withSlotPoolFactory(new TestingSlotPoolFactory(hasReceivedSlotOffers))
 			.createJobMaster();
@@ -1633,7 +1628,7 @@ public class JobMasterTest extends TestLogger {
 			jobManagerSharedServices,
 			heartbeatServices,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-			new TestingOnCompletionActions(),
+			new JobMasterBuilder.TestingOnCompletionActions(),
 			testingFatalErrorHandler,
 			JobMasterTest.class.getClassLoader(),
 			schedulerNGFactory,
@@ -1732,13 +1727,11 @@ public class JobMasterTest extends TestLogger {
 		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 		partitionTracker.setIsTrackingPartitionsForFunction(ignored -> isTrackingPartitions.get());
 
-		final JobMaster jobMaster = new JobMasterBuilder()
+		final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService)
 			.withConfiguration(configuration)
-			.withJobGraph(jobGraph)
 			.withHighAvailabilityServices(haServices)
 			.withJobManagerSharedServices(jobManagerSharedServices)
 			.withHeartbeatServices(heartbeatServices)
-			.withOnCompletionActions(new TestingOnCompletionActions())
 			.withPartitionTrackerFactory(ignored -> partitionTracker)
 			.createJobMaster();
 
@@ -1867,13 +1860,11 @@ public class JobMasterTest extends TestLogger {
 		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 		partitionTracker.setStopTrackingAllPartitionsConsumer(partitionCleanupTaskExecutorId::complete);
 
-		final JobMaster jobMaster = new JobMasterBuilder()
+		final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService)
 			.withConfiguration(configuration)
-			.withJobGraph(jobGraph)
 			.withHighAvailabilityServices(haServices)
 			.withJobManagerSharedServices(jobManagerSharedServices)
 			.withHeartbeatServices(heartbeatServices)
-			.withOnCompletionActions(new TestingOnCompletionActions())
 			.withPartitionTrackerFactory(ignored -> partitionTracker)
 			.createJobMaster();
 
@@ -1909,13 +1900,11 @@ public class JobMasterTest extends TestLogger {
 		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 		partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(partitionCleanupTaskExecutorId::complete);
 
-		final JobMaster jobMaster = new JobMasterBuilder()
+		final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService)
 			.withConfiguration(configuration)
-			.withJobGraph(jobGraph)
 			.withHighAvailabilityServices(haServices)
 			.withJobManagerSharedServices(jobManagerSharedServices)
 			.withHeartbeatServices(heartbeatServices)
-			.withOnCompletionActions(new TestingOnCompletionActions())
 			.withPartitionTrackerFactory(ignord -> partitionTracker)
 			.createJobMaster();
 
@@ -1970,6 +1959,8 @@ public class JobMasterTest extends TestLogger {
 
 	@Test
 	public void testJobFailureWhenTaskExecutorHeartbeatTimeout() throws Exception {
+		final TestingHeartbeatServices testingHeartbeatService = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout);
+
 		runJobFailureWhenTaskExecutorTerminatesTest(
 			testingHeartbeatService,
 			(localTaskManagerLocation, jobMasterGateway) ->
@@ -1987,7 +1978,7 @@ public class JobMasterTest extends TestLogger {
 			BiConsumer<LocalTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
 			BiFunction<JobMasterGateway, ResourceID, BiConsumer<ResourceID, AllocatedSlotReport>> heartbeatConsumerFunction) throws Exception {
 		final JobGraph jobGraph = createSingleVertexJobGraph();
-		final TestingOnCompletionActions onCompletionActions = new TestingOnCompletionActions();
+		final JobMasterBuilder.TestingOnCompletionActions onCompletionActions = new JobMasterBuilder.TestingOnCompletionActions();
 		final JobMaster jobMaster = createJobMaster(
 			new Configuration(),
 			jobGraph,
@@ -2025,32 +2016,6 @@ public class JobMasterTest extends TestLogger {
 			assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
-		}
-	}
-
-	private static final class TestingOnCompletionActions implements OnCompletionActions {
-
-		private final CompletableFuture<ArchivedExecutionGraph> jobReachedGloballyTerminalStateFuture = new CompletableFuture<>();
-		private final CompletableFuture<Void> jobFinishedByOtherFuture = new CompletableFuture<>();
-		private final CompletableFuture<Throwable> jobMasterFailedFuture = new CompletableFuture<>();
-
-		@Override
-		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-			jobReachedGloballyTerminalStateFuture.complete(executionGraph);
-		}
-
-		@Override
-		public void jobFinishedByOther() {
-			jobFinishedByOtherFuture.complete(null);
-		}
-
-		@Override
-		public void jobMasterFailed(Throwable cause) {
-			jobMasterFailedFuture.complete(cause);
-		}
-
-		public CompletableFuture<ArchivedExecutionGraph> getJobReachedGloballyTerminalStateFuture() {
-			return jobReachedGloballyTerminalStateFuture;
 		}
 	}
 
@@ -2215,7 +2180,7 @@ public class JobMasterTest extends TestLogger {
 			highAvailabilityServices,
 			jobManagerSharedServices,
 			heartbeatServices,
-			new TestingOnCompletionActions());
+			new JobMasterBuilder.TestingOnCompletionActions());
 	}
 
 	@Nonnull
@@ -2227,104 +2192,14 @@ public class JobMasterTest extends TestLogger {
 			HeartbeatServices heartbeatServices,
 			OnCompletionActions onCompletionActions) throws Exception {
 
-		return new JobMasterBuilder()
+		return new JobMasterBuilder(jobGraph, rpcService)
 			.withConfiguration(configuration)
-			.withJobGraph(jobGraph)
 			.withHighAvailabilityServices(highAvailabilityServices)
 			.withJobManagerSharedServices(jobManagerSharedServices)
 			.withHeartbeatServices(heartbeatServices)
 			.withOnCompletionActions(onCompletionActions)
+			.withResourceId(jmResourceId)
 			.createJobMaster();
-	}
-
-	private final class JobMasterBuilder {
-
-		private Configuration configuration = JobMasterTest.this.configuration;
-
-		private JobGraph jobGraph = JobMasterTest.jobGraph;
-
-		private HighAvailabilityServices highAvailabilityServices = haServices;
-
-		private JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
-
-		private HeartbeatServices heartbeatServices = JobMasterTest.heartbeatServices;
-
-		private SlotPoolFactory slotPoolFactory = DefaultSlotPoolFactory.fromConfiguration(configuration);
-
-		private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
-
-		private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
-
-		private PartitionTrackerFactory partitionTrackerFactory = NoOpJobMasterPartitionTracker.FACTORY;
-
-		private JobMasterBuilder withConfiguration(Configuration configuration) {
-			this.configuration = configuration;
-			return this;
-		}
-
-		private JobMasterBuilder withJobGraph(JobGraph jobGraph) {
-			this.jobGraph = jobGraph;
-			return this;
-		}
-
-		private JobMasterBuilder withHighAvailabilityServices(HighAvailabilityServices highAvailabilityServices) {
-			this.highAvailabilityServices = highAvailabilityServices;
-			return this;
-		}
-
-		private JobMasterBuilder withJobManagerSharedServices(JobManagerSharedServices jobManagerSharedServices) {
-			this.jobManagerSharedServices = jobManagerSharedServices;
-			return this;
-		}
-
-		private JobMasterBuilder withHeartbeatServices(HeartbeatServices heartbeatServices) {
-			this.heartbeatServices = heartbeatServices;
-			return this;
-		}
-
-		private JobMasterBuilder withSlotPoolFactory(SlotPoolFactory slotPoolFactory) {
-			this.slotPoolFactory = slotPoolFactory;
-			return this;
-		}
-
-		private JobMasterBuilder withOnCompletionActions(OnCompletionActions onCompletionActions) {
-			this.onCompletionActions = onCompletionActions;
-			return this;
-		}
-
-		private JobMasterBuilder withShuffleMaster(ShuffleMaster<?> shuffleMaster) {
-			this.shuffleMaster = shuffleMaster;
-			return this;
-		}
-
-		private JobMasterBuilder withPartitionTrackerFactory(PartitionTrackerFactory partitionTrackerFactory) {
-			this.partitionTrackerFactory = partitionTrackerFactory;
-			return this;
-		}
-
-		private JobMaster createJobMaster() throws Exception {
-			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
-			final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
-				jobManagerSharedServices.getRestartStrategyFactory());
-
-			return new JobMaster(
-				rpcService,
-				jobMasterConfiguration,
-				jmResourceId,
-				jobGraph,
-				highAvailabilityServices,
-				slotPoolFactory,
-				DefaultSchedulerFactory.fromConfiguration(configuration),
-				jobManagerSharedServices,
-				heartbeatServices,
-				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-				onCompletionActions,
-				testingFatalErrorHandler,
-				JobMasterTest.class.getClassLoader(),
-				schedulerNGFactory,
-				shuffleMaster,
-				partitionTrackerFactory);
-		}
 	}
 
 	private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
