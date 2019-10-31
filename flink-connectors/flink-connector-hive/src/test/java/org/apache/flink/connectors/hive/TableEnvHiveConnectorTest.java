@@ -141,7 +141,8 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create table db1.dest (i int,s string) " + suffix);
 
 		// prepare source data with Hive
-		hiveShell.execute("insert into db1.src values (1,'a'),(2,'b')");
+		// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
+		hiveShell.execute("insert into table db1.src values (1,'a'),(2,'b')");
 
 		// populate dest table with source table
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
@@ -161,7 +162,8 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.execute("create table db1.src2 (x decimal(10,2))");
 			hiveShell.execute("create table db1.dest (x decimal(10,2))");
 			// populate src1 from Hive
-			hiveShell.execute("insert into db1.src1 values (1.0),(2.12),(5.123),(5.456),(123456789.12)");
+			// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
+			hiveShell.execute("insert into table db1.src1 values (1.0),(2.12),(5.123),(5.456),(123456789.12)");
 
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			// populate src2 with same data from Flink

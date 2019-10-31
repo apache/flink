@@ -22,12 +22,8 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.serde2.Deserializer;
-import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
 import java.lang.reflect.Constructor;
@@ -54,27 +50,6 @@ public class HiveReflectionUtils {
 			return (Properties) method.invoke(null, table);
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new CatalogException("Failed to invoke MetaStoreUtils.getTableMetadata()", e);
-		}
-	}
-
-	public static List<FieldSchema> getFieldsFromDeserializer(HiveShim hiveShim, String tableName, Deserializer deserializer)
-			throws SerDeException, MetaException {
-		try {
-			Method method = hiveShim.getHiveMetaStoreUtilsClass().getMethod("getFieldsFromDeserializer", String.class, Deserializer.class);
-			return (List<FieldSchema>) method.invoke(null, tableName, deserializer);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to invoke MetaStoreUtils.getFieldsFromDeserializer()", e);
-		}
-	}
-
-	public static Deserializer getDeserializer(HiveShim hiveShim, Configuration conf, Table table, boolean skipConfError)
-			throws MetaException {
-		try {
-			Method method = hiveShim.getHiveMetaStoreUtilsClass().getMethod("getDeserializer", Configuration.class,
-				Table.class, boolean.class);
-			return (Deserializer) method.invoke(null, conf, table, skipConfError);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to invoke MetaStoreUtils.getDeserializer()", e);
 		}
 	}
 

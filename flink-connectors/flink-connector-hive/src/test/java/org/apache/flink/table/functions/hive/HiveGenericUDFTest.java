@@ -29,7 +29,6 @@ import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAddMonths;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCase;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCeil;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
@@ -53,6 +52,7 @@ import static org.junit.Assert.assertEquals;
 public class HiveGenericUDFTest {
 	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
 	private static final boolean HIVE_120_OR_LATER = HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V1_2_0) >= 0;
+	private static final boolean HIVE_110_OR_LATER = HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V1_1_0) >= 0;
 
 	@Test
 	public void testAbs() {
@@ -94,9 +94,10 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testAddMonths() {
+	public void testAddMonths() throws Exception {
+		Assume.assumeTrue(HIVE_110_OR_LATER);
 		HiveGenericUDF udf = init(
-			GenericUDFAddMonths.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFAddMonths"),
 			new Object[] {
 				null,
 				1
