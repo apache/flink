@@ -49,12 +49,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
             'create',
             'loadModule',
             'unloadModule',
-            'listTemporaryTables',
-            'createTemporaryView',
-            'dropTemporaryTable',
-            'listTemporaryViews',
-            'from',
-            'dropTemporaryView'}
+            'from'}
 
 
 if __name__ == '__main__':
