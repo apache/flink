@@ -154,7 +154,10 @@ class TableEnvironment(object):
 
         :param name: The name under which the :class:`TableSource` is registered.
         :param table_source: The :class:`TableSource` to register.
+
+        .. note:: Deprecated in 1.10. Use :func:`connect` instead.
         """
+        warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
         self._j_tenv.registerTableSource(name, table_source._j_table_source)
 
     def register_table_sink(self, name, table_sink):
@@ -174,7 +177,10 @@ class TableEnvironment(object):
 
         :param name: The name under which the :class:`TableSink` is registered.
         :param table_sink: The :class:`TableSink` to register.
+
+        .. note:: Deprecated in 1.10. Use :func:`connect` instead.
         """
+        warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
         self._j_tenv.registerTableSink(name, table_sink._j_table_sink)
 
     def scan(self, *table_path):
