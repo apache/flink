@@ -21,11 +21,11 @@ package org.apache.flink.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.python.util.RunnerEnvUtil;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -53,7 +53,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * An base class for {@link PythonFunctionRunner}.
@@ -153,6 +157,12 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	 */
 	private transient DataOutputViewStreamWrapper baosWrapper;
 
+	/**
+	 * Python libraries and shell script extracted from resource of flink-python jar.
+	 * They are used to support running python udf worker in process mode.
+	 */
+	private transient List<File> pythonFiles;
+
 	public AbstractPythonFunctionRunner(
 		String taskName,
 		FnDataReceiver<OUT> resultReceiver,
@@ -194,6 +204,14 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 			}
 		} finally {
 			retrievalToken = null;
+		}
+
+		try {
+			if (pythonFiles != null) {
+				pythonFiles.forEach(File::delete);
+			}
+		} finally {
+			pythonFiles = null;
 		}
 
 		try {
@@ -293,15 +311,31 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	 */
 	protected RunnerApi.Environment createPythonExecutionEnvironment() {
 		if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
-			String flinkHomePath = System.getenv(ConfigConstants.ENV_FLINK_HOME_DIR);
-			String pythonWorkerCommand =
-				flinkHomePath + File.separator + "bin" + File.separator + "pyflink-udf-runner.sh";
-
+			Random rnd = new Random();
+			String tmpdir = tempDirs[rnd.nextInt(tempDirs.length)];
+			String prefix = UUID.randomUUID().toString() + "_";
+			try {
+				pythonFiles = RunnerEnvUtil.extractBasicDependenciesFromResource(
+					tmpdir, this.getClass().getClassLoader(), prefix);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			String pythonWorkerCommand = null;
+			for (File file: pythonFiles) {
+				file.deleteOnExit();
+				if (file.getName().endsWith("pyflink-udf-runner.sh")) {
+					pythonWorkerCommand = file.getAbsolutePath();
+					pythonFiles.remove(file);
+					break;
+				}
+			}
+			Map<String, String> env = RunnerEnvUtil.appendEnvironmentVariable(System.getenv(),
+				pythonFiles.stream().map(File::getAbsolutePath).collect(Collectors.toList()));
 			return Environments.createProcessEnvironment(
 				"",
 				"",
 				pythonWorkerCommand,
-				null);
+				env);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Execution type '%s' is not supported.", pythonEnv.getExecType()));
