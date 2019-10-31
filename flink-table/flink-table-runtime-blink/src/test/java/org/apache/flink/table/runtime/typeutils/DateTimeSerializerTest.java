@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.Timestamp;
+import org.apache.flink.table.dataformat.DateTime;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -29,10 +29,10 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * Test for {@link TimestampSerializer}.
+ * Test for {@link DateTimeSerializer}.
  */
 @RunWith(Parameterized.class)
-public class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
+public class DateTimeSerializerTest extends SerializerTestBase<DateTime> {
 
 	@Parameterized.Parameters
 	public static Collection<Object[]> data(){
@@ -41,14 +41,14 @@ public class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
 
 	private int precision;
 
-	public TimestampSerializerTest(int precision) {
+	public DateTimeSerializerTest(int precision) {
 		super();
 		this.precision = precision;
 	}
 
 	@Override
-	protected TypeSerializer<Timestamp> createSerializer() {
-		return new TimestampSerializer(precision);
+	protected TypeSerializer<DateTime> createSerializer() {
+		return new DateTimeSerializer(precision);
 	}
 
 	@Override
@@ -57,17 +57,17 @@ public class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
 	}
 
 	@Override
-	protected Class<Timestamp> getTypeClass() {
-		return Timestamp.class;
+	protected Class<DateTime> getTypeClass() {
+		return DateTime.class;
 	}
 
 	@Override
-	protected Timestamp[] getTestData() {
-		return new Timestamp[] {
-			Timestamp.fromEpochMillis(1),
-			Timestamp.fromEpochMillis(2),
-			Timestamp.fromEpochMillis(3),
-			Timestamp.fromEpochMillis(4)
+	protected DateTime[] getTestData() {
+		return new DateTime[] {
+			DateTime.fromEpochMillis(1),
+			DateTime.fromEpochMillis(2),
+			DateTime.fromEpochMillis(3),
+			DateTime.fromEpochMillis(4)
 		};
 	}
 }

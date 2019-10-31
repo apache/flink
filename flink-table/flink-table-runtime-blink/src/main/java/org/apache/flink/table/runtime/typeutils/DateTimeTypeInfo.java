@@ -21,22 +21,22 @@ package org.apache.flink.table.runtime.typeutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.Timestamp;
+import org.apache.flink.table.dataformat.DateTime;
 
 import java.util.Arrays;
 
 /**
- * TypeInfomation of {@link Timestamp}.
+ * TypeInfomation of {@link DateTime}.
  */
-public class TimestampTypeInfo extends TypeInformation<Timestamp> {
+public class DateTimeTypeInfo extends TypeInformation<DateTime> {
 
-	public static TimestampTypeInfo of(int precision) {
-		return new TimestampTypeInfo(precision);
+	public static DateTimeTypeInfo of(int precision) {
+		return new DateTimeTypeInfo(precision);
 	}
 
 	private final int precision;
 
-	protected TimestampTypeInfo(int precision) {
+	protected DateTimeTypeInfo(int precision) {
 		this.precision = precision;
 	}
 
@@ -61,8 +61,8 @@ public class TimestampTypeInfo extends TypeInformation<Timestamp> {
 	}
 
 	@Override
-	public Class<Timestamp> getTypeClass() {
-		return Timestamp.class;
+	public Class<DateTime> getTypeClass() {
+		return DateTime.class;
 	}
 
 	@Override
@@ -71,22 +71,22 @@ public class TimestampTypeInfo extends TypeInformation<Timestamp> {
 	}
 
 	@Override
-	public TypeSerializer<Timestamp> createSerializer(ExecutionConfig config) {
-		return new TimestampSerializer(precision);
+	public TypeSerializer<DateTime> createSerializer(ExecutionConfig config) {
+		return new DateTimeSerializer(precision);
 	}
 
 	@Override
 	public String toString() {
-		return String.format("Timestamp(%d)", precision);
+		return String.format("DateTime(%d)", precision);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof TimestampTypeInfo)) {
+		if (!(obj instanceof DateTimeTypeInfo)) {
 			return false;
 		}
 
-		TimestampTypeInfo that = (TimestampTypeInfo) obj;
+		DateTimeTypeInfo that = (DateTimeTypeInfo) obj;
 		return this.precision == that.precision;
 	}
 
@@ -98,7 +98,7 @@ public class TimestampTypeInfo extends TypeInformation<Timestamp> {
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof TimestampTypeInfo;
+		return obj instanceof DateTimeTypeInfo;
 	}
 
 	public int getPrecision() {

@@ -31,7 +31,7 @@ import java.time.LocalTime;
  * holds the integral second and the milli-of-second. The nanoOfMillisecond holds the
  * nano-of-millisecond, which should between 0 - 999_999.
  */
-public class Timestamp implements Comparable<Timestamp> {
+public class DateTime implements Comparable<DateTime> {
 
 	// the number of milliseconds in a day
 	private static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
@@ -42,14 +42,14 @@ public class Timestamp implements Comparable<Timestamp> {
 	// this field holds the nano-of-millisecond
 	private final int nanoOfMillisecond;
 
-	private Timestamp(long millisecond, int nanoOfMillisecond) {
+	private DateTime(long millisecond, int nanoOfMillisecond) {
 		Preconditions.checkArgument(nanoOfMillisecond >= 0 && nanoOfMillisecond <= 999_999);
 		this.millisecond = millisecond;
 		this.nanoOfMillisecond = nanoOfMillisecond;
 	}
 
 	@Override
-	public int compareTo(Timestamp that) {
+	public int compareTo(DateTime that) {
 		int cmp = Long.compare(this.millisecond, that.millisecond);
 		if (cmp == 0) {
 			cmp = this.nanoOfMillisecond - that.nanoOfMillisecond;
@@ -59,10 +59,10 @@ public class Timestamp implements Comparable<Timestamp> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof Timestamp)) {
+		if (!(obj instanceof DateTime)) {
 			return false;
 		}
-		Timestamp that = (Timestamp) obj;
+		DateTime that = (DateTime) obj;
 		return this.millisecond == that.millisecond &&
 				this.nanoOfMillisecond == that.nanoOfMillisecond;
 	}
@@ -87,33 +87,33 @@ public class Timestamp implements Comparable<Timestamp> {
 	}
 
 	/**
-	 * Obtains an instance of {@code Timestamp} from a millisecond.
+	 * Obtains an instance of {@code DateTime} from a millisecond.
 	 *
-	 * <p>This returns a {@code Timestamp} with the specified millisecond.
+	 * <p>This returns a {@code DateTime} with the specified millisecond.
 	 * The nanoOfMillisecond field will be set to zero.
 	 *
 	 * @param millisecond the number of milliseconds since January 1, 1970, 00:00:00 GMT
 	 *                    A negative number is the number of milliseconds before
 	 *                    January 1, 1970, 00:00:00 GMT
-	 * @return an instance of {@code Timestamp}
+	 * @return an instance of {@code DateTime}
 	 */
-	public static Timestamp fromEpochMillis(long millisecond) {
-		return new Timestamp(millisecond, 0);
+	public static DateTime fromEpochMillis(long millisecond) {
+		return new DateTime(millisecond, 0);
 	}
 
 	/**
-	 * Obtains an instance of {@code Timestamp} from a millisecond and a nanoOfMillisecond.
+	 * Obtains an instance of {@code DateTime} from a millisecond and a nanoOfMillisecond.
 	 *
-	 * <p>This returns a {@code Timestamp} with the specified millisecond and nanoOfMillisecond.
+	 * <p>This returns a {@code DateTime} with the specified millisecond and nanoOfMillisecond.
 	 *
 	 * @param millisecond the number of milliseconds since January 1, 1970, 00:00:00 GMT
 	 *                    A negative number is the number of milliseconds before
 	 *                    January 1, 1970, 00:00:00 GMT
 	 * @param nanoOfMillisecond the nanosecond within the millisecond, from 0 to 999,999
-	 * @return an instance of {@code Timestamp}
+	 * @return an instance of {@code DateTime}
 	 */
-	public static Timestamp fromEpochMillis(long millisecond, int nanoOfMillisecond) {
-		return new Timestamp(millisecond, nanoOfMillisecond);
+	public static DateTime fromEpochMillis(long millisecond, int nanoOfMillisecond) {
+		return new DateTime(millisecond, nanoOfMillisecond);
 	}
 
 	/**
@@ -126,19 +126,19 @@ public class Timestamp implements Comparable<Timestamp> {
 	}
 
 	/**
-	 * Obtains an instance of {@code Timestamp} from an instance of {@link java.sql.Timestamp}.
+	 * Obtains an instance of {@code DateTime} from an instance of {@link java.sql.Timestamp}.
 	 *
-	 * <p>This returns a {@code Timestamp} with the specified {@link java.sql.Timestamp}.
+	 * <p>This returns a {@code DateTime} with the specified {@link java.sql.Timestamp}.
 	 *
 	 * @param ts an instance of {@link java.sql.Timestamp}
-	 * @return an instance of {@code Timestamp}
+	 * @return an instance of {@code DateTime}
 	 */
-	public static Timestamp fromTimestamp(java.sql.Timestamp ts) {
+	public static DateTime fromTimestamp(java.sql.Timestamp ts) {
 		return fromLocalDateTime(ts.toLocalDateTime());
 	}
 
 	/**
-	 * Convert this {@code Timestamp} object to a {@link LocalDateTime}.
+	 * Convert this {@code DateTime} object to a {@link LocalDateTime}.
 	 *
 	 * @return An instance of {@link LocalDateTime}
 	 */
@@ -156,21 +156,21 @@ public class Timestamp implements Comparable<Timestamp> {
 	}
 
 	/**
-	 * Obtains an instance of {@code Timestamp} from an instance of {@link LocalDateTime}.
+	 * Obtains an instance of {@code DateTime} from an instance of {@link LocalDateTime}.
 	 *
-	 * <p>This returns a {@code Timestamp} with the specified {@link LocalDateTime}.
+	 * <p>This returns a {@code DateTime} with the specified {@link LocalDateTime}.
 	 *
 	 * @param dateTime an instance of {@link LocalDateTime}
-	 * @return an instance of {@code Timestamp}
+	 * @return an instance of {@code DateTime}
 	 */
-	public static Timestamp fromLocalDateTime(LocalDateTime dateTime) {
+	public static DateTime fromLocalDateTime(LocalDateTime dateTime) {
 		long epochDay = dateTime.toLocalDate().toEpochDay();
 		long nanoOfDay = dateTime.toLocalTime().toNanoOfDay();
 
 		long millisecond = epochDay * MILLIS_PER_DAY + nanoOfDay / 1_000_000;
 		int nanoOfMillisecond = (int) (nanoOfDay % 1_000_000);
 
-		return new Timestamp(millisecond, nanoOfMillisecond);
+		return new DateTime(millisecond, nanoOfMillisecond);
 	}
 
 	public static boolean isCompact(int precision) {
