@@ -23,16 +23,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 
-import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * TypeInformation of {@link SqlTimestamp}.
  */
 public class SqlTimestampTypeInfo extends TypeInformation<SqlTimestamp> {
-
-	public static SqlTimestampTypeInfo of(int precision) {
-		return new SqlTimestampTypeInfo(precision);
-	}
 
 	private final int precision;
 
@@ -77,7 +73,7 @@ public class SqlTimestampTypeInfo extends TypeInformation<SqlTimestamp> {
 
 	@Override
 	public String toString() {
-		return String.format("SqlTimestamp(%d)", precision);
+		return String.format("Timestamp(%d)", precision);
 	}
 
 	@Override
@@ -92,8 +88,7 @@ public class SqlTimestampTypeInfo extends TypeInformation<SqlTimestamp> {
 
 	@Override
 	public int hashCode() {
-		int h0 = this.getClass().getCanonicalName().hashCode();
-		return Arrays.hashCode(new int[]{h0, precision});
+		return Objects.hash(this.getClass().getCanonicalName(), precision);
 	}
 
 	@Override

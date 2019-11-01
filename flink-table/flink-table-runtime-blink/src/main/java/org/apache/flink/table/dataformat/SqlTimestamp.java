@@ -20,6 +20,7 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.util.Preconditions;
 
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -117,23 +118,23 @@ public class SqlTimestamp implements Comparable<SqlTimestamp> {
 	}
 
 	/**
-	 * Convert this {@code Timestmap} object to a {@link java.sql.Timestamp}.
+	 * Convert this {@code SqlTimestmap} object to a {@link Timestamp}.
 	 *
-	 * @return An instance of {@link java.sql.Timestamp}
+	 * @return An instance of {@link Timestamp}
 	 */
-	public java.sql.Timestamp toTimestamp() {
-		return java.sql.Timestamp.valueOf(toLocalDateTime());
+	public Timestamp toTimestamp() {
+		return Timestamp.valueOf(toLocalDateTime());
 	}
 
 	/**
-	 * Obtains an instance of {@code SqlTimestamp} from an instance of {@link java.sql.Timestamp}.
+	 * Obtains an instance of {@code SqlTimestamp} from an instance of {@link Timestamp}.
 	 *
-	 * <p>This returns a {@code SqlTimestamp} with the specified {@link java.sql.Timestamp}.
+	 * <p>This returns a {@code SqlTimestamp} with the specified {@link Timestamp}.
 	 *
-	 * @param ts an instance of {@link java.sql.Timestamp}
+	 * @param ts an instance of {@link Timestamp}
 	 * @return an instance of {@code SqlTimestamp}
 	 */
-	public static SqlTimestamp fromTimestamp(java.sql.Timestamp ts) {
+	public static SqlTimestamp fromTimestamp(Timestamp ts) {
 		return fromLocalDateTime(ts.toLocalDateTime());
 	}
 
