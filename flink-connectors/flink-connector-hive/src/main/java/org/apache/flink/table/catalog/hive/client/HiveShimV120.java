@@ -187,7 +187,7 @@ public class HiveShimV120 extends HiveShimV111 {
 				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n)))
 				.collect(Collectors.toSet());
 		} catch (Exception ex) {
-			throw new CatalogException("Failed to invoke Warehouse.makeSpecFromName()", ex);
+			throw new CatalogException("Failed to invoke FunctionRegistry.getFunctionNames()", ex);
 		}
 	}
 
@@ -209,7 +209,7 @@ public class HiveShimV120 extends HiveShimV111 {
 
 	private boolean isBuiltInFunctionInfo(FunctionInfo info) {
 		try {
-			Method method = FunctionRegistry.class.getMethod("isBuiltIn");
+			Method method = FunctionInfo.class.getMethod("isBuiltIn", null);
 			return (boolean) method.invoke(info);
 		} catch (Exception ex) {
 			throw new CatalogException("Failed to invoke FunctionInfo.isBuiltIn()", ex);

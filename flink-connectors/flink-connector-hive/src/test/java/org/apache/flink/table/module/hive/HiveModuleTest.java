@@ -45,18 +45,15 @@ public class HiveModuleTest {
 	public void testNumberOfBuiltinFunctions() {
 		String hiveVersion = HiveShimLoader.getHiveVersion();
 
-		assumeTrue(hiveVersion.equals(HIVE_VERSION_V1_2_0));
-		assertEquals(232, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
-
-		assumeTrue(hiveVersion.equals(HIVE_VERSION_V2_0_0));
-		assertEquals(243, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
-
-		assumeTrue(hiveVersion.equals(HIVE_VERSION_V2_1_1)
-			|| hiveVersion.equals(HIVE_VERSION_V2_2_0));
-		assertEquals(253, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
-
-		assumeTrue(hiveVersion.equals(HIVE_VERSION_V2_3_4) || hiveVersion.equals(HIVE_VERSION_V3_1_1));
-		assertEquals(287, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+		if (hiveVersion.equals(HIVE_VERSION_V1_2_0)) {
+			assertEquals(232, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+		} else if (hiveVersion.equals(HIVE_VERSION_V2_0_0)) {
+			assertEquals(243, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+		} else if (hiveVersion.equals(HIVE_VERSION_V2_1_1) || hiveVersion.equals(HIVE_VERSION_V2_2_0)) {
+			assertEquals(253, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+		} else if (hiveVersion.equals(HIVE_VERSION_V2_3_4) || hiveVersion.equals(HIVE_VERSION_V3_1_1)) {
+			assertEquals(287, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+		}
 	}
 
 	@Test
