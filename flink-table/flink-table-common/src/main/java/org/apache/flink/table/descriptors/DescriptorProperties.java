@@ -25,6 +25,10 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -71,6 +75,14 @@ public class DescriptorProperties {
 	public static final String TABLE_SCHEMA_NAME = "name";
 
 	public static final String TABLE_SCHEMA_TYPE = "type";
+
+	public static final String WATERMARK = "watermark";
+
+	public static final String WATERMARK_ROWTIME = "rowtime";
+
+	public static final String WATERMARK_STRATEGY_EXPRESSION = "strategy.expression";
+
+	public static final String WATERMARK_STRATEGY_DATATYPE = "strategy.datatype";
 
 	private static final Consumer<String> EMPTY_CONSUMER = (value) -> {};
 
@@ -193,6 +205,20 @@ public class DescriptorProperties {
 			key,
 			Arrays.asList(TABLE_SCHEMA_NAME, TABLE_SCHEMA_TYPE),
 			values);
+
+		if (!schema.getWatermarkSpecs().isEmpty()) {
+			final List<List<String>> watermarkValues = new ArrayList<>();
+			for (WatermarkSpec spec : schema.getWatermarkSpecs()) {
+				watermarkValues.add(Arrays.asList(
+					spec.getRowtimeAttribute(),
+					spec.getWatermarkExpressionString(),
+					spec.getWatermarkExprOutputType().getLogicalType().asSerializableString()));
+			}
+			putIndexedFixedProperties(
+				key + '.' + WATERMARK,
+				Arrays.asList(WATERMARK_ROWTIME, WATERMARK_STRATEGY_EXPRESSION, WATERMARK_STRATEGY_DATATYPE),
+				watermarkValues);
+		}
 	}
 
 	/**
@@ -519,6 +545,28 @@ public class DescriptorProperties {
 
 			schemaBuilder.field(name, type);
 		}
+
+		// extract watermark information
+
+		// filter for number of fields
+		String watermarkPrefixKey = key + '.' + WATERMARK;
+		final int watermarkCount = properties.keySet().stream()
+			.filter((k) -> k.startsWith(watermarkPrefixKey) && k.endsWith('.' + WATERMARK_ROWTIME))
+			.mapToInt((k) -> 1)
+			.sum();
+		if (watermarkCount > 0) {
+			for (int i = 0; i < watermarkCount; i++) {
+				final String rowtimeKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_ROWTIME;
+				final String exprKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_STRATEGY_EXPRESSION;
+				final String typeKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_STRATEGY_DATATYPE;
+				final String rowtime = optionalGet(rowtimeKey).orElseThrow(exceptionSupplier(rowtimeKey));
+				final String exprString = optionalGet(exprKey).orElseThrow(exceptionSupplier(exprKey));
+				final String typeString = optionalGet(typeKey).orElseThrow(exceptionSupplier(typeKey));
+				final DataType exprType = TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(typeString));
+				schemaBuilder.watermark(rowtime, exprString, exprType);
+			}
+		}
+
 		return Optional.of(schemaBuilder.build());
 	}
 
