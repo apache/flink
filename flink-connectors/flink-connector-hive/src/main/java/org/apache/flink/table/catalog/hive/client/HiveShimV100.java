@@ -45,6 +45,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.Deserializer;
@@ -309,7 +310,7 @@ public class HiveShimV100 implements HiveShim {
 			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath) {
 		try {
 			Class outputFormatClz = Class.forName(outputFormatClzName);
-			Class utilClass = Class.forName("org.apache.hadoop.hive.ql.io.HiveFileFormatUtils");
+			Class utilClass = HiveFileFormatUtils.class;
 			Method utilMethod = utilClass.getDeclaredMethod("getOutputFormatSubstitute", Class.class, boolean.class);
 			outputFormatClz = (Class) utilMethod.invoke(null, outputFormatClz, false);
 			Preconditions.checkState(outputFormatClz != null, "No Hive substitute output format for " + outputFormatClzName);

@@ -19,12 +19,14 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
@@ -45,9 +47,10 @@ public class HiveShimV110 extends HiveShimV101 {
 			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath) {
 		try {
 			Class outputFormatClz = Class.forName(outputFormatClzName);
-			Class utilClass = Class.forName("org.apache.hadoop.hive.ql.io.HiveFileFormatUtils");
+			Class utilClass = HiveFileFormatUtils.class;
 			Method utilMethod = utilClass.getDeclaredMethod("getOutputFormatSubstitute", Class.class);
 			outputFormatClz = (Class) utilMethod.invoke(null, outputFormatClz);
+			Preconditions.checkState(outputFormatClz != null, "No Hive substitute output format for " + outputFormatClzName);
 			OutputFormat outputFormat = (OutputFormat) outputFormatClz.newInstance();
 			utilMethod = utilClass.getDeclaredMethod("getRecordWriter", JobConf.class, OutputFormat.class,
 					Class.class, boolean.class, Properties.class, Path.class, Reporter.class);

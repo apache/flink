@@ -453,8 +453,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 			if (!StringUtils.isNullOrWhitespaceOnly(codecStr)) {
 				try {
 					Class<? extends CompressionCodec> codec =
-							(Class<? extends CompressionCodec>) Class.forName(codecStr, true,
-									Thread.currentThread().getContextClassLoader());
+						(Class<? extends CompressionCodec>) Class.forName(codecStr, true,
+							Thread.currentThread().getContextClassLoader());
 					FileOutputFormat.setOutputCompressorClass(clonedConf, codec);
 				} catch (ClassNotFoundException e) {
 					throw new RuntimeException(e);

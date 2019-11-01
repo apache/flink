@@ -668,14 +668,6 @@ under the License.
 	<profiles>
 		<!-- Activate these profiles with -Phive-x.x.x to build and test against different Hive versions -->
 		<profile>
-			<id>hive-1.0.0</id>
-			<properties>
-				<hive.version>1.0.0</hive.version>
-				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
-				<hiverunner.version>3.1.1</hiverunner.version>
-			</properties>
-		</profile>
-		<profile>
 			<id>hive-1.0.1</id>
 			<properties>
 				<hive.version>1.0.1</hive.version>
