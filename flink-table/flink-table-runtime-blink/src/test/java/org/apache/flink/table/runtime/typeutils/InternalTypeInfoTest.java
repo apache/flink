@@ -31,10 +31,10 @@ public class InternalTypeInfoTest extends TypeInformationTestBase<TypeInformatio
 		return new TypeInformation[] {
 				BinaryStringTypeInfo.INSTANCE,
 				new DecimalTypeInfo(5, 2),
-				new DateTimeTypeInfo(0),
-				new DateTimeTypeInfo(3),
-				new DateTimeTypeInfo(6),
-				new DateTimeTypeInfo(9)
+				new SqlTimestampTypeInfo(0),
+				new SqlTimestampTypeInfo(3),
+				new SqlTimestampTypeInfo(6),
+				new SqlTimestampTypeInfo(9)
 		};
 	}
 }

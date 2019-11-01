@@ -21,22 +21,22 @@ package org.apache.flink.table.runtime.typeutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.DateTime;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 
 import java.util.Arrays;
 
 /**
- * TypeInfomation of {@link DateTime}.
+ * TypeInformation of {@link SqlTimestamp}.
  */
-public class DateTimeTypeInfo extends TypeInformation<DateTime> {
+public class SqlTimestampTypeInfo extends TypeInformation<SqlTimestamp> {
 
-	public static DateTimeTypeInfo of(int precision) {
-		return new DateTimeTypeInfo(precision);
+	public static SqlTimestampTypeInfo of(int precision) {
+		return new SqlTimestampTypeInfo(precision);
 	}
 
 	private final int precision;
 
-	protected DateTimeTypeInfo(int precision) {
+	protected SqlTimestampTypeInfo(int precision) {
 		this.precision = precision;
 	}
 
@@ -61,8 +61,8 @@ public class DateTimeTypeInfo extends TypeInformation<DateTime> {
 	}
 
 	@Override
-	public Class<DateTime> getTypeClass() {
-		return DateTime.class;
+	public Class<SqlTimestamp> getTypeClass() {
+		return SqlTimestamp.class;
 	}
 
 	@Override
@@ -71,22 +71,22 @@ public class DateTimeTypeInfo extends TypeInformation<DateTime> {
 	}
 
 	@Override
-	public TypeSerializer<DateTime> createSerializer(ExecutionConfig config) {
-		return new DateTimeSerializer(precision);
+	public TypeSerializer<SqlTimestamp> createSerializer(ExecutionConfig config) {
+		return new SqlTimestampSerializer(precision);
 	}
 
 	@Override
 	public String toString() {
-		return String.format("DateTime(%d)", precision);
+		return String.format("SqlTimestamp(%d)", precision);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof DateTimeTypeInfo)) {
+		if (!(obj instanceof SqlTimestampTypeInfo)) {
 			return false;
 		}
 
-		DateTimeTypeInfo that = (DateTimeTypeInfo) obj;
+		SqlTimestampTypeInfo that = (SqlTimestampTypeInfo) obj;
 		return this.precision == that.precision;
 	}
 
@@ -98,7 +98,7 @@ public class DateTimeTypeInfo extends TypeInformation<DateTime> {
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof DateTimeTypeInfo;
+		return obj instanceof SqlTimestampTypeInfo;
 	}
 
 	public int getPrecision() {

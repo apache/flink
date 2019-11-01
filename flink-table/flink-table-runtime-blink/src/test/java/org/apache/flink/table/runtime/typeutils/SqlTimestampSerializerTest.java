@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.DateTime;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -29,10 +29,10 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * Test for {@link DateTimeSerializer}.
+ * Test for {@link SqlTimestampSerializer}.
  */
 @RunWith(Parameterized.class)
-public class DateTimeSerializerTest extends SerializerTestBase<DateTime> {
+public class SqlTimestampSerializerTest extends SerializerTestBase<SqlTimestamp> {
 
 	@Parameterized.Parameters
 	public static Collection<Object[]> data(){
@@ -41,14 +41,14 @@ public class DateTimeSerializerTest extends SerializerTestBase<DateTime> {
 
 	private int precision;
 
-	public DateTimeSerializerTest(int precision) {
+	public SqlTimestampSerializerTest(int precision) {
 		super();
 		this.precision = precision;
 	}
 
 	@Override
-	protected TypeSerializer<DateTime> createSerializer() {
-		return new DateTimeSerializer(precision);
+	protected TypeSerializer<SqlTimestamp> createSerializer() {
+		return new SqlTimestampSerializer(precision);
 	}
 
 	@Override
@@ -57,17 +57,17 @@ public class DateTimeSerializerTest extends SerializerTestBase<DateTime> {
 	}
 
 	@Override
-	protected Class<DateTime> getTypeClass() {
-		return DateTime.class;
+	protected Class<SqlTimestamp> getTypeClass() {
+		return SqlTimestamp.class;
 	}
 
 	@Override
-	protected DateTime[] getTestData() {
-		return new DateTime[] {
-			DateTime.fromEpochMillis(1),
-			DateTime.fromEpochMillis(2),
-			DateTime.fromEpochMillis(3),
-			DateTime.fromEpochMillis(4)
+	protected SqlTimestamp[] getTestData() {
+		return new SqlTimestamp[] {
+			SqlTimestamp.fromEpochMillis(1),
+			SqlTimestamp.fromEpochMillis(2),
+			SqlTimestamp.fromEpochMillis(3),
+			SqlTimestamp.fromEpochMillis(4)
 		};
 	}
 }
