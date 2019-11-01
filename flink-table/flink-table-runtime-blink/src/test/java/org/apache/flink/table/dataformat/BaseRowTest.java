@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -30,9 +31,11 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 
+import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -48,11 +51,13 @@ public class BaseRowTest {
 	private BinaryMap map;
 	private BinaryRow underRow;
 	private byte[] bytes;
+	private BinaryGenericSerializer<String> genericSerializer;
 
 	@Before
 	public void before() {
 		str = BinaryString.fromString("haha");
-		generic = new BinaryGeneric<>("haha", StringSerializer.INSTANCE);
+		generic = new BinaryGeneric<>("haha");
+		genericSerializer = new BinaryGenericSerializer<>(StringSerializer.INSTANCE);
 		decimal1 = Decimal.fromLong(10, 5, 0);
 		decimal2 = Decimal.fromBigDecimal(new BigDecimal(11), 20, 0);
 		array = new BinaryArray();
@@ -98,7 +103,7 @@ public class BaseRowTest {
 		writer.writeFloat(5, 5);
 		writer.writeDouble(6, 6);
 		writer.writeString(8, str);
-		writer.writeGeneric(9, generic);
+		writer.writeGeneric(9, generic, genericSerializer);
 		writer.writeDecimal(10, decimal1, 5);
 		writer.writeDecimal(11, decimal2, 20);
 		writer.writeArray(12, array, new BaseArraySerializer(DataTypes.INT().getLogicalType(), null));
@@ -193,7 +198,7 @@ public class BaseRowTest {
 		assertEquals(5, (int) row.getFloat(5));
 		assertEquals(6, (int) row.getDouble(6));
 		assertEquals(str, row.getString(8));
-		assertEquals(generic, row.getGeneric(9));
+		assertThat(row.getGeneric(9), equivalent(generic, genericSerializer));
 		assertEquals(decimal1, row.getDecimal(10, 5, 0));
 		assertEquals(decimal2, row.getDecimal(11, 20, 0));
 		assertEquals(array, row.getArray(12));
