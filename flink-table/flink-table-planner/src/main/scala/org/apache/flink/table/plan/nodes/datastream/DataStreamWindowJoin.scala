@@ -67,6 +67,8 @@ class DataStreamWindowJoin(
     with DataStreamRel
     with Logging {
 
+  validatePythonFunctionInJoinCondition(joinCondition)
+
   override def deriveRowType(): RelDataType = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
