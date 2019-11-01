@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -76,7 +77,8 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
-			FnDataReceiver<Row> resultReceiver) {
+				FnDataReceiver<Row> resultReceiver,
+				PythonEnvironmentManager pythonEnvironmentManager) {
 			return new PassThroughPythonFunctionRunner<Row>(resultReceiver) {
 				@Override
 				public Row copy(Row element) {

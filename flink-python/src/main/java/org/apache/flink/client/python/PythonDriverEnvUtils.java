@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.python.util.ResourceUtil.extractBasicDependenciesFromResource;
+import static org.apache.flink.python.util.ResourceUtil.extractBuiltInDependencies;
 
 /**
  * The util class help to prepare Python env and run the python process.
@@ -108,7 +108,7 @@ public final class PythonDriverEnvUtils {
 
 		pythonPathEnv.append(env.workingDirectory);
 
-		List<File> internalLibs = extractBasicDependenciesFromResource(
+		List<File> internalLibs = extractBuiltInDependencies(
 			tmpDir,
 			UUID.randomUUID().toString(),
 			true);
