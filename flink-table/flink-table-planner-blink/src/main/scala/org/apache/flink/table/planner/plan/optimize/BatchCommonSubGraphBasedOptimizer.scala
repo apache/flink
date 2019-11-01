@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSink
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
@@ -81,6 +81,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
       override def getTableConfig: TableConfig = config
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
+
+      override def getCatalogManager: CatalogManager = planner.catalogManager
     })
   }
 

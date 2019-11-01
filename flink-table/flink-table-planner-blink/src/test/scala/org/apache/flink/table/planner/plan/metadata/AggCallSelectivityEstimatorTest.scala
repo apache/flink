@@ -85,7 +85,7 @@ class AggCallSelectivityEstimatorTest {
     val catalogManager = mock(classOf[CatalogManager])
     val moduleManager = mock(classOf[ModuleManager])
     val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
-    val context = new FlinkContextImpl(new TableConfig, functionCatalog)
+    val context = new FlinkContextImpl(new TableConfig, functionCatalog, catalogManager)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)
     when(cluster, "getTypeFactory").thenReturn(typeFactory)
