@@ -94,10 +94,10 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		// outgoing: 1 buffer per channel (always)
 		if (!enableCreditBasedFlowControl) {
 			// incoming: 1 buffer per channel
-			bufferCount = 20;
+			bufferCount = 24;
 		} else {
 			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+			bufferCount = 14 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 		}
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
@@ -178,8 +178,8 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		assertEquals(expectedRp4Buffers, rp4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		for (ResultPartition rp : resultPartitions) {
-			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumberOfRequiredMemorySegments());
-			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumBuffers());
+			assertEquals(rp.getNumberOfSubpartitions() + 1, rp.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(rp.getNumberOfSubpartitions() + 1, rp.getBufferPool().getNumBuffers());
 		}
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
