@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil._
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, RexDefaultVisitor, SortUtil}
 import org.apache.flink.table.runtime.operators.`match`.{BaseRowEventComparator, RowtimeProcessFunction}
@@ -74,6 +75,11 @@ class StreamExecMatch(
   extends SingleRel(cluster, traitSet, inputNode)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
+
+  if (logicalMatch.measures.values().exists(containsPythonCall) ||
+    logicalMatch.patternDefinitions.values().exists(containsPythonCall)) {
+    throw new TableException("Python Function can not be used in MATCH_RECOGNIZE for now.")
+  }
 
   override def needsUpdatesAsRetraction(input: RelNode): Boolean = true
 

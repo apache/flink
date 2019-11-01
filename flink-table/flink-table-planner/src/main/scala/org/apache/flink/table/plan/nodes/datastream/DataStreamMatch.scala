@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.windowing.time.Time
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.MatchCodeGenerator
@@ -49,6 +50,7 @@ import org.apache.flink.table.plan.logical.MatchRecognize
 import org.apache.flink.table.plan.nodes.CommonMatchRecognize
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.util.PythonUtil.containsPythonCall
 import org.apache.flink.table.plan.util.RexDefaultVisitor
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.`match`._
@@ -74,6 +76,11 @@ class DataStreamMatch(
   extends SingleRel(cluster, traitSet, inputNode)
   with CommonMatchRecognize
   with DataStreamRel {
+
+  if (logicalMatch.measures.values().exists(containsPythonCall) ||
+    logicalMatch.patternDefinitions.values().exists(containsPythonCall)) {
+    throw new TableException("Python Function can not be used in MATCH_RECOGNIZE for now.")
+  }
 
   override def needsUpdatesAsRetraction = true
 
