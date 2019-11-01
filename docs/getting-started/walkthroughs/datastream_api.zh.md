@@ -24,43 +24,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink offers a DataStream API for building robust, stateful streaming applications.
-It provides fine-grained control over state and time, which allows for the implementation of advanced event-driven systems.
-In this step-by-step guide you'll learn how to build a stateful streaming application with Flink's DataStream API.
+Apache Flink 提供了 DataStream API 来实现稳定可靠的、有状态的流处理应用程序。
+Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事件驱动数据处理系统。
+这个入门指导手册讲述了如何通过 Flink DataStream API 来实现一个有状态流处理程序。
 
 * This will be replaced by the TOC
 {:toc}
 
-## What Are You Building? 
+## 你要搭建一个什么系统
 
-Credit card fraud is a growing concern in the digital age.
-Criminals steal credit card numbers by running scams or hacking into insecure systems.
-Stolen numbers are tested by making one or more small purchases, often for a dollar or less.
-If that works, they then make more significant purchases to get items they can sell or keep for themselves.
+在当今数字时代，信用卡欺诈行为越来越被重视。
+罪犯可以通过诈骗或者入侵安全级别较低系统来盗窃信用卡卡号。
+用盗得的信用卡进行很小额度的例如一美元或者更小额度的消费进行测试。
+如果测试消费成功，那么他们就会用这个信用卡进行大笔消费，来购买一些他们希望得到的，或者可以倒卖的财物。
 
-In this tutorial, you will build a fraud detection system for alerting on suspicious credit card transactions.
-Using a simple set of rules, you will see how Flink allows us to implement advanced business logic and act in real-time.
+在这个教程中，你将会建立一个针对可疑信用卡交易行为的反欺诈检测系统。
+通过使用一组简单的规则，你将了解到 Flink 如何为我们实现复杂业务逻辑并实时执行。
 
-## Prerequisites
+## 准备条件
 
-This walkthrough assumes that you have some familiarity with Java or Scala, but you should be able to follow along even if you are coming from a different programming language.
+这个代码练习假定你对 Java 或 Scala 有一定的了解，当然，如果你之前使用的是其他开发语言，你也应该能够跟随本教程进行学习。
 
-## Help, I’m Stuck! 
+## 困难求助
 
-If you get stuck, check out the [community support resources](https://flink.apache.org/gettinghelp.html).
-In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) is consistently ranked as one of the most active of any Apache project and a great way to get help quickly.
+如果遇到困难，可以参考 [社区支持资源](https://flink.apache.org/zh/gettinghelp.html)。
+当然也可以在邮件列表提问，Flink 的 [用户邮件列表](https://flink.apache.org/zh/community.html#mailing-lists)  一直被评为所有Apache项目中最活跃的一个，这也是快速获得帮助的好方法。
 
-## How to Follow Along
+## 怎样跟着教程练习
 
-If you want to follow along, you will require a computer with:
+首先，你需要在你的电脑上准备以下环境：
 
-* Java 8 
-* Maven 
+* Java 8
+* Maven
 
-A provided Flink Maven Archetype will create a skeleton project with all the necessary dependencies quickly, so you only need to focus on filling out the business logic.
-These dependencies include `flink-streaming-java` which is the core dependency for all Flink streaming applications and `flink-walkthrough-common` that has data generators and other classes specific to this walkthrough.
+一个准备好的 Flink Maven Archetype 能够快速创建一个包含了必要依赖的 Flink 程序骨架，基于此，你可以把精力集中在编写业务逻辑上即可。
+这些已包含的依赖包括 `flink-streaming-java`、`flink-walkthrough-common` 等，他们分别是 Flink 应用程序的核心依赖项和这个代码练习需要的数据生成器，当然还包括其他本代码练习所依赖的类。
 
-{% panel **Note:** Each code block within this walkthrough may not contain the full surrounding class for brevity. The full code is available [at the bottom of the page](#final-application). %}
+{% panel **说明:** 为简洁起见，本练习中的代码块中可能不包含完整的类路径。完整的类路径可以在文档底部 [链接](#完整的程序) 中找到。 %}
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -95,14 +95,14 @@ $ mvn archetype:generate \
 
 {% unless site.is_stable %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-    <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+    <b>说明</b>: 对于 Maven 3.0 或者更高的版本，已经不再支持通过命令行参数 -DarchetypeCatalog 来指定 repository。如果你使用的是 snapshot repository，你需要添加一个 repository 地址在你的 settings.xml 配置文件中。具体细节参考：<a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
 </p>
 {% endunless %}
 
-You can edit the `groupId`, `artifactId` and `package` if you like. With the above parameters,
-Maven will create a folder named `frauddetection` that contains a project with all the dependencies to complete this tutorial.
-After importing the project into your editor, you can find a file `FraudDetectionJob.java` (or `FraudDetectionJob.scala`) with the following code which you can run directly inside your IDE.
-Try setting break points through out the data stream and run the code in DEBUG mode to get a feeling for how everything works.
+你可以根据自己的情况修改 `groupId`、 `artifactId` 和 `package`。通过这三个参数，
+Maven 将会创建一个名为 `frauddetection` 的文件夹，包含了所有依赖的整个工程项目将会位于该文件夹下。
+将工程目录导入到你的开发环境之后，你可以找到 `FraudDetectionJob.java` （或 `FraudDetectionJob.scala`） 代码文件，文件中的代码如下所示。你可以在 IDE 中直接运行这个文件。
+同时，你可以试着在数据流中设置一些断点或者以 DEBUG 模式来运行程序，体验 Flink 是如何运行的。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -126,7 +126,7 @@ public class FraudDetectionJob {
         DataStream<Transaction> transactions = env
             .addSource(new TransactionSource())
             .name("transactions");
-        
+
         DataStream<Alert> alerts = transactions
             .keyBy(Transaction::getAccountId)
             .process(new FraudDetector())
@@ -245,16 +245,16 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 </div>
 </div>
 
-## Breaking Down the Code
+## 代码分析
 
-Let's walk step-by-step through the code of these two files. The `FraudDetectionJob` class defines the data flow of the application and the `FraudDetector` class defines the business logic of the function that detects fraudulent transactions.
+让我们一步步地来分析一下这两个代码文件。`FraudDetectionJob` 类定义了程序的数据流，而 `FraudDetector` 类定义了欺诈交易检测的业务逻辑。
 
-We start describing how the Job is assembled in the `main` method of the `FraudDetectionJob` class.
+下面我们开始讲解整个 Job 是如何组装到 `FraudDetectionJob` 类的 `main` 函数中的。
 
-#### The Execution Environment
+#### 执行环境
 
-The first line sets up your `StreamExecutionEnvironment`.
-The execution environment is how you set properties for your Job, create your sources, and finally trigger the execution of the Job.
+第一行的 `StreamExecutionEnvironment` 用于设置你的执行环境。
+任务执行环境用于定义任务的属性、创建数据源以及最终启动任务的执行。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -270,12 +270,12 @@ val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnv
 </div>
 </div>
 
-#### Creating a Source
+#### 创建数据源
 
-Sources ingest data from external systems, such as Apache Kafka, Rabbit MQ, or Apache Pulsar, into Flink Jobs.
-This walkthrough uses a source that generates an infinite stream of credit card transactions for you to process.
-Each transaction contains an account ID (`accountId`), timestamp (`timestamp`) of when the transaction occurred, and US$ amount (`amount`).
-The `name` attached to the source is just for debugging purposes, so if something goes wrong, we will know where the error originated.
+数据源从外部系统例如 Apache Kafka、Rabbit MQ 或者 Apache Pulsar 接收数据，然后将数据送到 Flink 程序中。
+这个代码练习使用的是一个能够无限循环生成信用卡模拟交易数据的数据源。
+每条交易数据包括了信用卡 ID （`accountId`），交易发生的时间 （`timestamp`） 以及交易的金额（`amount`）。
+绑定到数据源上的 `name` 属性是为了调试方便，如果发生一些异常，我们能够通过它快速定位问题发生在哪里。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -296,13 +296,13 @@ val transactions: DataStream[Transaction] = env
 </div>
 
 
-#### Partitioning Events & Detecting Fraud
+#### 对事件分区 & 欺诈检测
 
-The `transactions` stream contains a lot of transactions from a large number of users, such that it needs to be processed in parallel my multiple fraud detection tasks. Since fraud occurs on a per-account basis, you must ensure that all transactions for the same account are processed by the same parallel task of the fraud detector operator.
+`transactions` 这个数据流包含了大量的用户交易数据，需要被划分到多个并发上进行欺诈检测处理。由于欺诈行为的发生是基于某一个账户的，所以，必须要要保证同一个账户的所有交易行为数据要被同一个并发的 task 进行处理。
 
-To ensure that the same physical task processes all records for a particular key, you can partition a stream using `DataStream#keyBy`. 
-The `process()` call adds an operator that applies a function to each partitioned element in the stream.
-It is common to say the operator immediately after a `keyBy`, in this case `FraudDetector`, is executed within a _keyed context_.
+为了保证同一个 task 处理同一个 key 的所有数据，你可以使用 `DataStream#keyBy` 对流进行分区。
+`process()` 函数对流绑定了一个操作，这个操作将会对流上的每一个消息调用所定义好的函数。
+通常，一个操作会紧跟着 `keyBy` 被调用，在这个例子中，这个操作是`FraudDetector`，该操作是在一个 _keyed context_ 上执行的。
 
 
 <div class="codetabs" markdown="1">
@@ -325,10 +325,10 @@ val alerts: DataStream[Alert] = transactions
 </div>
 </div>
 
-#### Outputting Results
- 
-A sink writes a `DataStream` to an external system; such as Apache Kafka, Cassandra, and AWS Kinesis.
-The `AlertSink` logs each `Alert` record with log level **INFO**, instead of writing it to persistent storage, so you can easily see your results.
+#### 输出结果
+
+sink 会将 `DataStream` 写出到外部系统，例如 Apache Kafka、Cassandra 或者 AWS Kinesis 等。
+`AlertSink` 使用 **INFO** 的日志级别打印每一个 `Alert` 的数据记录，而不是将其写入持久存储，以便你可以方便地查看结果。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -344,10 +344,10 @@ alerts.addSink(new AlertSink)
 </div>
 </div>
 
-#### Executing the Job
+#### 运行作业
 
-Flink applications are built lazily and shipped to the cluster for execution only once fully formed.
-Call `StreamExecutionEnvironment#execute` to begin the execution of our Job and give it a name.
+Flink 程序是懒加载的，并且只有在完全搭建好之后，才能够发布到集群上执行。
+调用 `StreamExecutionEnvironment#execute` 时给任务传递一个任务名参数，就可以开始运行任务。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -363,13 +363,13 @@ env.execute("Fraud Detection")
 </div>
 </div>
 
-#### The Fraud Detector
+#### 欺诈检测器
 
-The fraud detector is implemented as a `KeyedProcessFunction`.
-Its method `KeyedProcessFunction#processElement` is called for every transaction event.
-This first version produces an alert on every transaction, which some may say is overly conservative.
+欺诈检查类 `FraudDetector` 是 `KeyedProcessFunction` 接口的一个实现。
+他的方法 `KeyedProcessFunction#processElement` 将会在每个交易事件上被调用。
+这个程序里边会对每笔交易发出警报，有人可能会说这做报过于保守了。
 
-The next steps of this tutorial will guide you to expand the fraud detector with more meaningful business logic.
+本教程的后续步骤将指导你对这个欺诈检测器进行更有意义的业务逻辑扩展。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -385,7 +385,7 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
             Transaction transaction,
             Context context,
             Collector<Alert> collector) throws Exception {
-  
+
         Alert alert = new Alert();
         alert.setId(transaction.getAccountId());
 
@@ -422,38 +422,39 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 </div>
 </div>
 
-## Writing a Real Application (v1)
+## 实现一个真正的应用程序
 
-For the first version, the fraud detector should output an alert for any account that makes a small transaction immediately followed by a large one. Where small is anything less than $1.00 and large is more than $500.
-Imagine your fraud detector processes the following stream of transactions for a particular account.
+我们先实现第一版报警程序，对于一个账户，如果出现小于 $1 美元的交易后紧跟着一个大于 $500 的交易，就输出一个报警信息。
+
+假设你的欺诈检测器所处理的交易数据如下：
 
 <p class="text-center">
     <img alt="Transactions" width="80%" src="{{ site.baseurl }}/fig/fraud-transactions.svg"/>
 </p>
 
-Transactions 3 and 4 should be marked as fraudulent because it is a small transaction, $0.09, followed by a large one, $510.
-Alternatively, transactions 7, 8, and 9 are not fraud because the small amount of $0.02 is not immediately followed by the large one; instead, there is an intermediate transaction that breaks the pattern.
+交易 3 和交易 4 应该被标记为欺诈行为，因为交易 3 是一个 $0.09 的小额交易，而紧随着的交易 4 是一个 $510 的大额交易。
+另外，交易 7、8 和 交易 9 就不属于欺诈交易了，因为在交易 7 这个 $0.02 的小额交易之后，并没有跟随一个大额交易，而是一个金额适中的交易，这使得交易 7 到 交易 9 不属于欺诈行为。
 
-To do this, the fraud detector must _remember_ information across events; a large transaction is only fraudulent if the previous one was small.
-Remembering information across events requires [state]({{ site.baseurl }}/concepts/glossary.html#managed-state), and that is why we decided to use a [KeyedProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html). 
-It provides fine-grained control over both state and time, which will allow us to evolve our algorithm with more complex requirements throughout this walkthrough.
+欺诈检测器需要在多个交易事件之间记住一些信息。仅当一个大额的交易紧随一个小额交易的情况发生时，这个大额交易才被认为是欺诈交易。
+在多个事件之间存储信息就需要使用到 [状态]({{ site.baseurl }}/zh/concepts/glossary.html#managed-state)，这也是我们选择使用 [KeyedProcessFunction]({{ site.baseurl }}/zh/dev/stream/operators/process_function.html) 的原因。
+它能够同时提供对状态和时间的细粒度操作，这使得我们能够在接下来的代码练习中实现更复杂的算法。
 
-The most straightforward implementation is a boolean flag that is set whenever a small transaction is processed.
-When a large transaction comes through, you can simply check if the flag is set for that account.
+最直接的实现方式是使用一个 boolean 型的标记状态来表示是否刚处理过一个小额交易。
+当处理到该账户的一个大额交易时，你只需要检查这个标记状态来确认上一个交易是是否小额交易即可。
 
-However, merely implementing the flag as a member variable in the `FraudDetector` class will not work. 
-Flink processes the transactions of multiple accounts with the same object instance of `FraudDetector`, which means if accounts A and B are routed through the same instance of `FraudDetector`, a transaction for account A could set the flag to true and then a transaction for account B could set off a false alert. 
-We could of course use a data structure like a `Map` to keep track of the flags for individual keys, however, a simple member variable would not be fault-tolerant and all its information be lost in case of a failure.
-Hence, the fraud detector would possibly miss alerts if the application ever had to restart to recover from a failure.
+然而，仅使用一个标记作为 `FraudDetector` 的类成员来记录账户的上一个交易状态是不准确的。
+Flink 会在同一个 `FraudDetector` 的并发实例中处理多个账户的交易数据，假设，当账户 A 和账户 B 的数据被分发的同一个并发实例上处理时，账户 A 的小额交易行为可能会将标记状态设置为真，随后账户 B 的大额交易可能会被误判为欺诈交易。
+当然，我们可以使用如 `Map` 这样的数据结构来保存每一个账户的状态，但是常规的类成员变量是无法做到容错处理的，当任务失败重启后，之前的状态信息将会丢失。
+这样的话，如果程序曾出现过失败重启的情况，将会漏掉一些欺诈报警。
 
-To address these challenges, Flink provides primitives for fault-tolerant state that are almost as easy to use as regular member variables.
+为了应对这个问题，Flink 提供了一套支持容错状态的原语，这些原语几乎与常规成员变量一样易于使用。
 
-The most basic type of state in Flink is [ValueState]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state), a data type that adds fault tolerance to any variable it wraps.
-`ValueState` is a form of _keyed state_, meaning it is only available in operators that are applied in a _keyed context_; any operator immediately following `DataStream#keyBy`.
-A _keyed state_ of an operator is automatically scoped to the key of the record that is currently processed.
-In this example, the key is the account id for the current transaction (as declared by `keyBy()`), and `FraudDetector` maintains an independent state for each account. 
-`ValueState` is created using a `ValueStateDescriptor` which contains metadata about how Flink should manage the variable. The state should be registered before the function starts processing data.
-The right hook for this is the `open()` method.
+Flink 中最基础的状态类型是 [ValueState]({{ site.baseurl }}/zh/dev/stream/state/state.html#using-managed-keyed-state)，这是一种能够为被其封装的变量添加容错能力的类型。
+`ValueState` 是一种 _keyed state_，也就是说它只能被用于 _keyed context_ 提供的 operator 中，即所有能够紧随 `DataStream#keyBy` 之后被调用的operator。
+一个 operator 中的  _keyed state_ 的作用域默认是属于它所属的 key 的。
+这个例子中，key 就是当前正在处理的交易行为所属的信用卡账户（key 传入 keyBy() 函数调用），而 `FraudDetector` 维护了每个帐户的标记状态。
+`ValueState` 需要使用 `ValueStateDescriptor` 来创建，`ValueStateDescriptor` 包含了 Flink 如何管理变量的一些元数据信息。状态在使用之前需要先被注册。
+状态需要使用 `open()` 函数来注册状态。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -490,13 +491,13 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 </div>
 </div>
 
-`ValueState` is a wrapper class, similar to `AtomicReference` or `AtomicLong` in the Java standard library.
-It provides three methods for interacting with its contents; `update` sets the state, `value` gets the current value, and `clear` deletes its contents.
-If the state for a particular key is empty, such as at the beginning of an application or after calling `ValueState#clear`, then `ValueState#value` will return `null`.
-Modifications to the object returned by `ValueState#value` are not guaranteed to be recognized by the system, and so all changes must be performed with `ValueState#update`.
-Otherwise, fault tolerance is managed automatically by Flink under the hood, and so you can interact with it like with any standard variable.
+`ValueState` 是一个包装类，类似于 Java 标准库里边的 `AtomicReference` 和 `AtomicLong`。
+它提供了三个用于交互的方法。`update` 用于更新状态，`value` 用于获取状态值，还有 `clear` 用于清空状态。
+如果一个 key 还没有状态，例如当程序刚启动或者调用过 `ValueState#clear` 方法时，`ValueState#value` 将会返回 `null`。
+如果需要更新状态，需要调用 `ValueState#update` 方法，直接更改 `ValueState#value` 的返回值可能不会被系统识别。
+容错处理将在 Flink 后台自动管理，你可以像与常规变量那样与状态变量进行交互。
 
-Below, you can see an example of how you can use a flag state to track potential fraudulent transactions.
+下边的示例，说明了如何使用标记状态来追踪可能的欺诈交易行为。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -517,7 +518,7 @@ Below, you can see an example of how you can use a flag state to track potential
                 Alert alert = new Alert();
                 alert.setId(transaction.getAccountId());
 
-                collector.collect(alert);            
+                collector.collect(alert);
             }
 
             // Clean up our state
@@ -564,31 +565,31 @@ Below, you can see an example of how you can use a flag state to track potential
 </div>
 </div>
 
-For every transaction, the fraud detector checks the state of the flag for that account.
-Remember, `ValueState` is always scoped to the current key, i.e., account.
-If the flag is non-null, then the last transaction seen for that account was small, and so if the amount for this transaction is large, then the detector outputs a fraud alert.
+对于每笔交易，欺诈检测器都会检查该帐户的标记状态。
+请记住，`ValueState` 的作用域始终限于当前的 key，即信用卡帐户。
+如果标记状态不为空，则该帐户的上一笔交易是小额的，因此，如果当前这笔交易的金额很大，那么检测程序将输出报警信息。
 
-After that check, the flag state is unconditionally cleared.
-Either the current transaction caused a fraud alert, and the pattern is over, or the current transaction did not cause an alert, and the pattern is broken and needs to be restarted.
+在检查之后，不论是什么状态，都需要被清空。
+不管是当前交易触发了欺诈报警而造成模式的结束，还是当前交易没有触发报警而造成模式的中断，都需要重新开始新的模式检测。
 
-Finally, the transaction amount is checked to see if it is small.
-If so, then the flag is set so that it can be checked by the next event.
-Notice that `ValueState<Boolean>` actually has three states, unset ( `null`), `true`, and `false`, because all `ValueState`'s are nullable.
-This job only makes use of unset ( `null`) and `true` to check whether the flag is set or not.
+最后，检查当前交易的金额是否属于小额交易。
+如果是，那么需要设置标记状态，以便可以在下一个事件中对其进行检查。
+注意，`ValueState<Boolean>` 实际上有 3 种状态：unset (`null`)，`true`，和 `false`，`ValueState` 是允许空值的。
+我们的程序只使用了 unset (`null`) 和 `true` 两种来判断标记状态被设置了与否。
 
-## Fraud Detector v2: State + Time = &#10084;&#65039;
+## 欺诈检测器 v2：状态 + 时间 = &#10084;&#65039;
 
-Scammers don't wait long to make their large purchase to reduce the chances their test transaction is noticed. 
-For example, suppose you wanted to set a 1 minute timeout to your fraud detector; i.e., in the previous example transactions 3 and 4 would only be considered fraud if they occurred within 1 minute of each other.
-Flink's `KeyedProcessFunction` allows you to set timers which invoke a callback method at some point in time in the future.
+骗子们在小额交易后不会等很久就进行大额消费，这样可以降低小额测试交易被发现的几率。
+比如，假设你为欺诈检测器设置了一分钟的超时，对于上边的例子，交易 3 和 交易 4 只有间隔在一分钟之内才被认为是欺诈交易。
+Flink 中的 `KeyedProcessFunction` 允许您设置计时器，该计时器在将来的某个时间点执行回调函数。
 
-Let's see how we can modify our Job to comply with our new requirements:
+让我们看看如何修改程序以符合我们的新要求：
 
-* Whenever the flag is set to `true`, also set a timer for 1 minute in the future.
-* When the timer fires, reset the flag by clearing its state.
-* If the flag is ever cleared the timer should be canceled.
+* 当标记状态被设置为 `true` 时，设置一个在当前时间一分钟后触发的定时器。
+* 当定时器被触发时，重置标记状态。
+* 当标记状态被重置时，删除定时器。
 
-To cancel a timer, you have to remember what time it is set for, and remembering implies state, so you will begin by creating a timer state along with your flag state.
+要删除一个定时器，你需要记录这个定时器的触发时间，这同样需要状态来实现，所以你需要在标记状态后也创建一个记录定时器时间的状态。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -631,9 +632,9 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 </div>
 </div>
 
-`KeyedProcessFunction#processElement` is called with a `Context` that contains a timer service.
-The timer service can be used to query the current time, register timers, and delete timers.
-With this, you can set a timer for 1 minute in the future every time the flag is set and store the timestamp in `timerState`.
+`KeyedProcessFunction#processElement` 需要使用提供了定时器服务的 `Context` 来调用。
+定时器服务可以用于查询当前时间、注册定时器和删除定时器。
+使用它，你可以在标记状态被设置时，也设置一个当前时间一分钟后触发的定时器，同时，将触发时间保存到 `timerState` 状态中。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -664,10 +665,10 @@ if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
 </div>
 </div>
 
-Processing time is wall clock time, and is determined by the system clock of the machine running the operator. 
+处理时间是本地时钟时间，这是由运行任务的服务器的系统时间来决定的。
 
-When a timer fires, it calls `KeyedProcessFunction#onTimer`. 
-Overriding this method is how you can implement your callback to reset the flag.
+当定时器触发时，将会调用 `KeyedProcessFunction#onTimer` 方法。
+通过重写这个方法来实现一个你自己的重置状态的回调逻辑。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -694,8 +695,8 @@ override def onTimer(
 </div>
 </div>
 
-Finally, to cancel the timer, you need to delete the registered timer and delete the timer state.
-You can wrap this in a helper method and call this method instead of `flagState.clear()`.
+最后，如果要取消定时器，你需要删除已经注册的定时器，并同时清空保存定时器的状态。
+你可以把这些逻辑封装到一个助手函数中，而不是直接调用 `flagState.clear()`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -728,9 +729,9 @@ private def cleanUp(ctx: KeyedProcessFunction[Long, Transaction, Alert]#Context)
 </div>
 </div>
 
-And that's it, a fully functional, stateful, distributed streaming application!
+这就是一个功能完备的，有状态的分布式流处理程序了。
 
-## Final Application
+## 完整的程序
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -911,10 +912,10 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 </div>
 </div>
 
-### Expected Output
+### 期望的结果
 
-Running this code with the provided `TransactionSource` will emit fraud alerts for account 3.
-You should see the following output in your task manager logs: 
+使用已准备好的 `TransactionSource` 数据源运行这个代码，将会检测到账户 3 的欺诈行为，并输出报警信息。
+你将能够在你的 task manager 的日志中看到下边输出：
 
 {% highlight bash %}
 2019-08-19 14:22:06,220 INFO  org.apache.flink.walkthrough.common.sink.AlertSink            - Alert{id=3}
