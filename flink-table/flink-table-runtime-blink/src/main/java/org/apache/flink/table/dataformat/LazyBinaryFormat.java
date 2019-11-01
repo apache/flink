@@ -17,7 +17,11 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.WrappingRuntimeException;
+
+import java.io.IOException;
 
 /**
  * Lazy binary format.
@@ -37,59 +41,77 @@ import org.apache.flink.core.memory.MemorySegment;
  * It can lazy the conversions as much as possible. Only when it is needed can it be converted
  * into the required form.
  */
-public abstract class LazyBinaryFormat<T> extends BinaryFormat {
+public abstract class LazyBinaryFormat<T> implements BinaryFormat {
 
-	protected T javaObject;
+	T javaObject;
+	BinarySection binarySection;
 
 	public LazyBinaryFormat() {
 		this(null, -1, -1, null);
 	}
 
 	public LazyBinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject) {
-		super(segments, offset, sizeInBytes);
-		this.javaObject = javaObject;
+		this(javaObject, new BinarySection(segments, offset, sizeInBytes));
 	}
 
 	public LazyBinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes) {
-		this(segments, offset, sizeInBytes, null);
+		this(null, new BinarySection(segments, offset, sizeInBytes));
 	}
 
 	public LazyBinaryFormat(T javaObject) {
-		this(null, -1, -1, javaObject);
+		this(javaObject, null);
+	}
+
+	public LazyBinaryFormat(T javaObject, BinarySection binarySection) {
+		this.javaObject = javaObject;
+		this.binarySection = binarySection;
 	}
 
 	public T getJavaObject() {
 		return javaObject;
 	}
 
+	/**
+	 * Must be public as it is used during code generation.
+	 */
 	public void setJavaObject(T javaObject) {
 		this.javaObject = javaObject;
 	}
 
 	@Override
 	public MemorySegment[] getSegments() {
-		ensureMaterialized();
-		return segments;
+		if (binarySection == null) {
+			throw new IllegalStateException("Lazy Binary Format was not materialized");
+		}
+		return binarySection.segments;
 	}
 
 	@Override
 	public int getOffset() {
-		ensureMaterialized();
-		return offset;
+		if (binarySection == null) {
+			throw new IllegalStateException("Lazy Binary Format was not materialized");
+		}
+		return binarySection.offset;
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		ensureMaterialized();
-		return sizeInBytes;
+		if (binarySection == null) {
+			throw new IllegalStateException("Lazy Binary Format was not materialized");
+		}
+		return binarySection.sizeInBytes;
 	}
 
 	/**
 	 * Ensure we have materialized binary format.
 	 */
-	public void ensureMaterialized() {
-		if (segments == null) {
-			materialize();
+	public final void ensureMaterialized(TypeSerializer<T> serializer) {
+		if (binarySection == null) {
+			try {
+				this.binarySection = materialize(serializer);
+			} catch (IOException e) {
+				throw new WrappingRuntimeException(e);
+			}
 		}
 	}
 
@@ -98,24 +120,5 @@ public abstract class LazyBinaryFormat<T> extends BinaryFormat {
 	 * Inherited classes need to hold the information they need.
 	 * (For example, BinaryGeneric needs javaObjectSerializer).
 	 */
-	public abstract void materialize();
-
-	@Override
-	public boolean equals(Object o) {
-		if (o != null && o instanceof LazyBinaryFormat) {
-			LazyBinaryFormat other = (LazyBinaryFormat) o;
-
-			ensureMaterialized();
-			other.ensureMaterialized();
-			return binaryEquals(other);
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		ensureMaterialized();
-		return super.hashCode();
-	}
+	protected abstract BinarySection materialize(TypeSerializer<T> serializer) throws IOException;
 }
