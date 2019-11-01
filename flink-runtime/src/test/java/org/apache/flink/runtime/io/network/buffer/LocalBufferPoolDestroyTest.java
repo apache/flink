@@ -108,9 +108,9 @@ public class LocalBufferPoolDestroyTest {
 	 * request or not
 	 */
 	public static boolean isInBlockingBufferRequest(StackTraceElement[] stackTrace) {
-		if (stackTrace.length >= 3) {
-			return stackTrace[0].getMethodName().equals("wait") &&
-					stackTrace[1].getClassName().equals(LocalBufferPool.class.getName());
+		if (stackTrace.length >= 7) {
+			return stackTrace[5].getMethodName().equals("get") &&
+					stackTrace[6].getClassName().equals(LocalBufferPool.class.getName());
 		} else {
 			return false;
 		}
