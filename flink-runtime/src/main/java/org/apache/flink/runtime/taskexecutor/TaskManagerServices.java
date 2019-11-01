@@ -255,7 +255,6 @@ public class TaskManagerServices {
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		// this call has to happen strictly after the network stack has been initialized
 		Map<MemoryType, Long> memorySizeByType = calculateMemorySizeByType(taskManagerServicesConfiguration);
 		final TaskSlotTable taskSlotTable = createTaskSlotTable(
 			taskManagerServicesConfiguration.getNumberOfSlots(),
@@ -344,7 +343,6 @@ public class TaskManagerServices {
 	private static Map<MemoryType, Long> calculateMemorySizeByType(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration) {
 		// computing the amount of memory to use depends on how much memory is available
-		// it strictly needs to happen AFTER the network stack has been initialized
 
 		// check if a value has been configured
 		long configuredMemory = taskManagerServicesConfiguration.getConfiguredMemory();
