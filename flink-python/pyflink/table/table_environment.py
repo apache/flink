@@ -22,6 +22,7 @@ from abc import ABCMeta, abstractmethod
 
 from py4j.java_gateway import get_java_class, get_method
 
+from pyflink.common.dependency_manager import DependencyManager
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.table_config import TableConfig
@@ -78,6 +79,8 @@ class TableEnvironment(object):
         self._j_tenv = j_tenv
         self._is_blink_planner = is_blink_planner
         self._serializer = serializer
+        self._dependency_manager = DependencyManager(self.get_config().get_configuration(),
+                                                     self._get_j_env())
 
     def from_table_source(self, table_source):
         """
@@ -715,6 +718,105 @@ class TableEnvironment(object):
         """
         self._j_tenv.createTemporaryView(view_path, table._j_table)
 
+    def add_python_file(self, file_path):
+        """
+        Adds a python dependency which could be python files, python packages or
+        local directories. They will be added to the PYTHONPATH of the python UDF worker.
+        Please make sure that these dependencies can be imported.
+
+        :param file_path: The path of the python dependency.
+        :type file_path: str
+        """
+        self._dependency_manager.add_python_file(file_path)
+
+    def set_python_requirements(self, requirements_file_path, requirements_cache_dir=None):
+        """
+        Specifies a requirements.txt file which defines the third-party dependencies.
+        These dependencies will be installed to a temporary directory and added to the
+        PYTHONPATH of the python UDF worker.
+
+        For the dependencies which could not be accessed in the cluster, a directory which contains
+        the installation packages of these dependencies could be specified using the parameter
+        "requirements_cached_dir". It will be uploaded to the cluster to support offline
+        installation.
+
+        Example:
+        ::
+
+            # commands executed in shell
+            $ echo numpy==1.16.5 > requirements.txt
+            $ pip download -d cached_dir -r requirements.txt --no-binary :all:
+
+            # python code
+            >>> table_env.set_python_requirements("requirements.txt", "cached_dir")
+
+        .. note::
+
+            Please make sure the installation packages matches the platform of the cluster
+            and the python version used. These packages will be installed using pip.
+
+        :param requirements_file_path: The path of "requirements.txt" file.
+        :type requirements_file_path: str
+        :param requirements_cache_dir: The path of the local directory which contains the
+                                       installation packages.
+        :type requirements_cache_dir: str
+        """
+        self._dependency_manager.set_python_requirements(requirements_file_path,
+                                                         requirements_cache_dir)
+
+    def add_python_archive(self, archive_path, target_dir=None):
+        """
+        Adds a python archive file. The file will be extracted to the working directory of
+        python UDF worker.
+
+        If the parameter "target_dir" is specified, the archive file will be extracted to a
+        directory named ${target_dir}. Otherwise, the archive file will be extracted to a
+        directory with the same name of the archive file.
+
+        If python UDF depends on a specific python version which does not exist in the cluster,
+        this method can be used to upload the virtual environment.
+        Note that the path of the python interpreter contained in the uploaded environment
+        should be specified via the method :func:`pyflink.table.TableConfig.set_python_executable`.
+
+        The files uploaded via this method are also accessible in UDFs via relative path.
+
+        Example:
+        ::
+
+            # command executed in shell
+            # assert the relative path of python interpreter is py_env/bin/python
+            $ zip -r py_env.zip py_env
+
+            # python code
+            >>> table_env.add_python_archive("py_env.zip")
+            >>> table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
+
+            # or
+            >>> table_env.add_python_archive("py_env.zip", "myenv")
+            >>> table_env.get_config().set_python_executable("myenv/py_env/bin/python")
+
+            # the files contained in the archive file can be accessed in UDF
+            >>> def my_udf():
+            ...     with open("myenv/py_env/data/data.txt") as f:
+            ...         ...
+
+        .. note::
+
+            Please make sure the uploaded python environment matches the platform that the cluster
+            is running on and that the python version must be 3.5 or higher.
+
+        .. note::
+
+            Currently only zip-format is supported. i.e. zip, jar, whl, egg, etc.
+            The other archive formats such as tar, tar.gz, 7z, rar, etc are not supported.
+
+        :param archive_path: The archive file path.
+        :type archive_path: str
+        :param target_dir: Optional, the target dir name that the archive file extracted to.
+        :type target_dir: str
+        """
+        self._dependency_manager.add_python_archive(archive_path, target_dir)
+
     def execute(self, job_name):
         """
         Triggers the program execution. The environment will execute all parts of
@@ -852,7 +954,7 @@ class TableEnvironment(object):
             finally:
                 temp_file.close()
             row_type_info = _to_java_type(schema)
-            execution_config = self._get_execution_config(temp_file.name, schema)
+            execution_config = self._get_j_env().getConfig()
             gateway = get_gateway()
             j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
             if self._is_blink_planner:
@@ -873,7 +975,7 @@ class TableEnvironment(object):
             os.unlink(temp_file.name)
 
     @abstractmethod
-    def _get_execution_config(self, filename, schema):
+    def _get_j_env(self):
         pass
 
 
@@ -883,8 +985,8 @@ class StreamTableEnvironment(TableEnvironment):
         self._j_tenv = j_tenv
         super(StreamTableEnvironment, self).__init__(j_tenv, is_blink_planner)
 
-    def _get_execution_config(self, filename, schema):
-        return self._j_tenv.execEnv().getConfig()
+    def _get_j_env(self):
+        return self._j_tenv.execEnv()
 
     def get_config(self):
         """
@@ -996,19 +1098,11 @@ class BatchTableEnvironment(TableEnvironment):
         self._j_tenv = j_tenv
         super(BatchTableEnvironment, self).__init__(j_tenv, is_blink_planner)
 
-    def _get_execution_config(self, filename, schema):
-        gateway = get_gateway()
-        blink_t_env_class = get_java_class(
-            gateway.jvm.org.apache.flink.table.api.internal.TableEnvironmentImpl)
-        is_blink = (blink_t_env_class == self._j_tenv.getClass())
-        if is_blink:
-            # we can not get ExecutionConfig object from the TableEnvironmentImpl
-            # for the moment, just create a new ExecutionConfig.
-            execution_config = gateway.jvm.org.apache.flink.api.common.ExecutionConfig()
+    def _get_j_env(self):
+        if self._is_blink_planner:
+            return self._j_tenv.getPlanner().getExecEnv()
         else:
-            execution_config = self._j_tenv.execEnv().getConfig()
-
-        return execution_config
+            return self._j_tenv.execEnv()
 
     def get_config(self):
         """
