@@ -331,6 +331,11 @@ class UserDefinedFunctionTests(object):
                 'timestamp_param is wrong value %s !' % timestamp_param
             return timestamp_param
 
+        def array_func(array_param):
+            assert array_param == [1, 2, 3], \
+                'array_param is wrong value %s !' % array_param
+            return array_param
+
         self.t_env.register_function(
             "boolean_func", udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN()))
 
@@ -370,13 +375,17 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_function(
             "timestamp_func", udf(timestamp_func, [DataTypes.TIMESTAMP()], DataTypes.TIMESTAMP()))
 
+        self.t_env.register_function(
+            "array_func", udf(array_func, [DataTypes.ARRAY(DataTypes.BIGINT())],
+                              DataTypes.ARRAY(DataTypes.BIGINT())))
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
              DataTypes.BOOLEAN(), DataTypes.SMALLINT(), DataTypes.INT(),
              DataTypes.FLOAT(), DataTypes.DOUBLE(), DataTypes.BYTES(),
              DataTypes.STRING(), DataTypes.DATE(), DataTypes.TIME(3),
-             DataTypes.TIMESTAMP()])
+             DataTypes.TIMESTAMP(), DataTypes.ARRAY(DataTypes.BIGINT())])
         self.t_env.register_table_sink("Results", table_sink)
 
         import datetime
@@ -384,7 +393,7 @@ class UserDefinedFunctionTests(object):
             [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
               bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
               datetime.time(hour=12, minute=0, second=0, microsecond=123000),
-              datetime.datetime(2018, 3, 11, 3, 0, 0, 123000))],
+              datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3])],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
@@ -398,7 +407,8 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("j", DataTypes.STRING()),
                  DataTypes.FIELD("k", DataTypes.DATE()),
                  DataTypes.FIELD("l", DataTypes.TIME(3)),
-                 DataTypes.FIELD("m", DataTypes.TIMESTAMP())]))
+                 DataTypes.FIELD("m", DataTypes.TIMESTAMP()),
+                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.BIGINT()))]))
 
         t.select("bigint_func(a), bigint_func_none(b),"
                  "tinyint_func(c), boolean_func(d),"
@@ -406,7 +416,7 @@ class UserDefinedFunctionTests(object):
                  "float_func(g),double_func(h),"
                  "bytes_func(i),str_func(j),"
                  "date_func(k),time_func(l),"
-                 "timestamp_func(m)") \
+                 "timestamp_func(m),array_func(n)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
@@ -414,7 +424,7 @@ class UserDefinedFunctionTests(object):
         self.assert_equals(actual,
                            ["1,null,1,true,32767,-2147483648,1.23,1.98932,"
                             "[102, 108, 105, 110, 107],pyflink,2014-09-13,"
-                            "12:00:00,2018-03-11 03:00:00.123"])
+                            "12:00:00,2018-03-11 03:00:00.123,[1, 2, 3]"])
 
 
 # decide whether two floats are equal
