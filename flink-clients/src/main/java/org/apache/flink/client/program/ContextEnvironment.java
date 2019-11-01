@@ -87,9 +87,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		ClientUtils.addJarFiles(jobGraph, this.jarFilesToAttach);
 		jobGraph.setClasspaths(this.classpathsToAttach);
 
-		lastJobExecutionResult = client
-				.submitJob(jobGraph, this.userCodeClassLoader)
-				.getJobExecutionResult();
+		if (detached) {
+			lastJobExecutionResult = ClientUtils.submitJob(client, jobGraph);
+		} else {
+			lastJobExecutionResult = ClientUtils.submitJobAndWaitForResult(client, jobGraph, userCodeClassLoader).getJobExecutionResult();
+		}
 
 		setJobExecutionResult(lastJobExecutionResult);
 
@@ -130,6 +132,10 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	public SavepointRestoreSettings getSavepointRestoreSettings() {
 		return savepointSettings;
+	}
+
+	public boolean isDetached() {
+		return detached;
 	}
 
 	// --------------------------------------------------------------------------------------------

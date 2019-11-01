@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
@@ -105,7 +106,6 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 		SavepointSource.initializeForTest();
 
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
-		client.setDetached(true);
 
 		JobID jobId = jobGraph.getJobID();
 
@@ -114,8 +114,7 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 		String dirPath = getTempDirPath(new AbstractID().toHexString());
 
 		try {
-			client.setDetached(true);
-			JobSubmissionResult result = client.submitJob(jobGraph, getClass().getClassLoader());
+			JobSubmissionResult result = ClientUtils.submitJob(client, jobGraph);
 
 			boolean finished = false;
 			while (deadline.hasTimeLeft()) {

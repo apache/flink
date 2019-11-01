@@ -20,6 +20,7 @@ package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -95,9 +96,7 @@ public abstract class CancelingTestBase extends TestLogger {
 		final JobGraph jobGraph = getJobGraph(plan);
 
 		ClusterClient<?> client = CLUSTER.getClusterClient();
-		client.setDetached(true);
-
-		JobSubmissionResult jobSubmissionResult = client.submitJob(jobGraph, CancelingTestBase.class.getClassLoader());
+		JobSubmissionResult jobSubmissionResult = ClientUtils.submitJob(client, jobGraph);
 
 		Deadline submissionDeadLine = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 
