@@ -64,10 +64,6 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		setParallelism(1);
 	}
 
-	protected Configuration getConfiguration() {
-		return configuration;
-	}
-
 	/**
 	 * Executes the JobGraph of the on a mini cluster of ClusterUtil with a user
 	 * specified name.
