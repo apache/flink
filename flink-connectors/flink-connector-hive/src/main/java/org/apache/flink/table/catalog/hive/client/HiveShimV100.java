@@ -45,6 +45,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
@@ -79,7 +80,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Shim for Hive version 1.0.0.
@@ -334,5 +337,19 @@ public class HiveShimV100 implements HiveShim {
 		} catch (Exception e) {
 			throw new CatalogException("Failed to get table schema from deserializer", e);
 		}
+	}
+
+	@Override
+	public Set<String> listBuiltInFunctions() {
+		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
+		// prior to Hive 1.2.0
+		throw new UnsupportedOperationException("Listing built in functions are not supported until Hive 1.2.0");
+	}
+
+	@Override
+	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
+		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
+		// prior to Hive 1.2.0
+		throw new UnsupportedOperationException("Getting built in functions are not supported until Hive 1.2.0");
 	}
 }

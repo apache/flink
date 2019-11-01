@@ -49,12 +49,10 @@ public class HiveModule implements Module {
 
 	@Override
 	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-		FunctionInfo info = hiveShim.getBuiltInFunctionInfo(name);
+		Optional<FunctionInfo> info = hiveShim.getBuiltInFunctionInfo(name);
 
-		if (info.isBuiltIn()) {
-			return Optional.of(factory.createFunctionDefinitionFromHiveFunction(name, info.getFunctionClass().getName()));
-		} else {
-			return Optional.empty();
-		}
+		return info.isPresent() ?
+			Optional.of(factory.createFunctionDefinitionFromHiveFunction(name, info.get().getFunctionClass().getName()))
+			: Optional.empty();
 	}
 }

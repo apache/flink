@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -210,5 +211,5 @@ public interface HiveShim extends Serializable {
 	/**
 	 * Get a Hive built-in function by name.
 	 */
-	FunctionInfo getBuiltInFunctionInfo(String name);
+	Optional<FunctionInfo> getBuiltInFunctionInfo(String name);
 }

@@ -42,6 +42,7 @@ import org.apache.thrift.TException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -179,15 +180,22 @@ public class HiveShimV120 extends HiveShimV111 {
 	public Set<String> listBuiltInFunctions() {
 		try {
 			Method method = FunctionRegistry.class.getMethod("getFunctionNames");
-			// makeSpecFromName is a static method
+			// getFunctionNames is a static method
 			Set<String> names = (Set<String>) method.invoke(null);
 
 			return names.stream()
-				.filter(n -> getFunctionInfo(n).isBuiltIn())
+				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n)))
 				.collect(Collectors.toSet());
 		} catch (Exception ex) {
 			throw new CatalogException("Failed to invoke Warehouse.makeSpecFromName()", ex);
 		}
+	}
+
+	@Override
+	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
+		FunctionInfo functionInfo = getFunctionInfo(name);
+
+		return isBuiltInFunctionInfo(functionInfo) ? Optional.of(functionInfo) : Optional.empty();
 	}
 
 	private FunctionInfo getFunctionInfo(String name) {
@@ -199,22 +207,12 @@ public class HiveShimV120 extends HiveShimV111 {
 		}
 	}
 
-	@Override
-	public FunctionInfo getBuiltInFunctionInfo(String name) {
-		FunctionInfo functionInfo;
-
+	private boolean isBuiltInFunctionInfo(FunctionInfo info) {
 		try {
-			functionInfo = FunctionRegistry.getFunctionInfo(name);
-		} catch (SemanticException e) {
-			throw new FlinkHiveException(
-				String.format("Failed getting function info for %s", name), e);
-		}
-
-		if (functionInfo.isBuiltIn()) {
-			return functionInfo;
-		} else {
-			throw new FlinkHiveUDFException(
-				String.format("Function %s is not a built in function", functionInfo.getFunctionClass().getName()));
+			Method method = FunctionRegistry.class.getMethod("isBuiltIn");
+			return (boolean) method.invoke(info);
+		} catch (Exception ex) {
+			throw new CatalogException("Failed to invoke FunctionInfo.isBuiltIn()", ex);
 		}
 	}
 }

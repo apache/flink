@@ -27,6 +27,7 @@ import org.apache.flink.table.types.DataType;
 
 import org.junit.Test;
 
+import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V1_2_0;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_0_0;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_1_1;
@@ -60,6 +61,7 @@ public class HiveModuleTest {
 
 	@Test
 	public void testHiveBuiltInFunction() {
+		assumeTrue(HIVE_120_OR_LATER);
 		FunctionDefinition fd = new HiveModule(HiveShimLoader.getHiveVersion()).getFunctionDefinition("reverse").get();
 
 		ScalarFunction func = ((ScalarFunctionDefinition) fd).getScalarFunction();

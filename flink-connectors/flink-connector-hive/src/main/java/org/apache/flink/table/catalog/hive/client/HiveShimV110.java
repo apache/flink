@@ -26,7 +26,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
-import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.io.Writable;
@@ -37,7 +36,6 @@ import org.apache.hadoop.mapred.Reporter;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 
 /**
  * Shim for Hive version 1.1.0.
@@ -75,19 +73,4 @@ public class HiveShimV110 extends HiveShimV101 {
 			throw new CatalogException("Failed to get table schema from deserializer", e);
 		}
 	}
-
-	@Override
-	public Set<String> listBuiltInFunctions() {
-		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
-		// prior to Hive 1.2.0
-		throw new UnsupportedOperationException("Listing built in functions are not supported until Hive 1.2.0");
-	}
-
-	@Override
-	public FunctionInfo getBuiltInFunctionInfo(String name) {
-		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
-		// prior to Hive 1.2.0
-		throw new UnsupportedOperationException("Getting built in functions are not supported until Hive 1.2.0");
-	}
-
 }
