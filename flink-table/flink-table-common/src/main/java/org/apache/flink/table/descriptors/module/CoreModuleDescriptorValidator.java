@@ -16,12 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.module;
+package org.apache.flink.table.descriptors.module;
+
+import org.apache.flink.table.descriptors.DescriptorProperties;
 
 /**
- * Configs for modules.
+ * Validator for {@link CoreModuleDescriptor}.
  */
-public class ModuleConfig {
-	// Name of the core module
-	public static final String CORE_MODULE_NAME = "core";
+public class CoreModuleDescriptorValidator extends ModuleDescriptorValidator {
+	public static final String MODULE_TYPE_CORE = "core";
+
+	@Override
+	public void validate(DescriptorProperties properties) {
+		super.validate(properties);
+		properties.validateValue(MODULE_TYPE, MODULE_TYPE_CORE, false);
+	}
 }
