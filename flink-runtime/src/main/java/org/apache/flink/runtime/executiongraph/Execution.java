@@ -1227,11 +1227,14 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			if (!fromSchedulerNg && !isLegacyScheduling()) {
 				vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(attemptId, t);
+
 				// HACK: We informed the new generation scheduler about an internally detected task
 				// failure. The scheduler will call processFail() again with releasePartitions
-				// always set to false and fromSchedulerNg set to true. Because the original value
-				// of releasePartitions will be lost, we need to invoke handlePartitionCleanup() here.
-				handlePartitionCleanup(releasePartitions, releasePartitions);
+				// always set to false, isCallback to true and fromSchedulerNg set to true.
+				// Because the original value of releasePartitions and isCallback will be lost,
+				// we may need to invoke partition release and remote canceling here.
+				maybeReleasePartitionsAndSendCancelRpcCall(current, isCallback, releasePartitions);
+
 				return;
 			} else if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
@@ -1241,25 +1244,36 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				releaseAssignedResource(t);
 				vertex.getExecutionGraph().deregisterExecution(this);
-				handlePartitionCleanup(releasePartitions, releasePartitions);
 
-				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");
-					}
-
-					try {
-						if (assignedResource != null) {
-							sendCancelRpcCall(NUM_CANCEL_CALL_TRIES);
-						}
-					} catch (Throwable tt) {
-						// no reason this should ever happen, but log it to be safe
-						LOG.error("Error triggering cancel call while marking task {} as failed.", getVertex().getTaskNameWithSubtaskIndex(), tt);
-					}
+				if (isLegacyScheduling()) {
+					maybeReleasePartitionsAndSendCancelRpcCall(current, isCallback, releasePartitions);
 				}
 
 				// leave the loop
 				return;
+			}
+		}
+	}
+
+	private void maybeReleasePartitionsAndSendCancelRpcCall(
+			final ExecutionState stateBeforeFailed,
+			final boolean isCallback,
+			final boolean releasePartitions) {
+
+		handlePartitionCleanup(releasePartitions, releasePartitions);
+
+		if (!isCallback && (stateBeforeFailed == RUNNING || stateBeforeFailed == DEPLOYING)) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");
+			}
+
+			try {
+				if (assignedResource != null) {
+					sendCancelRpcCall(NUM_CANCEL_CALL_TRIES);
+				}
+			} catch (Throwable tt) {
+				// no reason this should ever happen, but log it to be safe
+				LOG.error("Error triggering cancel call while marking task {} as failed.", getVertex().getTaskNameWithSubtaskIndex(), tt);
 			}
 		}
 	}
