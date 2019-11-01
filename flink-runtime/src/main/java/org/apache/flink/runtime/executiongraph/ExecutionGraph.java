@@ -180,10 +180,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	// --------------------------------------------------------------------------------------------
 
-	/** The lock used to secure all access to mutable fields, especially the tracking of progress
-	 * within the job. */
-	private final Object progressLock = new Object();
-
 	/** Job specific information like the job id, job name, job configuration, etc. */
 	private final JobInformation jobInformation;
 
@@ -1070,13 +1066,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			// All vertices have been cancelled and it's safe to directly go
 			// into the canceled state.
 			else if (current == JobStatus.RESTARTING) {
-				synchronized (progressLock) {
-					if (transitionState(current, JobStatus.CANCELED)) {
-						onTerminalState(JobStatus.CANCELED);
+				if (transitionState(current, JobStatus.CANCELED)) {
+					onTerminalState(JobStatus.CANCELED);
 
-						LOG.info("Canceled during restart.");
-						return;
-					}
+					LOG.info("Canceled during restart.");
+					return;
 				}
 			}
 			else {
@@ -1226,58 +1220,56 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		assertRunningInJobMasterMainThread();
 
 		try {
-			synchronized (progressLock) {
-				// check the global version to see whether this recovery attempt is still valid
-				if (globalModVersion != expectedGlobalVersion) {
-					LOG.info("Concurrent full restart subsumed this restart.");
-					return;
+			// check the global version to see whether this recovery attempt is still valid
+			if (globalModVersion != expectedGlobalVersion) {
+				LOG.info("Concurrent full restart subsumed this restart.");
+				return;
+			}
+
+			final JobStatus current = state;
+
+			if (current == JobStatus.CANCELED) {
+				LOG.info("Canceled job during restart. Aborting restart.");
+				return;
+			} else if (current == JobStatus.FAILED) {
+				LOG.info("Failed job during restart. Aborting restart.");
+				return;
+			} else if (current == JobStatus.SUSPENDED) {
+				LOG.info("Suspended job during restart. Aborting restart.");
+				return;
+			} else if (current != JobStatus.RESTARTING) {
+				throw new IllegalStateException("Can only restart job from state restarting.");
+			}
+
+			this.currentExecutions.clear();
+
+			final Collection<CoLocationGroup> colGroups = new HashSet<>();
+			final long resetTimestamp = System.currentTimeMillis();
+
+			for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
+
+				CoLocationGroup cgroup = jv.getCoLocationGroup();
+				if (cgroup != null && !colGroups.contains(cgroup)){
+					cgroup.resetConstraints();
+					colGroups.add(cgroup);
 				}
 
-				final JobStatus current = state;
+				jv.resetForNewExecution(resetTimestamp, expectedGlobalVersion);
+			}
 
-				if (current == JobStatus.CANCELED) {
-					LOG.info("Canceled job during restart. Aborting restart.");
-					return;
-				} else if (current == JobStatus.FAILED) {
-					LOG.info("Failed job during restart. Aborting restart.");
-					return;
-				} else if (current == JobStatus.SUSPENDED) {
-					LOG.info("Suspended job during restart. Aborting restart.");
-					return;
-				} else if (current != JobStatus.RESTARTING) {
-					throw new IllegalStateException("Can only restart job from state restarting.");
+			for (int i = 0; i < stateTimestamps.length; i++) {
+				if (i != JobStatus.RESTARTING.ordinal()) {
+					// Only clear the non restarting state in order to preserve when the job was
+					// restarted. This is needed for the restarting time gauge
+					stateTimestamps[i] = 0;
 				}
+			}
 
-				this.currentExecutions.clear();
+			transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
 
-				final Collection<CoLocationGroup> colGroups = new HashSet<>();
-				final long resetTimestamp = System.currentTimeMillis();
-
-				for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
-
-					CoLocationGroup cgroup = jv.getCoLocationGroup();
-					if (cgroup != null && !colGroups.contains(cgroup)){
-						cgroup.resetConstraints();
-						colGroups.add(cgroup);
-					}
-
-					jv.resetForNewExecution(resetTimestamp, expectedGlobalVersion);
-				}
-
-				for (int i = 0; i < stateTimestamps.length; i++) {
-					if (i != JobStatus.RESTARTING.ordinal()) {
-						// Only clear the non restarting state in order to preserve when the job was
-						// restarted. This is needed for the restarting time gauge
-						stateTimestamps[i] = 0;
-					}
-				}
-
-				transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
-
-				// if we have checkpointed state, reload it into the executions
-				if (checkpointCoordinator != null) {
-					checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
-				}
+			// if we have checkpointed state, reload it into the executions
+			if (checkpointCoordinator != null) {
+				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
 			}
 
 			scheduleForExecution();
@@ -1501,45 +1493,43 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
 			final Throwable failureCause = this.failureCause;
 
-			synchronized (progressLock) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID(), failureCause);
-				} else {
-					LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID());
-				}
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID(), failureCause);
+			} else {
+				LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID());
+			}
 
-				final boolean isFailureCauseAllowingRestart = !(failureCause instanceof SuppressRestartsException);
-				final boolean isRestartStrategyAllowingRestart = restartStrategy.canRestart();
-				boolean isRestartable = isFailureCauseAllowingRestart && isRestartStrategyAllowingRestart;
+			final boolean isFailureCauseAllowingRestart = !(failureCause instanceof SuppressRestartsException);
+			final boolean isRestartStrategyAllowingRestart = restartStrategy.canRestart();
+			boolean isRestartable = isFailureCauseAllowingRestart && isRestartStrategyAllowingRestart;
 
-				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
-					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
+			if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
+				LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
 
-					RestartCallback restarter = new ExecutionGraphRestartCallback(this, globalModVersionForRestart);
-					FutureUtils.assertNoException(
-						restartStrategy
-							.restart(restarter, getJobMasterMainThreadExecutor())
-							.exceptionally((throwable) -> {
+				RestartCallback restarter = new ExecutionGraphRestartCallback(this, globalModVersionForRestart);
+				FutureUtils.assertNoException(
+					restartStrategy
+						.restart(restarter, getJobMasterMainThreadExecutor())
+						.exceptionally((throwable) -> {
 								failGlobal(throwable);
 								return null;
 							}));
-					return true;
-				}
-				else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
-					final String cause1 = isFailureCauseAllowingRestart ? null :
-						"a type of SuppressRestartsException was thrown";
-					final String cause2 = isRestartStrategyAllowingRestart ? null :
-						"the restart strategy prevented it";
+				return true;
+			}
+			else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
+				final String cause1 = isFailureCauseAllowingRestart ? null :
+					"a type of SuppressRestartsException was thrown";
+				final String cause2 = isRestartStrategyAllowingRestart ? null :
+					"the restart strategy prevented it";
 
-					LOG.info("Could not restart the job {} ({}) because {}.", getJobName(), getJobID(),
-						StringUtils.concatenateWithAnd(cause1, cause2), failureCause);
-					onTerminalState(JobStatus.FAILED);
+				LOG.info("Could not restart the job {} ({}) because {}.", getJobName(), getJobID(),
+					StringUtils.concatenateWithAnd(cause1, cause2), failureCause);
+				onTerminalState(JobStatus.FAILED);
 
-					return true;
-				} else {
-					// we must have changed the state concurrently, thus we cannot complete this operation
-					return false;
-				}
+				return true;
+			} else {
+				// we must have changed the state concurrently, thus we cannot complete this operation
+				return false;
 			}
 		} else {
 			// this operation is only allowed in the state FAILING or RESTARTING
