@@ -84,7 +84,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 
 		MyObj inputObj = new MyObj(114514, 1919810);
 		BaseArray inputArray = new GenericArray(new BinaryGeneric[] {
-			new BinaryGeneric<>(inputObj, new KryoSerializer<>(MyObj.class, config))
+			new BinaryGeneric<>(inputObj)
 		}, 1);
 
 		byte[] serialized;

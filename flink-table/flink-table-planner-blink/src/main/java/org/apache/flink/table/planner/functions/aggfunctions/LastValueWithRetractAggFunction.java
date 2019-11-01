@@ -70,9 +70,9 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 		acc.setField(0, null);
 		acc.setField(1, null);
 		acc.setField(2, new BinaryGeneric<>(
-				new MapView<>(getResultType(), new ListTypeInfo<>(Types.LONG)), getValueToOrderMapViewSerializer()));
+				new MapView<>(getResultType(), new ListTypeInfo<>(Types.LONG))));
 		acc.setField(3, new BinaryGeneric<>(
-				new MapView<>(Types.LONG, new ListTypeInfo<>(getResultType())), getOrderToValueMapViewSerializer()));
+				new MapView<>(Types.LONG, new ListTypeInfo<>(getResultType()))));
 		return acc;
 	}
 

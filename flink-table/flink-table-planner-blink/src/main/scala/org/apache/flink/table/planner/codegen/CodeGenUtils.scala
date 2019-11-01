@@ -653,8 +653,9 @@ object CodeGenUtils {
       case ROW =>
         val ser = ctx.addReusableTypeSerializer(t)
         s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
-
-      case ANY => s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm)"
+      case ANY =>
+        val ser = ctx.addReusableTypeSerializer(t)
+        s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm, $ser)"
     }
 
   private def isConverterIdentity(t: DataType): Boolean = {

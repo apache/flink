@@ -21,6 +21,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.runtime.util.SegmentsUtil;
 
+import static org.apache.flink.table.dataformat.BinaryFormat.readBinaryFieldFromSegments;
 import static org.apache.flink.table.dataformat.BinaryRow.calculateBitSetWidthInBytes;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -32,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * has a possibility to cross the boundary of a segment, while the fixed-length part of {@link BinaryRow}
  * must fit into its first memory segment.
  */
-public final class NestedRow extends BinaryFormat implements BaseRow {
+public final class NestedRow extends BinarySection implements BaseRow {
 
 	private final int arity;
 	private final int nullBitsSizeInBytes;
@@ -224,7 +225,7 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndLen = SegmentsUtil.getLong(segments, fieldOffset);
-		return BinaryString.readBinaryStringFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
+		return BinaryFormat.readBinaryStringFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
 	}
 
 	@Override

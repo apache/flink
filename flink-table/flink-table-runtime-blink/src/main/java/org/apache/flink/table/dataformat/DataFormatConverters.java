@@ -620,7 +620,7 @@ public class DataFormatConverters {
 
 		@Override
 		BinaryGeneric<T> toInternalImpl(T value) {
-			return new BinaryGeneric<>(value, serializer);
+			return new BinaryGeneric<>(value);
 		}
 
 		@Override

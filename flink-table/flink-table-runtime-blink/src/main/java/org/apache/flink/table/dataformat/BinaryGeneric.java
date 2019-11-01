@@ -31,46 +31,26 @@ import java.io.IOException;
  */
 public final class BinaryGeneric<T> extends LazyBinaryFormat<T> {
 
-	private final TypeSerializer<T> javaObjectSer;
-
-	public BinaryGeneric(T javaObject, TypeSerializer<T> javaObjectSer) {
+	public BinaryGeneric(T javaObject) {
 		super(javaObject);
-		this.javaObjectSer = javaObjectSer;
 	}
 
-	public BinaryGeneric(MemorySegment[] segments, int offset, int sizeInBytes,
-			TypeSerializer<T> javaObjectSer) {
+	public BinaryGeneric(MemorySegment[] segments, int offset, int sizeInBytes) {
 		super(segments, offset, sizeInBytes);
-		this.javaObjectSer = javaObjectSer;
 	}
 
-	public BinaryGeneric(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject,
-			TypeSerializer<T> javaObjectSer) {
+	public BinaryGeneric(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject) {
 		super(segments, offset, sizeInBytes, javaObject);
-		this.javaObjectSer = javaObjectSer;
-	}
-
-	public TypeSerializer<T> getJavaObjectSerializer() {
-		return javaObjectSer;
 	}
 
 	@Override
-	public void materialize() {
+	protected BinarySection materialize(TypeSerializer<T> serializer) {
 		try {
-			byte[] bytes = InstantiationUtil.serializeToByteArray(javaObjectSer, javaObject);
-			pointTo(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
+			byte[] bytes = InstantiationUtil.serializeToByteArray(serializer, javaObject);
+			return new BinarySection(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	public BinaryGeneric<T> copy() {
-		ensureMaterialized();
-		byte[] bytes = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
-		T newJavaObject = javaObject == null ? null : javaObjectSer.copy(javaObject);
-		return new BinaryGeneric<>(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, sizeInBytes,
-				newJavaObject,
-				javaObjectSer);
 	}
 
 	static <T> BinaryGeneric<T> readBinaryGenericFieldFromSegments(
@@ -90,5 +70,22 @@ public final class BinaryGeneric<T> extends LazyBinaryFormat<T> {
 			}
 		}
 		return value.getJavaObject();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		throw new UnsupportedOperationException("BinaryGeneric cannot be compared");
+	}
+
+	@Override
+	public int hashCode() {
+		throw new UnsupportedOperationException("BinaryGeneric does not have a hashCode");
+	}
+
+	@Override
+	public String toString() {
+		return "BinaryGeneric{" +
+			"javaObject=" + javaObject +
+			'}';
 	}
 }
