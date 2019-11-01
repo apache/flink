@@ -91,6 +91,7 @@ class FlinkRelMdHandlerTestBase {
     new PlannerContext(
       tableConfig,
       new FunctionCatalog(catalogManager, moduleManager),
+      catalogManager,
       CalciteSchema.from(rootSchema),
       util.Arrays.asList(
         ConventionTraitDef.INSTANCE,

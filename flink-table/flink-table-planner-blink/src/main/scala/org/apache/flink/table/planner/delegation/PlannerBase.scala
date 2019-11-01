@@ -71,7 +71,7 @@ abstract class PlannerBase(
     executor: Executor,
     config: TableConfig,
     val functionCatalog: FunctionCatalog,
-    catalogManager: CatalogManager,
+    val catalogManager: CatalogManager,
     isStreamingMode: Boolean)
   extends Planner {
 
@@ -85,6 +85,7 @@ abstract class PlannerBase(
     new PlannerContext(
       config,
       functionCatalog,
+      catalogManager,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList
     )

@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
@@ -84,11 +85,12 @@ public class PlannerContext {
 	public PlannerContext(
 			TableConfig tableConfig,
 			FunctionCatalog functionCatalog,
+			CatalogManager catalogManager,
 			CalciteSchema rootSchema,
 			List<RelTraitDef> traitDefs) {
 		this.tableConfig = tableConfig;
 		this.functionCatalog = functionCatalog;
-		this.context = new FlinkContextImpl(tableConfig, functionCatalog);
+		this.context = new FlinkContextImpl(tableConfig, functionCatalog, catalogManager);
 		this.rootSchema = rootSchema;
 		this.traitDefs = traitDefs;
 		// Make a framework config to initialize the RelOptCluster instance,

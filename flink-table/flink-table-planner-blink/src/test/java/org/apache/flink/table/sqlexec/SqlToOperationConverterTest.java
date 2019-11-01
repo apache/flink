@@ -78,6 +78,7 @@ public class SqlToOperationConverterTest {
 	private final PlannerContext plannerContext =
 		new PlannerContext(tableConfig,
 			functionCatalog,
+			catalogManager,
 			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
 			new ArrayList<>());
 

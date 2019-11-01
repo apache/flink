@@ -87,7 +87,7 @@ class SelectivityEstimatorTest {
     val catalogManager = mock(classOf[CatalogManager])
     val moduleManager = mock(classOf[ModuleManager])
     val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
-    val context: FlinkContext = new FlinkContextImpl(tableConfig, functionCatalog)
+    val context: FlinkContext = new FlinkContextImpl(tableConfig, functionCatalog, catalogManager)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)
     when(cluster, "getPlanner").thenReturn(planner)

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{AccMode, AccModeTraitDef, MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -168,6 +168,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       override def getTableConfig: TableConfig = config
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
+
+      override def getCatalogManager: CatalogManager = planner.catalogManager
 
       override def getRexBuilder: RexBuilder = planner.getRelBuilder.getRexBuilder
 
