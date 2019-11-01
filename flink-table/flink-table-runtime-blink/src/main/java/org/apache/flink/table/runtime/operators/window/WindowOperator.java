@@ -286,7 +286,7 @@ public abstract class WindowOperator<K, W extends Window>
 		this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
 		this.lateRecordsDroppedRate = metrics.meter(
 				LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME,
-				new MeterView(numLateRecordsDropped, 60));
+				new MeterView(numLateRecordsDropped));
 		this.watermarkLatency = metrics.gauge(WATERMARK_LATENCY_METRIC_NAME, () -> {
 			long watermark = internalTimerService.currentWatermark();
 			if (watermark < 0) {
