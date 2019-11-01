@@ -231,18 +231,15 @@ public class RestClusterClientTest extends TestLogger {
 			submitHandler,
 			terminationHandler,
 			testJobExecutionResultHandler)) {
-			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			try {
+			try (RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
 				Assert.assertFalse(submitHandler.jobSubmitted);
 				ClientUtils.submitJobAndWaitForResult(restClusterClient, jobGraph, ClassLoader.getSystemClassLoader());
 				Assert.assertTrue(submitHandler.jobSubmitted);
 
 				Assert.assertFalse(terminationHandler.jobCanceled);
-				restClusterClient.cancel(jobId);
+				restClusterClient.cancel(jobId).get();
 				Assert.assertTrue(terminationHandler.jobCanceled);
-			} finally {
-				restClusterClient.close();
 			}
 		}
 	}
@@ -521,7 +518,7 @@ public class RestClusterClientTest extends TestLogger {
 				JobID id = new JobID();
 
 				{
-					Map<String, OptionalFailure<Object>> accumulators = restClusterClient.getAccumulators(id);
+					Map<String, OptionalFailure<Object>> accumulators = restClusterClient.getAccumulators(id).get();
 					assertNotNull(accumulators);
 					assertEquals(1, accumulators.size());
 

@@ -30,8 +30,7 @@ import java.util.Collections;
  * <p>The mocking behavior can be defined in the constructor of the sub-class.
  */
 public class MockedCliFrontend extends CliFrontend {
-
-	public MockedCliFrontend(ClusterClient clusterClient) {
+	public MockedCliFrontend(ClusterClient<?> clusterClient) {
 		super(
 			new Configuration(),
 			new DummyClusterClientServiceLoader<>(clusterClient),

@@ -111,7 +111,7 @@ public abstract class CancelingTestBase extends TestLogger {
 
 		Thread.sleep(msecsTillCanceling);
 
-		client.cancel(jobSubmissionResult.getJobID());
+		client.cancel(jobSubmissionResult.getJobID()).get();
 
 		Deadline cancelDeadline = new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS).fromNow();
 
