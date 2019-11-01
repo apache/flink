@@ -32,7 +32,7 @@ FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
 __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
            'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
-           'TimestampCoder']
+           'TimestampCoder', 'ArrayCoder']
 
 
 class RowCoder(FastCoder):
@@ -67,6 +67,49 @@ class RowCoder(FastCoder):
 
     def __hash__(self):
         return hash(self._field_coders)
+
+
+class CollectionCoder(FastCoder):
+    """
+    Base coder for collection.
+    """
+    def __init__(self, elem_coder):
+        self._elem_coder = elem_coder
+
+    def _create_impl(self):
+        raise NotImplementedError
+
+    def is_deterministic(self):
+        return self._elem_coder.is_deterministic()
+
+    def to_type_hint(self):
+        return []
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and self._elem_coder == other._elem_coder)
+
+    def __repr__(self):
+        return '%s[%s]' % (self.__class__.__name__, repr(self._elem_coder))
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._elem_coder)
+
+
+class ArrayCoder(CollectionCoder):
+    """
+    Coder for Array.
+    """
+
+    def __init__(self, elem_coder):
+        self._elem_coder = elem_coder
+        super(ArrayCoder, self).__init__(elem_coder)
+
+    def _create_impl(self):
+        return coder_impl.ArrayCoderImpl(self._elem_coder.get_impl())
 
 
 class DeterministicCoder(FastCoder, ABC):
@@ -262,5 +305,7 @@ def from_proto(field_type):
         return RowCoder([from_proto(f.type) for f in field_type.row_schema.fields])
     if field_type_name == type_name.DATETIME:
         return TimestampCoder(field_type.date_time_type.precision)
+    elif field_type_name == type_name.ARRAY:
+        return ArrayCoder(from_proto(field_type.collection_element_type))
     else:
         raise ValueError("field_type %s is not supported." % field_type)
