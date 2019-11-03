@@ -275,7 +275,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		JobVertex sourceMapFilterVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		JobVertex reduceSinkVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
-		assertTrue(sourceMapFilterVertex.getMinResources().equals(resource1.merge(resource2).merge(resource3)));
+		assertTrue(sourceMapFilterVertex.getMinResources().equals(resource3.merge(resource2).merge(resource1)));
 		assertTrue(reduceSinkVertex.getPreferredResources().equals(resource4.merge(resource5)));
 	}
 

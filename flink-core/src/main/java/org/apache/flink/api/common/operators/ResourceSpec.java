@@ -151,7 +151,7 @@ public final class ResourceSpec implements Serializable {
 		}
 
 		ResourceSpec target = new ResourceSpec(
-				Math.max(this.cpuCores, other.cpuCores),
+				this.cpuCores + other.cpuCores,
 				this.heapMemoryInMB + other.heapMemoryInMB,
 				this.directMemoryInMB + other.directMemoryInMB,
 				this.nativeMemoryInMB + other.nativeMemoryInMB,
