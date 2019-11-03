@@ -424,7 +424,7 @@ public class TaskManagerServices {
 	 * All values are in bytes.
 	 */
 	public static long getManagedMemoryFromHeapAndManaged(Configuration config, long heapAndManagedMemory) {
-		if (config.contains(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE)) {
+		if (!TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue().equals(config.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE))) {
 			// take the configured absolute value
 			final String sizeValue = config.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE);
 			try {
