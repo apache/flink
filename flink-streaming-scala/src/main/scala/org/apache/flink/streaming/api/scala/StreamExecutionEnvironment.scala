@@ -573,7 +573,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
       watchType: FileProcessingMode,
       interval: Long): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, typeInfo))
+    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, typeInfo,
+      FileMissingSplitsMode.FAIL_ON_MISSING_SPLITS))
   }
 
   /**

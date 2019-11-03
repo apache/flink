@@ -25,7 +25,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -71,6 +70,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 	private FileInputFormat<OUT> format;
 	private TypeSerializer<OUT> serializer;
+	private FileMissingSplitsMode missingSplitsMode;
 
 	private transient Object checkpointLock;
 
@@ -80,10 +80,14 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	private transient ListState<TimestampedFileInputSplit> checkpointedState;
 	private transient List<TimestampedFileInputSplit> restoredReaderState;
 
-	private Configuration cfg = new Configuration();
-
 	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
 		this.format = checkNotNull(format);
+		this.missingSplitsMode = FileMissingSplitsMode.FAIL_ON_MISSING_SPLITS;
+	}
+
+	public ContinuousFileReaderOperator(FileInputFormat<OUT> format, FileMissingSplitsMode missingSplitsMode) {
+		this.format = checkNotNull(format);
+		this.missingSplitsMode = checkNotNull(missingSplitsMode);
 	}
 
 	@Override
@@ -308,15 +312,26 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 							}
 						}
 
-						if (this.format instanceof CheckpointableInputFormat && currentSplit.getSplitState() != null) {
-							// recovering after a node failure with an input
-							// format that supports resetting the offset
-							((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).
-								reopen(currentSplit, currentSplit.getSplitState());
-						} else {
-							// we either have a new split, or we recovered from a node
-							// failure but the input format does not support resetting the offset.
-							this.format.open(currentSplit);
+						try {
+							if (this.format instanceof CheckpointableInputFormat && currentSplit.getSplitState() != null) {
+								// recovering after a node failure with an input
+								// format that supports resetting the offset
+								((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).
+									reopen(currentSplit, currentSplit.getSplitState());
+							} else {
+								// we either have a new split, or we recovered from a node
+								// failure but the input format does not support resetting the offset.
+								this.format.open(currentSplit);
+							}
+						} catch (FileNotFoundException e) {
+							if (missingSplitsMode.equals(FileMissingSplitsMode.SKIP_MISSING_SPLITS)) {
+								LOG.warn("Input split {} doesn't exist, since FileMissingSplitsMode " +
+									"is SKIP_MISSING_SPLITS, ignore the exception and continue", this.currentSplit.getPath());
+							}
+							else {
+								getContainingTask().handleAsyncException("File Not Found: " + currentSplit, e);
+								throw new FileNotFoundException("File Not Found: " + currentSplit);
+							}
 						}
 
 						// reset the restored state to null for the next iteration
@@ -350,14 +365,6 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 					}
 				}
 
-			} catch (FileNotFoundException e) {
-				if (cfg.getBoolean(CoreOptions.FILESYSTEM_INPUT_IGNORE_FILE_NOT_FOUND_EXCEPTION)) {
-					LOG.warn("Input split {} doesn't exist, since FILESYSTEM_INPUT_IGNORE_FILE_NOT_FOUND_EXCEPTION " +
-						"is true, ignore the exception and continue", this.currentSplit.getPath());
-				}
-				else {
-					getContainingTask().handleAsyncException("File Not Found: " + currentSplit, e);
-				}
 			} catch (Throwable e) {
 
 				getContainingTask().handleAsyncException("Caught exception when processing split: " + currentSplit, e);

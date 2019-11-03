@@ -261,18 +261,6 @@ public class CoreOptions {
 				" directory.");
 
 	/**
-	 * Specifies if there was a bad file as stream and user removed it,
-	 * whether Flink throws FileNotFoundException or ignore.
-	 */
-	public static final ConfigOption<Boolean> FILESYSTEM_INPUT_IGNORE_FILE_NOT_FOUND_EXCEPTION =
-		key("fs.input.ignore-file-not-found-exception")
-			.defaultValue(false)
-			.withDescription("Specifies if there was a bad file as stream and user remove it, whether Flink should " +
-				"throw FileNotFoundException or ignore the exception. If this option is set to \"true\", " +
-				"Flink will ignore the exception and continue. If the option is set to \"false\"," +
-				"Flink will throw FileNotFoundException");
-
-	/**
 	 * The total number of input plus output connections that a file system for the given scheme may open.
 	 * Unlimited be default.
 	 */

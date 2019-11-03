@@ -58,6 +58,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.FileMissingSplitsMode;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.FileReadFunction;
@@ -966,7 +967,7 @@ public abstract class StreamExecutionEnvironment {
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 		format.setCharsetName(charsetName);
 
-		return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1, typeInfo);
+		return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1, typeInfo, FileMissingSplitsMode.FAIL_ON_MISSING_SPLITS);
 	}
 
 	/**
@@ -1039,7 +1040,7 @@ public abstract class StreamExecutionEnvironment {
 					"automatically determined. Please specify the TypeInformation of the produced type " +
 					"explicitly by using the 'createInput(InputFormat, TypeInformation)' method instead.");
 		}
-		return readFile(inputFormat, filePath, watchType, interval, typeInformation);
+		return readFile(inputFormat, filePath, watchType, interval, typeInformation, FileMissingSplitsMode.FAIL_ON_MISSING_SPLITS);
 	}
 
 	/**
@@ -1089,7 +1090,7 @@ public abstract class StreamExecutionEnvironment {
 					"automatically determined. Please specify the TypeInformation of the produced type " +
 					"explicitly by using the 'createInput(InputFormat, TypeInformation)' method instead.");
 		}
-		return readFile(inputFormat, filePath, watchType, interval, typeInformation);
+		return readFile(inputFormat, filePath, watchType, interval, typeInformation, FileMissingSplitsMode.FAIL_ON_MISSING_SPLITS);
 	}
 
 	/**
@@ -1153,13 +1154,14 @@ public abstract class StreamExecutionEnvironment {
 												String filePath,
 												FileProcessingMode watchType,
 												long interval,
-												TypeInformation<OUT> typeInformation) {
+												TypeInformation<OUT> typeInformation,
+												FileMissingSplitsMode missingSplitsMode) {
 
 		Preconditions.checkNotNull(inputFormat, "InputFormat must not be null.");
 		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(filePath), "The file path must not be null or blank.");
 
 		inputFormat.setFilePath(filePath);
-		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, interval);
+		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, interval, missingSplitsMode);
 	}
 
 	/**
@@ -1334,7 +1336,7 @@ public abstract class StreamExecutionEnvironment {
 			FileInputFormat<OUT> format = (FileInputFormat<OUT>) inputFormat;
 
 			source = createFileInput(format, typeInfo, "Custom File source",
-					FileProcessingMode.PROCESS_ONCE, -1);
+					FileProcessingMode.PROCESS_ONCE, -1, FileMissingSplitsMode.FAIL_ON_MISSING_SPLITS);
 		} else {
 			source = createInput(inputFormat, typeInfo, "Custom Source");
 		}
@@ -1353,12 +1355,14 @@ public abstract class StreamExecutionEnvironment {
 														TypeInformation<OUT> typeInfo,
 														String sourceName,
 														FileProcessingMode monitoringMode,
-														long interval) {
+														long interval,
+														FileMissingSplitsMode missingSplitsMode) {
 
 		Preconditions.checkNotNull(inputFormat, "Unspecified file input format.");
 		Preconditions.checkNotNull(typeInfo, "Unspecified output type information.");
 		Preconditions.checkNotNull(sourceName, "Unspecified name for the source.");
 		Preconditions.checkNotNull(monitoringMode, "Unspecified monitoring mode.");
+		Preconditions.checkNotNull(missingSplitsMode, "Unspecified missing splits mode.");
 
 		Preconditions.checkArgument(monitoringMode.equals(FileProcessingMode.PROCESS_ONCE) ||
 				interval >= ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL,
@@ -1369,7 +1373,7 @@ public abstract class StreamExecutionEnvironment {
 			new ContinuousFileMonitoringFunction<>(inputFormat, monitoringMode, getParallelism(), interval);
 
 		ContinuousFileReaderOperator<OUT> reader =
-			new ContinuousFileReaderOperator<>(inputFormat);
+			new ContinuousFileReaderOperator<>(inputFormat, missingSplitsMode);
 
 		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName)
 				.transform("Split Reader: " + sourceName, typeInfo, reader);
