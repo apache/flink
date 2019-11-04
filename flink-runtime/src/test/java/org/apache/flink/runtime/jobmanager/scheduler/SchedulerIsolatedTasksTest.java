@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
@@ -27,9 +28,9 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -42,13 +43,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.areAllDistinct;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getDummyTask;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -134,7 +138,6 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 	}
 
 	@Test
-	@Ignore
 	public void testScheduleWithDyingInstances() throws Exception {
 		final TaskManagerLocation taskManagerLocation1 = testingSlotProvider.addTaskManager(2);
 		final TaskManagerLocation taskManagerLocation2 = testingSlotProvider.addTaskManager(2);
@@ -156,7 +159,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 				assertTrue(slot.isAlive());
 			}
 
-			slot.releaseSlot();
+			runInMainThreadExecutor(slot::releaseSlot);
 		}
 
 		assertEquals(3, testingSlotProvider.getNumberOfAvailableSlots());
@@ -166,11 +169,11 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 		// cannot get another slot, since all instances are dead
 		try {
-			testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+			testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), Time.milliseconds(10L)).get();
 			fail("Scheduler served a slot from a dead instance");
 		}
 		catch (ExecutionException e) {
-			assertTrue(e.getCause() instanceof NoResourceAvailableException);
+			assertThat(ExceptionUtils.stripExecutionException(e), instanceOf(TimeoutException.class));
 		}
 		catch (Exception e) {
 			fail("Wrong exception type.");
