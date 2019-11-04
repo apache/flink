@@ -22,7 +22,7 @@ import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, ArrayCoder
+    TimeCoder, TimestampCoder, ArrayCoder, MapCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -97,6 +97,12 @@ class CodersTest(unittest.TestCase):
         element_coder = BigIntCoder()
         coder = ArrayCoder(element_coder)
         self.check_coder(coder, [1, 2, 3, None])
+
+    def test_map_coder(self):
+        key_coder = CharCoder()
+        value_coder = BigIntCoder()
+        coder = MapCoder(key_coder, value_coder)
+        self.check_coder(coder, {'flink': 1, 'pyflink': 2, 'coder': None})
 
 
 if __name__ == '__main__':
