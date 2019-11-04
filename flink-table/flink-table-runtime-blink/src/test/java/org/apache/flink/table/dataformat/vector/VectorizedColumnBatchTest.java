@@ -19,6 +19,7 @@
 package org.apache.flink.table.dataformat.vector;
 
 import org.apache.flink.table.dataformat.ColumnarRow;
+import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.vector.heap.HeapBooleanVector;
 import org.apache.flink.table.dataformat.vector.heap.HeapByteVector;
@@ -125,7 +126,7 @@ public class VectorizedColumnBatchTest {
 			public SqlTimestamp getTimestamp(int i, int precision) {
 				long microseconds = vector9[i];
 				return SqlTimestamp.fromEpochMillis(
-					microseconds / 1000, (int) (microseconds % 1000) * 1000);
+						microseconds / 1000, (int) (microseconds % 1000) * 1000);
 			}
 
 			@Override
@@ -181,7 +182,7 @@ public class VectorizedColumnBatchTest {
 					julianDay |= (bytes[i] & (0xff));
 				}
 				long millisecond =
-					(julianDay - DateTimeUtils.EPOCH_JULIAN) * DateTimeUtils.MILLIS_PER_DAY + nanoOfDay / 1000000;
+						(julianDay - DateTimeUtils.EPOCH_JULIAN) * DateTimeUtils.MILLIS_PER_DAY + nanoOfDay / 1000000;
 				int nanoOfMillisecond = (int) (nanoOfDay % 1000000);
 				return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
 			}
@@ -197,24 +198,62 @@ public class VectorizedColumnBatchTest {
 			}
 		};
 
-		VectorizedColumnBatch batch = new VectorizedColumnBatch(
-				new ColumnVector[]{col0, col1, col2, col3, col4, col5, col6, col7, col8, col9, col10});
+		long[] vector11 = new long[VECTOR_SIZE];
+		DecimalColumnVector col11 = new DecimalColumnVector() {
 
+			@Override
+			public boolean isNullAt(int i) {
+				return false;
+			}
+
+			@Override
+			public void reset() {
+			}
+
+			@Override
+			public Decimal getDecimal(int i, int precision, int scale) {
+				return Decimal.fromLong(vector11[i], precision, scale);
+			}
+		};
 		for (int i = 0; i < VECTOR_SIZE; i++) {
+			vector11[i] = i;
+		}
+
+		VectorizedColumnBatch batch = new VectorizedColumnBatch(new ColumnVector[]{
+				col0,
+				col1,
+				col2,
+				col3,
+				col4,
+				col5,
+				col6,
+				col7,
+				col8,
+				col9,
+				col10,
+				col11});
+		batch.setNumRows(VECTOR_SIZE);
+
+		for (int i = 0; i < batch.getNumRows(); i++) {
 			ColumnarRow row = new ColumnarRow(batch, i);
 			assertEquals(row.getBoolean(0), i % 2 == 0);
 			assertEquals(row.getString(1).toString(), String.valueOf(i));
 			assertEquals(row.getByte(2), (byte) i);
-			assertEquals(row.getDouble(3), (double) i, 0);
+			assertEquals(row.getDouble(3), i, 0);
 			assertEquals(row.getFloat(4), (float) i, 0);
 			assertEquals(row.getInt(5), i);
-			assertEquals(row.getLong(6), (long) i);
+			assertEquals(row.getLong(6), i);
 			assertEquals(row.getShort(7), (short) i);
 			assertEquals(row.getTimestamp(8, 3).getMillisecond(), i);
 			assertEquals(row.getTimestamp(9, 6).getMillisecond(), i);
 			assertEquals(row.getTimestamp(10, 9).getMillisecond(), i * 1000L + 123);
 			assertEquals(row.getTimestamp(10, 9).getNanoOfMillisecond(), 456789);
+			assertEquals(row.getDecimal(11, 10, 0).toUnscaledLong(), i);
 		}
+
+		assertEquals(VECTOR_SIZE, batch.getNumRows());
+		batch.reset();
+		assertEquals(0, batch.getNumRows());
 	}
 
 	@Test
