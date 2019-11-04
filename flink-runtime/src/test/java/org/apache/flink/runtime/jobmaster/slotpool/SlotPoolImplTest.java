@@ -127,7 +127,6 @@ public class SlotPoolImplTest extends TestLogger {
 				requestId,
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				timeout);
 			assertFalse(future.isDone());
 
@@ -171,13 +170,11 @@ public class SlotPoolImplTest extends TestLogger {
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				timeout);
 			CompletableFuture<LogicalSlot> future2 = scheduler.allocateSlot(
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				timeout);
 
 			assertFalse(future1.isDone());
@@ -230,7 +227,6 @@ public class SlotPoolImplTest extends TestLogger {
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				timeout);
 			assertFalse(future1.isDone());
 
@@ -253,7 +249,6 @@ public class SlotPoolImplTest extends TestLogger {
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				timeout);
 
 			// second allocation fulfilled by previous slot returning
@@ -283,7 +278,6 @@ public class SlotPoolImplTest extends TestLogger {
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				timeout);
 			assertFalse(future.isDone());
 
@@ -348,7 +342,6 @@ public class SlotPoolImplTest extends TestLogger {
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				timeout);
 
 			final SlotRequest slotRequest = slotRequestFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -357,7 +350,6 @@ public class SlotPoolImplTest extends TestLogger {
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				timeout);
 
 			final SlotOffer slotOffer = new SlotOffer(
@@ -418,7 +410,6 @@ public class SlotPoolImplTest extends TestLogger {
 				slotRequestId1,
 				scheduledUnit,
 				SlotProfile.noRequirements(),
-				true,
 				timeout);
 
 			// wait for the first slot request
@@ -428,7 +419,6 @@ public class SlotPoolImplTest extends TestLogger {
 				slotRequestId2,
 				scheduledUnit,
 				SlotProfile.noRequirements(),
-				true,
 				timeout);
 
 			// wait for the second slot request
@@ -757,7 +747,6 @@ public class SlotPoolImplTest extends TestLogger {
 			slotRequestId,
 			new DummyScheduledUnit(),
 			SlotProfile.noRequirements(),
-			true,
 			timeout);
 	}
 

@@ -69,7 +69,6 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 				new TestRestartStrategy(
 					1,
 					false))
-			.allowQueuedScheduling()
 			.build();
 
 		// enable the queued scheduling for the slot pool

@@ -284,8 +284,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 			SlotProviderStrategy.from(
 				ScheduleMode.EAGER,
 				slotProvider,
-				Time.seconds(10),
-				true),
+				Time.seconds(10)),
 			inputsLocationsRetriever);
 	}
 
@@ -323,7 +322,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 				SlotRequestId slotRequestId,
 				ScheduledUnit task,
 				SlotProfile slotProfile,
-				boolean allowQueued,
 				Time timeout) {
 
 			slotAllocationRequests.add(Tuple3.of(slotRequestId, task, slotProfile));

@@ -218,10 +218,7 @@ public class LegacySchedulerBatchSchedulingTest extends TestLogger {
 		final JobVertex jobVertex = new JobVertex("testing task");
 		jobVertex.setParallelism(parallelism);
 		jobVertex.setInvokableClass(NoOpInvokable.class);
-		final JobGraph jobGraph = new JobGraph(jobId, "test job", jobVertex);
-		jobGraph.setAllowQueuedScheduling(true);
-
-		return jobGraph;
+		return new JobGraph(jobId, "test job", jobVertex);
 	}
 
 	private static class GloballyTerminalJobStatusListener implements JobStatusListener {

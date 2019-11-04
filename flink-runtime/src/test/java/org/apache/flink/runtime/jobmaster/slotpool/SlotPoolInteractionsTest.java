@@ -98,7 +98,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 				new SlotRequestId(),
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				fastTimeout));
 
 			try {
@@ -127,7 +126,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				fastTimeout));
 
 			try {
@@ -179,7 +177,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 				requestId,
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				fastTimeout));
 
 			try {
@@ -226,7 +223,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
-				true,
 				fastTimeout));
 
 			try {
@@ -281,7 +277,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			// test the pending request is clear when timed out
 			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				new DummyScheduledUnit(),
-				true,
 				SlotProfile.noRequirements(),
 				fastTimeout));
 			try {

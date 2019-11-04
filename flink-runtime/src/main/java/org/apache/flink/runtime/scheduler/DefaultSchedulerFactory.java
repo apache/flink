@@ -81,8 +81,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
 			jobGraph.getScheduleMode(),
 			slotProvider,
-			slotRequestTimeout,
-			true);
+			slotRequestTimeout);
 
 		return new DefaultScheduler(
 			log,

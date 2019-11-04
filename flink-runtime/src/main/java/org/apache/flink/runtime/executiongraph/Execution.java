@@ -440,14 +440,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				locationPreferenceConstraint,
 				allPreviousExecutionGraphAllocationIds);
 
-			final CompletableFuture<Void> deploymentFuture;
-
-			if (allocationFuture.isDone() || slotProviderStrategy.isQueuedSchedulingAllowed()) {
-				deploymentFuture = allocationFuture.thenRun(ThrowingRunnable.unchecked(this::deploy));
-			} else {
-				deploymentFuture = FutureUtils.completedExceptionally(
-					new IllegalArgumentException("The slot allocation future has not been completed yet."));
-			}
+			final CompletableFuture<Void> deploymentFuture = allocationFuture.thenRun(ThrowingRunnable.unchecked(this::deploy));
 
 			deploymentFuture.whenComplete(
 				(Void ignored, Throwable failure) -> {

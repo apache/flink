@@ -117,7 +117,6 @@ class ProgrammedSlotProvider implements Scheduler {
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
-			boolean allowQueued,
 			Time allocationTimeout) {
 		JobVertexID vertexId = task.getTaskToExecute().getVertex().getJobvertexId();
 		int subtask = task.getTaskToExecute().getParallelSubtaskIndex();

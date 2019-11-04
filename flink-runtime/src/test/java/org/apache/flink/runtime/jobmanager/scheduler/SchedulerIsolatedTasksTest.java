@@ -26,6 +26,7 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -52,65 +53,6 @@ import static org.junit.Assert.fail;
  * Tests for scheduling individual tasks.
  */
 public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
-	
-	@Test
-	public void testScheduleImmediately() throws Exception {
-		assertEquals(0, testingSlotProvider.getNumberOfAvailableSlots());
-
-		testingSlotProvider.addTaskManager(2);
-		testingSlotProvider.addTaskManager(1);
-		testingSlotProvider.addTaskManager(2);
-		assertEquals(5, testingSlotProvider.getNumberOfAvailableSlots());
-
-		// schedule something into all slots
-		LogicalSlot s1 = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s2 = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s3 = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s4 = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s5 = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-
-		// the slots should all be different
-		assertTrue(areAllDistinct(s1, s2, s3, s4, s5));
-
-		try {
-			testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-			fail("Scheduler accepted scheduling request without available resource.");
-		}
-		catch (ExecutionException e) {
-			assertTrue(e.getCause() instanceof NoResourceAvailableException);
-		}
-
-		// release some slots again
-		s3.releaseSlot();
-		s4.releaseSlot();
-		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
-
-		// now we can schedule some more slots
-		LogicalSlot s6 = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-		LogicalSlot s7 = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-
-		assertTrue(areAllDistinct(s1, s2, s3, s4, s5, s6, s7));
-
-		// release all
-
-		s1.releaseSlot();
-		s2.releaseSlot();
-		s5.releaseSlot();
-		s6.releaseSlot();
-		s7.releaseSlot();
-
-		assertEquals(5, testingSlotProvider.getNumberOfAvailableSlots());
-
-		// check that slots that are released twice (accidentally) do not mess things up
-
-		s1.releaseSlot();
-		s2.releaseSlot();
-		s5.releaseSlot();
-		s6.releaseSlot();
-		s7.releaseSlot();
-
-		assertEquals(5, testingSlotProvider.getNumberOfAvailableSlots());
-	}
 
 	@Test
 	public void testScheduleQueueing() throws Exception {
@@ -134,7 +76,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		final AtomicBoolean errored = new AtomicBoolean(false);
 
 		for (int i = 0; i < NUM_TASKS_TO_SCHEDULE; i++) {
-			CompletableFuture<LogicalSlot> future = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), true, SlotProfile.noRequirements(), TestingUtils.infiniteTime());
+			CompletableFuture<LogicalSlot> future = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime());
 			future.thenAcceptAsync(
 				(LogicalSlot slot) -> {
 					synchronized (toRelease) {
@@ -179,19 +121,20 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		assertEquals("All slots should be available.", totalSlots,
 				testingSlotProvider.getNumberOfAvailableSlots());
 	}
-	
+
 	@Test
+	@Ignore
 	public void testScheduleWithDyingInstances() throws Exception {
 		final TaskManagerLocation taskManagerLocation1 = testingSlotProvider.addTaskManager(2);
 		final TaskManagerLocation taskManagerLocation2 = testingSlotProvider.addTaskManager(2);
 		final TaskManagerLocation taskManagerLocation3 = testingSlotProvider.addTaskManager(1);
 
 		List<LogicalSlot> slots = new ArrayList<>();
-		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
-		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
-		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
-		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
-		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
+		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
+		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
+		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
+		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
+		slots.add(testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get());
 
 		testingSlotProvider.releaseTaskManager(taskManagerLocation2.getResourceID());
 
@@ -212,7 +155,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 		// cannot get another slot, since all instances are dead
 		try {
-			testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+			testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 			fail("Scheduler served a slot from a dead instance");
 		}
 		catch (ExecutionException e) {
@@ -226,7 +169,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		// that all instances have vanished
 		assertEquals(0, testingSlotProvider.getNumberOfAvailableSlots());
 	}
-	
+
 	@Test
 	public void testSchedulingLocation() throws Exception {
 		final TaskManagerLocation taskManagerLocation1 = testingSlotProvider.addTaskManager(2);
@@ -234,7 +177,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		final TaskManagerLocation taskManagerLocation3 = testingSlotProvider.addTaskManager(2);
 
 		// schedule something on an arbitrary instance
-		LogicalSlot s1 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(new LocalTaskManagerLocation())), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s1 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(new LocalTaskManagerLocation())), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		// figure out how we use the location hints
 		ResourceID firstResourceId = s1.getTaskManagerLocation().getResourceID();
@@ -256,28 +199,28 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		TaskManagerLocation third = taskManagerLocations.get((index + 2) % taskManagerLocations.size());
 
 		// something that needs to go to the first instance again
-		LogicalSlot s2 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(s1.getTaskManagerLocation())), false, slotProfileForLocation(s1.getTaskManagerLocation()), TestingUtils.infiniteTime()).get();
+		LogicalSlot s2 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(s1.getTaskManagerLocation())), slotProfileForLocation(s1.getTaskManagerLocation()), TestingUtils.infiniteTime()).get();
 		assertEquals(first.getResourceID(), s2.getTaskManagerLocation().getResourceID());
 
 		// first or second --> second, because first is full
-		LogicalSlot s3 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, second)), false, slotProfileForLocation(first, second), TestingUtils.infiniteTime()).get();
+		LogicalSlot s3 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, second)), slotProfileForLocation(first, second), TestingUtils.infiniteTime()).get();
 		assertEquals(second.getResourceID(), s3.getTaskManagerLocation().getResourceID());
 
 		// first or third --> third (because first is full)
-		LogicalSlot s4 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), false, slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
-		LogicalSlot s5 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), false, slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
+		LogicalSlot s4 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
+		LogicalSlot s5 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
 		assertEquals(third.getResourceID(), s4.getTaskManagerLocation().getResourceID());
 		assertEquals(third.getResourceID(), s5.getTaskManagerLocation().getResourceID());
 
 		// first or third --> second, because all others are full
-		LogicalSlot s6 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), false, slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
+		LogicalSlot s6 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
 		assertEquals(second.getResourceID(), s6.getTaskManagerLocation().getResourceID());
 
 		// release something on the first and second instance
 		s2.releaseSlot();
 		s6.releaseSlot();
 
-		LogicalSlot s7 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), false, slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
+		LogicalSlot s7 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
 		assertEquals(first.getResourceID(), s7.getTaskManagerLocation().getResourceID());
 
 		assertEquals(1, testingSlotProvider.getNumberOfUnconstrainedAssignments());
