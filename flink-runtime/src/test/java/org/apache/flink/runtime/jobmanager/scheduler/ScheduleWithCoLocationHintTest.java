@@ -21,6 +21,8 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -39,6 +41,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
+
+	@Override
+	protected ComponentMainThreadExecutor getComponentMainThreadExecutor() {
+		return ComponentMainThreadExecutorServiceAdapter.forMainThread();
+	}
 
 	@Test
 	public void scheduleAllSharedAndCoLocated() throws Exception {
