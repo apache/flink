@@ -62,7 +62,7 @@ public class PartialDispatcherServices {
 	@Nonnull
 	private final HistoryServerArchivist historyServerArchivist;
 
-	@Nullable
+	@Nonnull
 	private final String metricQueryServiceAddress;
 
 	public PartialDispatcherServices(
@@ -75,7 +75,7 @@ public class PartialDispatcherServices {
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nullable String metricQueryServiceAddress) {
+			@Nonnull String metricQueryServiceAddress) {
 		this.configuration = configuration;
 		this.highAvailabilityServices = highAvailabilityServices;
 		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -133,7 +133,7 @@ public class PartialDispatcherServices {
 		return historyServerArchivist;
 	}
 
-	@Nullable
+	@Nonnull
 	public String getMetricQueryServiceAddress() {
 		return metricQueryServiceAddress;
 	}

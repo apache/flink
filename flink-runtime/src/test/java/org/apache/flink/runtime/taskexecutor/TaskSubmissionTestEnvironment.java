@@ -104,6 +104,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			TestingJobMasterGateway testingJobMasterGateway,
 			Configuration configuration,
 			List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners,
+			String metricQueryServiceAddress,
 			TestingRpcService testingRpcService,
 			ShuffleEnvironment<?, ?> shuffleEnvironment) throws Exception {
 
@@ -161,7 +162,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		taskExecutor = createTaskExecutor(taskManagerServices, configuration);
+		taskExecutor = createTaskExecutor(taskManagerServices, metricQueryServiceAddress, configuration);
 
 		taskExecutor.start();
 		taskExecutor.waitUntilStarted();
@@ -196,7 +197,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	}
 
 	@Nonnull
-	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, Configuration configuration) {
+	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, String metricQueryServiceAddress, Configuration configuration) {
 		return new TestingTaskExecutor(
 			testingRpcService,
 			TaskManagerConfiguration.fromConfiguration(configuration),
@@ -204,7 +205,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
+			metricQueryServiceAddress,
 			blobCacheService,
 			testingFatalErrorHandler,
 			new TaskExecutorPartitionTrackerImpl()
@@ -285,11 +286,17 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 		private Optional<ShuffleEnvironment<?, ?>> optionalShuffleEnvironment = Optional.empty();
 		private ResourceID resourceID = ResourceID.generate();
+		private String metricQueryServiceAddress;
 
 		private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners = new ArrayList<>();
 
 		public Builder(JobID jobId) {
 			this.jobId = jobId;
+		}
+
+		public Builder setMetricQueryServiceAddress(String metricQueryServiceAddress) {
+			this.metricQueryServiceAddress = metricQueryServiceAddress;
+			return this;
 		}
 
 		public Builder useRealNonMockShuffleEnvironment() {
@@ -359,6 +366,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 				jobMasterGateway,
 				configuration,
 				taskManagerActionListeners,
+				metricQueryServiceAddress,
 				testingRpcService,
 				network);
 		}

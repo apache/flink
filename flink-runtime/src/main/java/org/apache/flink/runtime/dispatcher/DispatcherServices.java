@@ -63,7 +63,7 @@ public class DispatcherServices {
 	@Nonnull
 	private final HistoryServerArchivist historyServerArchivist;
 
-	@Nullable
+	@Nonnull
 	private final String metricQueryServiceAddress;
 
 	@Nonnull
@@ -81,7 +81,7 @@ public class DispatcherServices {
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nullable String metricQueryServiceAddress,
+			@Nonnull String metricQueryServiceAddress,
 			@Nonnull JobManagerMetricGroup jobManagerMetricGroup,
 			@Nonnull JobGraphWriter jobGraphWriter,
 			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
@@ -144,7 +144,7 @@ public class DispatcherServices {
 		return historyServerArchivist;
 	}
 
-	@Nullable
+	@Nonnull
 	public String getMetricQueryServiceAddress() {
 		return metricQueryServiceAddress;
 	}

@@ -48,7 +48,7 @@ public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatche
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nullable String metricQueryServiceAddress,
+			@Nonnull String metricQueryServiceAddress,
 			@Nonnull JobGraphWriter jobGraphWriter) {
 		super(
 			configuration,

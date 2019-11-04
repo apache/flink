@@ -43,7 +43,7 @@ class TestingTaskExecutor extends TaskExecutor {
 			TaskManagerServices taskExecutorServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
-			@Nullable String metricQueryServiceAddress,
+			String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler,
 			TaskExecutorPartitionTracker partitionTracker) {

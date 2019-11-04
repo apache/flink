@@ -123,7 +123,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final HistoryServerArchivist historyServerArchivist;
 
-	@Nullable
 	private final String metricServiceQueryAddress;
 
 	private final Map<JobID, CompletableFuture<Void>> jobManagerTerminationFutures;
