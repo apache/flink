@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.factories.module;
 
+import org.apache.flink.table.descriptors.CoreModuleDescriptor;
 import org.apache.flink.table.descriptors.ModuleDescriptor;
-import org.apache.flink.table.descriptors.module.CoreModuleDescriptor;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.module.CoreModule;

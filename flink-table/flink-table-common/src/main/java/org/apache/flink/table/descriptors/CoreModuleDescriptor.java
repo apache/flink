@@ -16,19 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors.module;
+package org.apache.flink.table.descriptors;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
 
 /**
- * Validator for {@link CoreModuleDescriptor}.
+ * Module descriptor for {@link org.apache.flink.table.module.CoreModule}.
  */
-public class CoreModuleDescriptorValidator extends ModuleDescriptorValidator {
-	public static final String MODULE_TYPE_CORE = "core";
+public class CoreModuleDescriptor extends ModuleDescriptor {
+
+	public CoreModuleDescriptor() {
+		super(MODULE_TYPE_CORE);
+	}
 
 	@Override
-	public void validate(DescriptorProperties properties) {
-		super.validate(properties);
-		properties.validateValue(MODULE_TYPE, MODULE_TYPE_CORE, false);
+	protected Map<String, String> toModuleProperties() {
+		return Collections.unmodifiableMap(new HashMap<>());
 	}
 }

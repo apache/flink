@@ -25,8 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.module.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
-import static org.apache.flink.table.descriptors.module.ModuleDescriptorValidator.MODULE_TYPE;
+import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
  * Factory for {@link CoreModule}.

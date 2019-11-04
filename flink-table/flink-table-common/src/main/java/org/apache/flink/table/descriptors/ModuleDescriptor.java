@@ -23,11 +23,11 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.module.ModuleDescriptorValidator.MODULE_TYPE;
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Describes a module.
+ * Describes a {@link org.apache.flink.table.module.Module}.
  */
 @PublicEvolving
 public abstract class ModuleDescriptor extends DescriptorBase {
@@ -37,7 +37,7 @@ public abstract class ModuleDescriptor extends DescriptorBase {
 	/**
 	 * Constructs a {@link ModuleDescriptor}.
 	 *
-	 * @param type string that identifies this module
+	 * @param type string that identifies this catalog
 	 */
 	public ModuleDescriptor(String type) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(type), "type cannot be null or empty");
@@ -49,6 +49,7 @@ public abstract class ModuleDescriptor extends DescriptorBase {
 	public final Map<String, String> toProperties() {
 		final DescriptorProperties properties = new DescriptorProperties();
 		properties.putString(MODULE_TYPE, type);
+
 		properties.putProperties(toModuleProperties());
 		return properties.asMap();
 	}

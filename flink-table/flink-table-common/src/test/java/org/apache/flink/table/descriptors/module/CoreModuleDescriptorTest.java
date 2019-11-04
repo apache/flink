@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.descriptors.module;
 
+import org.apache.flink.table.descriptors.CoreModuleDescriptor;
+import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorTestBase;
 import org.apache.flink.table.descriptors.DescriptorValidator;
@@ -28,8 +30,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.module.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
-import static org.apache.flink.table.descriptors.module.ModuleDescriptorValidator.MODULE_TYPE;
+import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
  * Tests for the {@link CoreModuleDescriptor}.

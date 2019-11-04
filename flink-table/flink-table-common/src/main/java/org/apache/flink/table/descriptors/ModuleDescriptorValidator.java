@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors.module;
+package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.DescriptorValidator;
 
 /**
  * Validator for {@link ModuleDescriptor}.
