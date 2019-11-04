@@ -56,12 +56,12 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 	@Test
 	public void testScheduleQueueing() throws Exception {
-		final int NUM_INSTANCES = 50;
-		final int NUM_SLOTS_PER_INSTANCE = 3;
-		final int NUM_TASKS_TO_SCHEDULE = 2000;
+		final int numInstances = 50;
+		final int numSlotsPerInstance = 3;
+		final int numTasksToSchedule = 2000;
 
-		for (int i = 0; i < NUM_INSTANCES; i++) {
-			testingSlotProvider.addTaskManager((int) (Math.random() * NUM_SLOTS_PER_INSTANCE) + 1);
+		for (int i = 0; i < numInstances; i++) {
+			testingSlotProvider.addTaskManager((int) (Math.random() * numSlotsPerInstance) + 1);
 		}
 
 		final int totalSlots = testingSlotProvider.getNumberOfAvailableSlots();
@@ -75,7 +75,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		// flag to track errors in the concurrent thread
 		final AtomicBoolean errored = new AtomicBoolean(false);
 
-		for (int i = 0; i < NUM_TASKS_TO_SCHEDULE; i++) {
+		for (int i = 0; i < numTasksToSchedule; i++) {
 			CompletableFuture<LogicalSlot> future = testingSlotProvider.allocateSlot(new ScheduledUnit(getDummyTask()), SlotProfile.noRequirements(), TestingUtils.infiniteTime());
 			future.thenAcceptAsync(
 				(LogicalSlot slot) -> {
@@ -90,7 +90,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 		try {
 			int recycled = 0;
-			while (recycled < NUM_TASKS_TO_SCHEDULE) {
+			while (recycled < numTasksToSchedule) {
 				synchronized (toRelease) {
 					while (toRelease.isEmpty()) {
 						toRelease.wait();
