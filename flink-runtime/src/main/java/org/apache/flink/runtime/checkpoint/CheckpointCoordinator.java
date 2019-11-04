@@ -504,30 +504,7 @@ public class CheckpointCoordinator {
 
 		// make some eager pre-checks
 		synchronized (lock) {
-			// abort if the coordinator has been shutdown in the meantime
-			if (shutdown) {
-				throw new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
-			}
-
-			// Don't allow periodic checkpoint if scheduling has been disabled
-			if (isPeriodic && !periodicScheduling) {
-				throw new CheckpointException(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN);
-			}
-
-			// validate whether the checkpoint can be triggered, with respect to the limit of
-			// concurrent checkpoints, and the minimum time between checkpoints.
-			// these checks are not relevant for savepoints
-			if (!props.forceCheckpoint()) {
-				// sanity check: there should never be more than one trigger request queued
-				if (triggerRequestQueued) {
-					LOG.warn("Trying to trigger another checkpoint for job {} while one was queued already.", job);
-					throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
-				}
-
-				checkConcurrentCheckpoints();
-
-				checkMinPauseBetweenCheckpoints();
-			}
+			preCheckBeforeTriggeringCheckpoint(isPeriodic, props.forceCheckpoint());
 		}
 
 		// check if all tasks that we need to trigger are running.
@@ -629,21 +606,7 @@ public class CheckpointCoordinator {
 		try {
 			// re-acquire the coordinator-wide lock
 			synchronized (lock) {
-				// since we released the lock in the meantime, we need to re-check
-				// that the conditions still hold.
-				if (shutdown) {
-					throw new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
-				}
-				else if (!props.forceCheckpoint()) {
-					if (triggerRequestQueued) {
-						LOG.warn("Trying to trigger another checkpoint for job {} while one was queued already.", job);
-						throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
-					}
-
-					checkConcurrentCheckpoints();
-
-					checkMinPauseBetweenCheckpoints();
-				}
+				preCheckBeforeTriggeringCheckpoint(isPeriodic, props.forceCheckpoint());
 
 				LOG.info("Triggering checkpoint {} @ {} for job {}.", checkpointID, timestamp, job);
 
@@ -704,6 +667,10 @@ public class CheckpointCoordinator {
 				LOG.warn("Cannot dispose failed checkpoint storage location {}", checkpointStorageLocation, t2);
 			}
 
+			// rethrow the CheckpointException directly.
+			if (t instanceof CheckpointException) {
+				throw (CheckpointException) t;
+			}
 			throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
 		}
 	}
@@ -1514,5 +1481,28 @@ public class CheckpointCoordinator {
 
 	private boolean allPendingCheckpointsDiscarded() {
 		return pendingCheckpoints.values().stream().allMatch(PendingCheckpoint::isDiscarded);
+	}
+
+	private void preCheckBeforeTriggeringCheckpoint(boolean isPeriodic, boolean forceCheckpoint) throws CheckpointException {
+		// abort if the coordinator has been shutdown in the meantime
+		if (shutdown) {
+			throw new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
+		}
+
+		// Don't allow periodic checkpoint if scheduling has been disabled
+		if (isPeriodic && !periodicScheduling) {
+			throw new CheckpointException(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN);
+		}
+
+		if (!forceCheckpoint) {
+			if (triggerRequestQueued) {
+				LOG.warn("Trying to trigger another checkpoint for job {} while one was queued already.", job);
+				throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
+			}
+
+			checkConcurrentCheckpoints();
+
+			checkMinPauseBetweenCheckpoints();
+		}
 	}
 }
