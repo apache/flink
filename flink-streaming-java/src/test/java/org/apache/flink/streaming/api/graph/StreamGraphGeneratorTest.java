@@ -61,7 +61,6 @@ import java.util.List;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -472,39 +471,6 @@ public class StreamGraphGeneratorTest {
 	}
 
 	/**
-	 * Test iteration job when disable slot sharing, check slot sharing group and co-location group.
-	 */
-	@Test
-	public void testIterationWithSlotSharingDisabled() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
-		IterativeStream<Integer> iteration = source.iterate(3000);
-		iteration.name("iteration").setParallelism(2);
-		DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
-		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
-		iteration.closeWith(filter).print();
-
-		List<Transformation<?>> transformations = new ArrayList<>();
-		transformations.add(source.getTransformation());
-		transformations.add(iteration.getTransformation());
-		transformations.add(map.getTransformation());
-		transformations.add(filter.getTransformation());
-
-		StreamGraphGenerator generator = new StreamGraphGenerator(transformations, env.getConfig(), env.getCheckpointConfig());
-		generator.setSlotSharingEnabled(false);
-		StreamGraph streamGraph = generator.generate();
-
-		for (Tuple2<StreamNode, StreamNode> iterationPair : streamGraph.getIterationSourceSinkPairs()) {
-			assertNotNull(iterationPair.f0.getCoLocationGroup());
-			assertEquals(iterationPair.f0.getCoLocationGroup(), iterationPair.f1.getCoLocationGroup());
-
-			assertNotNull(iterationPair.f0.getSlotSharingGroup());
-			assertEquals(iterationPair.f0.getSlotSharingGroup(), iterationPair.f1.getSlotSharingGroup());
-		}
-	}
-
-	/**
 	 * Test slot sharing is enabled.
 	 */
 	@Test
@@ -525,31 +491,6 @@ public class StreamGraphGeneratorTest {
 		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
 		for (StreamNode streamNode : streamNodes) {
 			assertEquals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, streamNode.getSlotSharingGroup());
-		}
-	}
-
-	/**
-	 * Test slot sharing is disabled.
-	 */
-	@Test
-	public void testDisableSlotSharing() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
-		DataStream<Integer> mapDataStream = sourceDataStream.map(x -> x + 1);
-
-		final List<Transformation<?>> transformations = new ArrayList<>();
-		transformations.add(sourceDataStream.getTransformation());
-		transformations.add(mapDataStream.getTransformation());
-
-		// all stream nodes would have no group if slot sharing group is disabled
-		StreamGraph streamGraph = new StreamGraphGenerator(
-				transformations, env.getConfig(), env.getCheckpointConfig())
-			.setSlotSharingEnabled(false)
-			.generate();
-
-		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
-		for (StreamNode streamNode : streamNodes) {
-			assertNull(streamNode.getSlotSharingGroup());
 		}
 	}
 
