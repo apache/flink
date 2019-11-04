@@ -39,7 +39,7 @@ public class BatchAbstractTestBase {
 			new MiniClusterResourceConfiguration.Builder()
 					.setConfiguration(getConfiguration())
 					.setNumberTaskManagers(1)
-					.setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+					.setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM * 2)
 					.build());
 
 	@ClassRule
