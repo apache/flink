@@ -55,7 +55,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
@@ -259,19 +262,11 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		DeserializationRuntimeConverter valueConverter = createConverter(valueType);
 		DeserializationRuntimeConverter keyConverter = createConverter(keyType);
 
-		return (mapper, jsonNode) -> {
-			// ObjectNode stores Map<String, JsonNode> internally, so we can only get String keys.
-			Iterator<String> fieldNames = jsonNode.fieldNames();
-			Map<Object, Object> result = new HashMap<>();
-			while (fieldNames.hasNext()) {
-				String stringKey = fieldNames.next();
-				JsonNode keyNode = TextNode.valueOf(stringKey);
-				Object key = keyConverter.convert(mapper, keyNode);
-				Object value = valueConverter.convert(mapper, jsonNode.get(stringKey));
-				result.put(key, value);
-			}
-			return result;
-		};
+		return (mapper, jsonNode) -> StreamSupport.stream(
+			Spliterators.spliteratorUnknownSize(jsonNode.fieldNames(), Spliterator.ORDERED), false)
+			.collect(Collectors.toMap(
+				s -> keyConverter.convert(mapper, TextNode.valueOf(s)),
+				s -> valueConverter.convert(mapper, jsonNode.get(s))));
 	}
 
 	private DeserializationRuntimeConverter createByteArrayConverter() {
