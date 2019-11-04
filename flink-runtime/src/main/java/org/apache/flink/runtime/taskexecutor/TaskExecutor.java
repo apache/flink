@@ -166,7 +166,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final BlobCacheService blobCacheService;
 
 	/** The address to metric query service on this Task Manager. */
-	@Nullable
 	private final String metricQueryServiceAddress;
 
 	// --------- TaskManager services --------
@@ -240,7 +239,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			TaskManagerServices taskExecutorServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
-			@Nullable String metricQueryServiceAddress,
+			String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler,
 			TaskExecutorPartitionTracker partitionTracker) {
@@ -256,7 +255,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.partitionTracker = partitionTracker;
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.blobCacheService = checkNotNull(blobCacheService);
-		this.metricQueryServiceAddress = metricQueryServiceAddress;
+		this.metricQueryServiceAddress = checkNotNull(metricQueryServiceAddress);
 
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
 		this.jobManagerTable = taskExecutorServices.getJobManagerTable();

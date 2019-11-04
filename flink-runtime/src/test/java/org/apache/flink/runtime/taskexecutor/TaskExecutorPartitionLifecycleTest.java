@@ -56,6 +56,8 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -104,6 +106,10 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	private static final TestingRpcService RPC = new TestingRpcService();
 
+	private static final MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+
+	private String metricQueryServiceAddress;
+
 	private final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 	private final SettableLeaderRetrievalService jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
 	private final SettableLeaderRetrievalService resourceManagerLeaderRetriever = new SettableLeaderRetrievalService();
@@ -114,6 +120,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	@Before
 	public void setup() {
+		metricRegistry.startQueryService(RPC, new ResourceID("mqs"));
+		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
 	}
@@ -126,6 +134,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	@AfterClass
 	public static void shutdownClass() throws ExecutionException, InterruptedException {
 		RPC.stopService().get();
+		metricRegistry.shutdown().get();
 	}
 
 	@Test
@@ -155,7 +164,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = PartitionTestUtils.createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
 		final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
 
-		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker);
+		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker, metricQueryServiceAddress);
 
 		try {
 			taskExecutor.start();
@@ -309,7 +318,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl();
 
-		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker);
+		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker, metricQueryServiceAddress);
 
 		final CompletableFuture<SlotReport> initialSlotReportFuture = new CompletableFuture<>();
 
@@ -429,7 +438,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		}
 	}
 
-	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker) throws IOException {
+	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker, String metricQueryServiceAddress) throws IOException {
 		return new TestingTaskExecutor(
 			RPC,
 			TaskManagerConfiguration.fromConfiguration(new Configuration()),
@@ -437,7 +446,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(10_000L, 30_000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
+			metricQueryServiceAddress,
 			new BlobCacheService(
 				new Configuration(),
 				new VoidBlobStore(),

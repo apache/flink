@@ -73,6 +73,8 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -185,6 +187,8 @@ public class TaskExecutorTest extends TestLogger {
 
 	private static final Time timeout = Time.milliseconds(10000L);
 
+	private MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+
 	private TestingRpcService rpc;
 
 	private BlobCacheService dummyBlobCacheService;
@@ -206,6 +210,8 @@ public class TaskExecutorTest extends TestLogger {
 	private SettableLeaderRetrievalService jobManagerLeaderRetriever;
 
 	private NettyShuffleEnvironment nettyShuffleEnvironment;
+
+	private String metricQueryServiceAddress;
 
 	@Before
 	public void setup() throws IOException {
@@ -231,6 +237,9 @@ public class TaskExecutorTest extends TestLogger {
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
 
 		nettyShuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
+
+		metricRegistry.startQueryService(rpc, new ResourceID("mqs"));
+		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 	}
 
 	@After
@@ -252,6 +261,10 @@ public class TaskExecutorTest extends TestLogger {
 
 		if (nettyShuffleEnvironment != null) {
 			nettyShuffleEnvironment.close();
+		}
+
+		if (metricRegistry != null) {
+			metricRegistry.shutdown();
 		}
 
 		testingFatalErrorHandler.rethrowError();
@@ -346,7 +359,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TestingTaskExecutor taskManager = createTestingTaskExecutor(taskManagerServices, heartbeatServices);
+		final TestingTaskExecutor taskManager = createTestingTaskExecutor(taskManagerServices, heartbeatServices, metricQueryServiceAddress);
 
 		try {
 			taskManager.start();
@@ -427,7 +440,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices, heartbeatServices);
+		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices, heartbeatServices, metricQueryServiceAddress);
 
 		try {
 			taskManager.start();
@@ -1190,7 +1203,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices, heartbeatServices);
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices, heartbeatServices, metricQueryServiceAddress);
 
 		try {
 			taskExecutor.start();
@@ -1319,7 +1332,8 @@ public class TaskExecutorTest extends TestLogger {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.ANY), timerService);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
-		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices, new HeartbeatServices(10L, 10L));
+
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices, new HeartbeatServices(10L, 10L), metricQueryServiceAddress);
 
 		taskExecutor.start();
 
@@ -1697,6 +1711,7 @@ public class TaskExecutorTest extends TestLogger {
 			new Builder(jobId)
 				.setConfiguration(config)
 				.setLocalCommunication(false)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			try {
@@ -1711,7 +1726,7 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Test(timeout = 10000L)
 	public void testTerminationOnFatalError() throws Throwable {
-		try (TaskSubmissionTestEnvironment env = new Builder(jobId).build()) {
+		try (TaskSubmissionTestEnvironment env = new Builder(jobId).setMetricQueryServiceAddress(metricQueryServiceAddress).build()) {
 			String testExceptionMsg = "Test exception of fatal error.";
 
 			env.getTaskExecutor().onFatalError(new Exception(testExceptionMsg));
@@ -1905,10 +1920,10 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Nonnull
 	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
-		return createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
+		return createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES, metricQueryServiceAddress);
 	}
 
-	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
+	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices, String metricQueryServiceAddress) {
 		return new TaskExecutor(
 			rpc,
 			TaskManagerConfiguration.fromConfiguration(configuration),
@@ -1916,17 +1931,17 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
+			metricQueryServiceAddress,
 			dummyBlobCacheService,
 			testingFatalErrorHandler,
 			new TaskExecutorPartitionTrackerImpl());
 	}
 
 	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) {
-		return createTestingTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
+		return createTestingTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES, metricQueryServiceAddress);
 	}
 
-	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
+	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices, String metricQueryServiceAddress) {
 		return new TestingTaskExecutor(
 			rpc,
 			TaskManagerConfiguration.fromConfiguration(configuration),
@@ -1934,7 +1949,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
+			metricQueryServiceAddress,
 			dummyBlobCacheService,
 			testingFatalErrorHandler,
 			new TaskExecutorPartitionTrackerImpl());
