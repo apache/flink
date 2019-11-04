@@ -174,6 +174,13 @@ public class SqlTimestamp implements Comparable<SqlTimestamp> {
 		return new SqlTimestamp(millisecond, nanoOfMillisecond);
 	}
 
+	/**
+	 * Apache Calcite and Flink's planner use the number of milliseconds since epoch to represent a
+	 * Timestamp type compactly if the number of digits of fractional seconds is between 0 - 3.
+	 *
+	 * @param precision the number of digits of fractional seconds
+	 * @return true if precision is less than or equal to 3, false otherwise
+	 */
 	public static boolean isCompact(int precision) {
 		return precision <= 3;
 	}

@@ -29,6 +29,9 @@ import java.io.IOException;
 
 /**
  * Serializer of {@link SqlTimestamp}.
+ *
+ * <p>A {@link SqlTimestamp} instance can be compactly serialized as a long value(= millisecond) when
+ * the Timestamp type is compact. Otherwise it's serialized as a long value and a int value.
  */
 public class SqlTimestampSerializer extends TypeSerializer<SqlTimestamp> {
 
@@ -67,7 +70,7 @@ public class SqlTimestampSerializer extends TypeSerializer<SqlTimestamp> {
 
 	@Override
 	public int getLength() {
-		return ((precision <= 3) ? 8 : 12);
+		return ((SqlTimestamp.isCompact(precision)) ? 8 : 12);
 	}
 
 	@Override

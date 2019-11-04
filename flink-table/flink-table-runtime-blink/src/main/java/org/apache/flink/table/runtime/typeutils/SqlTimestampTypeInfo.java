@@ -32,7 +32,7 @@ public class SqlTimestampTypeInfo extends TypeInformation<SqlTimestamp> {
 
 	private final int precision;
 
-	protected SqlTimestampTypeInfo(int precision) {
+	public SqlTimestampTypeInfo(int precision) {
 		this.precision = precision;
 	}
 
