@@ -76,7 +76,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				new JobVertexID(),
 				slotSharingGroupId,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -115,7 +114,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				new JobVertexID(),
 				new SlotSharingGroupId(),
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -158,7 +156,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				jobVertexId1,
 				slotSharingGroupId,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -167,7 +164,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				jobVertexId2,
 				slotSharingGroupId,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -181,7 +177,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				jobVertexId1,
 				slotSharingGroupId,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -190,7 +185,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				jobVertexId2,
 				slotSharingGroupId,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -260,7 +254,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				jobVertexId1,
 				slotSharingGroupId1,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -269,7 +262,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				jobVertexId2,
 				slotSharingGroupId1,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -278,7 +270,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				jobVertexId3,
 				slotSharingGroupId2,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -287,7 +278,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				jobVertexId4,
 				slotSharingGroupId2,
 				null),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -362,7 +352,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 						jobVertexId1,
 						slotSharingGroupId,
 						null),
-				true,
 				SlotProfile.noLocality(largeRequestResource),
 				TestingUtils.infiniteTime());
 
@@ -387,7 +376,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 						jobVertexId2,
 						slotSharingGroupId,
 						null),
-				true,
 				SlotProfile.noLocality(largeRequestResource),
 				TestingUtils.infiniteTime());
 		assertFalse(logicalSlotFuture2.isDone());
@@ -398,7 +386,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 						jobVertexId3,
 						slotSharingGroupId,
 						null),
-				true,
 				SlotProfile.noLocality(smallRequestResource),
 				TestingUtils.infiniteTime());
 		assertTrue(logicalSlotFuture3.isDone());
@@ -450,7 +437,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 						jobVertexId1,
 						slotSharingGroupId,
 						null),
-				true,
 				SlotProfile.noLocality(rp1),
 				TestingUtils.infiniteTime());
 
@@ -459,7 +445,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 						jobVertexId2,
 						slotSharingGroupId,
 						null),
-				true,
 				SlotProfile.noLocality(rp2),
 				TestingUtils.infiniteTime());
 
@@ -468,7 +453,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 						jobVertexId3,
 						slotSharingGroupId,
 						null),
-				true,
 				SlotProfile.noLocality(rp3),
 				TestingUtils.infiniteTime());
 

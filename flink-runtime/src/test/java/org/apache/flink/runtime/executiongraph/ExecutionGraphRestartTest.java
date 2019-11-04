@@ -46,7 +46,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -64,7 +63,6 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -565,7 +563,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				.setSlotProvider(slots)
 				.setAllocationTimeout(Time.minutes(60))
 				.setScheduleMode(ScheduleMode.EAGER)
-				.setAllowQueuedScheduling(true)
 				.build();
 
 			eg.start(mainThreadExecutor);
@@ -632,52 +629,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testRestartWithSlotSharingAndNotEnoughResources() throws Exception {
-		final int numRestarts = 10;
-		final int parallelism = 20;
-
-		try (SlotPool slotPool = createSlotPoolImpl()) {
-			final Scheduler scheduler = createSchedulerWithSlots(
-				parallelism - 1, slotPool, new LocalTaskManagerLocation());
-
-			final SlotSharingGroup sharingGroup = new SlotSharingGroup();
-
-			final JobVertex source = new JobVertex("source");
-			source.setInvokableClass(NoOpInvokable.class);
-			source.setParallelism(parallelism);
-			source.setSlotSharingGroup(sharingGroup);
-
-			final JobVertex sink = new JobVertex("sink");
-			sink.setInvokableClass(NoOpInvokable.class);
-			sink.setParallelism(parallelism);
-			sink.setSlotSharingGroup(sharingGroup);
-			sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
-
-			TestRestartStrategy restartStrategy =
-				new TestRestartStrategy(numRestarts, false);
-
-			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
-				.setSlotProvider(scheduler)
-				.setRestartStrategy(restartStrategy)
-				.setScheduleMode(ScheduleMode.EAGER)
-				.build();
-
-			eg.start(mainThreadExecutor);
-			eg.scheduleForExecution();
-
-			// the last suppressed restart is also counted
-			assertEquals(numRestarts + 1, eg.getNumberOfRestarts());
-
-			assertEquals(JobStatus.FAILED, eg.getState());
-
-			final Throwable t = eg.getFailureCause();
-			if (!(t instanceof NoResourceAvailableException)) {
-				ExceptionUtils.rethrowException(t, t.getMessage());
-			}
-		}
-	}
-
 	/**
 	 * Tests that the {@link ExecutionGraph} can handle failures while
 	 * being in the RESTARTING state.
@@ -689,7 +640,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final ExecutionGraph executionGraph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(createJobGraph())
 			.setRestartStrategy(restartStrategy)
 			.setSlotProvider(new TestingSlotProvider(ignored -> new CompletableFuture<>()))
-			.allowQueuedScheduling()
 			.build();
 
 		executionGraph.start(mainThreadExecutor);

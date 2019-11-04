@@ -425,10 +425,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		ClusterSpecification clusterSpecification,
 		JobGraph jobGraph,
 		boolean detached) throws ClusterDeploymentException {
-
-		// this is required because the slots are allocated lazily
-		jobGraph.setAllowQueuedScheduling(true);
-
 		try {
 			return deployInternal(
 				clusterSpecification,

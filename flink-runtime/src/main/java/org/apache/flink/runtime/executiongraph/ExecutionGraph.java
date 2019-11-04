@@ -268,10 +268,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	// ------ Configuration of the Execution -------
 
-	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
-	 * to deploy them immediately. */
-	private final boolean allowQueuedScheduling;
-
 	/** The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
 	 * from results than need to be materialized. */
@@ -440,8 +436,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				jobInformation.getJobId(),
 				NettyShuffleMaster.INSTANCE,
 				ignored -> Optional.empty()),
-			ScheduleMode.LAZY_FROM_SOURCES,
-			false);
+			ScheduleMode.LAZY_FROM_SOURCES);
 	}
 
 	public ExecutionGraph(
@@ -459,16 +454,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
 			ShuffleMaster<?> shuffleMaster,
 			JobMasterPartitionTracker partitionTracker,
-			ScheduleMode scheduleMode,
-			boolean allowQueuedScheduling) throws IOException {
+			ScheduleMode scheduleMode) throws IOException {
 
 		this.jobInformation = Preconditions.checkNotNull(jobInformation);
 
 		this.blobWriter = Preconditions.checkNotNull(blobWriter);
 
 		this.scheduleMode = checkNotNull(scheduleMode);
-
-		this.allowQueuedScheduling = allowQueuedScheduling;
 
 		this.jobInformationOrBlobKey = BlobWriter.serializeAndTryOffload(jobInformation, jobInformation.getJobId(), blobWriter);
 
@@ -478,8 +470,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.slotProviderStrategy = SlotProviderStrategy.from(
 			scheduleMode,
 			slotProvider,
-			allocationTimeout,
-			allowQueuedScheduling);
+			allocationTimeout);
 		this.userClassLoader = Preconditions.checkNotNull(userClassLoader, "userClassLoader");
 
 		this.tasks = new ConcurrentHashMap<>(16);
@@ -539,10 +530,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 */
 	public int getNumberOfExecutionJobVertices() {
 		return this.verticesInCreationOrder.size();
-	}
-
-	public boolean isQueuedSchedulingAllowed() {
-		return this.allowQueuedScheduling;
 	}
 
 	public SchedulingTopology<?, ?> getSchedulingTopology() {

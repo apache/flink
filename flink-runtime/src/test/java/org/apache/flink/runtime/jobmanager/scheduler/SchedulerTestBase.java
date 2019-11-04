@@ -235,9 +235,8 @@ public class SchedulerTestBase extends TestLogger {
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
-			boolean allowQueued,
 			Time allocationTimeout) {
-			return scheduler.allocateSlot(task, allowQueued, slotProfile, allocationTimeout).thenApply(
+			return scheduler.allocateSlot(task, slotProfile, allocationTimeout).thenApply(
 				(LogicalSlot logicalSlot) -> {
 					switch (logicalSlot.getLocality()) {
 						case LOCAL:

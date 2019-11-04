@@ -141,7 +141,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		testVertex.setInvokableClass(NoOpInvokable.class);
 		jobId = new JobID();
 		jobGraph = new JobGraph(jobId, "testJob", testVertex);
-		jobGraph.setAllowQueuedScheduling(true);
 
 		configuration = new Configuration();
 		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());

@@ -180,8 +180,7 @@ public class ExecutionGraphBuilder {
 					partitionReleaseStrategyFactory,
 					shuffleMaster,
 					partitionTracker,
-					jobGraph.getScheduleMode(),
-					jobGraph.getAllowQueuedScheduling());
+					jobGraph.getScheduleMode());
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

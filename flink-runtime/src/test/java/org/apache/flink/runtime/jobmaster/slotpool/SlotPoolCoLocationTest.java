@@ -98,7 +98,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				jobVertexId1,
 				slotSharingGroupId,
 				coLocationConstraint1),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -107,7 +106,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				jobVertexId2,
 				slotSharingGroupId,
 				coLocationConstraint2),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -116,7 +114,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				jobVertexId2,
 				slotSharingGroupId,
 				coLocationConstraint1),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -125,7 +122,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				jobVertexId1,
 				slotSharingGroupId,
 				coLocationConstraint2),
-			true,
 			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
@@ -196,7 +192,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 						jobVertexId1,
 						slotSharingGroupId,
 						coLocationConstraint1),
-				true,
 				SlotProfile.noLocality(rp1),
 				TestingUtils.infiniteTime());
 
@@ -205,7 +200,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 						jobVertexId2,
 						slotSharingGroupId,
 						coLocationConstraint1),
-				true,
 				SlotProfile.noLocality(rp2),
 				TestingUtils.infiniteTime());
 
@@ -214,7 +208,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 						jobVertexId3,
 						slotSharingGroupId,
 						coLocationConstraint1),
-				true,
 				SlotProfile.noLocality(rp3),
 				TestingUtils.infiniteTime());
 
@@ -274,7 +267,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 						jobVertexId1,
 						slotSharingGroupId,
 						coLocationConstraint1),
-				true,
 				SlotProfile.noLocality(rp1),
 				TestingUtils.infiniteTime());
 
@@ -283,7 +275,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 						jobVertexId2,
 						slotSharingGroupId,
 						coLocationConstraint1),
-				true,
 				SlotProfile.noLocality(rp2),
 				TestingUtils.infiniteTime());
 
@@ -304,7 +295,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 						jobVertexId3,
 						slotSharingGroupId,
 						coLocationConstraint1),
-				true,
 				SlotProfile.noLocality(rp3),
 				TestingUtils.infiniteTime());
 

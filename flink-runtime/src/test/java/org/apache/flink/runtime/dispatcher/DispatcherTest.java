@@ -164,7 +164,6 @@ public class DispatcherTest extends TestLogger {
 		final JobVertex testVertex = new JobVertex("testVertex");
 		testVertex.setInvokableClass(NoOpInvokable.class);
 		jobGraph = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
-		jobGraph.setAllowQueuedScheduling(true);
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
 		heartbeatServices = new HeartbeatServices(1000L, 10000L);
@@ -322,7 +321,6 @@ public class DispatcherTest extends TestLogger {
 		secondVertex.setInvokableClass(NoOpInvokable.class);
 
 		JobGraph jobGraphWithTwoVertices = new JobGraph(TEST_JOB_ID, "twoVerticesJob", firstVertex, secondVertex);
-		jobGraphWithTwoVertices.setAllowQueuedScheduling(true);
 
 		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraphWithTwoVertices, TIMEOUT);
 

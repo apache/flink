@@ -627,16 +627,6 @@ public class ExecutionGraphTestUtils {
 			return this;
 		}
 
-		public TestingExecutionGraphBuilder allowQueuedScheduling() {
-			jobGraph.setAllowQueuedScheduling(true);
-			return this;
-		}
-
-		public TestingExecutionGraphBuilder setAllowQueuedScheduling(boolean allowQueuedScheduling) {
-			jobGraph.setAllowQueuedScheduling(allowQueuedScheduling);
-			return this;
-		}
-
 		public TestingExecutionGraphBuilder setScheduleMode(ScheduleMode scheduleMode) {
 			jobGraph.setScheduleMode(scheduleMode);
 			return this;

@@ -115,8 +115,6 @@ public class LocalExecutor extends PlanExecutor {
 				baseConfiguration,
 				1);
 
-		jobGraph.setAllowQueuedScheduling(true);
-
 		try (final JobExecutorService executorService = createJobExecutorService(jobGraph,
 				baseConfiguration)) {
 			return executorService.executeJobBlocking(jobGraph);

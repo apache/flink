@@ -1079,16 +1079,15 @@ public class JobMasterTest extends TestLogger {
 		source.setInputSplitSource(inputSplitSource);
 		source.setInvokableClass(AbstractInvokable.class);
 
-		final JobGraph inputSplitjobGraph = new JobGraph(source);
-		inputSplitjobGraph.setAllowQueuedScheduling(true);
+		final JobGraph inputSplitJobGraph = new JobGraph(source);
 
 		final ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
-		inputSplitjobGraph.setExecutionConfig(executionConfig);
+		inputSplitJobGraph.setExecutionConfig(executionConfig);
 
 		final JobMaster jobMaster = createJobMaster(
 			configuration,
-			inputSplitjobGraph,
+			inputSplitJobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
@@ -1118,7 +1117,7 @@ public class JobMasterTest extends TestLogger {
 			waitUntilAllExecutionsAreScheduled(jobMasterGateway);
 
 			// fail the first execution to trigger a failover
-			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(inputSplitjobGraph.getJobID(), initialAttemptId, ExecutionState.FAILED)).get();
+			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(inputSplitJobGraph.getJobID(), initialAttemptId, ExecutionState.FAILED)).get();
 
 			// wait until the job has been recovered
 			waitUntilAllExecutionsAreScheduled(jobMasterGateway);
@@ -2119,10 +2118,7 @@ public class JobMasterTest extends TestLogger {
 
 		consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph(producer, consumer);
-		jobGraph.setAllowQueuedScheduling(true);
-
-		return jobGraph;
+		return new JobGraph(producer, consumer);
 	}
 
 	private File createSavepoint(long savepointId) throws IOException {
@@ -2346,9 +2342,7 @@ public class JobMasterTest extends TestLogger {
 		final JobVertex jobVertex = new JobVertex("Test vertex");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph(jobVertex);
-		jobGraph.setAllowQueuedScheduling(true);
-		return jobGraph;
+		return new JobGraph(jobVertex);
 	}
 
 	private static final class DummyCheckpointStorageLocation implements CompletedCheckpointStorageLocation {

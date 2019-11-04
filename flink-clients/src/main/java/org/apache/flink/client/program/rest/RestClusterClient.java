@@ -278,9 +278,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	 */
 	@Override
 	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
-		// we have to enable queued scheduling because slot will be allocated lazily
-		jobGraph.setAllowQueuedScheduling(true);
-
 		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
 			try {
 				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");

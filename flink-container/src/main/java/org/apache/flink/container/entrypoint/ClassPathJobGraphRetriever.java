@@ -101,7 +101,6 @@ class ClassPathJobGraphRetriever implements JobGraphRetriever {
 				configuration,
 				defaultParallelism,
 				jobId);
-			jobGraph.setAllowQueuedScheduling(true);
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 
 			return jobGraph;
