@@ -184,7 +184,7 @@ public class HiveShimV120 extends HiveShimV111 {
 			Set<String> names = (Set<String>) method.invoke(null);
 
 			return names.stream()
-				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n)))
+				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n).get()))
 				.collect(Collectors.toSet());
 		} catch (Exception ex) {
 			throw new CatalogException("Failed to invoke FunctionRegistry.getFunctionNames()", ex);
@@ -193,17 +193,23 @@ public class HiveShimV120 extends HiveShimV111 {
 
 	@Override
 	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
-		FunctionInfo functionInfo = getFunctionInfo(name);
+		Optional<FunctionInfo> functionInfo = getFunctionInfo(name);
 
-		return isBuiltInFunctionInfo(functionInfo) ? Optional.of(functionInfo) : Optional.empty();
+		if (functionInfo.isPresent() && isBuiltInFunctionInfo(functionInfo.get())) {
+			return functionInfo;
+		} else {
+			return Optional.empty();
+		}
 	}
 
-	private FunctionInfo getFunctionInfo(String name) {
+	private Optional<FunctionInfo> getFunctionInfo(String name) {
 		try {
-			return FunctionRegistry.getFunctionInfo(name);
+			return Optional.of(FunctionRegistry.getFunctionInfo(name));
 		} catch (SemanticException e) {
 			throw new FlinkHiveException(
 				String.format("Failed getting function info for %s", name), e);
+		} catch (NullPointerException e) {
+			return Optional.empty();
 		}
 	}
 

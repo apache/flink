@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 import org.apache.flink.table.types.DataType;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
@@ -35,12 +36,18 @@ import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VER
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_4;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Test for {@link HiveModule}.
  */
 public class HiveModuleTest {
+	@BeforeClass
+	public static void init() {
+		assumeTrue(HIVE_120_OR_LATER);
+	}
+
 	@Test
 	public void testNumberOfBuiltinFunctions() {
 		String hiveVersion = HiveShimLoader.getHiveVersion();
@@ -58,7 +65,6 @@ public class HiveModuleTest {
 
 	@Test
 	public void testHiveBuiltInFunction() {
-		assumeTrue(HIVE_120_OR_LATER);
 		FunctionDefinition fd = new HiveModule(HiveShimLoader.getHiveVersion()).getFunctionDefinition("reverse").get();
 
 		ScalarFunction func = ((ScalarFunctionDefinition) fd).getScalarFunction();
@@ -74,5 +80,10 @@ public class HiveModuleTest {
 		udf.open(null);
 
 		assertEquals("cba", udf.eval("abc"));
+	}
+
+	@Test
+	public void testNonExistFunction() {
+		assertFalse(new HiveModule(HiveShimLoader.getHiveVersion()).getFunctionDefinition("nonexist").isPresent());
 	}
 }
