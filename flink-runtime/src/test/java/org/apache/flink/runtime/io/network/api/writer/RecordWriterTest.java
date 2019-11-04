@@ -449,9 +449,8 @@ public class RecordWriterTest {
 		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
 
 		try {
-			// record writer is available because of initial available local pool
+			// record writer is available because of initial available global pool
 			assertTrue(recordWriter.isAvailable().isDone());
-			assertEquals(recordWriter.AVAILABLE, recordWriter.isAvailable());
 
 			// request one buffer from the local pool to make it unavailable afterwards
 			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder();

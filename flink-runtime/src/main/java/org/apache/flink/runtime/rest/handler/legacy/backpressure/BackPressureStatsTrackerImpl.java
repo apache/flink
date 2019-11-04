@@ -68,7 +68,7 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 	private static final Logger LOG = LoggerFactory.getLogger(BackPressureStatsTrackerImpl.class);
 
 	/** Maximum stack trace depth for samples. */
-	static final int MAX_STACK_TRACE_DEPTH = 3;
+	static final int MAX_STACK_TRACE_DEPTH = 8;
 
 	/** Expected class name for back pressure indicating stack trace element. */
 	static final String EXPECTED_CLASS_NAME = "org.apache.flink.runtime.io.network.buffer.LocalBufferPool";
