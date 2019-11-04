@@ -264,7 +264,6 @@ public class SchedulerTestBase extends TestLogger {
 		}
 	}
 
-
 	/**
 	 * Test implementation of scheduler that offers a bit more introspection.
 	 */
