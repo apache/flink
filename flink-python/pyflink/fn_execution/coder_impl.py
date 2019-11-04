@@ -103,6 +103,40 @@ class ArrayCoderImpl(StreamCoderImpl):
         return 'ArrayCoderImpl[%s]' % repr(self._elem_coder)
 
 
+class MapCoderImpl(StreamCoderImpl):
+
+    def __init__(self, key_coder, value_coder):
+        self._key_coder = key_coder
+        self._value_coder = value_coder
+
+    def encode_to_stream(self, map_value, out_stream, nested):
+        out_stream.write_bigendian_int32(len(map_value))
+        for key in map_value:
+            self._key_coder.encode_to_stream(key, out_stream, nested)
+            value = map_value[key]
+            if value is None:
+                out_stream.write_byte(True)
+            else:
+                out_stream.write_byte(False)
+                self._value_coder.encode_to_stream(map_value[key], out_stream, nested)
+
+    def decode_from_stream(self, in_stream, nested):
+        size = in_stream.read_bigendian_int32()
+        map_value = {}
+        for _ in range(size):
+            key = self._key_coder.decode_from_stream(in_stream, nested)
+            is_null = not not in_stream.read_byte()
+            if is_null:
+                map_value[key] = None
+            else:
+                value = self._value_coder.decode_from_stream(in_stream, nested)
+                map_value[key] = value
+        return map_value
+
+    def __repr__(self):
+        return 'MapCoderImpl[%s]' % ' : '.join([str(self._key_coder), str(self._value_coder)])
+
+
 class BigIntCoderImpl(StreamCoderImpl):
     def encode_to_stream(self, value, out_stream, nested):
         out_stream.write_bigendian_int64(value)

@@ -27,12 +27,14 @@ import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.BinaryMapSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
@@ -47,6 +49,7 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -200,6 +203,13 @@ public final class PythonTypeUtils {
 		}
 
 		@Override
+		public TypeSerializer visit(MapType mapType) {
+			TypeSerializer<?> keyTypeSerializer = mapType.getKeyType().accept(this);
+			TypeSerializer<?> valueTypeSerializer = mapType.getValueType().accept(this);
+			return new MapSerializer<>(keyTypeSerializer, valueTypeSerializer);
+		}
+
+		@Override
 		public TypeSerializer visit(RowType rowType) {
 			final TypeSerializer[] fieldTypeSerializers = rowType.getFields()
 				.stream()
@@ -255,6 +265,15 @@ public final class PythonTypeUtils {
 			LogicalType elementType = arrayType.getElementType();
 			TypeSerializer elementTypeSerializer = elementType.accept(this);
 			return new BaseArraySerializer(elementType, elementTypeSerializer);
+		}
+
+		@Override
+		public TypeSerializer visit(MapType mapType) {
+			LogicalType keyType = mapType.getKeyType();
+			LogicalType valueType = mapType.getValueType();
+			TypeSerializer<?> keyTypeSerializer = keyType.accept(this);
+			TypeSerializer<?> valueTypeSerializer = valueType.accept(this);
+			return new BinaryMapSerializer<>(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
 		}
 	}
 
@@ -386,6 +405,21 @@ public final class PythonTypeUtils {
 
 			FlinkFnApi.Schema.FieldType elementFieldType = arrayType.getElementType().accept(this);
 			builder.setCollectionElementType(elementFieldType);
+			return builder.build();
+		}
+
+		@Override
+		public FlinkFnApi.Schema.FieldType visit(MapType mapType) {
+			FlinkFnApi.Schema.FieldType.Builder builder =
+				FlinkFnApi.Schema.FieldType.newBuilder()
+					.setTypeName(FlinkFnApi.Schema.TypeName.MAP)
+					.setNullable(mapType.isNullable());
+
+			FlinkFnApi.Schema.MapType.Builder mapBuilder =
+				FlinkFnApi.Schema.MapType.newBuilder()
+					.setKeyType(mapType.getKeyType().accept(this))
+					.setValueType(mapType.getValueType().accept(this));
+			builder.setMapType(mapBuilder.build());
 			return builder.build();
 		}
 
