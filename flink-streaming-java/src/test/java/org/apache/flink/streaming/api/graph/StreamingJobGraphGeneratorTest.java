@@ -28,7 +28,6 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -65,7 +64,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -532,60 +530,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 				assertNull(jobVertex.getCoLocationGroup());
 			}
 		}
-
-		assertNotNull(iterationSourceCoLocationGroup);
-		assertNotNull(iterationSinkCoLocationGroup);
-		assertEquals(iterationSourceCoLocationGroup, iterationSinkCoLocationGroup);
-	}
-
-	/**
-	 * Test slot sharing group is enabled or disabled for iteration.
-	 */
-	@Test
-	public void testDisableSlotSharingForIteration() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
-		IterativeStream<Integer> iteration = source.iterate(3000);
-		iteration.name("iteration").setParallelism(2);
-		DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
-		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
-		iteration.closeWith(filter).print();
-
-		List<Transformation<?>> transformations = new ArrayList<>();
-		transformations.add(source.getTransformation());
-		transformations.add(iteration.getTransformation());
-		transformations.add(map.getTransformation());
-		transformations.add(filter.getTransformation());
-		// when slot sharing group is disabled
-		// all job vertices except iteration vertex would have no slot sharing group
-		// iteration vertices would be set slot sharing group automatically
-		StreamGraphGenerator generator = new StreamGraphGenerator(transformations, env.getConfig(), env.getCheckpointConfig());
-		generator.setSlotSharingEnabled(false);
-
-		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(generator.generate());
-
-		SlotSharingGroup iterationSourceSlotSharingGroup = null;
-		SlotSharingGroup iterationSinkSlotSharingGroup = null;
-
-		CoLocationGroup iterationSourceCoLocationGroup = null;
-		CoLocationGroup iterationSinkCoLocationGroup = null;
-
-		for (JobVertex jobVertex : jobGraph.getVertices()) {
-			if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SOURCE_NAME_PREFIX)) {
-				iterationSourceSlotSharingGroup = jobVertex.getSlotSharingGroup();
-				iterationSourceCoLocationGroup = jobVertex.getCoLocationGroup();
-			} else if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SINK_NAME_PREFIX)) {
-				iterationSinkSlotSharingGroup = jobVertex.getSlotSharingGroup();
-				iterationSinkCoLocationGroup = jobVertex.getCoLocationGroup();
-			} else {
-				assertNull(jobVertex.getSlotSharingGroup());
-			}
-		}
-
-		assertNotNull(iterationSourceSlotSharingGroup);
-		assertNotNull(iterationSinkSlotSharingGroup);
-		assertEquals(iterationSourceSlotSharingGroup, iterationSinkSlotSharingGroup);
 
 		assertNotNull(iterationSourceCoLocationGroup);
 		assertNotNull(iterationSinkCoLocationGroup);
