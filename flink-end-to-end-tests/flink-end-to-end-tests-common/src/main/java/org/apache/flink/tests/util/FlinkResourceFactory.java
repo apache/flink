@@ -18,6 +18,10 @@
 
 package org.apache.flink.tests.util;
 
+/**
+ * Flink resource factory to create {@link FlinkResource}. it will be a {@link LocalStandaloneFlinkResource} or
+ * {@link DistributionFlinkResource}, depends on the JVM property -De2e.flink.mode setting.
+ */
 public class FlinkResourceFactory {
 
 	public static final String E2E_FLINK_MODE = "e2e.flink.mode";

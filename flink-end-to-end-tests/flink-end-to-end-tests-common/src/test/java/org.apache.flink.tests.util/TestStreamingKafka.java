@@ -37,41 +37,48 @@ import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Test the Kafka streaming connectors.
+ */
 public class TestStreamingKafka {
 	private static final Logger LOG = LoggerFactory.getLogger(TestStreamingKafka.class);
 
 	private FlinkResource flinkResource;
-	protected KafkaDistribution kafkaDist;
+	protected KafkaResource kafkaResource;
 	protected Path jarFile;
+	private Path testDataDir;
 
 	@Before
 	public void setUp() throws IOException {
 		// Prepare the Kafka environment.
 		this.prepareKafkaEnv();
-		Preconditions.checkNotNull(kafkaDist);
+		Preconditions.checkNotNull(kafkaResource);
 		Preconditions.checkNotNull(jarFile);
+		Preconditions.checkNotNull(testDataDir);
+
 		this.flinkResource = FlinkResourceFactory.create();
 
 		// Initialize the Kafka Distribution directory.
-		if (!Files.exists(kafkaDist.getTestDataDir())) {
-			Files.createDirectory(kafkaDist.getTestDataDir());
+		if (!Files.exists(testDataDir)) {
+			Files.createDirectory(testDataDir);
 		}
 
 		// Start the Flink cluster
 		flinkResource.startCluster(2);
 
 		// Prepare the Kafka binary package and configurations
-		kafkaDist.setUp();
+		kafkaResource.setUp();
 
 		// Start the Kafka cluster.
-		kafkaDist.start();
+		kafkaResource.start();
 	}
 
 	protected void prepareKafkaEnv() {
-		this.kafkaDist = new KafkaDistribution(
+		this.testDataDir = End2EndUtil.getTestDataDir();
+		this.kafkaResource = KafkaResourceFactory.create(
 			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
 			"kafka_2.11-2.1.1.tgz",
-			End2EndUtil.getTestDataDir()
+			testDataDir
 		);
 		this.jarFile = End2EndUtil
 			.getEnd2EndModuleDir()
@@ -80,10 +87,10 @@ public class TestStreamingKafka {
 
 	@After
 	public void tearDown() throws IOException {
-		kafkaDist.shutdown();
+		kafkaResource.shutdown();
 		flinkResource.stopCluster();
-		if (Files.exists(kafkaDist.getTestDataDir())) {
-			FileUtils.deleteDirectory(kafkaDist.getTestDataDir().toFile());
+		if (Files.exists(testDataDir)) {
+			FileUtils.deleteDirectory(testDataDir.toFile());
 		}
 	}
 
@@ -94,8 +101,8 @@ public class TestStreamingKafka {
 
 		// Initialize the kafka topics
 		LOG.info("Create the Kafka topics: {}, {}", testInputTopic, testOutputTopic);
-		kafkaDist.createTopic(1, 1, testInputTopic);
-		kafkaDist.createTopic(1, 1, testOutputTopic);
+		kafkaResource.createTopic(1, 1, testInputTopic);
+		kafkaResource.createTopic(1, 1, testOutputTopic);
 
 		String[] extraArgs = new String[]{
 			"--input-topic", testInputTopic,
@@ -111,7 +118,7 @@ public class TestStreamingKafka {
 
 		flinkResource.createFlinkClient()
 			.action(FlinkClient.Action.RUN)
-			.dettached(true)
+			.isDettached(true)
 			.extraArgs(extraArgs)
 			.jarFile(this.jarFile)
 			.createProcess()
@@ -126,26 +133,26 @@ public class TestStreamingKafka {
 			"elephant,9,54867"
 		};
 		for (String message : inputMessages) {
-			kafkaDist.sendMessage(testInputTopic, message);
+			kafkaResource.sendMessage(testInputTopic, message);
 		}
 
-		List<String> messages = kafkaDist.readMessage(6, testOutputTopic, "elephant_consumer");
+		List<String> messages = kafkaResource.readMessage(6, testOutputTopic, "elephant_consumer");
 		List<String> results = messages.stream().filter(msg -> msg.contains("elephant")).collect(Collectors.toList());
 		verifyOutput(Lists.newArrayList("elephant,5,45218", "elephant,14,54867"), results);
 
-		messages = kafkaDist.readMessage(6, testOutputTopic, "squirrel_consumer");
+		messages = kafkaResource.readMessage(6, testOutputTopic, "squirrel_consumer");
 		results = messages.stream().filter(msg -> msg.contains("squirrel")).collect(Collectors.toList());
 		verifyOutput(Lists.newArrayList("squirrel,12,46213", "squirrel,34,52444"), results);
 
-		messages = kafkaDist.readMessage(6, testOutputTopic, "bee_consumer");
+		messages = kafkaResource.readMessage(6, testOutputTopic, "bee_consumer");
 		results = messages.stream().filter(msg -> msg.contains("bee")).collect(Collectors.toList());
 		verifyOutput(Lists.newArrayList("bee,3,51348", "bee,13,53412"), results);
 
 		// Repartition the topic.
-		kafkaDist.modifyNumPartitions(testInputTopic, 2);
+		kafkaResource.setNumPartitions(testInputTopic, 2);
 
 		// Verify the topic partition
-		Assert.assertEquals(2, kafkaDist.getNumPartitions(testInputTopic));
+		Assert.assertEquals(2, kafkaResource.getNumPartitions(testInputTopic));
 
 		// Send some more messages to Kafka
 		String[] moreMessages = new String[]{
@@ -155,24 +162,24 @@ public class TestStreamingKafka {
 			"squirrel,18,66413"
 		};
 		for (String message : moreMessages) {
-			kafkaDist.sendMessage(testInputTopic, message);
+			kafkaResource.sendMessage(testInputTopic, message);
 		}
 		// verify that our assumption that the new partition actually has written messages is correct
-		Assert.assertTrue(kafkaDist.getPartitionEndOffset(testInputTopic, 1) > 0);
+		Assert.assertTrue(kafkaResource.getPartitionEndOffset(testInputTopic, 1) > 0);
 
-		messages = kafkaDist.readMessage(4, testOutputTopic, "elephant_consumer");
+		messages = kafkaResource.readMessage(4, testOutputTopic, "elephant_consumer");
 		results = messages.stream().filter(msg -> msg.contains("elephant")).collect(Collectors.toList());
 		verifyOutput(Lists.newArrayList("elephant,27,64213"), results);
 
-		messages = kafkaDist.readMessage(4, testOutputTopic, "squirrel_consumer");
+		messages = kafkaResource.readMessage(4, testOutputTopic, "squirrel_consumer");
 		results = messages.stream().filter(msg -> msg.contains("squirrel")).collect(Collectors.toList());
 		verifyOutput(Lists.newArrayList("squirrel,52,66413"), results);
 
-		messages = kafkaDist.readMessage(4, testOutputTopic, "bee_consumer");
+		messages = kafkaResource.readMessage(4, testOutputTopic, "bee_consumer");
 		results = messages.stream().filter(msg -> msg.contains("bee")).collect(Collectors.toList());
 		verifyOutput(Lists.newArrayList("bee,18,65647"), results);
 
-		messages = kafkaDist.readMessage(10, testOutputTopic, "giraffe_consumer");
+		messages = kafkaResource.readMessage(10, testOutputTopic, "giraffe_consumer");
 		results = messages.stream().filter(msg -> msg.contains("giraffe")).collect(Collectors.toList());
 		verifyOutput(Lists.newArrayList("giraffe,9,65555"), results);
 	}

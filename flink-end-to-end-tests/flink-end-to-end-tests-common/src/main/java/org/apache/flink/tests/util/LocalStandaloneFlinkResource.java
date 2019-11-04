@@ -34,33 +34,29 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 
+/**
+ * Flink resource to manage the local standalone flink cluster, such as setUp, start, stop clusters and so on.
+ */
 public class LocalStandaloneFlinkResource implements FlinkResource {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResource.class);
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private final List<AutoClosablePath> filesToDelete = new ArrayList<>(4);
-
-	private final Path opt;
-	private final Path lib;
 	private final Path conf;
-	private final Path log;
 	private final Path bin;
-	private final Path flinkConfYaml;
 
 	public LocalStandaloneFlinkResource(String distDirProperty) {
 		final Path flinkDir = Paths.get(distDirProperty);
 		this.bin = flinkDir.resolve("bin");
-		this.opt = flinkDir.resolve("opt");
-		this.lib = flinkDir.resolve("lib");
 		this.conf = flinkDir.resolve("conf");
-		this.log = flinkDir.resolve("log");
-		this.flinkConfYaml = this.conf.resolve("flink-conf.yaml");
 	}
 
+	/**
+	 * Read the value of `rest.port` part in <distDir>/conf/flink-conf.yaml.
+	 *
+	 * @return the rest port which standalone Flink cluster will listen.
+	 */
 	private int getRestPort() {
 		Configuration config = GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString());
 		return config.getInteger("rest.port", 8081);

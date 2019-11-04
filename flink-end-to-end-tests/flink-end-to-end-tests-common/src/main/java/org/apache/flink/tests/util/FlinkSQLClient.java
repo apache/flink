@@ -28,6 +28,10 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Wrap the <flink-dist-dir>/bin/sql-client.sh as the FlinkSQLClient so that we can submit the SQL job in the end-to-end
+ * test.
+ */
 public class FlinkSQLClient {
 
 	private final List<String> jars = new ArrayList<>();
@@ -88,6 +92,15 @@ public class FlinkSQLClient {
 		return this;
 	}
 
+	/**
+	 * Search the jar files under the given end-to-end directory based on the regular expression, if the expression
+	 * match the file name of the jar, then it will be included in the return list.
+	 *
+	 * @param e2eDir            directory to search
+	 * @param regularExpression the regular expression.
+	 * @return the matching jar paths.
+	 * @throws IOException if any IO error happen.
+	 */
 	public static List<Path> findSQLJarPaths(String e2eDir, String regularExpression) throws IOException {
 		Pattern p = Pattern.compile(regularExpression);
 		return Files.list(Paths.get(e2eDir))
@@ -95,6 +108,14 @@ public class FlinkSQLClient {
 			.collect(Collectors.toList());
 	}
 
+	/**
+	 * Search the unique jar file under the given end-to-end directory.
+	 *
+	 * @param e2eDir  directory to search.
+	 * @param pattern the regular expression.
+	 * @return the unique matching jar path.
+	 * @throws IOException if no jar found or multiple jar files found.
+	 */
 	public static Path findSQLJarPath(String e2eDir, String pattern) throws IOException {
 		List<Path> paths = findSQLJarPaths(e2eDir, pattern);
 		if (paths.size() == 0) {

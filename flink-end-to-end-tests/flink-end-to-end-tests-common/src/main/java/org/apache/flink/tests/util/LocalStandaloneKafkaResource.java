@@ -30,20 +30,23 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-public class KafkaDistribution {
-	private static final Logger LOG = LoggerFactory.getLogger(KafkaDistribution.class);
+/**
+ * Kafka resource to manage the local standalone kafka cluster, such as setUp, start, stop clusters and so on.
+ */
+public class LocalStandaloneKafkaResource implements KafkaResource {
+	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneKafkaResource.class);
 
 	private final String fileURL;
 	private final String packageName;
 	private final Path testDataDir;
 
-	public KafkaDistribution(String fileURL, String packageName, Path testDataDir) {
+	public LocalStandaloneKafkaResource(String fileURL, String packageName, Path testDataDir) {
 		this.fileURL = fileURL;
 		this.packageName = packageName;
 		this.testDataDir = testDataDir;
 	}
 
-	public Path getTestDataDir(){
+	public Path getTestDataDir() {
 		return this.testDataDir;
 	}
 
@@ -57,6 +60,7 @@ public class KafkaDistribution {
 		return testDataDir + "/" + extractKafkaDir;
 	}
 
+	@Override
 	public void setUp() throws IOException {
 		String kafkaTarGz = testDataDir + "/kafka.tgz";
 
@@ -100,6 +104,7 @@ public class KafkaDistribution {
 		LOG.info("setup kafka cluster");
 	}
 
+	@Override
 	public void start() throws IOException {
 		// Start the zookeeper.
 		String[] args = new String[]{getKafkaDir() + "/bin/zookeeper-server-start.sh",
@@ -132,6 +137,7 @@ public class KafkaDistribution {
 		}
 	}
 
+	@Override
 	public void createTopic(int replicationFactor, int partitions, String topics) throws IOException {
 		String[] args = new String[]{getKafkaDir() + "/bin/kafka-topics.sh",
 			"--create",
@@ -150,6 +156,7 @@ public class KafkaDistribution {
 	 * @param message content of message.
 	 * @throws IOException
 	 */
+	@Override
 	public void sendMessage(String topic, String message) throws IOException {
 		String[] pipelineArgs = new String[]{
 			"echo", message, "|",
@@ -165,6 +172,7 @@ public class KafkaDistribution {
 		AutoClosableProcess.create(commands).runBlocking();
 	}
 
+	@Override
 	public List<String> readMessage(int maxMessage, String topic, String groupId) throws IOException {
 		String[] args = new String[]{
 			getKafkaDir() + "/bin/kafka-console-consumer.sh",
@@ -180,7 +188,8 @@ public class KafkaDistribution {
 		return lineFetcher.getLines();
 	}
 
-	public void modifyNumPartitions(String topic, int num) throws IOException {
+	@Override
+	public void setNumPartitions(String topic, int num) throws IOException {
 		String[] args = new String[]{
 			getKafkaDir() + "/bin/kafka-topics.sh",
 			"--alter",
@@ -191,6 +200,7 @@ public class KafkaDistribution {
 		AutoClosableProcess.create(args).runBlocking();
 	}
 
+	@Override
 	public int getNumPartitions(String topic) throws IOException {
 		String[] pipelineCommands = new String[]{
 			getKafkaDir() + "/bin/kafka-topics.sh",
@@ -210,6 +220,7 @@ public class KafkaDistribution {
 		return Integer.parseInt(lineFetcher.toString());
 	}
 
+	@Override
 	public int getPartitionEndOffset(String topic, int partition) throws IOException {
 		String[] args = new String[]{
 			getKafkaDir() + "/bin/kafka-run-class.sh",
@@ -224,6 +235,7 @@ public class KafkaDistribution {
 		return Integer.parseInt(lineFetcher.toString().split(":")[2]);
 	}
 
+	@Override
 	public void shutdown() throws IOException {
 		LOG.info("Try to shutdown the zookeeper cluster in kafka.");
 		AutoClosableProcess.killJavaProcess("QuorumPeerMain", false);

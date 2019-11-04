@@ -24,7 +24,7 @@ public class TestSQLClientKafka010 extends TestSQLClientKafka {
 	protected void prepareKafkaEnv() {
 		this.flinkResource = FlinkResourceFactory.create();
 		this.testDataDir = End2EndUtil.getTestDataDir();
-		this.kafkaDist = new KafkaDistribution(
+		this.kafkaResource = KafkaResourceFactory.create(
 			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
 			"kafka_2.11-2.1.1.tgz",
 			this.testDataDir

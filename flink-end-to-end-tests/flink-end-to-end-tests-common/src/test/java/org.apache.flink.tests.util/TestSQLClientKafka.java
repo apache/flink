@@ -48,6 +48,9 @@ import java.util.Map;
 import static org.apache.flink.tests.util.FlinkSQLClient.findSQLJarPath;
 import static org.apache.flink.util.StringUtils.byteToHexString;
 
+/**
+ * Test the Kafka SQL connectors.
+ */
 public class TestSQLClientKafka {
 	private static final Logger LOG = LoggerFactory.getLogger(TestSQLClientKafka.class);
 
@@ -57,7 +60,7 @@ public class TestSQLClientKafka {
 	private static final String KAFKA_JSON_SOURCE_SCHEMA_YAML = "kafka_json_source_schema.yaml";
 
 	protected FlinkResource flinkResource;
-	protected KafkaDistribution kafkaDist;
+	protected KafkaResource kafkaResource;
 	protected Path testDataDir;
 	protected String kafkaSQLVersion;
 	protected String kafkaSQLJarVersion;
@@ -68,7 +71,7 @@ public class TestSQLClientKafka {
 	protected void prepareKafkaEnv() {
 		this.flinkResource = FlinkResourceFactory.create();
 		this.testDataDir = End2EndUtil.getTestDataDir();
-		this.kafkaDist = new KafkaDistribution(
+		this.kafkaResource = KafkaResourceFactory.create(
 			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
 			"kafka_2.11-2.1.1.tgz",
 			this.testDataDir
@@ -85,7 +88,7 @@ public class TestSQLClientKafka {
 		// Check all the variables.
 		Preconditions.checkNotNull(flinkResource);
 		Preconditions.checkNotNull(testDataDir);
-		Preconditions.checkNotNull(kafkaDist);
+		Preconditions.checkNotNull(kafkaResource);
 		Preconditions.checkNotNull(kafkaSQLVersion);
 		Preconditions.checkNotNull(kafkaSQLJarVersion);
 		Preconditions.checkNotNull(testDataDir);
@@ -102,14 +105,14 @@ public class TestSQLClientKafka {
 		flinkResource.startCluster(2);
 
 		// Setup and start the Kafka cluster.
-		kafkaDist.setUp();
-		kafkaDist.start();
+		kafkaResource.setUp();
+		kafkaResource.start();
 	}
 
 	@After
 	public void tearDown() throws IOException {
 		try {
-			kafkaDist.shutdown();
+			kafkaResource.shutdown();
 		} catch (IOException e) {
 			LOG.info("Failed to shutdown the kafka cluster.", e);
 		}
@@ -138,7 +141,7 @@ public class TestSQLClientKafka {
 	public void testKafka() throws Exception {
 		// Create topic and send message
 		String testJsonTopic = "test-json";
-		kafkaDist.createTopic(1, 1, testJsonTopic);
+		kafkaResource.createTopic(1, 1, testJsonTopic);
 		String[] messages = new String[]{
 			"'{\"timestamp\": \"2018-03-12T08:00:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}'",
 			"'{\"timestamp\": \"2018-03-12T08:10:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}'",
@@ -150,11 +153,11 @@ public class TestSQLClientKafka {
 			"'{\"timestamp\": \"2018-03-12T10:40:00Z\", \"user\": \"Bob\", \"event\": { \"type\": \"ERROR\", \"message\": \"This is an error.\"}}'"
 		};
 		for (String message : messages) {
-			kafkaDist.sendMessage(testJsonTopic, message);
+			kafkaResource.sendMessage(testJsonTopic, message);
 		}
 
 		// Create topic test-avro
-		kafkaDist.createTopic(1, 1, "test-avro");
+		kafkaResource.createTopic(1, 1, "test-avro");
 
 		// Initialize the SQL client session configuration file
 		Map<String, String> varsMap = new HashMap<>();

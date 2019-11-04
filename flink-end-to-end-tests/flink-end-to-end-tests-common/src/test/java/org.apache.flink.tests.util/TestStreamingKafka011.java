@@ -22,7 +22,7 @@ public class TestStreamingKafka011 extends TestStreamingKafka {
 
 	@Override
 	protected void prepareKafkaEnv() {
-		this.kafkaDist = new KafkaDistribution(
+		this.kafkaResource = KafkaResourceFactory.create(
 			"https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.11-2.1.1.tgz",
 			"kafka_2.11-2.1.1.tgz",
 			End2EndUtil.getTestDataDir()

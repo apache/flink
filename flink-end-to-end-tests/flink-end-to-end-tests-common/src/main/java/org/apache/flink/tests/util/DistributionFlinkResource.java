@@ -25,6 +25,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * The distribution flink resource which the end-to-end tests will connect to. We left the cluster starting and stopping
+ * job as dummy because usually we will connect to a external flink cluster and have no permission to start or stop the
+ * jobManager and taskManager.
+ */
 public class DistributionFlinkResource implements FlinkResource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DistributionFlinkResource.class);
@@ -69,7 +74,7 @@ public class DistributionFlinkResource implements FlinkResource {
 	}
 
 	private void logDoNothingInfo(String action) {
-		LOG.info("The {}() will do nothing because we are in distribute mode by set JVM property -D{}={}",
+		LOG.info("The {}() will do nothing because we are in distribute mode by setting JVM property -D{}={}",
 			action,
 			FlinkResourceFactory.E2E_FLINK_MODE,
 			FlinkResourceFactory.E2E_FLINK_MODE_DISTRIBUTED);

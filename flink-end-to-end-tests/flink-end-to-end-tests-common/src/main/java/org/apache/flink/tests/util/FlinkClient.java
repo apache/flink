@@ -25,6 +25,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Wrap the <flink-dist-dir>/bin/flink command as a Java FlinkClient class so that we can submit the flink job in the
+ * end-to-end tests.
+ */
 public class FlinkClient {
 
 	public enum Action {
@@ -52,7 +56,7 @@ public class FlinkClient {
 		return this;
 	}
 
-	public FlinkClient dettached(boolean dettached) {
+	public FlinkClient isDettached(boolean dettached) {
 		this.dettached = dettached;
 		return this;
 	}

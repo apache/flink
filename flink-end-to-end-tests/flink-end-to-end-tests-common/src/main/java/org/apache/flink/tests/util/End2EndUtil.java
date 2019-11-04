@@ -22,10 +22,16 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * The common end-to-end utility methods.
+ */
 public class End2EndUtil {
 
 	private static final String END_TO_END_TESTS_MODULE = "/flink-end-to-end-tests/";
 
+	/**
+	 * Get the path of <flink-root-dir>/flink-end-to-end-tests based on the class loading.
+	 */
 	public static Path getEnd2EndModuleDir() {
 		URL url = End2EndUtil.class.getResource("End2EndUtil.class");
 		assert url != null;
@@ -35,6 +41,12 @@ public class End2EndUtil {
 		return Paths.get(path.substring(0, index), END_TO_END_TESTS_MODULE);
 	}
 
+	/**
+	 * Generate a test directory path under the <flink-root-dir>/flink-end-to-end-tests/target, each time with a
+	 * different directory.
+	 *
+	 * @return the test directory to put the temporary end-to-end test data.
+	 */
 	public static Path getTestDataDir() {
 		return getEnd2EndModuleDir().resolve("target").resolve("temp-test-directory-" + System.nanoTime());
 	}

@@ -22,6 +22,9 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Test cases for {@link FlinkResourceFactory}.
+ */
 public class TestFlinkResourceFactory {
 
 	@After
