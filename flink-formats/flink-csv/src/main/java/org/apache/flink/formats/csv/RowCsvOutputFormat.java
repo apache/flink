@@ -44,6 +44,10 @@ import static org.apache.flink.formats.csv.CsvRowSerializationSchema.createRowRu
  * Row {@link OutputFormat} that serializes {@link Row}s to text. The output is structured by line
  * delimiters and field delimiters as common in CSV files. Line delimiter separate records from
  * each other ('\n' is common). Field delimiters separate fields within a record.
+ *
+ * <p>These can be continuously improved in this csv output format:
+ * 1.Not support configure multi chars field delimiter.
+ * 2.Only support configure line delimiter: "\r" or "\n" or "\r\n".
  */
 public class RowCsvOutputFormat extends FileOutputFormat<Row> {
 
