@@ -21,11 +21,14 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -53,6 +56,14 @@ import static org.junit.Assert.fail;
  * Tests for scheduling individual tasks.
  */
 public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
+
+	@ClassRule
+	public static final TestingComponentMainThreadExecutor.Resource TESTING_COMPONENT_MAIN_THREAD_EXECUTOR_RESOURCE = new TestingComponentMainThreadExecutor.Resource();
+
+	@Override
+	protected ComponentMainThreadExecutor getComponentMainThreadExecutor() {
+		return TESTING_COMPONENT_MAIN_THREAD_EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor().getMainThreadExecutor();
+	}
 
 	@Test
 	public void testScheduleQueueing() throws Exception {
@@ -100,7 +111,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 					LogicalSlot next = iter.next();
 					iter.remove();
 
-					next.releaseSlot();
+					runInMainThreadExecutor(next::releaseSlot);
 					recycled++;
 				}
 			}
@@ -217,8 +228,8 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		assertEquals(second.getResourceID(), s6.getTaskManagerLocation().getResourceID());
 
 		// release something on the first and second instance
-		s2.releaseSlot();
-		s6.releaseSlot();
+		runInMainThreadExecutor(s2::releaseSlot);
+		runInMainThreadExecutor(s6::releaseSlot);
 
 		LogicalSlot s7 = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
 		assertEquals(first.getResourceID(), s7.getTaskManagerLocation().getResourceID());
