@@ -45,6 +45,7 @@ import org.apache.flink.util.Preconditions;
  * @param <T> Base type of the elements appearing in the pattern
  * @param <F> Subtype of T to which the current pattern operator is constrained
  */
+//todo 2、添加waitingTime 字段，wait和waitting方法
 public class Pattern<T, F extends T> {
 
 	/** Name of the pattern. */
@@ -70,6 +71,10 @@ public class Pattern<T, F extends T> {
 	 * the number of times it has to appear.
 	 */
 	private Times times;
+	/**
+	 * 等待时间
+	 * */
+	private Time waitingTime;
 
 	private final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
@@ -570,6 +575,20 @@ public class Pattern<T, F extends T> {
 		}
 	}
 
+	public Pattern<T, T> wait(final String name) {
+		return new Pattern<>(name, this, Quantifier.ConsumingStrategy.WAITING, afterMatchSkipStrategy);
+	}
+
+	public Pattern<T, F> waitting(Time waitingTime) {
+		if (waitingTime != null) {
+			this.waitingTime = waitingTime;
+			this.windowTime = waitingTime;
+		}
+		return this;
+	}
+	public Time getWaitingTime(){
+		return this.waitingTime;
+	}
 	@Override
 	public String toString() {
 		return "Pattern{" +

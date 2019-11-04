@@ -18,11 +18,7 @@
 
 package org.apache.flink.cep.nfa;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.PriorityQueue;
-import java.util.Queue;
+import java.util.*;
 
 /**
  * State kept for a {@link NFA}.

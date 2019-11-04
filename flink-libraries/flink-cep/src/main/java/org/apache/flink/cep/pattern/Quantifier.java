@@ -145,6 +145,7 @@ public class Quantifier {
 	/**
 	 * Properties that a {@link Quantifier} can have. Not all combinations are valid.
 	 */
+
 	public enum QuantifierProperty {
 		SINGLE,
 		LOOPING,
@@ -156,13 +157,15 @@ public class Quantifier {
 	/**
 	 * Describes strategy for which events are matched in this {@link Pattern}. See docs for more info.
 	 */
+	//todo 1、新增WAITING
 	public enum ConsumingStrategy {
 		STRICT,
 		SKIP_TILL_NEXT,
 		SKIP_TILL_ANY,
 
 		NOT_FOLLOW,
-		NOT_NEXT
+		NOT_NEXT,
+		WAITING
 	}
 
 	/**

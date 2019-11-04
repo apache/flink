@@ -33,7 +33,7 @@ public abstract class SimpleCondition<T> extends IterativeCondition<T> implement
 	private static final long serialVersionUID = 4942618239408140245L;
 
 	@Override
-	public boolean filter(T value, Context<T> ctx) throws Exception {
+	public boolean filter(T value, IterativeCondition.Context<T> ctx) throws Exception {
 		return filter(value);
 	}
 }

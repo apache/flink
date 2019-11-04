@@ -25,9 +25,8 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.util.WrappingRuntimeException;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import java.util.HashMap;
 import java.util.Iterator;

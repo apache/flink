@@ -45,7 +45,7 @@ import java.util.Map;
  * @param <OUT2> Type of the timed out output elements
  */
 public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
-	AbstractKeyedCEPPatternOperator<IN, KEY, OUT1, FlatSelectTimeoutCepOperator.FlatSelectWrapper<IN, OUT1, OUT2>> {
+        AbstractKeyedCEPPatternOperator<IN, KEY, OUT1, FlatSelectTimeoutCepOperator.FlatSelectWrapper<IN, OUT1, OUT2>> {
 
 	private transient TimestampedCollector<OUT1> collector;
 

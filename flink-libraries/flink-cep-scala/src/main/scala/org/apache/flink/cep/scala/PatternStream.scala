@@ -21,12 +21,9 @@ import java.util.{UUID, List => JList, Map => JMap}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
-import org.apache.flink.cep.scala.pattern.Pattern
 import org.apache.flink.cep.{EventComparator, PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
 import org.apache.flink.streaming.api.scala.{asScalaStream, _}
 import org.apache.flink.util.Collector
-
-import org.apache.flink.cep.operator.CEPOperatorUtils
 import org.apache.flink.cep.scala.pattern.Pattern
 import scala.collection.Map
 

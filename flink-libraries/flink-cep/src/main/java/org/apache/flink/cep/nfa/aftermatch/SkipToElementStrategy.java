@@ -21,11 +21,7 @@ package org.apache.flink.cep.nfa.aftermatch;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

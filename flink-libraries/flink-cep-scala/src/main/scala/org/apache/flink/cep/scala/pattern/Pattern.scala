@@ -45,6 +45,13 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
 
   private[flink] def wrappedPattern = jPattern
 
+  def waitting(waitingTime: Time): Pattern[T, F] = {
+    jPattern.waitting(waitingTime)
+    this
+  }
+  def wait(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.wait(name))
+  }
   /**
     * @return The previous pattern
     */
@@ -542,5 +549,16 @@ object Pattern {
   def begin[T, F <: T](pattern: Pattern[T, F],
       afterMatchSkipStrategy: AfterMatchSkipStrategy): GroupPattern[T, F] =
     GroupPattern(JPattern.begin(pattern.wrappedPattern, afterMatchSkipStrategy))
+
+
+
+  /**
+    * Defines the maximum time interval in which a matching pattern has to be completed in
+    * order to be considered valid. This interval corresponds to the maximum time gap between first
+    * and the last event.
+    *
+    * @param windowTime Time of the matching window
+    * @return The same pattern operator with the new window length
+    */
 
 }

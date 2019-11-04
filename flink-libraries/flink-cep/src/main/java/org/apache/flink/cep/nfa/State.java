@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
+//todo 3、StateType中添加Waiting和isWaiting方法
 
 /**
  * Represents a state of the {@link NFA}.
@@ -51,7 +52,9 @@ public class State<T> implements Serializable {
 	public StateType getStateType() {
 		return stateType;
 	}
-
+	public boolean isWaiting(){
+		return stateType == StateType.Waiting;
+	}
 	public boolean isFinal() {
 		return stateType == StateType.Final;
 	}
@@ -142,6 +145,7 @@ public class State<T> implements Serializable {
 		Start, // the state is a starting state for the NFA
 		Final, // the state is a final state for the NFA
 		Normal, // the state is neither a start nor a final state
-		Stop
+		Stop,
+		Waiting
 	}
 }

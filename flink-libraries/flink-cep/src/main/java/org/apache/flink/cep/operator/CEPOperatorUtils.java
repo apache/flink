@@ -22,12 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
-import org.apache.flink.cep.EventComparator;
-import org.apache.flink.cep.PatternFlatSelectFunction;
-import org.apache.flink.cep.PatternFlatTimeoutFunction;
-import org.apache.flink.cep.PatternSelectFunction;
-import org.apache.flink.cep.PatternStream;
-import org.apache.flink.cep.PatternTimeoutFunction;
+import org.apache.flink.cep.*;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
@@ -306,11 +301,11 @@ public class CEPOperatorUtils {
 
 	private interface OperatorBuilder<IN, OUT> {
 			OneInputStreamOperator<IN, OUT> build(
-			TypeSerializer<IN> inputSerializer,
-			boolean isProcessingTime,
-			NFACompiler.NFAFactory<IN> nfaFactory,
-			EventComparator<IN> comparator,
-			AfterMatchSkipStrategy skipStrategy);
+				TypeSerializer<IN> inputSerializer,
+				boolean isProcessingTime,
+				NFACompiler.NFAFactory<IN> nfaFactory,
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy);
 
 		String getKeyedOperatorName();
 

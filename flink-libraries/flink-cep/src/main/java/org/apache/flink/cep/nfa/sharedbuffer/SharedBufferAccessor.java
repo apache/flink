@@ -18,19 +18,13 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.DeweyNumber;
 import org.apache.flink.util.WrappingRuntimeException;
 
-import org.apache.commons.lang3.StringUtils;
-
 import javax.annotation.Nullable;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.getOriginalNameFromInternal;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -116,30 +110,33 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 	 * @param version Version of the previous relation which shall be extracted
 	 * @return Collection of previous relations starting with the given value
 	 */
+	// 在shareBuffer中通过杜威十进制版本号去找到一整条符合条件的数据
 	public List<Map<String, List<EventId>>> extractPatterns(
 		final NodeId nodeId,
 		final DeweyNumber version) {
 
 		List<Map<String, List<EventId>>> result = new ArrayList<>();
 
-		// stack to remember the current extraction states
-		Stack<SharedBufferAccessor.ExtractionState> extractionStates = new Stack<>();
+		// 构建一个栈来记录当前的存储状态
+		Stack<ExtractionState> extractionStates = new Stack<>();
 
-		// get the starting shared buffer entry for the previous relation
+		// get the starting shared buffer entry for the previous relation 获取起始事件
 		Lockable<SharedBufferNode> entryLock = sharedBuffer.getEntry(nodeId);
 
 		if (entryLock != null) {
 			SharedBufferNode entry = entryLock.getElement();
+			//首先构建一个提取状态加入栈中
 			extractionStates.add(new SharedBufferAccessor.ExtractionState(Tuple2.of(nodeId, entry), version, new Stack<>()));
 
-			// use a depth first search to reconstruct the previous relations
+			// 当提取状态不为空，采用深度优先的搜索去构建先前的关系
 			while (!extractionStates.isEmpty()) {
+				//出栈一个对象
 				final SharedBufferAccessor.ExtractionState extractionState = extractionStates.pop();
-				// current path of the depth first search
+				//获得其栈来存储当前路径，深度优先搜索
 				final Stack<Tuple2<NodeId, SharedBufferNode>> currentPath = extractionState.getPath();
 				final Tuple2<NodeId, SharedBufferNode> currentEntry = extractionState.getEntry();
 
-				// termination criterion
+				// 终止条件如果为空的时候则终止
 				if (currentEntry == null) {
 					final Map<String, List<EventId>> completePath = new LinkedHashMap<>();
 
@@ -154,13 +151,12 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 					result.add(completePath);
 				} else {
 
-					// append state to the path
+					// 追加到路径中
 					currentPath.push(currentEntry);
 
 					boolean firstMatch = true;
 					for (SharedBufferEdge edge : currentEntry.f1.getEdges()) {
-						// we can only proceed if the current version is compatible to the version
-						// of this previous relation
+						//如果版本号兼容
 						final DeweyNumber currentVersion = extractionState.getVersion();
 						if (currentVersion.isCompatibleWith(edge.getDeweyNumber())) {
 							final NodeId target = edge.getTarget();
@@ -235,32 +231,31 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public void releaseNode(final NodeId node) throws Exception {
-		// the stack used to detect all nodes that needs to be released.
-		Stack<NodeId> nodesToExamine = new Stack<>();
-		nodesToExamine.push(node);
-
-		while (!nodesToExamine.isEmpty()) {
-			NodeId curNode = nodesToExamine.pop();
-			Lockable<SharedBufferNode> curBufferNode = sharedBuffer.getEntry(curNode);
-
-			if (curBufferNode == null) {
-				break;
-			}
-
-			if (curBufferNode.release()) {
-				// first release the current node
-				sharedBuffer.removeEntry(curNode);
-				releaseEvent(curNode.getEventId());
-
-				for (SharedBufferEdge sharedBufferEdge : curBufferNode.getElement().getEdges()) {
-					NodeId targetId = sharedBufferEdge.getTarget();
-					if (targetId != null) {
-						nodesToExamine.push(targetId);
-					}
-				}
+		Lockable<SharedBufferNode> sharedBufferNode = sharedBuffer.getEntry(node);
+		if (sharedBufferNode != null) {
+			if (sharedBufferNode.release()) {
+				removeNode(node, sharedBufferNode.getElement());
 			} else {
-				sharedBuffer.upsertEntry(curNode, curBufferNode);
+				sharedBuffer.upsertEntry(node, sharedBufferNode);
 			}
+		}
+	}
+
+	/**
+	 * Removes the {@code SharedBufferNode}, when the ref is decreased to zero, and also
+	 * decrease the ref of the edge on this node.
+	 *
+	 * @param node id of the entry
+	 * @param sharedBufferNode the node body to be removed
+	 * @throws Exception Thrown if the system cannot access the state.
+	 */
+	private void removeNode(NodeId node, SharedBufferNode sharedBufferNode) throws Exception {
+		sharedBuffer.removeEntry(node);
+		EventId eventId = node.getEventId();
+		releaseEvent(eventId);
+
+		for (SharedBufferEdge sharedBufferEdge : sharedBufferNode.getEdges()) {
+			releaseNode(sharedBufferEdge.getTarget());
 		}
 	}
 

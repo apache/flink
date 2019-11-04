@@ -1,3 +1,5 @@
+package org.apache.flink.cep
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -15,13 +17,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.cep
-
+import java.lang.Iterable
 import java.util.{List => JList, Map => JMap}
 
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.cep.{PatternStream => JPatternStream}
-
 package object scala {
 
   import collection.JavaConverters._

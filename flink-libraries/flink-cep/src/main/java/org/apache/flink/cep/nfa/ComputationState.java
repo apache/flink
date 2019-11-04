@@ -22,7 +22,6 @@ import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 
 import javax.annotation.Nullable;
-
 import java.util.Objects;
 
 /**
@@ -39,7 +38,7 @@ public class ComputationState {
 
 	// Timestamp of the first element in the pattern
 	private final long startTimestamp;
-
+	private final long currentStamp = System.currentTimeMillis();
 	@Nullable
 	private final NodeId previousBufferEntry;
 
@@ -57,6 +56,10 @@ public class ComputationState {
 		this.startTimestamp = startTimestamp;
 		this.previousBufferEntry = previousBufferEntry;
 		this.startEventID = startEventID;
+	}
+
+	public long getCurrentStamp() {
+		return currentStamp;
 	}
 
 	public EventId getStartEventID() {
@@ -95,13 +98,21 @@ public class ComputationState {
 
 	@Override
 	public String toString() {
-		return "ComputationState{" +
-			"currentStateName='" + currentStateName + '\'' +
-			", version=" + version +
-			", startTimestamp=" + startTimestamp +
-			", previousBufferEntry=" + previousBufferEntry +
-			", startEventID=" + startEventID +
-			'}';
+		final StringBuilder sb = new StringBuilder("{");
+		sb.append("\"currentStateName\":\"")
+				.append(currentStateName).append('\"');
+		sb.append(",\"version\":")
+				.append(version);
+		sb.append(",\"startTimestamp\":")
+				.append(startTimestamp);
+		sb.append(",\"currentStamp\":")
+				.append(currentStamp);
+		sb.append(",\"previousBufferEntry\":")
+				.append(previousBufferEntry);
+		sb.append(",\"startEventID\":")
+				.append(startEventID);
+		sb.append('}');
+		return sb.toString();
 	}
 
 	@Override

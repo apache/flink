@@ -27,8 +27,10 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
+import org.apache.flink.cep.nfa.ComputationState;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFA.MigratedNFA;
 import org.apache.flink.cep.nfa.NFAState;
@@ -41,21 +43,13 @@ import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.InternalTimer;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.operators.*;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -65,364 +59,436 @@ import java.util.stream.Stream;
  * operator state. This is necessary to trigger the execution for all keys upon receiving a new
  * watermark.
  *
- * @param <IN> Type of the input elements
+ * @param <IN>  Type of the input elements
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT> Type of the output elements
  */
 public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Function>
-		extends AbstractUdfStreamOperator<OUT, F>
-		implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
+        extends AbstractUdfStreamOperator<OUT, F>
+        implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
 
-	private static final long serialVersionUID = -4166778210774160757L;
+    private static final long serialVersionUID = -4166778210774160757L;
 
-	private final boolean isProcessingTime;
+    private final boolean isProcessingTime;
 
-	private final TypeSerializer<IN> inputSerializer;
+    private final TypeSerializer<IN> inputSerializer;
 
-	///////////////			State			//////////////
+    ///////////////			State			//////////////
 
-	private static final String NFA_STATE_NAME = "nfaStateName";
-	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
+    private static final String NFA_STATE_NAME = "nfaStateName";
+    private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
 
-	private final NFACompiler.NFAFactory<IN> nfaFactory;
+    private static final String WAIT_STAMP_STATE_NAME = "waitStampStateName";
 
-	private transient ValueState<NFAState> computationStates;
-	private transient MapState<Long, List<IN>> elementQueueState;
-	private transient SharedBuffer<IN> partialMatches;
 
-	private transient InternalTimerService<VoidNamespace> timerService;
+    private final NFACompiler.NFAFactory<IN> nfaFactory;
 
-	private transient NFA<IN> nfa;
+    private transient ValueState<NFAState> computationStates;
+    private transient MapState<Long, List<IN>> elementQueueState;
+    private transient SharedBuffer<IN> partialMatches;
+    private transient MapState<Long,Void> waitStampState;
+    private transient List<Long> tempTimeStamp;
 
-	/**
-	 * The last seen watermark. This will be used to
-	 * decide if an incoming element is late or not.
-	 */
-	private long lastWatermark;
+    private transient InternalTimerService<VoidNamespace> timerService;
 
-	private final EventComparator<IN> comparator;
+    private transient NFA<IN> nfa;
 
-	/**
-	 * {@link OutputTag} to use for late arriving events. Elements with timestamp smaller than
-	 * the current watermark will be emitted to this.
-	 */
-	protected final OutputTag<IN> lateDataOutputTag;
+    /**
+     * The last seen watermark. This will be used to
+     * decide if an incoming element is late or not.
+     */
+    private long lastWatermark;
 
-	protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
+    private final EventComparator<IN> comparator;
 
-	public AbstractKeyedCEPPatternOperator(
-			final TypeSerializer<IN> inputSerializer,
-			final boolean isProcessingTime,
-			final NFACompiler.NFAFactory<IN> nfaFactory,
-			final EventComparator<IN> comparator,
-			final AfterMatchSkipStrategy afterMatchSkipStrategy,
-			final F function,
-			final OutputTag<IN> lateDataOutputTag) {
-		super(function);
+    /**
+     * {@link OutputTag} to use for late arriving events. Elements with timestamp smaller than
+     * the current watermark will be emitted to this.
+     */
+    protected final OutputTag<IN> lateDataOutputTag;
 
-		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
-		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
-		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
-		this.comparator = comparator;
-		this.lateDataOutputTag = lateDataOutputTag;
+    protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
-		if (afterMatchSkipStrategy == null) {
-			this.afterMatchSkipStrategy = AfterMatchSkipStrategy.noSkip();
-		} else {
-			this.afterMatchSkipStrategy = afterMatchSkipStrategy;
-		}
-	}
+    public AbstractKeyedCEPPatternOperator(
+            final TypeSerializer<IN> inputSerializer,
+            final boolean isProcessingTime,
+            final NFACompiler.NFAFactory<IN> nfaFactory,
+            final EventComparator<IN> comparator,
+            final AfterMatchSkipStrategy afterMatchSkipStrategy,
+            final F function,
+            final OutputTag<IN> lateDataOutputTag) {
+        super(function);
 
-	@Override
-	public void initializeState(StateInitializationContext context) throws Exception {
-		super.initializeState(context);
+        this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
+        this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
+        this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
+        this.comparator = comparator;
+        this.lateDataOutputTag = lateDataOutputTag;
 
-		// initializeState through the provided context
-		computationStates = context.getKeyedStateStore().getState(
-				new ValueStateDescriptor<>(
-						NFA_STATE_NAME,
-						NFAStateSerializer.INSTANCE));
+        if (afterMatchSkipStrategy == null) {
+            this.afterMatchSkipStrategy = AfterMatchSkipStrategy.noSkip();
+        } else {
+            this.afterMatchSkipStrategy = afterMatchSkipStrategy;
+        }
+    }
 
-		partialMatches = new SharedBuffer<>(context.getKeyedStateStore(), inputSerializer);
+    @Override
+    public void initializeState(StateInitializationContext context) throws Exception {
+        super.initializeState(context);
 
-		elementQueueState = context.getKeyedStateStore().getMapState(
-				new MapStateDescriptor<>(
-						EVENT_QUEUE_STATE_NAME,
-						LongSerializer.INSTANCE,
-						new ListSerializer<>(inputSerializer)));
+        // initializeState through the provided context
+        computationStates = context.getKeyedStateStore().getState(
+                new ValueStateDescriptor<>(
+                        NFA_STATE_NAME,
+                        NFAStateSerializer.INSTANCE));
 
-		migrateOldState();
-	}
+        partialMatches = new SharedBuffer<>(context.getKeyedStateStore(), inputSerializer);
 
-	private void migrateOldState() throws Exception {
-		getKeyedStateBackend().applyToAllKeys(
-			VoidNamespace.INSTANCE,
-			VoidNamespaceSerializer.INSTANCE,
-			new ValueStateDescriptor<>(
-				"nfaOperatorStateName",
-				new NFA.NFASerializer<>(inputSerializer)
-			),
-			new KeyedStateFunction<Object, ValueState<MigratedNFA<IN>>>() {
-				@Override
-				public void process(Object key, ValueState<MigratedNFA<IN>> state) throws Exception {
-					MigratedNFA<IN> oldState = state.value();
-					computationStates.update(new NFAState(oldState.getComputationStates()));
-					org.apache.flink.cep.nfa.SharedBuffer<IN> sharedBuffer = oldState.getSharedBuffer();
-					partialMatches.init(sharedBuffer.getEventsBuffer(), sharedBuffer.getPages());
-					state.clear();
-				}
-			}
-		);
-	}
+        elementQueueState = context.getKeyedStateStore().getMapState(
+                new MapStateDescriptor<>(
+                        EVENT_QUEUE_STATE_NAME,
+                        LongSerializer.INSTANCE,
+                        new ListSerializer<>(inputSerializer)));
 
-	@Override
-	public void open() throws Exception {
-		super.open();
+        waitStampState = context.getKeyedStateStore().getMapState(
+                new MapStateDescriptor<Long,Void>(WAIT_STAMP_STATE_NAME,
+                        LongSerializer.INSTANCE, VoidSerializer.INSTANCE));
 
-		timerService = getInternalTimerService(
-				"watermark-callbacks",
-				VoidNamespaceSerializer.INSTANCE,
-				this);
+        migrateOldState();
+    }
 
-		this.nfa = nfaFactory.createNFA();
-	}
+    private void migrateOldState() throws Exception {
+        getKeyedStateBackend().applyToAllKeys(
+                VoidNamespace.INSTANCE,
+                VoidNamespaceSerializer.INSTANCE,
+                new ValueStateDescriptor<>(
+                        "nfaOperatorStateName",
+                        new NFA.NFASerializer<>(inputSerializer)
+                ),
+                new KeyedStateFunction<Object, ValueState<MigratedNFA<IN>>>() {
+                    @Override
+                    public void process(Object key, ValueState<MigratedNFA<IN>> state) throws Exception {
+                        MigratedNFA<IN> oldState = state.value();
+                        computationStates.update(new NFAState(oldState.getComputationStates()));
+                        org.apache.flink.cep.nfa.SharedBuffer<IN> sharedBuffer = oldState.getSharedBuffer();
+                        partialMatches.init(sharedBuffer.getEventsBuffer(), sharedBuffer.getPages());
+                        state.clear();
+                    }
+                }
+        );
+    }
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		if (isProcessingTime) {
-			if (comparator == null) {
-				// there can be no out of order elements in processing time
-				NFAState nfaState = getNFAState();
-				long timestamp = getProcessingTimeService().getCurrentProcessingTime();
-				advanceTime(nfaState, timestamp);
-				processEvent(nfaState, element.getValue(), timestamp);
-				updateNFA(nfaState);
-			} else {
-				long currentTime = timerService.currentProcessingTime();
-				bufferEvent(element.getValue(), currentTime);
+    @Override
+    public void open() throws Exception {
+        super.open();
 
-				// register a timer for the next millisecond to sort and emit buffered data
-				timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
-			}
+        timerService = getInternalTimerService(
+                "watermark-callbacks",
+                VoidNamespaceSerializer.INSTANCE,
+                this);
 
-		} else {
+        this.nfa = nfaFactory.createNFA();
+    }
 
-			long timestamp = element.getTimestamp();
-			IN value = element.getValue();
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        if (isProcessingTime) {
+            if (nfa.waitingTime > 0) {
 
-			// In event-time processing we assume correctness of the watermark.
-			// Events with timestamp smaller than or equal with the last seen watermark are considered late.
-			// Late events are put in a dedicated side output, if the user has specified one.
+                long currentTime = timerService.currentProcessingTime();
+                bufferEvent(element.getValue(), currentTime);
+                timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
+            } else if (comparator == null) {
+                // there can be no out of order elements in processing time
+                NFAState nfaState = getNFAState();
+                long timestamp = getProcessingTimeService().getCurrentProcessingTime();
+                advanceTime(nfaState, timestamp);
+                processEvent(nfaState, element.getValue(), timestamp);
+                updateNFA(nfaState);
+            } else {
+                long currentTime = timerService.currentProcessingTime();
+                bufferEvent(element.getValue(), currentTime);
+                // register a timer for the next millisecond to sort and emit buffered data
+                timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
+            }
 
-			if (timestamp > lastWatermark) {
+        } else {
+            long timestamp = element.getTimestamp();
+            IN value = element.getValue();
+            // In event-time processing we assume correctness of the watermark.
+            // Events with timestamp smaller than or equal with the last seen watermark are considered late.
+            // Late events are put in a dedicated side output, if the user has specified one.
 
-				// we have an event with a valid timestamp, so
-				// we buffer it until we receive the proper watermark.
+            if (timestamp > lastWatermark) {
 
-				saveRegisterWatermarkTimer();
+                // we have an event with a valid timestamp, so
+                // we buffer it until we receive the proper watermark.
+                saveRegisterWatermarkTimer();
+                bufferEvent(value, timestamp);
+            } else if (lateDataOutputTag != null) {
+                output.collect(lateDataOutputTag, element);
+            }
+        }
+    }
 
-				bufferEvent(value, timestamp);
+    /**
+     * Registers a timer for {@code current watermark + 1}, this means that we get triggered
+     * whenever the watermark advances, which is what we want for working off the queue of
+     * buffered elements.
+     */
+    private void saveRegisterWatermarkTimer() {
+        long currentWatermark = timerService.currentWatermark();
+        // protect against overflow
+        if (currentWatermark + 1 > currentWatermark) {
+            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentWatermark + 1);
+        }
+    }
 
-			} else if (lateDataOutputTag != null) {
-				output.collect(lateDataOutputTag, element);
-			}
-		}
-	}
+    private void bufferEvent(IN event, long currentTime) throws Exception {
+        List<IN> elementsForTimestamp = elementQueueState.get(currentTime);
+        if (elementsForTimestamp == null) {
+            elementsForTimestamp = new ArrayList<>();
+        }
 
-	/**
-	 * Registers a timer for {@code current watermark + 1}, this means that we get triggered
-	 * whenever the watermark advances, which is what we want for working off the queue of
-	 * buffered elements.
-	 */
-	private void saveRegisterWatermarkTimer() {
-		long currentWatermark = timerService.currentWatermark();
-		// protect against overflow
-		if (currentWatermark + 1 > currentWatermark) {
-			timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentWatermark + 1);
-		}
-	}
+        if (getExecutionConfig().isObjectReuseEnabled()) {
+            // copy the StreamRecord so that it cannot be changed
+            elementsForTimestamp.add(inputSerializer.copy(event));
+        } else {
+            elementsForTimestamp.add(event);
+        }
+        elementQueueState.put(currentTime, elementsForTimestamp);
+    }
 
-	private void bufferEvent(IN event, long currentTime) throws Exception {
-		List<IN> elementsForTimestamp =  elementQueueState.get(currentTime);
-		if (elementsForTimestamp == null) {
-			elementsForTimestamp = new ArrayList<>();
-		}
+    @Override
+    public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
 
-		if (getExecutionConfig().isObjectReuseEnabled()) {
-			// copy the StreamRecord so that it cannot be changed
-			elementsForTimestamp.add(inputSerializer.copy(event));
-		} else {
-			elementsForTimestamp.add(event);
-		}
-		elementQueueState.put(currentTime, elementsForTimestamp);
-	}
+        // 1) get the queue of pending elements for the key and the corresponding NFA,
+        // 2) process the pending elements in event time order and custom comparator if exists
+        //		by feeding them in the NFA
+        // 3) advance the time to the current watermark, so that expired patterns are discarded.
+        // 4) update the stored state for the key, by only storing the new NFA and MapState iff they
+        //		have state to be used later.
+        // 5) update the last seen watermark.
 
-	@Override
-	public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+        // STEP 1
+        PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
+        NFAState nfaState = getNFAState();
+        //========================
+        long currentTime = timerService.currentWatermark();
+        if(hasWaitState(nfaState)){
+            processEvent(nfaState, null, currentTime);
+        }
+        waitStampState.clear();
+        for (ComputationState state : nfaState.getPartialMatches()) {
+            if (nfa.isWaitingState(state)){
+                waitStampState.put(state.getStartTimestamp(),null);
+            }
+        }
 
-		// 1) get the queue of pending elements for the key and the corresponding NFA,
-		// 2) process the pending elements in event time order and custom comparator if exists
-		//		by feeding them in the NFA
-		// 3) advance the time to the current watermark, so that expired patterns are discarded.
-		// 4) update the stored state for the key, by only storing the new NFA and MapState iff they
-		//		have state to be used later.
-		// 5) update the last seen watermark.
+        //========================
+        // STEP 2
+        while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
+            long timestamp = sortedTimestamps.poll();
+            advanceTime(nfaState, timestamp);
+            try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
+                elements.forEachOrdered(
+                        event -> {
+                            try {
+                                processEvent(nfaState, event, timestamp);
+                                //========================
+                                for (ComputationState state : nfaState.getPartialMatches()) {
+                                    if (nfa.isWaitingState(state) && !containState(state)) {
+                                        waitStampState.put(state.getStartTimestamp(),null);
+                                        timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentTime + nfa.waitingTime + 100);
+                                    }
+                                }
+                                //========================
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                );
+            }
+            elementQueueState.remove(timestamp);
+        }
 
-		// STEP 1
-		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
-		NFAState nfaState = getNFAState();
+        // STEP 3
+        advanceTime(nfaState, timerService.currentWatermark());
+        // STEP 4
+        updateNFA(nfaState);
+        if (!sortedTimestamps.isEmpty() || !partialMatches.isEmpty()) {
+            saveRegisterWatermarkTimer();
+        }
+        // STEP 5
+        updateLastSeenWatermark(timerService.currentWatermark());
+    }
 
-		// STEP 2
-		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
-			long timestamp = sortedTimestamps.poll();
-			advanceTime(nfaState, timestamp);
-			try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
-				elements.forEachOrdered(
-					event -> {
-						try {
-							processEvent(nfaState, event, timestamp);
-						} catch (Exception e) {
-							throw new RuntimeException(e);
-						}
-					}
-				);
-			}
-			elementQueueState.remove(timestamp);
-		}
 
-		// STEP 3
-		advanceTime(nfaState, timerService.currentWatermark());
+    public boolean hasWaitState(NFAState nfaState) {
+        for (ComputationState state : nfaState.getPartialMatches()) {
+            if (nfa.isWaitingState(state)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-		// STEP 4
-		updateNFA(nfaState);
+    @Override
+    public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
 
-		if (!sortedTimestamps.isEmpty() || !partialMatches.isEmpty()) {
-			saveRegisterWatermarkTimer();
-		}
+        // 1) get the queue of pending elements for the key and the corresponding NFA,
+        // 2) process the pending elements in process time order and custom comparator if exists
+        //		by feeding them in the NFA
+        // 3) update the stored state for the key, by only storing the new NFA and MapState iff they
+        //		have state to be used later.
 
-		// STEP 5
-		updateLastSeenWatermark(timerService.currentWatermark());
-	}
+        PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
+        NFAState nfaState = getNFAState();
 
-	@Override
-	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-		// 1) get the queue of pending elements for the key and the corresponding NFA,
-		// 2) process the pending elements in process time order and custom comparator if exists
-		//		by feeding them in the NFA
-		// 3) update the stored state for the key, by only storing the new NFA and MapState iff they
-		//		have state to be used later.
+        long currentTime = timerService.currentProcessingTime();
+        //========================
+        if(hasWaitState(nfaState)){
+            processEvent(nfaState, null, currentTime);
+        }
+        waitStampState.clear();
+        for (ComputationState state : nfaState.getPartialMatches()) {
+            if (nfa.isWaitingState(state)){
+                waitStampState.put(state.getStartTimestamp(),null);
+            }
+        }
+        //========================
+        // STEP 2
+        while (!sortedTimestamps.isEmpty()) {
+            long timestamp = sortedTimestamps.poll();
+            advanceTime(nfaState, timestamp);
+            try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
+                elements.forEachOrdered(
+                        event -> {
+                            try {
+                                processEvent(nfaState, event, timestamp);
+                                //========================
+                                for (ComputationState state : nfaState.getPartialMatches()) {
+                                    if (nfa.isWaitingState(state) && !containState(state)) {
+                                        waitStampState.put(state.getStartTimestamp(),null);
+                                        timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + nfa.waitingTime + 100);
+                                    }
+                                }
+                                //========================
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                );
+            }
+            elementQueueState.remove(timestamp);
+        }
+        // STEP 3
+        updateNFA(nfaState);
+    }
 
-		// STEP 1
-		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
-		NFAState nfa = getNFAState();
+    private boolean containState(ComputationState state) {
+        try {
+            Iterator<Long> timeStamps = waitStampState.keys().iterator();
+            while (timeStamps.hasNext()) {
+                if (timeStamps.next() == state.getStartTimestamp()) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
 
-		// STEP 2
-		while (!sortedTimestamps.isEmpty()) {
-			long timestamp = sortedTimestamps.poll();
-			advanceTime(nfa, timestamp);
-			try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
-				elements.forEachOrdered(
-					event -> {
-						try {
-							processEvent(nfa, event, timestamp);
-						} catch (Exception e) {
-							throw new RuntimeException(e);
-						}
-					}
-				);
-			}
-			elementQueueState.remove(timestamp);
-		}
+        }
+        return false;
+    }
 
-		// STEP 3
-		updateNFA(nfa);
-	}
 
-	private Stream<IN> sort(Collection<IN> elements) {
-		Stream<IN> stream = elements.stream();
-		return (comparator == null) ? stream : stream.sorted(comparator);
-	}
+    private Stream<IN> sort(Collection<IN> elements) {
+        Stream<IN> stream = elements.stream();
+        return (comparator == null) ? stream : stream.sorted(comparator);
+    }
 
-	private void updateLastSeenWatermark(long timestamp) {
-		this.lastWatermark = timestamp;
-	}
+    private void updateLastSeenWatermark(long timestamp) {
+        this.lastWatermark = timestamp;
+    }
 
-	private NFAState getNFAState() throws IOException {
-		NFAState nfaState = computationStates.value();
-		return nfaState != null ? nfaState : nfa.createInitialNFAState();
-	}
+    private NFAState getNFAState() throws IOException {
+        NFAState nfaState = computationStates.value();
+        return nfaState != null ? nfaState : nfa.createInitialNFAState();
+    }
 
-	private void updateNFA(NFAState nfaState) throws IOException {
-		if (nfaState.isStateChanged()) {
-			nfaState.resetStateChanged();
-			computationStates.update(nfaState);
-		}
-	}
+    private void updateNFA(NFAState nfaState) throws IOException {
+        if (nfaState.isStateChanged()) {
+            nfaState.resetStateChanged();
+            computationStates.update(nfaState);
+        }
+    }
 
-	private PriorityQueue<Long> getSortedTimestamps() throws Exception {
-		PriorityQueue<Long> sortedTimestamps = new PriorityQueue<>();
-		for (Long timestamp : elementQueueState.keys()) {
-			sortedTimestamps.offer(timestamp);
-		}
-		return sortedTimestamps;
-	}
+    private PriorityQueue<Long> getSortedTimestamps() throws Exception {
+        PriorityQueue<Long> sortedTimestamps = new PriorityQueue<>();
+        for (Long timestamp : elementQueueState.keys()) {
+            sortedTimestamps.offer(timestamp);
+        }
+        return sortedTimestamps;
+    }
 
-	/**
-	 * Process the given event by giving it to the NFA and outputting the produced set of matched
-	 * event sequences.
-	 *
-	 * @param nfaState Our NFAState object
-	 * @param event The current event to be processed
-	 * @param timestamp The timestamp of the event
-	 */
-	private void processEvent(NFAState nfaState, IN event, long timestamp) throws Exception {
-		try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
-			Collection<Map<String, List<IN>>> patterns =
-				nfa.process(sharedBufferAccessor, nfaState, event, timestamp, afterMatchSkipStrategy);
-			processMatchedSequences(patterns, timestamp);
-		}
-	}
+    /**
+     * Process the given event by giving it to the NFA and outputting the produced set of matched
+     * event sequences.
+     *
+     * @param nfaState  Our NFAState object
+     * @param event     The current event to be processed
+     * @param timestamp The timestamp of the event
+     */
+    private void processEvent(NFAState nfaState, IN event, long timestamp) throws Exception {
+        try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
+            Collection<Map<String, List<IN>>> patterns =
+                    nfa.process(sharedBufferAccessor, nfaState, event, timestamp, afterMatchSkipStrategy);
+            processMatchedSequences(patterns, timestamp);
+        }
+    }
 
-	/**
-	 * Advances the time for the given NFA to the given timestamp. This means that no more events with timestamp
-	 * <b>lower</b> than the given timestamp should be passed to the nfa, This can lead to pruning and timeouts.
-	 */
-	private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
-		try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
-			Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
-				nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
-			processTimedOutSequences(timedOut, timestamp);
-		}
-	}
+    /**
+     * Advances the time for the given NFA to the given timestamp. This means that no more events with timestamp
+     * <b>lower</b> than the given timestamp should be passed to the nfa, This can lead to pruning and timeouts.
+     */
+    private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
+        try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
+            Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
+                    nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+            processTimedOutSequences(timedOut, timestamp);
+        }
+    }
 
-	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
+    protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
 
-	protected void processTimedOutSequences(
-			Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences,
-			long timestamp) throws Exception {
-	}
+    protected void processTimedOutSequences(
+            Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences,
+            long timestamp) throws Exception {
+    }
 
-	//////////////////////			Testing Methods			//////////////////////
+    //////////////////////			Testing Methods			//////////////////////
 
-	@VisibleForTesting
-	public boolean hasNonEmptySharedBuffer(KEY key) throws Exception {
-		setCurrentKey(key);
-		return !partialMatches.isEmpty();
-	}
+    @VisibleForTesting
+    public boolean hasNonEmptySharedBuffer(KEY key) throws Exception {
+        setCurrentKey(key);
+        return !partialMatches.isEmpty();
+    }
 
-	@VisibleForTesting
-	public boolean hasNonEmptyPQ(KEY key) throws Exception {
-		setCurrentKey(key);
-		return elementQueueState.keys().iterator().hasNext();
-	}
+    @VisibleForTesting
+    public boolean hasNonEmptyPQ(KEY key) throws Exception {
+        setCurrentKey(key);
+        return elementQueueState.keys().iterator().hasNext();
+    }
 
-	@VisibleForTesting
-	public int getPQSize(KEY key) throws Exception {
-		setCurrentKey(key);
-		int counter = 0;
-		for (List<IN> elements: elementQueueState.values()) {
-			counter += elements.size();
-		}
-		return counter;
-	}
+    @VisibleForTesting
+    public int getPQSize(KEY key) throws Exception {
+        setCurrentKey(key);
+        int counter = 0;
+        for (List<IN> elements : elementQueueState.values()) {
+            counter += elements.size();
+        }
+        return counter;
+    }
+
+
 }
