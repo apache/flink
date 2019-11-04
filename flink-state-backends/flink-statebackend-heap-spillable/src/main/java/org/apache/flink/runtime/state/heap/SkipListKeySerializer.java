@@ -60,31 +60,33 @@ class SkipListKeySerializer<K, N> {
 	 * 	- byte[]: serialized key
 	 */
 	byte[] serialize(K key, N namespace) {
+		outputStream.reset();
 		try {
-			outputStream.reset();
-
 			// serialize namespace
 			outputStream.setPosition(Integer.BYTES);
 			namespaceSerializer.serialize(namespace, outputView);
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to serialize namespace", e);
+		}
 
+		int keyStartPos = outputStream.getPosition();
+		try {
 			// serialize key
-			int keyStartPos = outputStream.getPosition();
 			outputStream.setPosition(keyStartPos + Integer.BYTES);
 			keySerializer.serialize(key, outputView);
-
-			byte[] result = outputStream.toByteArray();
-
-			// set length of namespace and key
-			int namespaceLen = keyStartPos - Integer.BYTES;
-			int keyLen = result.length - keyStartPos - Integer.BYTES;
-			ByteBuffer byteBuffer = ByteBuffer.wrap(result);
-			ByteBufferUtils.putInt(byteBuffer, 0, namespaceLen);
-			ByteBufferUtils.putInt(byteBuffer, keyStartPos, keyLen);
-
-			return result;
 		} catch (IOException e) {
-			throw new RuntimeException("serialize key and namespace failed", e);
+			throw new RuntimeException("Failed to serialize key", e);
 		}
+
+		byte[] result = outputStream.toByteArray();
+		// set length of namespace and key
+		int namespaceLen = keyStartPos - Integer.BYTES;
+		int keyLen = result.length - keyStartPos - Integer.BYTES;
+		ByteBuffer byteBuffer = ByteBuffer.wrap(result);
+		ByteBufferUtils.putInt(byteBuffer, 0, namespaceLen);
+		ByteBufferUtils.putInt(byteBuffer, keyStartPos, keyLen);
+
+		return result;
 	}
 
 	/**
@@ -95,11 +97,10 @@ class SkipListKeySerializer<K, N> {
 	 * @param len        length of the skip list key.
 	 */
 	N deserializeNamespace(ByteBuffer byteBuffer, int offset, int len) {
+		ByteBufferInputStreamWithPos inputStream = new ByteBufferInputStreamWithPos(byteBuffer, offset, len);
+		DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
+		inputStream.setPosition(offset + Integer.BYTES);
 		try {
-			ByteBufferInputStreamWithPos inputStream = new ByteBufferInputStreamWithPos(byteBuffer, offset, len);
-			DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
-
-			inputStream.setPosition(offset + Integer.BYTES);
 			return namespaceSerializer.deserialize(inputView);
 		} catch (IOException e) {
 			throw new RuntimeException("deserialize namespace failed", e);
@@ -114,12 +115,11 @@ class SkipListKeySerializer<K, N> {
 	 * @param len        length of the skip list key.
 	 */
 	K deserializeKey(ByteBuffer byteBuffer, int offset, int len) {
+		ByteBufferInputStreamWithPos inputStream = new ByteBufferInputStreamWithPos(byteBuffer, offset, len);
+		DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
+		int namespaceLen = ByteBufferUtils.toInt(byteBuffer, offset);
+		inputStream.setPosition(offset + Integer.BYTES + namespaceLen + Integer.BYTES);
 		try {
-			ByteBufferInputStreamWithPos inputStream = new ByteBufferInputStreamWithPos(byteBuffer, offset, len);
-			DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
-
-			int namespaceLen = ByteBufferUtils.toInt(byteBuffer, offset);
-			inputStream.setPosition(offset + Integer.BYTES + namespaceLen + Integer.BYTES);
 			return keySerializer.deserialize(inputView);
 		} catch (IOException e) {
 			throw new RuntimeException("deserialize key failed", e);
@@ -154,13 +154,12 @@ class SkipListKeySerializer<K, N> {
 	 * Serialize the namespace to bytes.
 	 */
 	byte[] serializeNamespace(N namespace) {
+		outputStream.reset();
 		try {
-			outputStream.reset();
 			namespaceSerializer.serialize(namespace, outputView);
-
-			return outputStream.toByteArray();
 		} catch (IOException e) {
 			throw new RuntimeException("serialize namespace failed", e);
 		}
+		return outputStream.toByteArray();
 	}
 }
