@@ -50,21 +50,24 @@ object TableSinkUtils {
     val srcFieldTypes = query.getTableSchema.getFieldDataTypes
     val sinkFieldTypes = sink.getTableSchema.getFieldDataTypes
 
-    if (srcFieldTypes.length != sinkFieldTypes.length ||
-      srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) =>
-        !PlannerTypeUtils.isInteroperable(
-          fromDataTypeToLogicalType(srcF), fromDataTypeToLogicalType(snkF))
+    val srcLogicalTypes = srcFieldTypes.map(t => fromDataTypeToLogicalType(t))
+    val sinkLogicalTypes = sinkFieldTypes.map(t => fromDataTypeToLogicalType(t))
+
+    if (srcLogicalTypes.length != sinkLogicalTypes.length ||
+      srcLogicalTypes.zip(sinkLogicalTypes).exists {
+        case (srcType, sinkType) =>
+          !PlannerTypeUtils.isInteroperable(srcType, sinkType)
       }) {
 
       val srcFieldNames = query.getTableSchema.getFieldNames
       val sinkFieldNames = sink.getTableSchema.getFieldNames
 
       // format table and table sink schema strings
-      val srcSchema = srcFieldNames.zip(srcFieldTypes)
-        .map { case (n, t) => s"$n: ${t.getConversionClass.getSimpleName}" }
+      val srcSchema = srcFieldNames.zip(srcLogicalTypes)
+        .map { case (n, t) => s"$n: $t" }
         .mkString("[", ", ", "]")
-      val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
-        .map { case (n, t) => s"$n: ${t.getConversionClass.getSimpleName}" }
+      val sinkSchema = sinkFieldNames.zip(sinkLogicalTypes)
+        .map { case (n, t) => s"$n: $t" }
         .mkString("[", ", ", "]")
 
       throw new ValidationException(
