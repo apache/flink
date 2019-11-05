@@ -34,7 +34,7 @@ public final class DoubleComparator extends BasicTypeComparator<Double> {
 		super(ascending);
 	}
 
-	@Override 
+	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		double l1 = firstSource.readDouble(); 
 		double l2 = secondSource.readDouble(); 

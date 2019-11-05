@@ -4824,7 +4824,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 	class ValidationErrorFunction
 		implements Function2<SqlNode, Resources.ExInst<SqlValidatorException>,
 		CalciteContextException> {
-		@Override public CalciteContextException apply(
+		@Override
+		public CalciteContextException apply(
 			SqlNode v0, Resources.ExInst<SqlValidatorException> v1) {
 			return newValidationError(v0, v1);
 		}
@@ -4939,7 +4940,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		inWindow = false;
 	}
 
-	@Override public void validateMatchRecognize(SqlCall call) {
+	@Override
+	public void validateMatchRecognize(SqlCall call) {
 		final SqlMatchRecognize matchRecognize = (SqlMatchRecognize) call;
 		final MatchRecognizeScope scope =
 			(MatchRecognizeScope) getMatchRecognizeScope(matchRecognize);
@@ -5403,7 +5405,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		sqlQuery.accept(
 			new SqlShuttle() {
 
-				@Override public SqlNode visit(SqlDynamicParam param) {
+				@Override
+				public SqlNode visit(SqlDynamicParam param) {
 					if (alreadyVisited.add(param)) {
 						RelDataType type = getValidatedNodeType(param);
 						types.add(type);
@@ -5414,11 +5417,13 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		return typeFactory.createStructType(
 			types,
 			new AbstractList<String>() {
-				@Override public String get(int index) {
+				@Override
+				public String get(int index) {
 					return "?" + index;
 				}
 
-				@Override public int size() {
+				@Override
+				public int size() {
 					return types.size();
 				}
 			});
@@ -5544,36 +5549,43 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			this.scope = scope;
 		}
 
-		@Override public Void visit(SqlLiteral literal) {
+		@Override
+		public Void visit(SqlLiteral literal) {
 			return null;
 		}
 
-		@Override public Void visit(SqlCall call) {
+		@Override
+		public Void visit(SqlCall call) {
 			for (int i = 0; i < call.getOperandList().size(); i++) {
 				call.getOperandList().get(i).accept(this);
 			}
 			return null;
 		}
 
-		@Override public Void visit(SqlNodeList nodeList) {
+		@Override
+		public Void visit(SqlNodeList nodeList) {
 			throw Util.needToImplement(nodeList);
 		}
 
-		@Override public Void visit(SqlIdentifier id) {
+		@Override
+		public Void visit(SqlIdentifier id) {
 			Preconditions.checkArgument(id.isSimple());
 			scope.addPatternVar(id.getSimple());
 			return null;
 		}
 
-		@Override public Void visit(SqlDataTypeSpec type) {
+		@Override
+		public Void visit(SqlDataTypeSpec type) {
 			throw Util.needToImplement(type);
 		}
 
-		@Override public Void visit(SqlDynamicParam param) {
+		@Override
+		public Void visit(SqlDynamicParam param) {
 			throw Util.needToImplement(param);
 		}
 
-		@Override public Void visit(SqlIntervalQualifier intervalQualifier) {
+		@Override
+		public Void visit(SqlIntervalQualifier intervalQualifier) {
 			throw Util.needToImplement(intervalQualifier);
 		}
 	}
@@ -5723,7 +5735,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			this.validator = validator;
 		}
 
-		@Override public SqlNode visit(SqlIdentifier id) {
+		@Override
+		public SqlNode visit(SqlIdentifier id) {
 			// First check for builtin functions which don't have
 			// parentheses, like "LOCALTIME".
 			final SqlCall call = validator.makeNullaryCall(id);
@@ -5736,7 +5749,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			return expandedExpr;
 		}
 
-		@Override protected SqlNode visitScoped(SqlCall call) {
+		@Override
+		protected SqlNode visitScoped(SqlCall call) {
 			switch (call.getKind()) {
 				case SCALAR_QUERY:
 				case CURRENT_VALUE:
@@ -5891,7 +5905,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			this.havingExpr = havingExpr;
 		}
 
-		@Override public SqlNode visit(SqlIdentifier id) {
+		@Override
+		public SqlNode visit(SqlIdentifier id) {
 			if (id.isSimple()
 				&& (havingExpr
 					    ? validator.getConformance().isHavingAlias()
@@ -6042,7 +6057,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			this.op = operator;
 		}
 
-		@Override public SqlNode visit(SqlCall call) {
+		@Override
+		public SqlNode visit(SqlCall call) {
 			SqlKind kind = call.getKind();
 			List<SqlNode> operands = call.getOperandList();
 			List<SqlNode> newOperands = new ArrayList<>();
@@ -6104,7 +6120,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			}
 		}
 
-		@Override public SqlNode visit(SqlIdentifier id) {
+		@Override
+		public SqlNode visit(SqlIdentifier id) {
 			if (op == null) {
 				return id;
 			} else {
@@ -6132,7 +6149,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			this.alpha = alpha;
 		}
 
-		@Override public SqlNode visit(SqlCall call) {
+		@Override
+		public SqlNode visit(SqlCall call) {
 			SqlKind kind = call.getKind();
 			if (isLogicalNavigation(kind)
 				|| isAggregation(kind)
@@ -6152,7 +6170,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			return super.visit(call);
 		}
 
-		@Override public SqlNode visit(SqlIdentifier id) {
+		@Override
+		public SqlNode visit(SqlIdentifier id) {
 			if (id.isSimple()) {
 				return id;
 			}
@@ -6185,7 +6204,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			this.aggregateCount = aggregateCount;
 		}
 
-		@Override public Set<String> visit(SqlCall call) {
+		@Override
+		public Set<String> visit(SqlCall call) {
 			boolean isSingle = false;
 			Set<String> vars = new HashSet<>();
 			SqlKind kind = call.getKind();
@@ -6264,7 +6284,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			return vars;
 		}
 
-		@Override public Set<String> visit(SqlIdentifier identifier) {
+		@Override
+		public Set<String> visit(SqlIdentifier identifier) {
 			boolean check = prevNextCount > 0 || firstLastCount > 0 || aggregateCount > 0;
 			Set<String> vars = new HashSet<>();
 			if (identifier.names.size() > 1 && check) {
@@ -6273,19 +6294,23 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 			return vars;
 		}
 
-		@Override public Set<String> visit(SqlLiteral literal) {
+		@Override
+		public Set<String> visit(SqlLiteral literal) {
 			return ImmutableSet.of();
 		}
 
-		@Override public Set<String> visit(SqlIntervalQualifier qualifier) {
+		@Override
+		public Set<String> visit(SqlIntervalQualifier qualifier) {
 			return ImmutableSet.of();
 		}
 
-		@Override public Set<String> visit(SqlDataTypeSpec type) {
+		@Override
+		public Set<String> visit(SqlDataTypeSpec type) {
 			return ImmutableSet.of();
 		}
 
-		@Override public Set<String> visit(SqlDynamicParam param) {
+		@Override
+		public Set<String> visit(SqlDynamicParam param) {
 			return ImmutableSet.of();
 		}
 	}

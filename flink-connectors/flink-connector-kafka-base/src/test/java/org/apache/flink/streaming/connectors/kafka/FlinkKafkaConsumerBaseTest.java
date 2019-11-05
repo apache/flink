@@ -856,7 +856,8 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			return null;
 		}
 
-		@Override public List<KafkaTopicPartition> discoverPartitions() throws WakeupException, ClosedException {
+		@Override
+		public List<KafkaTopicPartition> discoverPartitions() throws WakeupException, ClosedException {
 			throw failureCause;
 		}
 

@@ -68,5 +68,6 @@ public interface KvStateClientProxy extends KvStateServer {
 	 * @param jobId identifying the job for which to request the key-value state location oracle
 	 * @return The key-value state location oracle for the given {@link JobID} or null if none.
 	 */
-	@Nullable KvStateLocationOracle getKvStateLocationOracle(JobID jobId);
+	@Nullable
+	KvStateLocationOracle getKvStateLocationOracle(JobID jobId);
 }

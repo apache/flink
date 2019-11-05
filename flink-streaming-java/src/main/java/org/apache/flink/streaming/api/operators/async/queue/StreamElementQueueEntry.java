@@ -52,7 +52,8 @@ interface StreamElementQueueEntry<OUT> extends ResultFuture<OUT> {
 	 *
 	 * @return the input element.
 	 */
-	@Nonnull StreamElement getInputElement();
+	@Nonnull
+	StreamElement getInputElement();
 
 	/**
 	 * Not supported. Exceptions must be handled in the AsyncWaitOperator.

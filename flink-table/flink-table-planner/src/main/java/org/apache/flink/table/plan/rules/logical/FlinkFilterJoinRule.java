@@ -319,7 +319,8 @@ public abstract class FlinkFilterJoinRule extends RelOptRule {
 			this(RelBuilder.proto(filterFactory, projectFactory), predicate);
 		}
 
-		@Override public void onMatch(RelOptRuleCall call) {
+		@Override
+		public void onMatch(RelOptRuleCall call) {
 			Join join = call.rel(0);
 			perform(call, null, join);
 		}
@@ -345,7 +346,8 @@ public abstract class FlinkFilterJoinRule extends RelOptRule {
 			this(smart, RelBuilder.proto(filterFactory, projectFactory), predicate);
 		}
 
-		@Override public void onMatch(RelOptRuleCall call) {
+		@Override
+		public void onMatch(RelOptRuleCall call) {
 			Filter filter = call.rel(0);
 			Join join = call.rel(1);
 			perform(call, filter, join);

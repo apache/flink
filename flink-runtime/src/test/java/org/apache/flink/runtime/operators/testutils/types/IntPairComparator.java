@@ -120,7 +120,8 @@ public class IntPairComparator extends TypeComparator<IntPair> {
 		return 1;
 	}
 	
-	@Override public TypeComparator[] getFlatComparators() {
+	@Override
+	public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}
 

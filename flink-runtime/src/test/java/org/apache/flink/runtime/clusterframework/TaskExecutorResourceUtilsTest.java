@@ -110,7 +110,8 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		assertThat(metaspaceSize, is(TM_RESOURCE_SPEC.getJvmMetaspaceSize()));
 	}
 
-	@Test public void testConfigFrameworkHeapMemory() {
+	@Test
+	public void testConfigFrameworkHeapMemory() {
 		final MemorySize frameworkHeapSize = MemorySize.parse("100m");
 
 		Configuration conf = new Configuration();

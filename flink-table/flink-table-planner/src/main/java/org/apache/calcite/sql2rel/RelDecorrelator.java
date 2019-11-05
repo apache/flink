@@ -1567,7 +1567,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
       this.cm = Objects.requireNonNull(cm);
     }
 
-    @Override public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
+    @Override
+	public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
       int newInputOutputOffset = 0;
       for (RelNode input : currentRel.getInputs()) {
         final Frame frame = map.get(input);
@@ -1596,7 +1597,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return fieldAccess;
     }
 
-    @Override public RexNode visitInputRef(RexInputRef inputRef) {
+    @Override
+	public RexNode visitInputRef(RexInputRef inputRef) {
       final RexInputRef ref = getNewForOldInputRef(currentRel, map, inputRef);
       if (ref.getIndex() == inputRef.getIndex()
           && ref.getType() == inputRef.getType()) {
@@ -1673,7 +1675,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
           caseOperands);
     }
 
-    @Override public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
+    @Override
+	public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
       if (cm.mapFieldAccessToCorRef.containsKey(fieldAccess)) {
         // if it is a corVar, change it to be input ref.
         CorRef corVar = cm.mapFieldAccessToCorRef.get(fieldAccess);
@@ -1698,7 +1701,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return fieldAccess;
     }
 
-    @Override public RexNode visitInputRef(RexInputRef inputRef) {
+    @Override
+	public RexNode visitInputRef(RexInputRef inputRef) {
       if (currentRel instanceof LogicalCorrelate) {
         // if this rel references corVar
         // and now it needs to be rewritten
@@ -1731,7 +1735,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return inputRef;
     }
 
-    @Override public RexNode visitLiteral(RexLiteral literal) {
+    @Override
+	public RexNode visitLiteral(RexLiteral literal) {
       // Use nullIndicator to decide whether to project null.
       // Do nothing if the literal is null.
       if (!RexUtil.isNull(literal)
@@ -1745,7 +1750,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return literal;
     }
 
-    @Override public RexNode visitCall(final RexCall call) {
+    @Override
+	public RexNode visitCall(final RexCall call) {
       RexNode newCall;
 
       boolean[] update = {false};
@@ -2582,15 +2588,18 @@ public class RelDecorrelator implements ReflectiveVisitor {
       this.uniqueKey = uniqueKey;
     }
 
-    @Override public String toString() {
+    @Override
+	public String toString() {
       return corr.getName() + '.' + field;
     }
 
-    @Override public int hashCode() {
+    @Override
+	public int hashCode() {
       return Objects.hash(uniqueKey, corr, field);
     }
 
-    @Override public boolean equals(Object o) {
+    @Override
+	public boolean equals(Object o) {
       return this == o
           || o instanceof CorRef
           && uniqueKey == ((CorRef) o).uniqueKey
@@ -2625,15 +2634,18 @@ public class RelDecorrelator implements ReflectiveVisitor {
       this.field = field;
     }
 
-    @Override public String toString() {
+    @Override
+	public String toString() {
       return corr.getName() + '.' + field;
     }
 
-    @Override public int hashCode() {
+    @Override
+	public int hashCode() {
       return Objects.hash(corr, field);
     }
 
-    @Override public boolean equals(Object o) {
+    @Override
+	public boolean equals(Object o) {
       return this == o
           || o instanceof CorDef
           && corr == ((CorDef) o).corr
@@ -2684,14 +2696,16 @@ public class RelDecorrelator implements ReflectiveVisitor {
       this.mapFieldAccessToCorRef = ImmutableMap.copyOf(mapFieldAccessToCorRef);
     }
 
-    @Override public String toString() {
+    @Override
+	public String toString() {
       return "mapRefRelToCorRef=" + mapRefRelToCorRef
           + "\nmapCorToCorRel=" + mapCorToCorRel
           + "\nmapFieldAccessToCorRef=" + mapFieldAccessToCorRef
           + "\n";
     }
 
-    @Override public boolean equals(Object obj) {
+    @Override
+	public boolean equals(Object obj) {
       return obj == this
           || obj instanceof CorelMap
           && mapRefRelToCorRef.equals(((CorelMap) obj).mapRefRelToCorRef)
@@ -2700,7 +2714,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
               ((CorelMap) obj).mapFieldAccessToCorRef);
     }
 
-    @Override public int hashCode() {
+    @Override
+	public int hashCode() {
       return Objects.hash(mapRefRelToCorRef, mapCorToCorRel,
           mapFieldAccessToCorRef);
     }
@@ -2748,7 +2763,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
           mapFieldAccessToCorVar);
     }
 
-    @Override public RelNode visit(LogicalJoin join) {
+    @Override
+	public RelNode visit(LogicalJoin join) {
       try {
         stack.push(join);
         join.getCondition().accept(rexVisitor(join));
@@ -2758,12 +2774,14 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return visitJoin(join);
     }
 
-    @Override protected RelNode visitChild(RelNode parent, int i,
+    @Override
+	protected RelNode visitChild(RelNode parent, int i,
         RelNode input) {
       return super.visitChild(parent, i, stripHep(input));
     }
 
-    @Override public RelNode visit(LogicalCorrelate correlate) {
+    @Override
+	public RelNode visit(LogicalCorrelate correlate) {
       mapCorToCorRel.put(correlate.getCorrelationId(), correlate);
       return visitJoin(correlate);
     }
@@ -2777,7 +2795,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return join;
     }
 
-    @Override public RelNode visit(final LogicalFilter filter) {
+    @Override
+	public RelNode visit(final LogicalFilter filter) {
       try {
         stack.push(filter);
         filter.getCondition().accept(rexVisitor(filter));
@@ -2787,7 +2806,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return super.visit(filter);
     }
 
-    @Override public RelNode visit(LogicalProject project) {
+    @Override
+	public RelNode visit(LogicalProject project) {
       try {
         stack.push(project);
         for (RexNode node : project.getProjects()) {
@@ -2801,7 +2821,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
     private RexVisitorImpl<Void> rexVisitor(final RelNode rel) {
       return new RexVisitorImpl<Void>(true) {
-        @Override public Void visitFieldAccess(RexFieldAccess fieldAccess) {
+        @Override
+		public Void visitFieldAccess(RexFieldAccess fieldAccess) {
           final RexNode ref = fieldAccess.getReferenceExpr();
           if (ref instanceof RexCorrelVariable) {
             final RexCorrelVariable var = (RexCorrelVariable) ref;
@@ -2823,7 +2844,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
           return super.visitFieldAccess(fieldAccess);
         }
 
-        @Override public Void visitSubQuery(RexSubQuery subQuery) {
+        @Override
+		public Void visitSubQuery(RexSubQuery subQuery) {
           subQuery.rel.accept(CorelMapBuilder.this);
           return super.visitSubQuery(subQuery);
         }

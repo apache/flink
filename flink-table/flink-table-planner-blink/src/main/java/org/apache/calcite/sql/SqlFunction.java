@@ -137,7 +137,8 @@ public class SqlFunction extends SqlOperator {
 		return sqlIdentifier;
 	}
 
-	@Override public SqlIdentifier getNameAsId() {
+	@Override
+	public SqlIdentifier getNameAsId() {
 		if (sqlIdentifier != null) {
 			return sqlIdentifier;
 		}

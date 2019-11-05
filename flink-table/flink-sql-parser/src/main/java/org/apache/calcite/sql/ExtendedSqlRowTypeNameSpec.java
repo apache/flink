@@ -113,7 +113,8 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
 		}
 	}
 
-	@Override public boolean equalsDeep(SqlTypeNameSpec node, Litmus litmus) {
+	@Override
+	public boolean equalsDeep(SqlTypeNameSpec node, Litmus litmus) {
 		if (!(node instanceof SqlRowTypeNameSpec)) {
 			return litmus.fail("{} != {}", this, node);
 		}
@@ -137,7 +138,8 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
 		return litmus.succeed();
 	}
 
-	@Override public RelDataType deriveType(SqlValidator sqlValidator) {
+	@Override
+	public RelDataType deriveType(SqlValidator sqlValidator) {
 		final RelDataTypeFactory typeFactory = sqlValidator.getTypeFactory();
 		return typeFactory.createStructType(
 			fieldTypes.stream()

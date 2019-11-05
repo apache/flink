@@ -84,7 +84,8 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 		return ret;
 	}
 
-	@Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+	@Override
+	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.startList(SqlWriter.FrameTypeEnum.SELECT);
 		String insertKeyword = "INSERT INTO";
 		if (isUpsert()) {

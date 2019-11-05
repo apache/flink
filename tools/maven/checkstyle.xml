@@ -469,6 +469,14 @@ This file is based on the checkstyle file of Apache Beam.
 	  <property name="ignoreComments" value="true"/>
 	</module>
 
+	<!-- Checks for annotation location in one line. -->
+	<module name="AnnotationLocation">
+	  <property name="allowSamelineMultipleAnnotations" value="false"/>
+	  <property name="allowSamelineSingleParameterlessAnnotation" value="false"/>
+	  <property name="allowSamelineParameterizedAnnotation" value="true"/>
+	  <property name="tokens" value="METHOD_DEF"/>
+	</module>
+
     <!--
 
     MODIFIERS CHECKS

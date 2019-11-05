@@ -122,7 +122,7 @@ public class ExpressionKeysTest {
 		}
 	}
 	
-	@Test 
+	@Test
 	public void testInvalidTuple() throws Throwable {
 		TupleTypeInfo<Tuple3<String, Tuple3<String, String, String>, String>> typeInfo = new TupleTypeInfo<>(
 				BasicTypeInfo.STRING_TYPE_INFO,

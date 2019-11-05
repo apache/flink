@@ -121,7 +121,8 @@ public class StringPairComparator extends TypeComparator<StringPair> {
 		return 1;
 	}
 
-	@Override public TypeComparator[] getFlatComparators() {
+	@Override
+	public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}
 }

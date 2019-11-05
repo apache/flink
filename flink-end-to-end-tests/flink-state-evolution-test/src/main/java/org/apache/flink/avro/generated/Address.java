@@ -570,7 +570,8 @@ public class Address extends org.apache.avro.specific.SpecificRecordBase impleme
   private static final org.apache.avro.io.DatumWriter<Address>
     WRITER$ = (org.apache.avro.io.DatumWriter<Address>)MODEL$.createDatumWriter(SCHEMA$);
 
-  @Override public void writeExternal(java.io.ObjectOutput out)
+  @Override
+  public void writeExternal(java.io.ObjectOutput out)
     throws java.io.IOException {
     WRITER$.write(this, SpecificData.getEncoder(out));
   }
@@ -579,7 +580,8 @@ public class Address extends org.apache.avro.specific.SpecificRecordBase impleme
   private static final org.apache.avro.io.DatumReader<Address>
     READER$ = (org.apache.avro.io.DatumReader<Address>)MODEL$.createDatumReader(SCHEMA$);
 
-  @Override public void readExternal(java.io.ObjectInput in)
+  @Override
+  public void readExternal(java.io.ObjectInput in)
     throws java.io.IOException {
     READER$.read(this, SpecificData.getDecoder(in));
   }
