@@ -691,27 +691,31 @@ public class DataFormatConverters {
 	/**
 	 * Converter for LocalDateTime.
 	 */
-	public static final class LocalDateTimeConverter extends DataFormatConverter<Long, LocalDateTime> {
+	public static final class LocalDateTimeConverter extends DataFormatConverter<SqlTimestamp, LocalDateTime> {
 
 		private static final long serialVersionUID = 1L;
 
-		public static final LocalDateTimeConverter INSTANCE = new LocalDateTimeConverter();
+		public static final LocalDateTimeConverter INSTANCE = new LocalDateTimeConverter(3);
 
-		private LocalDateTimeConverter() {}
+		private final int precision;
 
-		@Override
-		Long toInternalImpl(LocalDateTime value) {
-			return SqlDateTimeUtils.localDateTimeToUnixTimestamp(value);
+		private LocalDateTimeConverter(int precision) {
+			this.precision = precision;
 		}
 
 		@Override
-		LocalDateTime toExternalImpl(Long value) {
-			return SqlDateTimeUtils.unixTimestampToLocalDateTime(value);
+		SqlTimestamp toInternalImpl(LocalDateTime value) {
+			return SqlTimestamp.fromLocalDateTime(value);
+		}
+
+		@Override
+		LocalDateTime toExternalImpl(SqlTimestamp value) {
+			return value.toLocalDateTime();
 		}
 
 		@Override
 		LocalDateTime toExternalImpl(BaseRow row, int column) {
-			return toExternalImpl(row.getLong(column));
+			return toExternalImpl(row.getTimestamp(column, precision));
 		}
 	}
 
@@ -799,27 +803,31 @@ public class DataFormatConverters {
 	/**
 	 * Converter for timestamp.
 	 */
-	public static final class TimestampConverter extends DataFormatConverter<Long, Timestamp> {
+	public static final class TimestampConverter extends DataFormatConverter<SqlTimestamp, Timestamp> {
 
 		private static final long serialVersionUID = -779956524906131757L;
 
-		public static final TimestampConverter INSTANCE = new TimestampConverter();
+		public static final TimestampConverter INSTANCE = new TimestampConverter(3);
 
-		private TimestampConverter() {}
+		private final int precision;
 
-		@Override
-		Long toInternalImpl(Timestamp value) {
-			return SqlDateTimeUtils.timestampToInternal(value);
+		private TimestampConverter(int precision) {
+			this.precision = precision;
 		}
 
 		@Override
-		Timestamp toExternalImpl(Long value) {
-			return SqlDateTimeUtils.internalToTimestamp(value);
+		SqlTimestamp toInternalImpl(Timestamp value) {
+			return SqlTimestamp.fromTimestamp(value);
+		}
+
+		@Override
+		Timestamp toExternalImpl(SqlTimestamp value) {
+			return value.toTimestamp();
 		}
 
 		@Override
 		Timestamp toExternalImpl(BaseRow row, int column) {
-			return toExternalImpl(row.getLong(column));
+			return toExternalImpl(row.getTimestamp(column, precision));
 		}
 	}
 

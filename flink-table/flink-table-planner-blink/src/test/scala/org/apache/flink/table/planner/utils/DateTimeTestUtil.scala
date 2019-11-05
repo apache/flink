@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.utils
 
 import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter, LocalTimeConverter}
-
+import org.apache.flink.table.dataformat.SqlTimestamp
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.avatica.util.DateTimeUtils.dateStringToUnixDate
-
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 
 object DateTimeTestUtil {
@@ -47,7 +46,8 @@ object DateTimeTestUtil {
     if (s == null) {
       null
     } else {
-      LocalDateTimeConverter.INSTANCE.toExternal(DateTimeUtils.timestampStringToUnixDate(s))
+      LocalDateTimeConverter.INSTANCE.toExternal(
+        SqlTimestamp.fromEpochMillis(DateTimeUtils.timestampStringToUnixDate(s)))
     }
   }
 }
