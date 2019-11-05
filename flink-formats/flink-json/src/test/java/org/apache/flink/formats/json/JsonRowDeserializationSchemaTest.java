@@ -86,7 +86,6 @@ public class JsonRowDeserializationSchemaTest {
 
 	@Test
 	public void testSchemaDeserialization() throws Exception {
-		// TODO(add tests here)
 		final BigDecimal id = BigDecimal.valueOf(1238123899121L);
 		final String name = "asdlkjasjkdla998y1122";
 		final byte[] bytes = new byte[1024];
