@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -80,6 +81,33 @@ public class TaskSlotTableTest extends TestLogger {
 			assertThat(taskSlotTable.tryMarkSlotActive(jobId1, allocationId3), is(false));
 
 			assertThat(Sets.newHashSet(taskSlotTable.getActiveSlots(jobId1)), is(equalTo(new HashSet<>(Arrays.asList(allocationId2, allocationId1)))));
+		} finally {
+			taskSlotTable.stop();
+		}
+	}
+
+	/**
+	 * Tests that redundant slot allocation with the same AllocationID to a different slot is rejected.
+	 */
+	@Test
+	public void testRedundantSlotAllocation() {
+		final TaskSlotTable taskSlotTable = createTaskSlotTable(Collections.nCopies(2, ResourceProfile.UNKNOWN));
+
+		try {
+			taskSlotTable.start(new TestingSlotActionsBuilder().build());
+
+			final JobID jobId = new JobID();
+			final AllocationID allocationId = new AllocationID();
+
+			assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId, SLOT_TIMEOUT), is(true));
+			assertThat(taskSlotTable.allocateSlot(1, jobId, allocationId, SLOT_TIMEOUT), is(false));
+
+			assertThat(taskSlotTable.isAllocated(0, jobId, allocationId), is(true));
+			assertThat(taskSlotTable.isSlotFree(1), is(true));
+
+			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			assertThat(allocatedSlots.next().getIndex(), is(0));
+			assertThat(allocatedSlots.hasNext(), is(false));
 		} finally {
 			taskSlotTable.stop();
 		}
