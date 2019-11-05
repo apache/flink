@@ -26,7 +26,6 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 

@@ -27,7 +27,6 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Partial {@link DispatcherServices} services container which needs to
