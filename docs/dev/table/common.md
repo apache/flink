@@ -298,26 +298,37 @@ Create Tables in the Catalog
 -------------------------------
 
 A `TableEnvironment` maintains a map of catalogs of tables which are created with an identifier. Each
-identifier consists of 3 parts: catalog name, database name and object name. If a catalog or database was not
-specified current default value will be used (see examples in the [Table identifier expanding](#table-identifier-expanding) section).
+identifier consists of 3 parts: catalog name, database name and object name. If a catalog or database is not
+specified, the current default value will be used (see examples in the [Table identifier expanding](#table-identifier-expanding) section).
 
-Tables can be either virtual (`VIEWS`) or regular(`TABLES`). `VIEWS` can be created e.g. from an an
-existing `Table` object, usually the result of a Table API or SQL query. `TABLES` describe an
+Tables can be either virtual (`VIEWS`) or regular (`TABLES`). `VIEWS` can be created from an
+existing `Table` object, usually the result of a Table API or SQL query. `TABLES` describe
 external data, such as a file, database, or messaging system.
 
 ### Temporary vs permanent tables.
 
-Permanent tables are tables which meta information is stored in a [catalog]({{ site.baseurl }}/dev/table/catalogs.html). Usually
-it means it is persisted in an external metastore such as e.g. Hive. This implies that there must exist a serializable representation
-of such table. They will be available across multiple sessions/jobs as long as the connection to the metastore is maintained. 
 
-On the other hand temporary tables are always stored in memory and exist only for a single session/job.
-Temporary tables are not bound to any catalog or database. They can be created in a namespace of a catalog and database
-that does not exist. They are also not dropped if a corresponding database is removed.
-Moreover temporary tables can shadow permanent tables. It is possible to register a temporary table
-with exactly the same identifier as an existing permanent table. Such a permanent table becomes
-inaccessible as long as the temporary table exists. All queries with that identifier will be executed
-against the temporary table.
+
+Tables may either be temporary, and tied to the lifecycle of a single Flink session, or permanent,
+and visible across multiple Flink sessions and clusters.
+
+Permanent tables require a [catalog]({{ site.baseurl }}/dev/table/catalogs.html) (such as Hive)
+to maintain metadata about the table. Once a permanent table is created, it is visible to any Flink
+session that can connect to the catalog and will continue to exist until the table is explicitly
+dropped.
+
+On the other hand, temporary tables are always stored in memory and only exist for the duration of
+the Flink session they are created within. These tables are not visible to other clusters. They are
+not bound to any catalog or database but can be created in the namespace of one. Temporary tables
+are not dropped if their corresponding database is removed.
+
+#### Shadowing
+
+It is possible to register a temporary table with the same identifier as an existing permanent
+table. The temporary table shadows the permanent one and make the permanent table inaccessible as
+long as the temporary one exists. All queries with that identifier will be executed against the
+temporary table.
+
 
 ### Create a Table
 
@@ -367,7 +378,7 @@ table_env.register_table("projectedTable", proj_table)
 </div>
 </div>
 
-**Note:** A `Table` object similarly to a `VIEW` from relational database
+**Note:** `Table` objects are similar to `VIEW`'s from relational database
 systems, i.e., the query that defines the `Table` is not optimized but will be inlined when another
 query references the registered `Table`. If multiple queries reference the same registered `Table`,
 it will be inlined for each referencing query and executed multiple times, i.e., the result of the
@@ -423,9 +434,9 @@ tableEnvironment.sqlUpdate("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 
 ### Expanding table identifiers
 
-Tables are always registered with a 3 part identifiers consisting of catalog name, database name and
-table name. The first two parts are optional. If they are not provided the current default values will
-be used. Identifiers follow SQL requirements. That means that they can be escaped with ``` character.
+Tables are always registered with a 3 part identifier consisting of catalog, database, and
+table name. The first two parts are optional and if they are not provided the set default values will
+be used. Identifiers follow SQL requirements which means that they can be escaped with ``` character.
 Additionally all SQL reserved keywords must be escaped.
 
 <div class="codetabs" markdown="1">
@@ -879,6 +890,8 @@ The Scala Table API features implicit conversions for the `DataSet`, `DataStream
 ### Creates a View from a DataStream or DataSet
 
 A `DataStream` or `DataSet` can be registered in a `TableEnvironment` as a View. The schema of the resulting view depends on the data type of the registered `DataStream` or `DataSet`. Please check the section about [mapping of data types to table schema](#mapping-of-data-types-to-table-schema) for details.
+
+**Note:** Views created from a `DataStream` or `DataSet` can be registered as temporary views only.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
