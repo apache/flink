@@ -117,7 +117,7 @@ import org.apache.flink.streaming.runtime.io.InputStatus;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.mailbox.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
@@ -778,9 +778,9 @@ public class StreamTaskTest extends TestLogger {
 				}
 
 				@Override
-				protected void processInput(DefaultActionContext context) throws Exception {
+				protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 					mailboxProcessor.getMailboxExecutor(0).execute(latch::trigger, "trigger");
-					context.allActionsCompleted();
+					controller.allActionsCompleted();
 				}
 			});
 			latch.await();
@@ -1245,11 +1245,11 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			if (fail) {
 				throw new RuntimeException();
 			}
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 
 		@Override
@@ -1260,7 +1260,7 @@ public class StreamTaskTest extends TestLogger {
 			final StreamTaskStateInitializer streamTaskStateManager = super.createStreamTaskStateInitializer();
 			return (operatorID, operatorClassName, processingTimeService, keyContext, keySerializer, closeableRegistry, metricGroup) -> {
 
-				final StreamOperatorStateContext context = streamTaskStateManager.streamOperatorStateContext(
+				final StreamOperatorStateContext controller = streamTaskStateManager.streamOperatorStateContext(
 					operatorID,
 					operatorClassName,
 					processingTimeService,
@@ -1272,33 +1272,33 @@ public class StreamTaskTest extends TestLogger {
 				return new StreamOperatorStateContext() {
 					@Override
 					public boolean isRestored() {
-						return context.isRestored();
+						return controller.isRestored();
 					}
 
 					@Override
 					public OperatorStateBackend operatorStateBackend() {
-						return context.operatorStateBackend();
+						return controller.operatorStateBackend();
 					}
 
 					@Override
 					public AbstractKeyedStateBackend<?> keyedStateBackend() {
-						return context.keyedStateBackend();
+						return controller.keyedStateBackend();
 					}
 
 					@Override
 					public InternalTimeServiceManager<?> internalTimerServiceManager() {
-						InternalTimeServiceManager<?> timeServiceManager = context.internalTimerServiceManager();
+						InternalTimeServiceManager<?> timeServiceManager = controller.internalTimerServiceManager();
 						return timeServiceManager != null ? spy(timeServiceManager) : null;
 					}
 
 					@Override
 					public CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs() {
-						return replaceWithSpy(context.rawOperatorStateInputs());
+						return replaceWithSpy(controller.rawOperatorStateInputs());
 					}
 
 					@Override
 					public CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs() {
-						return replaceWithSpy(context.rawKeyedStateInputs());
+						return replaceWithSpy(controller.rawKeyedStateInputs());
 					}
 
 					public <T extends Closeable> T replaceWithSpy(T closeable) {
@@ -1334,7 +1334,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() {}
 
 		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			holder = new LockHolder(getCheckpointLock(), latch);
 			holder.start();
 			latch.await();
@@ -1349,7 +1349,7 @@ public class StreamTaskTest extends TestLogger {
 				// restore interruption state
 				Thread.currentThread().interrupt();
 			}
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 
 		@Override
@@ -1379,7 +1379,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() {}
 
 		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			final OneShotLatch latch = new OneShotLatch();
 			final Object lock = new Object();
 
@@ -1405,7 +1405,7 @@ public class StreamTaskTest extends TestLogger {
 			finally {
 				holder.close();
 			}
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 
 		@Override
@@ -1453,10 +1453,10 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			checkTaskThreadInfo();
 			if (hasTimerTriggered) {
-				context.allActionsCompleted();
+				controller.allActionsCompleted();
 			}
 		}
 
@@ -1472,7 +1472,7 @@ public class StreamTaskTest extends TestLogger {
 				"Task's method was called in non task thread.");
 			Preconditions.checkState(
 				taskClassLoader == currentThread.getContextClassLoader(),
-				"Task's context class loader has been changed during invocation.");
+				"Task's controller class loader has been changed during invocation.");
 		}
 	}
 
@@ -1541,14 +1541,14 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public void initializeState(StateInitializationContext context) throws Exception {
+		public void initializeState(StateInitializationContext controller) throws Exception {
 			keyedStateBackend = (AbstractKeyedStateBackend<?>) getKeyedStateBackend();
 			operatorStateBackend = getOperatorStateBackend();
 			rawOperatorStateInputs =
-				(CloseableIterable<StatePartitionStreamProvider>) context.getRawOperatorStateInputs();
+				(CloseableIterable<StatePartitionStreamProvider>) controller.getRawOperatorStateInputs();
 			rawKeyedStateInputs =
-				(CloseableIterable<KeyGroupStatePartitionStreamProvider>) context.getRawKeyedStateInputs();
-			super.initializeState(context);
+				(CloseableIterable<KeyGroupStatePartitionStreamProvider>) controller.getRawKeyedStateInputs();
+			super.initializeState(controller);
 		}
 	}
 

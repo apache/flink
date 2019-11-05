@@ -38,7 +38,7 @@ public class TaskMailboxProcessorTest {
 
 	@Test
 	public void testRejectIfNotOpen() {
-		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
+		MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
 		mailboxProcessor.prepareClose();
 		try {
 			mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
@@ -49,7 +49,7 @@ public class TaskMailboxProcessorTest {
 
 	@Test
 	public void testShutdown() {
-		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
+		MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
 		FutureTask<Void> testRunnableFuture = new FutureTask<>(() -> {}, null);
 		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(testRunnableFuture, "testRunnableFuture");
 		mailboxProcessor.prepareClose();
@@ -71,9 +71,9 @@ public class TaskMailboxProcessorTest {
 		AtomicBoolean stop = new AtomicBoolean(false);
 		MailboxThread mailboxThread = new MailboxThread() {
 			@Override
-			public void runDefaultAction(DefaultActionContext context) throws Exception {
+			public void runDefaultAction(Controller controller) throws Exception {
 				if (stop.get()) {
-					context.allActionsCompleted();
+					controller.allActionsCompleted();
 				} else {
 					Thread.sleep(10L);
 				}
@@ -92,9 +92,9 @@ public class TaskMailboxProcessorTest {
 		final AtomicInteger counter = new AtomicInteger(0);
 		MailboxThread mailboxThread = new MailboxThread() {
 			@Override
-			public void runDefaultAction(DefaultActionContext context) {
+			public void runDefaultAction(Controller controller) {
 				if (counter.incrementAndGet() == expectedInvocations) {
-					context.allActionsCompleted();
+					controller.allActionsCompleted();
 				}
 			}
 		};
@@ -108,19 +108,19 @@ public class TaskMailboxProcessorTest {
 	public void testSignalUnAvailable() throws Exception {
 
 		final AtomicInteger counter = new AtomicInteger(0);
-		final AtomicReference<SuspendedMailboxDefaultAction> suspendedActionRef = new AtomicReference<>();
+		final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef = new AtomicReference<>();
 		final OneShotLatch actionSuspendedLatch = new OneShotLatch();
 		final int blockAfterInvocations = 3;
 		final int totalInvocations = blockAfterInvocations * 2;
 
 		MailboxThread mailboxThread = new MailboxThread() {
 			@Override
-			public void runDefaultAction(DefaultActionContext context) {
+			public void runDefaultAction(Controller controller) {
 				if (counter.incrementAndGet() == blockAfterInvocations) {
-					suspendedActionRef.set(context.suspendDefaultAction());
+					suspendedActionRef.set(controller.suspendDefaultAction());
 					actionSuspendedLatch.trigger();
 				} else if (counter.get() == totalInvocations) {
-					context.allActionsCompleted();
+					controller.allActionsCompleted();
 				}
 			}
 		};
@@ -129,29 +129,29 @@ public class TaskMailboxProcessorTest {
 		actionSuspendedLatch.await();
 		Assert.assertEquals(blockAfterInvocations, counter.get());
 
-		SuspendedMailboxDefaultAction suspendedMailboxDefaultAction = suspendedActionRef.get();
-		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspendedMailboxDefaultAction::resume, "resume");
+		MailboxDefaultAction.Suspension suspension = suspendedActionRef.get();
+		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspension::resume, "resume");
 		stop(mailboxThread);
 		Assert.assertEquals(totalInvocations, counter.get());
 	}
 
 	@Test
 	public void testSignalUnAvailablePingPong() throws Exception {
-		final AtomicReference<SuspendedMailboxDefaultAction> suspendedActionRef = new AtomicReference<>();
+		final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef = new AtomicReference<>();
 		final int totalSwitches = 10000;
 		final MailboxThread mailboxThread = new MailboxThread() {
 			int count = 0;
 
 			@Override
-			public void runDefaultAction(DefaultActionContext context) {
+			public void runDefaultAction(Controller controller) {
 
 				// If this is violated, it means that the default action was invoked while we assumed suspension
-				Assert.assertTrue(suspendedActionRef.compareAndSet(null, context.suspendDefaultAction()));
+				Assert.assertTrue(suspendedActionRef.compareAndSet(null, controller.suspendDefaultAction()));
 
 				++count;
 
 				if (count == totalSwitches) {
-					context.allActionsCompleted();
+					controller.allActionsCompleted();
 				} else if (count % 1000 == 0) {
 					try {
 						Thread.sleep(1L);
@@ -169,7 +169,7 @@ public class TaskMailboxProcessorTest {
 			int count = 0;
 			while (!Thread.currentThread().isInterrupted()) {
 
-				final SuspendedMailboxDefaultAction resume =
+				final MailboxDefaultAction.Suspension resume =
 						suspendedActionRef.getAndSet(null);
 				if (resume != null) {
 					mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(resume::resume, "resume");
@@ -228,9 +228,9 @@ public class TaskMailboxProcessorTest {
 		final AtomicInteger counter = new AtomicInteger(0);
 		MailboxThread mailboxThread = new MailboxThread() {
 			@Override
-			public void runDefaultAction(DefaultActionContext context) {
+			public void runDefaultAction(Controller controller) {
 				if (counter.incrementAndGet() == expectedInvocations) {
-					context.allActionsCompleted();
+					controller.allActionsCompleted();
 				}
 			}
 		};
@@ -282,8 +282,8 @@ public class TaskMailboxProcessorTest {
 		}
 
 		@Override
-		public void runDefaultAction(DefaultActionContext context) throws Exception {
-			context.allActionsCompleted();
+		public void runDefaultAction(Controller controller) throws Exception {
+			controller.allActionsCompleted();
 		}
 
 		final MailboxProcessor getMailboxProcessor() {
