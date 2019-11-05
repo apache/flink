@@ -272,7 +272,6 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 			String.valueOf(config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
 			config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN),
 			config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX),
-			config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE),
 			String.valueOf(config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION))};
 		String scriptOutput = executeScript(command);
 
