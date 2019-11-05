@@ -39,7 +39,7 @@ import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MIN_P
  * single-threaded execution between the default action (e.g. record processing) and mailbox actions (e.g. checkpoint
  * trigger, timer firing, ...).
  *
- * <p>The {@link MailboxDefaultAction} interacts with this class through the {@link MailboxDefaultActionContext} to
+ * <p>The {@link MailboxDefaultAction} interacts with this class through the {@link MailboxController} to
  * communicate control flow changes to the mailbox loop, e.g. that invocations of the default action are temporarily or
  * permanently exhausted.
  *
@@ -75,7 +75,7 @@ public class MailboxProcessor {
 	 * default action (suspended if not-null) and to reuse the object as return value in consecutive suspend attempts.
 	 * Must only be accessed from mailbox thread.
 	 */
-	private SuspendedMailboxDefaultAction suspendedDefaultAction;
+	private MailboxDefaultAction.Suspension suspendedDefaultAction;
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
@@ -148,7 +148,7 @@ public class MailboxProcessor {
 
 		assert localMailbox.getState() == TaskMailbox.State.OPEN : "Mailbox must be opened!";
 
-		final MailboxDefaultActionContext defaultActionContext = new MailboxDefaultActionContext(this);
+		final MailboxController defaultActionContext = new MailboxController(this);
 
 		while (processMail(localMailbox)) {
 			mailboxDefaultAction.runDefaultAction(defaultActionContext);
@@ -219,12 +219,12 @@ public class MailboxProcessor {
 	 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
 	 * e.g. because there is currently no input available.
 	 */
-	private SuspendedMailboxDefaultAction suspendDefaultAction() {
+	private MailboxDefaultAction.Suspension suspendDefaultAction() {
 
 		Preconditions.checkState(mailbox.isMailboxThread(), "Suspending must only be called from the mailbox thread!");
 
 		if (suspendedDefaultAction == null) {
-			suspendedDefaultAction = new SuspendDefaultActionRunnable();
+			suspendedDefaultAction = new DefaultActionSuspension();
 			ensureControlFlowSignalCheck();
 		}
 
@@ -250,14 +250,14 @@ public class MailboxProcessor {
 	}
 
 	/**
-	 * Implementation of {@link DefaultActionContext} that is connected to a {@link MailboxProcessor}
+	 * Implementation of {@link MailboxDefaultAction.Controller} that is connected to a {@link MailboxProcessor}
 	 * instance.
 	 */
-	private static final class MailboxDefaultActionContext implements DefaultActionContext {
+	private static final class MailboxController implements MailboxDefaultAction.Controller {
 
 		private final MailboxProcessor mailboxProcessor;
 
-		private MailboxDefaultActionContext(MailboxProcessor mailboxProcessor) {
+		private MailboxController(MailboxProcessor mailboxProcessor) {
 			this.mailboxProcessor = mailboxProcessor;
 		}
 
@@ -267,7 +267,7 @@ public class MailboxProcessor {
 		}
 
 		@Override
-		public SuspendedMailboxDefaultAction suspendDefaultAction() {
+		public MailboxDefaultAction.Suspension suspendDefaultAction() {
 			return mailboxProcessor.suspendDefaultAction();
 		}
 	}
@@ -275,7 +275,7 @@ public class MailboxProcessor {
 	/**
 	 * Represents the suspended state of the default action and offers an idempotent method to resume execution.
 	 */
-	private final class SuspendDefaultActionRunnable implements SuspendedMailboxDefaultAction {
+	private final class DefaultActionSuspension implements MailboxDefaultAction.Suspension {
 
 		@Override
 		public void resume() {

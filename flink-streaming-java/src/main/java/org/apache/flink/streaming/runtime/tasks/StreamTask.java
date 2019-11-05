@@ -66,10 +66,9 @@ import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitio
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.mailbox.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
-import org.apache.flink.streaming.runtime.tasks.mailbox.SuspendedMailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -273,16 +272,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * This method implements the default action of the task (e.g. processing one event from the input). Implementations
 	 * should (in general) be non-blocking.
 	 *
-	 * @param context context object for collaborative interaction between the action and the stream task.
+	 * @param controller controller object for collaborative interaction between the action and the stream task.
 	 * @throws Exception on any problems in the action.
 	 */
-	protected void processInput(DefaultActionContext context) throws Exception {
+	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		InputStatus status = inputProcessor.processInput();
 		if (status == InputStatus.END_OF_INPUT) {
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 		else if (status == InputStatus.NOTHING_AVAILABLE) {
-			SuspendedMailboxDefaultAction suspendedDefaultAction = context.suspendDefaultAction();
+			MailboxDefaultAction.Suspension suspendedDefaultAction = controller.suspendDefaultAction();
 			inputProcessor.isAvailable().thenRun(suspendedDefaultAction::resume);
 		}
 	}
