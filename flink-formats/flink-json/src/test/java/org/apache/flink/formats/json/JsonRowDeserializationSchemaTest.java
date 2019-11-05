@@ -58,6 +58,11 @@ public class JsonRowDeserializationSchemaTest {
 		Map<String, Long> map = new HashMap<>();
 		map.put("flink", 123L);
 
+		Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
+		Map<String, Integer> innerMap = new HashMap<>();
+		innerMap.put("key", 234);
+		nestedMap.put("inner_map", innerMap);
+
 		ObjectMapper objectMapper = new ObjectMapper();
 
 		// Root
@@ -66,20 +71,23 @@ public class JsonRowDeserializationSchemaTest {
 		root.put("name", name);
 		root.put("bytes", bytes);
 		root.putObject("map").put("flink", 123);
+		root.putObject("map2map").putObject("inner_map").put("key", 234);
 
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(
 			Types.ROW_NAMED(
-				new String[]{"id", "name", "bytes", "map"},
-				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE), Types.MAP(Types.STRING, Types.LONG))
+				new String[]{"id", "name", "bytes", "map", "map2map"},
+				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE), Types.MAP(Types.STRING, Types.LONG),
+				Types.MAP(Types.STRING, Types.MAP(Types.STRING, Types.INT)))
 		).build();
 
-		Row row = new Row(4);
+		Row row = new Row(5);
 		row.setField(0, id);
 		row.setField(1, name);
 		row.setField(2, bytes);
 		row.setField(3, map);
+		row.setField(4, nestedMap);
 
 		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(row));
 	}
