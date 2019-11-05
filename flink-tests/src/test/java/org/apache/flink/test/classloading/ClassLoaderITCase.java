@@ -36,18 +36,16 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,13 +61,15 @@ import java.util.concurrent.TimeUnit;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.hamcrest.CoreMatchers.isA;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test job classloader.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class ClassLoaderITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClassLoaderITCase.class);
@@ -90,12 +90,8 @@ public class ClassLoaderITCase extends TestLogger {
 
 	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
-
 	@ClassRule
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
-
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
 
 	private static MiniClusterResource miniClusterResource = null;
 
@@ -225,7 +221,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 			try {
 				Class.forName(exception.get().getClass().getName());
-				Assert.fail("Deserialization of user exception should have failed.");
+				fail("Deserialization of user exception should have failed.");
 			} catch (ClassNotFoundException expected) {
 				// expected
 			}
@@ -282,10 +278,12 @@ public class ClassLoaderITCase extends TestLogger {
 			Collections.singleton(new Path(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH)),
 			Collections.emptyList());
 
-		expectedException.expectCause(
-			Matchers.hasProperty("cause", isA(SuccessException.class)));
-
-		program.invokeInteractiveModeForExecution();
+		try {
+			program.invokeInteractiveModeForExecution();
+			fail("exception should happen");
+		} catch (ProgramInvocationException e) {
+			assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
+		}
 	}
 
 	/**
