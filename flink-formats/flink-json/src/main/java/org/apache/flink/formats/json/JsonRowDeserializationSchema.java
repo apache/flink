@@ -260,13 +260,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		DeserializationRuntimeConverter keyConverter = createConverter(keyType);
 
 		return (mapper, jsonNode) -> {
-			Iterator<String> fieldNames = jsonNode.fieldNames();
+			Iterator<Map.Entry<String, JsonNode>> fields = jsonNode.fields();
 			Map<Object, Object> result = new HashMap<>();
-			while (fieldNames.hasNext()) {
-				String stringKey = fieldNames.next();
-				JsonNode keyNode = TextNode.valueOf(stringKey);
-				Object key = keyConverter.convert(mapper, keyNode);
-				Object value = valueConverter.convert(mapper, jsonNode.get(stringKey));
+			while (fields.hasNext()) {
+				Map.Entry<String, JsonNode> entry = fields.next();
+				Object key = keyConverter.convert(mapper, TextNode.valueOf(entry.getKey()));
+				Object value = valueConverter.convert(mapper, entry.getValue());
 				result.put(key, value);
 			}
 			return result;
