@@ -23,8 +23,8 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.sources.TableSource
-
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
 
 /**
   * Abstract class which define the interfaces required to convert a [[TableSource]] to
@@ -49,6 +49,10 @@ class TableSourceTable[T](
       catalogTable: CatalogTable) {
     this(tableSource, isStreamingMode, statistic, None, catalogTable)
   }
+
+  Preconditions.checkNotNull(tableSource)
+  Preconditions.checkNotNull(statistic)
+  Preconditions.checkNotNull(catalogTable)
 
   // TODO implements this
   // TableSourceUtil.validateTableSource(tableSource)

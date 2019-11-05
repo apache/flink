@@ -185,7 +185,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			tableSource,
 			isStreamingMode,
 			FlinkStatistic.builder().tableStats(tableStats).build(),
-			null);
+			table);
 	}
 
 	private TableStats extractTableStats(ConnectorCatalogTable<?, ?> table, ObjectPath tablePath) {
