@@ -114,7 +114,8 @@ public class RemoteExecutor extends PlanExecutor {
 		ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 				jarFiles,
 				globalClasspaths,
-				getClass().getClassLoader());
+				getClass().getClassLoader(),
+				clientConfiguration);
 
 		return executePlanWithJars(jobGraph, userCodeClassLoader);
 	}

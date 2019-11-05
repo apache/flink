@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -110,7 +111,8 @@ public class PackagedProgram {
 	 * @throws ProgramInvocationException This invocation is thrown if the Program can't be properly loaded. Causes
 	 *                                    may be a missing / wrong class or manifest files.
 	 */
-	private PackagedProgram(@Nullable File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
+	private PackagedProgram(@Nullable File jarFile, List<URL> classpaths, @Nullable String entryPointClassName,
+							Configuration configuration, String... args) throws ProgramInvocationException {
 		checkNotNull(classpaths);
 		checkNotNull(args);
 		checkArgument(jarFile != null || entryPointClassName != null, "Either the jarFile or the entryPointClassName needs to be non-null.");
@@ -140,7 +142,8 @@ public class PackagedProgram {
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
-		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getJobJarAndDependencies(), classpaths, getClass().getClassLoader());
+		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getJobJarAndDependencies(), classpaths,
+			getClass().getClassLoader(), configuration);
 
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
@@ -531,6 +534,8 @@ public class PackagedProgram {
 
 		private List<URL> userClassPaths = Collections.emptyList();
 
+		private Configuration configuration = new Configuration();
+
 		public Builder setJarFile(@Nullable File jarFile) {
 			this.jarFile = jarFile;
 			return this;
@@ -551,6 +556,11 @@ public class PackagedProgram {
 			return this;
 		}
 
+		public Builder setConfiguration(Configuration configuration) {
+			this.configuration = configuration;
+			return this;
+		}
+
 		public PackagedProgram build() throws ProgramInvocationException {
 			if (jarFile == null && entryPointClassName == null) {
 				throw new IllegalArgumentException("The jarFile and entryPointClassName can not be null at the same time.");
@@ -559,6 +569,7 @@ public class PackagedProgram {
 				jarFile,
 				userClassPaths,
 				entryPointClassName,
+				configuration,
 				args);
 		}
 
