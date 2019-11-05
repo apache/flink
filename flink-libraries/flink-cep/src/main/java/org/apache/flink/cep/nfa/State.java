@@ -51,7 +51,9 @@ public class State<T> implements Serializable {
 	public StateType getStateType() {
 		return stateType;
 	}
-
+	public boolean isWaiting(){
+		return stateType == StateType.Waiting;
+	}
 	public boolean isFinal() {
 		return stateType == StateType.Final;
 	}
@@ -142,6 +144,7 @@ public class State<T> implements Serializable {
 		Start, // the state is a starting state for the NFA
 		Final, // the state is a final state for the NFA
 		Normal, // the state is neither a start nor a final state
-		Stop
+		Stop,
+		Waiting
 	}
 }

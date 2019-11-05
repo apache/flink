@@ -100,7 +100,7 @@ public class NFATest extends TestLogger {
 		expectedPatterns.add(firstPattern);
 		expectedPatterns.add(secondPattern);
 
-		NFA<Event> nfa = new NFA<>(states, 0, false);
+		NFA<Event> nfa = new NFA<>(states, 0,0, false);
 		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
 
 		Collection<Map<String, List<Event>>> actualPatterns = nfaTestHarness.consumeRecords(streamEvents);
@@ -327,7 +327,6 @@ public class NFATest extends TestLogger {
 			endState,
 			new SimpleCondition<Event>() {
 				private static final long serialVersionUID = -4869589195918650396L;
-
 				@Override
 				public boolean filter(Event value) throws Exception {
 					return value.getName().equals("start");
@@ -350,7 +349,7 @@ public class NFATest extends TestLogger {
 		states.add(endState);
 		states.add(endingState);
 
-		return new NFA<>(states, 2L, false);
+		return new NFA<>(states, 2L,0, false);
 	}
 
 }

@@ -73,6 +73,7 @@ public class Pattern<T, F extends T> {
 	 */
 	private Times times;
 
+	private Time waitingTime;
 	private final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
 	protected Pattern(
@@ -568,6 +569,20 @@ public class Pattern<T, F extends T> {
 		if (this instanceof GroupPattern) {
 			throw new MalformedPatternException("Option not applicable to group pattern");
 		}
+	}
+	public Pattern<T, F> waitting(Time waitingTime) {
+		if (waitingTime != null) {
+			this.waitingTime = waitingTime;
+			this.windowTime = waitingTime;
+		}
+		return this;
+	}
+	public Time getWaitingTime(){
+		return this.waitingTime;
+	}
+	//notice if you want use wait ,the event cannot be null,
+	public Pattern<T, T> wait(final String name) {
+		return new Pattern<>(name, this, Quantifier.ConsumingStrategy.WAITING, afterMatchSkipStrategy);
 	}
 
 	private void checkIfPreviousPatternGreedy() {

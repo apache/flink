@@ -162,7 +162,8 @@ public class Quantifier {
 		SKIP_TILL_ANY,
 
 		NOT_FOLLOW,
-		NOT_NEXT
+		NOT_NEXT,
+		WAITING
 	}
 
 	/**

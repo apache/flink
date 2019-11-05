@@ -104,12 +104,16 @@ public class NFA<T> {
 	 */
 	private final boolean handleTimeout;
 
+	public final long waitingTime;
+
 	public NFA(
 			final Collection<State<T>> validStates,
 			final long windowTime,
+			final long waitingTime,
 			final boolean handleTimeout) {
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
+		this.waitingTime = waitingTime;
 		this.states = loadStates(validStates);
 	}
 
@@ -158,6 +162,15 @@ public class NFA<T> {
 		}
 
 		return stateObject.isStop();
+	}
+
+	public boolean isWaitingState(ComputationState state) {
+		State<T> stateObject = getState(state);
+		if (stateObject == null) {
+			throw new FlinkRuntimeException("State " + state.getCurrentStateName() + " does not exist in the NFA. NFA has states "
+				+ states.values());
+		}
+		return stateObject.isWaiting();
 	}
 
 	private boolean isFinalState(ComputationState state) {
@@ -274,7 +287,7 @@ public class NFA<T> {
 	}
 
 	private boolean isStateTimedOut(final ComputationState state, final long timestamp) {
-		return !isStartState(state) && windowTime > 0L && timestamp - state.getStartTimestamp() >= windowTime;
+		return !isStartState(state) && !isWaitingState(state) && windowTime > 0L && timestamp - state.getStartTimestamp() >= windowTime;
 	}
 
 	private Collection<Map<String, List<T>>> doProcess(
@@ -548,7 +561,7 @@ public class NFA<T> {
 			timerService,
 			event.getTimestamp());
 
-		final OutgoingEdges<T> outgoingEdges = createDecisionGraph(context, computationState, event.getEvent());
+		final OutgoingEdges<T> outgoingEdges = getOutgoingEdges(context, computationState, event);
 
 		// Create the computing version based on the previously computed edges
 		// We need to defer the creation of computation states until we know how many edges start
@@ -705,6 +718,18 @@ public class NFA<T> {
 		return takeBranches == 0 && ignoreBranches == 0 ? 0 : ignoreBranches + Math.max(1, takeBranches);
 	}
 
+	private OutgoingEdges<T> getOutgoingEdges(final ConditionContext context, ComputationState computationState, EventWrapper event) {
+		//添加proceed边从wait 到final
+		if (isWaitingState(computationState) && (computationState.getStartTimestamp() + waitingTime) < event.getTimestamp()) {
+			State<T> state = getState(computationState);
+			OutgoingEdges<T> outgoingEdges = new OutgoingEdges<>(state);
+			outgoingEdges.add(new StateTransition<T>(state, StateTransitionAction.TAKE, states.get("$endState$"), null));
+			return outgoingEdges;
+		} else {
+			return createDecisionGraph(context, computationState, event.getEvent());
+		}
+	}
+
 	private OutgoingEdges<T> createDecisionGraph(
 			ConditionContext context,
 			ComputationState computationState,
@@ -745,11 +770,14 @@ public class NFA<T> {
 		return outgoingEdges;
 	}
 
+
 	private boolean checkFilterCondition(
-			ConditionContext context,
-			IterativeCondition<T> condition,
-			T event) throws Exception {
-		return condition == null || condition.filter(event, context);
+		ConditionContext context,
+		IterativeCondition<T> condition,
+		T event) throws Exception {
+		if (condition == null) return true;
+		if (event == null) return false;
+		return condition.filter(event, context);
 	}
 
 	/**

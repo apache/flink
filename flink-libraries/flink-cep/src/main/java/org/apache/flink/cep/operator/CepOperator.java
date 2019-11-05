@@ -28,10 +28,12 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
+import org.apache.flink.cep.nfa.ComputationState;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFA.MigratedNFA;
 import org.apache.flink.cep.nfa.NFAState;
@@ -62,11 +64,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -74,14 +72,14 @@ import java.util.stream.Stream;
  * a {@link NFA} and a priority queue to buffer out of order elements. Both data structures are
  * stored using the managed keyed state.
  *
- * @param <IN> Type of the input elements
+ * @param <IN>  Type of the input elements
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT> Type of the output elements
  */
 @Internal
 public class CepOperator<IN, KEY, OUT>
-		extends AbstractUdfStreamOperator<OUT, PatternProcessFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
+	extends AbstractUdfStreamOperator<OUT, PatternProcessFunction<IN, OUT>>
+	implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
 
 	private static final long serialVersionUID = -4166778210774160757L;
 
@@ -93,12 +91,14 @@ public class CepOperator<IN, KEY, OUT>
 
 	private static final String NFA_STATE_NAME = "nfaStateName";
 	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
+	private static final String WAIT_STAMP_STATE_NAME = "waitStampStateName";
 
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
 	private transient ValueState<NFAState> computationStates;
 	private transient MapState<Long, List<IN>> elementQueueState;
 	private transient SharedBuffer<IN> partialMatches;
+	private transient MapState<Long,Void> waitStampState;
 
 	private transient InternalTimerService<VoidNamespace> timerService;
 
@@ -110,7 +110,9 @@ public class CepOperator<IN, KEY, OUT>
 	 */
 	private long lastWatermark;
 
-	/** Comparator for secondary sorting. Primary sorting is always done on time. */
+	/**
+	 * Comparator for secondary sorting. Primary sorting is always done on time.
+	 */
 	private final EventComparator<IN> comparator;
 
 	/**
@@ -119,29 +121,39 @@ public class CepOperator<IN, KEY, OUT>
 	 */
 	private final OutputTag<IN> lateDataOutputTag;
 
-	/** Strategy which element to skip after a match was found. */
+	/**
+	 * Strategy which element to skip after a match was found.
+	 */
 	private final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
-	/** Context passed to user function. */
+	/**
+	 * Context passed to user function.
+	 */
 	private transient ContextFunctionImpl context;
 
-	/** Main output collector, that sets a proper timestamp to the StreamRecord. */
+	/**
+	 * Main output collector, that sets a proper timestamp to the StreamRecord.
+	 */
 	private transient TimestampedCollector<OUT> collector;
 
-	/** Wrapped RuntimeContext that limits the underlying context features. */
+	/**
+	 * Wrapped RuntimeContext that limits the underlying context features.
+	 */
 	private transient CepRuntimeContext cepRuntimeContext;
 
-	/** Thin context passed to NFA that gives access to time related characteristics. */
+	/**
+	 * Thin context passed to NFA that gives access to time related characteristics.
+	 */
 	private transient TimerService cepTimerService;
 
 	public CepOperator(
-			final TypeSerializer<IN> inputSerializer,
-			final boolean isProcessingTime,
-			final NFACompiler.NFAFactory<IN> nfaFactory,
-			@Nullable final EventComparator<IN> comparator,
-			@Nullable final AfterMatchSkipStrategy afterMatchSkipStrategy,
-			final PatternProcessFunction<IN, OUT> function,
-			@Nullable final OutputTag<IN> lateDataOutputTag) {
+		final TypeSerializer<IN> inputSerializer,
+		final boolean isProcessingTime,
+		final NFACompiler.NFAFactory<IN> nfaFactory,
+		@Nullable final EventComparator<IN> comparator,
+		@Nullable final AfterMatchSkipStrategy afterMatchSkipStrategy,
+		final PatternProcessFunction<IN, OUT> function,
+		@Nullable final OutputTag<IN> lateDataOutputTag) {
 		super(function);
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
@@ -178,11 +190,14 @@ public class CepOperator<IN, KEY, OUT>
 		partialMatches = new SharedBuffer<>(context.getKeyedStateStore(), inputSerializer);
 
 		elementQueueState = context.getKeyedStateStore().getMapState(
-				new MapStateDescriptor<>(
-						EVENT_QUEUE_STATE_NAME,
-						LongSerializer.INSTANCE,
-						new ListSerializer<>(inputSerializer)));
+			new MapStateDescriptor<>(
+				EVENT_QUEUE_STATE_NAME,
+				LongSerializer.INSTANCE,
+				new ListSerializer<>(inputSerializer)));
 
+		waitStampState = context.getKeyedStateStore().getMapState(
+			new MapStateDescriptor<Long,Void>(WAIT_STAMP_STATE_NAME,
+				LongSerializer.INSTANCE, VoidSerializer.INSTANCE));
 		migrateOldState();
 	}
 
@@ -211,9 +226,9 @@ public class CepOperator<IN, KEY, OUT>
 	public void open() throws Exception {
 		super.open();
 		timerService = getInternalTimerService(
-				"watermark-callbacks",
-				VoidNamespaceSerializer.INSTANCE,
-				this);
+			"watermark-callbacks",
+			VoidNamespaceSerializer.INSTANCE,
+			this);
 
 		nfa = nfaFactory.createNFA();
 		nfa.open(cepRuntimeContext, new Configuration());
@@ -234,6 +249,12 @@ public class CepOperator<IN, KEY, OUT>
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		if (isProcessingTime) {
+			// add waiting time process
+			if (nfa.waitingTime > 0) {
+				long currentTime = timerService.currentProcessingTime();
+				bufferEvent(element.getValue(), currentTime);
+				timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
+			}
 			if (comparator == null) {
 				// there can be no out of order elements in processing time
 				NFAState nfaState = getNFAState();
@@ -287,7 +308,7 @@ public class CepOperator<IN, KEY, OUT>
 	}
 
 	private void bufferEvent(IN event, long currentTime) throws Exception {
-		List<IN> elementsForTimestamp =  elementQueueState.get(currentTime);
+		List<IN> elementsForTimestamp = elementQueueState.get(currentTime);
 		if (elementsForTimestamp == null) {
 			elementsForTimestamp = new ArrayList<>();
 		}
@@ -310,6 +331,21 @@ public class CepOperator<IN, KEY, OUT>
 		// STEP 1
 		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
 		NFAState nfaState = getNFAState();
+		// if nfaState has waiting state then process ...
+		long currentTime = timerService.currentWatermark();
+
+		if (nfa.waitingTime > 0) {
+			if (hasWaitState(nfaState)) {
+				processEvent(nfaState, null, currentTime);
+			}
+			waitStampState.clear();
+			for (ComputationState state : nfaState.getPartialMatches()) {
+				if (nfa.isWaitingState(state)) {
+					waitStampState.put(state.getStartTimestamp(), null);
+				}
+			}
+		}
+
 
 		// STEP 2
 		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
@@ -320,6 +356,14 @@ public class CepOperator<IN, KEY, OUT>
 					event -> {
 						try {
 							processEvent(nfaState, event, timestamp);
+							if (nfa.waitingTime > 0){
+								for (ComputationState state : nfaState.getPartialMatches()) {
+									if (nfa.isWaitingState(state) && !containState(state)) {
+										waitStampState.put(state.getStartTimestamp(),null);
+										timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentTime + nfa.waitingTime + 100);
+									}
+								}
+							}
 						} catch (Exception e) {
 							throw new RuntimeException(e);
 						}
@@ -353,17 +397,34 @@ public class CepOperator<IN, KEY, OUT>
 
 		// STEP 1
 		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
-		NFAState nfa = getNFAState();
+		NFAState nfaState = getNFAState();
+		// if nfaState has waiting state then process ...
+		long currentTime = timerService.currentProcessingTime();
 
+		if(hasWaitState(nfaState)){
+			processEvent(nfaState, null, currentTime);
+		}
+		waitStampState.clear();
+		for (ComputationState state : nfaState.getPartialMatches()) {
+			if (nfa.isWaitingState(state)){
+				waitStampState.put(state.getStartTimestamp(),null);
+			}
+		}
 		// STEP 2
 		while (!sortedTimestamps.isEmpty()) {
 			long timestamp = sortedTimestamps.poll();
-			advanceTime(nfa, timestamp);
+			advanceTime(nfaState, timestamp);
 			try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
 				elements.forEachOrdered(
 					event -> {
 						try {
-							processEvent(nfa, event, timestamp);
+							processEvent(nfaState, event, timestamp);
+							for (ComputationState state : nfaState.getPartialMatches()) {
+								if (nfa.isWaitingState(state) && !containState(state)) {
+									waitStampState.put(state.getStartTimestamp(),null);
+									timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + nfa.waitingTime + 1);
+								}
+							}
 						} catch (Exception e) {
 							throw new RuntimeException(e);
 						}
@@ -374,14 +435,34 @@ public class CepOperator<IN, KEY, OUT>
 		}
 
 		// STEP 3
-		updateNFA(nfa);
+		updateNFA(nfaState);
 	}
+	private boolean containState(ComputationState state) {
+		try {
+			Iterator<Long> timeStamps = waitStampState.keys().iterator();
+			while (timeStamps.hasNext()) {
+				if (timeStamps.next() == state.getStartTimestamp()) {
+					return true;
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 
+		}
+		return false;
+	}
 	private Stream<IN> sort(Collection<IN> elements) {
 		Stream<IN> stream = elements.stream();
 		return (comparator == null) ? stream : stream.sorted(comparator);
 	}
-
+	public boolean hasWaitState(NFAState nfaState) {
+		for (ComputationState state : nfaState.getPartialMatches()) {
+			if (nfa.isWaitingState(state)) {
+				return true;
+			}
+		}
+		return false;
+	}
 	private void updateLastSeenWatermark(long timestamp) {
 		this.lastWatermark = timestamp;
 	}
@@ -410,8 +491,8 @@ public class CepOperator<IN, KEY, OUT>
 	 * Process the given event by giving it to the NFA and outputting the produced set of matched
 	 * event sequences.
 	 *
-	 * @param nfaState Our NFAState object
-	 * @param event The current event to be processed
+	 * @param nfaState  Our NFAState object
+	 * @param event     The current event to be processed
 	 * @param timestamp The timestamp of the event
 	 */
 	private void processEvent(NFAState nfaState, IN event, long timestamp) throws Exception {
@@ -429,7 +510,7 @@ public class CepOperator<IN, KEY, OUT>
 	private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
 		try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
 			Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
-					nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+				nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
 			if (!timedOut.isEmpty()) {
 				processTimedOutSequences(timedOut);
 			}
@@ -482,12 +563,12 @@ public class CepOperator<IN, KEY, OUT>
 	/**
 	 * Implementation of {@link PatternProcessFunction.Context}. Design to be instantiated once per operator.
 	 * It serves three methods:
-	 *  <ul>
-	 *      <li>gives access to currentProcessingTime through {@link InternalTimerService}</li>
-	 *      <li>gives access to timestamp of current record (or null if Processing time)</li>
-	 *      <li>enables side outputs with proper timestamp of StreamRecord handling based on either Processing or
-	 *          Event time</li>
-	 *  </ul>
+	 * <ul>
+	 * <li>gives access to currentProcessingTime through {@link InternalTimerService}</li>
+	 * <li>gives access to timestamp of current record (or null if Processing time)</li>
+	 * <li>enables side outputs with proper timestamp of StreamRecord handling based on either Processing or
+	 * Event time</li>
+	 * </ul>
 	 */
 	private class ContextFunctionImpl implements PatternProcessFunction.Context {
 
@@ -537,7 +618,7 @@ public class CepOperator<IN, KEY, OUT>
 	int getPQSize(KEY key) throws Exception {
 		setCurrentKey(key);
 		int counter = 0;
-		for (List<IN> elements: elementQueueState.values()) {
+		for (List<IN> elements : elementQueueState.values()) {
 			counter += elements.size();
 		}
 		return counter;

@@ -31,10 +31,9 @@ import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
+import org.apache.flink.streaming.api.datastream.*;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -87,7 +86,7 @@ public class CEPITCase extends AbstractTestBase {
 				return value.getName().equals("start");
 			}
 		})
-		.followedByAny("middle").subtype(SubEvent.class).where(
+			.followedByAny("middle").subtype(SubEvent.class).where(
 				new SimpleCondition<SubEvent>() {
 
 					@Override
@@ -96,13 +95,13 @@ public class CEPITCase extends AbstractTestBase {
 					}
 				}
 			)
-		.followedByAny("end").where(new SimpleCondition<Event>() {
+			.followedByAny("end").where(new SimpleCondition<Event>() {
 
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("end");
-			}
-		});
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
+			});
 
 		DataStream<String> result = CEP.pattern(input, pattern).flatSelect((p, o) -> {
 			StringBuilder builder = new StringBuilder();
@@ -844,11 +843,11 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		).followedByAny("end").where(new SimpleCondition<Event>() {
 
-				@Override
-				public boolean filter(Event value) throws Exception {
-					return value.getName().equals("end");
-				}
-			});
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("end");
+			}
+		});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new RichPatternSelectFunction<Event, String>() {
 			@Override
@@ -891,7 +890,8 @@ public class CEPITCase extends AbstractTestBase {
 	public void testFlatSelectSerializationWithAnonymousClass() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
-		OutputTag<Integer> outputTag = new OutputTag<Integer>("AAA") {};
+		OutputTag<Integer> outputTag = new OutputTag<Integer>("AAA") {
+		};
 		CEP.pattern(elements, Pattern.begin("A")).flatSelect(
 			outputTag,
 			new PatternFlatTimeoutFunction<Integer, Integer>() {
@@ -912,5 +912,66 @@ public class CEPITCase extends AbstractTestBase {
 		);
 
 		env.execute();
+	}
+
+	@Test
+	public void testEventTimeWithWait() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		KeyedStream<Tuple2<Event, Long>, Integer> input = env.fromElements(
+			Tuple2.of(new Event(1, "start1", 1.0), 1000L),
+			Tuple2.of(new Event(2, "start2", 2.0), 2000L),
+			Tuple2.of(new Event(3, "start3", 3.0), 3000L),
+			Tuple2.of(new Event(4, "start4", 4.0), 4000L),
+			Tuple2.of(new Event(4, "start4", 6.0), 7000L)
+		).assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Tuple2<Event, Long>>() {
+
+			private Long maxOutOfOrderness = 0L;
+			private Long currentMaxTimestamp = 0L;
+
+			@Override
+			public Watermark getCurrentWatermark() {
+				return new Watermark(currentMaxTimestamp - maxOutOfOrderness);
+			}
+
+			@Override
+			public long extractTimestamp(Tuple2<Event, Long> element, long previousElementTimestamp) {
+				Long eventTime = element.f1;
+				currentMaxTimestamp = Math.max(eventTime, currentMaxTimestamp);
+				return eventTime;
+			}
+		}).keyBy(new KeySelector<Tuple2<Event, Long>, Integer>() {
+			@Override
+			public Integer getKey(Tuple2<Event, Long> value) throws Exception {
+				return value.f0.getId();
+			}
+		});
+
+		Pattern<Tuple2<Event, Long>, ? extends Tuple2<Event, Long>> pattern = Pattern.<Tuple2<Event, Long>>begin("step1").where(new SimpleCondition<Tuple2<Event, Long>>() {
+
+			@Override
+			public boolean filter(Tuple2<Event, Long> value) throws Exception {
+				return value.f0.getPrice() < 5.0;
+			}
+		}).notFollowedBy("step2").where(new SimpleCondition<Tuple2<Event, Long>>() {
+			@Override
+			public boolean filter(Tuple2<Event, Long> value) throws Exception {
+				return value.f0.getPrice() > 5.0;
+			}
+		}).wait("step3").waitting(Time.milliseconds(10000));
+
+		SingleOutputStreamOperator<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Tuple2<Event, Long>, String>() {
+			@Override
+			public String select(Map<String, List<Tuple2<Event, Long>>> pattern) {
+				return pattern.get("step1").get(0).f0.toString();
+			}
+		});
+
+		List<String> resultList = new ArrayList<>();
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+		assertEquals(Arrays.asList("Event(1, start1, 1.0)", "Event(2, start2, 2.0)","Event(3, start3, 3.0)"), resultList);
+
 	}
 }
