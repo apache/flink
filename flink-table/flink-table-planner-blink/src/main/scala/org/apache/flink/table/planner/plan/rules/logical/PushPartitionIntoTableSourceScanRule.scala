@@ -50,8 +50,8 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
 
     val scan: LogicalTableScan = call.rel(1)
     scan.getTable.unwrap(classOf[TableSourceTable[_]]) match {
-      case table: TableSourceTable[_] => table.catalogTable != null &&
-          table.catalogTable.isPartitioned &&
+      case table: TableSourceTable[_] =>
+        table.catalogTable.isPartitioned &&
           table.tableSource.isInstanceOf[PartitionableTableSource]
       case _ => false
     }
