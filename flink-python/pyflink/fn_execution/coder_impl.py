@@ -149,10 +149,10 @@ class BigIntCoderImpl(StreamCoderImpl):
 class TinyIntCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
-        out_stream.write_byte(value)
+        out_stream.write(struct.pack('b', value))
 
     def decode_from_stream(self, in_stream, nested):
-        return int(in_stream.read_byte())
+        return struct.unpack('b', in_stream.read(1))[0]
 
 
 class SmallIntImpl(StreamCoderImpl):
@@ -237,8 +237,9 @@ class BinaryCoderImpl(StreamCoderImpl):
 class CharCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
-        out_stream.write_bigendian_int32(len(value))
-        out_stream.write(value.encode("utf-8"), False)
+        bytes_value = value.encode("utf-8")
+        out_stream.write_bigendian_int32(len(bytes_value))
+        out_stream.write(bytes_value, False)
 
     def decode_from_stream(self, in_stream, nested):
         size = in_stream.read_bigendian_int32()

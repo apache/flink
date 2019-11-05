@@ -46,7 +46,7 @@ class CodersTest(unittest.TestCase):
 
     def test_tinyint_coder(self):
         coder = TinyIntCoder()
-        self.check_coder(coder, 1, 10, 127)
+        self.check_coder(coder, 1, 10, 127, -128)
 
     def test_boolean_coder(self):
         coder = BooleanCoder()
@@ -74,7 +74,7 @@ class CodersTest(unittest.TestCase):
 
     def test_char_coder(self):
         coder = CharCoder()
-        self.check_coder(coder, 'flink')
+        self.check_coder(coder, 'flink', '🐿')
 
     def test_date_coder(self):
         import datetime
