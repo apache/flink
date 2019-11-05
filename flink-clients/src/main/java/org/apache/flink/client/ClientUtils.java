@@ -82,7 +82,7 @@ public enum ClientUtils {
 	}
 
 	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent,
-													   Configuration configuration) {
+														Configuration configuration) {
 		URL[] urls = new URL[jars.size() + classpaths.size()];
 		for (int i = 0; i < jars.size(); i++) {
 			urls[i] = jars.get(i);
