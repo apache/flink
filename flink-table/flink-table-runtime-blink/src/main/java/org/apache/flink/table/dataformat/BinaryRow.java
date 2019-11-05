@@ -213,6 +213,33 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 	}
 
 	@Override
+	public void setTimestamp(int pos, SqlTimestamp value, int precision) {
+		assertIndexIsValid(pos);
+
+		if (SqlTimestamp.isCompact(precision)) {
+			setLong(pos, value.getMillisecond());
+		} else {
+			int fieldOffset = getFieldOffset(pos);
+			int cursor = (int) (segments[0].getLong(fieldOffset) >>> 32);
+			assert cursor > 0 : "invalid cursor " + cursor;
+
+			// zero-out the bytes
+			SegmentsUtil.setLong(segments, offset + cursor, 0L);
+			SegmentsUtil.setInt(segments, offset + cursor + 8, 0);
+
+			if (value == null) {
+				setNullAt(pos);
+				segments[0].putLong(fieldOffset, ((long) cursor) << 32);
+			} else {
+				// write millisecond and nanoOfMillisecond to the variable length portion.
+				SegmentsUtil.setLong(segments, offset + cursor, value.getMillisecond());
+				SegmentsUtil.setInt(segments, offset + cursor + 8, value.getNanoOfMillisecond());
+				setLong(pos, ((long) cursor << 32) | 12L);
+			}
+		}
+	}
+
+	@Override
 	public void setBoolean(int pos, boolean value) {
 		assertIndexIsValid(pos);
 		setNotNullAt(pos);
@@ -302,6 +329,22 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndSize = segments[0].getLong(fieldOffset);
 		return Decimal.readDecimalFieldFromSegments(segments, offset, offsetAndSize, precision, scale);
+	}
+
+	@Override
+	public SqlTimestamp getTimestamp(int pos, int precision) {
+		assertIndexIsValid(pos);
+
+		if (SqlTimestamp.isCompact(precision)) {
+			return SqlTimestamp.fromEpochMillis(segments[0].getLong(getFieldOffset(pos)));
+		}
+
+		int fieldOffset = getFieldOffset(pos);
+		final long offsetAndSize = segments[0].getLong(fieldOffset);
+		final int subOffset = (int) (offsetAndSize >> 32);
+		final long millisecond = SegmentsUtil.getLong(segments, offset + subOffset);
+		final int nanoOfMillisecond = SegmentsUtil.getInt(segments, offset + subOffset + 8);
+		return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
 	}
 
 	@Override

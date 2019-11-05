@@ -145,6 +145,32 @@ public final class NestedRow extends BinarySection implements BaseRow {
 	}
 
 	@Override
+	public void setTimestamp(int pos, SqlTimestamp value, int precision) {
+		assertIndexIsValid(pos);
+
+		if (SqlTimestamp.isCompact(precision)) {
+			setLong(pos, value.getMillisecond());
+		} else {
+			int fieldOffset = getFieldOffset(pos);
+			int cursor = (int) (SegmentsUtil.getLong(segments, fieldOffset) >>> 32);
+			assert cursor > 0 : "invalid cursor " + cursor;
+
+			// zero-out the bytes
+			SegmentsUtil.setLong(segments, offset + cursor, 0L);
+			SegmentsUtil.setInt(segments, offset + cursor + 8, 0);
+
+			if (value == null) {
+				setNullAt(pos);
+				SegmentsUtil.setLong(segments, fieldOffset, ((long) cursor) << 32);
+			} else {
+				SegmentsUtil.setLong(segments, offset + cursor, value.getMillisecond());
+				SegmentsUtil.setInt(segments, offset + cursor + 8, value.getNanoOfMillisecond());
+				setLong(pos, ((long) cursor << 32) | 12L);
+			}
+		}
+	}
+
+	@Override
 	public void setBoolean(int pos, boolean value) {
 		assertIndexIsValid(pos);
 		setNotNullAt(pos);
@@ -240,6 +266,22 @@ public final class NestedRow extends BinarySection implements BaseRow {
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
 		return Decimal.readDecimalFieldFromSegments(segments, offset, offsetAndSize, precision, scale);
+	}
+
+	@Override
+	public SqlTimestamp getTimestamp(int pos, int precision) {
+		assertIndexIsValid(pos);
+
+		if (SqlTimestamp.isCompact(precision)) {
+			return SqlTimestamp.fromEpochMillis(SegmentsUtil.getLong(segments, getFieldOffset(pos)));
+		}
+
+		int fieldOffset = getFieldOffset(pos);
+		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
+		final int subOffset = (int) (offsetAndSize >> 32);
+		final long millisecond = SegmentsUtil.getLong(segments, offset + subOffset);
+		final int nanoOfMillisecond = SegmentsUtil.getInt(segments, offset + subOffset + 8);
+		return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
 	}
 
 	@Override

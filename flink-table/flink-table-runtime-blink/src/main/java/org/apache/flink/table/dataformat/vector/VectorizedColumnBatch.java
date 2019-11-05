@@ -19,6 +19,7 @@
 package org.apache.flink.table.dataformat.vector;
 
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.vector.BytesColumnVector.Bytes;
 
 import java.io.Serializable;
@@ -130,6 +131,30 @@ public class VectorizedColumnBatch implements Serializable {
 		} else {
 			byte[] bytes = getBytes(rowId, colId);
 			return Decimal.fromUnscaledBytes(precision, scale, bytes);
+		}
+	}
+
+	public SqlTimestamp getTimestamp(int rowId, int colId, int precision) {
+		if (isNullAt(rowId, colId)) {
+			return null;
+		}
+
+		if (SqlTimestamp.isCompact(precision)) {
+			return SqlTimestamp.fromEpochMillis(getLong(rowId, colId));
+		} else {
+			byte[] bytes = getBytes(rowId, colId);
+			assert bytes.length == 12;
+			long l = 0;
+			for (int i = 0; i < 8; i++) {
+				l <<= 8;
+				l |= (bytes[i] & (0xff));
+			}
+			int n = 0;
+			for (int i = 8; i < 12; i++) {
+				n <<= 8;
+				n |= (bytes[i] & (0xff));
+			}
+			return SqlTimestamp.fromEpochMillis(l, n);
 		}
 	}
 }
