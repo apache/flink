@@ -192,7 +192,7 @@ public class TaskManagerOptions {
 	@Deprecated
 	public static final ConfigOption<String> LEGACY_MANAGED_MEMORY_SIZE =
 			key("taskmanager.memory.size")
-			.defaultValue("0")
+			.noDefaultValue()
 			.withDescription("The amount of memory (in megabytes) that the task manager reserves on-heap or off-heap" +
 				" (depending on taskmanager.memory.off-heap) for sorting, hash tables, and caching of intermediate" +
 				" results. If unspecified, the memory manager will take a fixed ratio with respect to the size of" +
