@@ -15,12 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.runtime.tasks.mailbox;
+
+import org.apache.flink.annotation.Internal;
 
 /**
- * An operator that needs access to the {@link MailboxExecutor} to yield to downstream operators needs to be created
- * through a factory implementing this interface.
+ * Represents the suspended state of a {@link MailboxDefaultAction}, ready to resume.
  */
-public interface YieldingOperatorFactory<OUT> extends StreamOperatorFactory<OUT> {
-	void setMailboxExecutor(MailboxExecutor mailboxExecutor);
+@Internal
+public interface SuspendedMailboxDefaultAction {
+
+	/**
+	 * Resume execution of the default action.
+	 */
+	void resume();
 }
