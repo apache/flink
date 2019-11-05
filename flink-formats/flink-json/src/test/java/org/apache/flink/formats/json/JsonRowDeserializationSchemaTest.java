@@ -32,6 +32,8 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
@@ -53,6 +55,8 @@ public class JsonRowDeserializationSchemaTest {
 		String name = "asdlkjasjkdla998y1122";
 		byte[] bytes = new byte[1024];
 		ThreadLocalRandom.current().nextBytes(bytes);
+		Map<String, Long> map = new HashMap<>();
+		map.put("flink", 123L);
 
 		ObjectMapper objectMapper = new ObjectMapper();
 
@@ -61,25 +65,28 @@ public class JsonRowDeserializationSchemaTest {
 		root.put("id", id);
 		root.put("name", name);
 		root.put("bytes", bytes);
+		root.putObject("map").put("flink", 123);
 
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(
 			Types.ROW_NAMED(
-				new String[]{"id", "name", "bytes"},
-				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE))
+				new String[]{"id", "name", "bytes", "map"},
+				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE), Types.MAP(Types.STRING, Types.LONG))
 		).build();
 
-		Row row = new Row(3);
+		Row row = new Row(4);
 		row.setField(0, id);
 		row.setField(1, name);
 		row.setField(2, bytes);
+		row.setField(3, map);
 
 		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(row));
 	}
 
 	@Test
 	public void testSchemaDeserialization() throws Exception {
+		// TODO(add tests here)
 		final BigDecimal id = BigDecimal.valueOf(1238123899121L);
 		final String name = "asdlkjasjkdla998y1122";
 		final byte[] bytes = new byte[1024];
