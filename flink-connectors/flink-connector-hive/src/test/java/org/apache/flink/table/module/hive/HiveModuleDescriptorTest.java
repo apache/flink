@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.module.hive;
 
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogDescriptor;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorTestBase;
 import org.apache.flink.table.descriptors.DescriptorValidator;

@@ -19,10 +19,8 @@
 package org.apache.flink.table.module.hive;
 
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.ModuleFactory;
-import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.module.Module;
 
 import java.util.ArrayList;
