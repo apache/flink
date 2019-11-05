@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 
 import java.util.Collection;
 import java.util.Set;
@@ -87,17 +86,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	@Override
 	public String getAddress() {
 		return address;
-	}
-
-	@Override
-	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
-			ExecutionAttemptID executionAttemptID,
-			int sampleId,
-			int numSamples,
-			Time delayBetweenSamples,
-			int maxStackTraceDepth,
-			Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
 	@Override

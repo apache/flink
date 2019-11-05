@@ -35,7 +35,6 @@ import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.types.SerializableOptional;
@@ -109,17 +108,6 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	@Override
 	public CompletableFuture<Acknowledge> requestSlot(SlotID slotId, JobID jobId, AllocationID allocationId, String targetAddress, ResourceManagerId resourceManagerId, Time timeout) {
 		return requestSlotFunction.apply(Tuple5.of(slotId, jobId, allocationId, targetAddress, resourceManagerId));
-	}
-
-	@Override
-	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
-		final ExecutionAttemptID executionAttemptId,
-		final int sampleId,
-		final int numSamples,
-		final Time delayBetweenSamples,
-		final int maxStackTraceDepth,
-		final Time timeout) {
-		throw new UnsupportedOperationException();
 	}
 
 	@Override

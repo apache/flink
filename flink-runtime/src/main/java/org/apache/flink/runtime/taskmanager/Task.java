@@ -461,18 +461,6 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return invokable;
 	}
 
-	public StackTraceElement[] getStackTraceOfExecutingThread() {
-		final AbstractInvokable invokable = this.invokable;
-
-		if (invokable == null) {
-			return new StackTraceElement[0];
-		}
-
-		return invokable.getExecutingThread()
-			.orElse(executingThread)
-			.getStackTrace();
-	}
-
 	public boolean isAvailableForOutput() {
 		if (invokable == null || consumableNotifyingPartitionWriters.length == 0) {
 			return true;

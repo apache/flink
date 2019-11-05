@@ -53,7 +53,6 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -77,10 +76,8 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -599,143 +596,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	// Stack trace sample
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Tests sampling of task stack traces.
-	 */
-	@Test(timeout = 10000L)
-	@SuppressWarnings("unchecked")
-	public void testRequestStackTraceSample() throws Exception {
-		final ExecutionAttemptID eid = new ExecutionAttemptID();
-		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
-
-		final int sampleId1 = 112223;
-		final int sampleId2 = 19230;
-		final int sampleId3 = 1337;
-		final int sampleId4 = 44;
-
-		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> taskCanceledFuture = new CompletableFuture<>();
-
-		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.Builder(jobId)
-				.setSlotSize(1)
-				.setMetricQueryServiceAddress(metricQueryServiceAddress)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
-				.addTaskManagerActionListener(eid, ExecutionState.CANCELED, taskCanceledFuture)
-				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
-
-			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
-			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-			taskRunningFuture.get();
-
-			//
-			// 1) Trigger sample for non-existing task
-			//
-			ExecutionAttemptID nonExistTaskEid = new ExecutionAttemptID();
-
-			CompletableFuture<StackTraceSampleResponse> failedSampleFuture =
-				tmGateway.requestStackTraceSample(nonExistTaskEid, sampleId1, 100, Time.seconds(60L), 0, timeout);
-			try {
-				failedSampleFuture.get();
-			} catch (Exception e) {
-				assertThat(e.getCause(), instanceOf(IllegalStateException.class));
-				assertThat(e.getCause().getMessage(), startsWith("Cannot sample task"));
-			}
-
-			//
-			// 2) Trigger sample for the blocking task
-			//
-			int numSamples = 5;
-
-			CompletableFuture<StackTraceSampleResponse> successfulSampleFuture =
-				tmGateway.requestStackTraceSample(eid, sampleId2, numSamples, Time.milliseconds(100L), 0, timeout);
-
-			StackTraceSampleResponse response = successfulSampleFuture.get();
-
-			assertEquals(response.getSampleId(), sampleId2);
-			assertEquals(response.getExecutionAttemptID(), eid);
-
-			List<StackTraceElement[]> traces = response.getSamples();
-
-			assertEquals("Number of samples", numSamples, traces.size());
-
-			for (StackTraceElement[] trace : traces) {
-				boolean success = false;
-				for (StackTraceElement elem : trace) {
-					// Look for BlockingNoOpInvokable#invoke
-					if (elem.getClassName().equals(
-						BlockingNoOpInvokable.class.getName())) {
-
-						assertEquals("invoke", elem.getMethodName());
-
-						success = true;
-						break;
-					}
-					// The BlockingNoOpInvokable might not be invoked here
-					if (elem.getClassName().equals(TestTaskManagerActions.class.getName())) {
-
-						assertEquals("updateTaskExecutionState", elem.getMethodName());
-
-						success = true;
-						break;
-					}
-					if (elem.getClassName().equals(Thread.class) && elem.getMethodName().equals("setContextClassLoader")) {
-						success = true;
-					}
-				}
-
-				assertTrue("Unexpected stack trace: " +
-					Arrays.toString(trace), success);
-			}
-
-			//
-			// 3) Trigger sample for the blocking task with max depth
-			//
-			int maxDepth = 2;
-
-			CompletableFuture<StackTraceSampleResponse> successfulSampleFutureWithMaxDepth =
-				tmGateway.requestStackTraceSample(eid, sampleId3, numSamples, Time.milliseconds(100L), maxDepth, timeout);
-
-			StackTraceSampleResponse responseWithMaxDepth = successfulSampleFutureWithMaxDepth.get();
-
-			assertEquals(sampleId3, responseWithMaxDepth.getSampleId());
-			assertEquals(eid, responseWithMaxDepth.getExecutionAttemptID());
-
-			List<StackTraceElement[]> tracesWithMaxDepth = responseWithMaxDepth.getSamples();
-
-			assertEquals("Number of samples", numSamples, tracesWithMaxDepth.size());
-
-			for (StackTraceElement[] trace : tracesWithMaxDepth) {
-				assertEquals("Max depth", maxDepth, trace.length);
-			}
-
-			//
-			// 4) Trigger sample for the blocking task, but cancel it during sampling
-			//
-			int sleepTime = 100;
-			numSamples = 100;
-
-			CompletableFuture<StackTraceSampleResponse> canceldSampleFuture =
-				tmGateway.requestStackTraceSample(eid, sampleId4, numSamples, Time.milliseconds(10L), maxDepth, timeout);
-
-			Thread.sleep(sleepTime);
-
-			tmGateway.cancelTask(eid, timeout);
-			taskCanceledFuture.get();
-
-			StackTraceSampleResponse responseAfterCancel = canceldSampleFuture.get();
-
-			assertEquals(eid, responseAfterCancel.getExecutionAttemptID());
-			assertEquals(sampleId4, responseAfterCancel.getSampleId());
-		}
-	}
-
-	// ------------------------------------------------------------------------
 	// Back pressure sample
 	// ------------------------------------------------------------------------
 
@@ -753,11 +613,12 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> taskCanceledFuture = new CompletableFuture<>();
 
 		try (final TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.Builder(jobId)
-					 .setSlotSize(1)
-					 .useRealNonMockShuffleEnvironment()
-					 .addTaskManagerActionListener(executionAttemptID, ExecutionState.RUNNING, taskRunningFuture)
-					 .addTaskManagerActionListener(executionAttemptID, ExecutionState.CANCELED, taskCanceledFuture)
-					 .build()) {
+					.setSlotSize(1)
+					.setMetricQueryServiceAddress(metricQueryServiceAddress)
+					.useRealNonMockShuffleEnvironment()
+					.addTaskManagerActionListener(executionAttemptID, ExecutionState.RUNNING, taskRunningFuture)
+					.addTaskManagerActionListener(executionAttemptID, ExecutionState.CANCELED, taskCanceledFuture)
+					.build()) {
 			final TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			final TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 

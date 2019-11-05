@@ -53,7 +53,6 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -919,40 +918,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	@Override
 	public void fail(Throwable t) {
 		processFail(t, false);
-	}
-
-	/**
-	 * Request a stack trace sample from the task of this execution.
-	 *
-	 * @param sampleId of the stack trace sample
-	 * @param numSamples the sample should contain
-	 * @param delayBetweenSamples to wait
-	 * @param maxStackTraceDepth of the samples
-	 * @param timeout until the request times out
-	 * @return Future stack trace sample response
-	 */
-	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
-			int sampleId,
-			int numSamples,
-			Time delayBetweenSamples,
-			int maxStackTraceDepth,
-			Time timeout) {
-
-		final LogicalSlot slot = assignedResource;
-
-		if (slot != null) {
-			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
-
-			return taskManagerGateway.requestStackTraceSample(
-				attemptId,
-				sampleId,
-				numSamples,
-				delayBetweenSamples,
-				maxStackTraceDepth,
-				timeout);
-		} else {
-			return FutureUtils.completedExceptionally(new Exception("The execution has no slot assigned."));
-		}
 	}
 
 	/**
