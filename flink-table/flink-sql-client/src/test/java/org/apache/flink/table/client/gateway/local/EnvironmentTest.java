@@ -33,7 +33,9 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.table.client.config.entries.CatalogEntry.CATALOG_NAME;
+import static org.apache.flink.table.client.config.entries.ModuleEntry.MODULE_NAME;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -97,11 +99,30 @@ public class EnvironmentTest {
 			createCatalog("catalog2", "test")));
 	}
 
+	@Test
+	public void testDuplicateModules() {
+		exception.expect(SqlClientException.class);
+		Environment env = new Environment();
+		env.setModules(Arrays.asList(
+			createModule("module1", "test"),
+			createModule("module2", "test"),
+			createModule("module2", "test")));
+	}
+
 	private static Map<String, Object> createCatalog(String name, String type) {
 		Map<String, Object> prop = new HashMap<>();
 
 		prop.put(CATALOG_NAME, name);
 		prop.put(CATALOG_TYPE, type);
+
+		return prop;
+	}
+
+	private static Map<String, Object> createModule(String name, String type) {
+		Map<String, Object> prop = new HashMap<>();
+
+		prop.put(MODULE_NAME, name);
+		prop.put(MODULE_TYPE, type);
 
 		return prop;
 	}
