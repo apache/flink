@@ -24,6 +24,8 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -31,6 +33,7 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.module.ModuleManager;
@@ -43,6 +46,7 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.operations.SqlConversionException;
 import org.apache.flink.table.planner.operations.SqlToOperationConverter;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.sql.SqlNode;
@@ -54,6 +58,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -186,6 +191,45 @@ public class SqlToOperationConverterTest {
 			+ "a.b-c-d.e-f.g=ada, "
 			+ "a.b-c-d.e-f1231.g=ada}";
 		assertEquals(expected, sortedProperties.toString());
+	}
+
+	@Test
+	public void testCreateTableWithWatermark() throws FunctionAlreadyExistException, DatabaseNotExistException {
+		CatalogFunction cf = new CatalogFunctionImpl(
+			JavaUserDefinedScalarFunctions.JavaFunc5.class.getName(),
+			Collections.emptyMap());
+		catalog.createFunction(ObjectPath.fromString("default.myfunc"), cf, true);
+
+		final String sql = "create table source_table(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c timestamp(3),\n" +
+			"  watermark for `c` as myfunc(c, 1) - interval '5' second\n" +
+			") with (\n" +
+			"  'connector.type' = 'kafka')\n";
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		SqlNode node = parser.parse(sql);
+		assert node instanceof SqlCreateTable;
+		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+		assert operation instanceof CreateTableOperation;
+		CreateTableOperation op = (CreateTableOperation) operation;
+		CatalogTable catalogTable = op.getCatalogTable();
+		Map<String, String> properties = catalogTable.toProperties();
+		Map<String, String> expected = new HashMap<>();
+		expected.put("schema.0.name", "a");
+		expected.put("schema.0.type", "INT");
+		expected.put("schema.1.name", "b");
+		expected.put("schema.1.type", "BIGINT");
+		expected.put("schema.2.name", "c");
+		expected.put("schema.2.type", "TIMESTAMP");
+		expected.put("schema.watermark.0.rowtime", "c");
+		expected.put(
+			"schema.watermark.0.strategy.expr",
+			"`builtin`.`default`.`myfunc`(`c`, 1) - INTERVAL '5' SECOND");
+		expected.put("schema.watermark.0.strategy.datatype", "TIMESTAMP(3)");
+		expected.put("connector.type", "kafka");
+		assertEquals(expected, properties);
 	}
 
 	@Test
