@@ -2169,7 +2169,8 @@ object ScalarOperatorGens {
         s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
-           |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
+           |${SQL_TIMESTAMP_TERM}.fromEpochMillis(
+           |  ${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString()))
            |""".stripMargin
       case _ => throw new UnsupportedOperationException
     }
@@ -2184,7 +2185,8 @@ object ScalarOperatorGens {
       case TIME_WITHOUT_TIME_ZONE =>
         s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
-        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm, 3)"
+        val longTerm = s"$operandTerm.getMillisecond()"
+        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($longTerm, 3)"
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
         val zone = ctx.addReusableTimeZone()
