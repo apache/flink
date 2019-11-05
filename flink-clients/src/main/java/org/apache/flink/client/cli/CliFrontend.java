@@ -796,6 +796,7 @@ public class CliFrontend {
 			.setJarFile(jarFile)
 			.setUserClassPaths(classpaths)
 			.setEntryPointClassName(entryPointClass)
+			.setConfiguration(configuration)
 			.setArguments(programArgs)
 			.build();
 
