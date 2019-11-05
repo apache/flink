@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
+import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal, SqlTimestamp}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction
@@ -39,16 +39,15 @@ import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataTy
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
-
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
-
 import java.lang.reflect.{Method, Modifier}
 import java.lang.{Integer => JInt, Long => JLong}
 import java.sql.{Date, Time, Timestamp}
+import java.time.LocalDateTime
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -728,10 +727,12 @@ object UserDefinedFunctionUtils {
         expected.isPrimitive && Primitives.wrap(expected) == candidate ||
         candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
         candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
-        candidate == classOf[Timestamp] && (expected == classOf[Long] ||
-            expected == classOf[JLong]) ||
         candidate == classOf[BinaryString] && expected == classOf[String] ||
         candidate == classOf[String] && expected == classOf[BinaryString] ||
+        candidate == classOf[SqlTimestamp] && expected == classOf[LocalDateTime] ||
+        candidate == classOf[Timestamp] && expected == classOf[SqlTimestamp] ||
+        candidate == classOf[SqlTimestamp] && expected == classOf[Timestamp] ||
+        candidate == classOf[LocalDateTime] && expected == classOf[SqlTimestamp] ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[Row] ||
         candidate == classOf[Row] && classOf[BaseRow].isAssignableFrom(expected) ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[BaseRow] ||

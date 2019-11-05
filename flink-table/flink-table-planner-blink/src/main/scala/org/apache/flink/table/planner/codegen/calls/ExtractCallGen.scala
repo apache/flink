@@ -53,7 +53,7 @@ class ExtractCallGen(method: Method)
               (terms) =>
                 s"""
                    |${qualifyMethod(method)}(${terms.head},
-                   |    ${terms(1)} / ${TimeUnit.DAY.multiplier.intValue()})
+                   |    ${terms(1)}.getMillisecond() / ${TimeUnit.DAY.multiplier.intValue()})
                    |""".stripMargin
             }
 
@@ -71,19 +71,23 @@ class ExtractCallGen(method: Method)
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       (terms) => {
         val factor = getFactor(unit)
+        val longTerm = tpe.getTypeRoot match {
+          case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE => s"${terms(1)}.getMillisecond()"
+          case _ => s"${terms(1)}"
+        }
         unit match {
           case TimeUnit.QUARTER =>
             s"""
-               |((${terms(1)} % $factor) - 1) / ${unit.multiplier.intValue()} + 1
+               |(($longTerm % $factor) - 1) / ${unit.multiplier.intValue()} + 1
                |""".stripMargin
           case _ =>
             if (factor == 1) {
               s"""
-                 |${terms(1)} / ${unit.multiplier.intValue()}
+                 |$longTerm / ${unit.multiplier.intValue()}
                  |""".stripMargin
             } else {
               s"""
-                 |(${terms(1)} % $factor) / ${unit.multiplier.intValue()}
+                 |($longTerm % $factor) / ${unit.multiplier.intValue()}
                  |""".stripMargin
             }
         }

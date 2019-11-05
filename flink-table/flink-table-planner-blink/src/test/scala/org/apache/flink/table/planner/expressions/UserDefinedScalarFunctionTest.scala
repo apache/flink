@@ -35,6 +35,17 @@ import java.lang.{Boolean => JBoolean}
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
   @Test
+  def test(): Unit = {
+    val JavaFunc1 = new JavaFunc1()
+
+    testAllApis(
+      JavaFunc1(nullOf(DataTypes.TIME), 15, nullOf(DataTypes.TIMESTAMP(3))),
+      "JavaFunc1(Null(SQL_TIME), 15, Null(SQL_TIMESTAMP))",
+      "JavaFunc1(NULL, 15, NULL)",
+      "null and 15 and null")
+  }
+
+  @Test
   def testParameters(): Unit = {
     testAllApis(
       Func0('f0),

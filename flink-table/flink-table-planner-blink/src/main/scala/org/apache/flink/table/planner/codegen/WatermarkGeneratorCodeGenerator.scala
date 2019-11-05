@@ -74,7 +74,7 @@ object WatermarkGeneratorCodeGenerator {
           if (${generatedExpr.nullTerm}) {
             return null;
           } else {
-            return ${generatedExpr.resultTerm};
+            return ${generatedExpr.resultTerm}.getMillisecond();
           }
         }
 
