@@ -69,7 +69,6 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.descriptors.CoreModuleDescriptor;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;

@@ -24,7 +24,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import java.util.Collections;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.module.ModuleDescriptorValidator.MODULE_TYPE;
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
  * Describes a module configuration entry.

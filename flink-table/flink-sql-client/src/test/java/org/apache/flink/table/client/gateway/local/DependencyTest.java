@@ -63,7 +63,7 @@ import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
-import static org.apache.flink.table.descriptors.module.ModuleDescriptorValidator.MODULE_TYPE;
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
