@@ -676,9 +676,10 @@ under the License.
 			</properties>
 		</profile>
 		<profile>
-			<id>hive-1.1.1</id>
+			<!-- Hive-1.1.1 has issue that it can't handle 'stored as file_format' syntax. So test against 1.1.0 -->
+			<id>hive-1.1.0</id>
 			<properties>
-				<hive.version>1.1.1</hive.version>
+				<hive.version>1.1.0</hive.version>
 				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
 			</properties>
