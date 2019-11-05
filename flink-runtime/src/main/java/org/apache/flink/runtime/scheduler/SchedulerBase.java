@@ -100,6 +100,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base class which can be used to implement {@link SchedulerNG}.
@@ -420,12 +421,41 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 		boolean updateSuccess = executionGraph.updateState(taskExecutionState);
 
-		if (updateSuccess && executionVertexId.isPresent()) {
-			updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
+		if (updateSuccess) {
+			checkState(executionVertexId.isPresent());
+
+			if (isNotifiable(executionVertexId.get(), taskExecutionState)) {
+				updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
+			}
 			return true;
 		} else {
 			return false;
 		}
+	}
+
+	private boolean isNotifiable(
+			final ExecutionVertexID executionVertexId,
+			final TaskExecutionState taskExecutionState) {
+
+		final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
+
+		// only notifies FINISHED and FAILED states which are needed at the moment.
+		// can be refined in FLINK-14233 after the legacy scheduler is removed and
+		// the actions are factored out from ExecutionGraph.
+		switch (taskExecutionState.getExecutionState()) {
+			case FINISHED:
+			case FAILED:
+				// only notifies a state update if it's effective, namely it successfully
+				// turns the execution state to the expected value.
+				if (executionVertex.getExecutionState() == taskExecutionState.getExecutionState()) {
+					return true;
+				}
+				break;
+			default:
+				break;
+		}
+
+		return false;
 	}
 
 	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionState taskExecutionState) {
