@@ -1208,8 +1208,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	public static Collection<ResourceProfile> createWorkerSlotProfiles(Configuration config) {
 		final int numSlots = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
-		final long managedMemoryBytes = MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getBytes();
-
+		long managedMemoryBytes = 0L;
+		if(config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+			managedMemoryBytes=MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getBytes();
+		}
 		final ResourceProfile resourceProfile = TaskManagerServices.computeSlotResourceProfile(numSlots, managedMemoryBytes);
 		return Collections.nCopies(numSlots, resourceProfile);
 	}
