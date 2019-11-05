@@ -1007,7 +1007,7 @@ class CalcITCase extends BatchTestBase {
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
     val ts1 = LocalDateTimeConverter.INSTANCE.toInternal(
-      result.toList.head.getField(0).asInstanceOf[LocalDateTime])
+      result.toList.head.getField(0).asInstanceOf[LocalDateTime]).getMillisecond
 
     val ts2 = System.currentTimeMillis()
 
