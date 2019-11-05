@@ -69,10 +69,13 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
+import org.apache.flink.table.descriptors.CoreModuleDescriptor;
+import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -81,6 +84,7 @@ import org.apache.flink.table.functions.FunctionService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.delegation.ExecutorBase;
 import org.apache.flink.table.sinks.TableSink;
@@ -113,6 +117,7 @@ public class ExecutionContext<ClusterID> {
 	private final Environment mergedEnv;
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
+	private final Map<String, Module> modules;
 	private final Map<String, Catalog> catalogs;
 	private final Map<String, TableSource<?>> tableSources;
 	private final Map<String, TableSink<?>> tableSinks;
@@ -140,6 +145,12 @@ public class ExecutionContext<ClusterID> {
 		classLoader = FlinkUserCodeClassLoaders.parentFirst(
 			dependencies.toArray(new URL[dependencies.size()]),
 			this.getClass().getClassLoader());
+
+		// create modules
+		modules = new LinkedHashMap<>();
+		mergedEnv.getModules().forEach((name, entry) ->
+			modules.put(name, createModule(entry.asMap(), classLoader))
+		);
 
 		// create catalogs
 		catalogs = new LinkedHashMap<>();
@@ -262,6 +273,12 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
+	private Module createModule(Map<String, String> moduleProperties, ClassLoader classLoader) {
+		final ModuleFactory factory =
+			TableFactoryService.find(ModuleFactory.class, moduleProperties, classLoader);
+		return factory.createModule(moduleProperties);
+	}
+
 	private Catalog createCatalog(String name, Map<String, String> catalogProperties, ClassLoader classLoader) {
 		final CatalogFactory factory =
 			TableFactoryService.find(CatalogFactory.class, catalogProperties, classLoader);
@@ -381,6 +398,13 @@ public class ExecutionContext<ClusterID> {
 			// set table configuration
 			mergedEnv.getConfiguration().asMap().forEach((k, v) ->
 				tableEnv.getConfig().getConfiguration().setString(k, v));
+
+			// load modules
+			if (!modules.isEmpty()) {
+				// unload core module first to respect whatever users configure
+				tableEnv.unloadModule(CoreModuleDescriptorValidator.MODULE_TYPE_CORE);
+				modules.forEach(tableEnv::loadModule);
+			}
 
 			// register catalogs
 			catalogs.forEach(tableEnv::registerCatalog);
