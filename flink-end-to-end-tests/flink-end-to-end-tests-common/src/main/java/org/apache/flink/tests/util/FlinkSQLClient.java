@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Wrap the <flink-dist-dir>/bin/sql-client.sh as the FlinkSQLClient so that we can submit the SQL job in the end-to-end
+ * Wrap the FLINK_DIST_DIR/bin/sql-client.sh as the FlinkSQLClient so that we can submit the SQL job in the end-to-end
  * test.
  */
 public class FlinkSQLClient {

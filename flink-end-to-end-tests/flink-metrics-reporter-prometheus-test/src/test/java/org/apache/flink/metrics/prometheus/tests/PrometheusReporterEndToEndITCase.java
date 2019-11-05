@@ -23,7 +23,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.prometheus.PrometheusReporter;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
-import org.apache.flink.tests.util.FlinkDistribution;
+import org.apache.flink.tests.util.FlinkResource;
+import org.apache.flink.tests.util.FlinkResourceFactory;
+import org.apache.flink.tests.util.LocalStandaloneFlinkResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -33,6 +35,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -86,10 +89,15 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 	}
 
 	@Rule
-	public final FlinkDistribution dist = new FlinkDistribution();
+	public final LocalStandaloneFlinkResource dist = (LocalStandaloneFlinkResource) FlinkResourceFactory.create();
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
+
+	public PrometheusReporterEndToEndITCase() {
+		FlinkResource flinkResource = FlinkResourceFactory.create();
+		Assert.assertTrue(flinkResource instanceof LocalStandaloneFlinkResource);
+	}
 
 	@Test
 	public void testReporter() throws Exception {
@@ -133,7 +141,7 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 				.inPlace()
 				.build());
 
-		dist.startFlinkCluster();
+		dist.startCluster();
 
 		final List<Integer> ports = dist
 			.searchAllLogs(LOG_REPORTER_PORT_PATTERN, matcher -> matcher.group(1))

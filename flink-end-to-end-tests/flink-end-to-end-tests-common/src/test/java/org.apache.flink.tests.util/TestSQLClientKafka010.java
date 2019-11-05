@@ -18,6 +18,9 @@
 
 package org.apache.flink.tests.util;
 
+/**
+ * End-to-end test for Kafka SQL with version 0.10.
+ */
 public class TestSQLClientKafka010 extends TestSQLClientKafka {
 
 	@Override

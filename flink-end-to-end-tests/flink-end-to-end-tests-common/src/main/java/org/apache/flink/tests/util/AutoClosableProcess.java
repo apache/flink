@@ -171,6 +171,9 @@ public class AutoClosableProcess implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Fetch the stdout stream line by line.
+	 */
 	public static class LineFetcher implements Consumer<String> {
 
 		private List<String> lines = new ArrayList<>();

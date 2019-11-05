@@ -26,11 +26,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Wrap the <flink-dist-dir>/bin/flink command as a Java FlinkClient class so that we can submit the flink job in the
+ * Wrap the FLINK_DIST_DIR/bin/flink command as a Java FlinkClient class so that we can submit the flink job in the
  * end-to-end tests.
  */
 public class FlinkClient {
 
+	/**
+	 * Actions of ./bin/flink command.
+	 */
 	public enum Action {
 		RUN, INFO, LIST, STOP, CANCEL, SAVEPOINT
 	}

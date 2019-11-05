@@ -36,7 +36,8 @@ import org.apache.flink.runtime.rest.messages.job.metrics.TaskManagerMetricsMess
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.tests.util.FlinkDistribution;
+import org.apache.flink.tests.util.FlinkResourceFactory;
+import org.apache.flink.tests.util.LocalStandaloneFlinkResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -66,10 +67,9 @@ import java.util.stream.Collectors;
 public class MetricsAvailabilityITCase extends TestLogger {
 
 	private static final String HOST = "localhost";
-	private static final int PORT = 8081;
 
 	@Rule
-	public final FlinkDistribution dist = new FlinkDistribution();
+	public final LocalStandaloneFlinkResource dist = (LocalStandaloneFlinkResource) FlinkResourceFactory.create();
 
 	@Nullable
 	private static ScheduledExecutorService scheduledExecutorService = null;
@@ -88,7 +88,7 @@ public class MetricsAvailabilityITCase extends TestLogger {
 
 	@Test
 	public void testReporter() throws Exception {
-		dist.startFlinkCluster();
+		dist.startCluster();
 
 		final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), scheduledExecutorService);
 
@@ -101,23 +101,23 @@ public class MetricsAvailabilityITCase extends TestLogger {
 		}
 	}
 
-	private static void checkJobManagerMetricAvailability(final RestClient restClient) throws Exception {
+	private void checkJobManagerMetricAvailability(final RestClient restClient) throws Exception {
 		final JobManagerMetricsHeaders headers = JobManagerMetricsHeaders.getInstance();
 		final JobManagerMetricsMessageParameters parameters = headers.getUnresolvedMessageParameters();
 		parameters.metricsFilterParameter.resolve(Collections.singletonList("numRegisteredTaskManagers"));
 
 		fetchMetric(() ->
-				restClient.sendRequest(HOST, PORT, headers, parameters, EmptyRequestBody.getInstance()),
+				restClient.sendRequest(HOST, dist.getRestPort(), headers, parameters, EmptyRequestBody.getInstance()),
 			getMetricNamePredicate("numRegisteredTaskManagers"));
 	}
 
-	private static Collection<ResourceID> getTaskManagerIds(final RestClient restClient) throws Exception {
+	private Collection<ResourceID> getTaskManagerIds(final RestClient restClient) throws Exception {
 		final TaskManagersHeaders headers = TaskManagersHeaders.getInstance();
 
 		final TaskManagersInfo response = fetchMetric(() ->
 				restClient.sendRequest(
 					HOST,
-					PORT,
+					dist.getRestPort(),
 					headers,
 					EmptyMessageParameters.getInstance(),
 					EmptyRequestBody.getInstance()),
@@ -128,14 +128,14 @@ public class MetricsAvailabilityITCase extends TestLogger {
 			.collect(Collectors.toList());
 	}
 
-	private static void checkTaskManagerMetricAvailability(final RestClient restClient, final ResourceID taskManagerId) throws Exception {
+	private void checkTaskManagerMetricAvailability(final RestClient restClient, final ResourceID taskManagerId) throws Exception {
 		final TaskManagerMetricsHeaders headers = TaskManagerMetricsHeaders.getInstance();
 		final TaskManagerMetricsMessageParameters parameters = headers.getUnresolvedMessageParameters();
 		parameters.taskManagerIdParameter.resolve(taskManagerId);
 		parameters.metricsFilterParameter.resolve(Collections.singletonList("Status.Network.TotalMemorySegments"));
 
 		fetchMetric(() ->
-				restClient.sendRequest(HOST, PORT, headers, parameters, EmptyRequestBody.getInstance()),
+				restClient.sendRequest(HOST, dist.getRestPort(), headers, parameters, EmptyRequestBody.getInstance()),
 			getMetricNamePredicate("Status.Network.TotalMemorySegments"));
 	}
 
@@ -148,7 +148,7 @@ public class MetricsAvailabilityITCase extends TestLogger {
 				}
 			},
 			Time.seconds(1),
-			Deadline.fromNow(Duration.ofSeconds(5)),
+			Deadline.fromNow(Duration.ofSeconds(10)),
 			predicate,
 			new ScheduledExecutorServiceAdapter(scheduledExecutorService));
 

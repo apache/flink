@@ -18,6 +18,9 @@
 
 package org.apache.flink.tests.util;
 
+/**
+ * End-to-end streaming test for Kafka 0.11 version.
+ */
 public class TestStreamingKafka010 extends TestStreamingKafka {
 
 	@Override

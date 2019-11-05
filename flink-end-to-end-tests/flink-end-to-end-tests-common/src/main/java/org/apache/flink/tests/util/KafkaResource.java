@@ -66,7 +66,7 @@ public interface KafkaResource {
 	 * @param maxMessage max message count to read in the given topic
 	 * @param topic      name of topic
 	 * @param groupId    group name of the consumer.
-	 * @return
+	 * @return the message list that we've read.
 	 * @throws IOException if any IO error happen
 	 */
 	List<String> readMessage(int maxMessage, String topic, String groupId) throws IOException;
@@ -94,7 +94,7 @@ public interface KafkaResource {
 	 *
 	 * @param topic     name of the topic.
 	 * @param partition partition number
-	 * @return
+	 * @return the offset value.
 	 * @throws IOException if any IO error happen.
 	 */
 	int getPartitionEndOffset(String topic, int partition) throws IOException;

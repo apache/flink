@@ -20,7 +20,9 @@ package org.apache.flink.tests.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExternalResource;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,36 +30,119 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Flink resource to manage the local standalone flink cluster, such as setUp, start, stop clusters and so on.
  */
-public class LocalStandaloneFlinkResource implements FlinkResource {
+public class LocalStandaloneFlinkResource implements FlinkResource, ExternalResource {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResource.class);
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+	private static final Path FLINK_CONF_YAML = Paths.get("flink-conf.yaml");
+	private static final Path FLINK_CONF_YAML_BACKUP = Paths.get("flink-conf.yaml.bak");
+	private Configuration defaultConfig;
+	private final Optional<Path> logBackupDir;
 
 	private final Path conf;
 	private final Path bin;
+	private final Path opt;
+	private final Path lib;
+	private final Path log;
+
+	private final List<AutoClosablePath> filesToDelete = new ArrayList<>();
 
 	public LocalStandaloneFlinkResource(String distDirProperty) {
 		final Path flinkDir = Paths.get(distDirProperty);
 		this.bin = flinkDir.resolve("bin");
 		this.conf = flinkDir.resolve("conf");
+		this.opt = flinkDir.resolve("opt");
+		this.lib = flinkDir.resolve("lib");
+		this.log = flinkDir.resolve("log");
+
+		final String backupDirProperty = System.getProperty("logBackupDir");
+		this.logBackupDir = backupDirProperty == null
+			? Optional.empty()
+			: Optional.of(Paths.get(backupDirProperty));
+	}
+
+	@Override
+	public void before() throws IOException {
+		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
+		final Path originalConfig = conf.resolve(FLINK_CONF_YAML);
+		final Path backupConfig = conf.resolve(FLINK_CONF_YAML_BACKUP);
+		Files.copy(originalConfig, backupConfig);
+		filesToDelete.add(new AutoClosablePath(backupConfig));
+	}
+
+	@Override
+	public void afterTestSuccess() {
+		try {
+			this.stopCluster();
+		} catch (IOException e) {
+			LOG.error("Failure while shutting down Flink cluster.", e);
+		}
+
+		final Path originalConfig = conf.resolve(FLINK_CONF_YAML);
+		final Path backupConfig = conf.resolve(FLINK_CONF_YAML_BACKUP);
+
+		try {
+			Files.move(backupConfig, originalConfig, StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException e) {
+			LOG.error("Failed to restore flink-conf.yaml", e);
+		}
+
+		for (AutoCloseable fileToDelete : filesToDelete) {
+			try {
+				fileToDelete.close();
+			} catch (Exception e) {
+				LOG.error("Failure while cleaning up file.", e);
+			}
+		}
+	}
+
+	@Override
+	public void afterTestFailure() {
+		logBackupDir.ifPresent(backupLocation -> {
+			LOG.info("Backing up logs to {}.", backupLocation);
+			try {
+				Files.createDirectories(backupLocation);
+				FileUtils.copyDirectory(log.toFile(), backupLocation.toFile());
+			} catch (IOException e) {
+				LOG.warn("An error occurred while backing up logs.", e);
+			}
+		});
+
+		afterTestSuccess();
 	}
 
 	/**
-	 * Read the value of `rest.port` part in <distDir>/conf/flink-conf.yaml.
+	 * Read the value of `rest.port` part in FLINK_DIST_DIR/conf/flink-conf.yaml.
 	 *
 	 * @return the rest port which standalone Flink cluster will listen.
 	 */
-	private int getRestPort() {
+	public int getRestPort() {
 		Configuration config = GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString());
 		return config.getInteger("rest.port", 8081);
 	}
@@ -130,5 +215,57 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 	@Override
 	public FlinkSQLClient createFlinkSQLClient() throws IOException {
 		return new FlinkSQLClient(this.bin);
+	}
+
+	public void copyOptJarsToLib(String jarNamePrefix) throws IOException {
+		final Optional<Path> reporterJarOptional;
+		try (Stream<Path> logFiles = Files.walk(opt)) {
+			reporterJarOptional = logFiles
+				.filter(path -> path.getFileName().toString().startsWith(jarNamePrefix))
+				.findFirst();
+		}
+		if (reporterJarOptional.isPresent()) {
+			final Path optReporterJar = reporterJarOptional.get();
+			final Path libReporterJar = lib.resolve(optReporterJar.getFileName());
+			Files.copy(optReporterJar, libReporterJar);
+			filesToDelete.add(new AutoClosablePath(libReporterJar));
+		} else {
+			throw new FileNotFoundException("No jar could be found matching the pattern " + jarNamePrefix + ".");
+		}
+	}
+
+	public void appendConfiguration(Configuration config) throws IOException {
+		final Configuration mergedConfig = new Configuration();
+		mergedConfig.addAll(defaultConfig);
+		mergedConfig.addAll(config);
+
+		final List<String> configurationLines = mergedConfig.toMap().entrySet().stream()
+			.map(entry -> entry.getKey() + ": " + entry.getValue())
+			.collect(Collectors.toList());
+
+		Files.write(conf.resolve(FLINK_CONF_YAML), configurationLines);
+	}
+
+	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {
+		final List<String> matches = new ArrayList<>();
+
+		try (Stream<Path> logFilesStream = Files.list(log)) {
+			for (Path logFile : logFilesStream.collect(Collectors.toList())) {
+				if (!logFile.getFileName().toString().endsWith(".log")) {
+					// ignore logs for previous runs that have a number suffix
+					continue;
+				}
+				try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(logFile.toFile()), StandardCharsets.UTF_8))) {
+					String line;
+					while ((line = br.readLine()) != null) {
+						Matcher matcher = pattern.matcher(line);
+						if (matcher.matches()) {
+							matches.add(matchProcessor.apply(matcher));
+						}
+					}
+				}
+			}
+		}
+		return matches.stream();
 	}
 }
