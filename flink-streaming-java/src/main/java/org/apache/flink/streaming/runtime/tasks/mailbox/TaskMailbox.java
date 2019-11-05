@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
 import javax.annotation.Nonnull;
 

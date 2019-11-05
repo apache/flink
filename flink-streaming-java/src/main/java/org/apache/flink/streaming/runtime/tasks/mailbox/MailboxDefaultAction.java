@@ -15,20 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
+package org.apache.flink.streaming.runtime.tasks.mailbox;
+
+import org.apache.flink.annotation.Internal;
 
 /**
- * A factory for creating mailbox executors with a given priority. The factory is usually bound to a specific task.
+ * Interface for the default action that is repeatedly invoked in the mailbox-loop.
  */
-@FunctionalInterface
-public interface MailboxExecutorFactory {
+@Internal
+public interface MailboxDefaultAction {
 
 	/**
-	 * Creates a new executor for the given priority. The priority is used when enqueuing new mails as well as
-	 * yielding.
+	 * This method implements the default action of the mailbox loop (e.g. processing one event from the input).
+	 * Implementations should (in general) be non-blocking.
 	 *
-	 * @param priority the priority of the mailbox executor.
-	 * @return a mailbox executor with the bound priority.
+	 * @param context context object for collaborative interaction between the default action and the mailbox loop.
+	 * @throws Exception on any problems in the action.
 	 */
-	MailboxExecutor createExecutor(int priority);
+	void runDefaultAction(DefaultActionContext context) throws Exception;
 }

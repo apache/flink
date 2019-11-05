@@ -1,13 +1,12 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,8 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
+package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 
 import javax.annotation.Nonnull;
@@ -30,11 +31,46 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * Interface for an {@link Executor} build around a mailbox-based execution model (see {@link TaskMailbox}).
+ * Interface for an {@link Executor} build around a mailbox-based execution model (see {@link TaskMailbox}). {@code
+ * MailboxExecutor} can also execute downstream messages of a mailbox by yielding control from the task thread.
  *
  * <p>All submission functions can be called from any thread and will enqueue the action for further processing in a
  * FIFO fashion.
+ *
+ * <p>The yielding functions avoid the following situation: One operator cannot fully process an input record and
+ * blocks the task thread until some resources are available. However, since the introduction of the mailbox model
+ * blocking the task thread will not only block new inputs but also all events from being processed. If the resources
+ * depend on downstream operators being able to process such events (e.g., timers), then we may easily arrive at some
+ * livelocks.
+ *
+ * <p>The yielding functions will only process events from the operator itself and any downstream operator. Events of upstream
+ * operators are only processed when the input has been fully processed or if they yield themselves. This method avoid
+ * congestion and potential deadlocks, but will process {@link Mail}s slightly out-of-order, effectively creating a view
+ * on the mailbox that contains no message from upstream operators.
+ *
+ * <p><b>All yielding functions must be called in the mailbox thread</b> (see {@link TaskMailbox#isMailboxThread()}) to not
+ * violate the single-threaded execution model. There are two typical cases, both waiting until the resource is
+ * available. The main difference is if the resource becomes available through a mailbox message itself or not.
+ *
+ * <p>If the resource becomes available through a mailbox mail, we can effectively block the task thread.
+ * Implicitly, this requires the mail to be enqueued by a different thread.
+ * <pre>{@code
+ * while (resource not available) {
+ *     mailboxExecutor.yield();
+ * }
+ * }</pre>
+ *
+ * <p>If the resource becomes available through an external mechanism or the corresponding mail needs to be enqueued
+ * in the task thread, we cannot block.
+ * <pre>{@code
+ * while (resource not available) {
+ *     if (!mailboxExecutor.tryYield()) {
+ *         do stuff or sleep for a small amount of time
+ *     }
+ * }
+ * }</pre>
  */
+@PublicEvolving
 public interface MailboxExecutor {
 	/**
 	 * A constant for empty args to save on object allocation.

@@ -15,12 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.runtime.tasks.mailbox;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
 /**
- * An operator that needs access to the {@link MailboxExecutor} to yield to downstream operators needs to be created
- * through a factory implementing this interface.
+ * A factory for creating mailbox executors with a given priority. The factory is usually bound to a specific task.
  */
-public interface YieldingOperatorFactory<OUT> extends StreamOperatorFactory<OUT> {
-	void setMailboxExecutor(MailboxExecutor mailboxExecutor);
+@FunctionalInterface
+@Internal
+public interface MailboxExecutorFactory {
+
+	/**
+	 * Creates a new executor for the given priority. The priority is used when enqueuing new mails as well as
+	 * yielding.
+	 *
+	 * @param priority the priority of the mailbox executor.
+	 * @return a mailbox executor with the bound priority.
+	 */
+	MailboxExecutor createExecutor(int priority);
 }
