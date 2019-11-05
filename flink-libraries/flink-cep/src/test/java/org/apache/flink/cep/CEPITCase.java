@@ -928,7 +928,7 @@ public class CEPITCase extends AbstractTestBase {
 			Tuple2.of(new Event(4, "start4", 6.0), 7000L)
 		).assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Tuple2<Event, Long>>() {
 
-			private Long maxOutOfOrderness = 0L;
+			private Long maxOutOfOrderness = 5L;
 			private Long currentMaxTimestamp = 0L;
 
 			@Override
@@ -971,6 +971,7 @@ public class CEPITCase extends AbstractTestBase {
 
 		List<String> resultList = new ArrayList<>();
 		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+		resultList.sort(String::compareTo);
 		assertEquals(Arrays.asList("Event(1, start1, 1.0)", "Event(2, start2, 2.0)","Event(3, start3, 3.0)"), resultList);
 
 	}

@@ -98,7 +98,7 @@ public class CepOperator<IN, KEY, OUT>
 	private transient ValueState<NFAState> computationStates;
 	private transient MapState<Long, List<IN>> elementQueueState;
 	private transient SharedBuffer<IN> partialMatches;
-	private transient MapState<Long,Void> waitStampState;
+	private transient MapState<Long, Void> waitStampState;
 
 	private transient InternalTimerService<VoidNamespace> timerService;
 
@@ -196,7 +196,7 @@ public class CepOperator<IN, KEY, OUT>
 				new ListSerializer<>(inputSerializer)));
 
 		waitStampState = context.getKeyedStateStore().getMapState(
-			new MapStateDescriptor<Long,Void>(WAIT_STAMP_STATE_NAME,
+			new MapStateDescriptor<Long, Void>(WAIT_STAMP_STATE_NAME,
 				LongSerializer.INSTANCE, VoidSerializer.INSTANCE));
 		migrateOldState();
 	}
@@ -254,8 +254,7 @@ public class CepOperator<IN, KEY, OUT>
 				long currentTime = timerService.currentProcessingTime();
 				bufferEvent(element.getValue(), currentTime);
 				timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
-			}
-			if (comparator == null) {
+			} else if (comparator == null) {
 				// there can be no out of order elements in processing time
 				NFAState nfaState = getNFAState();
 				long timestamp = getProcessingTimeService().getCurrentProcessingTime();
@@ -356,10 +355,10 @@ public class CepOperator<IN, KEY, OUT>
 					event -> {
 						try {
 							processEvent(nfaState, event, timestamp);
-							if (nfa.waitingTime > 0){
+							if (nfa.waitingTime > 0) {
 								for (ComputationState state : nfaState.getPartialMatches()) {
 									if (nfa.isWaitingState(state) && !containState(state)) {
-										waitStampState.put(state.getStartTimestamp(),null);
+										waitStampState.put(state.getStartTimestamp(), null);
 										timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentTime + nfa.waitingTime + 100);
 									}
 								}
@@ -400,14 +399,15 @@ public class CepOperator<IN, KEY, OUT>
 		NFAState nfaState = getNFAState();
 		// if nfaState has waiting state then process ...
 		long currentTime = timerService.currentProcessingTime();
-
-		if(hasWaitState(nfaState)){
-			processEvent(nfaState, null, currentTime);
-		}
-		waitStampState.clear();
-		for (ComputationState state : nfaState.getPartialMatches()) {
-			if (nfa.isWaitingState(state)){
-				waitStampState.put(state.getStartTimestamp(),null);
+		if (nfa.waitingTime > 0) {
+			if (hasWaitState(nfaState)) {
+				processEvent(nfaState, null, currentTime);
+			}
+			waitStampState.clear();
+			for (ComputationState state : nfaState.getPartialMatches()) {
+				if (nfa.isWaitingState(state)) {
+					waitStampState.put(state.getStartTimestamp(), null);
+				}
 			}
 		}
 		// STEP 2
@@ -419,10 +419,12 @@ public class CepOperator<IN, KEY, OUT>
 					event -> {
 						try {
 							processEvent(nfaState, event, timestamp);
-							for (ComputationState state : nfaState.getPartialMatches()) {
-								if (nfa.isWaitingState(state) && !containState(state)) {
-									waitStampState.put(state.getStartTimestamp(),null);
-									timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + nfa.waitingTime + 1);
+							if (nfa.waitingTime > 0) {
+								for (ComputationState state : nfaState.getPartialMatches()) {
+									if (nfa.isWaitingState(state) && !containState(state)) {
+										waitStampState.put(state.getStartTimestamp(), null);
+										timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + nfa.waitingTime + 1);
+									}
 								}
 							}
 						} catch (Exception e) {
@@ -437,6 +439,7 @@ public class CepOperator<IN, KEY, OUT>
 		// STEP 3
 		updateNFA(nfaState);
 	}
+
 	private boolean containState(ComputationState state) {
 		try {
 			Iterator<Long> timeStamps = waitStampState.keys().iterator();
@@ -451,10 +454,12 @@ public class CepOperator<IN, KEY, OUT>
 		}
 		return false;
 	}
+
 	private Stream<IN> sort(Collection<IN> elements) {
 		Stream<IN> stream = elements.stream();
 		return (comparator == null) ? stream : stream.sorted(comparator);
 	}
+
 	public boolean hasWaitState(NFAState nfaState) {
 		for (ComputationState state : nfaState.getPartialMatches()) {
 			if (nfa.isWaitingState(state)) {
@@ -463,6 +468,7 @@ public class CepOperator<IN, KEY, OUT>
 		}
 		return false;
 	}
+
 	private void updateLastSeenWatermark(long timestamp) {
 		this.lastWatermark = timestamp;
 	}
