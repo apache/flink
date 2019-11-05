@@ -450,7 +450,6 @@ public class CepOperator<IN, KEY, OUT>
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-
 		}
 		return false;
 	}

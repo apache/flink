@@ -485,6 +485,27 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     */
   def getAfterMatchSkipStrategy: AfterMatchSkipStrategy =
     jPattern.getAfterMatchSkipStrategy
+
+  /**
+    *
+    * @param waitingTime
+    * @return
+    */
+  def waitting(waitingTime: Time): Pattern[T, F] = {
+    jPattern.waitting(waitingTime)
+    this
+  }
+
+  /**
+    *
+    * @param name
+    * @return
+    */
+  def wait(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.wait(name))
+  }
+
+
 }
 
 object Pattern {
@@ -542,5 +563,6 @@ object Pattern {
   def begin[T, F <: T](pattern: Pattern[T, F],
       afterMatchSkipStrategy: AfterMatchSkipStrategy): GroupPattern[T, F] =
     GroupPattern(JPattern.begin(pattern.wrappedPattern, afterMatchSkipStrategy))
+
 
 }
