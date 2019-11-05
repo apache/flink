@@ -35,6 +35,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
@@ -501,5 +503,42 @@ public class BinaryArrayTest {
 
 		Assert.assertArrayEquals(bytes1, array.getBinary(0));
 		Assert.assertArrayEquals(bytes2, array.getBinary(1));
+	}
+
+	@Test
+	public void testSqlTimestamp() {
+		BinaryArray array = new BinaryArray();
+		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+
+		// 1. compact
+		{
+			final int precision = 3;
+			writer.reset();
+			writer.writeTimestamp(0, SqlTimestamp.fromEpochMillis(123L), precision);
+			writer.setNullAt(1);
+			writer.complete();
+
+			assertEquals("1970-01-01T00:00:00.123", array.getTimestamp(0, 3).toString());
+			assertTrue(array.isNullAt(1));
+			array.setTimestamp(0, SqlTimestamp.fromEpochMillis(-123L), precision);
+			assertEquals("1969-12-31T23:59:59.877", array.getTimestamp(0, 3).toString());
+		}
+
+		// 2. not compact
+		{
+			final int precision = 9;
+			SqlTimestamp sqlTimestamp1 = SqlTimestamp.fromLocalDateTime(LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456789));
+			SqlTimestamp sqlTimestamp2 = SqlTimestamp.fromTimestamp(Timestamp.valueOf("1969-01-01 00:00:00.123456789"));
+
+			writer.reset();
+			writer.writeTimestamp(0, sqlTimestamp1, precision);
+			writer.writeTimestamp(1, null, precision);
+			writer.complete();
+
+			assertEquals("1970-01-01T00:00:00.123456789", array.getTimestamp(0, precision).toString());
+			assertTrue(array.isNullAt(1));
+			array.setTimestamp(0, sqlTimestamp2, precision);
+			assertEquals("1969-01-01T00:00:00.123456789", array.getTimestamp(0, precision).toString());
+		}
 	}
 }
