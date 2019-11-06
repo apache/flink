@@ -79,10 +79,10 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Before
   override def before(): Unit = {
     super.before()
-    registerCollection("myUpperCaseData", myUpperCaseData, INT_STRING, "N, L", Array(true, false))
-    registerCollection("myLowerCaseData", myLowerCaseData, INT_STRING, "n, l", Array(true, false))
-    registerCollection("myTestData1", myTestData1, INT_INT, "a, b", Array(false, false))
-    registerCollection("myTestData2", myTestData2, INT_INT, "a, b", Array(false, false))
+    registerCollection("myUpperCaseData", myUpperCaseData, INT_STRING, "N, L", Array(true, true))
+    registerCollection("myLowerCaseData", myLowerCaseData, INT_STRING, "n, l", Array(true, true))
+    registerCollection("myTestData1", myTestData1, INT_INT, "a, b", Array(true, true))
+    registerCollection("myTestData2", myTestData2, INT_INT, "a, b", Array(true, true))
     disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 

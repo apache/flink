@@ -19,22 +19,20 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.operations.TableSourceQueryOperation
+import org.apache.flink.table.planner.calcite.FlinkToRelContext
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
 
 import com.google.common.collect.{ImmutableList, ImmutableSet}
-import org.apache.calcite.adapter.enumerable.EnumerableTableScan
 import org.apache.calcite.linq4j.tree.Expression
 import org.apache.calcite.plan.RelOptTable.ToRelContext
 import org.apache.calcite.plan.{RelOptCluster, RelOptSchema}
 import org.apache.calcite.prepare.Prepare.AbstractPreparingTable
-import org.apache.calcite.prepare.{CalcitePrepareImpl, RelOptTableImpl}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.calcite.runtime.Hook
 import org.apache.calcite.schema._
 import org.apache.calcite.sql.SqlAccessType
 import org.apache.calcite.sql.validate.{SqlModality, SqlMonotonicity}
@@ -44,6 +42,7 @@ import org.apache.calcite.util.{ImmutableBitSet, Util}
 import java.util.{List => JList, Set => JSet}
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * [[FlinkRelOptTable]] wraps a [[FlinkTable]]
@@ -64,6 +63,16 @@ class FlinkRelOptTable protected(
   // Default value of rowCount if there is no available stats.
   // Sets a bigger default value to avoid broadcast join.
   val DEFAULT_ROWCOUNT: Double = 1E8
+
+  lazy val columnExprs: Map[String, String] = table match {
+    case tableSourceTable : TableSourceTable[_] =>
+      tableSourceTable.catalogTable.getSchema
+        .getTableColumns
+        .filter(column => column.isGenerated)
+        .map(column => (column.getName, column.getExpr.get()))
+        .toMap
+    case _ => Map()
+  }
 
   // unique keySets of current table.
   lazy val uniqueKeysSet: Option[JSet[ImmutableBitSet]] = {
@@ -221,12 +230,42 @@ class FlinkRelOptTable protected(
     val cluster: RelOptCluster = context.getCluster
     if (table.isInstanceOf[TranslatableTable]) {
       table.asInstanceOf[TranslatableTable].toRel(context, this)
-    } else if (Hook.ENABLE_BINDABLE.get(false)) {
-      LogicalTableScan.create(cluster, this)
-    } else if (CalcitePrepareImpl.ENABLE_ENUMERABLE) {
-      EnumerableTableScan.create(cluster, this)
     } else {
-      throw new AssertionError
+      if (!context.isInstanceOf[FlinkToRelContext]) {
+        // If the transform comes from a RelOptRule,
+        // returns the scan directly.
+        LogicalTableScan.create(cluster, this)
+      } else {
+        // Get row type of physical fields.
+        val physicalFields = getRowType
+          .getFieldList
+          .filter(f => !columnExprs.contains(f.getName))
+          .toList
+        val scanRowType = cluster.getTypeFactory.createStructType(physicalFields)
+        val scan = LogicalTableScan.create(cluster, copy(table, scanRowType))
+        if (columnExprs.isEmpty) {
+          // There is no virtual columns, returns the scan.
+          scan
+        } else {
+          val toRelContext = context.asInstanceOf[FlinkToRelContext]
+          val relBuilder = toRelContext.createRelBuilder()
+          val fieldNames = rowType.getFieldNames.asScala
+          val fieldExprs = fieldNames
+            .map { name =>
+              if (columnExprs.contains(name)) {
+                columnExprs(name)
+              } else {
+                name
+              }
+            }.toArray
+          val rexNodes = toRelContext
+            .createSqlExprToRexConverter(scanRowType)
+            .convertToRexNodes(fieldExprs)
+          relBuilder.push(scan)
+            .projectNamed(rexNodes.toList, fieldNames, true)
+            .build()
+        }
+      }
     }
   }
 
@@ -312,8 +351,6 @@ class FlinkRelOptTable protected(
       rowType: RelDataType,
       ordinal: Int,
       initializerContext: InitializerContext): Boolean = false
-
-  override def getColumnStrategies: JList[ColumnStrategy] = RelOptTableImpl.columnStrategies(this)
 
   override def extend(extendedTable: Table) =
     throw new RuntimeException("Extending column not supported")

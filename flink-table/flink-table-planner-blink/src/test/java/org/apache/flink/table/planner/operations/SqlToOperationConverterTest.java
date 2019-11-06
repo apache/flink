@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
@@ -31,6 +32,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
@@ -44,6 +46,7 @@ import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 
@@ -378,6 +381,48 @@ public class SqlToOperationConverterTest {
 		TableSchema schema = ((CreateTableOperation) operation).getCatalogTable().getSchema();
 		Object[] expectedDataTypes = testItems.stream().map(item -> item.expectedType).toArray();
 		assertArrayEquals(expectedDataTypes, schema.getFieldDataTypes());
+	}
+
+	@Test
+	public void testCreateTableWithComputedColumn() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+			"  a int,\n" +
+			"  b varchar, \n" +
+			"  c as a - 1, \n" +
+			"  d as b || '$$', \n" +
+			"  e as my_catalog.my_database.my_udf(a)\n" +
+			")\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		functionCatalog.registerTempCatalogScalarFunction(
+			ObjectIdentifier.of("my_catalog", "my_database", "my_udf"),
+			Func0$.MODULE$);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		Operation operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
+		assert operation instanceof CreateTableOperation;
+		CreateTableOperation op = (CreateTableOperation) operation;
+		CatalogTable catalogTable = op.getCatalogTable();
+		assertArrayEquals(
+			new String[] {"a", "b", "c", "d", "e"},
+			catalogTable.getSchema().getFieldNames());
+		assertArrayEquals(
+			new DataType[]{
+				DataTypes.INT(),
+				DataTypes.STRING(),
+				DataTypes.INT(),
+				DataTypes.STRING(),
+				DataTypes.INT().notNull()},
+			catalogTable.getSchema().getFieldDataTypes());
+		String[] columnExpressions =
+			catalogTable.getSchema().getTableColumns().stream()
+				.filter(TableColumn::isGenerated)
+				.map(c -> c.getExpr().orElse(null))
+				.toArray(String[]::new);
+		assertArrayEquals(
+			new String[] {"`a` - 1", "`b` || '$$'", "`my_catalog`.`my_database`.`my_udf`(`a`)"},
+			columnExpressions);
 	}
 
 	//~ Tool Methods ----------------------------------------------------------

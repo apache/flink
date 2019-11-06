@@ -22,7 +22,6 @@ import org.apache.flink.sql.parser.ExtendedSqlNode
 import org.apache.flink.table.api.{TableException, ValidationException}
 
 import org.apache.calcite.config.NullCollation
-import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
@@ -30,7 +29,7 @@ import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
-import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
+import org.apache.calcite.tools.{FrameworkConfig, RelBuilder, RelConversionException}
 
 import java.lang.{Boolean => JBoolean}
 import java.util
@@ -48,7 +47,7 @@ class FlinkPlannerImpl(
     config: FrameworkConfig,
     catalogReaderSupplier: JFunction[JBoolean, CalciteCatalogReader],
     typeFactory: FlinkTypeFactory,
-    cluster: RelOptCluster) {
+    cluster: RelOptCluster) extends FlinkToRelContext {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val parser: CalciteParser = new CalciteParser(config.getParserConfig)
@@ -122,7 +121,7 @@ class FlinkPlannerImpl(
     try {
       assert(validatedSqlNode != null)
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl,
+        this,
         getOrCreateSqlValidator(),
         catalogReaderSupplier.apply(false),
         cluster,
@@ -151,37 +150,36 @@ class FlinkPlannerImpl(
     new SqlExprToRexConverterImpl(config, typeFactory, cluster, tableRowType)
   }
 
-  /** Implements [[org.apache.calcite.plan.RelOptTable.ViewExpander]]
-    * interface for [[org.apache.calcite.tools.Planner]]. */
-  class ViewExpanderImpl extends ViewExpander {
+  override def getCluster: RelOptCluster = cluster
 
-    override def expandView(
-        rowType: RelDataType,
-        queryString: String,
-        schemaPath: util.List[String],
-        viewPath: util.List[String]): RelRoot = {
+  override def expandView(
+      rowType: RelDataType,
+      queryString: String,
+      schemaPath: util.List[String],
+      viewPath: util.List[String]): RelRoot = {
 
-      val sqlNode = parser.parse(queryString)
-      val catalogReader = catalogReaderSupplier.apply(false)
-        .withSchemaPath(schemaPath)
-      val validator =
-        new FlinkCalciteSqlValidator(operatorTable, catalogReader, typeFactory)
-      validator.setIdentifierExpansion(true)
-      val validatedSqlNode = validator.validate(sqlNode)
-      val sqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl,
-        validator,
-        catalogReader,
-        cluster,
-        convertletTable,
-        sqlToRelConverterConfig)
-      root = sqlToRelConverter.convertQuery(validatedSqlNode, true, false)
-      root = root.withRel(sqlToRelConverter.flattenTypes(root.project(), true))
-      root = root.withRel(RelDecorrelator.decorrelateQuery(root.project()))
-      FlinkPlannerImpl.this.root
-    }
+    val sqlNode = parser.parse(queryString)
+    val catalogReader = catalogReaderSupplier.apply(false)
+      .withSchemaPath(schemaPath)
+    val validator =
+      new FlinkCalciteSqlValidator(operatorTable, catalogReader, typeFactory)
+    validator.setIdentifierExpansion(true)
+    val validatedSqlNode = validator.validate(sqlNode)
+    val sqlToRelConverter = new SqlToRelConverter(
+      this,
+      validator,
+      catalogReader,
+      cluster,
+      convertletTable,
+      sqlToRelConverterConfig)
+    var root: RelRoot = sqlToRelConverter.convertQuery(validatedSqlNode, true, false)
+    root = root.withRel(sqlToRelConverter.flattenTypes(root.project(), true))
+    root.withRel(RelDecorrelator.decorrelateQuery(root.project()))
   }
 
+  override def createRelBuilder(): RelBuilder = {
+    sqlToRelConverterConfig.getRelBuilderFactory.create(cluster, null)
+  }
 }
 
 object FlinkPlannerImpl {

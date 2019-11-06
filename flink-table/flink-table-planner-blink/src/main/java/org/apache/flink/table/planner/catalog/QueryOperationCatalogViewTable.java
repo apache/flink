@@ -30,7 +30,6 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -81,8 +80,7 @@ public class QueryOperationCatalogViewTable extends FlinkTable implements Transl
 	public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
 		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), relOptTable);
 
-		RelNode relNode = relBuilder.queryOperation(catalogView.getQueryOperation()).build();
-		return RelOptUtil.createCastRel(relNode, rowType.apply(relBuilder.getTypeFactory()), false);
+		return relBuilder.queryOperation(catalogView.getQueryOperation()).build();
 	}
 
 	@Override

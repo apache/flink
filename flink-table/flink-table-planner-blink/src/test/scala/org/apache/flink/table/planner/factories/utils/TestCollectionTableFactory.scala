@@ -28,7 +28,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, DataStreamSource}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
 import org.apache.flink.table.factories.{BatchTableSinkFactory, BatchTableSourceFactory, StreamTableSinkFactory, StreamTableSourceFactory}
@@ -36,6 +36,7 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.types.Row
 
 import java.io.IOException
@@ -116,14 +117,21 @@ object TestCollectionTableFactory {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
     val schema = properties.getTableSchema(Schema.SCHEMA)
-    new CollectionTableSource(emitIntervalMS, schema, isStreaming)
+    new CollectionTableSource(emitIntervalMS, physicalSchema(schema), isStreaming)
   }
 
   def getCollectionSink(props: JMap[String, String]): CollectionTableSink = {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
     val schema = properties.getTableSchema(Schema.SCHEMA)
-    new CollectionTableSink(schema.toRowType.asInstanceOf[RowTypeInfo])
+    new CollectionTableSink(physicalSchema(schema).toRowType.asInstanceOf[RowTypeInfo])
+  }
+
+  def physicalSchema(schema: TableSchema): TableSchema = {
+    val builder = TableSchema.builder()
+    schema.getTableColumns.filter(c => !c.isGenerated)
+      .foreach(c => builder.field(c.getName, c.getType))
+    builder.build()
   }
 
   /**

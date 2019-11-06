@@ -54,7 +54,7 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
       row(r.getField(0), r.getField(1), v2)
     }
 
-    registerCollection("NullTable3", nullData3, type3, "a, b, c", Array(false, false, true))
+    registerCollection("NullTable3", nullData3, type3, "a, b, c", Array(true, true, true))
 
     prepareAggOp()
   }

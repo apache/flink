@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan.isTableSourceScan
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
@@ -63,8 +62,9 @@ class FlinkLogicalTableSourceScan(
   }
 
   override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    tableSourceTable.getRowType(flinkTypeFactory)
+    // TableScan row type should always keep same with its
+    // interval RelOptTable's row type.
+    relOptTable.getRowType
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
