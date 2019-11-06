@@ -86,13 +86,13 @@ public class Environment {
 		this.modules = new HashMap<>(modules.size());
 
 		modules.forEach(config -> {
-			final ModuleEntry module = ModuleEntry.create(config);
-			if (this.modules.containsKey(module.getName())) {
+			final ModuleEntry entry = ModuleEntry.create(config);
+			if (this.modules.containsKey(entry.getName())) {
 				throw new SqlClientException(
-					String.format("Cannot create module '%s' because a module with this name is already registered.",
-						module.getName()));
+					String.format("Cannot register module '%s' because a module with this name is already registered.",
+						entry.getName()));
 			}
-			this.modules.put(module.getName(), module);
+			this.modules.put(entry.getName(), entry);
 		});
 	}
 
@@ -176,9 +176,9 @@ public class Environment {
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("===================== Modules =====================\n");
-		modules.forEach((name, catalog) -> {
-			sb.append("- ").append(CatalogEntry.CATALOG_NAME).append(": ").append(name).append("\n");
-			catalog.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
+		modules.forEach((name, module) -> {
+			sb.append("- ").append(ModuleEntry.MODULE_NAME).append(": ").append(name).append("\n");
+			module.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
 		});
 		sb.append("===================== Catalogs =====================\n");
 		catalogs.forEach((name, catalog) -> {
