@@ -197,7 +197,6 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		sEnv.setStateBackend(backend);
 
-
 		DataStream<Account> stream = sEnv.fromCollection(accounts)
 			.keyBy(acc -> acc.id)
 			.flatMap(new UpdateAndGetAccount())
