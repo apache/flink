@@ -160,7 +160,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 			FutureUtils.retrySuccessfulWithDelay(
 				() -> {
 					try {
-						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID())).get();
+						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()).get());
 					} catch (Exception e) {
 						return FutureUtils.completedExceptionally(e);
 					}

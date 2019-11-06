@@ -145,17 +145,6 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 		}
 	}
 
-	@Override
-	public void shutDownCluster() {
-		try {
-			miniCluster.closeAsync().get();
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		} catch (ExecutionException e) {
-			LOG.error("Error while shutting down cluster", e);
-		}
-	}
-
 	enum MiniClusterId {
 		INSTANCE
 	}

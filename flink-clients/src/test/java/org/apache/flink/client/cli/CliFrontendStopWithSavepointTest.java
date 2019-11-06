@@ -125,11 +125,11 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		OneShotLatch stopWithSavepointLatch = new OneShotLatch();
 		TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
 		clusterClient.setStopWithSavepointFunction((jobID, advanceToEndOfEventTime, savepointDirectory) -> {
-				assertThat(jobID, is(jid));
-				assertThat(advanceToEndOfEventTime, is(true));
-				assertNull(savepointDirectory);
-				stopWithSavepointLatch.trigger();
-				return CompletableFuture.completedFuture(savepointDirectory);
+			assertThat(jobID, is(jid));
+			assertThat(advanceToEndOfEventTime, is(true));
+			assertNull(savepointDirectory);
+			stopWithSavepointLatch.trigger();
+			return CompletableFuture.completedFuture(savepointDirectory);
 		});
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 		testFrontend.stop(parameters);

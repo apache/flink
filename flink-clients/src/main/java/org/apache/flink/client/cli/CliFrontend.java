@@ -697,21 +697,20 @@ public class CliFrontend {
 	 */
 	private void triggerSavepoint(ClusterClient<?> clusterClient, JobID jobId, String savepointDirectory) throws FlinkException {
 		logAndSysout("Triggering savepoint for job " + jobId + '.');
+
 		CompletableFuture<String> savepointPathFuture = clusterClient.triggerSavepoint(jobId, savepointDirectory);
 
 		logAndSysout("Waiting for response...");
 
-		final String savepointPath;
-
 		try {
-			savepointPath = savepointPathFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+			final String savepointPath = savepointPathFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+
+			logAndSysout("Savepoint completed. Path: " + savepointPath);
+			logAndSysout("You can resume your program from this savepoint with the run command.");
 		} catch (Exception e) {
 			Throwable cause = ExceptionUtils.stripExecutionException(e);
 			throw new FlinkException("Triggering a savepoint for the job " + jobId + " failed.", cause);
 		}
-
-		logAndSysout("Savepoint completed. Path: " + savepointPath);
-		logAndSysout("You can resume your program from this savepoint with the run command.");
 	}
 
 	/**

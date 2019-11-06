@@ -62,11 +62,12 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 */
 	Configuration getFlinkConfiguration();
 
-	//region cluster management
 	/**
 	 * Shut down the cluster that this client communicate with.
 	 */
-	void shutDownCluster();
+	default void shutDownCluster() {
+		throw new UnsupportedOperationException();
+	}
 
 	/**
 	 * Returns an URL (as a string) to the cluster web interface.
@@ -88,9 +89,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @return acknowledge future of the dispose action
 	 */
 	CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) throws FlinkException;
-	//endregion
 
-	//region job management
 	/**
 	 * Submit the given {@link JobGraph} to the cluster.
 	 *
@@ -171,5 +170,4 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @throws FlinkException if no connection to the cluster could be established
 	 */
 	CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException;
-	//endregion
 }
