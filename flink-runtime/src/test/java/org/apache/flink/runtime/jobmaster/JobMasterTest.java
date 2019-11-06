@@ -81,6 +81,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -436,7 +437,7 @@ public class JobMasterTest extends TestLogger {
 
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 
-		final JobMaster jobMaster = new JobMasterBuilder(createSingleVertexJobGraph(), rpcService)
+		final JobMaster jobMaster = new JobMasterBuilder(JobGraphTestUtils.createSingleVertexJobGraph(), rpcService)
 			.withHeartbeatServices(new HeartbeatServices(5L, 1000L))
 			.withSlotPoolFactory(new TestingSlotPoolFactory(hasReceivedSlotOffers))
 			.createJobMaster();
@@ -1719,7 +1720,7 @@ public class JobMasterTest extends TestLogger {
 	public void testTaskExecutorNotReleasedOnFailedAllocationIfPartitionIsAllocated() throws Exception {
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 
-		final JobGraph jobGraph = createSingleVertexJobGraph();
+		final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
 
 		final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
@@ -1854,7 +1855,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testPartitionTableCleanupOnDisconnect() throws Exception {
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
-		final JobGraph jobGraph = createSingleVertexJobGraph();
+		final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
 
 		final CompletableFuture<ResourceID> partitionCleanupTaskExecutorId = new CompletableFuture<>();
 		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
@@ -1894,7 +1895,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testPartitionReleaseOnJobTermination() throws Exception {
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
-		final JobGraph jobGraph = createSingleVertexJobGraph();
+		final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
 
 		final CompletableFuture<ResourceID> partitionCleanupTaskExecutorId = new CompletableFuture<>();
 		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
@@ -1977,7 +1978,7 @@ public class JobMasterTest extends TestLogger {
 			HeartbeatServices heartbeatServices,
 			BiConsumer<LocalTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
 			BiFunction<JobMasterGateway, ResourceID, BiConsumer<ResourceID, AllocatedSlotReport>> heartbeatConsumerFunction) throws Exception {
-		final JobGraph jobGraph = createSingleVertexJobGraph();
+		final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
 		final JobMasterBuilder.TestingOnCompletionActions onCompletionActions = new JobMasterBuilder.TestingOnCompletionActions();
 		final JobMaster jobMaster = createJobMaster(
 			new Configuration(),
@@ -2203,21 +2204,13 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
-		final JobGraph jobGraph = createSingleVertexJobGraph();
+		final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
 
 		final ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 		jobGraph.setExecutionConfig(executionConfig);
 
 		return jobGraph;
-	}
-
-	@Nonnull
-	private JobGraph createSingleVertexJobGraph() {
-		final JobVertex jobVertex = new JobVertex("Test vertex");
-		jobVertex.setInvokableClass(NoOpInvokable.class);
-
-		return new JobGraph(jobVertex);
 	}
 
 	private static final class DummyCheckpointStorageLocation implements CompletedCheckpointStorageLocation {
