@@ -80,7 +80,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 			for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
 				final CompletableFuture<TaskManagersInfo> localhost = restClient.sendRequest(
 					"localhost",
-					8081,
+					distribution.getRestPort(),
 					TaskManagersHeaders.getInstance(),
 					EmptyMessageParameters.getInstance(),
 					EmptyRequestBody.getInstance());

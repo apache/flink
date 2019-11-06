@@ -250,7 +250,6 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 					printStream.println(message);
 				}
 				printStream.flush();
-				printStream.close();
 			}
 
 			try {

@@ -18,50 +18,38 @@
 
 package org.apache.flink.tests.util;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.file.Files;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * General test utilities.
  */
-public enum TestUtils {
-	;
+public class TestUtils {
+
+	private static final String END_TO_END_TESTS_MODULE = "/flink-end-to-end-tests/";
+
+	public static final Path END_TO_END_MODULE_PATH = getEnd2EndModuleDir();
 
 	/**
-	 * Searches for a jar matching the given regex in the given directory. This method is primarily intended to be used
-	 * for the initialization of static {@link Path} fields for jars that reside in the modules {@code target} directory.
-	 *
-	 * <p>The given relative path is resolved against the {@code moduleDir} system property. For tests residing under
-	 * {@code flink-end-to-end-tests} this value is set to the root directory of the module that contains the test.
-	 *
-	 * @param relativeDirectory directory path to search for, relative to the current working directory
-	 * @param jarNameRegex regex pattern to match against
-	 * @throws RuntimeException if none or multiple jars could be found
-	 * @return Path pointing to the matching jar
+	 * Get the path of FLINK_ROOT_DIR/flink-end-to-end-tests based on the class loading.
 	 */
-	public static Path getResourceJar(final Path relativeDirectory, final String jarNameRegex) {
-		final Path moduleDirectory = Paths.get(System.getProperty("moduleDir"));
-		try (Stream<Path> dependencyJars = Files.list(moduleDirectory.resolve(relativeDirectory))) {
-			final List<Path> matchingJars = dependencyJars
-				.filter(jar -> Pattern.compile(jarNameRegex).matcher(jar.getFileName().toString()).matches())
-				.collect(Collectors.toList());
-			switch (matchingJars.size()) {
-				case 0:
-					throw new RuntimeException(new FileNotFoundException(String.format("No jar could be found that matches the pattern %s.", jarNameRegex)));
-				case 1:
-					return matchingJars.get(0);
-				default:
-					throw new RuntimeException(new IOException(String.format("Multiple jars were found matching the pattern %s. Matches=%s", jarNameRegex, matchingJars)));
-			}
-		} catch (final IOException ioe) {
-			throw new RuntimeException("Could not search for resource jars.", ioe);
-		}
+	public static Path getEnd2EndModuleDir() {
+		URL url = TestUtils.class.getResource("TestUtils.class");
+		assert url != null;
+		String path = url.getPath();
+		assert path.contains(END_TO_END_TESTS_MODULE);
+		int index = path.indexOf(END_TO_END_TESTS_MODULE);
+		return Paths.get(path.substring(0, index), END_TO_END_TESTS_MODULE);
+	}
+
+	/**
+	 * Generate a test directory path under the FLINK_ROOT_DIR/flink-end-to-end-tests/target, each time with a
+	 * different directory.
+	 *
+	 * @return the test directory to put the temporary end-to-end test data.
+	 */
+	public static Path getTestDataDir() {
+		return getEnd2EndModuleDir().resolve("target").resolve("temp-test-directory-" + System.nanoTime());
 	}
 }

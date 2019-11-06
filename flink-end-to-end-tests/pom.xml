@@ -65,7 +65,6 @@ under the License.
 		<module>flink-state-evolution-test</module>
 		<module>flink-e2e-test-utils</module>
 		<module>flink-end-to-end-tests-common</module>
-		<module>flink-end-to-end-tests-common-kafka</module>
 		<module>flink-metrics-availability-test</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
 		<module>flink-heavy-deployment-stress-test</module>
@@ -117,9 +116,6 @@ under the License.
 							<excludedGroups>${excludeE2E}</excludedGroups>
 							<!-- E2E tests must not access flink-dist concurrently. -->
 							<forkCount>1</forkCount>
-							<systemPropertyVariables>
-								<moduleDir>${project.basedir}</moduleDir>
-							</systemPropertyVariables>
 						</configuration>
 					</execution>
 				</executions>

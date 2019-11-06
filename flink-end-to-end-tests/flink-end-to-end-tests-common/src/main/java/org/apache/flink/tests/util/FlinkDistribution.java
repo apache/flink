@@ -67,7 +67,7 @@ public final class FlinkDistribution implements ExternalResource {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private final Optional<Path> logBackupDir;
+	private final Path logBackupDir;
 
 	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -86,9 +86,7 @@ public final class FlinkDistribution implements ExternalResource {
 			Assert.fail("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
 		}
 		final String backupDirProperty = System.getProperty("logBackupDir");
-		logBackupDir = backupDirProperty == null
-			? Optional.empty()
-			: Optional.of(Paths.get(backupDirProperty));
+		logBackupDir = backupDirProperty == null ? null : Paths.get(backupDirProperty);
 		originalFlinkDir = Paths.get(distDirProperty);
 	}
 
@@ -99,7 +97,12 @@ public final class FlinkDistribution implements ExternalResource {
 		final Path flinkDir = temporaryFolder.newFolder().toPath();
 
 		LOG.info("Copying distribution to {}.", flinkDir);
-		FileUtils.copyDirectory(originalFlinkDir.toFile(), flinkDir.toFile());
+		AutoClosableProcess.create(
+			"cp",
+			"-R",
+			originalFlinkDir.toAbsolutePath().toString() + "/",
+			flinkDir.toAbsolutePath().toString()
+		).runBlocking();
 
 		bin = flinkDir.resolve("bin");
 		opt = flinkDir.resolve("opt");
@@ -123,18 +126,26 @@ public final class FlinkDistribution implements ExternalResource {
 
 	@Override
 	public void afterTestFailure() {
-		logBackupDir.ifPresent(backupLocation -> {
+		if (logBackupDir != null) {
 			final UUID id = UUID.randomUUID();
-			LOG.info("Backing up logs to {}/{}.", backupLocation, id);
+			LOG.info("Backing up logs to {}/{}.", logBackupDir, id);
 			try {
-				Files.createDirectories(backupLocation);
-				FileUtils.copyDirectory(log.toFile(), backupLocation.resolve(id.toString()).toFile());
+				Files.createDirectories(logBackupDir);
+				FileUtils.copyDirectory(log.toFile(), logBackupDir.resolve(id.toString()).toFile());
 			} catch (IOException e) {
 				LOG.warn("An error occurred while backing up logs.", e);
 			}
-		});
-
+		}
 		afterTestSuccess();
+	}
+
+	/**
+	 * Read the value of `rest.port` part in FLINK_DIST_DIR/conf/flink-conf.yaml.
+	 *
+	 * @return the rest port which standalone Flink cluster will listen.
+	 */
+	public int getRestPort() {
+		return defaultConfig.getInteger("rest.port", 8081);
 	}
 
 	public void startJobManager() throws IOException {
@@ -239,7 +250,7 @@ public final class FlinkDistribution implements ExternalResource {
 		}
 	}
 
-	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
+	public void copyOptJarsToLib(String jarNamePrefix) throws IOException {
 		final Optional<Path> reporterJarOptional;
 		try (Stream<Path> logFiles = Files.walk(opt)) {
 			reporterJarOptional = logFiles

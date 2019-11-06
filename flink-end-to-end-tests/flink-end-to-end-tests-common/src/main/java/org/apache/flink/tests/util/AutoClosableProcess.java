@@ -70,10 +70,8 @@ public class AutoClosableProcess implements AutoCloseable {
 	 */
 	public static final class AutoClosableProcessBuilder {
 		private final String[] commands;
-		private Consumer<String> stdoutProcessor = line -> {
-		};
-		private Consumer<String> stderrProcessor = line -> {
-		};
+		private Consumer<String> stdoutProcessor = LOG::info;
+		private Consumer<String> stderrProcessor = LOG::info;
 
 		AutoClosableProcessBuilder(final String... commands) {
 			this.commands = commands;
