@@ -21,13 +21,12 @@ package org.apache.flink.api.scala
 import java.io.{BufferedReader, File, FileOutputStream}
 
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment, ScalaShellRemoteStreamEnvironment}
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
 import org.apache.flink.util.AbstractID
 
 import scala.tools.nsc.interpreter._
-
 
 class FlinkILoop(
     val host: String,
@@ -66,8 +65,9 @@ class FlinkILoop(
   }
 
   // remote environment
-  private val (remoteBenv: ScalaShellRemoteEnvironment,
-  remoteSenv: ScalaShellRemoteStreamEnvironment) = {
+  private val (
+    remoteBenv: ScalaShellRemoteEnvironment,
+    remoteSenv: ScalaShellRemoteStreamEnvironment) = {
     // allow creation of environments
     ScalaShellRemoteEnvironment.resetContextEnvironments()
     

@@ -27,9 +27,7 @@ import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
@@ -37,14 +35,11 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.jar.JarFile;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,52 +50,6 @@ public enum ClientUtils {
 	;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
-
-	/**
-	 * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}. This will
-	 * throw an exception if a jar URL is not valid.
-	 */
-	public static void addJarFiles(JobGraph jobGraph, List<URL> jarFilesToAttach) {
-		for (URL jar : jarFilesToAttach) {
-			try {
-				jobGraph.addJar(new Path(jar.toURI()));
-			} catch (URISyntaxException e) {
-				throw new RuntimeException("URL is invalid. This should not happen.", e);
-			}
-		}
-	}
-
-	public static void checkJarFile(URL jar) throws IOException {
-		File jarFile;
-		try {
-			jarFile = new File(jar.toURI());
-		} catch (URISyntaxException e) {
-			throw new IOException("JAR file path is invalid '" + jar + '\'');
-		}
-		if (!jarFile.exists()) {
-			throw new IOException("JAR file does not exist '" + jarFile.getAbsolutePath() + '\'');
-		}
-		if (!jarFile.canRead()) {
-			throw new IOException("JAR file can't be read '" + jarFile.getAbsolutePath() + '\'');
-		}
-
-		try (JarFile ignored = new JarFile(jarFile)) {
-			// verify that we can open the Jar file
-		} catch (IOException e) {
-			throw new IOException("Error while opening jar file '" + jarFile.getAbsolutePath() + '\'', e);
-		}
-	}
-
-	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent) {
-		URL[] urls = new URL[jars.size() + classpaths.size()];
-		for (int i = 0; i < jars.size(); i++) {
-			urls[i] = jars.get(i);
-		}
-		for (int i = 0; i < classpaths.size(); i++) {
-			urls[i + jars.size()] = classpaths.get(i);
-		}
-		return FlinkUserCodeClassLoaders.parentFirst(urls, parent);
-	}
 
 	public static JobExecutionResult submitJob(
 			ClusterClient<?> client,

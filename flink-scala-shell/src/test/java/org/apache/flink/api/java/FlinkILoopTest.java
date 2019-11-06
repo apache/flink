@@ -24,20 +24,9 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.BDDMockito;
-import org.mockito.Matchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.URL;
 import java.util.List;
@@ -47,38 +36,20 @@ import scala.tools.nsc.Settings;
 import scala.tools.nsc.settings.MutableSettings;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Integration tests for {@link FlinkILoop}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(PlanExecutor.class)
-@PowerMockIgnore("javax.tools.*")
 public class FlinkILoopTest extends TestLogger {
 
 	@Test
 	public void testConfigurationForwarding() throws Exception {
+		String host = "localhost";
+		int port = 6123;
 		Configuration configuration = new Configuration();
 		configuration.setString("foobar", "foobar");
-		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty());
 
-		final TestPlanExecutor testPlanExecutor = new TestPlanExecutor();
-
-		PowerMockito.mockStatic(PlanExecutor.class);
-		BDDMockito.given(PlanExecutor.createRemoteExecutor(
-			Matchers.anyString(),
-			Matchers.anyInt(),
-			Matchers.any(Configuration.class)
-		)).willAnswer(new Answer<PlanExecutor>() {
-			@Override
-			public PlanExecutor answer(InvocationOnMock invocation) throws Throwable {
-				testPlanExecutor.setHost((String) invocation.getArguments()[0]);
-				testPlanExecutor.setPort((Integer) invocation.getArguments()[1]);
-				testPlanExecutor.setConfiguration((Configuration) invocation.getArguments()[2]);
-				return testPlanExecutor;
-			}
-		});
+		FlinkILoop flinkILoop = new FlinkILoop(host, port, configuration, Option.empty());
 
 		Settings settings = new Settings();
 		((MutableSettings.BooleanSetting) settings.usejavacp()).value_$eq(true);
@@ -86,87 +57,67 @@ public class FlinkILoopTest extends TestLogger {
 		flinkILoop.settings_$eq(settings);
 		flinkILoop.createInterpreter();
 
-		ExecutionEnvironment env = flinkILoop.scalaBenv().getJavaEnv();
+		ScalaShellRemoteEnvironment env = (ScalaShellRemoteEnvironment) flinkILoop.scalaBenv().getJavaEnv();
 
-		env.fromElements(1).output(new DiscardingOutputFormat<Integer>());
+		TestPlanExecutor testPlanExecutor = new TestPlanExecutor();
+		env.setPlanExecutorFactory((host1, port1, configuration1) -> {
+			testPlanExecutor.host = host1;
+			testPlanExecutor.port = port1;
+			testPlanExecutor.configuration = configuration1;
+			return testPlanExecutor;
+		});
+
+		env.fromElements(1).output(new DiscardingOutputFormat<>());
 
 		env.execute("Test job");
 
-		Configuration forwardedConfiguration = testPlanExecutor.getConfiguration();
-
-		assertEquals(configuration, forwardedConfiguration);
+		assertEquals(host, testPlanExecutor.host);
+		assertEquals(port, testPlanExecutor.port);
+		assertEquals(configuration, testPlanExecutor.configuration);
 	}
 
 	@Test
-	public void testConfigurationForwardingStreamEnvironment() {
+	public void testConfigurationForwardingStreamEnvironment() throws Exception {
+		String host = "localhost";
+		int port = 6123;
 		Configuration configuration = new Configuration();
 		configuration.setString("foobar", "foobar");
 
-		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty());
+		FlinkILoop flinkILoop = new FlinkILoop(host, port, configuration, Option.empty());
 
-		StreamExecutionEnvironment streamEnv = flinkILoop.scalaSenv().getJavaEnv();
+		Settings settings = new Settings();
+		((MutableSettings.BooleanSetting) settings.usejavacp()).value_$eq(true);
 
-		assertTrue(streamEnv instanceof RemoteStreamEnvironment);
+		flinkILoop.settings_$eq(settings);
+		flinkILoop.createInterpreter();
 
-		RemoteStreamEnvironment remoteStreamEnv = (RemoteStreamEnvironment) streamEnv;
+		ScalaShellRemoteStreamEnvironment env = (ScalaShellRemoteStreamEnvironment) flinkILoop.scalaSenv().getJavaEnv();
 
-		Configuration forwardedConfiguration = remoteStreamEnv.getClientConfiguration();
+		TestPlanExecutor testPlanExecutor = new TestPlanExecutor();
+		env.setPlanExecutorFactory((host1, port1, configuration1) -> {
+			testPlanExecutor.host = host1;
+			testPlanExecutor.port = port1;
+			testPlanExecutor.configuration = configuration1;
+			return testPlanExecutor;
+		});
 
-		assertEquals(configuration, forwardedConfiguration);
+		env.fromElements(1).print();
+
+		env.execute("Test job");
+
+		assertEquals(host, testPlanExecutor.host);
+		assertEquals(port, testPlanExecutor.port);
+		assertEquals(configuration, testPlanExecutor.configuration);
 	}
 
-	static class TestPlanExecutor extends PlanExecutor {
-
+	private static class TestPlanExecutor extends PlanExecutor {
 		private String host;
 		private int port;
 		private Configuration configuration;
-		private List<String> jars;
-		private List<String> globalClasspaths;
 
 		@Override
-		public JobExecutionResult executePlan(
-				Pipeline plan, List<URL> jarFiles, List<URL> globalClasspaths) throws Exception {
+		public JobExecutionResult executePlan(Pipeline plan, List<URL> jarFiles, List<URL> globalClasspaths) {
 			return null;
-		}
-
-		public String getHost() {
-			return host;
-		}
-
-		public void setHost(String host) {
-			this.host = host;
-		}
-
-		public int getPort() {
-			return port;
-		}
-
-		public void setPort(int port) {
-			this.port = port;
-		}
-
-		public Configuration getConfiguration() {
-			return configuration;
-		}
-
-		public void setConfiguration(Configuration configuration) {
-			this.configuration = configuration;
-		}
-
-		public List<String> getJars() {
-			return jars;
-		}
-
-		public void setJars(List<String> jars) {
-			this.jars = jars;
-		}
-
-		public List<String> getGlobalClasspaths() {
-			return globalClasspaths;
-		}
-
-		public void setGlobalClasspaths(List<String> globalClasspaths) {
-			this.globalClasspaths = globalClasspaths;
 		}
 	}
 

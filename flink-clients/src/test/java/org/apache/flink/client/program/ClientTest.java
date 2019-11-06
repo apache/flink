@@ -160,7 +160,7 @@ public class ClientTest extends TestLogger {
 				new Configuration(),
 				1);
 
-		ClientUtils.addJarFiles(jobGraph, Collections.emptyList());
+		org.apache.flink.runtime.client.ClientUtils.addJarFiles(jobGraph, Collections.emptyList());
 		jobGraph.setClasspaths(Collections.emptyList());
 
 		JobSubmissionResult result = ClientUtils.submitJob(clusterClient, jobGraph);

@@ -24,8 +24,10 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.JarUtils;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -47,19 +49,19 @@ import java.util.List;
 public class RemoteEnvironment extends ExecutionEnvironment {
 
 	/** The hostname of the JobManager. */
-	protected final String host;
+	private final String host;
 
 	/** The port of the JobManager main actor system. */
-	protected final int port;
+	private final int port;
 
 	/** The jar files that need to be attached to each job. */
-	protected final List<URL> jarFiles;
+	private final List<URL> jarFiles;
 
 	/** The configuration used by the client that connects to the cluster. */
-	protected Configuration clientConfiguration;
+	private Configuration clientConfiguration;
 
 	/** The classpaths that need to be attached to each job. */
-	protected final List<URL> globalClasspaths;
+	private final List<URL> globalClasspaths;
 
 	/**
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
@@ -89,30 +91,17 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
-	 */
-	public RemoteEnvironment(String host, int port, Configuration clientConfig, String[] jarFiles) {
-		this(host, port, clientConfig, jarFiles, null);
-	}
-
-	/**
-	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
-	 * given host name and port.
-	 *
-	 * <p>Each program execution will have all the given JAR files in its classpath.
-	 *
-	 * @param host The host name or address of the master (JobManager), where the program should be executed.
-	 * @param port The port of the master (JobManager), where the program should be executed.
-	 * @param clientConfig The configuration used by the client that connects to the cluster.
-	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
-	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
-	 *                 provided in the JAR files.
 	 * @param globalClasspaths The paths of directories and JAR files that are added to each user code
 	 *                 classloader on all nodes in the cluster. Note that the paths must specify a
 	 *                 protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
 	 *                 The protocol must be supported by the {@link java.net.URLClassLoader}.
 	 */
-	public RemoteEnvironment(String host, int port, Configuration clientConfig,
-			String[] jarFiles, URL[] globalClasspaths) {
+	public RemoteEnvironment(
+			String host,
+			int port,
+			Configuration clientConfig,
+			String[] jarFiles,
+			URL[] globalClasspaths) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The RemoteEnvironment cannot be instantiated when running in a pre-defined context " +
@@ -132,9 +121,13 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 			this.jarFiles = new ArrayList<>(jarFiles.length);
 			for (String jarFile : jarFiles) {
 				try {
-					this.jarFiles.add(new File(jarFile).getAbsoluteFile().toURI().toURL());
+					URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
+					this.jarFiles.add(jarFileUrl);
+					JarUtils.checkJarFile(jarFileUrl);
 				} catch (MalformedURLException e) {
-					throw new IllegalArgumentException("JAR file path invalid", e);
+					throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
+				} catch (IOException e) {
+					throw new RuntimeException("Problem with jar file " + jarFile, e);
 				}
 			}
 		}

@@ -51,7 +51,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 				ctx.getClient().getFlinkConfiguration(),
 				getParallelism());
 
-		ClientUtils.addJarFiles(jobGraph, ctx.getJars());
+		org.apache.flink.runtime.client.ClientUtils.addJarFiles(jobGraph, ctx.getJars());
 		jobGraph.setClasspaths(ctx.getClasspaths());
 
 		// running from the CLI will override the savepoint restore settings

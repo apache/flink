@@ -98,6 +98,13 @@ under the License.
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<parameter>
+						<excludes combine.children="append">
+							<exclude>org.apache.flink.streaming.api.environment.RemoteStreamEnvironment#RemoteStreamEnvironment(java.lang.String,int,org.apache.flink.configuration.Configuration,java.lang.String[],java.net.URL[])</exclude>
+						</excludes>
+					</parameter>
+				</configuration>
 			</plugin>
 
 			<!-- disable fork reuse for the streaming project, because of

@@ -18,31 +18,53 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.JarUtils;
+import org.apache.flink.util.function.TriFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * A {@link RemoteStreamEnvironment} for the Scala shell.
+ * A remote {@link StreamExecutionEnvironment} for the Scala shell.
  */
-public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
-	private static final Logger LOG = LoggerFactory.getLogger(ScalaShellRemoteStreamEnvironment.class);
+public class ScalaShellRemoteStreamEnvironment extends StreamExecutionEnvironment {
+
+	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
 
 	// reference to Scala Shell, for access to virtual directory
-	private FlinkILoop flinkILoop;
+	private final FlinkILoop flinkILoop;
+	private final String host;
+	private final int port;
+	private final Configuration configuration;
+	private final List<URL> jarFiles;
+
+	private TriFunction<String, Integer, Configuration, PlanExecutor> planExecutorFactory = PlanExecutor::createRemoteExecutor;
+
+	@VisibleForTesting
+	void setPlanExecutorFactory(TriFunction<String, Integer, Configuration, PlanExecutor> planExecutorFactory) {
+		this.planExecutorFactory = planExecutorFactory;
+	}
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -58,27 +80,47 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 	 *				 user-defined input formats, or any libraries, those must be
 	 */
 	public ScalaShellRemoteStreamEnvironment(
-		String host,
-		int port,
-		FlinkILoop flinkILoop,
-		Configuration configuration,
-		String... jarFiles) {
+			String host,
+			int port,
+			FlinkILoop flinkILoop,
+			Configuration configuration,
+			String... jarFiles) {
+		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
+			throw new InvalidProgramException(
+				"The RemoteEnvironment cannot be instantiated when running in a pre-defined context " +
+					"(such as Command Line Client, Scala Shell, or TestEnvironment)");
+		}
 
-		super(host, port, configuration, jarFiles);
+		checkNotNull(host);
+		checkArgument(1 <= port && port < 0xffff);
+
+		this.host = host;
+		this.port = port;
 		this.flinkILoop = flinkILoop;
+		this.configuration = configuration != null ? configuration : new Configuration();
+
+		if (jarFiles != null) {
+			this.jarFiles = new ArrayList<>(jarFiles.length);
+			for (String jarFile : jarFiles) {
+				try {
+					URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
+					this.jarFiles.add(jarFileUrl);
+					JarUtils.checkJarFile(jarFileUrl);
+				} catch (MalformedURLException e) {
+					throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
+				} catch (IOException e) {
+					throw new RuntimeException("Problem with jar file " + jarFile, e);
+				}
+			}
+		} else {
+			this.jarFiles = Collections.emptyList();
+		}
 	}
 
-	/**
-	 * Executes the remote job.
-	 *
-	 * @param streamGraph
-	 *            Stream Graph to execute
-	 * @param jarFiles
-	 * 			  List of jar file URLs to ship to the cluster
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
 	@Override
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		transformations.clear();
+
 		URL jarUrl;
 		try {
 			jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
@@ -91,35 +133,17 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 		allJarFiles.addAll(jarFiles);
 		allJarFiles.add(jarUrl);
 
-		return super.executeRemotely(streamGraph, allJarFiles);
-	}
+		try {
+			LOG.info("Running remotely at {}:{}", host, port);
 
-	public void setAsContext() {
-		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
-			@Override
-			public StreamExecutionEnvironment createExecutionEnvironment() {
-				throw new UnsupportedOperationException("Execution Environment is already defined" +
-						" for this shell.");
-			}
-		};
-		initializeContextEnvironment(factory);
-	}
+			final PlanExecutor executor = planExecutorFactory.apply(host, port, configuration);
 
-	public static void disableAllContextAndOtherEnvironments() {
-		// we create a context environment that prevents the instantiation of further
-		// context environments. at the same time, setting the context environment prevents manual
-		// creation of local and remote environments
-		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
-			@Override
-			public StreamExecutionEnvironment createExecutionEnvironment() {
-				throw new UnsupportedOperationException("Execution Environment is already defined" +
-						" for this shell.");
-			}
-		};
-		initializeContextEnvironment(factory);
-	}
-
-	public static void resetContextEnvironments() {
-		StreamExecutionEnvironment.resetContextEnvironment();
+			return executor.executePlan(streamGraph, allJarFiles, Collections.emptyList());
+		} catch (ProgramInvocationException e) {
+			throw e;
+		} catch (Exception e) {
+			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
+			throw new ProgramInvocationException("The program execution failed" + term, e);
+		}
 	}
 }

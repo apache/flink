@@ -73,6 +73,13 @@ under the License.
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<parameter>
+						<excludes combine.children="append">
+							<exclude>org.apache.flink.api.java.RemoteEnvironment#RemoteEnvironment(java.lang.String,int,org.apache.flink.configuration.Configuration,java.lang.String[])</exclude>
+						</excludes>
+					</parameter>
+				</configuration>
 			</plugin>
 
 			<!-- Because flink-scala, flink-avro and flink-hadoop-compatibility uses it in tests -->

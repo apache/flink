@@ -20,7 +20,6 @@ package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
@@ -57,6 +56,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
@@ -595,7 +595,7 @@ public class LocalExecutor implements Executor {
 		try {
 			// find jar files
 			for (URL url : jars) {
-				ClientUtils.checkJarFile(url);
+				JarUtils.checkJarFile(url);
 				dependencies.add(url);
 			}
 
@@ -615,7 +615,7 @@ public class LocalExecutor implements Executor {
 					// only consider jars
 					if (f.isFile() && f.getAbsolutePath().toLowerCase().endsWith(".jar")) {
 						final URL url = f.toURI().toURL();
-						ClientUtils.checkJarFile(url);
+						JarUtils.checkJarFile(url);
 						dependencies.add(url);
 					}
 				}
