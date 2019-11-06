@@ -198,7 +198,7 @@ public class DescriptorProperties {
 
 		final String[] fieldNames = schema.getFieldNames();
 		final TypeInformation<?>[] fieldTypes = schema.getFieldTypes();
-		final String[] fieldExpressions = Arrays.stream(schema.getTableColumns())
+		final String[] fieldExpressions = schema.getTableColumns().stream()
 			.map(column -> column.getExpr().orElse(null))
 			.toArray(String[]::new);
 
@@ -278,7 +278,7 @@ public class DescriptorProperties {
 	 * <pre>
 	 *     schema.fields.0.type = INT, schema.fields.0.name = test
 	 *     schema.fields.1.type = LONG, schema.fields.1.name = test2
-	 *     schema.fields.2.type = LONG, schema.fields.1.expr = test + 1
+	 *     schema.fields.2.type = LONG, schema.fields.2.name = test3, schema.fields.2.expr = test2 + 1
 	 * </pre>
 	 *
 	 * <p>The arity of each subKeyValues must match the arity of propertyKeys.

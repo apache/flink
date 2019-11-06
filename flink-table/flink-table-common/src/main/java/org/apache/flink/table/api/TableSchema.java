@@ -70,7 +70,7 @@ public class TableSchema {
 	 */
 	@Deprecated
 	public TableSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		this(getTableColumns(fieldNames, fieldTypes), Collections.emptyList());
+		this(createTableColumns(fieldNames, fieldTypes), Collections.emptyList());
 	}
 
 	/**
@@ -205,12 +205,17 @@ public class TableSchema {
 	/**
 	 * Returns all the {@link TableColumn}s for this table schema.
 	 */
-	public TableColumn[] getTableColumns() {
-		return this.columns.toArray(new TableColumn[0]);
+	public List<TableColumn> getTableColumns() {
+		return new ArrayList<>(this.columns);
 	}
 
 	/**
-	 * Converts a table schema into a (nested) data type describing a {@link DataTypes#ROW(Field...)}.
+	 * Converts a table schema into a (nested) data type describing a
+	 * {@link DataTypes#ROW(Field...)}.
+	 *
+	 * <p>Note that the returned row type contains field types for all the columns, including
+	 * normal columns and computed columns. Be caution with the computed column data types, because
+	 * they are not expected to be included in the row type of TableSource or TableSink.
 	 */
 	public DataType toRowDataType() {
 		final Field[] fields = columns.stream()
@@ -247,10 +252,9 @@ public class TableSchema {
 			sb.append(" |-- ")
 				.append(getFieldName(i).get())
 				.append(": ");
+			sb.append(getFieldDataType(i).get());
 			if (columns.get(i).isGenerated()) {
-				sb.append(columns.get(i).getExpr().get());
-			} else {
-				sb.append(getFieldDataType(i).get());
+				sb.append(" ").append(columns.get(i).getExpr().get());
 			}
 			sb.append('\n');
 		}
@@ -324,12 +328,12 @@ public class TableSchema {
 	 * Tools method to transform arrays of table names and types
 	 * into a {@link TableColumn} list.
 	 */
-	private static List<TableColumn> getTableColumns(
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes) {
-		DataType[] fieldDataTypes = fromLegacyInfoToDataType(fieldTypes);
-		validateFields(fieldNames, fieldDataTypes);
-		List<TableColumn> columns = new ArrayList<>();
+	private static List<TableColumn> createTableColumns(
+			String[] fieldNames,
+			TypeInformation<?>[] fieldTypes) {
+			DataType[] fieldDataTypes = fromLegacyInfoToDataType(fieldTypes);
+			validateFields(fieldNames, fieldDataTypes);
+			List<TableColumn> columns = new ArrayList<>();
 		for (int i = 0; i < fieldNames.length; i++) {
 			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
 		}
@@ -339,7 +343,7 @@ public class TableSchema {
 	/** Fields sanity check. */
 	private static void validateFields(String[] fieldNames, DataType[] fieldTypes) {
 		if (fieldNames.length != fieldTypes.length) {
-			throw new TableException(
+			throw new ValidationException(
 				"Number of field names and field data types must be equal.\n" +
 					"Number of names is " + fieldNames.length +
 					", number of data types is " + fieldTypes.length + ".\n" +
@@ -358,7 +362,7 @@ public class TableSchema {
 			}
 		}
 		if (!duplicateNames.isEmpty()) {
-			throw new TableException(
+			throw new ValidationException(
 				"Field names must be unique.\n" +
 					"List of duplicate fields: " + duplicateNames.toString() + "\n" +
 					"List of all fields: " + Arrays.toString(fieldNames));
@@ -486,7 +490,6 @@ public class TableSchema {
 		public Builder fields(String[] names, DataType[] dataTypes) {
 			Preconditions.checkNotNull(names);
 			Preconditions.checkNotNull(dataTypes);
-			validateFields(names, dataTypes);
 			List<TableColumn> columns = IntStream.range(0, names.length)
 				.mapToObj(idx -> TableColumn.of(names[idx], dataTypes[idx]))
 				.collect(Collectors.toList());
@@ -525,7 +528,6 @@ public class TableSchema {
 				throw new IllegalStateException("Multiple watermark definition is not supported yet.");
 			}
 			this.watermarkSpecs.add(new WatermarkSpec(rowtimeAttribute, watermarkExpressionString, watermarkExprOutputType));
-			validateWatermarkSpecs(this.columns, this.watermarkSpecs);
 			return this;
 		}
 
@@ -533,6 +535,9 @@ public class TableSchema {
 		 * Returns a {@link TableSchema} instance.
 		 */
 		public TableSchema build() {
+			validateFields(this.columns.stream().map(TableColumn::getName).toArray(String[]::new),
+				this.columns.stream().map(TableColumn::getType).toArray(DataType[]::new));
+			validateWatermarkSpecs(this.columns, this.watermarkSpecs);
 			return new TableSchema(columns, watermarkSpecs);
 		}
 	}

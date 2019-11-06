@@ -44,7 +44,9 @@ class TableSchemaValidationTest extends TableTestBase {
   @Test
   def testColumnNamesDuplicate() {
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Field names must be unique. Duplicate field: 'a'")
+    thrown.expectMessage("Field names must be unique.\n" +
+      "List of duplicate fields: [a]\n" +
+      "List of all fields: [a, a, c]")
 
     val fieldNames = Array("a", "a", "c")
     val typeInfos: Array[TypeInformation[_]] = Array(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -30,6 +31,7 @@ import java.util.Optional;
  * A table column represents a table column's structure with
  * column name, column data type and computation expression(if it is a computed column).
  */
+@PublicEvolving
 public class TableColumn {
 
 	//~ Instance fields --------------------------------------------------------
@@ -64,9 +66,7 @@ public class TableColumn {
 	 */
 	public static TableColumn of(String name, DataType type) {
 		Preconditions.checkNotNull(name, "Column name can not be null!");
-		Preconditions.checkArgument(
-			type != null,
-			"Column type can not be null!");
+		Preconditions.checkNotNull(type, "Column type can not be null!");
 		return new TableColumn(
 			name,
 			type,
@@ -81,12 +81,8 @@ public class TableColumn {
 	 */
 	public static TableColumn of(String name, DataType type, String expression) {
 		Preconditions.checkNotNull(name, "Column name can not be null!");
-		Preconditions.checkNotNull(
-			type,
-			"Column type can not be null!");
-		Preconditions.checkNotNull(
-			expression,
-			"Column expression can not be null!");
+		Preconditions.checkNotNull(type, "Column type can not be null!");
+		Preconditions.checkNotNull(expression, "Column expression can not be null!");
 		return new TableColumn(name, type, expression);
 	}
 

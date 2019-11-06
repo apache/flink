@@ -63,7 +63,7 @@ public class TableSchemaTest {
 			" |-- f0: BIGINT\n" +
 			" |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP(3)>\n" +
 			" |-- f2: STRING\n" +
-			" |-- f3: f0 + 1\n" +
+			" |-- f3: BIGINT f0 + 1\n" +
 			" |-- WATERMARK FOR f1.q2 AS now()";
 		assertEquals(expected, schema.toString());
 
@@ -99,14 +99,14 @@ public class TableSchemaTest {
 		testData.forEach(t -> {
 			TableSchema.Builder builder = TableSchema.builder();
 			testData.forEach(e -> builder.field(e.f0, e.f1));
+			builder.watermark(t.f0, WATERMARK_EXPRESSION, WATERMARK_DATATYPE);
 			if (t.f2.equals("PASS")) {
-				builder.watermark(t.f0, WATERMARK_EXPRESSION, WATERMARK_DATATYPE);
 				TableSchema schema = builder.build();
 				assertEquals(1, schema.getWatermarkSpecs().size());
 				assertEquals(t.f0, schema.getWatermarkSpecs().get(0).getRowtimeAttribute());
 			} else {
 				try {
-					builder.watermark(t.f0, WATERMARK_EXPRESSION, WATERMARK_DATATYPE);
+					builder.build();
 				} catch (Exception e) {
 					assertTrue(e.getMessage().contains(t.f2));
 				}
@@ -174,14 +174,14 @@ public class TableSchemaTest {
 
 		testData.forEach(t -> {
 			TableSchema.Builder builder = TableSchema.builder()
-				.field("f0", DataTypes.TIMESTAMP());
+				.field("f0", DataTypes.TIMESTAMP())
+				.watermark("f0", "f0 - INTERVAL '5' SECOND", t.f0);
 			if (t.f1.equals("PASS")) {
-				builder.watermark("f0", "f0 - INTERVAL '5' SECOND", t.f0);
 				TableSchema schema = builder.build();
 				assertEquals(1, schema.getWatermarkSpecs().size());
 			} else {
 				try {
-					builder.watermark("f0", "f0 - INTERVAL '5' SECOND", t.f0);
+					builder.build();
 				} catch (Exception e) {
 					assertTrue(e.getMessage().contains(t.f1));
 				}
