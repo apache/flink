@@ -27,10 +27,9 @@ import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.Matchers;
-import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -402,7 +401,7 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 	@Test
 	public void testSnapshotRelease() {
 		final CopyOnWriteStateMap<Integer, Integer, Integer> stateMap =
-			Mockito.spy(new CopyOnWriteStateMap<>(IntSerializer.INSTANCE));
+			new CopyOnWriteStateMap<>(IntSerializer.INSTANCE);
 
 		for (int i = 0; i < 10; i++) {
 			stateMap.put(i, i, i);
@@ -410,14 +409,15 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 
 		CopyOnWriteStateMapSnapshot<Integer, Integer, Integer> snapshot = stateMap.stateSnapshot();
 		Assert.assertFalse(snapshot.isReleased());
+		Assert.assertThat(stateMap.getSnapshotVersions(), Matchers.contains(snapshot.getSnapshotVersion()));
 
 		snapshot.release();
 		Assert.assertTrue(snapshot.isReleased());
-		Mockito.verify(stateMap, Mockito.times(1)).releaseSnapshot(Matchers.same(snapshot));
+		Assert.assertThat(stateMap.getSnapshotVersions(), Matchers.empty());
 
 		// verify that snapshot will release itself only once
 		snapshot.release();
-		Mockito.verify(stateMap, Mockito.times(1)).releaseSnapshot(Matchers.same(snapshot));
+		Assert.assertThat(stateMap.getSnapshotVersions(), Matchers.empty());
 	}
 
 	@SuppressWarnings("unchecked")
