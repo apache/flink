@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.statistics.basicstatistic;
+package org.apache.flink.ml.operator.common.statistics.basicstatistic;
 
 /**
  * Summarizer is the base class to calculate summary and store intermediate results, and Summary is the result of Summarizer.
