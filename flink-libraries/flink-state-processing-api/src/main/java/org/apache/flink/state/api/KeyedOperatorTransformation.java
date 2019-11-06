@@ -23,7 +23,18 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
+import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.output.operators.KeyedStateBootstrapOperator;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.api.windowing.windows.Window;
+
+import javax.annotation.Nullable;
 
 import java.util.OptionalInt;
 
@@ -44,6 +55,9 @@ public class KeyedOperatorTransformation<K, T> {
 	/** Local max parallelism for the bootstrapped operator. */
 	private final OptionalInt operatorMaxParallelism;
 
+	@Nullable
+	private final Timestamper<T> timestamper;
+
 	/** Partitioner for the bootstrapping data set. */
 	private final KeySelector<T, K> keySelector;
 
@@ -53,10 +67,12 @@ public class KeyedOperatorTransformation<K, T> {
 	KeyedOperatorTransformation(
 		DataSet<T> dataSet,
 		OptionalInt operatorMaxParallelism,
+		@Nullable Timestamper<T> timestamper,
 		KeySelector<T, K> keySelector,
 		TypeInformation<K> keyType) {
 		this.dataSet = dataSet;
 		this.operatorMaxParallelism = operatorMaxParallelism;
+		this.timestamper = timestamper;
 		this.keySelector = keySelector;
 		this.keyType = keyType;
 	}
@@ -85,7 +101,56 @@ public class KeyedOperatorTransformation<K, T> {
 	 * @return An {@link BootstrapTransformation} that can be added to a {@link Savepoint}.
 	 */
 	public BootstrapTransformation<T> transform(SavepointWriterOperatorFactory factory) {
-		return new BootstrapTransformation<>(dataSet, operatorMaxParallelism, factory, keySelector, keyType);
+		return new BootstrapTransformation<>(dataSet, operatorMaxParallelism, timestamper, factory, keySelector, keyType);
+	}
+
+	/**
+	 * Windows this {@code KeyedOperatorTransformation} into tumbling time windows.
+	 *
+	 * <p>This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
+	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending whether or not
+	 * a {@code TimestampAssigner} has been set.
+	 *
+	 * @param size The size of the window.
+	 */
+	public WindowedOperatorTransformation<T, K, TimeWindow> timeWindow(Time size) {
+		if (timestamper == null) {
+			return window(TumblingProcessingTimeWindows.of(size));
+		} else {
+			return window(TumblingEventTimeWindows.of(size));
+		}
+	}
+
+	/**
+	 * Windows this {@code KeyedOperatorTransformation} into tumbling time windows.
+	 *
+	 * <p>This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
+	 * 	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending whether or not
+	 * a {@code TimestampAssigner} has been set.
+	 *
+	 * @param size The size of the window.
+	 * @param slide The slide interval of the generated windows.
+	 */
+	public WindowedOperatorTransformation<T, K, TimeWindow> timeWindow(Time size, Time slide) {
+		if (timestamper == null) {
+			return window(SlidingProcessingTimeWindows.of(size, slide));
+		} else {
+			return window(SlidingEventTimeWindows.of(size, slide));
+		}
+	}
+
+	/**
+	 * Windows this transformation into a {@code WindowedOperatorTransformation}, which bootstraps state
+	 * that can be restored by a {@code WindowOperator}. Elements are put into windows by a {@link WindowAssigner}.
+	 * The grouping of elements is done both by key and by window.
+	 *
+	 * <p>A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to
+	 * specify when windows are evaluated. However, {@code WindowAssigners} have a default
+	 * {@code Trigger} that is used if a {@code Trigger} is not specified.
+	 *
+	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
+	 */
+	public <W extends Window> WindowedOperatorTransformation<T, K, W> window(WindowAssigner<? super T, W> assigner) {
+		return new WindowedOperatorTransformation<>(dataSet, operatorMaxParallelism, timestamper, keySelector, keyType, assigner);
 	}
 }
-
