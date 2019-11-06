@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.junit.Test
 
 class TableScanTest extends TableTestBase {
@@ -32,6 +32,24 @@ class TableScanTest extends TableTestBase {
   def testTableSourceScan(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     util.verifyPlan("SELECT * FROM MyTable")
+  }
+
+
+  @Test
+  def testDDLTableScan(): Unit = {
+    TestCollectionTableFactory.isStreaming = false
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin)
+    util.verifyPlan("SELECT * FROM src WHERE a > 1")
   }
 
 }

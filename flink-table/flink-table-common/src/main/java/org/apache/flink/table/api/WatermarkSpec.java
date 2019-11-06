@@ -89,4 +89,10 @@ public class WatermarkSpec {
 	public int hashCode() {
 		return Objects.hash(rowtimeAttribute, watermarkExpressionString, watermarkExprOutputType);
 	}
+
+	@Override
+	public String toString() {
+		return "rowtime: '" + rowtimeAttribute + '\'' +
+			", watermark: '" + watermarkExpressionString + '\'';
+	}
 }
