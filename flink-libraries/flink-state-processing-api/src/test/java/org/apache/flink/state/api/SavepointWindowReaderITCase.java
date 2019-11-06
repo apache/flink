@@ -335,7 +335,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testWindowTriggerStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 
