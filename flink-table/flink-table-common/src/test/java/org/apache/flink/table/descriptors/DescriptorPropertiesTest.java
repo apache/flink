@@ -180,6 +180,7 @@ public class DescriptorPropertiesTest {
 				// the "bridgedTo" is a temporary solution because the type string format is based on TypeInformation.
 				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class))))
 			.field("f2", DataTypes.STRING())
+			.field("f3", DataTypes.BIGINT(), "f0 + 1")
 			.watermark(
 				"f1.q2",
 				"`f1`.`q2` - INTERVAL '5' SECOND",
@@ -196,8 +197,11 @@ public class DescriptorPropertiesTest {
 		expected.put("schema.1.type", "ROW<q1 VARCHAR, q2 TIMESTAMP>");
 		expected.put("schema.2.name", "f2");
 		expected.put("schema.2.type", "VARCHAR");
+		expected.put("schema.3.name", "f3");
+		expected.put("schema.3.type", "BIGINT");
+		expected.put("schema.3.expr", "f0 + 1");
 		expected.put("schema.watermark.0.rowtime", "f1.q2");
-		expected.put("schema.watermark.0.strategy.expression", "`f1`.`q2` - INTERVAL '5' SECOND");
+		expected.put("schema.watermark.0.strategy.expr", "`f1`.`q2` - INTERVAL '5' SECOND");
 		expected.put("schema.watermark.0.strategy.datatype", "TIMESTAMP(3)");
 		assertEquals(expected, actual);
 

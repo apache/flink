@@ -56,7 +56,6 @@ void ComputedColumn(TableCreationContext context) :
 {
     SqlNode identifier;
     SqlNode expr;
-    boolean hidden = false;
     SqlParserPos pos;
 }
 {
