@@ -33,7 +33,6 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTyp
 import org.apache.flink.table.sources.{DefinedFieldMapping, DefinedProctimeAttribute, DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
 import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -135,19 +134,17 @@ object TableSourceUtil {
   }
 
   /**
-    * Returns the Calcite schema of a [[TableSource]].
+    * Returns schema of the selected fields of the given [[TableSource]].
     *
     * @param tableSource The [[TableSource]] for which the Calcite schema is generated.
     * @param selectedFields The indices of all selected fields. None, if all fields are selected.
     * @param streaming Flag to determine whether the schema of a stream or batch table is created.
-    * @param typeFactory The type factory to create the schema.
-    * @return The Calcite schema for the selected fields of the given [[TableSource]].
+    * @return The schema for the selected fields of the given [[TableSource]].
     */
-  def getRelDataType(
+  def getFieldNamesTypes(
       tableSource: TableSource[_],
       selectedFields: Option[Array[Int]],
-      streaming: Boolean,
-      typeFactory: FlinkTypeFactory): RelDataType = {
+      streaming: Boolean): (Seq[String], Seq[LogicalType]) = {
 
     val fieldNames = tableSource.getTableSchema.getFieldNames
     var fieldTypes = tableSource.getTableSchema.getFieldDataTypes
@@ -173,17 +170,12 @@ object TableSourceUtil {
         fieldTypes = fieldTypes.patch(idx, Seq(proctimeType), 1)
       }
     }
-    val (selectedFieldNames, selectedFieldTypes) =
-      if (selectedFields.isDefined) {
-        // filter field names and types by selected fields
-        (
-          selectedFields.get.map(fieldNames(_)),
-          selectedFields.get.map(fieldTypes(_))
-        )
-      } else {
-        (fieldNames, fieldTypes)
-      }
-    typeFactory.buildRelNodeRowType(selectedFieldNames, selectedFieldTypes)
+    if (selectedFields.isDefined) {
+      // filter field names and types by selected fields
+      (selectedFields.get.map(fieldNames(_)), selectedFields.get.map(fieldTypes(_)))
+    } else {
+      (fieldNames, fieldTypes)
+    }
   }
 
   /**
