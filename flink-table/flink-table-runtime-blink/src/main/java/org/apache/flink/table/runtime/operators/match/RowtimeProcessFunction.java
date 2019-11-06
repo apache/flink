@@ -44,7 +44,7 @@ public class RowtimeProcessFunction
 
 	@Override
 	public void processElement(BaseRow value, Context ctx, Collector<BaseRow> out) throws Exception {
-		long timestamp = value.getLong(rowtimeIdx);
+		long timestamp = value.getTimestamp(rowtimeIdx, 3).getMillisecond();
 		((TimestampedCollector<BaseRow>) out).setAbsoluteTimestamp(timestamp);
 		out.collect(value);
 	}

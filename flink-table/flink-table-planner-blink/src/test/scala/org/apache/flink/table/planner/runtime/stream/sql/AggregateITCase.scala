@@ -517,10 +517,8 @@ class AggregateITCase(
       case (a, b, c, d, e) => (b, a, c, d, e)
     }).assignTimestampsAndWatermarks(
       new TimestampAndWatermarkWithOffset[(Long, Int, Int, String, Long)](0L))
-        .toTable(tEnv, 'rowtime, 'a, 'c, 'd, 'e)
+        .toTable(tEnv, 'rowtime.rowtime, 'a, 'c, 'd, 'e)
     tEnv.registerTable("MyTable", t)
-    val sourceTable = tEnv.scan("MyTable")
-    addTableWithWatermark("MyTable1", sourceTable, "rowtime", 0)
 
     val innerSql =
       """
@@ -528,7 +526,7 @@ class AggregateITCase(
         |   SUM(DISTINCT e) b,
         |   MIN(DISTINCT e) c,
         |   COUNT(DISTINCT e) d
-        |FROM MyTable1
+        |FROM MyTable
         |GROUP BY a, TUMBLE(rowtime, INTERVAL '0.005' SECOND)
       """.stripMargin
 

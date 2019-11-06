@@ -57,25 +57,4 @@ class StreamingTestBase extends AbstractTestBase {
     val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
     this.tEnv = StreamTableEnvironment.create(env, setting)
   }
-
-  def addTableWithWatermark(
-      tableName: String,
-      sourceTable: Table,
-      rowtimeField: String,
-      offset: Long): Unit = {
-    val sourceRel = TableTestUtil.toRelNode(sourceTable)
-    val rowtimeFieldIdx = sourceRel.getRowType.getFieldNames.indexOf(rowtimeField)
-    if (rowtimeFieldIdx < 0) {
-      throw new TableException(s"$rowtimeField does not exist, please check it")
-    }
-    val watermarkAssigner = new LogicalWatermarkAssigner(
-      sourceRel.getCluster,
-      sourceRel.getTraitSet,
-      sourceRel,
-      Some(rowtimeFieldIdx),
-      Option(offset)
-    )
-    val queryOperation = new PlannerQueryOperation(watermarkAssigner)
-    tEnv.registerTable(tableName, TableTestUtil.createTable(tEnv, queryOperation))
-  }
 }
