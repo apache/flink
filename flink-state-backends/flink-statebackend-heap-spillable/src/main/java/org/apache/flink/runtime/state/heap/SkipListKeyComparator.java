@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.core.memory.ByteBufferUtils;
-
-import java.nio.ByteBuffer;
+import org.apache.flink.core.memory.MemorySegment;
 
 /**
  * Comparator used for skip list key.
@@ -37,13 +35,13 @@ class SkipListKeyComparator {
 	 * @param rightOffset right skip list key's ByteBuffer's offset
 	 * @return An integer result of the comparison.
 	 */
-	static int compareTo(ByteBuffer left, int leftOffset, ByteBuffer right, int rightOffset) {
+	static int compareTo(MemorySegment left, int leftOffset, MemorySegment right, int rightOffset) {
 		// compare namespace
-		int leftNamespaceLen = ByteBufferUtils.toInt(left, leftOffset);
-		int rightNamespaceLen = ByteBufferUtils.toInt(right, rightOffset);
+		int leftNamespaceLen = left.getInt(leftOffset);
+		int rightNamespaceLen = right.getInt(rightOffset);
 
-		int c = ByteBufferUtils.compareTo(left, leftOffset + Integer.BYTES, leftNamespaceLen,
-			right, rightOffset + Integer.BYTES, rightNamespaceLen);
+		int c = left.compare(right, leftOffset + Integer.BYTES, rightOffset + Integer.BYTES,
+			leftNamespaceLen, rightNamespaceLen);
 
 		if (c != 0) {
 			return c;
@@ -52,31 +50,31 @@ class SkipListKeyComparator {
 		// compare key
 		int leftKeyOffset = leftOffset + Integer.BYTES + leftNamespaceLen;
 		int rightKeyOffset = rightOffset + Integer.BYTES + rightNamespaceLen;
-		int leftKeyLen = ByteBufferUtils.toInt(left, leftKeyOffset);
-		int rightKeyLen = ByteBufferUtils.toInt(right, rightKeyOffset);
+		int leftKeyLen = left.getInt(leftKeyOffset);
+		int rightKeyLen = right.getInt(rightKeyOffset);
 
-		return ByteBufferUtils.compareTo(left, leftKeyOffset + Integer.BYTES, leftKeyLen,
-			right, rightKeyOffset + Integer.BYTES, rightKeyLen);
+		return left.compare(right, leftKeyOffset + Integer.BYTES, rightKeyOffset + Integer.BYTES,
+			leftKeyLen, rightKeyLen);
 	}
 
 	/**
-	 * Compares the namespace in the byte buffer with the namespace in the node .
+	 * Compares the namespace in the memory segment with the namespace in the node .
 	 * Returns a negative integer, zero, or a positive integer as the first node is
 	 * less than, equal to, or greater than the second.
 	 *
-	 * @param namespaceByteBuffer byte buffer to store the namespace.
-	 * @param namespaceOffset     offset of namespace in the byte buffer.
+	 * @param namespaceSegment    memory segment to store the namespace.
+	 * @param namespaceOffset     offset of namespace in the memory segment.
 	 * @param namespaceLen        length of namespace.
-	 * @param nodeKeyBuffer       byte buffer to store the node key.
-	 * @param nodeKeyOffset       offset of node key in the byte buffer.
+	 * @param nodeSegment         memory segment to store the node key.
+	 * @param nodeKeyOffset       offset of node key in the memory segment.
 	 * @return An integer result of the comparison.
 	 */
 	static int compareNamespaceAndNode(
-		ByteBuffer namespaceByteBuffer, int namespaceOffset, int namespaceLen,
-		ByteBuffer nodeKeyBuffer, int nodeKeyOffset) {
-		int nodeNamespaceLen = ByteBufferUtils.toInt(nodeKeyBuffer, nodeKeyOffset);
+		MemorySegment namespaceSegment, int namespaceOffset, int namespaceLen,
+		MemorySegment nodeSegment, int nodeKeyOffset) {
 
-		return ByteBufferUtils.compareTo(namespaceByteBuffer, namespaceOffset, namespaceLen,
-			nodeKeyBuffer, nodeKeyOffset + Integer.BYTES, nodeNamespaceLen);
+		int nodeNamespaceLen = nodeSegment.getInt(nodeKeyOffset);
+		return namespaceSegment.compare(nodeSegment, namespaceOffset, nodeKeyOffset + Integer.BYTES,
+			namespaceLen, nodeNamespaceLen);
 	}
 }

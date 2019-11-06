@@ -20,13 +20,11 @@ package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
 
-import java.nio.ByteBuffer;
-
 /**
  * Un-synchronized stream similar to Java's ByteArrayInputStream that also exposes the current position.
  */
 @Internal
-public class ByteArrayInputStreamWithPos extends ByteBufferInputStreamWithPos {
+public class ByteArrayInputStreamWithPos extends MemorySegmentInputStreamWithPos {
 
 	private static final byte[] EMPTY = new byte[0];
 
@@ -39,6 +37,6 @@ public class ByteArrayInputStreamWithPos extends ByteBufferInputStreamWithPos {
 	}
 
 	public ByteArrayInputStreamWithPos(byte[] buffer, int offset, int length) {
-		super(ByteBuffer.wrap(buffer), offset, length);
+		super(MemorySegmentFactory.wrap(buffer), offset, length);
 	}
 }

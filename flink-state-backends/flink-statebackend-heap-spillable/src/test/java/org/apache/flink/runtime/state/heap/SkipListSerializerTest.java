@@ -25,12 +25,13 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertEquals;
 
@@ -66,12 +67,12 @@ public class SkipListSerializerTest extends TestLogger {
 		int offset = 10;
 		byte[] data = new byte[10 + skipListKey.length];
 		System.arraycopy(skipListKey, 0, data, offset, skipListKey.length);
-		ByteBuffer skipListKeyByteBuffer = ByteBuffer.wrap(data);
-		assertEquals(key, skipListKeySerializer.deserializeKey(skipListKeyByteBuffer, offset, skipListKey.length));
-		assertEquals(namespace, skipListKeySerializer.deserializeNamespace(skipListKeyByteBuffer, offset, skipListKey.length));
+		MemorySegment skipListKeySegment = MemorySegmentFactory.wrap(data);
+		assertEquals(key, skipListKeySerializer.deserializeKey(skipListKeySegment, offset, skipListKey.length));
+		assertEquals(namespace, skipListKeySerializer.deserializeNamespace(skipListKeySegment, offset, skipListKey.length));
 
 		Tuple2<byte[], byte[]> serializedKeyAndNamespace =
-			skipListKeySerializer.getSerializedKeyAndNamespace(skipListKeyByteBuffer, offset);
+			skipListKeySerializer.getSerializedKeyAndNamespace(skipListKeySegment, offset);
 		assertEquals(key, deserialize(keySerializer, serializedKeyAndNamespace.f0));
 		assertEquals(namespace, deserialize(namespaceSerializer, serializedKeyAndNamespace.f1));
 
@@ -98,7 +99,7 @@ public class SkipListSerializerTest extends TestLogger {
 		byte[] data = new byte[10 + value.length];
 		System.arraycopy(value, 0, data, offset, value.length);
 		assertEquals(state, deserialize(stateSerializer, value));
-		assertEquals(state, skipListValueSerializer.deserializeState(ByteBuffer.wrap(data), offset, value.length));
+		assertEquals(state, skipListValueSerializer.deserializeState(MemorySegmentFactory.wrap(data), offset, value.length));
 	}
 
 	private <T> T deserialize(TypeSerializer<T> serializer, byte[] data) throws IOException {

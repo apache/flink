@@ -20,13 +20,14 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.state.heap.space.Allocator;
 import org.apache.flink.runtime.state.heap.space.Chunk;
 import org.apache.flink.runtime.state.heap.space.SpaceUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -118,7 +119,7 @@ public class TestAllocator extends TestLogger implements Allocator {
 
 		private final int chunkId;
 		private final int size;
-		private final ByteBuffer byteBuffer;
+		private final MemorySegment segment;
 		private final int offset;
 		private volatile boolean used;
 
@@ -126,7 +127,7 @@ public class TestAllocator extends TestLogger implements Allocator {
 			this.offset = 14;
 			this.chunkId = chunkId;
 			this.size = size + offset;
-			this.byteBuffer = ByteBuffer.allocate(size);
+			this.segment = MemorySegmentFactory.allocateUnpooledSegment(size);
 		}
 
 		@Override
@@ -153,18 +154,13 @@ public class TestAllocator extends TestLogger implements Allocator {
 		}
 
 		@Override
-		public ByteBuffer getByteBuffer(int chunkOffset) {
-			return byteBuffer;
+		public MemorySegment getMemorySegment(int chunkOffset) {
+			return segment;
 		}
 
 		@Override
-		public int getOffsetInByteBuffer(int offsetInChunk) {
+		public int getOffsetInSegment(int offsetInChunk) {
 			return offsetInChunk;
-		}
-
-		@Override
-		public long usedSize() {
-			return used ? size : 0;
 		}
 	}
 }

@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -33,7 +35,6 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
@@ -206,8 +207,8 @@ public class SkipListKeyComparatorTest extends TestLogger {
 	private <K, N> int compareSkipListKey(
 		@Nonnull SkipListKeySerializer<K, N> keySerializer,
 		K key1, N namespace1, K key2, N namespace2) {
-		ByteBuffer b1 = ByteBuffer.wrap(keySerializer.serialize(key1, namespace1));
-		ByteBuffer b2 = ByteBuffer.wrap(keySerializer.serialize(key2, namespace2));
+		MemorySegment b1 = MemorySegmentFactory.wrap(keySerializer.serialize(key1, namespace1));
+		MemorySegment b2 = MemorySegmentFactory.wrap(keySerializer.serialize(key2, namespace2));
 		return SkipListKeyComparator.compareTo(b1, 0, b2, 0);
 	}
 
@@ -216,7 +217,7 @@ public class SkipListKeyComparatorTest extends TestLogger {
 		byte[] n = skipListKeySerializerForNamespaceCompare.serializeNamespace(convertStringToByteArray(namespace));
 		byte[] k = skipListKeySerializerForNamespaceCompare.serialize(key, convertStringToByteArray(targetNamespace));
 		return SkipListKeyComparator.compareNamespaceAndNode(
-			ByteBuffer.wrap(n), 0, n.length, ByteBuffer.wrap(k), 0);
+			MemorySegmentFactory.wrap(n), 0, n.length, MemorySegmentFactory.wrap(k), 0);
 	}
 
 	private byte[] convertStringToByteArray(@Nonnull String str) {

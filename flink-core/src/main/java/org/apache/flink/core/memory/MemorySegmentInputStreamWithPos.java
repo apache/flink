@@ -23,25 +23,24 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nonnull;
 
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 
 /**
- * Un-synchronized input stream using the given byte buffer.
+ * Un-synchronized input stream using the given memory segment.
  */
-public class ByteBufferInputStreamWithPos extends InputStream {
+public class MemorySegmentInputStreamWithPos extends InputStream {
 
-	private ByteBuffer buffer;
+	private MemorySegment segment;
 	private int position;
 	private int count;
 	private int mark;
 
-	public ByteBufferInputStreamWithPos(ByteBuffer buffer, int offset, int length) {
-		setBuffer(buffer, offset, length);
+	public MemorySegmentInputStreamWithPos(MemorySegment segment, int offset, int length) {
+		setSegment(segment, offset, length);
 	}
 
 	@Override
 	public int read() {
-		return (position < count) ? 0xFF & (buffer.get(position++)) : -1;
+		return (position < count) ? 0xFF & (segment.get(position++)) : -1;
 	}
 
 	@Override
@@ -66,7 +65,7 @@ public class ByteBufferInputStreamWithPos extends InputStream {
 			return 0;
 		}
 
-		ByteBufferUtils.copyFromBufferToArray(buffer, position, b, off, len);
+		segment.copyTo(position, MemorySegmentFactory.wrap(b), off, len);
 		position += len;
 		return len;
 	}
@@ -116,10 +115,10 @@ public class ByteBufferInputStreamWithPos extends InputStream {
 		this.position = pos;
 	}
 
-	public void setBuffer(ByteBuffer buffer, int offset, int length) {
-		this.count = Math.min(buffer.limit(), offset + length);
+	public void setSegment(MemorySegment segment, int offset, int length) {
+		this.count = Math.min(segment.size(), offset + length);
 		setPosition(offset);
-		this.buffer = buffer;
+		this.segment = segment;
 		this.mark = offset;
 	}
 }

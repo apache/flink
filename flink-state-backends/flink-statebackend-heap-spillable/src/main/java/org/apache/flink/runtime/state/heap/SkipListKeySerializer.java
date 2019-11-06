@@ -21,13 +21,13 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.ByteBufferInputStreamWithPos;
-import org.apache.flink.core.memory.ByteBufferUtils;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.core.memory.MemorySegmentInputStreamWithPos;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * Serializer/deserializer used for conversion between key/namespace and skip list key.
@@ -82,9 +82,9 @@ class SkipListKeySerializer<K, N> {
 		// set length of namespace and key
 		int namespaceLen = keyStartPos - Integer.BYTES;
 		int keyLen = result.length - keyStartPos - Integer.BYTES;
-		ByteBuffer byteBuffer = ByteBuffer.wrap(result);
-		ByteBufferUtils.putInt(byteBuffer, 0, namespaceLen);
-		ByteBufferUtils.putInt(byteBuffer, keyStartPos, keyLen);
+		MemorySegment segment = MemorySegmentFactory.wrap(result);
+		segment.putInt(0, namespaceLen);
+		segment.putInt(keyStartPos, keyLen);
 
 		return result;
 	}
@@ -92,12 +92,13 @@ class SkipListKeySerializer<K, N> {
 	/**
 	 * Deserialize the namespace from the byte buffer which stores skip list key.
 	 *
-	 * @param byteBuffer the byte buffer which stores the skip list key.
+	 * @param memorySegment the memory segment which stores the skip list key.
 	 * @param offset     the start position of the skip list key in the byte buffer.
 	 * @param len        length of the skip list key.
 	 */
-	N deserializeNamespace(ByteBuffer byteBuffer, int offset, int len) {
-		ByteBufferInputStreamWithPos inputStream = new ByteBufferInputStreamWithPos(byteBuffer, offset, len);
+	N deserializeNamespace(MemorySegment memorySegment, int offset, int len) {
+		MemorySegmentInputStreamWithPos inputStream =
+			new MemorySegmentInputStreamWithPos(memorySegment, offset, len);
 		DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
 		inputStream.setPosition(offset + Integer.BYTES);
 		try {
@@ -110,14 +111,15 @@ class SkipListKeySerializer<K, N> {
 	/**
 	 * Deserialize the partition key from the byte buffer which stores skip list key.
 	 *
-	 * @param byteBuffer the byte buffer which stores the skip list key.
+	 * @param memorySegment the memory segment which stores the skip list key.
 	 * @param offset     the start position of the skip list key in the byte buffer.
 	 * @param len        length of the skip list key.
 	 */
-	K deserializeKey(ByteBuffer byteBuffer, int offset, int len) {
-		ByteBufferInputStreamWithPos inputStream = new ByteBufferInputStreamWithPos(byteBuffer, offset, len);
+	K deserializeKey(MemorySegment memorySegment, int offset, int len) {
+		MemorySegmentInputStreamWithPos inputStream =
+			new MemorySegmentInputStreamWithPos(memorySegment, offset, len);
 		DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
-		int namespaceLen = ByteBufferUtils.toInt(byteBuffer, offset);
+		int namespaceLen = memorySegment.getInt(offset);
 		inputStream.setPosition(offset + Integer.BYTES + namespaceLen + Integer.BYTES);
 		try {
 			return keySerializer.deserialize(inputView);
@@ -129,25 +131,23 @@ class SkipListKeySerializer<K, N> {
 	/**
 	 * Gets serialized key and namespace from the byte buffer.
 	 *
-	 * @param byteBuffer the byte buffer which stores the skip list key.
+	 * @param memorySegment the memory segment which stores the skip list key.
 	 * @param offset     the start position of the skip list key in the byte buffer.
 	 * @return tuple of serialized key and namespace.
 	 */
-	Tuple2<byte[], byte[]> getSerializedKeyAndNamespace(ByteBuffer byteBuffer, int offset) {
+	Tuple2<byte[], byte[]> getSerializedKeyAndNamespace(MemorySegment memorySegment, int offset) {
 		// read namespace
-		int namespaceLen = ByteBufferUtils.toInt(byteBuffer, offset);
-		byte[] namespaceBytes = new byte[namespaceLen];
-		ByteBufferUtils.copyFromBufferToArray(byteBuffer, offset + Integer.BYTES, namespaceBytes,
-			0, namespaceLen);
+		int namespaceLen = memorySegment.getInt(offset);
+		MemorySegment namespaceSegment = MemorySegmentFactory.allocateUnpooledSegment(namespaceLen);
+		memorySegment.copyTo(offset + Integer.BYTES, namespaceSegment, 0, namespaceLen);
 
 		// read key
 		int keyOffset = offset + Integer.BYTES + namespaceLen;
-		int keyLen = ByteBufferUtils.toInt(byteBuffer, keyOffset);
-		byte[] keyBytes = new byte[keyLen];
-		ByteBufferUtils.copyFromBufferToArray(byteBuffer, keyOffset + Integer.BYTES, keyBytes,
-			0, keyLen);
+		int keyLen = memorySegment.getInt(keyOffset);
+		MemorySegment keySegment = MemorySegmentFactory.allocateUnpooledSegment(keyLen);
+		memorySegment.copyTo(keyOffset + Integer.BYTES, keySegment, 0, keyLen);
 
-		return Tuple2.of(keyBytes, namespaceBytes);
+		return Tuple2.of(keySegment.getArray(), namespaceSegment.getArray());
 	}
 
 	/**

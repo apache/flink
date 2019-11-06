@@ -18,15 +18,14 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.core.memory.ByteBufferUtils;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.state.heap.space.Allocator;
 import org.apache.flink.runtime.state.heap.space.Chunk;
 import org.apache.flink.runtime.state.heap.space.SpaceUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
-
-import java.nio.ByteBuffer;
 
 /**
  * Utilities for skip list.
@@ -87,134 +86,134 @@ public class SkipListUtils {
 	/**
 	 * Returns the level of the node.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 */
-	public static int getLevel(ByteBuffer byteBuffer, int offset) {
-		return ByteBufferUtils.toInt(byteBuffer, offset + KEY_META_OFFSET) & BYTE_MASK;
+	public static int getLevel(MemorySegment memorySegment, int offset) {
+		return memorySegment.getInt(offset + KEY_META_OFFSET) & BYTE_MASK;
 	}
 
 	/**
 	 * Returns the status of the node.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 */
-	public static NodeStatus getNodeStatus(ByteBuffer byteBuffer, int offset) {
-		byte status = (byte) ((ByteBufferUtils.toInt(byteBuffer, offset + KEY_META_OFFSET) >>> 8) & BYTE_MASK);
+	public static NodeStatus getNodeStatus(MemorySegment memorySegment, int offset) {
+		byte status = (byte) ((memorySegment.getInt(offset + KEY_META_OFFSET) >>> 8) & BYTE_MASK);
 		return NodeStatus.valueOf(status);
 	}
 
 	/**
 	 * Puts the level and status to the key space.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 * @param level the level.
 	 * @param status the status.
 	 */
-	public static void putLevelAndNodeStatus(ByteBuffer byteBuffer, int offset, int level, NodeStatus status) {
+	public static void putLevelAndNodeStatus(MemorySegment memorySegment, int offset, int level, NodeStatus status) {
 		int data = ((status.getValue() & BYTE_MASK) << 8) | level;
-		ByteBufferUtils.putInt(byteBuffer, offset + SkipListUtils.KEY_META_OFFSET, data);
+		memorySegment.putInt(offset + SkipListUtils.KEY_META_OFFSET, data);
 	}
 
 	/**
 	 * Returns the length of the key.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 */
-	public static int getKeyLen(ByteBuffer byteBuffer, int offset) {
-		return ByteBufferUtils.toInt(byteBuffer, offset + KEY_LEN_OFFSET);
+	public static int getKeyLen(MemorySegment memorySegment, int offset) {
+		return memorySegment.getInt(offset + KEY_LEN_OFFSET);
 	}
 
 	/**
 	 * Puts the length of key to the key space.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 * @param keyLen length of key.
 	 */
-	public static void putKeyLen(ByteBuffer byteBuffer, int offset, int keyLen) {
-		ByteBufferUtils.putInt(byteBuffer, offset + KEY_LEN_OFFSET, keyLen);
+	public static void putKeyLen(MemorySegment memorySegment, int offset, int keyLen) {
+		memorySegment.putInt(offset + KEY_LEN_OFFSET, keyLen);
 	}
 
 	/**
 	 * Returns the value pointer.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 */
-	public static long getValuePointer(ByteBuffer byteBuffer, int offset) {
-		return ByteBufferUtils.toLong(byteBuffer, offset + VALUE_POINTER_OFFSET);
+	public static long getValuePointer(MemorySegment memorySegment, int offset) {
+		return memorySegment.getLong(offset + VALUE_POINTER_OFFSET);
 	}
 
 	/**
 	 * Puts the value pointer to key space.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 * @param valuePointer the value pointer.
 	 */
-	public static void putValuePointer(ByteBuffer byteBuffer, int offset, long valuePointer) {
-		ByteBufferUtils.putLong(byteBuffer, offset + VALUE_POINTER_OFFSET, valuePointer);
+	public static void putValuePointer(MemorySegment memorySegment, int offset, long valuePointer) {
+		memorySegment.putLong(offset + VALUE_POINTER_OFFSET, valuePointer);
 	}
 
 	/**
 	 * Returns the next key pointer on level 0.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 */
-	public static long getNextKeyPointer(ByteBuffer byteBuffer, int offset) {
-		return ByteBufferUtils.toLong(byteBuffer, offset + NEXT_KEY_POINTER_OFFSET);
+	public static long getNextKeyPointer(MemorySegment memorySegment, int offset) {
+		return memorySegment.getLong(offset + NEXT_KEY_POINTER_OFFSET);
 	}
 
 	/**
 	 * Puts the next key pointer on level 0 to key space.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 * @param nextKeyPointer next key pointer on level 0.
 	 */
-	public static void putNextKeyPointer(ByteBuffer byteBuffer, int offset, long nextKeyPointer) {
-		ByteBufferUtils.putLong(byteBuffer, offset + NEXT_KEY_POINTER_OFFSET, nextKeyPointer);
+	public static void putNextKeyPointer(MemorySegment memorySegment, int offset, long nextKeyPointer) {
+		memorySegment.putLong(offset + NEXT_KEY_POINTER_OFFSET, nextKeyPointer);
 	}
 
 	/**
 	 * Returns next key pointer on the given index level.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 * @param level level of index.
 	 */
-	public static long getNextIndexNode(ByteBuffer byteBuffer, int offset, int level) {
-		return ByteBufferUtils.toLong(byteBuffer, offset + INDEX_NEXT_OFFSET_BY_LEVEL_ARRAY[level]);
+	public static long getNextIndexNode(MemorySegment memorySegment, int offset, int level) {
+		return memorySegment.getLong(offset + INDEX_NEXT_OFFSET_BY_LEVEL_ARRAY[level]);
 	}
 
 	/**
 	 * Puts next key pointer on the given index level to key space.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 * @param level level of index.
 	 * @param nextKeyPointer next key pointer on the given level.
 	 */
-	public static void putNextIndexNode(ByteBuffer byteBuffer, int offset, int level, long nextKeyPointer) {
-		ByteBufferUtils.putLong(byteBuffer, offset + INDEX_NEXT_OFFSET_BY_LEVEL_ARRAY[level], nextKeyPointer);
+	public static void putNextIndexNode(MemorySegment memorySegment, int offset, int level, long nextKeyPointer) {
+		memorySegment.putLong(offset + INDEX_NEXT_OFFSET_BY_LEVEL_ARRAY[level], nextKeyPointer);
 	}
 
 	/**
 	 * Returns previous key pointer on the given index level.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 * @param totalLevel the level of the node.
 	 * @param level on which level to get the previous key pointer of the node.
 	 */
-	public static long getPrevIndexNode(ByteBuffer byteBuffer, int offset, int totalLevel, int level) {
+	public static long getPrevIndexNode(MemorySegment memorySegment, int offset, int totalLevel, int level) {
 		int of = getIndexOffset(offset, totalLevel, level);
-		return ByteBufferUtils.toLong(byteBuffer, of);
+		return memorySegment.getLong(of);
 	}
 
 	private static int getIndexOffset(int offset, int totalLevel, int level) {
@@ -224,16 +223,16 @@ public class SkipListUtils {
 	/**
 	 * Puts previous key pointer on the given index level to key space.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in the byte buffer.
+	 * @param memorySegment memory segment for key space.
+	 * @param offset offset of key space in the memory segment.
 	 * @param totalLevel top level of the key.
 	 * @param level level of index.
 	 * @param prevKeyPointer previous key pointer on the given level.
 	 */
 	public static void putPrevIndexNode(
-		ByteBuffer byteBuffer, int offset, int totalLevel, int level, long prevKeyPointer) {
+		MemorySegment memorySegment, int offset, int totalLevel, int level, long prevKeyPointer) {
 		int of = getIndexOffset(offset, totalLevel, level);
-		ByteBufferUtils.putLong(byteBuffer, of, prevKeyPointer);
+		memorySegment.putLong(of, prevKeyPointer);
 	}
 
 	/**
@@ -259,17 +258,16 @@ public class SkipListUtils {
 	/**
 	 * Puts the key data into key space.
 	 *
-	 * @param byteBuffer byte buffer for key space.
-	 * @param offset offset of key space in byte buffer.
-	 * @param keyByteBuffer byte buffer for key data.
-	 * @param keyOffset offset of key data in byte buffer.
+	 * @param segment memory segment for key space.
+	 * @param offset offset of key space in memory segment.
+	 * @param keySegment memory segment for key data.
+	 * @param keyOffset offset of key data in memory segment.
 	 * @param keyLen length of key data.
 	 * @param level level of the key.
 	 */
 	public static void putKeyData(
-		ByteBuffer byteBuffer, int offset, ByteBuffer keyByteBuffer, int keyOffset, int keyLen, int level) {
-		ByteBufferUtils.copyFromBufferToBuffer(keyByteBuffer, keyOffset, byteBuffer,
-			offset + getKeyDataOffset(level), keyLen);
+		MemorySegment segment, int offset, MemorySegment keySegment, int keyOffset, int keyLen, int level) {
+		keySegment.copyTo(keyOffset, segment, offset + getKeyDataOffset(level), keyLen);
 	}
 
 	/**
@@ -291,85 +289,85 @@ public class SkipListUtils {
 	/**
 	 * Returns the version of value.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 */
-	public static int getValueVersion(ByteBuffer byteBuffer, int offset) {
-		return ByteBufferUtils.toInt(byteBuffer, offset + VALUE_VERSION_OFFSET);
+	public static int getValueVersion(MemorySegment memorySegment, int offset) {
+		return memorySegment.getInt(offset + VALUE_VERSION_OFFSET);
 	}
 
 	/**
 	 * Puts the version of value to value space.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 * @param version version of value.
 	 */
-	public static void putValueVersion(ByteBuffer byteBuffer, int offset, int version) {
-		ByteBufferUtils.putInt(byteBuffer, offset + VALUE_VERSION_OFFSET, version);
+	public static void putValueVersion(MemorySegment memorySegment, int offset, int version) {
+		memorySegment.putInt(offset + VALUE_VERSION_OFFSET, version);
 	}
 
 	/**
 	 * Return the pointer to key space.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 */
-	public static long getKeyPointer(ByteBuffer byteBuffer, int offset) {
-		return ByteBufferUtils.toLong(byteBuffer, offset + KEY_POINTER_OFFSET);
+	public static long getKeyPointer(MemorySegment memorySegment, int offset) {
+		return memorySegment.getLong(offset + KEY_POINTER_OFFSET);
 	}
 
 	/**
 	 * Puts the pointer of key space.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 * @param keyPointer pointer to key space.
 	 */
-	public static void putKeyPointer(ByteBuffer byteBuffer, int offset, long keyPointer) {
-		ByteBufferUtils.putLong(byteBuffer, offset + KEY_POINTER_OFFSET, keyPointer);
+	public static void putKeyPointer(MemorySegment memorySegment, int offset, long keyPointer) {
+		memorySegment.putLong(offset + KEY_POINTER_OFFSET, keyPointer);
 	}
 
 	/**
 	 * Return the pointer to next value space.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 */
-	public static long getNextValuePointer(ByteBuffer byteBuffer, int offset) {
-		return ByteBufferUtils.toLong(byteBuffer, offset + NEXT_VALUE_POINTER_OFFSET);
+	public static long getNextValuePointer(MemorySegment memorySegment, int offset) {
+		return memorySegment.getLong(offset + NEXT_VALUE_POINTER_OFFSET);
 	}
 
 	/**
 	 * Puts the pointer of next value space.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 * @param nextValuePointer pointer to next value space.
 	 */
-	public static void putNextValuePointer(ByteBuffer byteBuffer, int offset, long nextValuePointer) {
-		ByteBufferUtils.putLong(byteBuffer, offset + NEXT_VALUE_POINTER_OFFSET, nextValuePointer);
+	public static void putNextValuePointer(MemorySegment memorySegment, int offset, long nextValuePointer) {
+		memorySegment.putLong(offset + NEXT_VALUE_POINTER_OFFSET, nextValuePointer);
 	}
 
 	/**
 	 * Return the length of value data.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 */
-	public static int getValueLen(ByteBuffer byteBuffer, int offset) {
-		return ByteBufferUtils.toInt(byteBuffer, offset + VALUE_LEN_OFFSET);
+	public static int getValueLen(MemorySegment memorySegment, int offset) {
+		return memorySegment.getInt(offset + VALUE_LEN_OFFSET);
 	}
 
 	/**
 	 * Puts the length of value data.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 * @param valueLen length of value data.
 	 */
-	public static void putValueLen(ByteBuffer byteBuffer, int offset, int valueLen) {
-		ByteBufferUtils.putInt(byteBuffer, offset + VALUE_LEN_OFFSET, valueLen);
+	public static void putValueLen(MemorySegment memorySegment, int offset, int valueLen) {
+		memorySegment.putInt(offset + VALUE_LEN_OFFSET, valueLen);
 	}
 
 	/**
@@ -382,12 +380,13 @@ public class SkipListUtils {
 	/**
 	 * Puts the value data into value space.
 	 *
-	 * @param byteBuffer byte buffer for value space.
-	 * @param offset offset of value space in byte buffer.
+	 * @param memorySegment memory segment for value space.
+	 * @param offset offset of value space in memory segment.
 	 * @param value value data.
 	 */
-	public static void putValueData(ByteBuffer byteBuffer, int offset, byte[] value) {
-		ByteBufferUtils.copyFromArrayToBuffer(value, 0, byteBuffer, offset + getValueMetaLen(), value.length);
+	public static void putValueData(MemorySegment memorySegment, int offset, byte[] value) {
+		MemorySegment valueSegment = MemorySegmentFactory.wrap(value);
+		valueSegment.copyTo(0, memorySegment, offset + getValueMetaLen(), value.length);
 	}
 
 	/**
@@ -412,13 +411,13 @@ public class SkipListUtils {
 
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
 		if (level == 0) {
-			putNextKeyPointer(bb, offsetInByteBuffer, nextNode);
+			putNextKeyPointer(segment, offsetInByteBuffer, nextNode);
 		} else {
-			putNextIndexNode(bb, offsetInByteBuffer, level, nextNode);
+			putNextIndexNode(segment, offsetInByteBuffer, level, nextNode);
 		}
 	}
 
@@ -442,11 +441,11 @@ public class SkipListUtils {
 
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		return level == 0 ? getNextKeyPointer(bb, offsetInByteBuffer)
-			: getNextIndexNode(bb, offsetInByteBuffer, level);
+		return level == 0 ? getNextKeyPointer(segment, offsetInByteBuffer)
+			: getNextIndexNode(segment, offsetInByteBuffer, level);
 	}
 
 	/**
@@ -466,12 +465,12 @@ public class SkipListUtils {
 
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		int topLevel = getLevel(bb, offsetInByteBuffer);
+		int topLevel = getLevel(segment, offsetInByteBuffer);
 
-		putPrevIndexNode(bb, offsetInByteBuffer, topLevel, level, prevNode);
+		putPrevIndexNode(segment, offsetInByteBuffer, topLevel, level, prevNode);
 	}
 
 	/**
@@ -494,13 +493,13 @@ public class SkipListUtils {
 
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		int topLevel = getLevel(bb, offsetInByteBuffer);
+		int topLevel = getLevel(segment, offsetInByteBuffer);
 
-		putNextIndexNode(bb, offsetInByteBuffer, level, nextNode);
-		putPrevIndexNode(bb, offsetInByteBuffer, topLevel, level, prevNode);
+		putNextIndexNode(segment, offsetInByteBuffer, level, nextNode);
+		putPrevIndexNode(segment, offsetInByteBuffer, topLevel, level, prevNode);
 	}
 
 	/**
@@ -517,35 +516,35 @@ public class SkipListUtils {
 
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
-		return getNodeStatus(bb, offsetInByteBuffer) == NodeStatus.REMOVE;
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
+		return getNodeStatus(segment, offsetInByteBuffer) == NodeStatus.REMOVE;
 	}
 
 	/**
-	 * Compare the first skip list key in the given byte buffer with the second skip list key in the given node.
+	 * Compare the first skip list key in the given memory segment with the second skip list key in the given node.
 	 *
-	 * @param keyByteBuffer  byte buffer storing the first key.
-	 * @param keyOffset      offset of the first key in byte buffer.
+	 * @param keySegment     memory segment storing the first key.
+	 * @param keyOffset      offset of the first key in memory segment.
 	 * @param targetNode     the node storing the second key.
 	 * @param spaceAllocator the space allocator.
 	 * @return Returns a negative integer, zero, or a positive integer as the first key is less than,
 	 * equal to, or greater than the second.
 	 */
-	static int compareByteBufferAndNode(
-			ByteBuffer keyByteBuffer,
-			int keyOffset,
-			long targetNode,
-			@Nonnull Allocator spaceAllocator) {
+	static int compareSegmentAndNode(
+		MemorySegment keySegment,
+		int keyOffset,
+		long targetNode,
+		@Nonnull Allocator spaceAllocator) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(targetNode));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(targetNode);
-		ByteBuffer targetKeyByteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment targetKeySegment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		int level = getLevel(targetKeyByteBuffer, offsetInByteBuffer);
+		int level = getLevel(targetKeySegment, offsetInByteBuffer);
 		int targetKeyOffset = offsetInByteBuffer + getKeyDataOffset(level);
 
-		return SkipListKeyComparator.compareTo(keyByteBuffer, keyOffset, targetKeyByteBuffer, targetKeyOffset);
+		return SkipListKeyComparator.compareTo(keySegment, keyOffset, targetKeySegment, targetKeyOffset);
 	}
 
 	/**
@@ -564,28 +563,28 @@ public class SkipListUtils {
 		@Nonnull Allocator spaceAllocator) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer keyByteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment keySegment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		int keyLevel = getLevel(keyByteBuffer, offsetInByteBuffer);
+		int keyLevel = getLevel(keySegment, offsetInByteBuffer);
 		int keyOffset = offsetInByteBuffer + getKeyDataOffset(keyLevel);
 
-		return findPredecessor(keyByteBuffer, keyOffset, level, levelIndexHeader, spaceAllocator);
+		return findPredecessor(keySegment, keyOffset, level, levelIndexHeader, spaceAllocator);
 	}
 
 	/**
 	 * Find the predecessor node for the given key at the given level.
-	 * The key is in the byte buffer positioning at the given offset.
+	 * The key is in the memory segment positioning at the given offset.
 	 *
-	 * @param keyByteBuffer    byte buffer which contains the key.
-	 * @param keyOffset        offset of the key in the byte buffer.
+	 * @param keySegment       memory segment which contains the key.
+	 * @param keyOffset        offset of the key in the memory segment.
 	 * @param level            the level.
 	 * @param levelIndexHeader the head level index.
 	 * @param spaceAllocator   the space allocator.
 	 * @return node id before the key at the given level.
 	 */
 	static long findPredecessor(
-		ByteBuffer keyByteBuffer,
+		MemorySegment keySegment,
 		int keyOffset,
 		int level,
 		@Nonnull LevelIndexHeader levelIndexHeader,
@@ -596,7 +595,7 @@ public class SkipListUtils {
 
 		for ( ; ; ) {
 			if (nextNode != NIL_NODE) {
-				int c = compareByteBufferAndNode(keyByteBuffer, keyOffset, nextNode, spaceAllocator);
+				int c = compareSegmentAndNode(keySegment, keyOffset, nextNode, spaceAllocator);
 				if (c > 0) {
 					currentNode = nextNode;
 					nextNode = helpGetNextNode(currentNode, currentLevel, levelIndexHeader, spaceAllocator);
@@ -622,10 +621,10 @@ public class SkipListUtils {
 	static long helpGetNextValuePointer(long valuePointer, Allocator spaceAllocator) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(valuePointer));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(valuePointer);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		return getNextValuePointer(byteBuffer, offsetInByteBuffer);
+		return getNextValuePointer(segment, offsetInByteBuffer);
 	}
 
 	/**
@@ -638,10 +637,10 @@ public class SkipListUtils {
 	static void helpSetNextValuePointer(long valuePointer, long nextValuePointer, Allocator spaceAllocator) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(valuePointer));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(valuePointer);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		putNextValuePointer(byteBuffer, offsetInByteBuffer, nextValuePointer);
+		putNextValuePointer(segment, offsetInByteBuffer, nextValuePointer);
 	}
 
 	/**
@@ -649,19 +648,19 @@ public class SkipListUtils {
 	 *
 	 * @param node             the node.
 	 * @param level            level of the node.
-	 * @param keyByteBuffer    byte buffer of the key in the node.
-	 * @param keyOffset        offset of the key in byte buffer.
+	 * @param keySegment       memory segment of the key in the node.
+	 * @param keyOffset        offset of the key in memory segment.
 	 * @param levelIndexHeader the head level index.
 	 * @param spaceAllocator   the space allocator.
 	 */
-	static void buildLevelIndex(long node, int level, ByteBuffer keyByteBuffer, int keyOffset, LevelIndexHeader levelIndexHeader, Allocator spaceAllocator) {
+	static void buildLevelIndex(long node, int level, MemorySegment keySegment, int keyOffset, LevelIndexHeader levelIndexHeader, Allocator spaceAllocator) {
 		int currLevel = level;
-		long prevNode = findPredecessor(keyByteBuffer, keyOffset, currLevel, levelIndexHeader, spaceAllocator);
+		long prevNode = findPredecessor(keySegment, keyOffset, currLevel, levelIndexHeader, spaceAllocator);
 		long currentNode = helpGetNextNode(prevNode, currLevel, levelIndexHeader, spaceAllocator);
 
 		for (; ; ) {
 			if (currentNode != NIL_NODE) {
-				int c = compareByteBufferAndNode(keyByteBuffer, keyOffset, currentNode, spaceAllocator);
+				int c = compareSegmentAndNode(keySegment, keyOffset, currentNode, spaceAllocator);
 				if (c > 0) {
 					prevNode = currentNode;
 					currentNode = helpGetNextNode(currentNode, currLevel, levelIndexHeader, spaceAllocator);
@@ -692,14 +691,14 @@ public class SkipListUtils {
 	static void removeLevelIndex(long node, Allocator spaceAllocator, LevelIndexHeader levelIndexHeader) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		int level = getLevel(bb, offsetInByteBuffer);
+		int level = getLevel(segment, offsetInByteBuffer);
 
 		for (int i = 1; i <= level; i++) {
-			long prevNode = getPrevIndexNode(bb, offsetInByteBuffer, level, i);
-			long nextNode = getNextIndexNode(bb, offsetInByteBuffer, i);
+			long prevNode = getPrevIndexNode(segment, offsetInByteBuffer, level, i);
+			long nextNode = getNextIndexNode(segment, offsetInByteBuffer, i);
 			helpSetNextNode(prevNode, nextNode, i, levelIndexHeader, spaceAllocator);
 			helpSetPrevNode(nextNode, prevNode, i, spaceAllocator);
 		}
@@ -730,10 +729,10 @@ public class SkipListUtils {
 	static long helpGetValuePointer(long node, Allocator spaceAllocator) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		return getValuePointer(bb, offsetInByteBuffer);
+		return getValuePointer(segment, offsetInByteBuffer);
 	}
 
 	/**
@@ -745,10 +744,10 @@ public class SkipListUtils {
 	static int helpGetValueVersion(long valuePointer, Allocator spaceAllocator) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(valuePointer));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(valuePointer);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		return getValueVersion(byteBuffer, offsetInByteBuffer);
+		return getValueVersion(segment, offsetInByteBuffer);
 	}
 
 	/**
@@ -760,10 +759,10 @@ public class SkipListUtils {
 	static int helpGetValueLen(long valuePointer, Allocator spaceAllocator) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(valuePointer));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(valuePointer);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
 
-		return getValueLen(byteBuffer, offsetInByteBuffer);
+		return getValueLen(segment, offsetInByteBuffer);
 	}
 
 	/**
@@ -775,9 +774,9 @@ public class SkipListUtils {
 	static int helpGetNodeLatestVersion(long node, Allocator spaceAllocator) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
-		long valuePointer = getValuePointer(byteBuffer, offsetInByteBuffer);
+		MemorySegment segment = chunk.getMemorySegment(offsetInChunk);
+		int offsetInByteBuffer = chunk.getOffsetInSegment(offsetInChunk);
+		long valuePointer = getValuePointer(segment, offsetInByteBuffer);
 
 		return helpGetValueVersion(valuePointer, spaceAllocator);
 	}

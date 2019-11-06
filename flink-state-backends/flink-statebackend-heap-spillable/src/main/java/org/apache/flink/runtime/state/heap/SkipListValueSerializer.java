@@ -21,9 +21,9 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * Serializer/deserializer used for conversion between state and skip list value.
@@ -60,15 +60,15 @@ class SkipListValueSerializer<S> {
 	/**
 	 * Deserialize the state from the byte buffer which stores skip list value.
 	 *
-	 * @param byteBuffer the byte buffer which stores the skip list value.
+	 * @param memorySegment the memory segment which stores the skip list value.
 	 * @param offset     the start position of the skip list value in the byte buffer.
 	 * @param len        length of the skip list value.
 	 */
-	S deserializeState(ByteBuffer byteBuffer, int offset, int len) {
+	S deserializeState(MemorySegment memorySegment, int offset, int len) {
 		if (dis != null) {
-			dis.setBuffer(byteBuffer.array(), offset, len);
+			dis.setBuffer(memorySegment.getArray(), offset, len);
 		} else {
-			dis = new DataInputDeserializer(byteBuffer.array(), offset, len);
+			dis = new DataInputDeserializer(memorySegment.getArray(), offset, len);
 		}
 		try {
 			return stateSerializer.deserialize(dis);

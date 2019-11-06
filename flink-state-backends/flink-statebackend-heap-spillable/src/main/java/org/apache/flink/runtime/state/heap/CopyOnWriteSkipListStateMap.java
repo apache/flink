@@ -21,7 +21,8 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.ByteBufferUtils;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.heap.space.Allocator;
@@ -38,7 +39,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -240,39 +240,39 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	@Override
 	public void put(K key, N namespace, S state) {
 		updateStat();
-		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
-		int keyLen = keyByteBuffer.limit();
+		MemorySegment keySegment = getKeySegment(key, namespace);
+		int keyLen = keySegment.size();
 		byte[] value = skipListValueSerializer.serialize(state);
 
-		putValue(keyByteBuffer, 0, keyLen, value, false);
+		putValue(keySegment, 0, keyLen, value, false);
 	}
 
 	@Override
 	public S putAndGetOld(K key, N namespace, S state) {
 		updateStat();
-		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
-		int keyLen = keyByteBuffer.limit();
+		MemorySegment keySegment = getKeySegment(key, namespace);
+		int keyLen = keySegment.size();
 		byte[] value = skipListValueSerializer.serialize(state);
 
-		return putValue(keyByteBuffer, 0, keyLen, value, true);
+		return putValue(keySegment, 0, keyLen, value, true);
 	}
 
 	@Override
 	public void remove(K key, N namespace) {
 		updateStat();
-		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
-		int keyLen = keyByteBuffer.limit();
+		MemorySegment keySegment = getKeySegment(key, namespace);
+		int keyLen = keySegment.size();
 
-		removeNode(keyByteBuffer, 0, keyLen, false);
+		removeNode(keySegment, 0, keyLen, false);
 	}
 
 	@Override
 	public S removeAndGetOld(K key, N namespace) {
 		updateStat();
-		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
-		int keyLen = keyByteBuffer.limit();
+		MemorySegment keySegment = getKeySegment(key, namespace);
+		int keyLen = keySegment.size();
 
-		return removeNode(keyByteBuffer, 0, keyLen, true);
+		return removeNode(keySegment, 0, keyLen, true);
 	}
 
 	@Override
@@ -282,13 +282,13 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		T value,
 		StateTransformationFunction<S, T> transformation) throws Exception {
 		updateStat();
-		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
-		int keyLen = keyByteBuffer.limit();
+		MemorySegment keySegment = getKeySegment(key, namespace);
+		int keyLen = keySegment.size();
 
-		S oldState = getNode(keyByteBuffer, 0, keyLen);
+		S oldState = getNode(keySegment, 0, keyLen);
 		S newState = transformation.apply(oldState, value);
 		byte[] stateBytes = skipListValueSerializer.serialize(newState);
-		putValue(keyByteBuffer, 0, keyLen, stateBytes, false);
+		putValue(keySegment, 0, keyLen, stateBytes, false);
 	}
 
 	// Detail implementation methods ---------------------------------------------------------------
@@ -296,14 +296,14 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	/**
 	 * Find the node containing the given key.
 	 *
-	 * @param keyByteBuffer byte buffer storing the key.
+	 * @param keySegment    memory segment storing the key.
 	 * @param keyOffset     offset of the key.
 	 * @param keyLen        length of the key.
 	 * @return the state. Null will be returned if key does not exist.
 	 */
 	@VisibleForTesting
-	@Nullable S getNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen) {
-		SkipListIterateAndProcessResult result =  iterateAndProcess(keyByteBuffer, keyOffset, keyLen,
+	@Nullable S getNode(MemorySegment keySegment, int keyOffset, int keyLen) {
+		SkipListIterateAndProcessResult result =  iterateAndProcess(keySegment, keyOffset, keyLen,
 			(pointers, isRemoved) -> {
 				long currentNode = pointers.currentNode;
 				return isRemoved ? null : getNodeStateHelper(currentNode);
@@ -315,7 +315,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Put the key into the skip list. If the key does not exist before, a new node will be created.
 	 * If the key exists before, return the old state or null depending on {@code returnOldState}.
 	 *
-	 * @param keyByteBuffer  byte buffer storing the key.
+	 * @param keySegment     memory segment storing the key.
 	 * @param keyOffset      offset of the key.
 	 * @param keyLen         length of the key.
 	 * @param value          the value.
@@ -323,8 +323,8 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return the old state. Null will be returned if key does not exist or returnOldState is false.
 	 */
 	@VisibleForTesting
-	S putValue(ByteBuffer keyByteBuffer, int keyOffset, int keyLen, byte[] value, boolean returnOldState) {
-		SkipListIterateAndProcessResult result =  iterateAndProcess(keyByteBuffer, keyOffset, keyLen,
+	S putValue(MemorySegment keySegment, int keyOffset, int keyLen, byte[] value, boolean returnOldState) {
+		SkipListIterateAndProcessResult result =  iterateAndProcess(keySegment, keyOffset, keyLen,
 			(pointers, isLogicallyRemoved) -> putValue(pointers.currentNode, value, returnOldState));
 
 		if (result.isKeyFound) {
@@ -343,13 +343,13 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int totalValueLen = SkipListUtils.getValueMetaLen() + value.length;
 		long valuePointer = allocateSpace(totalValueLen);
 
-		doWriteKey(node, level, keyByteBuffer, keyOffset, keyLen, valuePointer, currentNode);
+		doWriteKey(node, level, keySegment, keyOffset, keyLen, valuePointer, currentNode);
 		doWriteValue(valuePointer, value, stateMapVersion, node, NIL_VALUE_POINTER);
 
 		helpSetNextNode(prevNode, node, 0);
 
 		if (level > 0) {
-			SkipListUtils.buildLevelIndex(node, level, keyByteBuffer, keyOffset, levelIndexHeader, spaceAllocator);
+			SkipListUtils.buildLevelIndex(node, level, keySegment, keyOffset, levelIndexHeader, spaceAllocator);
 		}
 
 		totalSize++;
@@ -399,14 +399,14 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Logical remove means put a null value whose size is 0. If the key exists before,
 	 * the old value state will be returned.
 	 *
-	 * @param keyByteBuffer  byte buffer storing the key.
+	 * @param keySegment     memory segment storing the key.
 	 * @param keyOffset      offset of the key.
 	 * @param keyLen         length of the key.
 	 * @param returnOldState whether to return old state.
 	 * @return the old state. Null will be returned if key does not exist or returnOldState is false.
 	 */
-	private S removeNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen, boolean returnOldState) {
-		SkipListIterateAndProcessResult result = iterateAndProcess(keyByteBuffer, keyOffset, keyLen,
+	private S removeNode(MemorySegment keySegment, int keyOffset, int keyLen, boolean returnOldState) {
+		SkipListIterateAndProcessResult result = iterateAndProcess(keySegment, keyOffset, keyLen,
 			(pointers, isLogicallyRemoved) -> removeNode(pointers, isLogicallyRemoved, returnOldState));
 		return result.isKeyFound ? result.state : null;
 	}
@@ -479,7 +479,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	/**
 	 * Iterate the skip list and perform given function.
 	 *
-	 * @param keyByteBuffer byte buffer storing the key.
+	 * @param keySegment memory segment storing the key.
 	 * @param keyOffset offset of the key.
 	 * @param keyLen length of the key.
 	 * @param function the function to apply when the skip list contains the given key, which accepts two parameters:
@@ -488,12 +488,12 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return the iterate and processing result
 	 */
 	private SkipListIterateAndProcessResult iterateAndProcess(
-			ByteBuffer keyByteBuffer,
-			int keyOffset,
-			int keyLen,
-			BiFunction<SkipListNodePointers, Boolean, S> function) {
+		MemorySegment keySegment,
+		int keyOffset,
+		int keyLen,
+		BiFunction<SkipListNodePointers, Boolean, S> function) {
 		int deleteCount = 0;
-		long prevNode = findPredecessor(keyByteBuffer, keyOffset, 1);
+		long prevNode = findPredecessor(keySegment, keyOffset, 1);
 		long currentNode = helpGetNextNode(prevNode, 0);
 		long nextNode;
 
@@ -513,7 +513,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 				continue;
 			}
 
-			c = compareByteBufferAndNode(keyByteBuffer, keyOffset, keyLen, currentNode);
+			c = compareSegmentAndNode(keySegment, keyOffset, keyLen, currentNode);
 
 			if (c < 0) {
 				// The given key is less than the current node, break the loop
@@ -533,51 +533,51 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 
 	/**
 	 * Find the predecessor node for the given key at the given level.
-	 * The key is in the byte buffer positioning at the given offset.
+	 * The key is in the memory segment positioning at the given offset.
 	 *
-	 * @param keyByteBuffer byte buffer which contains the key.
-	 * @param keyOffset     offset of the key in the byte buffer.
+	 * @param keySegment    memory segment which contains the key.
+	 * @param keyOffset     offset of the key in the memory segment.
 	 * @param level         the level.
 	 * @return node id before the key at the given level.
 	 */
-	private long findPredecessor(ByteBuffer keyByteBuffer, int keyOffset, int level) {
-		return SkipListUtils.findPredecessor(keyByteBuffer, keyOffset, level, levelIndexHeader, spaceAllocator);
+	private long findPredecessor(MemorySegment keySegment, int keyOffset, int level) {
+		return SkipListUtils.findPredecessor(keySegment, keyOffset, level, levelIndexHeader, spaceAllocator);
 	}
 
 	/**
-	 * Compare the first skip list key in the given byte buffer with the second skip list key in the given node.
+	 * Compare the first skip list key in the given memory segment with the second skip list key in the given node.
 	 *
-	 * @param keyByteBuffer byte buffer storing the first key.
-	 * @param keyOffset     offset of the first key in byte buffer.
+	 * @param keySegment    memory segment storing the first key.
+	 * @param keyOffset     offset of the first key in memory segment.
 	 * @param keyLen        length of the first key.
 	 * @param targetNode    the node storing the second key.
 	 * @return Returns a negative integer, zero, or a positive integer as the first key is less than,
 	 * equal to, or greater than the second.
 	 */
-	private int compareByteBufferAndNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen, long targetNode) {
-		return SkipListUtils.compareByteBufferAndNode(keyByteBuffer, keyOffset, targetNode, spaceAllocator);
+	private int compareSegmentAndNode(MemorySegment keySegment, int keyOffset, int keyLen, long targetNode) {
+		return SkipListUtils.compareSegmentAndNode(keySegment, keyOffset, targetNode, spaceAllocator);
 	}
 
 	/**
-	 * Compare the first namespace in the given byte buffer with the second namespace in the given node.
+	 * Compare the first namespace in the given memory segment with the second namespace in the given node.
 	 *
-	 * @param namespaceByteBuffer byte buffer storing the first namespace.
-	 * @param namespaceOffset     offset of the first namespace in byte buffer.
+	 * @param namespaceSegment    memory segment storing the first namespace.
+	 * @param namespaceOffset     offset of the first namespace in memory segment.
 	 * @param namespaceLen        length of the first namespace.
 	 * @param targetNode          the node storing the second namespace.
 	 * @return Returns a negative integer, zero, or a positive integer as the first key is less than,
 	 * equal to, or greater than the second.
 	 */
-	private int compareNamespaceAndNode(ByteBuffer namespaceByteBuffer, int namespaceOffset, int namespaceLen, long targetNode) {
-		Node nodeStorage = getNodeByteBufferAndOffset(targetNode);
-		ByteBuffer targetKeyByteBuffer = nodeStorage.nodeByteBuffer;
-		int offsetInByteBuffer = nodeStorage.nodeOffset;
+	private int compareNamespaceAndNode(MemorySegment namespaceSegment, int namespaceOffset, int namespaceLen, long targetNode) {
+		Node nodeStorage = getNodeSegmentAndOffset(targetNode);
+		MemorySegment targetSegment = nodeStorage.nodeSegment;
+		int offsetInSegment = nodeStorage.nodeOffset;
 
-		int level = SkipListUtils.getLevel(targetKeyByteBuffer, offsetInByteBuffer);
-		int targetKeyOffset = offsetInByteBuffer + SkipListUtils.getKeyDataOffset(level);
+		int level = SkipListUtils.getLevel(targetSegment, offsetInSegment);
+		int targetKeyOffset = offsetInSegment + SkipListUtils.getKeyDataOffset(level);
 
-		return SkipListKeyComparator.compareNamespaceAndNode(namespaceByteBuffer, namespaceOffset, namespaceLen,
-			targetKeyByteBuffer, targetKeyOffset);
+		return SkipListKeyComparator.compareNamespaceAndNode(namespaceSegment, namespaceOffset, namespaceLen,
+			targetSegment, targetKeyOffset);
 	}
 
 	/**
@@ -594,16 +594,16 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int totalValueLen = SkipListUtils.getValueMetaLen() + valueSize;
 		long valuePointer = allocateSpace(totalValueLen);
 
-		Node nodeStorage = getNodeByteBufferAndOffset(node);
-		ByteBuffer nodeByteBuffer = nodeStorage.nodeByteBuffer;
-		int offsetInNodeByteBuffer = nodeStorage.nodeOffset;
-		long oldValuePointer = SkipListUtils.getValuePointer(nodeByteBuffer, offsetInNodeByteBuffer);
+		Node nodeStorage = getNodeSegmentAndOffset(node);
+		MemorySegment nodeSegment = nodeStorage.nodeSegment;
+		int offsetInNodeSegment = nodeStorage.nodeOffset;
+		long oldValuePointer = SkipListUtils.getValuePointer(nodeSegment, offsetInNodeSegment);
 
 		doWriteValue(valuePointer, value, stateMapVersion, node, oldValuePointer);
 
 		// update value pointer in node after the new value has points the older value so that
 		// old value can be accessed concurrently
-		SkipListUtils.putValuePointer(nodeByteBuffer, offsetInNodeByteBuffer, valuePointer);
+		SkipListUtils.putValuePointer(nodeSegment, offsetInNodeSegment, valuePointer);
 
 		return oldValuePointer;
 	}
@@ -623,18 +623,18 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int totalValueLen = SkipListUtils.getValueMetaLen() + valueSize;
 		long valuePointer = allocateSpace(totalValueLen);
 
-		Node nodeStorage = getNodeByteBufferAndOffset(node);
-		ByteBuffer nodeByteBuffer = nodeStorage.nodeByteBuffer;
-		int offsetInNodeByteBuffer = nodeStorage.nodeOffset;
+		Node nodeStorage = getNodeSegmentAndOffset(node);
+		MemorySegment nodeSegment = nodeStorage.nodeSegment;
+		int offsetInNodeSegment = nodeStorage.nodeOffset;
 
-		long oldValuePointer = SkipListUtils.getValuePointer(nodeByteBuffer, offsetInNodeByteBuffer);
+		long oldValuePointer = SkipListUtils.getValuePointer(nodeSegment, offsetInNodeSegment);
 		long nextValuePointer = SkipListUtils.helpGetNextValuePointer(oldValuePointer, spaceAllocator);
 
 		doWriteValue(valuePointer, value, stateMapVersion, node, nextValuePointer);
 
 		// update value pointer in node after the new value has points the older value so that
 		// old value can be accessed concurrently
-		SkipListUtils.putValuePointer(nodeByteBuffer, offsetInNodeByteBuffer, valuePointer);
+		SkipListUtils.putValuePointer(nodeSegment, offsetInNodeSegment, valuePointer);
 
 		return oldValuePointer;
 	}
@@ -736,8 +736,8 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 *
 	 * @param node          the node for the key to write.
 	 * @param level         level of this node.
-	 * @param keyByteBuffer byte buffer storing the key.
-	 * @param keyOffset     offset of key in byte buffer.
+	 * @param keySegment    memory segment storing the key.
+	 * @param keyOffset     offset of key in memory segment.
 	 * @param keyLen        length of the key.
 	 * @param valuePointer  pointer to value.
 	 * @param nextNode      next node on level 0.
@@ -745,20 +745,20 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	private void doWriteKey(
 		long node,
 		int level,
-		ByteBuffer keyByteBuffer,
+		MemorySegment keySegment,
 		int keyOffset,
 		int keyLen,
 		long valuePointer,
 		long nextNode) {
-		Node nodeStorage = getNodeByteBufferAndOffset(node);
-		ByteBuffer bb = nodeStorage.nodeByteBuffer;
-		int offsetInByteBuffer = nodeStorage.nodeOffset;
+		Node nodeStorage = getNodeSegmentAndOffset(node);
+		MemorySegment segment = nodeStorage.nodeSegment;
+		int offsetInSegment = nodeStorage.nodeOffset;
 
-		SkipListUtils.putLevelAndNodeStatus(bb, offsetInByteBuffer, level, NodeStatus.PUT);
-		SkipListUtils.putKeyLen(bb, offsetInByteBuffer, keyLen);
-		SkipListUtils.putValuePointer(bb, offsetInByteBuffer, valuePointer);
-		SkipListUtils.putNextKeyPointer(bb, offsetInByteBuffer, nextNode);
-		SkipListUtils.putKeyData(bb, offsetInByteBuffer, keyByteBuffer, keyOffset, keyLen, level);
+		SkipListUtils.putLevelAndNodeStatus(segment, offsetInSegment, level, NodeStatus.PUT);
+		SkipListUtils.putKeyLen(segment, offsetInSegment, keyLen);
+		SkipListUtils.putValuePointer(segment, offsetInSegment, valuePointer);
+		SkipListUtils.putNextKeyPointer(segment, offsetInSegment, nextNode);
+		SkipListUtils.putKeyData(segment, offsetInSegment, keySegment, keyOffset, keyLen, level);
 	}
 
 	/**
@@ -776,29 +776,29 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int version,
 		long keyPointer,
 		long nextValuePointer) {
-		Node node = getNodeByteBufferAndOffset(valuePointer);
-		ByteBuffer bb = node.nodeByteBuffer;
-		int offsetInByteBuffer = node.nodeOffset;
+		Node node = getNodeSegmentAndOffset(valuePointer);
+		MemorySegment segment = node.nodeSegment;
+		int offsetInSegment = node.nodeOffset;
 
-		SkipListUtils.putValueVersion(bb, offsetInByteBuffer, version);
-		SkipListUtils.putKeyPointer(bb, offsetInByteBuffer, keyPointer);
-		SkipListUtils.putNextValuePointer(bb, offsetInByteBuffer, nextValuePointer);
-		SkipListUtils.putValueLen(bb, offsetInByteBuffer, value == null ? 0 : value.length);
+		SkipListUtils.putValueVersion(segment, offsetInSegment, version);
+		SkipListUtils.putKeyPointer(segment, offsetInSegment, keyPointer);
+		SkipListUtils.putNextValuePointer(segment, offsetInSegment, nextValuePointer);
+		SkipListUtils.putValueLen(segment, offsetInSegment, value == null ? 0 : value.length);
 		if (value != null) {
-			SkipListUtils.putValueData(bb, offsetInByteBuffer, value);
+			SkipListUtils.putValueData(segment, offsetInSegment, value);
 		}
 	}
 
 	/**
 	 * Find the first node with the given namespace at level 0.
 	 *
-	 * @param namespaceByteBuffer byte buffer storing the namespace.
+	 * @param namespaceSegment memory segment storing the namespace.
 	 * @param namespaceOffset     offset of the namespace.
 	 * @param namespaceLen        length of the namespace.
 	 * @return the first node with the given namespace.
 	 *  NIL_NODE will be returned if not exist.
 	 */
-	private long getFirstNodeWithNamespace(ByteBuffer namespaceByteBuffer, int namespaceOffset, int namespaceLen) {
+	private long getFirstNodeWithNamespace(MemorySegment namespaceSegment, int namespaceOffset, int namespaceLen) {
 		int currentLevel = levelIndexHeader.getLevel();
 		long prevNode = HEAD_NODE;
 		long currentNode = helpGetNextNode(prevNode, currentLevel);
@@ -807,7 +807,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		// find the predecessor node at level 0.
 		for ( ; ; ) {
 			if (currentNode != NIL_NODE) {
-				c = compareNamespaceAndNode(namespaceByteBuffer, namespaceOffset, namespaceLen, currentNode);
+				c = compareNamespaceAndNode(namespaceSegment, namespaceOffset, namespaceLen, currentNode);
 				if (c > 0) {
 					prevNode = currentNode;
 					currentNode = helpGetNextNode(prevNode, currentLevel);
@@ -829,7 +829,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 				continue;
 			}
 
-			c = compareNamespaceAndNode(namespaceByteBuffer, namespaceOffset, namespaceLen, currentNode);
+			c = compareNamespaceAndNode(namespaceSegment, namespaceOffset, namespaceLen, currentNode);
 			if (c == 0) {
 				return currentNode;
 			}
@@ -982,22 +982,22 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return id of the node. NIL_NODE will be returned if key does no exist.
 	 */
 	private S getNodeInternal(K key, N namespace) {
-		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
-		int keyLen = keyByteBuffer.limit();
+		MemorySegment keySegment = getKeySegment(key, namespace);
+		int keyLen = keySegment.size();
 
-		return getNode(keyByteBuffer, 0, keyLen);
+		return getNode(keySegment, 0, keyLen);
 	}
 
 	/**
-	 * Get the {@link ByteBuffer} wrapping up the serialized key bytes.
+	 * Get the {@link MemorySegment} wrapping up the serialized key bytes.
 	 *
 	 * @param key       the key.
 	 * @param namespace the namespace.
-	 * @return the {@link ByteBuffer} wrapping up the serialized key bytes.
+	 * @return the {@link MemorySegment} wrapping up the serialized key bytes.
 	 */
-	private ByteBuffer getKeyByteBuffer(K key, N namespace) {
+	private MemorySegment getKeySegment(K key, N namespace) {
 		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		return ByteBuffer.wrap(keyBytes);
+		return MemorySegmentFactory.wrap(keyBytes);
 	}
 
 	// Help methods ---------------------------------------------------------------
@@ -1034,13 +1034,13 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Set node status to the given new status, and return old status.
 	 */
 	private NodeStatus helpSetNodeStatus(long node, NodeStatus newStatus) {
-		Node nodeStorage = getNodeByteBufferAndOffset(node);
-		ByteBuffer bb = nodeStorage.nodeByteBuffer;
-		int offsetInByteBuffer = nodeStorage.nodeOffset;
-		NodeStatus oldStatus = SkipListUtils.getNodeStatus(bb, offsetInByteBuffer);
+		Node nodeStorage = getNodeSegmentAndOffset(node);
+		MemorySegment segment = nodeStorage.nodeSegment;
+		int offsetInSegment = nodeStorage.nodeOffset;
+		NodeStatus oldStatus = SkipListUtils.getNodeStatus(segment, offsetInSegment);
 		if (oldStatus != newStatus) {
-			int level = SkipListUtils.getLevel(bb, offsetInByteBuffer);
-			SkipListUtils.putLevelAndNodeStatus(bb, offsetInByteBuffer, level, newStatus);
+			int level = SkipListUtils.getLevel(segment, offsetInSegment);
+			SkipListUtils.putLevelAndNodeStatus(segment, offsetInSegment, level, newStatus);
 		}
 
 		return oldStatus;
@@ -1050,10 +1050,10 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Return the state of the node. null will be returned if the node is removed.
 	 */
 	private S getNodeStateHelper(long node) {
-		Node nodeStorage = getNodeByteBufferAndOffset(node);
-		ByteBuffer byteBuffer = nodeStorage.nodeByteBuffer;
-		int offsetInByteBuffer = nodeStorage.nodeOffset;
-		long valuePointer = SkipListUtils.getValuePointer(byteBuffer, offsetInByteBuffer);
+		Node nodeStorage = getNodeSegmentAndOffset(node);
+		MemorySegment segment = nodeStorage.nodeSegment;
+		int offsetInSegment = nodeStorage.nodeOffset;
+		long valuePointer = SkipListUtils.getValuePointer(segment, offsetInSegment);
 
 		return helpGetState(valuePointer);
 	}
@@ -1065,14 +1065,14 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return a tuple of byte arrays of serialized key and namespace
 	 */
 	Tuple2<byte[], byte[]> helpGetBytesForKeyAndNamespace(long node) {
-		Node nodeStorage = getNodeByteBufferAndOffset(node);
-		ByteBuffer byteBuffer = nodeStorage.nodeByteBuffer;
-		int offsetInByteBuffer = nodeStorage.nodeOffset;
+		Node nodeStorage = getNodeSegmentAndOffset(node);
+		MemorySegment segment = nodeStorage.nodeSegment;
+		int offsetInSegment = nodeStorage.nodeOffset;
 
-		int level = SkipListUtils.getLevel(byteBuffer, offsetInByteBuffer);
-		int keyDataOffset = offsetInByteBuffer + SkipListUtils.getKeyDataOffset(level);
+		int level = SkipListUtils.getLevel(segment, offsetInSegment);
+		int keyDataOffset = offsetInSegment + SkipListUtils.getKeyDataOffset(level);
 
-		return skipListKeySerializer.getSerializedKeyAndNamespace(byteBuffer, keyDataOffset);
+		return skipListKeySerializer.getSerializedKeyAndNamespace(segment, keyDataOffset);
 	}
 
 	/**
@@ -1082,31 +1082,30 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return byte array of serialized value.
 	 */
 	byte[] helpGetBytesForState(long valuePointer) {
-		Node node = getNodeByteBufferAndOffset(valuePointer);
-		ByteBuffer bb = node.nodeByteBuffer;
-		int offsetInByteBuffer = node.nodeOffset;
+		Node node = getNodeSegmentAndOffset(valuePointer);
+		MemorySegment segment = node.nodeSegment;
+		int offsetInSegment = node.nodeOffset;
 
-		int valueLen = SkipListUtils.getValueLen(bb, offsetInByteBuffer);
-		byte[] valueBytes = new byte[valueLen];
-		ByteBufferUtils.copyFromBufferToArray(bb, offsetInByteBuffer + SkipListUtils.getValueMetaLen(), valueBytes,
-			0, valueLen);
+		int valueLen = SkipListUtils.getValueLen(segment, offsetInSegment);
+		MemorySegment valueSegment = MemorySegmentFactory.allocateUnpooledSegment(valueLen);
+		segment.copyTo(offsetInSegment + SkipListUtils.getValueMetaLen(), valueSegment, 0 , valueLen);
 
-		return valueBytes;
+		return valueSegment.getArray();
 	}
 
 	/**
 	 * Returns the key of the node.
 	 */
 	private K helpGetKey(long node) {
-		Node nodeStorage = getNodeByteBufferAndOffset(node);
-		ByteBuffer byteBuffer = nodeStorage.nodeByteBuffer;
-		int offsetInByteBuffer = nodeStorage.nodeOffset;
+		Node nodeStorage = getNodeSegmentAndOffset(node);
+		MemorySegment segment = nodeStorage.nodeSegment;
+		int offsetInSegment = nodeStorage.nodeOffset;
 
-		int level = SkipListUtils.getLevel(byteBuffer, offsetInByteBuffer);
-		int keyDataLen = SkipListUtils.getKeyLen(byteBuffer, offsetInByteBuffer);
-		int keyDataOffset = offsetInByteBuffer + SkipListUtils.getKeyDataOffset(level);
+		int level = SkipListUtils.getLevel(segment, offsetInSegment);
+		int keyDataLen = SkipListUtils.getKeyLen(segment, offsetInSegment);
+		int keyDataOffset = offsetInSegment + SkipListUtils.getKeyDataOffset(level);
 
-		return skipListKeySerializer.deserializeKey(byteBuffer, keyDataOffset, keyDataLen);
+		return skipListKeySerializer.deserializeKey(segment, keyDataOffset, keyDataLen);
 	}
 
 	/**
@@ -1118,18 +1117,18 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			return null;
 		}
 
-		Node node = getNodeByteBufferAndOffset(valuePointer);
-		ByteBuffer bb = node.nodeByteBuffer;
-		int offsetInByteBuffer = node.nodeOffset;
+		Node node = getNodeSegmentAndOffset(valuePointer);
+		MemorySegment segment = node.nodeSegment;
+		int offsetInSegment = node.nodeOffset;
 
-		int valueLen = SkipListUtils.getValueLen(bb, offsetInByteBuffer);
+		int valueLen = SkipListUtils.getValueLen(segment, offsetInSegment);
 		if (valueLen == 0) {
 			// it is a removed key
 			return null;
 		}
 
-		return serializer.deserializeState(bb,
-			offsetInByteBuffer + SkipListUtils.getValueMetaLen(), valueLen);
+		return serializer.deserializeState(segment,
+			offsetInSegment + SkipListUtils.getValueMetaLen(), valueLen);
 	}
 
 	/**
@@ -1145,17 +1144,17 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Returns the state entry of the node.
 	 */
 	private StateEntry<K, N, S> helpGetStateEntry(long node) {
-		Node nodeStorage = getNodeByteBufferAndOffset(node);
-		ByteBuffer byteBuffer = nodeStorage.nodeByteBuffer;
-		int offsetInByteBuffer = nodeStorage.nodeOffset;
+		Node nodeStorage = getNodeSegmentAndOffset(node);
+		MemorySegment segment = nodeStorage.nodeSegment;
+		int offsetInSegment = nodeStorage.nodeOffset;
 
-		int level = SkipListUtils.getLevel(byteBuffer, offsetInByteBuffer);
-		int keyDataLen = SkipListUtils.getKeyLen(byteBuffer, offsetInByteBuffer);
-		int keyDataOffset = offsetInByteBuffer + SkipListUtils.getKeyDataOffset(level);
+		int level = SkipListUtils.getLevel(segment, offsetInSegment);
+		int keyDataLen = SkipListUtils.getKeyLen(segment, offsetInSegment);
+		int keyDataOffset = offsetInSegment + SkipListUtils.getKeyDataOffset(level);
 
-		K key = skipListKeySerializer.deserializeKey(byteBuffer, keyDataOffset, keyDataLen);
-		N namespace = skipListKeySerializer.deserializeNamespace(byteBuffer, keyDataOffset, keyDataLen);
-		long valuePointer = SkipListUtils.getValuePointer(byteBuffer, offsetInByteBuffer);
+		K key = skipListKeySerializer.deserializeKey(segment, keyDataOffset, keyDataLen);
+		N namespace = skipListKeySerializer.deserializeNamespace(segment, keyDataOffset, keyDataLen);
+		long valuePointer = SkipListUtils.getValuePointer(segment, offsetInSegment);
 		S state = helpGetState(valuePointer);
 
 		return new StateEntry.SimpleStateEntry<>(key, namespace, state);
@@ -1167,8 +1166,8 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	public Stream<K> getKeys(N namespace) {
 		updateStat();
 		byte[] namespaceBytes = skipListKeySerializer.serializeNamespace(namespace);
-		ByteBuffer namespaceByteBuffer = ByteBuffer.wrap(namespaceBytes);
-		Iterator<Long> nodeIter = new NamespaceNodeIterator(namespaceByteBuffer, 0, namespaceBytes.length);
+		MemorySegment namespaceSegment = MemorySegmentFactory.wrap(namespaceBytes);
+		Iterator<Long> nodeIter = new NamespaceNodeIterator(namespaceSegment, 0, namespaceBytes.length);
 		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(nodeIter, 0), false)
 			.map(this::helpGetKey);
 	}
@@ -1178,8 +1177,8 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	public int sizeOfNamespace(Object namespace) {
 		updateStat();
 		byte[] namespaceBytes = skipListKeySerializer.serializeNamespace((N) namespace);
-		ByteBuffer namespaceByteBuffer = ByteBuffer.wrap(namespaceBytes);
-		Iterator<Long> nodeIter = new NamespaceNodeIterator(namespaceByteBuffer, 0, namespaceBytes.length);
+		MemorySegment namespaceSegment = MemorySegmentFactory.wrap(namespaceBytes);
+		Iterator<Long> nodeIter = new NamespaceNodeIterator(namespaceSegment, 0, namespaceBytes.length);
 		int size = 0;
 		while (nodeIter.hasNext()) {
 			nodeIter.next();
@@ -1347,12 +1346,12 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		}
 	}
 
-	private Node getNodeByteBufferAndOffset(long node) {
+	private Node getNodeSegmentAndOffset(long node) {
 		Chunk nodeChunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInNodeChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer nodeByteBuffer = nodeChunk.getByteBuffer(offsetInNodeChunk);
-		int offsetInNodeByteBuffer = nodeChunk.getOffsetInByteBuffer(offsetInNodeChunk);
-		return new Node(nodeByteBuffer, offsetInNodeByteBuffer);
+		MemorySegment nodeSegment = nodeChunk.getMemorySegment(offsetInNodeChunk);
+		int offsetInNodeSegment = nodeChunk.getOffsetInSegment(offsetInNodeChunk);
+		return new Node(nodeSegment, offsetInNodeSegment);
 	}
 
 	/**
@@ -1360,16 +1359,16 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 */
 	class NamespaceNodeIterator implements Iterator<Long> {
 
-		private final ByteBuffer namespaceByteBuffer;
+		private final MemorySegment namespaceSegment;
 		private final int namespaceOffset;
 		private final int namespaceLen;
 		private long nextNode;
 
-		NamespaceNodeIterator(ByteBuffer namespaceByteBuffer, int namespaceOffset, int namespaceLen) {
-			this.namespaceByteBuffer = namespaceByteBuffer;
+		NamespaceNodeIterator(MemorySegment namespaceSegment, int namespaceOffset, int namespaceLen) {
+			this.namespaceSegment = namespaceSegment;
 			this.namespaceOffset = namespaceOffset;
 			this.namespaceLen = namespaceLen;
-			this.nextNode = getFirstNodeWithNamespace(namespaceByteBuffer, namespaceOffset, namespaceLen);
+			this.nextNode = getFirstNodeWithNamespace(namespaceSegment, namespaceOffset, namespaceLen);
 		}
 
 		private long getNextNode(long node) {
@@ -1379,7 +1378,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			}
 
 			if (n != NIL_NODE &&
-				compareNamespaceAndNode(namespaceByteBuffer, namespaceOffset, namespaceLen, n) == 0) {
+				compareNamespaceAndNode(namespaceSegment, namespaceOffset, namespaceLen, n) == 0) {
 				return n;
 			}
 
@@ -1407,7 +1406,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	class StateIncrementalVisitor implements InternalKvState.StateIncrementalVisitor<K, N , S> {
 
 		private final int recommendedMaxNumberOfReturnedRecords;
-		private ByteBuffer nextKeyByteBuffer;
+		private MemorySegment nextKeySegment;
 		private int nextKeyOffset;
 		private final Collection<StateEntry<K, N, S>> entryToReturn = new ArrayList<>(5);
 
@@ -1419,12 +1418,12 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		private void init() {
 			long node = getNextNode(HEAD_NODE);
 			if (node != NIL_NODE) {
-				setKeyByteBuffer(node);
+				setKeySegment(node);
 			}
 		}
 
-		private long findNextNode(ByteBuffer byteBuffer, int offset) {
-			long node = findPredecessor(byteBuffer, offset, 0);
+		private long findNextNode(MemorySegment segment, int offset) {
+			long node = findPredecessor(segment, offset, 0);
 			return getNextNode(node);
 		}
 
@@ -1437,29 +1436,29 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			return n;
 		}
 
-		private void updateNextKeyByteBuffer(long node) {
+		private void updateNextKeySegment(long node) {
 			if (node != NIL_NODE) {
 				node = getNextNode(node);
 				if (node != NIL_NODE) {
-					setKeyByteBuffer(node);
+					setKeySegment(node);
 					return;
 				}
 			}
-			nextKeyByteBuffer = null;
+			nextKeySegment = null;
 		}
 
-		private void setKeyByteBuffer(long node) {
-			Node nodeStorage = getNodeByteBufferAndOffset(node);
-			ByteBuffer bb = nodeStorage.nodeByteBuffer;
-			int offsetInByteBuffer = nodeStorage.nodeOffset;
+		private void setKeySegment(long node) {
+			Node nodeStorage = getNodeSegmentAndOffset(node);
+			MemorySegment segment = nodeStorage.nodeSegment;
+			int offsetInSegment = nodeStorage.nodeOffset;
 
-			int level = SkipListUtils.getLevel(bb, offsetInByteBuffer);
-			int keyLen = SkipListUtils.getKeyLen(bb, offsetInByteBuffer);
-			int keyDataOffset = offsetInByteBuffer + SkipListUtils.getKeyDataOffset(level);
+			int level = SkipListUtils.getLevel(segment, offsetInSegment);
+			int keyLen = SkipListUtils.getKeyLen(segment, offsetInSegment);
+			int keyDataOffset = offsetInSegment + SkipListUtils.getKeyDataOffset(level);
 
-			ByteBuffer byteBuffer = ByteBuffer.allocate(keyLen);
-			ByteBufferUtils.copyFromBufferToBuffer(bb, keyDataOffset, byteBuffer, 0, keyLen);
-			nextKeyByteBuffer = byteBuffer;
+			MemorySegment nextKeySegment = MemorySegmentFactory.allocateUnpooledSegment(keyLen);
+			segment.copyTo(keyDataOffset, nextKeySegment, 0, keyLen);
+			this.nextKeySegment = nextKeySegment;
 			nextKeyOffset = 0;
 		}
 
@@ -1467,19 +1466,19 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		public boolean hasNext() {
 			// visitor may be held by the external for a long time, and the map
 			// can be closed between two nextEntries(), so check the status of map
-			return !isClosed() && nextKeyByteBuffer != null &&
-				findNextNode(nextKeyByteBuffer, nextKeyOffset) != NIL_NODE;
+			return !isClosed() && nextKeySegment != null &&
+				findNextNode(nextKeySegment, nextKeyOffset) != NIL_NODE;
 		}
 
 		@Override
 		public Collection<StateEntry<K, N, S>> nextEntries() {
-			if (nextKeyByteBuffer == null) {
+			if (nextKeySegment == null) {
 				return Collections.emptyList();
 			}
 
-			long node = findNextNode(nextKeyByteBuffer, nextKeyOffset);
+			long node = findNextNode(nextKeySegment, nextKeyOffset);
 			if (node == NIL_NODE) {
-				nextKeyByteBuffer = null;
+				nextKeySegment = null;
 				return Collections.emptyList();
 			}
 
@@ -1495,7 +1494,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 				n++;
 			}
 
-			updateNextKeyByteBuffer(node);
+			updateNextKeySegment(node);
 
 			return entryToReturn;
 		}
@@ -1572,10 +1571,10 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Encapsulation of the storage of the node.
 	 */
 	private class Node {
-		ByteBuffer nodeByteBuffer;
+		MemorySegment nodeSegment;
 		int nodeOffset;
-		Node(ByteBuffer nodeByteBuffer, int nodeOffset) {
-			this.nodeByteBuffer = nodeByteBuffer;
+		Node(MemorySegment nodeSegment, int nodeOffset) {
+			this.nodeSegment = nodeSegment;
 			this.nodeOffset = nodeOffset;
 		}
 	}
