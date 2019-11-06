@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.utils;
+package org.apache.flink.ml.operator.common.dataproc;
 
 import org.apache.commons.math3.complex.Complex;
 import org.junit.Test;
