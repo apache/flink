@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.sources
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
@@ -33,6 +33,7 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTyp
 import org.apache.flink.table.sources.{DefinedFieldMapping, DefinedProctimeAttribute, DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
 import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -136,18 +137,22 @@ object TableSourceUtil {
   /**
     * Returns schema of the selected fields of the given [[TableSource]].
     *
-    * @param tableSource The [[TableSource]] for which the Calcite schema is generated.
+    * @param tableSchema    The [[TableSchema]] to derive the names and data types.
+    *                       This table schema should include all the columns, say,
+    *                       computed columns should also be included.
+    * @param tableSource    The [[TableSource]] to derive time attributes.
     * @param selectedFields The indices of all selected fields. None, if all fields are selected.
-    * @param streaming Flag to determine whether the schema of a stream or batch table is created.
+    * @param streaming      Flag to determine whether the schema of a stream or batch table is created.
     * @return The schema for the selected fields of the given [[TableSource]].
     */
-  def getFieldNamesTypes(
+  def getFieldNameType(
+      tableSchema: TableSchema,
       tableSource: TableSource[_],
       selectedFields: Option[Array[Int]],
       streaming: Boolean): (Seq[String], Seq[LogicalType]) = {
 
-    val fieldNames = tableSource.getTableSchema.getFieldNames
-    var fieldTypes = tableSource.getTableSchema.getFieldDataTypes
+    val fieldNames = tableSchema.getFieldNames
+    var fieldTypes = tableSchema.getFieldDataTypes
       .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
 
     if (streaming) {

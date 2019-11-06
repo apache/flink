@@ -47,18 +47,19 @@ class FlinkRelOptUtilTest {
     val result = tableEnv.sqlQuery(sqlQuery)
     val rel = TableTestUtil.toRelNode(result)
 
+    // Ignore the attributes because the data stream table name is random.
     val expected1 =
       """
-        |LogicalProject(a=[$0], c=[$1], a0=[$2], c0=[$3])
-        |+- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
-        |   :- LogicalProject(a=[$0], c=[$2])
-        |   :  +- LogicalFilter(condition=[>($1, 50)])
-        |   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-        |   +- LogicalProject(a=[*($0, 2)], c=[$2])
-        |      +- LogicalFilter(condition=[<($1, 50)])
-        |         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+        |LogicalProject
+        |+- LogicalJoin
+        |   :- LogicalProject
+        |   :  +- LogicalFilter
+        |   :     +- LogicalTableScan
+        |   +- LogicalProject
+        |      +- LogicalFilter
+        |         +- LogicalTableScan
       """.stripMargin
-    assertEquals(expected1.trim, FlinkRelOptUtil.toString(rel).trim)
+    assertEquals(expected1.trim, FlinkRelOptUtil.toString(rel, SqlExplainLevel.NO_ATTRIBUTES).trim)
 
     val expected2 =
       """

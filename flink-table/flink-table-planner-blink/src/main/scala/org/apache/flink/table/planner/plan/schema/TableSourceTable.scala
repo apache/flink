@@ -75,7 +75,8 @@ class TableSourceTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val factory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    val (fieldNames, fieldTypes) = TableSourceUtil.getFieldNamesTypes(
+    val (fieldNames, fieldTypes) = TableSourceUtil.getFieldNameType(
+      catalogTable.getSchema,
       tableSource,
       selectedFields,
       streaming = isStreamingMode)

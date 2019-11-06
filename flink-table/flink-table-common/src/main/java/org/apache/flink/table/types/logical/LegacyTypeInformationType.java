@@ -50,7 +50,14 @@ public final class LegacyTypeInformationType<T> extends LogicalType {
 	private final TypeInformation<T> typeInfo;
 
 	public LegacyTypeInformationType(LogicalTypeRoot logicalTypeRoot, TypeInformation<T> typeInfo) {
-		super(true, logicalTypeRoot);
+		this(true, logicalTypeRoot, typeInfo);
+	}
+
+	public LegacyTypeInformationType(
+			boolean nullable,
+			LogicalTypeRoot logicalTypeRoot,
+			TypeInformation<T> typeInfo) {
+		super(nullable, logicalTypeRoot);
 		this.typeInfo = Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
 	}
 
@@ -60,7 +67,7 @@ public final class LegacyTypeInformationType<T> extends LogicalType {
 
 	@Override
 	public LogicalType copy(boolean isNullable) {
-		return new LegacyTypeInformationType<>(getTypeRoot(), typeInfo);
+		return new LegacyTypeInformationType<>(isNullable, getTypeRoot(), typeInfo);
 	}
 
 	@Override

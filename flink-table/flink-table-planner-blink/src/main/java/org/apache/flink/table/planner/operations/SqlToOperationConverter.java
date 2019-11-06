@@ -201,30 +201,44 @@ public class SqlToOperationConverter {
 	 *
 	 * <p>The returned table schema contains columns (a:int, b:varchar, c:timestamp).
 	 *
-	 * @param sqlCreateTable sql create table node.
+	 * @param sqlCreateTable sql create table node
 	 * @return TableSchema
 	 */
 	private TableSchema createTableSchema(SqlCreateTable sqlCreateTable) {
-		if (sqlCreateTable.containsComputedColumn()) {
-			throw new SqlConversionException("Computed columns for DDL is not supported yet!");
-		}
-		TableSchema.Builder builder = new TableSchema.Builder();
-		SqlValidator validator = flinkPlanner.getOrCreateSqlValidator();
-		// setup table columns
+		// Setup table columns.
 		SqlNodeList columnList = sqlCreateTable.getColumnList();
-		Map<String, RelDataType> nameToTypeMap = new HashMap<>();
+		// Collect the physical fields info first.
+		Map<String, RelDataType> nameToType = new HashMap<>();
+		final SqlValidator validator = flinkPlanner.getOrCreateSqlValidator();
 		for (SqlNode node : columnList.getList()) {
 			if (node instanceof SqlTableColumn) {
 				SqlTableColumn column = (SqlTableColumn) node;
 				RelDataType relType = column.getType()
 					.deriveType(validator, column.getType().getNullable());
 				String name = column.getName().getSimple();
-				nameToTypeMap.put(name, relType);
-				DataType dataType = TypeConversions.fromLogicalToDataType(
-					FlinkTypeFactory.toLogicalType(relType));
-				builder.field(name, dataType);
-			} else if (node instanceof SqlBasicCall) {
-				// TODO: computed column ...
+				nameToType.put(name, relType);
+			}
+		}
+		final TableSchema.Builder builder = new TableSchema.Builder();
+		// Build the table schema.
+		for (SqlNode node : columnList) {
+			if (node instanceof SqlTableColumn) {
+				SqlTableColumn column = (SqlTableColumn) node;
+				final String fieldName = column.getName().getSimple();
+				assert nameToType.containsKey(fieldName);
+				builder.field(fieldName,
+					TypeConversions.fromLogicalToDataType(
+						FlinkTypeFactory.toLogicalType(nameToType.get(fieldName))));
+			} else {
+				assert node.getKind() == SqlKind.AS;
+				SqlBasicCall call = (SqlBasicCall) node;
+				SqlNode validatedExpr = validator
+					.validateParameterizedExpression(call.operand(0), nameToType);
+				final RelDataType validatedType = validator.getValidatedNodeType(validatedExpr);
+				builder.field(call.operand(1).toString(),
+					TypeConversions.fromLogicalToDataType(
+						FlinkTypeFactory.toLogicalType(validatedType)),
+					validatedExpr.toString());
 			}
 		}
 
@@ -233,7 +247,7 @@ public class SqlToOperationConverter {
 			String rowtimeAttribute = watermark.getEventTimeColumnName().toString();
 			SqlNode expression = watermark.getWatermarkStrategy();
 			// this will validate and expand function identifiers.
-			SqlNode validated = validator.validateParameterizedExpression(expression, nameToTypeMap);
+			SqlNode validated = validator.validateParameterizedExpression(expression, nameToType);
 			RelDataType validatedType = validator.getValidatedNodeType(validated);
 			DataType exprDataType = TypeConversions.fromLogicalToDataType(
 				FlinkTypeFactory.toLogicalType(validatedType));

@@ -1130,11 +1130,25 @@ object TableTestUtil {
     }).getOrElse(FieldInfoUtils.getFieldsInfo(streamType))
 
     val fieldCnt = typeInfoSchema.getFieldTypes.length
+    // Fix nullable attribute.
+    var tableSchema = typeInfoSchema.toTableSchema
+    val fixedNullables = fieldNullables.getOrElse(Array.fill[Boolean](fieldCnt)(true))
+    val fieldTypes = tableSchema.getFieldDataTypes
+      .zip(fixedNullables)
+      .map {
+        case(dt, nullable) =>
+          if (nullable) {
+            dt.nullable()
+          } else {
+            dt.notNull()
+          }
+    }
+    tableSchema = TableSchema.builder().fields(tableSchema.getFieldNames, fieldTypes).build()
     val dataStreamQueryOperation = new DataStreamQueryOperation(
       dataStream,
       typeInfoSchema.getIndices,
-      typeInfoSchema.toTableSchema,
-      fieldNullables.getOrElse(Array.fill(fieldCnt)(true)),
+      tableSchema,
+      fixedNullables,
       false,
       false,
       statistic.getOrElse(FlinkStatistic.UNKNOWN)

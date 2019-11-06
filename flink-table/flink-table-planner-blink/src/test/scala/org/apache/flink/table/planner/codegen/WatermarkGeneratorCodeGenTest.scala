@@ -30,8 +30,9 @@ import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
-import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
+import org.apache.calcite.plan.ConventionTraitDef
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
@@ -52,7 +53,7 @@ class WatermarkGeneratorCodeGenTest {
     functionCatalog,
     catalogManager,
     asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
-    Collections.emptyList())
+    Collections.singletonList(ConventionTraitDef.INSTANCE))
   val planner: FlinkPlannerImpl = plannerContext.createFlinkPlanner(
     catalogManager.getCurrentCatalog,
     catalogManager.getCurrentDatabase)
