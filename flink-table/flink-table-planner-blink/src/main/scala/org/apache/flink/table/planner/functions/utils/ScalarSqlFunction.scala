@@ -21,18 +21,17 @@ package org.apache.flink.table.planner.functions.utils
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.functions.{FunctionIdentifier, ScalarFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.utils.FunctionUtils.toSqlIdentifier
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getOperandType, _}
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.parser.SqlParserPos
 
 import scala.collection.JavaConverters._
 
@@ -51,10 +50,10 @@ class ScalarSqlFunction(
     typeFactory: FlinkTypeFactory,
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlFunction(
-    toSqlIdentifier(identifier),
-    returnTypeInfer.getOrElse(createReturnTypeInference(identifier, scalarFunction, typeFactory)),
-    createOperandTypeInference(identifier, scalarFunction, typeFactory),
-    createOperandTypeChecker(identifier, scalarFunction),
+    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
+    returnTypeInfer.getOrElse(createReturnTypeInference(displayName, scalarFunction, typeFactory)),
+    createOperandTypeInference(displayName, scalarFunction, typeFactory),
+    createOperandTypeChecker(displayName, scalarFunction),
     null,
     SqlFunctionCategory.USER_DEFINED_FUNCTION) {
 
@@ -73,7 +72,7 @@ class ScalarSqlFunction(
 object ScalarSqlFunction {
 
   private[flink] def createReturnTypeInference(
-      identifier: FunctionIdentifier,
+      name: String,
       scalarFunction: ScalarFunction,
       typeFactory: FlinkTypeFactory): SqlReturnTypeInference = {
     /**
@@ -102,7 +101,7 @@ object ScalarSqlFunction {
   }
 
   private[flink] def createOperandTypeInference(
-      identifier: FunctionIdentifier,
+      name: String,
       scalarFunction: ScalarFunction,
       typeFactory: FlinkTypeFactory): SqlOperandTypeInference = {
     /**
@@ -114,13 +113,13 @@ object ScalarSqlFunction {
           returnType: RelDataType,
           operandTypes: Array[RelDataType]): Unit = {
         ScalarSqlFunction.inferOperandTypes(
-          identifier, scalarFunction, typeFactory, callBinding, returnType, operandTypes)
+          name, scalarFunction, typeFactory, callBinding, returnType, operandTypes)
       }
     }
   }
 
   def inferOperandTypes(
-      identifier: FunctionIdentifier,
+      name: String,
       func: ScalarFunction,
       typeFactory: FlinkTypeFactory,
       callBinding: SqlCallBinding,
@@ -128,7 +127,7 @@ object ScalarSqlFunction {
       operandTypes: Array[RelDataType]): Unit = {
     val parameters = getOperandType(callBinding).toArray
     if (getEvalUserDefinedMethod(func, parameters).isEmpty) {
-      throwValidationException(identifier.toString, func, parameters)
+      throwValidationException(name, func, parameters)
     }
     func.getParameterTypes(getEvalMethodSignature(func, parameters))
         .map(fromTypeInfoToLogicalType)
@@ -140,7 +139,7 @@ object ScalarSqlFunction {
   }
 
   private[flink] def createOperandTypeChecker(
-      identifier: FunctionIdentifier,
+      name: String,
       scalarFunction: ScalarFunction): SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(scalarFunction, "eval")
@@ -186,7 +185,7 @@ object ScalarSqlFunction {
         if (foundMethod.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
-              s"Given parameters of function '$identifier' do not match any signature. \n" +
+              s"Given parameters of function '$name' do not match any signature. \n" +
                   s"Actual: ${signatureInternalToString(operandTypeInfo)} \n" +
                   s"Expected: ${signaturesToString(scalarFunction, "eval")}")
           } else {

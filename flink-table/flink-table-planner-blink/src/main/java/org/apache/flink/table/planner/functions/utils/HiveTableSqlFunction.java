@@ -212,9 +212,9 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 	}
 
 	public static HiveOperandTypeChecker operandTypeChecker(
-			FunctionIdentifier identifier, TableFunction udtf) {
+			String name, TableFunction udtf) {
 		return new HiveOperandTypeChecker(
-				identifier, udtf, UserDefinedFunctionUtils.checkAndExtractMethods(udtf, "eval"));
+				name, udtf, UserDefinedFunctionUtils.checkAndExtractMethods(udtf, "eval"));
 	}
 
 	/**
@@ -228,8 +228,8 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 		private LogicalType[] previousArgTypes;
 
 		private HiveOperandTypeChecker(
-				FunctionIdentifier identifier, TableFunction udtf, Method[] methods) {
-			super(identifier, udtf, methods);
+				String name, TableFunction udtf, Method[] methods) {
+			super(name, udtf, methods);
 		}
 
 		@Override

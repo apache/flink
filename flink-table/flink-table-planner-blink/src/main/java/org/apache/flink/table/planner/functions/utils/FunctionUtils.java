@@ -19,17 +19,10 @@
 package org.apache.flink.table.planner.functions.utils;
 
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.UserDefinedFunction;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.parser.SqlParserPos;
-
-import java.util.Arrays;
-import java.util.Optional;
 
 /**
  * Utils for sql functions.
@@ -46,13 +39,5 @@ public class FunctionUtils {
 	public static FunctionIdentifier toFunctionIdentifier(CallExpression call, UserDefinedFunction function) {
 		return call.getFunctionIdentifier()
 				.orElse(FunctionIdentifier.of(function.functionIdentifier()));
-	}
-
-	public static SqlIdentifier toSqlIdentifier(FunctionIdentifier fi) {
-		Optional<ObjectIdentifier> objectIdentifier = fi.getIdentifier();
-		String[] names = objectIdentifier
-				.map(id -> new String[] {id.getCatalogName(), id.getDatabaseName(), id.getObjectName()})
-				.orElseGet(() -> new String[]{fi.getSimpleName().get()});
-		return new SqlIdentifier(Arrays.asList(names), SqlParserPos.ZERO);
 	}
 }

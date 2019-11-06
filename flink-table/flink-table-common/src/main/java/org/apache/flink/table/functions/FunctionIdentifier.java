@@ -22,11 +22,15 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.util.StringUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,9 +41,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public final class FunctionIdentifier implements Serializable {
 
-	private final ObjectIdentifier objectIdentifier;
+	private static final long serialVersionUID = 1L;
 
-	private final String functionName;
+	private final @Nullable ObjectIdentifier objectIdentifier;
+
+	private final @Nullable String functionName;
 
 	public static FunctionIdentifier of(ObjectIdentifier oi){
 		return new FunctionIdentifier(oi);
@@ -51,14 +57,14 @@ public final class FunctionIdentifier implements Serializable {
 
 	private FunctionIdentifier(ObjectIdentifier objectIdentifier){
 		checkNotNull(objectIdentifier, "Object identifier cannot be null");
-		this.objectIdentifier = normalizeObjectIdentifier(objectIdentifier);
+		this.objectIdentifier = objectIdentifier;
 		this.functionName = null;
 	}
 
 	private FunctionIdentifier(String functionName){
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(functionName),
 		"function name cannot be null or empty string");
-		this.functionName = normalizeName(functionName);
+		this.functionName = functionName;
 		this.objectIdentifier = null;
 	}
 
@@ -88,18 +94,33 @@ public final class FunctionIdentifier implements Serializable {
 	}
 
 	/**
-	 * Returns a string that fully serializes this instance. The serialized string can be used for
-	 * transmitting or persisting an object identifier.
+	 * List of the component names of this function identifier.
 	 */
-	public String asSerializableString() {
+	public List<String> getNames() {
 		if (objectIdentifier != null) {
-			return String.format(
-				"%s.%s.%s",
-				escapeIdentifier(objectIdentifier.getCatalogName()),
-				escapeIdentifier(objectIdentifier.getDatabaseName()),
-				escapeIdentifier(objectIdentifier.getObjectName()));
+			return Arrays.asList(
+				objectIdentifier.getCatalogName(),
+				objectIdentifier.getDatabaseName(),
+				objectIdentifier.getObjectName());
+		} else if (functionName != null) {
+			return Collections.singletonList(functionName);
 		} else {
-			return String.format("%s", escapeIdentifier(functionName));
+			throw new IllegalStateException(
+				"functionName and objectIdentifier are both null which should never happen.");
+		}
+	}
+
+	/**
+	 * Returns a string that summarizes this instance for printing to a console or log.
+	 */
+	public String asSummaryString() {
+		if (objectIdentifier != null) {
+			return String.join(".",
+				objectIdentifier.getCatalogName(),
+				objectIdentifier.getDatabaseName(),
+				objectIdentifier.getObjectName());
+		} else {
+			return functionName;
 		}
 	}
 
@@ -113,11 +134,8 @@ public final class FunctionIdentifier implements Serializable {
 		}
 		FunctionIdentifier that = (FunctionIdentifier) o;
 
-		if (getIdentifier() != null && getIdentifier().equals(that.getIdentifier())) {
-			return true;
-		} else {
-			return functionName.equals(that.functionName);
-		}
+		return Objects.equals(objectIdentifier, that.objectIdentifier) &&
+			Objects.equals(functionName, that.functionName);
 	}
 
 	@Override
@@ -127,6 +145,6 @@ public final class FunctionIdentifier implements Serializable {
 
 	@Override
 	public String toString() {
-		return asSerializableString();
+		return asSummaryString();
 	}
 }
