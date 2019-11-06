@@ -31,6 +31,7 @@ public class YarnConfigOptionsInternal {
 
 	public static final ConfigOption<String> DYNAMIC_PROPERTIES =
 			key("$internal.yarn.dynamic-properties")
+					.stringType()
 					.noDefaultValue()
 					.withDescription("**DO NOT USE** Specify YARN dynamic properties.");
 
