@@ -102,6 +102,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
@@ -185,17 +186,15 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 				kafkaServer.getVersion().equals("0.10") ||
 				kafkaServer.getVersion().equals("0.11") ||
 				kafkaServer.getVersion().equals("2.0")) {
-				assertTrue(jee.getCause() instanceof TimeoutException);
+				final Optional<TimeoutException> optionalTimeoutException = ExceptionUtils.findThrowable(jee, TimeoutException.class);
+				assertTrue(optionalTimeoutException.isPresent());
 
-				TimeoutException te = (TimeoutException) jee.getCause();
-
-				assertEquals("Timeout expired while fetching topic metadata", te.getMessage());
+				final TimeoutException timeoutException = optionalTimeoutException.get();
+				assertEquals("Timeout expired while fetching topic metadata", timeoutException.getMessage());
 			} else {
-				assertTrue(jee.getCause() instanceof RuntimeException);
-
-				RuntimeException re = (RuntimeException) jee.getCause();
-
-				assertTrue(re.getMessage().contains("Unable to retrieve any partitions"));
+				final Optional<Throwable> optionalThrowable = ExceptionUtils.findThrowableWithMessage(jee, "Unable to retrieve any partitions");
+				assertTrue(optionalThrowable.isPresent());
+				assertTrue(optionalThrowable.get() instanceof RuntimeException);
 			}
 		}
 	}
