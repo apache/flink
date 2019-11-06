@@ -61,6 +61,25 @@ public class DataSetConversionUtilTest {
 	}
 
 	@Test
+	public void testForceTypeWithTableSchema() {
+		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
+
+		DataSet<Row> input = env.fromElements(Row.of("s1")).map(new GenericTypeMap());
+		Table table2 = DataSetConversionUtil.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
+			input,
+			new TableSchema(
+				new String[]{"word"},
+				new TypeInformation[]{TypeInformation.of(Integer.class)}
+			)
+		);
+		Assert.assertEquals(
+			new TableSchema(new String[] {"word"}, new TypeInformation[] {TypeInformation.of(Integer.class)}),
+			table2.getSchema()
+		);
+
+	}
+
+	@Test
 	public void testExceptionWithoutTypeSchema() {
 		thrown.expect(ValidationException.class);
 		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();

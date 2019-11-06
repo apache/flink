@@ -54,15 +54,31 @@ public class DataStreamConversionUtilTest {
 		);
 
 		input = input.map(new GenericTypeMap());
+
 		Table table2 = DataStreamConversionUtil.toTable(
 			MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
 			input,
 			new String[]{"word"},
 			new TypeInformation[]{TypeInformation.of(Integer.class)}
 		);
+
 		Assert.assertEquals(
 			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(Integer.class)}),
 			table2.getSchema()
+		);
+
+		Table tableFromDataStreamWithTableSchema = DataStreamConversionUtil.toTable(
+			MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
+			input,
+			new TableSchema(
+				new String[]{"word"},
+				new TypeInformation[]{TypeInformation.of(Integer.class)}
+			)
+		);
+
+		Assert.assertEquals(
+			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(Integer.class)}),
+			tableFromDataStreamWithTableSchema.getSchema()
 		);
 
 		thrown.expect(ValidationException.class);
