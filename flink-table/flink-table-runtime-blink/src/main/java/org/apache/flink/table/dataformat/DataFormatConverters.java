@@ -35,6 +35,8 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
@@ -116,8 +118,8 @@ public class DataFormatConverters {
 		t2C.put(DataTypes.TIME().bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.TIME().bridgedTo(int.class), IntConverter.INSTANCE);
 
-		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), TimestampConverter.INSTANCE);
-		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), LocalDateTimeConverter.INSTANCE);
+		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), new TimestampConverter(3));
+		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), new LocalDateTimeConverter(3));
 
 		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Long.class), LongConverter.INSTANCE);
 		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Instant.class), InstantConverter.INSTANCE);
@@ -238,6 +240,12 @@ public class DataFormatConverters {
 				} else if (typeInfo instanceof BigDecimalTypeInfo) {
 					BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
 					return new BigDecimalConverter(decimalType.precision(), decimalType.scale());
+				} else if (typeInfo instanceof LegacyLocalDateTimeTypeInfo) {
+					LegacyLocalDateTimeTypeInfo dateTimeType = (LegacyLocalDateTimeTypeInfo) typeInfo;
+					return new LocalDateTimeConverter(dateTimeType.getPrecision());
+				} else if (typeInfo instanceof LegacyTimestampTypeInfo) {
+					LegacyTimestampTypeInfo timestampType = (LegacyTimestampTypeInfo) typeInfo;
+					return new TimestampConverter(timestampType.getPrecision());
 				}
 
 				if (clazz == BinaryGeneric.class) {
@@ -695,11 +703,9 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = 1L;
 
-		public static final LocalDateTimeConverter INSTANCE = new LocalDateTimeConverter(3);
-
 		private final int precision;
 
-		private LocalDateTimeConverter(int precision) {
+		public LocalDateTimeConverter(int precision) {
 			this.precision = precision;
 		}
 
@@ -807,11 +813,9 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -779956524906131757L;
 
-		public static final TimestampConverter INSTANCE = new TimestampConverter(3);
-
 		private final int precision;
 
-		private TimestampConverter(int precision) {
+		public TimestampConverter(int precision) {
 			this.precision = precision;
 		}
 

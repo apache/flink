@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.RowType
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
 import java.io.File
 import java.util.TimeZone
@@ -173,7 +174,16 @@ class ExpressionReducer(
           case SqlTypeName.TIMESTAMP =>
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
-              Long.box(reducedValue.asInstanceOf[SqlTimestamp].getMillisecond)
+              val dt = reducedValue.asInstanceOf[SqlTimestamp].toLocalDateTime
+              val timestampString =
+                new TimestampString(
+                  dt.getYear,
+                  dt.getMonthValue,
+                  dt.getDayOfMonth,
+                  dt.getHour,
+                  dt.getMinute,
+                  dt.getSecond)
+              timestampString.withNanos(dt.getNano)
             } else {
               reducedValue
             }

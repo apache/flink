@@ -193,7 +193,8 @@ object ScalarOperatorGens {
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
-            s"$SQL_TIMESTAMP.fromEpochMillis($leftTerm $op $r)"
+            val nanoTerm = s"$l.getNanoOfMillisecond()"
+            s"$SQL_TIMESTAMP.fromEpochMillis($leftTerm $op $r, $nanoTerm)"
           }
         }
 
@@ -201,9 +202,11 @@ object ScalarOperatorGens {
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
+            val nanoTerm = s"$l.getNanoOfMillisecond()"
             s"""
                |$SQL_TIMESTAMP.fromEpochMillis(
-               |  ${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($r)))
+               |  ${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($r)),
+               |  $nanoTerm)
              """.stripMargin
           }
         }
@@ -823,7 +826,20 @@ object ScalarOperatorGens {
           operand.resultType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.PROCTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME =>
-      operand.copy(resultType = new TimestampType(3)) // just replace the DataType
+        operand.copy(resultType = new TimestampType(3)) // just replace the DataType
+
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+      val fromType = operand.resultType.asInstanceOf[TimestampType]
+      val toType = targetType.asInstanceOf[TimestampType]
+      if (fromType.getPrecision <= toType.getPrecision) {
+        operand.copy(resultType = targetType)
+      } else {
+        val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            s"$method($operandTerm, ${toType.getPrecision})"
+        }
+      }
 
     case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
       val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_TIMESTAMP_WITH_LOCAL_ZONE)
@@ -2236,8 +2252,9 @@ object ScalarOperatorGens {
       case TIME_WITHOUT_TIME_ZONE =>
         s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
-        val longTerm = s"$operandTerm.getMillisecond()"
-        s"${qualifyMethod(BuiltInMethod.UNIX_TIMESTAMP_TO_STRING.method)}($longTerm, 3)"
+        // The interpreted string conforms to the definition of timestamp literal
+        // SQL 2011 Part 2 Section 6.13 General Rules 11) d)
+        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
         val zone = ctx.addReusableTimeZone()

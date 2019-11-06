@@ -18,59 +18,44 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.api.common.typeutils.base.SqlTimestampComparator;
+import org.apache.flink.api.common.typeutils.base.SqlTimestampSerializer;
 
+import java.sql.Timestamp;
 import java.util.Objects;
 
 /**
- * TypeInformation of {@link SqlTimestamp}.
+ * {@link TypeInformation} for {@link Timestamp}.
+ *
+ * <p>The difference between Types.SQL_TIMESTAMP is this TypeInformation holds a precision
+ * Reminder: Conversion from DateType to TypeInformation (and back) exists in
+ * TableSourceUtil.computeIndexMapping, which should be fixed after we remove Legacy TypeInformation
+ * TODO: https://issues.apache.org/jira/browse/FLINK-14927
  */
-public class SqlTimestampTypeInfo extends TypeInformation<SqlTimestamp> {
+public class LegacyTimestampTypeInfo extends SqlTimeTypeInfo<Timestamp> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final int precision;
 
-	public SqlTimestampTypeInfo(int precision) {
+	@SuppressWarnings("unchecked")
+	public LegacyTimestampTypeInfo(int precision) {
+		super(
+			Timestamp.class,
+			SqlTimestampSerializer.INSTANCE,
+			(Class) SqlTimestampComparator.class);
 		this.precision = precision;
 	}
 
 	@Override
-	public boolean isBasicType() {
-		return true;
-	}
-
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
-
-	@Override
-	public int getArity() {
-		return 1;
-	}
-
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
-
-	@Override
-	public Class<SqlTimestamp> getTypeClass() {
-		return SqlTimestamp.class;
-	}
-
-	@Override
-	public boolean isKeyType() {
-		return true;
-	}
-
-	@Override
-	public TypeSerializer<SqlTimestamp> createSerializer(ExecutionConfig config) {
-		return new SqlTimestampSerializer(precision);
+	public boolean equals(Object obj) {
+		if (!(obj instanceof LegacyTimestampTypeInfo)) {
+			return false;
+		}
+		LegacyTimestampTypeInfo that = (LegacyTimestampTypeInfo) obj;
+		return this.precision == that.precision;
 	}
 
 	@Override
@@ -79,23 +64,8 @@ public class SqlTimestampTypeInfo extends TypeInformation<SqlTimestamp> {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof SqlTimestampTypeInfo)) {
-			return false;
-		}
-
-		SqlTimestampTypeInfo that = (SqlTimestampTypeInfo) obj;
-		return this.precision == that.precision;
-	}
-
-	@Override
 	public int hashCode() {
 		return Objects.hash(this.getClass().getCanonicalName(), precision);
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof SqlTimestampTypeInfo;
 	}
 
 	public int getPrecision() {
