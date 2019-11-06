@@ -160,9 +160,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** The default input dependency constraint to schedule tasks. */
 	private InputDependencyConstraint defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
 
-	/** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
-	private boolean allVerticesInSameSlotSharingGroupByDefault = true;
-
 	// ------------------------------- User code values --------------------------------------------
 
 	private GlobalJobParameters globalJobParameters = new GlobalJobParameters();
@@ -569,32 +566,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	public InputDependencyConstraint getDefaultInputDependencyConstraint() {
 		return defaultInputDependencyConstraint;
-	}
-
-	/**
-	 * Enables to put all vertices into the same slot sharing group by default.
-	 */
-	@Internal
-	public void enableAllVerticesInSameSlotSharingGroupByDefault() {
-		this.allVerticesInSameSlotSharingGroupByDefault = true;
-	}
-
-	/**
-	 * Disables to put all vertices into the same slot sharing group by default.
-	 */
-	@Internal
-	public void disableAllVerticesInSameSlotSharingGroupByDefault() {
-		this.allVerticesInSameSlotSharingGroupByDefault = false;
-	}
-
-	/**
-	 * Gets whether to put all vertices into the same slot sharing group by default.
-	 *
-	 * @return whether to put all vertices into the same slot sharing group by default.
-	 */
-	@Internal
-	public boolean isAllVerticesInSameSlotSharingGroupByDefault() {
-		return allVerticesInSameSlotSharingGroupByDefault;
 	}
 
 	/**
@@ -1025,8 +996,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
 				useSnapshotCompression == other.useSnapshotCompression &&
-				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint &&
-				allVerticesInSameSlotSharingGroupByDefault == other.allVerticesInSameSlotSharingGroupByDefault;
+				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint;
 
 		} else {
 			return false;
@@ -1054,8 +1024,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
 			useSnapshotCompression,
-			defaultInputDependencyConstraint,
-			allVerticesInSameSlotSharingGroupByDefault);
+			defaultInputDependencyConstraint);
 	}
 
 	public boolean canEqual(Object obj) {

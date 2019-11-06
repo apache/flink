@@ -66,6 +66,6 @@ public class BatchExecutorTest extends TestLogger {
 
 	@Test
 	public void testAllVerticesInSameSlotSharingGroupByDefaultIsDisabled() {
-		assertFalse(streamGraph.getExecutionConfig().isAllVerticesInSameSlotSharingGroupByDefault());
+		assertFalse(streamGraph.isAllVerticesInSameSlotSharingGroupByDefault());
 	}
 }
