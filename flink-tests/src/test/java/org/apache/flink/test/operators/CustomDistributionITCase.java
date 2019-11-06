@@ -32,7 +32,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -48,7 +48,7 @@ import static org.junit.Assert.fail;
  * Integration tests for custom {@link DataDistribution}.
  */
 @SuppressWarnings("serial")
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class CustomDistributionITCase extends TestLogger {
 
 	@ClassRule

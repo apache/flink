@@ -671,14 +671,14 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>scheduler-ng</id>
+			<id>legacy-scheduler</id>
 			<properties>
-				<test.scheduler.type>ng</test.scheduler.type>
-				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG</test.groups>
+				<test.scheduler.type>legacy</test.scheduler.type>
+				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler</test.groups>
 			</properties>
 			<activation>
 				<property>
-					<name>scheduler-ng</name>
+					<name>legacy-scheduler</name>
 				</property>
 			</activation>
 		</profile>

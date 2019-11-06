@@ -51,6 +51,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
+import org.apache.flink.runtime.executiongraph.failover.NoOpFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -145,6 +148,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private final Time slotRequestTimeout;
 
+	private final boolean legacyScheduling;
+
 	private ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 		"SchedulerBase is not initialized with proper main thread executor. " +
 			"Call to SchedulerBase.setMainThreadExecutor(...) required.");
@@ -165,7 +170,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final JobManagerJobMetricGroup jobManagerJobMetricGroup,
 		final Time slotRequestTimeout,
 		final ShuffleMaster<?> shuffleMaster,
-		final JobMasterPartitionTracker partitionTracker) throws Exception {
+		final JobMasterPartitionTracker partitionTracker,
+		final boolean legacyScheduling) throws Exception {
 
 		this.log = checkNotNull(log);
 		this.jobGraph = checkNotNull(jobGraph);
@@ -192,6 +198,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.blobWriter = checkNotNull(blobWriter);
 		this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
 		this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
+		this.legacyScheduling = legacyScheduling;
 
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
 		this.schedulingTopology = executionGraph.getSchedulingTopology();
@@ -228,6 +235,11 @@ public abstract class SchedulerBase implements SchedulerNG {
 		JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
 		ShuffleMaster<?> shuffleMaster,
 		final JobMasterPartitionTracker partitionTracker) throws JobExecutionException, JobException {
+
+		final FailoverStrategy.Factory failoverStrategy = legacyScheduling ?
+			FailoverStrategyLoader.loadFailoverStrategy(jobMasterConfiguration, log) :
+			new NoOpFailoverStrategy.Factory();
+
 		return ExecutionGraphBuilder.buildGraph(
 			null,
 			jobGraph,
@@ -244,7 +256,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 			slotRequestTimeout,
 			log,
 			shuffleMaster,
-			partitionTracker);
+			partitionTracker,
+			failoverStrategy);
 	}
 
 	/**

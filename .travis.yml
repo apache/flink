@@ -116,13 +116,13 @@ jobs:
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: tests
     - if: type in (pull_request, push)
-      script: ./tools/travis_controller.sh scheduler_ng_core
+      script: ./tools/travis_controller.sh legacy_scheduler_core
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: core - scheduler_ng
+      name: core - legacy_scheduler
     - if: type in (pull_request, push)
-      script: ./tools/travis_controller.sh scheduler_ng_tests
+      script: ./tools/travis_controller.sh legacy_scheduler_tests
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: tests - scheduler_ng
+      name: tests - legacy_scheduler
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
