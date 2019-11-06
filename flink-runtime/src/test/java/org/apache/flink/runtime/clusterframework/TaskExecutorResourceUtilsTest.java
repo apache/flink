@@ -457,17 +457,17 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testConfigTotalFlinkMemoryLegacyMB() {
-		final MemorySize totalFlinkMemorySize = MemorySize.parse("1g");
+	public void testConfigTotalProcessMemoryLegacyMB() {
+		final MemorySize totalProcessMemorySize = MemorySize.parse("1g");
 
 		@SuppressWarnings("deprecation")
 		final ConfigOption<Integer> legacyOption = TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB;
 
 		Configuration conf = new Configuration();
-		conf.setInteger(legacyOption, totalFlinkMemorySize.getMebiBytes());
+		conf.setInteger(legacyOption, totalProcessMemorySize.getMebiBytes());
 
 		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);
-		assertThat(taskExecutorResourceSpec.getTotalFlinkMemorySize(), is(totalFlinkMemorySize));
+		assertThat(taskExecutorResourceSpec.getTotalProcessMemorySize(), is(totalProcessMemorySize));
 	}
 
 	@Test
@@ -495,17 +495,17 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testConfigTotalFlinkMemoryLegacySize() {
-		final MemorySize totalFlinkMemorySize = MemorySize.parse("1g");
+	public void testConfigTotalProcessMemoryLegacySize() {
+		final MemorySize totalProcessMemorySize = MemorySize.parse("1g");
 
 		@SuppressWarnings("deprecation")
 		final ConfigOption<String> legacyOption = TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY;
 
 		Configuration conf = new Configuration();
-		conf.setString(legacyOption, totalFlinkMemorySize.getMebiBytes() + "m");
+		conf.setString(legacyOption, totalProcessMemorySize.getMebiBytes() + "m");
 
 		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);
-		assertThat(taskExecutorResourceSpec.getTotalFlinkMemorySize(), is(totalFlinkMemorySize));
+		assertThat(taskExecutorResourceSpec.getTotalProcessMemorySize(), is(totalProcessMemorySize));
 	}
 
 	@Test

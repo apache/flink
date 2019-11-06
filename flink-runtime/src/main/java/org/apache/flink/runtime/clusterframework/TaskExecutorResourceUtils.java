@@ -404,18 +404,18 @@ public class TaskExecutorResourceUtils {
 
 	private static MemorySize getTotalFlinkMemorySize(final Configuration config) {
 		checkArgument(isTotalFlinkMemorySizeExplicitlyConfigured(config));
-		if (config.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY)) {
-			return MemorySize.parse(config.getString(TaskManagerOptions.TOTAL_FLINK_MEMORY));
+		return MemorySize.parse(config.getString(TaskManagerOptions.TOTAL_FLINK_MEMORY));
+	}
+
+	private static MemorySize getTotalProcessMemorySize(final Configuration config) {
+		checkArgument(isTotalProcessMemorySizeExplicitlyConfigured(config));
+		if (config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY)) {
+			return MemorySize.parse(config.getString(TaskManagerOptions.TOTAL_PROCESS_MEMORY));
 		} else {
 			@SuppressWarnings("deprecation")
 			final long legacyHeapMemoryMB = config.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
 			return new MemorySize(legacyHeapMemoryMB << 20); // megabytes to bytes
 		}
-	}
-
-	private static MemorySize getTotalProcessMemorySize(final Configuration config) {
-		checkArgument(isTotalProcessMemorySizeExplicitlyConfigured(config));
-		return MemorySize.parse(config.getString(TaskManagerOptions.TOTAL_PROCESS_MEMORY));
 	}
 
 	private static boolean isTaskHeapMemorySizeExplicitlyConfigured(final Configuration config) {
@@ -450,15 +450,16 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static boolean isTotalFlinkMemorySizeExplicitlyConfigured(final Configuration config) {
-		// backward compatible with the deprecated config option TASK_MANAGER_HEAP_MEMORY_MB only when it's explicitly
-		// configured by the user
-		@SuppressWarnings("deprecation")
-		final boolean legacyConfigured = config.contains(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
-		return config.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY) || legacyConfigured;
+		return config.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY);
 	}
 
 	private static boolean isTotalProcessMemorySizeExplicitlyConfigured(final Configuration config) {
-		return config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+		// backward compatible with the deprecated config options TASK_MANAGER_HEAP_MEMORY and TASK_MANAGER_HEAP_MEMORY_MB
+		// only when they are explicitly configured by the user
+		@SuppressWarnings("deprecation")
+		final boolean legacyConfigured =
+			config.contains(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB) || config.contains(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
+		return config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY) || legacyConfigured;
 	}
 
 	private static void sanityCheckTotalFlinkMemory(final Configuration config, final FlinkInternalMemory flinkInternalMemory) {
