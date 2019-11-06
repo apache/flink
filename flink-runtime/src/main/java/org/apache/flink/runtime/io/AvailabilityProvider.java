@@ -90,6 +90,16 @@ public interface AvailabilityProvider {
 		}
 
 		/**
+		 *  Creates a new uncompleted future as the current state and returns the
+		 *  previous uncompleted one.
+		 */
+		public CompletableFuture<?> getUnavailableToResetUnavailable() {
+			CompletableFuture<?> toNotify = isAvailable;
+			isAvailable = new CompletableFuture<>();
+			return toNotify;
+		}
+
+		/**
 		 * @return a future that is completed if the respective provider is available.
 		 */
 		@Override

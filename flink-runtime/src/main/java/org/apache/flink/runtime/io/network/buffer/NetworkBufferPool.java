@@ -229,14 +229,14 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	}
 
 	private void recycleMemorySegments(Collection<MemorySegment> segments, int size) throws IOException {
+		internalRecycleMemorySegments(segments);
+
 		synchronized (factoryLock) {
 			numTotalRequiredBuffers -= size;
 
 			// note: if this fails, we're fine for the buffer pool since we already recycled the segments
 			redistributeBuffers();
 		}
-
-		internalRecycleMemorySegments(segments);
 	}
 
 	private void internalRecycleMemorySegments(Collection<MemorySegment> segments) {
