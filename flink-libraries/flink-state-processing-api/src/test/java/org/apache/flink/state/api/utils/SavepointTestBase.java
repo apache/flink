@@ -33,6 +33,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,10 @@ import java.util.function.Function;
  * A test base that includes utilities for taking a savepoint.
  */
 public abstract class SavepointTestBase extends AbstractTestBase {
+
+	public <T> String takeSavepoint(T[] data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory) throws Exception {
+		return takeSavepoint(Arrays.asList(data), jobGraphFactory);
+	}
 
 	public <T> String takeSavepoint(Collection<T> data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory) throws Exception {
 
