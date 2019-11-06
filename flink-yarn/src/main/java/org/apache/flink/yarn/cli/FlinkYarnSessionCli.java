@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
@@ -442,12 +443,13 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			configuration.setString(YarnConfigOptions.NODE_LABEL, nodeLabelValue);
 		}
 
-		discoverLogConfigFile().ifPresent(
+		discoverLogConfigFile(configurationDirectory).ifPresent(
 				file -> configuration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getPath())
 		);
 	}
 
-	private Optional<File> discoverLogConfigFile() {
+	@VisibleForTesting
+	public static Optional<File> discoverLogConfigFile(final String configurationDirectory) {
 		Optional<File> logConfigFile = Optional.empty();
 
 		final File log4jFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME);
