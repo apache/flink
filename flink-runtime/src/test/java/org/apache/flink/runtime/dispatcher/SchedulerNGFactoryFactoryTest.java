@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
-import org.apache.flink.runtime.scheduler.LegacySchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.util.TestLogger;
 
@@ -44,7 +43,7 @@ public class SchedulerNGFactoryFactoryTest extends TestLogger {
 	@Test
 	public void createLegacySchedulerFactoryByDefault() {
 		final SchedulerNGFactory schedulerNGFactory = createSchedulerNGFactory(new Configuration());
-		assertThat(schedulerNGFactory, is(instanceOf(LegacySchedulerFactory.class)));
+		assertThat(schedulerNGFactory, is(instanceOf(DefaultSchedulerFactory.class)));
 	}
 
 	@Test

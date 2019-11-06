@@ -132,7 +132,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			jobManagerJobMetricGroup,
 			slotRequestTimeout,
 			shuffleMaster,
-			partitionTracker);
+			partitionTracker,
+			false);
 
 		this.log = log;
 
