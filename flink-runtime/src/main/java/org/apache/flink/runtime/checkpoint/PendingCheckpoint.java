@@ -182,11 +182,11 @@ public class PendingCheckpoint {
 		return masterStates;
 	}
 
-	public boolean isMasterStatesFullyAcknowledged() {
+	public boolean areMasterStatesFullyAcknowledged() {
 		return notYetAcknowledgedMasterStates.isEmpty() && !discarded;
 	}
 
-	public boolean isTasksFullyAcknowledged() {
+	public boolean areTasksFullyAcknowledged() {
 		return notYetAcknowledgedTasks.isEmpty() && !discarded;
 	}
 
@@ -260,9 +260,9 @@ public class PendingCheckpoint {
 	public CompletedCheckpoint finalizeCheckpoint() throws IOException {
 
 		synchronized (lock) {
-			checkState(isMasterStatesFullyAcknowledged(),
+			checkState(areMasterStatesFullyAcknowledged(),
 				"Pending checkpoint has not been fully acknowledged by master states yet.");
-			checkState(isTasksFullyAcknowledged(),
+			checkState(areTasksFullyAcknowledged(),
 				"Pending checkpoint has not been fully acknowledged by tasks yet.");
 
 			// make sure we fulfill the promise with an exception if something fails
