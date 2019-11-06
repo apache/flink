@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.SavepointEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.util.Collector;
@@ -45,6 +46,8 @@ public class BoundedOneInputStreamTaskRunner<IN> extends RichMapPartitionFunctio
 
 	private final int maxParallelism;
 
+	private final Timestamper<IN> timestamper;
+
 	private transient SavepointEnvironment env;
 
 	/**
@@ -55,10 +58,12 @@ public class BoundedOneInputStreamTaskRunner<IN> extends RichMapPartitionFunctio
 	 */
 	public BoundedOneInputStreamTaskRunner(
 		StreamConfig streamConfig,
-		int maxParallelism) {
+		int maxParallelism,
+		Timestamper<IN> timestamper) {
 
 		this.streamConfig = streamConfig;
 		this.maxParallelism = maxParallelism;
+		this.timestamper = timestamper;
 	}
 
 	@Override
@@ -73,7 +78,6 @@ public class BoundedOneInputStreamTaskRunner<IN> extends RichMapPartitionFunctio
 
 	@Override
 	public void mapPartition(Iterable<IN> values, Collector<TaggedOperatorSubtaskState> out) throws Exception {
-		new BoundedStreamTask<>(env, values, out).invoke();
+		new BoundedStreamTask<>(env, values, timestamper, out).invoke();
 	}
 }
-

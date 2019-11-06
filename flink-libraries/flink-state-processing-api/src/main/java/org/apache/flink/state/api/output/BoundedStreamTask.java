@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -52,16 +53,17 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
 	private final Collector<OUT> collector;
 
-	private final StreamRecord<IN> reuse;
+	private final Timestamper<IN> timestamper;
 
 	BoundedStreamTask(
 		Environment environment,
 		Iterable<IN> input,
+		Timestamper<IN> timestamper,
 		Collector<OUT> collector) {
 		super(environment, new NeverFireProcessingTimeService());
 		this.input = input.iterator();
 		this.collector = collector;
-		this.reuse = new StreamRecord<>(null);
+		this.timestamper = timestamper;
 	}
 
 	@Override
@@ -73,10 +75,10 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 		// re-initialize the operator with the correct collector.
 		StreamOperatorFactory<OUT> operatorFactory = configuration.getStreamOperatorFactory(getUserCodeClassLoader());
 		headOperator = StreamOperatorFactoryUtil.createOperator(
-				operatorFactory,
-				this,
-				configuration,
-				new CollectorWrapper<>(collector));
+			operatorFactory,
+			this,
+			configuration,
+			new CollectorWrapper<>(collector));
 		headOperator.initializeState();
 		headOperator.open();
 	}
@@ -84,9 +86,15 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 	@Override
 	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		if (input.hasNext()) {
-			reuse.replace(input.next());
-			headOperator.setKeyContextElement1(reuse);
-			headOperator.processElement(reuse);
+			StreamRecord<IN> streamRecord = new StreamRecord<>(input.next());
+
+			if (timestamper != null) {
+				long timestamp = timestamper.timestamp(streamRecord.getValue());
+				streamRecord.setTimestamp(timestamp);
+			}
+
+			headOperator.setKeyContextElement1(streamRecord);
+			headOperator.processElement(streamRecord);
 		} else {
 			headOperator.endInput();
 			controller.allActionsCompleted();
