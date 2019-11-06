@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateEntry;
@@ -224,6 +225,12 @@ public abstract class StateTable<K, N, S>
 			.flatMap(stateMap -> StreamSupport.stream(Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0), false))
 			.filter(entry -> entry.getNamespace().equals(namespace))
 			.map(StateEntry::getKey);
+	}
+
+	public Stream<Tuple2<K, N>> getKeysAndNamespaces() {
+		return Arrays.stream(keyGroupedStateMaps)
+			.flatMap(stateMap -> StreamSupport.stream(Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0), false))
+			.map(entry -> Tuple2.of(entry.getKey(), entry.getNamespace()));
 	}
 
 	public StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {

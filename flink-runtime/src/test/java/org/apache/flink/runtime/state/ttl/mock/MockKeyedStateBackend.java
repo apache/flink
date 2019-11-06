@@ -175,6 +175,16 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			.map(Map.Entry::getKey);
 	}
 
+	@Override
+	@SuppressWarnings("unchecked")
+	public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
+		return stateValues.get(state).entrySet().stream()
+			.flatMap(entry ->
+				entry.getValue().entrySet().stream()
+					.map(namespace ->
+						Tuple2.of(entry.getKey(), (N) namespace.getKey())));
+	}
+
 	@Nonnull
 	@Override
 	public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(

@@ -22,7 +22,8 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysAndNamespaceIterator;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
 import org.junit.Assert;
@@ -37,15 +38,15 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * Tests for the RocksIteratorWrapper.
+ * Tests for the RocksDBRocksStateKeysAndNamespacesIterator.
  */
-public class RocksDBRocksStateKeysIteratorTest {
+public class RocksDBRocksStateKeysAndNamespacesIteratorTest {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	@Test
-	public void testIterator() throws Exception{
+	public void testIterator() throws Exception {
 
 		// test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == false
 		testIteratorHelper(IntSerializer.INSTANCE, 128, i -> i);
@@ -60,6 +61,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 		testIteratorHelper(StringSerializer.INSTANCE, 256, String::valueOf);
 	}
 
+	@SuppressWarnings("unchecked")
 	<K> void testIteratorHelper(
 		TypeSerializer<K> keySerializer,
 		int maxKeyGroupNumber,
@@ -70,6 +72,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 
 		try (RocksDBKeyedStateBackendTestFactory factory = new RocksDBKeyedStateBackendTestFactory()) {
 			RocksDBKeyedStateBackend<K> keyedStateBackend = factory.create(tmp, keySerializer, maxKeyGroupNumber);
+
 			ValueState<String> testState = keyedStateBackend.getPartitionedState(
 				namespace,
 				StringSerializer.INSTANCE,
@@ -89,35 +92,37 @@ public class RocksDBRocksStateKeysIteratorTest {
 				outputStream,
 				ambiguousKeyPossible);
 
-			byte[] nameSpaceBytes = outputStream.getCopyOfBuffer();
-
 			// already created with the state, should be closed with the backend
 			ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
 
 			try (
 				RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(keyedStateBackend.db, handle, keyedStateBackend.getReadOptions());
-				RocksStateKeysIterator<K> iteratorWrapper =
-					new RocksStateKeysIterator<>(
+				RocksStateKeysAndNamespaceIterator<K, String> iteratorWrapper =
+					new RocksStateKeysAndNamespaceIterator<>(
 						iterator,
 						testStateName,
 						keySerializer,
+						StringSerializer.INSTANCE,
 						keyedStateBackend.getKeyGroupPrefixBytes(),
-						ambiguousKeyPossible,
-						nameSpaceBytes)) {
+						ambiguousKeyPossible)) {
 
 				iterator.seekToFirst();
 
 				// valid record
-				List<Integer> fetchedKeys = new ArrayList<>(1000);
+				List<Tuple2<Integer, String>> fetchedKeys = new ArrayList<>(1000);
 				while (iteratorWrapper.hasNext()) {
-					fetchedKeys.add(Integer.parseInt(iteratorWrapper.next().toString()));
+					Tuple2 entry = iteratorWrapper.next();
+					entry.f0 = Integer.parseInt(entry.f0.toString());
+
+					fetchedKeys.add((Tuple2<Integer, String>) entry);
 				}
 
-				fetchedKeys.sort(Comparator.comparingInt(a -> a));
+				fetchedKeys.sort(Comparator.comparingInt(a -> a.f0));
 				Assert.assertEquals(1000, fetchedKeys.size());
 
 				for (int i = 0; i < 1000; ++i) {
-					Assert.assertEquals(i, fetchedKeys.get(i).intValue());
+					Assert.assertEquals(i, fetchedKeys.get(i).f0.intValue());
+					Assert.assertEquals(namespace, fetchedKeys.get(i).f1);
 				}
 			}
 		}

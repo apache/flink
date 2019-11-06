@@ -19,6 +19,8 @@
 package org.apache.flink.contrib.streaming.state.iterator;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.RocksDBKeySerializationUtils;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -26,33 +28,33 @@ import javax.annotation.Nonnull;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 
 /**
- * Adapter class to bridge between {@link RocksIteratorWrapper} and {@link Iterator} to iterate over the keys. This class
- * is not thread safe.
+ * Adapter class to bridge between {@link RocksIteratorWrapper} and {@link Iterator} to iterate over the keys
+ * and namespaces. This class is not thread safe.
  *
- * @param <K> the type of the iterated objects, which are keys in RocksDB.
+ * @param <K> the type of the iterated keys in RocksDB.
+ * @param <N> the type of the iterated namespaces in RocksDB.
  */
-public class RocksStateKeysIterator<K> extends AbstractRocksStateKeysIterator<K> implements Iterator<K> {
+public class RocksStateKeysAndNamespaceIterator<K, N>
+	extends AbstractRocksStateKeysIterator<K> implements Iterator<Tuple2<K, N>> {
 
 	@Nonnull
-	private final byte[] namespaceBytes;
+	private final TypeSerializer<N> namespaceSerializer;
 
-	private K nextKey;
-	private K previousKey;
+	private Tuple2<K, N> nextKey;
 
-	public RocksStateKeysIterator(
+	public RocksStateKeysAndNamespaceIterator(
 		@Nonnull RocksIteratorWrapper iterator,
 		@Nonnull String state,
 		@Nonnull TypeSerializer<K> keySerializer,
+		@Nonnull TypeSerializer<N> namespaceSerializer,
 		int keyGroupPrefixBytes,
-		boolean ambiguousKeyPossible,
-		@Nonnull byte[] namespaceBytes) {
+		boolean ambiguousKeyPossible) {
 		super(iterator, state, keySerializer, keyGroupPrefixBytes, ambiguousKeyPossible);
-		this.namespaceBytes = namespaceBytes;
+
+		this.namespaceSerializer = namespaceSerializer;
 		this.nextKey = null;
-		this.previousKey = null;
 	}
 
 	@Override
@@ -62,12 +64,12 @@ public class RocksStateKeysIterator<K> extends AbstractRocksStateKeysIterator<K>
 
 				final byte[] keyBytes = iterator.key();
 				final K currentKey = deserializeKey(keyBytes, byteArrayDataInputView);
-				final int namespaceByteStartPos = byteArrayDataInputView.getPosition();
-
-				if (isMatchingNameSpace(keyBytes, namespaceByteStartPos) && !Objects.equals(previousKey, currentKey)) {
-					previousKey = currentKey;
-					nextKey = currentKey;
-				}
+				final N currentNamespace = RocksDBKeySerializationUtils.readNamespace(
+					namespaceSerializer,
+					byteArrayDataInputView,
+					ambiguousKeyPossible
+				);
+				nextKey = Tuple2.of(currentKey, currentNamespace);
 				iterator.next();
 			}
 		} catch (Exception e) {
@@ -77,27 +79,13 @@ public class RocksStateKeysIterator<K> extends AbstractRocksStateKeysIterator<K>
 	}
 
 	@Override
-	public K next() {
+	public Tuple2<K, N> next() {
 		if (!hasNext()) {
 			throw new NoSuchElementException("Failed to access state [" + state + "]");
 		}
 
-		K tmpKey = nextKey;
+		Tuple2<K, N> tmpKey = nextKey;
 		nextKey = null;
 		return tmpKey;
-	}
-
-	private boolean isMatchingNameSpace(@Nonnull byte[] key, int beginPos) {
-		final int namespaceBytesLength = namespaceBytes.length;
-		final int basicLength = namespaceBytesLength + beginPos;
-		if (key.length >= basicLength) {
-			for (int i = 0; i < namespaceBytesLength; ++i) {
-				if (key[beginPos + i] != namespaceBytes[i]) {
-					return false;
-				}
-			}
-			return true;
-		}
-		return false;
 	}
 }

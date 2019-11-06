@@ -45,6 +45,7 @@ import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
@@ -93,11 +94,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.PrimitiveIterator;
 import java.util.Random;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
@@ -116,6 +119,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.isOneOf;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.both;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -295,6 +302,49 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				}
 
 				assertFalse(actualIterator.hasNext());
+			}
+		}
+		finally {
+			IOUtils.closeQuietly(backend);
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testGetKeysAndNamespaces() throws Exception {
+		final int elementsNum = 1000;
+		String fieldName = "get-keys-test";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			final String ns1 = "ns1";
+			ValueState<Integer> keyedState1 = backend.getPartitionedState(
+				ns1,
+				StringSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE)
+			);
+
+			final String ns2 = "ns2";
+			ValueState<Integer> keyedState2 = backend.getPartitionedState(
+				ns2,
+				StringSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE)
+			);
+
+			for (int key = 0; key < elementsNum; key++) {
+				backend.setCurrentKey(key);
+				keyedState1.update(key * 2);
+				keyedState2.update(key * 2);
+			}
+
+			try (Stream<Tuple2<Integer, String>> stream = backend.getKeysAndNamespaces(fieldName)) {
+				final Map<String, Set<Integer>> keysByNamespace = new HashMap<>();
+				stream.forEach(entry -> {
+					assertThat("Unexpected namespace", entry.f1, isOneOf(ns1, ns2));
+					assertThat("Unexpected key", entry.f0, is(both(greaterThanOrEqualTo(0)).and(lessThan(elementsNum))));
+
+					Set<Integer> keys = keysByNamespace.computeIfAbsent(entry.f1, k -> new HashSet<>());
+					assertTrue("Duplicate key for namespace", keys.add(entry.f0));
+				});
 			}
 		}
 		finally {
