@@ -305,9 +305,7 @@ class LocalBufferPool implements BufferPool {
 			notificationResult = fireBufferAvailableNotification(listener, segment);
 		}
 
-		if (toNotify != null) {
-			toNotify.complete(null);
-		}
+		mayNotifyAvailable(toNotify);
 	}
 
 	private NotificationResult fireBufferAvailableNotification(BufferListener listener, MemorySegment segment) {
@@ -348,7 +346,7 @@ class LocalBufferPool implements BufferPool {
 				}
 
 				final CompletableFuture<?> isAvailable = availabilityHelper.isAvailable();
-				if (isAvailable != AVAILABLE && !isAvailable.isDone()) {
+				if (!isAvailable(isAvailable)) {
 					toNotify = isAvailable;
 				}
 
@@ -356,10 +354,7 @@ class LocalBufferPool implements BufferPool {
 			}
 		}
 
-		// notify the potential blocking request thread
-		if (toNotify != null) {
-			toNotify.complete(null);
-		}
+		mayNotifyAvailable(toNotify);
 
 		try {
 			networkBufferPool.destroyBufferPool(this);
@@ -383,6 +378,7 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public void setNumBuffers(int numBuffers) throws IOException {
 		int numExcessBuffers;
+		CompletableFuture<?> toNotify = null;
 		synchronized (availableMemorySegments) {
 			checkArgument(numBuffers >= numberOfRequiredMemorySegments,
 					"Buffer pool needs at least %s buffers, but tried to set to %s",
@@ -397,7 +393,15 @@ class LocalBufferPool implements BufferPool {
 			returnExcessMemorySegments();
 
 			numExcessBuffers = numberOfRequestedMemorySegments - currentPoolSize;
+
+			if (numExcessBuffers < 0
+					&& availableMemorySegments.isEmpty()
+					&& isAvailable(networkBufferPool.isAvailable())) {
+				toNotify = availabilityHelper.getUnavailableToResetUnavailable();
+			}
 		}
+
+		mayNotifyAvailable(toNotify);
 
 		// If there is a registered owner and we have still requested more buffers than our
 		// size, trigger a recycle via the owner.
@@ -428,6 +432,20 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Notifies the potential segment consumer of the new available segments by
+	 * completing the previous uncompleted future.
+	 */
+	private void mayNotifyAvailable(@Nullable CompletableFuture<?> toNotify) {
+		if (toNotify != null) {
+			toNotify.complete(null);
+		}
+	}
+
+	private boolean isAvailable(CompletableFuture<?> isAvailable) {
+		return isAvailable == AVAILABLE || isAvailable.isDone();
+	}
 
 	private void returnMemorySegment(MemorySegment segment) {
 		assert Thread.holdsLock(availableMemorySegments);
