@@ -28,7 +28,6 @@ import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
-import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
@@ -144,6 +143,14 @@ class FlinkPlannerImpl(
     }
   }
 
+  /**
+    * Creates a new instance of [[SqlExprToRexConverter]] to convert SQL expression
+    * to RexNode.
+    */
+  def createSqlExprToRexConverter(tableRowType: RelDataType): SqlExprToRexConverter = {
+    new SqlExprToRexConverterImpl(config, typeFactory, cluster, tableRowType)
+  }
+
   /** Implements [[org.apache.calcite.plan.RelOptTable.ViewExpander]]
     * interface for [[org.apache.calcite.tools.Planner]]. */
   class ViewExpanderImpl extends ViewExpander {
@@ -154,14 +161,14 @@ class FlinkPlannerImpl(
         schemaPath: util.List[String],
         viewPath: util.List[String]): RelRoot = {
 
-      val sqlNode: SqlNode = parser.parse(queryString)
-      val catalogReader: CalciteCatalogReader = catalogReaderSupplier.apply(false)
+      val sqlNode = parser.parse(queryString)
+      val catalogReader = catalogReaderSupplier.apply(false)
         .withSchemaPath(schemaPath)
-      val validator: SqlValidator =
+      val validator =
         new FlinkCalciteSqlValidator(operatorTable, catalogReader, typeFactory)
       validator.setIdentifierExpansion(true)
-      val validatedSqlNode: SqlNode = validator.validate(sqlNode)
-      val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
+      val validatedSqlNode = validator.validate(sqlNode)
+      val sqlToRelConverter = new SqlToRelConverter(
         new ViewExpanderImpl,
         validator,
         catalogReader,
