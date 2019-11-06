@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.utils;
 
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -49,9 +50,9 @@ public class HiveScalarSqlFunction extends ScalarSqlFunction {
 	private final ScalarFunction function;
 
 	public HiveScalarSqlFunction(
-			String name, String displayName,
-			ScalarFunction function, FlinkTypeFactory typeFactory) {
-		super(name, displayName, function, typeFactory, new Some<>(createReturnTypeInference(function, typeFactory)));
+			FunctionIdentifier identifier, ScalarFunction function, FlinkTypeFactory typeFactory) {
+		super(identifier, identifier.toString(), function,
+				typeFactory, new Some<>(createReturnTypeInference(function, typeFactory)));
 		this.function = function;
 	}
 

@@ -33,6 +33,7 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
@@ -276,7 +277,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
 
 			TableSqlFunction sqlFunction = new TableSqlFunction(
-					tableFunction.functionIdentifier(),
+					FunctionIdentifier.of(tableFunction.functionIdentifier()),
 					tableFunction.toString(),
 					tableFunction,
 					resultType,
