@@ -39,6 +39,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Text
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -59,8 +60,6 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static java.util.Spliterators.spliterator;
-import static java.util.stream.StreamSupport.stream;
 import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -289,7 +288,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 	private DeserializationRuntimeConverter createObjectArrayConverter(TypeInformation elementTypeInfo) {
 		DeserializationRuntimeConverter elementConverter = createConverter(elementTypeInfo);
-		return assembleArrayConverter(elementConverter);
+		return assembleArrayConverter(elementTypeInfo, elementConverter);
 	}
 
 	private DeserializationRuntimeConverter createRowConverter(RowTypeInfo typeInfo) {
@@ -429,13 +428,21 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		}
 	}
 
-	private DeserializationRuntimeConverter assembleArrayConverter(DeserializationRuntimeConverter elementConverter) {
-		return (mapper, jsonNode) -> {
-			ArrayNode node = (ArrayNode) jsonNode;
+	private DeserializationRuntimeConverter assembleArrayConverter(
+		TypeInformation<?> elementType,
+		DeserializationRuntimeConverter elementConverter) {
 
-			return stream(spliterator(node.elements(), node.size(), 0), false)
-				.map(innerNode -> elementConverter.convert(mapper, innerNode))
-				.toArray();
+		final Class<?> elementClass = elementType.getTypeClass();
+
+		return (mapper, jsonNode) -> {
+			final ArrayNode node = (ArrayNode) jsonNode;
+			final Object[] array = (Object[]) Array.newInstance(elementClass, node.size());
+			for (int i = 0; i < node.size(); i++) {
+				final JsonNode innerNode = node.get(i);
+				array[i] = elementConverter.convert(mapper, innerNode);
+			}
+
+			return array;
 		};
 	}
 }
