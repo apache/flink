@@ -37,6 +37,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -63,6 +66,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -99,6 +103,15 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 	private JobID jobId = new JobID();
 
+	private String metricQueryServiceAddress;
+
+	@Before
+	public void setup() {
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+		metricRegistry.startQueryService(new TestingRpcService(), new ResourceID("mqs"));
+		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
+	}
+
 	/**
 	 * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
 	 */
@@ -114,6 +127,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -141,6 +155,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -148,6 +163,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
 		} catch (Exception e) {
+			e.printStackTrace();
 			assertThat(e.getCause(), instanceOf(IllegalArgumentException.class));
 		}
 	}
@@ -173,6 +189,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, task1RunningFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.CANCELED, task1CanceledFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -221,6 +238,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, task1FailedFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.FAILED, task2FailedFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.setSlotSize(2)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
@@ -274,6 +292,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.FINISHED, task1FinishedFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.FINISHED, task2FinishedFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
 				.useRealNonMockShuffleEnvironment()
@@ -340,6 +359,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, task1FailedFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.CANCELED, task2CanceledFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
 				.useRealNonMockShuffleEnvironment()
@@ -390,6 +410,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setSlotSize(2)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.setConfiguration(config)
 				.setLocalCommunication(false)
 				.useRealNonMockShuffleEnvironment()
@@ -423,6 +444,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setShuffleEnvironment(shuffleEnvironment)
 				.setSlotSize(1)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.build()) {
@@ -474,6 +496,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setResourceID(producerLocation)
 				.setSlotSize(1)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.setConfiguration(config)
@@ -533,6 +556,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.setConfiguration(configuration)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
@@ -578,6 +602,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.CANCELED, taskCanceledFuture)
 				.build()) {
