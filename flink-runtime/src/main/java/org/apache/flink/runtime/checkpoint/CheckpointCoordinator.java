@@ -665,7 +665,7 @@ public class CheckpointCoordinator {
 							.get(checkpointTimeout, TimeUnit.MILLISECONDS);
 					checkpoint.acknowledgeMasterState(masterHook.getIdentifier(), masterState);
 				}
-				Preconditions.checkState(checkpoint.isMasterStatesFullyAcknowledged());
+				Preconditions.checkState(checkpoint.areMasterStatesFullyAcknowledged());
 			}
 			// end of lock scope
 
@@ -811,7 +811,7 @@ public class CheckpointCoordinator {
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {} at {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob(), taskManagerLocationInfo);
 
-						if (checkpoint.isTasksFullyAcknowledged()) {
+						if (checkpoint.areTasksFullyAcknowledged()) {
 							completePendingCheckpoint(checkpoint);
 						}
 						break;

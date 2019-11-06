@@ -168,7 +168,7 @@ public class PendingCheckpointTest {
 
 		assertFalse(future.isDone());
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
-		assertTrue(pending.isTasksFullyAcknowledged());
+		assertTrue(pending.areTasksFullyAcknowledged());
 		pending.finalizeCheckpoint();
 		assertTrue(future.isDone());
 
@@ -367,11 +367,11 @@ public class PendingCheckpointTest {
 			Executors.directExecutor()).get();
 
 		pending.acknowledgeMasterState(masterHook.getIdentifier(), masterState);
-		assertTrue(pending.isMasterStatesFullyAcknowledged());
-		assertFalse(pending.isTasksFullyAcknowledged());
+		assertTrue(pending.areMasterStatesFullyAcknowledged());
+		assertFalse(pending.areTasksFullyAcknowledged());
 
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
-		assertTrue(pending.isTasksFullyAcknowledged());
+		assertTrue(pending.areTasksFullyAcknowledged());
 
 		final List<MasterState> resultMasterStates = pending.getMasterStates();
 		assertEquals(1, resultMasterStates.size());
@@ -406,7 +406,7 @@ public class PendingCheckpointTest {
 			Executors.directExecutor()).get();
 
 		pending.acknowledgeMasterState(masterHook.getIdentifier(), masterStateNormal);
-		assertFalse(pending.isMasterStatesFullyAcknowledged());
+		assertFalse(pending.areMasterStatesFullyAcknowledged());
 
 		final MasterState masterStateNull = MasterHooks.triggerHook(
 			nullableMasterHook,
@@ -414,11 +414,11 @@ public class PendingCheckpointTest {
 			System.currentTimeMillis(),
 			Executors.directExecutor()).get();
 		pending.acknowledgeMasterState(nullableMasterHook.getIdentifier(), masterStateNull);
-		assertTrue(pending.isMasterStatesFullyAcknowledged());
-		assertFalse(pending.isTasksFullyAcknowledged());
+		assertTrue(pending.areMasterStatesFullyAcknowledged());
+		assertFalse(pending.areTasksFullyAcknowledged());
 
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
-		assertTrue(pending.isTasksFullyAcknowledged());
+		assertTrue(pending.areTasksFullyAcknowledged());
 
 		final List<MasterState> resultMasterStates = pending.getMasterStates();
 		assertEquals(1, resultMasterStates.size());
