@@ -144,7 +144,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable2 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "Expected: eval(java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
-        "java.lang.Long) \n" +
+        "org.apache.flink.table.dataformat.SqlTimestamp) \n" +
         "Actual: eval(java.lang.Integer, java.lang.String, java.time.LocalDateTime)",
       classOf[TableException]
     )
@@ -178,7 +178,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable7 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
+        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
+        "org.apache.flink.table.dataformat.SqlTimestamp) \n" +
         "Actual: eval(java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
         "java.time.LocalDateTime)",
       classOf[TableException]
@@ -190,7 +191,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable8 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
         "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
+        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
+        "org.apache.flink.table.dataformat.SqlTimestamp) \n" +
         "Actual: eval(java.util.concurrent.CompletableFuture, " +
         "java.lang.Integer, java.lang.String, java.time.LocalDateTime)",
       classOf[TableException]
@@ -208,7 +210,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable10 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
+        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
+        "org.apache.flink.table.dataformat.SqlTimestamp) \n" +
         "Actual: eval(org.apache.flink.streaming.api.functions.async.ResultFuture, " +
         "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long)",
       classOf[TableException]
