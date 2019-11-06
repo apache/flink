@@ -28,9 +28,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -47,12 +45,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.util.StreamCollector;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -64,7 +63,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * IT test for writing savepoints.
@@ -92,20 +91,21 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		new CurrencyRate("EUR", 1.3)
 	);
 
-	public SavepointWriterITCase(StateBackend backend) throws Exception {
+	@SuppressWarnings("unused")
+	public SavepointWriterITCase(String ignore, StateBackend backend) {
 		this.backend = backend;
-
-		//reset the cluster so we can change the state backend
-		miniClusterResource.after();
-		miniClusterResource.before();
 	}
 
-	@Parameterized.Parameters(name = "Savepoint Writer: {0}")
-	public static Collection<StateBackend> data() {
-		return Arrays.asList(
-			new MemoryStateBackend(),
-			new RocksDBStateBackend((StateBackend) new MemoryStateBackend()));
+	@Parameterized.Parameters(name = "backend = {0}")
+	public static Object[] data() {
+		return new Object[][] {
+			{ "memory", new MemoryStateBackend() },
+			{ "rocksdb", new RocksDBStateBackend((StateBackend) new MemoryStateBackend())}
+		};
 	}
+
+	@Rule
+	public StreamCollector collector = new StreamCollector();
 
 	@Test
 	public void testStateBootstrapAndModification() throws Exception {
@@ -147,17 +147,16 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		bEnv.execute("Bootstrap");
 	}
 
-	private void validateBootstrap(String savepointPath) throws ProgramInvocationException {
+	private void validateBootstrap(String savepointPath) throws Exception {
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		sEnv.setStateBackend(backend);
 
-		CollectSink.accountList.clear();
-
-		sEnv.fromCollection(accounts)
+		DataStream<Account> stream = sEnv.fromCollection(accounts)
 			.keyBy(acc -> acc.id)
 			.flatMap(new UpdateAndGetAccount())
-			.uid(ACCOUNT_UID)
-			.addSink(new CollectSink());
+			.uid(ACCOUNT_UID);
+
+		CompletableFuture<Collection<Account>> results = collector.collect(stream);
 
 		sEnv
 			.fromCollection(currencyRates)
@@ -170,9 +169,9 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, false));
 
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
-		ClientUtils.submitJobAndWaitForResult(client, jobGraph, SavepointWriterITCase.class.getClassLoader());
+		client.submitJob(jobGraph);
 
-		Assert.assertEquals("Unexpected output", 3, CollectSink.accountList.size());
+		Assert.assertEquals("Unexpected output", 3, results.get().size());
 	}
 
 	private void modifySavepoint(String savepointPath, String modifyPath) throws Exception {
@@ -193,18 +192,16 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		bEnv.execute("Modifying");
 	}
 
-	private void validateModification(String savepointPath) throws ProgramInvocationException {
+	private void validateModification(String savepointPath) throws Exception {
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		sEnv.setStateBackend(backend);
-
-		CollectSink.accountList.clear();
 
 		DataStream<Account> stream = sEnv.fromCollection(accounts)
 			.keyBy(acc -> acc.id)
 			.flatMap(new UpdateAndGetAccount())
 			.uid(ACCOUNT_UID);
 
-		stream.addSink(new CollectSink());
+		CompletableFuture<Collection<Account>> results = collector.collect(stream);
 
 		stream
 			.map(acc -> acc.id)
@@ -216,9 +213,9 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, false));
 
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
-		ClientUtils.submitJobAndWaitForResult(client, jobGraph, SavepointWriterITCase.class.getClassLoader());
+		client.submitJob(jobGraph);
 
-		Assert.assertEquals("Unexpected output", 3, CollectSink.accountList.size());
+		Assert.assertEquals("Unexpected output", 3, results.get().size());
 	}
 
 	/**
@@ -426,18 +423,6 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		@Override
 		public void processBroadcastElement(CurrencyRate value, Context ctx, Collector<Void> out) {
 			//ignore
-		}
-	}
-
-	/**
-	 * A simple collections sink.
-	 */
-	public static class CollectSink implements SinkFunction<Account> {
-		static Set<Integer> accountList = new ConcurrentSkipListSet<>();
-
-		@Override
-		public void invoke(Account value, Context context) {
-			accountList.add(value.id);
 		}
 	}
 }
