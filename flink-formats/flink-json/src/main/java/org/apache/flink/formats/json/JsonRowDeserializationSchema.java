@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
@@ -34,6 +35,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -47,7 +49,10 @@ import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -242,9 +247,29 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			return Optional.of(createObjectArrayConverter(((BasicArrayTypeInfo) typeInfo).getComponentInfo()));
 		} else if (isPrimitiveByteArray(typeInfo)) {
 			return Optional.of(createByteArrayConverter());
+		} else if (typeInfo instanceof MapTypeInfo) {
+			MapTypeInfo<?, ?> mapTypeInfo = (MapTypeInfo<?, ?>) typeInfo;
+			return Optional.of(createMapConverter(mapTypeInfo.getKeyTypeInfo(), mapTypeInfo.getValueTypeInfo()));
 		} else {
 			return Optional.empty();
 		}
+	}
+
+	private DeserializationRuntimeConverter createMapConverter(TypeInformation keyType, TypeInformation valueType) {
+		DeserializationRuntimeConverter valueConverter = createConverter(valueType);
+		DeserializationRuntimeConverter keyConverter = createConverter(keyType);
+
+		return (mapper, jsonNode) -> {
+			Iterator<Map.Entry<String, JsonNode>> fields = jsonNode.fields();
+			Map<Object, Object> result = new HashMap<>();
+			while (fields.hasNext()) {
+				Map.Entry<String, JsonNode> entry = fields.next();
+				Object key = keyConverter.convert(mapper, TextNode.valueOf(entry.getKey()));
+				Object value = valueConverter.convert(mapper, entry.getValue());
+				result.put(key, value);
+			}
+			return result;
+		};
 	}
 
 	private DeserializationRuntimeConverter createByteArrayConverter() {
