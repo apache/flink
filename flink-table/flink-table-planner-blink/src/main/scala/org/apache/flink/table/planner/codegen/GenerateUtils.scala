@@ -370,8 +370,15 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        // TODO: support Timestamp(3) now
+        val fieldTerm = newName("timestamp")
         val millis = literalValue.asInstanceOf[Long]
-        generateNonNullLiteral(literalType, millis + "L", millis)
+        val fieldTimestamp =
+          s"""
+             |$SQL_TIMESTAMP_TERM $fieldTerm = $SQL_TIMESTAMP_TERM.fromEpochMillis(${millis}L);
+           """.stripMargin
+        ctx.addReusableMember(fieldTimestamp)
+        generateNonNullLiteral(literalType, fieldTerm, literalType)
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val millis = unixTimestampToLocalDateTime(literalValue.asInstanceOf[Long])
