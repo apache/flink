@@ -345,6 +345,44 @@ Along with reading registered state values, each key has access to a `Context` w
 
 {% panel **Note:** When using a `KeyedStateReaderFunction`, all state descriptors must be registered eagerly inside of open. Any attempt to call a `RuntimeContext#get*State` will result in a `RuntimeException`. %}
 
+### Window State
+
+The state processor api supports reading state from a [window operator]({{ site.baseurl }}/dev/stream/operators/windows.html).
+This includes both time based windows along with other types, pre-aggregation, non-aggregated, and windows with evictors.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+ExistingSavepoint savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new MemoryStateBackend());
+
+int count = savepoint
+    // The timeWindow method supports reading from any type of time based window, including but not limited to
+    // Tumbling, Sliding, and Session windows for both event time and processing time.
+    .timeWindow()
+    .reduce(uid, new ReduceSum(), Types.INT, Types.INT)
+    .count();
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+val batchEnv = ExecutionEnvironment.getExecutionEnvironment()
+val savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new MemoryStateBackend())
+
+val count = savepoint
+    // The timeWindow method supports reading from any type of time based window, including but not limited to
+    // Tumbling, Sliding, and Session windows for both event time and processing time.
+    .timeWindow()
+    .reduce(uid, new ReduceSum(), Types.INT, Types.INT)
+    .count();
+
+{% endhighlight %}
+</div>
+</div>
+
 ## Writing New Savepoints
 
 `Savepoint`'s may also be written, which allows such use cases as bootstrapping state based on historical data.
