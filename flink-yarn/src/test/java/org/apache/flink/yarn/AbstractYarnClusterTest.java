@@ -64,11 +64,12 @@ public class AbstractYarnClusterTest extends TestLogger {
 		yarnClient.init(yarnConfiguration);
 		yarnClient.start();
 
-		final YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
-			new Configuration(),
-			yarnConfiguration,
-			yarnClient,
-			false);
+		final YarnClusterDescriptor clusterDescriptor = YarnTestUtils.createClusterDescriptorWithLogging(
+				temporaryFolder.newFolder().getAbsolutePath(),
+				new Configuration(),
+				yarnConfiguration,
+				yarnClient,
+				false);
 
 		try {
 			clusterDescriptor.retrieve(applicationId);

@@ -18,7 +18,13 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
+
 import org.apache.hadoop.util.VersionInfo;
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.util.Arrays;
 
@@ -35,5 +41,25 @@ public class YarnTestUtils {
 
 	private YarnTestUtils() {
 		throw new UnsupportedOperationException("This class should never be instantiated.");
+	}
+
+	public static YarnClusterDescriptor createClusterDescriptorWithLogging(
+			final String flinkConfDir,
+			final Configuration flinkConfiguration,
+			final YarnConfiguration yarnConfiguration,
+			final YarnClient yarnClient,
+			final boolean sharedYarnClient) {
+		final Configuration effectiveConfiguration = addLogDirToConfiguration(flinkConfiguration, flinkConfDir);
+		return new YarnClusterDescriptor(effectiveConfiguration, yarnConfiguration, yarnClient, sharedYarnClient);
+	}
+
+	private static Configuration addLogDirToConfiguration(final Configuration flinkConfiguration, final String flinkConfDir) {
+		if (flinkConfiguration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE) != null) {
+			return flinkConfiguration;
+		}
+
+		FlinkYarnSessionCli.discoverLogConfigFile(flinkConfDir).ifPresent(file ->
+				flinkConfiguration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getAbsolutePath()));
+		return flinkConfiguration;
 	}
 }
