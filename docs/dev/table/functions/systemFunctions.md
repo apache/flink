@@ -1,6 +1,6 @@
 ---
-title: "Built-In Functions"
-nav-parent_id: tableapi
+title: "System (Built-in) Functions"
+nav-parent_id: table_functions
 nav-pos: 31
 ---
 <!--
