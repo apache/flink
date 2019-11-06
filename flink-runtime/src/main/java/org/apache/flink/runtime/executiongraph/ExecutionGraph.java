@@ -199,7 +199,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private final List<ExecutionJobVertex> verticesInCreationOrder;
 
 	/** All intermediate results that are part of this graph. */
-	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
+	private final Map<IntermediateDataSetID, IntermediateResult> intermediateResults;
 
 	/** The currently executed tasks, for callbacks. */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
@@ -463,7 +463,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.userClassLoader = Preconditions.checkNotNull(userClassLoader, "userClassLoader");
 
 		this.tasks = new ConcurrentHashMap<>(16);
-		this.intermediateResults = new ConcurrentHashMap<>(16);
+		this.intermediateResults = new HashMap<>(16);
 		this.verticesInCreationOrder = new ArrayList<>(16);
 		this.currentExecutions = new ConcurrentHashMap<>(16);
 
