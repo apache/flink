@@ -100,6 +100,9 @@ public class StreamGraph implements Pipeline {
 	 */
 	private boolean blockingConnectionsBetweenChains;
 
+	/** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
+	private boolean allVerticesInSameSlotSharingGroupByDefault = true;
+
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
 	private Set<Integer> sinks;
@@ -210,6 +213,25 @@ public class StreamGraph implements Pipeline {
 	 */
 	public void setBlockingConnectionsBetweenChains(boolean blockingConnectionsBetweenChains) {
 		this.blockingConnectionsBetweenChains = blockingConnectionsBetweenChains;
+	}
+
+	/**
+	 * Set whether to put all vertices into the same slot sharing group by default.
+	 *
+	 * @param allVerticesInSameSlotSharingGroupByDefault indicates whether to put all vertices
+	 *                                                   into the same slot sharing group by default.
+	 */
+	public void setAllVerticesInSameSlotSharingGroupByDefault(boolean allVerticesInSameSlotSharingGroupByDefault) {
+		this.allVerticesInSameSlotSharingGroupByDefault = allVerticesInSameSlotSharingGroupByDefault;
+	}
+
+	/**
+	 * Gets whether to put all vertices into the same slot sharing group by default.
+	 *
+	 * @return whether to put all vertices into the same slot sharing group by default.
+	 */
+	public boolean isAllVerticesInSameSlotSharingGroupByDefault() {
+		return allVerticesInSameSlotSharingGroupByDefault;
 	}
 
 	// Checkpointing
