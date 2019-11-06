@@ -37,9 +37,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.{RelDataTypeFieldImpl, RelRecordType, StructKind}
 import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical._
-import org.apache.calcite.sql.SqlIdentifier
 import org.apache.calcite.sql.`type`.{AbstractSqlType, ArraySqlType, MapSqlType, MultisetSqlType}
-import org.apache.calcite.sql.parser.SqlParserPos
 
 import java.util.Collections
 

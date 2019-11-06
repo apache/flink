@@ -22,16 +22,15 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
-import org.apache.flink.table.planner.functions.utils.FunctionUtils.toSqlIdentifier
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.calcite.util.Optionality
 
@@ -58,11 +57,11 @@ class AggSqlFunction(
     requiresOver: Boolean,
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlUserDefinedAggFunction(
-    toSqlIdentifier(identifier),
+    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
     returnTypeInfer.getOrElse(createReturnTypeInference(
       fromDataTypeToLogicalType(externalResultType), typeFactory)),
-    createOperandTypeInference(identifier, aggregateFunction, typeFactory, externalAccType),
-    createOperandTypeChecker(identifier, aggregateFunction, externalAccType),
+    createOperandTypeInference(displayName, aggregateFunction, typeFactory, externalAccType),
+    createOperandTypeChecker(displayName, aggregateFunction, externalAccType),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
@@ -109,7 +108,7 @@ object AggSqlFunction {
   }
 
   private[flink] def createOperandTypeInference(
-      identifier: FunctionIdentifier,
+      name: String,
       aggregateFunction: UserDefinedAggregateFunction[_, _],
       typeFactory: FlinkTypeFactory,
       externalAccType: DataType): SqlOperandTypeInference = {
@@ -128,7 +127,7 @@ object AggSqlFunction {
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandLogicalType)
             .getOrElse(
               throw new ValidationException(
-                s"Given parameters of function '$identifier' do not match any signature. \n" +
+                s"Given parameters of function '$name' do not match any signature. \n" +
                     s"Actual: ${signatureInternalToString(actualSignature)} \n" +
                     s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
 
@@ -161,7 +160,7 @@ object AggSqlFunction {
   }
 
   private[flink] def createOperandTypeChecker(
-      identifier: FunctionIdentifier,
+      name: String,
       aggregateFunction: UserDefinedAggregateFunction[_, _],
       externalAccType: DataType): SqlOperandTypeChecker = {
 
@@ -210,7 +209,7 @@ object AggSqlFunction {
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
-              s"Given parameters of function '$identifier' do not match any signature. \n" +
+              s"Given parameters of function '$name' do not match any signature. \n" +
                   s"Actual: ${signatureInternalToString(actualSignature)} \n" +
                   s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}")
           } else {

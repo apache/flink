@@ -284,10 +284,12 @@ public class FunctionCatalog implements FunctionLookup {
 
 		// precise function reference
 		if (identifier.getIdentifier().isPresent()) {
-			return resolvePreciseFunctionReference(identifier.getIdentifier().get());
+			ObjectIdentifier oi = FunctionIdentifier.normalizeObjectIdentifier(identifier.getIdentifier().get());
+			return resolvePreciseFunctionReference(oi);
 		} else {
 			// ambiguous function reference
-			return resolveAmbiguousFunctionReference(identifier.getSimpleName().get());
+			String funcName = FunctionIdentifier.normalizeName(identifier.getSimpleName().get());
+			return resolveAmbiguousFunctionReference(funcName);
 		}
 	}
 

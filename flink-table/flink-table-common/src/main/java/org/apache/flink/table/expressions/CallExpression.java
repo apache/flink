@@ -102,7 +102,7 @@ public final class CallExpression implements ResolvedExpression {
 		if (functionIdentifier == null) {
 			functionName = functionDefinition.toString();
 		} else {
-			functionName = functionIdentifier.asSerializableString();
+			functionName = functionIdentifier.asSummaryString();
 		}
 
 		final String argList = args.stream()

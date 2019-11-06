@@ -23,17 +23,12 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLookup;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.utils.FunctionUtils;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
@@ -49,10 +44,8 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -143,7 +136,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 						returnType,
 						typeFactory,
 						new DeferredTypeFlinkTableFunction(def.getTableFunction(), returnType),
-						HiveTableSqlFunction.operandTypeChecker(identifier, def.getTableFunction())));
+						HiveTableSqlFunction.operandTypeChecker(identifier.toString(), def.getTableFunction())));
 			} else {
 				return convertTableFunction(identifier, (TableFunctionDefinition) functionDefinition);
 			}
