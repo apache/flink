@@ -33,7 +33,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Base class for watermark assigner operator test.
  */
-public class WatermarkAssignerOperatorTestBase {
+public abstract class WatermarkAssignerOperatorTestBase {
 
 	protected Tuple2<Long, Long> validateElement(Object element, long nextElementValue, long currentWatermark) {
 		if (element instanceof StreamRecord) {
