@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import java.sql.Timestamp
+import java.time.LocalDateTime
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.dataformat.DataFormatConverters
@@ -29,7 +32,7 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUti
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
-import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.logical.{BigIntType, LogicalType, LogicalTypeRoot}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 /**
@@ -66,7 +69,15 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
       boxedTypeTermForType(returnType)
     }
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
-    val evalResult = s"$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")})"
+    val evalResult =
+      if (returnType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
+        s"""
+           |$SQL_TIMESTAMP_TERM.fromEpochMillis(
+           |  $functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")}))
+         """.stripMargin
+      } else {
+        s"$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")})"
+      }
     val resultExternalType = UserDefinedFunctionUtils.getResultTypeOfScalarFunction(
       scalarFunction, arguments, operandTypes)
     val setResult = {
@@ -136,13 +147,19 @@ object ScalarFunctionCallGen {
     }
 
     parameterClasses.zipWithIndex.zip(operands).map { case ((paramClass, i), operandExpr) =>
+      var newOperandExpr = operandExpr
+      if (operandExpr.resultType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+          && (paramClass == classOf[Long] || paramClass == classOf[java.lang.Long])) {
+        val targetType = new BigIntType(operandExpr.resultType.isNullable)
+        newOperandExpr = ScalarOperatorGens.generateReinterpret(ctx, operandExpr, targetType)
+      }
       if (paramClass.isPrimitive) {
-        operandExpr
+        newOperandExpr
       } else {
         val externalResultTerm = genToExternalIfNeeded(
-          ctx, signatureTypes(i), operandExpr.resultTerm)
-        val exprOrNull = s"${operandExpr.nullTerm} ? null : ($externalResultTerm)"
-        operandExpr.copy(resultTerm = exprOrNull)
+          ctx, signatureTypes(i), newOperandExpr.resultTerm)
+        val exprOrNull = s"${newOperandExpr.nullTerm} ? null : ($externalResultTerm)"
+        newOperandExpr.copy(resultTerm = exprOrNull)
       }
     }
   }

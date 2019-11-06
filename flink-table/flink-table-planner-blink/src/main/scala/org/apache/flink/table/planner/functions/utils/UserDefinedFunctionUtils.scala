@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.{getDefaul
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isAny
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isAny, isLong, isTimestamp}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
@@ -749,6 +749,9 @@ object UserDefinedFunctionUtils {
     val paraInternalType = fromDataTypeToLogicalType(parameterType)
     if (isAny(internal) && isAny(paraInternalType)) {
       getDefaultExternalClassForType(internal) == getDefaultExternalClassForType(paraInternalType)
+    } else if ((isTimestamp(internal) && isLong(paraInternalType))
+        || (isLong(internal) && isTimestamp(paraInternalType))) {
+      true
     } else {
       // There is a special equal to GenericType. We need rewrite type extract to BaseRow etc...
       paraInternalType == internal ||
