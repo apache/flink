@@ -730,7 +730,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			systemShipFiles.add(file.getAbsoluteFile());
 		}
 
-		final String logConfigFilePath = configuration.getString(YarnConfigOptions.APPLICATION_LOG_CONFIG_FILE);
+		final String logConfigFilePath = configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE);
 		if (logConfigFilePath != null) {
 			systemShipFiles.add(new File(logConfigFilePath));
 		}

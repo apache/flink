@@ -443,7 +443,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		}
 
 		discoverLogConfigFile().ifPresent(
-				file -> configuration.setString(YarnConfigOptions.APPLICATION_LOG_CONFIG_FILE, file.getPath())
+				file -> configuration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getPath())
 		);
 	}
 
