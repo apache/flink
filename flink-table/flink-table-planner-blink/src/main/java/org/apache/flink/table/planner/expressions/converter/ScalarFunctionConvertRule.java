@@ -30,6 +30,7 @@ import org.apache.calcite.sql.SqlFunction;
 import java.util.Optional;
 
 import static org.apache.flink.table.planner.expressions.converter.ExpressionConverter.toRexNodes;
+import static org.apache.flink.table.planner.functions.utils.FunctionUtils.toFunctionIdentifier;
 
 /**
  * {@link CallExpressionConvertRule} to convert {@link ScalarFunctionDefinition}.
@@ -42,7 +43,7 @@ public class ScalarFunctionConvertRule implements CallExpressionConvertRule {
 		if (def instanceof ScalarFunctionDefinition) {
 			ScalarFunction scalaFunc = ((ScalarFunctionDefinition) def).getScalarFunction();
 			SqlFunction sqlFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
-				scalaFunc.functionIdentifier(),
+				toFunctionIdentifier(call, scalaFunc),
 				scalaFunc.toString(),
 				scalaFunc,
 				context.getTypeFactory());

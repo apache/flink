@@ -23,7 +23,7 @@ import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
-import org.apache.flink.table.functions.AggregateFunctionDefinition
+import org.apache.flink.table.functions.{AggregateFunctionDefinition, FunctionIdentifier}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.expressions.{EqualTo, ExpressionBridge, GreaterThan, Literal, PlannerExpression, PlannerExpressionConverter, Sum, UnresolvedFieldReference}
@@ -31,9 +31,10 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.SqlPostfixOperator
+import org.apache.calcite.sql.{SqlIdentifier, SqlPostfixOperator}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
@@ -41,11 +42,13 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
+
 import java.math.BigDecimal
 import java.sql.Timestamp
 import java.util.{TimeZone, List => JList}
-
 import org.apache.flink.table.module.ModuleManager
+
+import org.apache.calcite.sql.parser.SqlParserPos
 
 import scala.collection.JavaConverters._
 
@@ -700,7 +703,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     // amount
     val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
     // my_udf(amount)
-    val t1 = rexBuilder.makeCall(new ScalarSqlFunction("myUdf", "myUdf", Func1, typeFactory), t0)
+    val t1 = rexBuilder.makeCall(new ScalarSqlFunction(
+      FunctionIdentifier.of("MyUdf"), "myUdf", Func1, typeFactory), t0)
     // 100
     val t2 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
     // my_udf(amount) >  100
@@ -899,7 +903,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       rexBuilder: RexBuilder,
       catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
     RexNodeExtractor.extractConjunctiveConditions(expr, maxCnfNodeCount,
-      inputFieldNames, rexBuilder, catalog, TimeZone.getDefault)
+      inputFieldNames, rexBuilder, catalog, catalogManager, TimeZone.getDefault)
   }
 
 }

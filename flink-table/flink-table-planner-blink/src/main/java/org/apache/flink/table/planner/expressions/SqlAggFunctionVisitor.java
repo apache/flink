@@ -41,6 +41,7 @@ import java.util.Map;
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
+import static org.apache.flink.table.planner.functions.utils.FunctionUtils.toFunctionIdentifier;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
@@ -89,7 +90,7 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 			AggregateFunctionDefinition aggDef = (AggregateFunctionDefinition) def;
 			AggregateFunction aggFunc = aggDef.getAggregateFunction();
 			return new AggSqlFunction(
-				aggFunc.functionIdentifier(),
+				toFunctionIdentifier(call, aggFunc),
 				aggFunc.toString(),
 				aggFunc,
 				fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),
@@ -101,7 +102,7 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 			TableAggregateFunctionDefinition aggDef = (TableAggregateFunctionDefinition) def;
 			TableAggregateFunction aggFunc = aggDef.getTableAggregateFunction();
 			return new AggSqlFunction(
-				aggFunc.functionIdentifier(),
+				toFunctionIdentifier(call, aggFunc),
 				aggFunc.toString(),
 				aggFunc,
 				fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),
