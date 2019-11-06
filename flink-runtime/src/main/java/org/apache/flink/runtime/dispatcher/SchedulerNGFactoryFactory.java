@@ -37,7 +37,7 @@ public final class SchedulerNGFactoryFactory {
 
 	private SchedulerNGFactoryFactory() {}
 
-	static SchedulerNGFactory createSchedulerNGFactory(
+	public static SchedulerNGFactory createSchedulerNGFactory(
 			final Configuration configuration,
 			final RestartStrategyFactory restartStrategyFactory) {
 
