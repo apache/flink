@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.FieldsDataType;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,6 +54,7 @@ public class TableSchemaTest {
 				DataTypes.FIELD("q1", DataTypes.STRING()),
 				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(3))))
 			.field("f2", DataTypes.STRING())
+			.field("f3", DataTypes.BIGINT(), "f0 + 1")
 			.watermark("f1.q2", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
 			.build();
 
@@ -61,16 +63,19 @@ public class TableSchemaTest {
 			" |-- f0: BIGINT\n" +
 			" |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP(3)>\n" +
 			" |-- f2: STRING\n" +
+			" |-- f3: f0 + 1\n" +
 			" |-- WATERMARK FOR f1.q2 AS now()";
 		assertEquals(expected, schema.toString());
 
 		// test getFieldNames and getFieldDataType
 		assertEquals(Optional.of("f2"), schema.getFieldName(2));
 		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f2"));
-		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f1.q1"));
-		assertFalse(schema.getFieldName(3).isPresent());
+		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f1")
+			.map(r -> ((FieldsDataType) r).getFieldDataTypes().get("q1")));
+		assertFalse(schema.getFieldName(4).isPresent());
 		assertFalse(schema.getFieldType(-1).isPresent());
 		assertFalse(schema.getFieldType("c").isPresent());
+		assertFalse(schema.getFieldDataType("f1.q1").isPresent());
 		assertFalse(schema.getFieldDataType("f1.q3").isPresent());
 
 		// test copy() and equals()
@@ -94,14 +99,14 @@ public class TableSchemaTest {
 		testData.forEach(t -> {
 			TableSchema.Builder builder = TableSchema.builder();
 			testData.forEach(e -> builder.field(e.f0, e.f1));
-			builder.watermark(t.f0, WATERMARK_EXPRESSION, WATERMARK_DATATYPE);
 			if (t.f2.equals("PASS")) {
+				builder.watermark(t.f0, WATERMARK_EXPRESSION, WATERMARK_DATATYPE);
 				TableSchema schema = builder.build();
 				assertEquals(1, schema.getWatermarkSpecs().size());
 				assertEquals(t.f0, schema.getWatermarkSpecs().get(0).getRowtimeAttribute());
 			} else {
 				try {
-					builder.build();
+					builder.watermark(t.f0, WATERMARK_EXPRESSION, WATERMARK_DATATYPE);
 				} catch (Exception e) {
 					assertTrue(e.getMessage().contains(t.f2));
 				}
@@ -169,14 +174,14 @@ public class TableSchemaTest {
 
 		testData.forEach(t -> {
 			TableSchema.Builder builder = TableSchema.builder()
-				.field("f0", DataTypes.TIMESTAMP())
-				.watermark("f0", "f0 - INTERVAL '5' SECOND", t.f0);
+				.field("f0", DataTypes.TIMESTAMP());
 			if (t.f1.equals("PASS")) {
+				builder.watermark("f0", "f0 - INTERVAL '5' SECOND", t.f0);
 				TableSchema schema = builder.build();
 				assertEquals(1, schema.getWatermarkSpecs().size());
 			} else {
 				try {
-					builder.build();
+					builder.watermark("f0", "f0 - INTERVAL '5' SECOND", t.f0);
 				} catch (Exception e) {
 					assertTrue(e.getMessage().contains(t.f1));
 				}

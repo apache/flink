@@ -19,6 +19,7 @@
 package org.apache.flink.sql.parser;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
@@ -33,11 +34,13 @@ import org.apache.calcite.sql.validate.SqlConformance;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.Reader;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 
 /** FlinkSqlParserImpl tests. **/
@@ -351,7 +354,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testInvalidComputedColumn() {
-		checkFails("CREATE TABLE sls_stream (\n" +
+		final String sql0 = "CREATE TABLE t1 (\n" +
 			"  a bigint, \n" +
 			"  b varchar,\n" +
 			"  toTimestamp^(^b, 'yyyy-MM-dd HH:mm:ss'), \n" +
@@ -359,11 +362,25 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			") with (\n" +
 			"  'x' = 'y', \n" +
 			"  'asd' = 'data'\n" +
-			")\n", "(?s).*Encountered \"\\(\" at line 4, column 14.\n" +
+			")\n";
+		final String expect0 = "(?s).*Encountered \"\\(\" at line 4, column 14.\n" +
 			"Was expecting one of:\n" +
 			"    \"AS\" ...\n" +
 			"    \"STRING\" ...\n" +
-			".*");
+			".*";
+		sql(sql0).fails(expect0);
+		// Sub-query computed column expression is forbidden.
+		final String sql1 = "CREATE TABLE t1 (\n" +
+			"  a bigint, \n" +
+			"  b varchar,\n" +
+			"  c as ^(^select max(d) from t2), \n" +
+			"  PRIMARY KEY (a, b) \n" +
+			") with (\n" +
+			"  'x' = 'y', \n" +
+			"  'asd' = 'data'\n" +
+			")\n";
+		final String expect1 = "(?s).*Query expression encountered in illegal context.*";
+		sql(sql1).fails(expect1);
 	}
 
 	@Test
@@ -505,7 +522,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				.fails("Extended columns not allowed under the current SQL conformance level"));
 	}
 
-	@Test
+	@Test @Ignore // This check was moved to PreValidateReWriter
 	public void testInsertWithInvalidPartitionColumns() {
 		conformance0 = FlinkSqlConformance.HIVE;
 		final String sql2 = "insert into emp (empno, ename, job, mgr, hiredate,\n"
@@ -646,10 +663,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		public boolean matches(Object item) {
 			if (item instanceof ExtendedSqlNode) {
 				ExtendedSqlNode createTable = (ExtendedSqlNode) item;
-				try {
-					createTable.validate();
-				} catch (Exception e) {
-					assertEquals(failMsg, e.getMessage());
+				if (failMsg != null) {
+					try {
+						createTable.validate();
+						fail("expected exception");
+					} catch (SqlValidateException e) {
+						assertEquals(failMsg, e.getMessage());
+					}
 				}
 				if (expectedColumnSql != null && item instanceof SqlCreateTable) {
 					assertEquals(expectedColumnSql,

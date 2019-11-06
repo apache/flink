@@ -43,8 +43,10 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -235,6 +237,36 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		}
 
 		return writer.toString();
+	}
+
+	/**
+	 * Split the computed columns expression into string key-value pairs.
+	 *
+	 * <p>For example, {@code col2 as to_timestamp(col1)} would be split into pair:
+	 * (col2, to_timestamp(col1)).
+	 *
+	 * @return computed column name to expression mapping
+	 **/
+	public Map<String, String> getComputedColumnMap() {
+		Map<String, String> map = new HashMap<>();
+		SqlPrettyWriter writer = new SqlPrettyWriter(AnsiSqlDialect.DEFAULT);
+		writer.setAlwaysUseParentheses(false);
+		writer.setIndentation(0);
+		writer.setQuoteAllIdentifiers(false);
+		for (SqlNode column : columnList) {
+			if (column instanceof SqlBasicCall
+				&& column.getKind() == SqlKind.AS) {
+				SqlBasicCall call = (SqlBasicCall) column;
+				call.operand(0).unparse(writer, 0, 0);
+				String v = writer.toString();
+				// Use toString instead of #unparse to avoid the quotes.
+				String k = call.operand(1).toString();
+				map.put(k, v);
+				// Reset the writer.
+				writer.reset();
+			}
+		}
+		return map;
 	}
 
 	@Override
