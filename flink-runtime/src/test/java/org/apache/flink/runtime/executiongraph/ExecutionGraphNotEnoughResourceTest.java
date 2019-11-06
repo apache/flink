@@ -27,6 +27,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -109,13 +110,16 @@ public class ExecutionGraphNotEnoughResourceTest extends TestLogger {
 			sink.setSlotSharingGroup(sharingGroup);
 			sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
 
-			TestRestartStrategy restartStrategy =
-				new TestRestartStrategy(numRestarts, false);
+			final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", source, sink);
+			jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
-			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
+			TestRestartStrategy restartStrategy = new TestRestartStrategy(numRestarts, false);
+
+			final ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(jobGraph)
 				.setSlotProvider(scheduler)
 				.setRestartStrategy(restartStrategy)
-				.setScheduleMode(ScheduleMode.EAGER)
 				.setAllocationTimeout(Time.milliseconds(1L))
 				.build();
 
