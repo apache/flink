@@ -112,6 +112,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 		switch (scheduleMode) {
 			case EAGER:
 				return new EagerSchedulingStrategy.Factory();
+			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
 			case LAZY_FROM_SOURCES:
 				return new LazyFromSourcesSchedulingStrategy.Factory();
 			default:
