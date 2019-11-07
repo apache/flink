@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.kafka;
+package org.apache.flink.tests.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -25,6 +25,7 @@ import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.JobSubmission;
+import org.apache.flink.tests.util.kafka.KafkaResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -42,8 +43,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.tests.util.TestUtils.END_TO_END_MODULE_PATH;
-
 /**
  * End-to-end test for the kafka connectors.
  */
@@ -56,9 +55,9 @@ public class StreamingKafkaITCase extends TestLogger {
 	@Parameterized.Parameters(name = "{index}: kafka-version:{1}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-			{END_TO_END_MODULE_PATH.resolve("flink-streaming-kafka010-test/target/Kafka010Example.jar"), "0.10.2.0"},
-			{END_TO_END_MODULE_PATH.resolve("flink-streaming-kafka011-test/target/Kafka011Example.jar"), "0.11.0.2"},
-			{END_TO_END_MODULE_PATH.resolve("flink-streaming-kafka-test/target/KafkaExample.jar"), "2.2.0"}
+			{"flink-streaming-kafka010-test.*Kafka010Example.jar", "0.10.2.0"},
+			{"flink-streaming-kafka011-test.*Kafka011Example.jar", "0.11.0.2"},
+			{"flink-streaming-kafka-test.*KafkaExample.jar", "2.2.0"}
 		});
 	}
 
@@ -70,8 +69,8 @@ public class StreamingKafkaITCase extends TestLogger {
 	@Rule
 	public final FlinkResource flink = FlinkResource.get();
 
-	public StreamingKafkaITCase(Path kafkaExampleJar, final String kafkaVersion) {
-		this.kafkaExampleJar = kafkaExampleJar;
+	public StreamingKafkaITCase(String kafkaExampleJarPattern, final String kafkaVersion) {
+		this.kafkaExampleJar = TestUtils.getResourceJar(kafkaExampleJarPattern);
 		this.kafka = KafkaResource.get(kafkaVersion);
 	}
 
