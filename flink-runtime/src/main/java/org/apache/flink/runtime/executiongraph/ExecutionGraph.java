@@ -105,7 +105,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -357,7 +356,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.verticesInCreationOrder = new ArrayList<>(16);
 		this.currentExecutions = new HashMap<>(16);
 
-		this.jobStatusListeners  = new CopyOnWriteArrayList<>();
+		this.jobStatusListeners  = new ArrayList<>();
 
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
