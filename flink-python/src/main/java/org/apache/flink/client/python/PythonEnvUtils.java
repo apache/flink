@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
@@ -42,15 +41,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.util.ResourceUtil.extractBasicDependenciesFromResource;
+
 /**
  * The util class help to prepare Python env and run the python process.
  */
 public final class PythonEnvUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonEnvUtils.class);
-
-	private static final String FLINK_OPT_DIR = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
-
-	private static final String FLINK_OPT_DIR_PYTHON = FLINK_OPT_DIR + File.separator + "python";
 
 	/**
 	 * Wraps Python exec environment.
@@ -115,14 +112,20 @@ public final class PythonEnvUtils {
 
 		pythonPathEnv.append(env.workingDirectory);
 
-		// 2. create symbolLink in the working directory for the pyflink dependency libs.
-		List<java.nio.file.Path> pythonLibs = getLibFiles(FLINK_OPT_DIR_PYTHON);
-		for (java.nio.file.Path libPath : pythonLibs) {
-			java.nio.file.Path symbolicLinkFilePath = FileSystems.getDefault().getPath(env.workingDirectory,
-				libPath.getFileName().toString());
-			createSymbolicLinkForPyflinkLib(libPath, symbolicLinkFilePath);
-			pythonPathEnv.append(File.pathSeparator);
-			pythonPathEnv.append(symbolicLinkFilePath.toString());
+		List<File> internalLibs = extractBasicDependenciesFromResource(
+			tmpDir,
+			PythonEnvUtils.class.getClassLoader(),
+			UUID.randomUUID().toString());
+
+		// 2. append the internal lib files to PYTHONPATH.
+		for (File file: internalLibs) {
+			if (file.getName().endsWith(".zip")) {
+				pythonPathEnv.append(File.pathSeparator);
+				pythonPathEnv.append(file.getAbsolutePath());
+				file.deleteOnExit();
+			} else {
+				file.delete();
+			}
 		}
 
 		// 3. copy relevant python files to tmp dir and set them in PYTHONPATH.
