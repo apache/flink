@@ -609,7 +609,7 @@ under the License.
 							<finalName>classloading_policy</finalName>
 							<attach>false</attach>
 							<descriptors>
-								<descriptor>src/test/assembly/test-checkpointing-custom_kv_state-assembly.xml</descriptor>
+								<descriptor>src/test/assembly/test-classloading_policy-assembly.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>
