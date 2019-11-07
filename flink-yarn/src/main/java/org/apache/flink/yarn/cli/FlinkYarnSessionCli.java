@@ -443,13 +443,21 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			configuration.setString(YarnConfigOptions.NODE_LABEL, nodeLabelValue);
 		}
 
-		discoverLogConfigFile(configurationDirectory).ifPresent(
-				file -> configuration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getPath())
-		);
+		setLogConfigFileInConfig(configuration, configurationDirectory);
 	}
 
 	@VisibleForTesting
-	public static Optional<File> discoverLogConfigFile(final String configurationDirectory) {
+	public static Configuration setLogConfigFileInConfig(final Configuration configuration, final String configurationDirectory) {
+		if (configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE) != null) {
+			return configuration;
+		}
+
+		FlinkYarnSessionCli.discoverLogConfigFile(configurationDirectory).ifPresent(file ->
+				configuration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getPath()));
+		return configuration;
+	}
+
+	private static Optional<File> discoverLogConfigFile(final String configurationDirectory) {
 		Optional<File> logConfigFile = Optional.empty();
 
 		final File log4jFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME);
