@@ -159,48 +159,6 @@ public final class PythonEnvUtils {
 	}
 
 	/**
-	 * Gets pyflink dependent libs in specified directory.
-	 *
-	 * @param libDir The lib directory
-	 */
-	public static List<java.nio.file.Path> getLibFiles(String libDir) {
-		final List<java.nio.file.Path> libFiles = new ArrayList<>();
-		SimpleFileVisitor<java.nio.file.Path> finder = new SimpleFileVisitor<java.nio.file.Path>() {
-			@Override
-			public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
-				// exclude .txt file
-				if (!file.toString().endsWith(".txt")) {
-					libFiles.add(file);
-				}
-				return FileVisitResult.CONTINUE;
-			}
-		};
-		try {
-			Files.walkFileTree(FileSystems.getDefault().getPath(libDir), finder);
-		} catch (IOException e) {
-			LOG.error("Gets pyflink dependent libs failed.", e);
-		}
-		return libFiles;
-	}
-
-	/**
-	 * Creates symbolLink in working directory for pyflink lib.
-	 *
-	 * @param libPath          the pyflink lib file path.
-	 * @param symbolicLinkPath the symbolic link to pyflink lib.
-	 */
-	public static void createSymbolicLinkForPyflinkLib(java.nio.file.Path libPath, java.nio.file.Path symbolicLinkPath)
-			throws IOException {
-		try {
-			Files.createSymbolicLink(symbolicLinkPath, libPath);
-		} catch (IOException e) {
-			LOG.error("Create symbol link for pyflink lib failed.", e);
-			LOG.info("Try to copy pyflink lib to working directory");
-			Files.copy(libPath, symbolicLinkPath);
-		}
-	}
-
-	/**
 	 * Starts python process.
 	 *
 	 * @param pythonEnv the python Environment which will be in a process.
