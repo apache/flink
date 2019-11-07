@@ -20,7 +20,6 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
-import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -49,17 +48,7 @@ public class YarnTestUtils {
 			final YarnConfiguration yarnConfiguration,
 			final YarnClient yarnClient,
 			final boolean sharedYarnClient) {
-		final Configuration effectiveConfiguration = addLogDirToConfiguration(flinkConfiguration, flinkConfDir);
+		final Configuration effectiveConfiguration = FlinkYarnSessionCli.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
 		return new YarnClusterDescriptor(effectiveConfiguration, yarnConfiguration, yarnClient, sharedYarnClient);
-	}
-
-	private static Configuration addLogDirToConfiguration(final Configuration flinkConfiguration, final String flinkConfDir) {
-		if (flinkConfiguration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE) != null) {
-			return flinkConfiguration;
-		}
-
-		FlinkYarnSessionCli.discoverLogConfigFile(flinkConfDir).ifPresent(file ->
-				flinkConfiguration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getAbsolutePath()));
-		return flinkConfiguration;
 	}
 }
