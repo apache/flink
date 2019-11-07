@@ -130,17 +130,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 		}
 	}
 
-	/**
-	 * Creates a new ResourceProfile.
-	 *
-	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
-	 * @param taskHeapMemoryMB The size of the task heap memory, in megabytes.
-	 * @param taskOffHeapMemoryMB The size of the task off-heap memory, in megabytes.
-	 * @param onHeapManagedMemoryMB The size of the on-heap managed memory, in megabytes.
-	 * @param offHeapManagedMemoryMB The size of the off-heap managed memory, in megabytes.
-	 * @param shuffleMemoryMB The size of the shuffle memory, in megabytes.
-	 * @param extendedResources The extended resources such as GPU and FPGA
-	 */
+	@VisibleForTesting
 	public ResourceProfile(
 		double cpuCores,
 		int taskHeapMemoryMB,
@@ -160,22 +150,12 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			extendedResources);
 	}
 
-	/**
-	 * Creates a new simple ResourceProfile used for testing.
-	 *
-	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
-	 * @param taskHeapMemory The size of the task heap memory.
-	 */
+	@VisibleForTesting
 	public ResourceProfile(double cpuCores, MemorySize taskHeapMemory) {
 		this(cpuCores, taskHeapMemory, MemorySize.ZERO, MemorySize.ZERO, MemorySize.ZERO, MemorySize.ZERO, Collections.emptyMap());
 	}
 
-	/**
-	 * Creates a new simple ResourceProfile used for testing.
-	 *
-	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
-	 * @param taskHeapMemoryMB The size of the task heap memory, in megabytes.
-	 */
+	@VisibleForTesting
 	public ResourceProfile(double cpuCores, int taskHeapMemoryMB) {
 		this(cpuCores, MemorySize.parse(taskHeapMemoryMB + "m"), MemorySize.ZERO, MemorySize.ZERO, MemorySize.ZERO, MemorySize.ZERO, Collections.emptyMap());
 	}
@@ -190,21 +170,6 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 		this.onHeapManagedMemory = null;
 		this.offHeapManagedMemory = null;
 		this.shuffleMemory = null;
-	}
-
-	/**
-	 * Creates a copy of the given ResourceProfile.
-	 *
-	 * @param other The ResourceProfile to copy.
-	 */
-	public ResourceProfile(ResourceProfile other) {
-		this(other.cpuCores,
-			other.taskHeapMemory,
-			other.taskOffHeapMemory,
-			other.onHeapManagedMemory,
-			other.offHeapManagedMemory,
-			other.shuffleMemory,
-			other.extendedResources);
 	}
 
 	// ------------------------------------------------------------------------
