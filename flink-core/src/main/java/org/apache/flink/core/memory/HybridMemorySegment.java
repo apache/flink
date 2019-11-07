@@ -20,6 +20,7 @@ package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.DataInput;
@@ -72,7 +73,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	  * @param cleaner optional action to run upon freeing the segment.
 	  * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
 	  */
-	HybridMemorySegment(ByteBuffer buffer, @Nullable Object owner, @Nullable Runnable cleaner) {
+	HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner, @Nullable Runnable cleaner) {
 		super(checkBufferAndGetAddress(buffer), buffer.capacity(), owner);
 		this.offHeapBuffer = buffer;
 		this.cleaner = cleaner;
