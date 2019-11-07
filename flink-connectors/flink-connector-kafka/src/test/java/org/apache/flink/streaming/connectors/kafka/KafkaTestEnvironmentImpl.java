@@ -161,7 +161,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		try {
 			adminClient.deleteTopics(Collections.singleton(topic)).all().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 		} catch (TimeoutException e) {
-			LOG.info("Did not receive delete topic response within %d seconds. Checking if it succeeded",
+			LOG.info("Did not receive delete topic response within {} seconds. Checking if it succeeded",
 				DELETE_TIMEOUT_SECONDS);
 			if (adminClient.listTopics().names().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS).contains(topic)) {
 				throw new Exception("Topic still exists after timeout");

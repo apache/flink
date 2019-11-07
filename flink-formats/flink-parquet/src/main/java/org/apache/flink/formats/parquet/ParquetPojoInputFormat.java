@@ -61,7 +61,7 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 		pojoFields = new Field[getFieldNames().length];
-		LOG.error("Fields number is %d", getFieldNames().length);
+		LOG.error("Fields number is {}.", getFieldNames().length);
 		final Map<String, Field> fieldMap = new HashMap<>();
 		findAllFields(pojoTypeClass, fieldMap);
 

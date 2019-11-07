@@ -101,7 +101,7 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 			}
 		} catch (RocksDBException e) {
 			metricView.close();
-			LOG.warn("Failed to read native metric %s from RocksDB", property, e);
+			LOG.warn("Failed to read native metric {} from RocksDB.", property, e);
 		}
 	}
 
