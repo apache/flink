@@ -240,7 +240,11 @@ public class TaskExecutorResourceUtils {
 			} else {
 				managedMemorySize = deriveManagedMemoryAbsoluteOrWithFraction(config, totalFlinkMemorySize);
 			}
-			shuffleMemorySize = deriveShuffleMemoryWithFraction(config, totalFlinkMemorySize);
+			if (isUsingLegacyShuffleConfigs(config)) {
+				shuffleMemorySize = getShuffleMemorySizeWithLegacyConfig(config);
+			} else {
+				shuffleMemorySize = deriveShuffleMemoryWithFraction(config, totalFlinkMemorySize);
+			}
 			final MemorySize totalFlinkExcludeTaskHeapMemorySize =
 				frameworkHeapMemorySize.add(frameworkOffHeapMemorySize).add(taskOffHeapMemorySize).add(managedMemorySize).add(shuffleMemorySize);
 			if (totalFlinkExcludeTaskHeapMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {

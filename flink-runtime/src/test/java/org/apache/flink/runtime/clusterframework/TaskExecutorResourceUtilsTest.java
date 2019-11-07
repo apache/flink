@@ -254,6 +254,8 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		// shuffle memory size might conflict with total flink/process memory minus other memory sizes
 		validateInConfigWithExplicitTaskHeapAndManagedMem(conf, taskExecutorResourceSpec ->
 			assertThat(taskExecutorResourceSpec.getShuffleMemSize(), is(shuffleSize)));
+		validateInConfigurationsWithoutExplicitTaskHeapMem(conf, taskExecutorResourceSpec ->
+			assertThat(taskExecutorResourceSpec.getShuffleMemSize(), is(shuffleSize)));
 	}
 
 	@Test
