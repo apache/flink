@@ -388,7 +388,8 @@ public class SchedulerImpl implements Scheduler {
 			slotProfile = new SlotProfile(
 				slotProfile.getResourceProfile(),
 				Collections.singleton(coLocationConstraint.getLocation()),
-				slotProfile.getPreferredAllocations());
+				slotProfile.getPreferredAllocations(),
+				slotProfile.getPreviousExecutionGraphAllocations());
 		}
 
 		// get a new multi task slot
