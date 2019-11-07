@@ -71,7 +71,7 @@ public class TableSchema {
 	@Deprecated
 	public TableSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		DataType[] fieldDataTypes = fromLegacyInfoToDataType(fieldTypes);
-		validateFieldAndTypeNumberEqual(fieldNames, fieldDataTypes);
+		validateNameTypeNumberEqual(fieldNames, fieldDataTypes);
 		List<TableColumn> columns = new ArrayList<>();
 		for (int i = 0; i < fieldNames.length; i++) {
 			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
@@ -137,8 +137,7 @@ public class TableSchema {
 	/**
 	 * Returns the specified data type for the given field name.
 	 *
-	 * @param fieldName the name of the field. the field name can be a nested field using a dot separator,
-	 *                    e.g. "field1.innerField2"
+	 * @param fieldName the name of the field
 	 */
 	public Optional<DataType> getFieldDataType(String fieldName) {
 		return this.columns.stream()
@@ -339,7 +338,7 @@ public class TableSchema {
 	 * @param fieldNames Field names
 	 * @param fieldTypes Field data types
 	 */
-	private static void validateFieldAndTypeNumberEqual(String[] fieldNames, DataType[] fieldTypes) {
+	private static void validateNameTypeNumberEqual(String[] fieldNames, DataType[] fieldTypes) {
 		if (fieldNames.length != fieldTypes.length) {
 			throw new ValidationException(
 				"Number of field names and field data types must be equal.\n" +
@@ -509,7 +508,7 @@ public class TableSchema {
 		public Builder fields(String[] names, DataType[] dataTypes) {
 			Preconditions.checkNotNull(names);
 			Preconditions.checkNotNull(dataTypes);
-			validateFieldAndTypeNumberEqual(names, dataTypes);
+			validateNameTypeNumberEqual(names, dataTypes);
 			List<TableColumn> columns = IntStream.range(0, names.length)
 				.mapToObj(idx -> TableColumn.of(names[idx], dataTypes[idx]))
 				.collect(Collectors.toList());
