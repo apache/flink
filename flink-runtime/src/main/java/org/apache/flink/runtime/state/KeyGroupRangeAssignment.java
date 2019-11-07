@@ -46,6 +46,7 @@ public final class KeyGroupRangeAssignment {
 	 * @return the index of the parallel operator to which the given key should be routed.
 	 */
 	public static int assignKeyToParallelOperator(Object key, int maxParallelism, int parallelism) {
+		Preconditions.checkNotNull(key, "Assigned key must not be null!");
 		return computeOperatorIndexForKeyGroup(maxParallelism, parallelism, assignToKeyGroup(key, maxParallelism));
 	}
 
@@ -57,6 +58,7 @@ public final class KeyGroupRangeAssignment {
 	 * @return the key-group to which the given key is assigned
 	 */
 	public static int assignToKeyGroup(Object key, int maxParallelism) {
+		Preconditions.checkNotNull(key, "Assigned key must not be null!");
 		return computeKeyGroupForKeyHash(key.hashCode(), maxParallelism);
 	}
 
