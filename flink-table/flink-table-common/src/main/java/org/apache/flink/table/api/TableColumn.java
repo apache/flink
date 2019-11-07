@@ -67,10 +67,7 @@ public class TableColumn {
 	public static TableColumn of(String name, DataType type) {
 		Preconditions.checkNotNull(name, "Column name can not be null!");
 		Preconditions.checkNotNull(type, "Column type can not be null!");
-		return new TableColumn(
-			name,
-			type,
-			null);
+		return new TableColumn(name, type, null);
 	}
 
 	/**
@@ -107,14 +104,18 @@ public class TableColumn {
 
 	//~ Getter/Setter ----------------------------------------------------------
 
+	/** Returns data type of this column. */
 	public DataType getType() {
 		return this.type;
 	}
 
+	/** Returns name of this column. */
 	public String getName() {
 		return name;
 	}
 
+	/** Returns computation expression of this column. Or empty if this column
+	 * is not a computed column. */
 	public Optional<String> getExpr() {
 		return Optional.ofNullable(this.expr);
 	}

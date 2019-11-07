@@ -70,7 +70,15 @@ public class TableSchema {
 	 */
 	@Deprecated
 	public TableSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		this(createTableColumns(fieldNames, fieldTypes), Collections.emptyList());
+		DataType[] fieldDataTypes = fromLegacyInfoToDataType(fieldTypes);
+		validateFieldAndTypeNumberEqual(fieldNames, fieldDataTypes);
+		List<TableColumn> columns = new ArrayList<>();
+		for (int i = 0; i < fieldNames.length; i++) {
+			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
+		}
+		validateDuplicateFields(fieldNames);
+		this.columns = columns;
+		this.watermarkSpecs = Collections.emptyList();
 	}
 
 	/**
@@ -248,13 +256,13 @@ public class TableSchema {
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("root\n");
-		for (int i = 0; i < columns.size(); i++) {
+		for (TableColumn column : columns) {
 			sb.append(" |-- ")
-				.append(getFieldName(i).get())
+				.append(column.getName())
 				.append(": ");
-			sb.append(getFieldDataType(i).get());
-			if (columns.get(i).isGenerated()) {
-				sb.append(" ").append(columns.get(i).getExpr().get());
+			sb.append(column.getType());
+			if (column.getExpr().isPresent()) {
+				sb.append(" AS ").append(column.getExpr().get());
 			}
 			sb.append('\n');
 		}
@@ -325,23 +333,13 @@ public class TableSchema {
 	//~ Tools ------------------------------------------------------------------
 
 	/**
-	 * Tools method to transform arrays of table names and types
-	 * into a {@link TableColumn} list.
+	 * Validate the field names {@code fieldNames} and field types {@code fieldTypes}
+	 * have equal number.
+	 *
+	 * @param fieldNames Field names
+	 * @param fieldTypes Field data types
 	 */
-	private static List<TableColumn> createTableColumns(
-			String[] fieldNames,
-			TypeInformation<?>[] fieldTypes) {
-			DataType[] fieldDataTypes = fromLegacyInfoToDataType(fieldTypes);
-			validateFields(fieldNames, fieldDataTypes);
-			List<TableColumn> columns = new ArrayList<>();
-		for (int i = 0; i < fieldNames.length; i++) {
-			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
-		}
-		return columns;
-	}
-
-	/** Fields sanity check. */
-	private static void validateFields(String[] fieldNames, DataType[] fieldTypes) {
+	private static void validateFieldAndTypeNumberEqual(String[] fieldNames, DataType[] fieldTypes) {
 		if (fieldNames.length != fieldTypes.length) {
 			throw new ValidationException(
 				"Number of field names and field data types must be equal.\n" +
@@ -350,6 +348,10 @@ public class TableSchema {
 					"List of field names: " + Arrays.toString(fieldNames) + "\n" +
 					"List of field data types: " + Arrays.toString(fieldTypes));
 		}
+	}
+
+	/** Fields sanity check. */
+	private static void validateDuplicateFields(String[] fieldNames) {
 		// validate and create name to index mapping
 		final Set<String> duplicateNames = new HashSet<>();
 		final Set<String> uniqueNames = new HashSet<>();
@@ -424,10 +426,10 @@ public class TableSchema {
 	 * @param parentFieldName Field name of parent type, e.g. "f0" in the above example
 	 */
 	private static void validateAndCreateNameToTypeMapping(
-		Map<String, DataType> fieldNameToType,
-		String fieldName,
-		DataType fieldType,
-		String parentFieldName) {
+			Map<String, DataType> fieldNameToType,
+			String fieldName,
+			DataType fieldType,
+			String parentFieldName) {
 		String fullFieldName = parentFieldName.isEmpty() ? fieldName : parentFieldName + "." + fieldName;
 		DataType oldType = fieldNameToType.put(fullFieldName, fieldType);
 		if (oldType != null) {
@@ -469,10 +471,27 @@ public class TableSchema {
 		}
 
 		/**
-		 * Add a field with name and computation expression.
+		 * Add a field with name, data type and computation expression.
 		 * This column would be a computed column.
 		 *
 		 * <p>The call order of this method determines the order of fields in the schema.
+		 *
+		 * @param name       Field name
+		 * @param dataType   Field data type
+		 * @param expression Computed column expression, it should be a SQL-style expression whose
+		 *                   identifiers should be all quoted and expanded.
+		 *
+		 *                   It should be expanded because this expression may be persisted
+		 *                   then deserialized from the catalog, an expanded identifier would
+		 *                   avoid the ambiguity if there are same name UDF referenced from
+		 *                   different paths. For example, if there is a UDF named "my_udf" from
+		 *                   path "my_catalog.my_database", you could pass in an expression like
+		 *                   "my_catalog.my_database.my_udf(f0) + 1";
+		 *
+		 *                   It should be quoted because user could use a reserved keyword as the
+		 *                   identifier, and we have no idea if it is quoted when deserialize from
+		 *                   the catalog, so we force to use quoted identifier here.
+		 *
 		 */
 		public Builder field(String name, DataType dataType, String expression) {
 			Preconditions.checkNotNull(name);
@@ -490,6 +509,7 @@ public class TableSchema {
 		public Builder fields(String[] names, DataType[] dataTypes) {
 			Preconditions.checkNotNull(names);
 			Preconditions.checkNotNull(dataTypes);
+			validateFieldAndTypeNumberEqual(names, dataTypes);
 			List<TableColumn> columns = IntStream.range(0, names.length)
 				.mapToObj(idx -> TableColumn.of(names[idx], dataTypes[idx]))
 				.collect(Collectors.toList());
@@ -535,8 +555,8 @@ public class TableSchema {
 		 * Returns a {@link TableSchema} instance.
 		 */
 		public TableSchema build() {
-			validateFields(this.columns.stream().map(TableColumn::getName).toArray(String[]::new),
-				this.columns.stream().map(TableColumn::getType).toArray(DataType[]::new));
+			validateDuplicateFields(this.columns.stream()
+				.map(TableColumn::getName).toArray(String[]::new));
 			validateWatermarkSpecs(this.columns, this.watermarkSpecs);
 			return new TableSchema(columns, watermarkSpecs);
 		}

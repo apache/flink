@@ -34,7 +34,6 @@ import org.apache.calcite.sql.validate.SqlConformance;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.Reader;
@@ -520,24 +519,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
 			.node(new ValidationMatcher()
 				.fails("Extended columns not allowed under the current SQL conformance level"));
-	}
-
-	@Test @Ignore // This check was moved to PreValidateReWriter
-	public void testInsertWithInvalidPartitionColumns() {
-		conformance0 = FlinkSqlConformance.HIVE;
-		final String sql2 = "insert into emp (empno, ename, job, mgr, hiredate,\n"
-			+ "  sal, comm, deptno, slacker)\n"
-			+ "partition(^xxx^='1', job='job')\n"
-			+ "select 'nom', 0, timestamp '1970-01-01 00:00:00',\n"
-			+ "  1, 1, 1, false\n"
-			+ "from (values 'a')";
-		sql(sql2).node(new ValidationMatcher().fails("Unknown target column 'XXX'"));
-		final String sql3 = "insert into ^empnullables^ (ename, empno, deptno)\n"
-			+ "partition(empno='1')\n"
-			+ "values ('Pat', null)";
-		sql(sql3).node(new ValidationMatcher().fails(
-			"\"Number of INSERT target columns \\\\(3\\\\) does not \"\n"
-				+ "\t\t\t\t+ \"equal number of source items \\\\(2\\\\)\""));
 	}
 
 	@Test

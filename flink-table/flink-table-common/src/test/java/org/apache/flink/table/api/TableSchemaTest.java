@@ -63,12 +63,15 @@ public class TableSchemaTest {
 			" |-- f0: BIGINT\n" +
 			" |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP(3)>\n" +
 			" |-- f2: STRING\n" +
-			" |-- f3: BIGINT f0 + 1\n" +
+			" |-- f3: BIGINT AS f0 + 1\n" +
 			" |-- WATERMARK FOR f1.q2 AS now()";
 		assertEquals(expected, schema.toString());
 
 		// test getFieldNames and getFieldDataType
 		assertEquals(Optional.of("f2"), schema.getFieldName(2));
+		assertEquals(Optional.of(DataTypes.BIGINT()), schema.getFieldDataType(3));
+		assertEquals(Optional.of(TableColumn.of("f3", DataTypes.BIGINT(), "f0 + 1")),
+			schema.getTableColumn(3));
 		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f2"));
 		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f1")
 			.map(r -> ((FieldsDataType) r).getFieldDataTypes().get("q1")));
