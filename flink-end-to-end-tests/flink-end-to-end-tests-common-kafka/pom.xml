@@ -89,6 +89,49 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+
+		<!-- The following dependencies are for connector/format sql-jars that
+			we copy using the maven-dependency-plugin. When extending the test
+ 			to cover more connectors/formats, add a dependency here and an entry
+			to the dependency-plugin configuration below.
+			This ensures that all modules we actually need (as defined by the
+ 			dependency-plugin configuration) are built before this module. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-client-test</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-avro</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-connector-kafka-0.10_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-connector-kafka-0.11_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -130,6 +173,57 @@ under the License.
 							<version>${project.version}</version>
 							<type>jar</type>
 							<overWrite>true</overWrite>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-sql-client-test</artifactId>
+							<version>${project.version}</version>
+							<destFileName>SqlToolbox.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-avro</artifactId>
+							<version>${project.version}</version>
+							<classifier>sql-jar</classifier>
+							<destFileName>avro.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-json</artifactId>
+							<version>${project.version}</version>
+							<classifier>sql-jar</classifier>
+							<destFileName>json.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-sql-connector-kafka-0.10_${scala.binary.version}</artifactId>
+							<version>${project.version}</version>
+							<destFileName>sql-kafka-0.10.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-sql-connector-kafka-0.11_${scala.binary.version}</artifactId>
+							<version>${project.version}</version>
+							<destFileName>sql-kafka-0.11.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-sql-connector-kafka_${scala.binary.version}</artifactId>
+							<version>${project.version}</version>
+							<destFileName>sql-kafka.jar</destFileName>
+							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 						</artifactItem>
 					</artifactItems>
