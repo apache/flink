@@ -1,9 +1,8 @@
 ---
 title: "Functions"
 nav-id: table_functions
-nav-parent_id: tableapi
-nav-pos: 116
-is_beta: true
+nav-parent_id: table_functions
+nav-pos: 40
 nav-show_overview: true
 ---
 <!--
@@ -26,6 +25,9 @@ under the License.
 -->
 
 Flink Table API & SQL empowers users to do data transformations with functions.
+
+* This will be replaced by the TOC
+{:toc}
 
 Types of Functions
 ------------------
@@ -63,8 +65,6 @@ This is only supported starting from Flink 1.10.
 ## Ambiguous Function Reference
 
 In ambiguous function reference, users just specify the function's name in SQL query, e.g. `select myfunc(x) from mytable`.
-
-This is the only supported option before Flink 1.10.
 
 
 Function Resolution Order

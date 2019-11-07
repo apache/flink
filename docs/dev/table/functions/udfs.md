@@ -1,6 +1,6 @@
 ---
 title: "User-defined Functions"
-nav-parent_id: tableapi
+nav-parent_id: table_functions
 nav-pos: 50
 ---
 <!--

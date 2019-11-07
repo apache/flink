@@ -1,6 +1,6 @@
 ---
-title: "内置函数"
-nav-parent_id: tableapi
+title: "系统（内置）函数"
+nav-parent_id: table_functions
 nav-pos: 31
 ---
 <!--

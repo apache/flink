@@ -1,9 +1,8 @@
 ---
 title: "Functions"
 nav-id: table_functions
-nav-parent_id: tableapi
-nav-pos: 116
-is_beta: true
+nav-parent_id: table_functions
+nav-pos: 40
 nav-show_overview: true
 ---
 <!--
@@ -27,6 +26,9 @@ under the License.
 
 Flink Table API & SQL empowers users to do data transformations with functions.
 
+* This will be replaced by the TOC
+{:toc}
+
 Types of Functions
 ------------------
 
@@ -48,6 +50,9 @@ The two dimensions give Flink users 4 categories of functions:
 3. Temporary catalog functions
 4. Catalog functions
 
+Note that system functions always precede catalog's, and temporary functions always precede persistent on their own dimension
+in function resolution order explained below.
+
 Referencing Functions
 ---------------------
 
@@ -63,8 +68,6 @@ This is only supported starting from Flink 1.10.
 ## Ambiguous Function Reference
 
 In ambiguous function reference, users just specify the function's name in SQL query, e.g. `select myfunc(x) from mytable`.
-
-This is the only supported option before Flink 1.10.
 
 
 Function Resolution Order
