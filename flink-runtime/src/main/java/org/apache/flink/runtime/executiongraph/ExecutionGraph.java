@@ -202,7 +202,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
 
 	/** The currently executed tasks, for callbacks. */
-	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
+	private final Map<ExecutionAttemptID, Execution> currentExecutions;
 
 	/** Listeners that receive messages when the entire job switches it status
 	 * (such as from RUNNING to FINISHED). */
@@ -465,7 +465,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.tasks = new ConcurrentHashMap<>(16);
 		this.intermediateResults = new ConcurrentHashMap<>(16);
 		this.verticesInCreationOrder = new ArrayList<>(16);
-		this.currentExecutions = new ConcurrentHashMap<>(16);
+		this.currentExecutions = new HashMap<>(16);
 
 		this.jobStatusListeners  = new CopyOnWriteArrayList<>();
 
