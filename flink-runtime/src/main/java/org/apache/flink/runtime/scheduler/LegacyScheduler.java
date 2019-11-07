@@ -82,6 +82,11 @@ public class LegacyScheduler extends SchedulerBase {
 	}
 
 	@Override
+	protected long getNumberOfRestarts() {
+		return getExecutionGraph().getNumberOfRestarts();
+	}
+
+	@Override
 	protected void startSchedulingInternal() {
 		final ExecutionGraph executionGraph = getExecutionGraph();
 		try {

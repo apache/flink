@@ -99,6 +99,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.metrics.MetricNames.NUMBER_OF_RESTARTS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -194,6 +195,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.failoverTopology = executionGraph.getFailoverTopology();
 
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
+
+		jobManagerJobMetricGroup.gauge(NUMBER_OF_RESTARTS, this::getNumberOfRestarts);
 	}
 
 	private ExecutionGraph createAndRestoreExecutionGraph(
@@ -371,6 +374,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 	protected JobGraph getJobGraph() {
 		return jobGraph;
 	}
+
+	protected abstract long getNumberOfRestarts();
 
 	// ------------------------------------------------------------------------
 	// SchedulerNG
