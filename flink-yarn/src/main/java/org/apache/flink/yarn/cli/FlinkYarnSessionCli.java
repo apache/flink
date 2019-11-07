@@ -27,6 +27,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -285,7 +286,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		checkNotNull(configuration);
 
 		if (cmd.hasOption(shipPath.getOpt())) {
-			YarnConfigUtils.encodeListToConfig(
+			ConfigUtils.encodeArrayToConfig(
 					configuration,
 					YarnConfigOptions.SHIP_DIRECTORIES,
 					cmd.getOptionValues(this.shipPath.getOpt()),
