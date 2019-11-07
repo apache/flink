@@ -996,8 +996,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return the {@link MemorySegment} wrapping up the serialized key bytes.
 	 */
 	private MemorySegment getKeySegment(K key, N namespace) {
-		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		return MemorySegmentFactory.wrap(keyBytes);
+		return skipListKeySerializer.serializeToSegment(key, namespace);
 	}
 
 	// Help methods ---------------------------------------------------------------
@@ -1165,9 +1164,8 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	@Override
 	public Stream<K> getKeys(N namespace) {
 		updateStat();
-		byte[] namespaceBytes = skipListKeySerializer.serializeNamespace(namespace);
-		MemorySegment namespaceSegment = MemorySegmentFactory.wrap(namespaceBytes);
-		Iterator<Long> nodeIter = new NamespaceNodeIterator(namespaceSegment, 0, namespaceBytes.length);
+		MemorySegment namespaceSegment = skipListKeySerializer.serializeNamespaceToSegment(namespace);
+		Iterator<Long> nodeIter = new NamespaceNodeIterator(namespaceSegment, 0, namespaceSegment.size());
 		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(nodeIter, 0), false)
 			.map(this::helpGetKey);
 	}
@@ -1176,9 +1174,8 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	@Override
 	public int sizeOfNamespace(Object namespace) {
 		updateStat();
-		byte[] namespaceBytes = skipListKeySerializer.serializeNamespace((N) namespace);
-		MemorySegment namespaceSegment = MemorySegmentFactory.wrap(namespaceBytes);
-		Iterator<Long> nodeIter = new NamespaceNodeIterator(namespaceSegment, 0, namespaceBytes.length);
+		MemorySegment namespaceSegment = skipListKeySerializer.serializeNamespaceToSegment((N) namespace);
+		Iterator<Long> nodeIter = new NamespaceNodeIterator(namespaceSegment, 0, namespaceSegment.size());
 		int size = 0;
 		while (nodeIter.hasNext()) {
 			nodeIter.next();

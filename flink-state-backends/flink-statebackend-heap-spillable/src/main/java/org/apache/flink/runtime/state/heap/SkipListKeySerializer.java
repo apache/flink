@@ -60,6 +60,19 @@ class SkipListKeySerializer<K, N> {
 	 * 	- byte[]: serialized key
 	 */
 	byte[] serialize(K key, N namespace) {
+		// we know that the segment contains a byte[], because it is created
+		// in the method below by wrapping a byte[]
+		return serializeToSegment(key, namespace).getArray();
+	}
+
+	/**
+	 * Serialize the key and namespace to bytes. The format is
+	 * 	- int:    length of serialized namespace
+	 * 	- byte[]: serialized namespace
+	 * 	- int:    length of serialized key
+	 * 	- byte[]: serialized key
+	 */
+	MemorySegment serializeToSegment(K key, N namespace) {
 		outputStream.reset();
 		try {
 			// serialize namespace
@@ -78,15 +91,14 @@ class SkipListKeySerializer<K, N> {
 			throw new RuntimeException("Failed to serialize key", e);
 		}
 
-		byte[] result = outputStream.toByteArray();
-		// set length of namespace and key
-		int namespaceLen = keyStartPos - Integer.BYTES;
-		int keyLen = result.length - keyStartPos - Integer.BYTES;
-		MemorySegment segment = MemorySegmentFactory.wrap(result);
-		segment.putInt(0, namespaceLen);
-		segment.putInt(keyStartPos, keyLen);
+		final byte[] result = outputStream.toByteArray();
+		final MemorySegment segment = MemorySegmentFactory.wrap(result);
 
-		return result;
+		// set length of namespace and key
+		segment.putInt(0, keyStartPos - Integer.BYTES);
+		segment.putInt(keyStartPos, result.length - keyStartPos - Integer.BYTES);
+
+		return segment;
 	}
 
 	/**
@@ -161,5 +173,9 @@ class SkipListKeySerializer<K, N> {
 			throw new RuntimeException("serialize namespace failed", e);
 		}
 		return outputStream.toByteArray();
+	}
+
+	MemorySegment serializeNamespaceToSegment(N namespace) {
+		return MemorySegmentFactory.wrap(serializeNamespace(namespace));
 	}
 }
