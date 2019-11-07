@@ -41,7 +41,7 @@ import org.apache.flink.streaming.api.windowing.time.Time
   * @tparam T Base type of the elements appearing in the pattern
   * @tparam F Subtype of T to which the current pattern operator is constrained
   */
-class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
+class Pattern[T, F <: T](jPattern: JPattern[T, F]) {
 
   private[flink] def wrappedPattern = jPattern
 
@@ -306,7 +306,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param name Name of the new pattern
     * @return A new pattern which is appended to this one
     */
-  def notFollowedBy(name : String): Pattern[T, T] = {
+  def notFollowedBy(name: String): Pattern[T, T] = {
     Pattern[T, T](jPattern.notFollowedBy(name))
   }
 
@@ -438,11 +438,33 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * will generate matches: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}
     *
     * By default a relaxed continuity is applied.
+    *
     * @return pattern with continuity changed to strict
     */
   def consecutive(): Pattern[T, F] = {
     jPattern.consecutive()
     this
+  }
+
+  /**
+    * follow the wait pattern, set the waiting time
+    *
+    * @param waitingTime Time of the matching window
+    * @return The same pattern operator with the new window length
+    */
+  def waitting(waitingTime: Time): Pattern[T, F] = {
+    jPattern.waitting(waitingTime)
+    this
+  }
+
+  /**
+    * Match with notFollowedBy,if notFollowedBy has not occurred within the waitting time, trigger wait
+    *
+    * @param name Name of the new pattern
+    * @return A new pattern which is appended to this one
+    */
+  def wait(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.wait(name))
   }
 
   /**
@@ -481,31 +503,11 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
 
   /**
     * Get after match skip strategy.
+    *
     * @return current after match skip strategy
     */
   def getAfterMatchSkipStrategy: AfterMatchSkipStrategy =
     jPattern.getAfterMatchSkipStrategy
-
-  /**
-    *
-    * @param waitingTime
-    * @return
-    */
-  def waitting(waitingTime: Time): Pattern[T, F] = {
-    jPattern.waitting(waitingTime)
-    this
-  }
-
-  /**
-    *
-    * @param name
-    * @return
-    */
-  def wait(name: String): Pattern[T, T] = {
-    Pattern[T, T](jPattern.wait(name))
-  }
-
-
 }
 
 object Pattern {
@@ -534,7 +536,7 @@ object Pattern {
     * Starts a new pattern sequence. The provided name is the one of the initial pattern
     * of the new sequence. Furthermore, the base type of the event sequence is set.
     *
-    * @param name The name of starting pattern of the new pattern sequence
+    * @param name                   The name of starting pattern of the new pattern sequence
     * @param afterMatchSkipStrategy The skip strategy to use after each match
     * @tparam X Base type of the event pattern
     * @return The first pattern of a pattern sequence
@@ -556,13 +558,12 @@ object Pattern {
     * Starts a new pattern sequence. The provided pattern is the initial pattern
     * of the new sequence.
     *
-    * @param pattern the pattern to begin with
+    * @param pattern                the pattern to begin with
     * @param afterMatchSkipStrategy The skip strategy to use after each match
     * @return The first pattern of a pattern sequence
     */
   def begin[T, F <: T](pattern: Pattern[T, F],
-      afterMatchSkipStrategy: AfterMatchSkipStrategy): GroupPattern[T, F] =
+                       afterMatchSkipStrategy: AfterMatchSkipStrategy): GroupPattern[T, F] =
     GroupPattern(JPattern.begin(pattern.wrappedPattern, afterMatchSkipStrategy))
-
 
 }
