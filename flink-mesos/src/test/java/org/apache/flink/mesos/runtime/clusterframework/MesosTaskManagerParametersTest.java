@@ -142,6 +142,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 		assertEquals(params.uris().size(), 0);
 	}
 
+	@Test
 	public void testForcePullImageTrue() {
 		Configuration config = new Configuration();
 		config.setBoolean(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_FORCE_PULL_IMAGE, true);
