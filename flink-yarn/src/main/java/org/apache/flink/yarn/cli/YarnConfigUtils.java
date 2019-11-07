@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -36,14 +35,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utilities for parsing {@link org.apache.flink.configuration.ConfigOption configuration options}.
  */
 public class YarnConfigUtils {
-
-	public static <T> void encodeListToConfig(
-			final Configuration configuration,
-			final ConfigOption<List<String>> key,
-			final Collection<T> value,
-			final Function<T, String> mapper) {
-		encodeListToConfig(configuration, key, value.stream(), mapper);
-	}
 
 	public static <T> void encodeListToConfig(
 			final Configuration configuration,
