@@ -104,6 +104,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 100);
+		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "256m");
 
 		try (final StandaloneSessionClusterEntrypoint clusterEntrypoint = new StandaloneSessionClusterEntrypoint(config)) {
 
