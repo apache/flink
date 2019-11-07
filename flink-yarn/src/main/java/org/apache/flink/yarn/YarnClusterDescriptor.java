@@ -27,6 +27,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -48,7 +49,6 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
-import org.apache.flink.yarn.cli.YarnConfigUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
@@ -185,7 +185,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private Optional<List<File>> decodeDirsToShipToCluster(final Configuration configuration) {
 		checkNotNull(configuration);
 
-		final List<File> files = YarnConfigUtils.decodeListFromConfig(configuration, YarnConfigOptions.SHIP_DIRECTORIES, File::new);
+		final List<File> files = ConfigUtils.decodeListFromConfig(configuration, YarnConfigOptions.SHIP_DIRECTORIES, File::new);
 		return files.isEmpty() ? Optional.empty() : Optional.of(files);
 	}
 
