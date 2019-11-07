@@ -88,16 +88,6 @@ public final class ResourceSpec implements Serializable {
 
 	private final Map<String, Resource> extendedResources = new HashMap<>(1);
 
-	/**
-	 * Creates a new ResourceSpec with full resources.
-	 *
-	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
-	 * @param taskHeapMemory The size of the task heap memory.
-	 * @param taskOffHeapMemory The size of the task off-heap memory.
-	 * @param onHeapManagedMemory The size of the on-heap managed memory.
-	 * @param offHeapManagedMemory The size of the off-heap managed memory.
-	 * @param extendedResources The extended resources, associated with the resource manager used
-	 */
 	private ResourceSpec(
 		double cpuCores,
 		MemorySize taskHeapMemory,
@@ -118,32 +108,6 @@ public final class ResourceSpec implements Serializable {
 				this.extendedResources.put(resource.getName(), resource);
 			}
 		}
-	}
-
-	/**
-	 * Creates a new ResourceSpec with full resources.
-	 *
-	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
-	 * @param taskHeapMemoryMB The size of the task heap memory, in megabytes.
-	 * @param taskOffHeapMemoryMB The size of the task off-heap memory, in megabytes.
-	 * @param onHeapManagedMemoryMB The size of the on-heap managed memory, in megabytes.
-	 * @param offHeapManagedMemoryMB The size of the off-heap managed memory.
-	 * @param extendedResources The extended resources, associated with the resource manager used
-	 */
-	private ResourceSpec(
-			double cpuCores,
-			int taskHeapMemoryMB,
-			int taskOffHeapMemoryMB,
-			int onHeapManagedMemoryMB,
-			int offHeapManagedMemoryMB,
-			Resource... extendedResources) {
-		this(
-			cpuCores,
-			MemorySize.parse(taskHeapMemoryMB + "m"),
-			MemorySize.parse(taskOffHeapMemoryMB + "m"),
-			MemorySize.parse(onHeapManagedMemoryMB + "m"),
-			MemorySize.parse(offHeapManagedMemoryMB + "m"),
-			extendedResources);
 	}
 
 	/**
