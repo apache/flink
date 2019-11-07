@@ -19,21 +19,18 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
 import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
-import org.apache.flink.table.functions.FunctionIdentifier
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.utils.FunctionUtils.toFunctionIdentifier
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
@@ -412,11 +409,11 @@ class RexNodeToExpressionConverter(
         case _: SqlFunction | _: SqlPostfixOperator =>
           val names = new util.ArrayList[String](rexCall.getOperator.getNameAsId.names)
           names.set(names.size() - 1, replace(names.get(names.size() - 1)))
-          val id = toFunctionIdentifier(names.asScala.toArray, catalogManager)
+          val id = UnresolvedIdentifier.of(names.asScala.toArray: _*)
           lookupFunction(id, operands, outputType)
         case operator@_ =>
           lookupFunction(
-            FunctionIdentifier.of(replace(s"${operator.getKind}")),
+            UnresolvedIdentifier.of(replace(s"${operator.getKind}")),
             operands,
             outputType)
       }
@@ -440,7 +437,7 @@ class RexNodeToExpressionConverter(
       fieldRef: RexPatternFieldRef): Option[ResolvedExpression] = None
 
   private def lookupFunction(
-      identifier: FunctionIdentifier,
+      identifier: UnresolvedIdentifier,
       operands: Seq[ResolvedExpression],
       outputType: DataType): Option[ResolvedExpression] = {
     Try(functionCatalog.lookupFunction(identifier)) match {

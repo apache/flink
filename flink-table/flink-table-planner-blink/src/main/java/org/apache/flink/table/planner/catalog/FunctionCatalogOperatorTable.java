@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
@@ -49,7 +49,6 @@ import org.apache.calcite.sql.validate.SqlNameMatcher;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.planner.functions.utils.FunctionUtils.toFunctionIdentifier;
 import static org.apache.flink.table.planner.functions.utils.HiveFunctionUtils.isHiveFunc;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -60,15 +59,12 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 
 	private final FunctionCatalog functionCatalog;
-	private final CatalogManager catalogManager;
 	private final FlinkTypeFactory typeFactory;
 
 	public FunctionCatalogOperatorTable(
 			FunctionCatalog functionCatalog,
-			CatalogManager catalogManager,
 			FlinkTypeFactory typeFactory) {
 		this.functionCatalog = functionCatalog;
-		this.catalogManager = catalogManager;
 		this.typeFactory = typeFactory;
 	}
 
@@ -89,12 +85,12 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			return;
 		}
 
-		FunctionIdentifier identifier = toFunctionIdentifier(opName.names.toArray(new String[0]), catalogManager);
+		UnresolvedIdentifier identifier = UnresolvedIdentifier.of(opName.names.toArray(new String[0]));
 
 		Optional<FunctionLookup.Result> candidateFunction = functionCatalog.lookupFunction(identifier);
 
 		candidateFunction.flatMap(lookupResult ->
-			convertToSqlFunction(category, identifier, lookupResult.getFunctionDefinition())
+			convertToSqlFunction(category, lookupResult.getFunctionIdentifier(), lookupResult.getFunctionDefinition())
 		).ifPresent(operatorList::add);
 	}
 
