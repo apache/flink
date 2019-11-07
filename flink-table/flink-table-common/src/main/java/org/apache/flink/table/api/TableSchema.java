@@ -32,12 +32,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -76,7 +74,7 @@ public class TableSchema {
 		for (int i = 0; i < fieldNames.length; i++) {
 			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
 		}
-		validateDuplicateFields(fieldNames);
+		validateColumnsAndWatermarkSpecs(columns, Collections.emptyList());
 		this.columns = columns;
 		this.watermarkSpecs = Collections.emptyList();
 	}
@@ -349,33 +347,14 @@ public class TableSchema {
 		}
 	}
 
-	/** Fields sanity check. */
-	private static void validateDuplicateFields(String[] fieldNames) {
-		// validate and create name to index mapping
-		final Set<String> duplicateNames = new HashSet<>();
-		final Set<String> uniqueNames = new HashSet<>();
-		for (final String fieldName : fieldNames) {
-			// check uniqueness of field names
-			if (uniqueNames.contains(fieldName)) {
-				duplicateNames.add(fieldName);
-			} else {
-				uniqueNames.add(fieldName);
-			}
-		}
-		if (!duplicateNames.isEmpty()) {
-			throw new ValidationException(
-				"Field names must be unique.\n" +
-					"List of duplicate fields: " + duplicateNames.toString() + "\n" +
-					"List of all fields: " + Arrays.toString(fieldNames));
-		}
-	}
-
-	/** Watermark specification sanity check. */
-	private static void validateWatermarkSpecs(List<TableColumn> columns,
+	/** Table column and watermark specification sanity check. */
+	private static void validateColumnsAndWatermarkSpecs(List<TableColumn> columns,
 			List<WatermarkSpec> watermarkSpecs) {
 		// Validate and create name to type mapping.
 		// Field name to data type mapping, we need this because the row time attribute
 		// field can be nested.
+
+		// This also check duplicate fields.
 		final Map<String, DataType> fieldNameToType = new HashMap<>();
 		for (TableColumn column : columns) {
 			validateAndCreateNameToTypeMapping(fieldNameToType,
@@ -554,9 +533,7 @@ public class TableSchema {
 		 * Returns a {@link TableSchema} instance.
 		 */
 		public TableSchema build() {
-			validateDuplicateFields(this.columns.stream()
-				.map(TableColumn::getName).toArray(String[]::new));
-			validateWatermarkSpecs(this.columns, this.watermarkSpecs);
+			validateColumnsAndWatermarkSpecs(this.columns, this.watermarkSpecs);
 			return new TableSchema(columns, watermarkSpecs);
 		}
 	}

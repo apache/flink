@@ -85,7 +85,7 @@ public class DescriptorProperties {
 
 	public static final String WATERMARK_STRATEGY_EXPR = "strategy.expr";
 
-	public static final String WATERMARK_STRATEGY_TYPE = "strategy.type";
+	public static final String WATERMARK_STRATEGY_DATATYPE = "strategy.datatype";
 
 	private static final Consumer<String> EMPTY_CONSUMER = (value) -> {};
 
@@ -226,7 +226,7 @@ public class DescriptorProperties {
 			}
 			putIndexedFixedProperties(
 				key + '.' + WATERMARK,
-				Arrays.asList(WATERMARK_ROWTIME, WATERMARK_STRATEGY_EXPR, WATERMARK_STRATEGY_TYPE),
+				Arrays.asList(WATERMARK_ROWTIME, WATERMARK_STRATEGY_EXPR, WATERMARK_STRATEGY_DATATYPE),
 				watermarkValues);
 		}
 	}
@@ -613,7 +613,7 @@ public class DescriptorProperties {
 			for (int i = 0; i < watermarkCount; i++) {
 				final String rowtimeKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_ROWTIME;
 				final String exprKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_STRATEGY_EXPR;
-				final String typeKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_STRATEGY_TYPE;
+				final String typeKey = watermarkPrefixKey + '.' + i + '.' + WATERMARK_STRATEGY_DATATYPE;
 				final String rowtime = optionalGet(rowtimeKey).orElseThrow(exceptionSupplier(rowtimeKey));
 				final String exprString = optionalGet(exprKey).orElseThrow(exceptionSupplier(exprKey));
 				final String typeString = optionalGet(typeKey).orElseThrow(exceptionSupplier(typeKey));

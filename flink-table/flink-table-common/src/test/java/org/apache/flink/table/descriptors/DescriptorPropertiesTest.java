@@ -202,7 +202,7 @@ public class DescriptorPropertiesTest {
 		expected.put("schema.3.expr", "f0 + 1");
 		expected.put("schema.watermark.0.rowtime", "f1.q2");
 		expected.put("schema.watermark.0.strategy.expr", "`f1`.`q2` - INTERVAL '5' SECOND");
-		expected.put("schema.watermark.0.strategy.type", "TIMESTAMP(3)");
+		expected.put("schema.watermark.0.strategy.datatype", "TIMESTAMP(3)");
 		assertEquals(expected, actual);
 
 		TableSchema restored = properties.getTableSchema("schema");
