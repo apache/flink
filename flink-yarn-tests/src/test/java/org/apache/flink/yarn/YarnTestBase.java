@@ -305,7 +305,7 @@ public abstract class YarnTestBase extends TestLogger {
 	@Nonnull
 	YarnClusterDescriptor createYarnClusterDescriptor(org.apache.flink.configuration.Configuration flinkConfiguration) {
 		final YarnClusterDescriptor yarnClusterDescriptor = YarnTestUtils.createClusterDescriptorWithLogging(
-				CliFrontend.getConfigurationDirectoryFromEnv(),
+				tempConfPathForSecureRun.getAbsolutePath(),
 				flinkConfiguration,
 				YARN_CONFIGURATION,
 				yarnClient,

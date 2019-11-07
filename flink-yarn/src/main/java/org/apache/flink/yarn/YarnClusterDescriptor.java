@@ -950,10 +950,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					"");
 		}
 
+		final boolean hasLogback = logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOGBACK_NAME);
+		final boolean hasLog4j = logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOG4J_NAME);
+
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(
 				yarnClusterEntrypoint,
-				logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOGBACK_NAME),
-				logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOG4J_NAME),
+				hasLogback,
+				hasLog4j,
 				hasKrb5,
 				clusterSpecification.getMasterMemoryMB());
 
