@@ -52,16 +52,15 @@ All Table API and SQL programs for batch and streaming follow the same pattern. 
 // create a TableEnvironment for specific planner batch or streaming
 TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-// create a (virtual) Table
-tableEnv.createTemporaryView("table1", ...)            // or
-tableEnv.connect(...).createTemporaryTable("table2");
+// create a Table
+tableEnv.connect(...).createTemporaryTable("table1");
 // register an output Table
 tableEnv.connect(...).createTemporaryTable("outputTable");
 
-// create a Table API object from a Table API query
+// create a Table object from a Table API query
 Table tapiResult = tableEnv.from("table1").select(...);
-// create a Table API object from a SQL query
-Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ... ");
+// create a Table object from a SQL query
+Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table1 ... ");
 
 // emit a Table API result Table to a TableSink, same for SQL result
 tapiResult.insertInto("outputTable");
@@ -78,16 +77,15 @@ tableEnv.execute("java_job");
 // create a TableEnvironment for specific planner batch or streaming
 val tableEnv = ... // see "Create a TableEnvironment" section
 
-// register a Table
-tableEnv.createTemporaryView("table1", ...)           // or
-tableEnv.connect(...).createTemporaryView("table2")
+// create a Table
+tableEnv.connect(...).createTemporaryTable("table1")
 // register an output Table
-tableEnv.connect(...).createTemporaryView("outputTable")
+tableEnv.connect(...).createTemporaryTable("outputTable")
 
 // create a Table from a Table API query
 val tapiResult = tableEnv.from("table1").select(...)
 // create a Table from a SQL query
-val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
+val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table1 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
 tapiResult.insertInto("outputTable")
@@ -105,16 +103,15 @@ tableEnv.execute("scala_job")
 table_env = ... # see "Create a TableEnvironment" section
 
 # register a Table
-table_env.register_table("table1", ...)           # or
-table_env.register_table_source("table2", ...)
+table_env.connect(...).create_temporary_table("table1")
 
 # register an output Table
-table_env.register_table_sink("outputTable", ...);
+table_env.connect(...).create_temporary_table("outputTable")
 
 # create a Table from a Table API query
 tapi_result = table_env.from_path("table1").select(...)
 # create a Table from a SQL query
-sql_result  = table_env.sql_query("SELECT ... FROM table2 ...")
+sql_result  = table_env.sql_query("SELECT ... FROM table1 ...")
 
 # emit a Table API result Table to a TableSink, same for SQL result
 tapi_result.insert_into("outputTable")
@@ -303,36 +300,37 @@ specified, the current default value will be used (see examples in the [Table id
 
 Tables can be either virtual (`VIEWS`) or regular (`TABLES`). `VIEWS` can be created from an
 existing `Table` object, usually the result of a Table API or SQL query. `TABLES` describe
-external data, such as a file, database, or messaging system.
+external data, such as a file, database table, or message queue.
 
-### Temporary vs permanent tables.
-
-
+### Temporary vs Permanent tables.
 
 Tables may either be temporary, and tied to the lifecycle of a single Flink session, or permanent,
 and visible across multiple Flink sessions and clusters.
 
-Permanent tables require a [catalog]({{ site.baseurl }}/dev/table/catalogs.html) (such as Hive)
+Permanent tables require a [catalog]({{ site.baseurl }}/dev/table/catalogs.html) (such as Hive Metastore)
 to maintain metadata about the table. Once a permanent table is created, it is visible to any Flink
-session that can connect to the catalog and will continue to exist until the table is explicitly
+session that is connected to the catalog and will continue to exist until the table is explicitly
 dropped.
 
 On the other hand, temporary tables are always stored in memory and only exist for the duration of
-the Flink session they are created within. These tables are not visible to other clusters. They are
+the Flink session they are created within. These tables are not visible to other sessions. They are
 not bound to any catalog or database but can be created in the namespace of one. Temporary tables
 are not dropped if their corresponding database is removed.
 
 #### Shadowing
 
 It is possible to register a temporary table with the same identifier as an existing permanent
-table. The temporary table shadows the permanent one and make the permanent table inaccessible as
+table. The temporary table shadows the permanent one and makes the permanent table inaccessible as
 long as the temporary one exists. All queries with that identifier will be executed against the
 temporary table.
 
+This might be useful for experimentation. It allows running exactly the same query first against a
+temporary table that e.g. has just a subset of data, or the data is obfuscated. Once verified that
+the query is correct it can be run against the real production table.
 
 ### Create a Table
 
-#### Virtual tables
+#### Virtual Tables
 
 A `Table` API object corresponds to a `VIEW` (virtual table) in a SQL terms. It encapsulates a logical
 query plan. It can be created in a catalog as follows:
@@ -386,7 +384,7 @@ registered `Table` will *not* be shared.
 
 {% top %}
 
-#### Connector tables
+#### Connector Tables
 
 It is also possible to create a `TABLE` as known from relational databases from a [connector]({{ site.baseurl }}/dev/table/connect.html) declaration.
 The connector describes the external system that stores the data of a table. Storage systems such as Apacha Kafka or a regular file system can be declared here.
@@ -432,36 +430,36 @@ tableEnvironment.sqlUpdate("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 </div>
 </div>
 
-### Expanding table identifiers
+### Expanding Table identifiers
 
 Tables are always registered with a 3 part identifier consisting of catalog, database, and
 table name. The first two parts are optional and if they are not provided the set default values will
-be used. Identifiers follow SQL requirements which means that they can be escaped with ``` character.
+be used. Identifiers follow SQL requirements which means that they can be escaped with a backtick character (`` ` ``).
 Additionally all SQL reserved keywords must be escaped.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 TableEnvironment tEnv = ...;
-tEnv.useCatalog("default_catalog");
-tEnv.useDatabase("default_database");
+tEnv.useCatalog("custom_catalog");
+tEnv.useDatabase("custom_database");
 
 Table table = ...;
 
-// register the view named 'exampleView' in the catalog named 'default_catalog'
-// in the database named 'default_database' 
+// register the view named 'exampleView' in the catalog named 'custom_catalog'
+// in the database named 'custom_database' 
 tableEnv.createTemporaryView("exampleView", table);
 
-// register the view named 'exampleView' in the catalog named 'default_catalog'
+// register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table);
 
-// register the view named 'View' in the catalog named 'default_catalog' in the
-// database named 'default_database'. 'View' is a reserved keyword and must be escaped.  
+// register the view named 'View' in the catalog named 'custom_catalog' in the
+// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
 tableEnv.createTemporaryView("`View`", table);
 
-// register the view named 'example.View' in the catalog named 'default_catalog'
-// in the database named 'default_database' 
+// register the view named 'example.View' in the catalog named 'custom_catalog'
+// in the database named 'custom_database' 
 tableEnv.createTemporaryView("`example.View`", table);
 
 // register the view named 'exampleView' in the catalog named 'other_catalog'
@@ -475,25 +473,25 @@ tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table);
 {% highlight scala %}
 // get a TableEnvironment
 val tEnv: TableEnvironment = ...;
-tEnv.useCatalog("default_catalog")
-tEnv.useDatabase("default_database")
+tEnv.useCatalog("custom_catalog")
+tEnv.useDatabase("custom_database")
 
 val table: Table = ...;
 
-// register the view named 'exampleView' in the catalog named 'default_catalog'
-// in the database named 'default_database' 
+// register the view named 'exampleView' in the catalog named 'custom_catalog'
+// in the database named 'custom_database' 
 tableEnv.createTemporaryView("exampleView", table)
 
-// register the view named 'exampleView' in the catalog named 'default_catalog'
+// register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table)
 
-// register the view named 'View' in the catalog named 'default_catalog' in the
-// database named 'default_database'. 'View' is a reserved keyword and must be escaped.  
+// register the view named 'View' in the catalog named 'custom_catalog' in the
+// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
 tableEnv.createTemporaryView("`View`", table)
 
-// register the view named 'example.View' in the catalog named 'default_catalog'
-// in the database named 'default_database' 
+// register the view named 'example.View' in the catalog named 'custom_catalog'
+// in the database named 'custom_database' 
 tableEnv.createTemporaryView("`example.View`", table)
 
 // register the view named 'exampleView' in the catalog named 'other_catalog'
@@ -887,7 +885,7 @@ This interaction can be achieved by converting a `DataStream` or `DataSet` into 
 
 The Scala Table API features implicit conversions for the `DataSet`, `DataStream`, and `Table` classes. These conversions are enabled by importing the package `org.apache.flink.table.api.scala._` in addition to `org.apache.flink.api.scala._` for the Scala DataStream API.
 
-### Creates a View from a DataStream or DataSet
+### Create a View from a DataStream or DataSet
 
 A `DataStream` or `DataSet` can be registered in a `TableEnvironment` as a View. The schema of the resulting view depends on the data type of the registered `DataStream` or `DataSet`. Please check the section about [mapping of data types to table schema](#mapping-of-data-types-to-table-schema) for details.
 
