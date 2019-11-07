@@ -26,91 +26,60 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Task back pressure stats for one or more tasks.
+ * Back pressure stats for one or more tasks.
  *
- * <p>The stats are calculated from sampling triggered in {@link BackPressureSampleCoordinator}.
+ * <p>The stats are collected by request triggered in {@link BackPressureRequestCoordinator}.
  */
 public class BackPressureStats {
 
-	/** ID of the sample (unique per job). */
-	private final int sampleId;
+	/** ID of the request (unique per job). */
+	private final int requestId;
 
-	/** Time stamp, when the sample was triggered. */
+	/** Time stamp, when the request was triggered. */
 	private final long startTime;
 
 	/** Time stamp, when all back pressure stats were collected at the JobManager. */
 	private final long endTime;
 
 	/** Map of back pressure ratio by execution ID. */
-	private final Map<ExecutionAttemptID, Double> backPressureRatioByTask;
+	private final Map<ExecutionAttemptID, Double> backPressureRatios;
 
-	/**
-	 * Creates a task back pressure sample.
-	 *
-	 * @param sampleId                ID of the sample.
-	 * @param startTime               Time stamp, when the sample was triggered.
-	 * @param endTime                 Time stamp, when all back pressure stats
-	 *                                were collected at the JobManager.
-	 * @param backPressureRatioByTask Map of back pressure stats by execution ID.
-	 */
 	public BackPressureStats(
-			int sampleId,
+			int requestId,
 			long startTime,
 			long endTime,
-			Map<ExecutionAttemptID, Double> backPressureRatioByTask) {
+			Map<ExecutionAttemptID, Double> backPressureRatios) {
 
-		checkArgument(sampleId >= 0, "Negative sample ID");
-		checkArgument(startTime >= 0, "Negative start time");
-		checkArgument(endTime >= startTime, "End time before start time");
+		checkArgument(requestId >= 0, "Negative request ID.");
+		checkArgument(startTime >= 0, "Negative start time.");
+		checkArgument(endTime >= startTime, "End time before start time.");
 
-		this.sampleId = sampleId;
+		this.requestId = requestId;
 		this.startTime = startTime;
 		this.endTime = endTime;
-		this.backPressureRatioByTask = Collections.unmodifiableMap(backPressureRatioByTask);
+		this.backPressureRatios = Collections.unmodifiableMap(backPressureRatios);
 	}
 
-	/**
-	 * Returns the ID of the sample.
-	 *
-	 * @return ID of the sample
-	 */
-	public int getSampleId() {
-		return sampleId;
+	public int getRequestId() {
+		return requestId;
 	}
 
-	/**
-	 * Returns the time stamp, when the sample was triggered.
-	 *
-	 * @return Time stamp, when the sample was triggered
-	 */
 	public long getStartTime() {
 		return startTime;
 	}
 
-	/**
-	 * Returns the time stamp, when all back pressure stats were collected at
-	 * the JobManager.
-	 *
-	 * @return Time stamp, when all back pressure stats were collected at the
-	 * JobManager
-	 */
 	public long getEndTime() {
 		return endTime;
 	}
 
-	/**
-	 * Returns the a map of back pressure ratio by execution ID.
-	 *
-	 * @return Map of back pressure ratio by execution ID
-	 */
-	public Map<ExecutionAttemptID, Double> getBackPressureRatioByTask() {
-		return backPressureRatioByTask;
+	public Map<ExecutionAttemptID, Double> getBackPressureRatios() {
+		return backPressureRatios;
 	}
 
 	@Override
 	public String toString() {
-		return "TaskBackPressureStats{" +
-				"sampleId=" + sampleId +
+		return "BackPressureStats{" +
+				"requestId=" + requestId +
 				", startTime=" + startTime +
 				", endTime=" + endTime +
 				'}';

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -32,7 +31,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureSampleCoordinator;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureRequestCoordinator;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
@@ -58,7 +57,7 @@ public class JobManagerSharedServices {
 
 	private final RestartStrategyFactory restartStrategyFactory;
 
-	private final BackPressureSampleCoordinator backPressureSampleCoordinator;
+	private final BackPressureRequestCoordinator backPressureSampleCoordinator;
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
 
@@ -69,7 +68,7 @@ public class JobManagerSharedServices {
 			ScheduledExecutorService scheduledExecutorService,
 			LibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
-			BackPressureSampleCoordinator backPressureSampleCoordinator,
+			BackPressureRequestCoordinator backPressureSampleCoordinator,
 			BackPressureStatsTracker backPressureStatsTracker,
 			@Nonnull BlobWriter blobWriter) {
 
@@ -151,9 +150,9 @@ public class JobManagerSharedServices {
 				FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
 				alwaysParentFirstLoaderPatterns);
 
-		final Duration timeout;
+		final Duration akkaTimeout;
 		try {
-			timeout = AkkaUtils.getTimeout(config);
+			akkaTimeout = AkkaUtils.getTimeout(config);
 		} catch (NumberFormatException e) {
 			throw new IllegalConfigurationException(AkkaUtils.formatDurationParsingErrorMessage());
 		}
@@ -162,15 +161,17 @@ public class JobManagerSharedServices {
 				Hardware.getNumberCPUCores(),
 				new ExecutorThreadFactory("jobmanager-future"));
 
-		final BackPressureSampleCoordinator backPressureSampleCoordinator =
-			new BackPressureSampleCoordinator(futureExecutor, timeout.toMillis());
+		final int numSamples = config.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES);
+		final long delayBetweenSamples = config.getInteger(WebOptions.BACKPRESSURE_DELAY);
+		final BackPressureRequestCoordinator coordinator = new BackPressureRequestCoordinator(
+			futureExecutor,
+			akkaTimeout.toMillis() + numSamples * delayBetweenSamples);
+
 		final int cleanUpInterval = config.getInteger(WebOptions.BACKPRESSURE_CLEANUP_INTERVAL);
 		final BackPressureStatsTrackerImpl backPressureStatsTracker = new BackPressureStatsTrackerImpl(
-			backPressureSampleCoordinator,
+			coordinator,
 			cleanUpInterval,
-			config.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES),
-			config.getInteger(WebOptions.BACKPRESSURE_REFRESH_INTERVAL),
-			Time.milliseconds(config.getInteger(WebOptions.BACKPRESSURE_DELAY)));
+			config.getInteger(WebOptions.BACKPRESSURE_REFRESH_INTERVAL));
 
 		futureExecutor.scheduleWithFixedDelay(
 			backPressureStatsTracker::cleanUpOperatorStatsCache,
@@ -182,7 +183,7 @@ public class JobManagerSharedServices {
 			futureExecutor,
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),
-			backPressureSampleCoordinator,
+			coordinator,
 			backPressureStatsTracker,
 			blobServer);
 	}

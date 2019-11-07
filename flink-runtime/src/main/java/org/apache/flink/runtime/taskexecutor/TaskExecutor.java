@@ -21,6 +21,8 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.TransientBlobCache;
@@ -65,7 +67,7 @@ import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateClientProxy;
@@ -227,7 +229,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Nullable
 	private UUID currentRegistrationTimeoutId;
 
-	private final TaskBackPressureSampleService taskBackPressureSampleService;
+	private final BackPressureSampleService taskBackPressureSampleService;
 
 	private Map<JobID, Collection<CompletableFuture<ExecutionState>>> taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
 
@@ -274,7 +276,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.resourceManagerConnection = null;
 		this.currentRegistrationTimeoutId = null;
 
-		this.taskBackPressureSampleService = new TaskBackPressureSampleService(rpcService.getScheduledExecutor());
+		final Configuration config = taskManagerConfiguration.getConfiguration();
+		this.taskBackPressureSampleService = new BackPressureSampleService(
+			config.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES),
+			Time.milliseconds(config.getInteger(WebOptions.BACKPRESSURE_DELAY)),
+			rpcService.getScheduledExecutor());
 		this.taskCompletionTracker = new TaskCompletionTracker();
 
 		final ResourceID resourceId = taskExecutorServices.getTaskManagerLocation().getResourceID();
@@ -436,25 +442,22 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ======================================================================
 
 	@Override
-	public CompletableFuture<TaskBackPressureSampleResponse> sampleTaskBackPressure(
+	public CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
 			ExecutionAttemptID executionAttemptId,
-			int sampleId,
-			int numSamples,
-			Time delayBetweenSamples,
+			int requestId,
 			@RpcTimeout Time timeout) {
+
 		final Task task = taskSlotTable.getTask(executionAttemptId);
 		if (task == null) {
 			return FutureUtils.completedExceptionally(
-				new IllegalStateException(String.format("Cannot sample task %s. " +
+				new IllegalStateException(String.format("Cannot request back pressure of task %s. " +
 					"Task is not known to the task manager.", executionAttemptId)));
 		}
-		final CompletableFuture<Double> backPressureRatioFuture = taskBackPressureSampleService.sampleTaskBackPressure(
-			TaskOutputAvailabilitySampleableTaskAdapter.fromTask(task),
-			numSamples,
-			delayBetweenSamples);
+		final CompletableFuture<Double> backPressureRatioFuture =
+			taskBackPressureSampleService.sampleTaskBackPressure(task);
 
 		return backPressureRatioFuture.thenApply(backPressureRatio ->
-			new TaskBackPressureSampleResponse(sampleId, executionAttemptId, backPressureRatio));
+			new TaskBackPressureResponse(requestId, executionAttemptId, backPressureRatio));
 	}
 
 	// ----------------------------------------------------------------------

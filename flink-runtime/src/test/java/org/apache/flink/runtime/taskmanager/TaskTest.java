@@ -925,7 +925,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testNoBackPressureIfTaskNotStarted() throws Exception {
 		final Task task = createTaskBuilder().build();
-		assertTrue(task.isAvailableForOutput());
+		assertTrue(task.isBackPressured());
 	}
 
 	// ------------------------------------------------------------------------

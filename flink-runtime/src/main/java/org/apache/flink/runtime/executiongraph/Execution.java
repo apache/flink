@@ -52,7 +52,7 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -921,31 +921,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	/**
-	 * Request to sample the back pressure ratio from the task of this execution.
+	 * Request the back pressure ratio from the task of this execution.
 	 *
-	 * @param sampleId id of the sample
-	 * @param numSamples the number of samples to take
-	 * @param delayBetweenSamples time to wait between samples
-	 * @param timeout the request times out
-	 * @return Future containing the task back pressure sampling results
+	 * @param requestId id of the request.
+	 * @param timeout the request times out.
+	 * @return A future of the task back pressure result.
 	 */
-	public CompletableFuture<TaskBackPressureSampleResponse> sampleTaskBackPressure(
-			int sampleId,
-			int numSamples,
-			Time delayBetweenSamples,
-			Time timeout) {
+	public CompletableFuture<TaskBackPressureResponse> requestBackPressure(int requestId, Time timeout) {
 
 		final LogicalSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			return taskManagerGateway.sampleTaskBackPressure(
-				attemptId,
-				sampleId,
-				numSamples,
-				delayBetweenSamples,
-				timeout);
+			return taskManagerGateway.requestTaskBackPressure(attemptId, requestId, timeout);
 		} else {
 			return FutureUtils.completedExceptionally(new Exception("The execution has no slot assigned."));
 		}

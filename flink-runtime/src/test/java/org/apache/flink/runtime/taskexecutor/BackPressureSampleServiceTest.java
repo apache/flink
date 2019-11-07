@@ -36,20 +36,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link TaskBackPressureSampleService}.
+ * Tests for {@link BackPressureSampleService}.
  */
-public class TaskBackPressureSampleServiceTest extends TestLogger {
+public class BackPressureSampleServiceTest extends TestLogger {
 
 	private ScheduledExecutorService scheduledExecutorService;
 
-	private TaskBackPressureSampleService backPressureSampleService;
+	private BackPressureSampleService backPressureSampleService;
 
 	@Before
 	public void setUp() throws Exception {
 		scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 		final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 
-		backPressureSampleService = new TaskBackPressureSampleService(scheduledExecutor);
+		backPressureSampleService = new BackPressureSampleService( 10, Time.milliseconds(10), scheduledExecutor);
 	}
 
 	@After
@@ -61,34 +61,23 @@ public class TaskBackPressureSampleServiceTest extends TestLogger {
 
 	@Test(timeout = 10000L)
 	public void testSampleTaskBackPressure() throws Exception {
-		final double backPressureRatio = backPressureSampleService.sampleTaskBackPressure(
-			new TestTask(),
-			10,
-			Time.milliseconds(0)).get();
+		final double backPressureRatio = backPressureSampleService.
+			sampleTaskBackPressure(new TestTask()).get();
 
 		assertEquals(0.5, backPressureRatio, 0.0);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testShouldThrowExceptionIfNumSamplesIsNegative() throws Exception {
-		backPressureSampleService.sampleTaskBackPressure(new TestTask(), -1, Time.milliseconds(0));
-
-		fail("Exception expected.");
-	}
-
 	@Test(timeout = 10000L)
 	public void testTaskStopsWithPartialSampling() throws Exception {
-		final double backPressureRatio = backPressureSampleService.sampleTaskBackPressure(
-			new NotRunningAfterFirstSamplingTask(),
-			10,
-			Time.milliseconds(0)).get();
+		final double backPressureRatio = backPressureSampleService.
+			sampleTaskBackPressure(new NotRunningAfterFirstSamplingTask()).get();
 
 		assertEquals(1.0, backPressureRatio, 0.0);
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling() {
-		backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask(), 10, Time.milliseconds(0));
+		backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask());
 
 		fail("Exception expected.");
 	}
@@ -96,7 +85,7 @@ public class TaskBackPressureSampleServiceTest extends TestLogger {
 	/**
 	 * Task that is always running.
 	 */
-	private static class TestTask implements OutputAvailabilitySampleableTask {
+	private static class TestTask implements BackPressureSampleableTask {
 
 		private final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 
@@ -108,7 +97,7 @@ public class TaskBackPressureSampleServiceTest extends TestLogger {
 		}
 
 		@Override
-		public boolean isAvailableForOutput() {
+		public boolean isBackPressured() {
 			return ++counter % 2 == 0;
 		}
 

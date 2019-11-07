@@ -27,7 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
 import java.util.Set;
@@ -46,21 +46,17 @@ public interface TaskManagerGateway {
 	String getAddress();
 
 	/**
-	 * Request  to sample the back pressure ratio from the given task.
+	 * Request the back pressure ratio for the given task.
 	 *
-	 * @param executionAttemptID identifying the task to sample
-	 * @param sampleId id of the sample
-	 * @param numSamples number of samples to take
-	 * @param delayBetweenSamples time to wait between samples
-	 * @param timeout rpc request timeout
-	 * @return Future containing the task back pressure sampling results
+	 * @param executionAttemptID identifying the task to request.
+	 * @param requestId id of the request.
+	 * @param timeout rpc request timeout.
+	 * @return A future of the task back pressure result.
 	 */
-	CompletableFuture<TaskBackPressureSampleResponse> sampleTaskBackPressure(
-		final ExecutionAttemptID executionAttemptID,
-		final int sampleId,
-		final int numSamples,
-		final Time delayBetweenSamples,
-		final Time timeout);
+	CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
+		ExecutionAttemptID executionAttemptID,
+		int requestId,
+		Time timeout);
 
 	/**
 	 * Submit a task to the task manager.

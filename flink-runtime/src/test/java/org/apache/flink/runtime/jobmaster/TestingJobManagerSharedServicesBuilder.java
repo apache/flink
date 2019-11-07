@@ -25,13 +25,11 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureSampleCoordinator;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureRequestCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import java.util.concurrent.ScheduledExecutorService;
-
-import static org.mockito.Mockito.mock;
 
 /**
  * Builder for the {@link JobManagerSharedServices}.
@@ -44,7 +42,7 @@ public class TestingJobManagerSharedServicesBuilder {
 
 	private RestartStrategyFactory restartStrategyFactory;
 
-	private BackPressureSampleCoordinator backPressureSampleCoordinator;
+	private BackPressureRequestCoordinator backPressureSampleCoordinator;
 
 	private BackPressureStatsTracker backPressureStatsTracker;
 
@@ -54,7 +52,7 @@ public class TestingJobManagerSharedServicesBuilder {
 		scheduledExecutorService = TestingUtils.defaultExecutor();
 		libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
 		restartStrategyFactory = new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory();
-		backPressureSampleCoordinator = mock(BackPressureSampleCoordinator.class);
+		backPressureSampleCoordinator = new BackPressureRequestCoordinator(Runnable::run, 10000);
 		backPressureStatsTracker = VoidBackPressureStatsTracker.INSTANCE;
 		blobWriter = VoidBlobWriter.getInstance();
 	}
@@ -75,7 +73,7 @@ public class TestingJobManagerSharedServicesBuilder {
 		return this;
 	}
 
-	public TestingJobManagerSharedServicesBuilder setBackPressureSampleCoordinator(BackPressureSampleCoordinator backPressureSampleCoordinator) {
+	public TestingJobManagerSharedServicesBuilder setBackPressureSampleCoordinator(BackPressureRequestCoordinator backPressureSampleCoordinator) {
 		this.backPressureSampleCoordinator = backPressureSampleCoordinator;
 		return this;
 	}

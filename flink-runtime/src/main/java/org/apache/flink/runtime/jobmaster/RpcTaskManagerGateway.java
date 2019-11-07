@@ -28,7 +28,7 @@ import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
 
@@ -56,19 +56,12 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<TaskBackPressureSampleResponse> sampleTaskBackPressure(
-			final ExecutionAttemptID executionAttemptID,
-			final int sampleId,
-			final int numSamples,
-			final Time delayBetweenSamples,
-			final Time timeout) {
+	public CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
+			ExecutionAttemptID executionAttemptID,
+			int requestId,
+			Time timeout) {
 
-		return taskExecutorGateway.sampleTaskBackPressure(
-			executionAttemptID,
-			sampleId,
-			numSamples,
-			delayBetweenSamples,
-			timeout);
+		return taskExecutorGateway.requestTaskBackPressure(executionAttemptID, requestId, timeout);
 	}
 
 	@Override

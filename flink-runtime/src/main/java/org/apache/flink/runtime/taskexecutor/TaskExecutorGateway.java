@@ -33,7 +33,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -67,11 +67,9 @@ public interface TaskExecutorGateway extends RpcGateway {
 		ResourceManagerId resourceManagerId,
 		@RpcTimeout Time timeout);
 
-	CompletableFuture<TaskBackPressureSampleResponse> sampleTaskBackPressure(
+	CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
 		ExecutionAttemptID executionAttemptId,
-		int sampleId,
-		int numSamples,
-		Time delayBetweenSamples,
+		int requestId,
 		@RpcTimeout Time timeout);
 
 	/**

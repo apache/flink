@@ -40,7 +40,7 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.messages.TaskBackPressureSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -596,14 +596,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	// Back pressure sample
+	// Back pressure request
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Tests sampling of task back pressure.
+	 * Tests request of task back pressure.
 	 */
 	@Test(timeout = 10000L)
-	public void testSampleTaskBackPressure() throws Exception {
+	public void testRequestTaskBackPressure() throws Exception {
 		final NettyShuffleDescriptor shuffleDescriptor = createRemoteWithIdAndLocation(
 			new IntermediateResultPartitionID(), ResourceID.generate());
 		final TaskDeploymentDescriptor tdd = createSender(shuffleDescriptor, OutputBlockedInvokable.class);
@@ -626,29 +626,29 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
 			taskRunningFuture.get();
 
-			// 1) trigger sample for non-existing task.
-			final int sampleId = 1234;
+			// 1) trigger request for non-existing task.
+			final int requestId = 1234;
 			final ExecutionAttemptID nonExistTaskEid = new ExecutionAttemptID();
 
-			final CompletableFuture<TaskBackPressureSampleResponse> failedSampleFuture =
-				tmGateway.sampleTaskBackPressure(nonExistTaskEid, sampleId, 100, Time.seconds(60L), timeout);
+			final CompletableFuture<TaskBackPressureResponse> failedRequestFuture =
+				tmGateway.requestTaskBackPressure(nonExistTaskEid, requestId, timeout);
 			try {
-				failedSampleFuture.get();
+				failedRequestFuture.get();
 			} catch (Exception e) {
 				assertThat(e.getCause(), instanceOf(IllegalStateException.class));
-				assertThat(e.getCause().getMessage(), startsWith("Cannot sample task"));
+				assertThat(e.getCause().getMessage(), startsWith("Cannot request back pressure"));
 			}
 
-			// 2) trigger sample for the blocking task.
+			// 2) trigger request for the blocking task.
 			double backPressureRatio = 0;
 
 			for (int i = 0; i < 15; ++i) {
-				CompletableFuture<TaskBackPressureSampleResponse> successfulSampleFuture =
-					tmGateway.sampleTaskBackPressure(executionAttemptID, i, 5, Time.milliseconds(100L), timeout);
+				CompletableFuture<TaskBackPressureResponse> successfulRequestFuture =
+					tmGateway.requestTaskBackPressure(executionAttemptID, i, timeout);
 
-				TaskBackPressureSampleResponse response = successfulSampleFuture.get();
+				TaskBackPressureResponse response = successfulRequestFuture.get();
 
-				assertEquals(response.getSampleId(), i);
+				assertEquals(response.getRequestId(), i);
 				assertEquals(response.getExecutionAttemptID(), executionAttemptID);
 
 				if ((backPressureRatio = response.getBackPressureRatio()) >= 1.0) {
@@ -658,21 +658,21 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			assertEquals("Task was not back pressured in given time.", 1.0, backPressureRatio, 0.0);
 
-			// 3) trigger sample for the blocking task, but cancel it during sampling.
+			// 3) trigger request for the blocking task, but cancel it before request finishes.
 			final int sleepTime = 1000;
 
-			CompletableFuture<TaskBackPressureSampleResponse> canceldSampleFuture =
-				tmGateway.sampleTaskBackPressure(executionAttemptID, sampleId, 1000, Time.milliseconds(100L), timeout);
+			CompletableFuture<TaskBackPressureResponse> canceledRequestFuture =
+				tmGateway.requestTaskBackPressure(executionAttemptID, requestId, timeout);
 
 			Thread.sleep(sleepTime);
 
 			tmGateway.cancelTask(executionAttemptID, timeout);
 			taskCanceledFuture.get();
 
-			TaskBackPressureSampleResponse responseAfterCancel = canceldSampleFuture.get();
+			TaskBackPressureResponse responseAfterCancel = canceledRequestFuture.get();
 
 			assertEquals(executionAttemptID, responseAfterCancel.getExecutionAttemptID());
-			assertEquals(sampleId, responseAfterCancel.getSampleId());
+			assertEquals(requestId, responseAfterCancel.getRequestId());
 			assertEquals(1.0, responseAfterCancel.getBackPressureRatio(), 0.0);
 		}
 	}

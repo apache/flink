@@ -24,29 +24,29 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 
 /**
- * Response to the task back pressure sample rpc call.
+ * Response to the task back pressure request rpc call.
  */
-public class TaskBackPressureSampleResponse implements Serializable {
+public class TaskBackPressureResponse implements Serializable {
 
 	private static final long serialVersionUID = -4786454630050578031L;
 
-	private final int sampleId;
+	private final int requestId;
 
 	private final ExecutionAttemptID executionAttemptID;
 
 	private final double backPressureRatio;
 
-	public TaskBackPressureSampleResponse(
-			int sampleId,
+	public TaskBackPressureResponse(
+			int requestId,
 			ExecutionAttemptID executionAttemptID,
 			double backPressureRatio) {
-		this.sampleId = sampleId;
+		this.requestId = requestId;
 		this.executionAttemptID = Preconditions.checkNotNull(executionAttemptID);
 		this.backPressureRatio = backPressureRatio;
 	}
 
-	public int getSampleId() {
-		return sampleId;
+	public int getRequestId() {
+		return requestId;
 	}
 
 	public ExecutionAttemptID getExecutionAttemptID() {

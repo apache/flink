@@ -22,49 +22,49 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
-import javax.annotation.Nonnegative;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Samples the output buffer availability of tasks for back pressure tracking.
- *
- * @see org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker
+ * Samples whether a task is back pressured multi times. The total number of samples
+ * divided by the number of back pressure samples reaches the back pressure ratio.
  */
-class TaskBackPressureSampleService {
+public class BackPressureSampleService {
 
+	/** Number of samples to take when determining the back pressure of a task. */
+	private final int numSamples;
+
+	/** Time to wait between samples when determining the back pressure of a task. */
+	private final Time delayBetweenSamples;
+
+	/** Executor to run sample tasks. */
 	private final ScheduledExecutor scheduledExecutor;
 
-	TaskBackPressureSampleService(final ScheduledExecutor scheduledExecutor) {
-		this.scheduledExecutor = requireNonNull(scheduledExecutor, "The scheduledExecutor must not be null.");
+	BackPressureSampleService(
+			int numSamples,
+			Time delayBetweenSamples,
+			ScheduledExecutor scheduledExecutor) {
+
+		checkArgument(numSamples >= 1, "Illegal number of samples: " + numSamples);
+
+		this.numSamples = numSamples;
+		this.delayBetweenSamples = checkNotNull(delayBetweenSamples);
+		this.scheduledExecutor = checkNotNull(scheduledExecutor, "The scheduledExecutor must not be null.");
 	}
 
 	/**
 	 * Returns a future that completes with the back pressure ratio of a task.
 	 *
-	 * @param task                The task to be sampled.
-	 * @param numSamples          The number of samples.
-	 * @param delayBetweenSamples The time to wait between samples.
-	 * @return A future containing the task back pressure ratio.
+	 * @param task The task to be sampled.
+	 * @return A future of the task back pressure ratio.
 	 */
-	public CompletableFuture<Double> sampleTaskBackPressure(
-			final OutputAvailabilitySampleableTask task,
-			@Nonnegative final int numSamples,
-			final Time delayBetweenSamples) {
-
-		checkNotNull(task, "The task must not be null.");
-		checkArgument(numSamples > 0, "The numSamples must be positive.");
-		checkNotNull(delayBetweenSamples, "The delayBetweenSamples must not be null.");
-
+	public CompletableFuture<Double> sampleTaskBackPressure(BackPressureSampleableTask task) {
 		return sampleTaskBackPressure(
-			task,
+			checkNotNull(task),
 			numSamples,
 			delayBetweenSamples,
 			new ArrayList<>(numSamples),
@@ -72,43 +72,36 @@ class TaskBackPressureSampleService {
 	}
 
 	private CompletableFuture<Double> sampleTaskBackPressure(
-			final OutputAvailabilitySampleableTask task,
-			final int numSamples,
+			final BackPressureSampleableTask task,
+			final int remainingNumSamples,
 			final Time delayBetweenSamples,
-			final List<Boolean> taskOutputAvailability,
+			final List<Boolean> taskBackPressureSamples,
 			final CompletableFuture<Double> resultFuture) {
 
-		final Optional<Boolean> isTaskAvailableForOutput = isTaskAvailableForOutput(task);
-		if (isTaskAvailableForOutput.isPresent()) {
-			taskOutputAvailability.add(isTaskAvailableForOutput.get());
-		} else if (!taskOutputAvailability.isEmpty()) {
-			resultFuture.complete(calculateTaskBackPressureRatio(taskOutputAvailability));
+		if (task.isRunning()) {
+			taskBackPressureSamples.add(task.isBackPressured());
+		} else if (!taskBackPressureSamples.isEmpty()) {
+			resultFuture.complete(calculateTaskBackPressureRatio(taskBackPressureSamples));
 			return resultFuture;
 		} else {
 			throw new IllegalStateException(String.format("Cannot sample task %s. " +
 					"Because the task is not running.", task.getExecutionId()));
 		}
 
-		if (numSamples > 1) {
-			scheduledExecutor.schedule(() -> sampleTaskBackPressure(
-				task,
-				numSamples - 1,
-				delayBetweenSamples,
-				taskOutputAvailability,
-				resultFuture), delayBetweenSamples.getSize(), delayBetweenSamples.getUnit());
+		if (remainingNumSamples > 1) {
+			scheduledExecutor.schedule(
+				() -> sampleTaskBackPressure(
+					task,
+					remainingNumSamples - 1,
+					delayBetweenSamples,
+					taskBackPressureSamples,
+					resultFuture),
+				delayBetweenSamples.getSize(),
+				delayBetweenSamples.getUnit());
 		} else {
-			resultFuture.complete(calculateTaskBackPressureRatio(taskOutputAvailability));
+			resultFuture.complete(calculateTaskBackPressureRatio(taskBackPressureSamples));
 		}
 		return resultFuture;
-	}
-
-	private Optional<Boolean> isTaskAvailableForOutput(final OutputAvailabilitySampleableTask task) {
-		if (!task.isRunning()) {
-			return Optional.empty();
-		}
-
-		final boolean isTaskAvailableForOutput = task.isAvailableForOutput();
-		return Optional.of(isTaskAvailableForOutput);
 	}
 
 	private double calculateTaskBackPressureRatio(final List<Boolean> taskOutputAvailability) {
