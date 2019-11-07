@@ -260,4 +260,11 @@ public class ResourceProfileTest {
 
 		assertSame(ResourceProfile.UNKNOWN, copiedProfile);
 	}
+
+	@Test
+	public void testSingletonPropertyOfAny() throws Exception {
+		final ResourceProfile copiedProfile = CommonTestUtils.createCopySerializable(ResourceProfile.ANY);
+
+		assertSame(ResourceProfile.ANY, copiedProfile);
+	}
 }

@@ -503,8 +503,17 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	// ------------------------------------------------------------------------
 
 	private Object readResolve() {
-		// try to preserve the singleton property for UNKNOWN
-		return this.equals(UNKNOWN) ? UNKNOWN : this;
+		// try to preserve the singleton property for UNKNOWN and ANY
+
+		if (this.equals(UNKNOWN)) {
+			return UNKNOWN;
+		}
+
+		if (this.equals(ANY)) {
+			return ANY;
+		}
+
+		return this;
 	}
 
 	// ------------------------------------------------------------------------
