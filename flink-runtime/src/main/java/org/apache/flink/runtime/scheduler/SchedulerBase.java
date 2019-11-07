@@ -413,9 +413,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	@Override
-	public abstract void handleGlobalFailure(final Throwable cause);
-
-	@Override
 	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
 		final Optional<ExecutionVertexID> executionVertexId = getExecutionVertexId(taskExecutionState.getID());
 
