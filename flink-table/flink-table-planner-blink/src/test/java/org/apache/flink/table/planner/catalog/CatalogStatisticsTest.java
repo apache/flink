@@ -24,8 +24,11 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
@@ -35,6 +38,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.planner.utils.TestTableSource;
 import org.apache.flink.table.types.DataType;
@@ -59,32 +63,75 @@ public class CatalogStatisticsTest {
 	).build();
 
 	@Test
-	public void testGetStatsFromCatalog() throws Exception {
+	public void testGetStatsFromCatalogForConnectorCatalogTable() throws Exception {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tEnv = TableEnvironment.create(settings);
 		Catalog catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
 		assertNotNull(catalog);
 		catalog.createTable(
-			ObjectPath.fromString("default_database.T1"),
-			ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
-			false);
+				ObjectPath.fromString("default_database.T1"),
+				ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
+				false);
 		catalog.createTable(
-			ObjectPath.fromString("default_database.T2"),
-			ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
-			false);
+				ObjectPath.fromString("default_database.T2"),
+				ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
+				false);
 
+		alterTableStatistics(catalog);
+
+		Table table = tEnv.sqlQuery("select * from T1, T2 where T1.s3 = T2.s3");
+		String result = tEnv.explain(table);
+		// T1 is broadcast side
+		String expected = TableTestUtil.readFromResource("/explain/testGetStatsFromCatalogForConnectorCatalogTable.out");
+		assertEquals(expected, TableTestUtil.replaceStageId(result));
+	}
+
+	@Test
+	public void testGetStatsFromCatalogForCatalogTableImpl() throws Exception {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		TableEnvironment tEnv = TableEnvironment.create(settings);
+		Catalog catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
+		assertNotNull(catalog);
+
+		Map<String, String> properties = new HashMap<>();
+		properties.put("connector.type", "filesystem");
+		properties.put("connector.property-version", "1");
+		properties.put("connector.path", "/path/to/csv");
+
+		properties.put("format.type", "csv");
+		properties.put("format.property-version", "1");
+		properties.put("format.field-delimiter", ";");
+
+		// schema
+		DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		descriptorProperties.putTableSchema("format.fields", tableSchema);
+		properties.putAll(descriptorProperties.asMap());
+
+		catalog.createTable(
+				ObjectPath.fromString("default_database.T1"),
+				new CatalogTableImpl(tableSchema, properties, ""),
+				false);
+		catalog.createTable(
+				ObjectPath.fromString("default_database.T2"),
+				new CatalogTableImpl(tableSchema, properties, ""),
+				false);
+
+		alterTableStatistics(catalog);
+
+		Table table = tEnv.sqlQuery("select * from T1, T2 where T1.s3 = T2.s3");
+		String result = tEnv.explain(table);
+		// T1 is broadcast side
+		String expected = TableTestUtil.readFromResource("/explain/testGetStatsFromCatalogForCatalogTableImpl.out");
+		assertEquals(expected, TableTestUtil.replaceStageId(result));
+	}
+
+	private void alterTableStatistics(Catalog catalog) throws TableNotExistException, TablePartitionedException {
 		catalog.alterTableStatistics(ObjectPath.fromString("default_database.T1"),
 				new CatalogTableStatistics(100, 10, 1000L, 2000L), true);
 		catalog.alterTableStatistics(ObjectPath.fromString("default_database.T2"),
 				new CatalogTableStatistics(100000000, 1000, 1000000000L, 2000000000L), true);
 		catalog.alterTableColumnStatistics(ObjectPath.fromString("default_database.T1"), createColumnStats(), true);
 		catalog.alterTableColumnStatistics(ObjectPath.fromString("default_database.T2"), createColumnStats(), true);
-
-		Table table = tEnv.sqlQuery("select * from T1, T2 where T1.s3 = T2.s3");
-		String result = tEnv.explain(table);
-		// T1 is broadcast side
-		String expected = TableTestUtil.readFromResource("/explain/testGetStatsFromCatalog.out");
-		assertEquals(expected, TableTestUtil.replaceStageId(result));
 	}
 
 	private CatalogColumnStatistics createColumnStats() {

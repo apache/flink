@@ -104,7 +104,6 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			ObjectPath tablePath,
 			CatalogBaseTable table,
 			@Nullable TableFactory tableFactory) {
-		// TODO supports GenericCatalogView
 		if (table instanceof QueryOperationCatalogView) {
 			return convertQueryOperationView(tablePath, (QueryOperationCatalogView) table);
 		} else if (table instanceof ConnectorCatalogTable) {
@@ -116,7 +115,9 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				return convertSinkTable(connectorTable);
 			}
 		} else if (table instanceof CatalogTable) {
-			return convertCatalogTable(tablePath, (CatalogTable) table, tableFactory);
+			CatalogTable catalogTable = (CatalogTable) table;
+			TableStats tableStats = extractTableStats(catalogTable, tablePath);
+			return convertCatalogTable(tablePath, catalogTable, tableFactory, tableStats);
 		} else {
 			throw new TableException("Unsupported table type: " + table);
 		}
@@ -125,7 +126,6 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	private Table convertTemporaryTable(
 			ObjectPath tablePath,
 			CatalogBaseTable table) {
-		// TODO supports GenericCatalogView
 		if (table instanceof QueryOperationCatalogView) {
 			return convertQueryOperationView(tablePath, (QueryOperationCatalogView) table);
 		} else if (table instanceof ConnectorCatalogTable) {
@@ -136,7 +136,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				return convertSinkTable(connectorTable);
 			}
 		} else if (table instanceof CatalogTable) {
-			return convertCatalogTable(tablePath, (CatalogTable) table, null);
+			return convertCatalogTable(tablePath, (CatalogTable) table, null, TableStats.UNKNOWN);
 		} else {
 			throw new TableException("Unsupported table type: " + table);
 		}
@@ -188,7 +188,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			null);
 	}
 
-	private TableStats extractTableStats(ConnectorCatalogTable<?, ?> table, ObjectPath tablePath) {
+	private TableStats extractTableStats(CatalogTable table, ObjectPath tablePath) {
 		TableStats tableStats = TableStats.UNKNOWN;
 		try {
 			// TODO supports stats for partitionable table
@@ -208,7 +208,11 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		}
 	}
 
-	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table, @Nullable TableFactory tableFactory) {
+	private Table convertCatalogTable(
+			ObjectPath tablePath,
+			CatalogTable table,
+			@Nullable TableFactory tableFactory,
+			TableStats tableStats) {
 		TableSource<?> tableSource;
 		if (tableFactory != null) {
 			if (tableFactory instanceof TableSourceFactory) {
@@ -228,7 +232,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		return new TableSourceTable<>(
 			tableSource,
 			!((StreamTableSource<?>) tableSource).isBounded(),
-			FlinkStatistic.UNKNOWN(),
+			FlinkStatistic.builder().tableStats(tableStats).build(),
 			table
 		);
 	}
