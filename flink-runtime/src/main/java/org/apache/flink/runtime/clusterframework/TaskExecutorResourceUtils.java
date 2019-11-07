@@ -101,6 +101,18 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
+	public static boolean isTaskExecutorResourceExplicitlyConfigured(final Configuration config) {
+		if (isTaskHeapMemorySizeExplicitlyConfigured(config) && isManagedMemorySizeExplicitlyConfigured(config)) {
+			return true;
+		} else if (isTotalFlinkMemorySizeExplicitlyConfigured(config)) {
+			return true;
+		} else if (isTotalProcessMemorySizeExplicitlyConfigured(config)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 	private static TaskExecutorResourceSpec deriveResourceSpecWithExplicitTaskAndManagedMemory(final Configuration config) {
 		// derive flink internal memory from explicitly configure task heap memory size and managed memory size
 
