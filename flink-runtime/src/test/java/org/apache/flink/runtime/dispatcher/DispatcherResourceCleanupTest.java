@@ -104,6 +104,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	private static TestingRpcService rpcService;
 
+	private static MetricRegistryImpl metricRegistry;
+
 	private JobID jobId;
 
 	private JobGraph jobGraph;
@@ -177,6 +179,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		assertThat(storedHABlobFuture.get(), equalTo(permanentBlobKey));
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
+
+		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 	}
 
 	private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob() throws Exception {
@@ -196,7 +200,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 		final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 
-		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
 		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
@@ -239,6 +242,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	public static void teardownClass() throws ExecutionException, InterruptedException {
 		if (rpcService != null) {
 			rpcService.stopService().get();
+		}
+
+		if (metricRegistry != null) {
+			metricRegistry.shutdown().get();
 		}
 	}
 
