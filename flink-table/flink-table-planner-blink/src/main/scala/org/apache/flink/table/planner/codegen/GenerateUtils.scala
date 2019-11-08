@@ -31,13 +31,16 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-
 import org.apache.calcite.avatica.util.ByteString
+import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
-
 import java.math.{BigDecimal => JBigDecimal}
+import java.lang.{Integer => JInteger}
+
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 
 import scala.collection.mutable
+import scala.math.pow
 
 /**
   * Utilities to generate code for general purpose.
@@ -370,12 +373,53 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        // TODO: support Timestamp(3) now
+        def getNanoOfMillisSinceEpoch(timestampString: TimestampString): Int = {
+          val v = timestampString.toString()
+          val length = v.length
+          val nanoOfSeconds = length match {
+            case 19 | 20 => 0
+            case _ =>
+              JInteger.valueOf(v.substring(20)) * pow(10, 9 - (length - 20)).intValue()
+          }
+          nanoOfSeconds % 1000000
+        }
+
+        // TODO: we copied the logical of TimestampString::getMillisSinceEpoch since the copied
+        //  DateTimeUtils.ymdToJulian is wrong.
+        //  SEE CALCITE-1884
+        def getMillisInSecond(timestampString: TimestampString): Int = {
+          val v = timestampString.toString()
+          val length = v.length
+          val milliOfSeconds = length match {
+            case 19 => 0
+            case 21 => JInteger.valueOf(v.substring(20)).intValue() * 100
+            case 22 => JInteger.valueOf(v.substring(20)).intValue() * 10
+            case 20 | 23 | _ => JInteger.valueOf(v.substring(20, 23)).intValue()
+          }
+          milliOfSeconds
+        }
+
+        def getMillisSinceEpoch(timestampString: TimestampString): Long = {
+          val v = timestampString.toString()
+          val year = JInteger.valueOf(v.substring(0, 4))
+          val month = JInteger.valueOf(v.substring(5, 7))
+          val day = JInteger.valueOf(v.substring(8, 10))
+          val h = JInteger.valueOf(v.substring(11, 13))
+          val m = JInteger.valueOf(v.substring(14, 16))
+          val s = JInteger.valueOf(v.substring(17, 19))
+          val ms = getMillisInSecond(timestampString)
+          val d = SqlDateTimeUtils.ymdToJulian(year, month, day)
+          d * 86400000L + h * 3600000L + m * 60000L + s * 1000L + ms.toLong
+        }
+
         val fieldTerm = newName("timestamp")
-        val millis = literalValue.asInstanceOf[Long]
+        val millis = literalValue.asInstanceOf[TimestampString].getMillisSinceEpoch
+        val nanoOfMillis = getNanoOfMillisSinceEpoch(
+          literalValue.asInstanceOf[TimestampString])
         val fieldTimestamp =
           s"""
-             |$SQL_TIMESTAMP_TERM $fieldTerm = $SQL_TIMESTAMP_TERM.fromEpochMillis(${millis}L);
+             |$SQL_TIMESTAMP_TERM $fieldTerm =
+             |  $SQL_TIMESTAMP_TERM.fromEpochMillis(${millis}L, $nanoOfMillis);
            """.stripMargin
         ctx.addReusableMember(fieldTimestamp)
         generateNonNullLiteral(literalType, fieldTerm, literalType)

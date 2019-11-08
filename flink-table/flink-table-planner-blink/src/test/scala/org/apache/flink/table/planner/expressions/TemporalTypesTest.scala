@@ -38,6 +38,17 @@ import java.util.{Locale, TimeZone}
 class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
+  def test(): Unit = {
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.123456789'",
+      "1500-05-10T12:00:00.123456789")
+
+    testSqlApi(
+      "CAST('1500-04-30 12:00:00.123' AS TIMESTAMP(3))",
+      "1500-05-10 12:00:00.123")
+  }
+
+  @Test
   def testTimePointLiterals(): Unit = {
     testAllApis(
       "1990-10-14".toDate,
@@ -88,7 +99,23 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1500-04-30 12:00:00".cast(DataTypes.TIMESTAMP(3)),
       "'1500-04-30 12:00:00'.cast(SQL_TIMESTAMP)",
       "CAST('1500-04-30 12:00:00' AS TIMESTAMP)",
-      "1500-04-30 12:00:00.000")
+      "1500-05-10 12:00:00.000")
+
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.123456789'",
+    "1500-05-10T12:00:00.123456789")
+
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.12345678'",
+      "1500-05-10T12:00:00.123456780")
+
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.123456'",
+      "1500-05-10T12:00:00.123456")
+
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.1234'",
+      "1500-05-10T12:00:00.123400")
   }
 
   @Test

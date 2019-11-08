@@ -53,6 +53,9 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     case SqlTypeName.VARCHAR | SqlTypeName.CHAR | SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
       Int.MaxValue
 
+    // The maximal precision of TIMESTAMP is 3, change it to 9 to support nanoseconds precision
+    case SqlTypeName.TIMESTAMP => 9
+
     case _ =>
       super.getMaxPrecision(typeName)
   }

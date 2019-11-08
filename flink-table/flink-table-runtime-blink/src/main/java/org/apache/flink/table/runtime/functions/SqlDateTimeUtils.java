@@ -1011,7 +1011,7 @@ public class SqlDateTimeUtils {
 		return julian - EPOCH_JULIAN;
 	}
 
-	private static int ymdToJulian(int year, int month, int day) {
+	public static int ymdToJulian(int year, int month, int day) {
 		int a = (14 - month) / 12;
 		int y = year + 4800 - a;
 		int m = month + 12 * a - 3;

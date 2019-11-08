@@ -974,8 +974,8 @@ object ScalarOperatorGens {
         operandTerm =>
           s"""
              |$SQL_TIMESTAMP_TERM.fromEpochMillis(
-             |  ${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString()))
-           """.stripMargin
+            |  ${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString()))
+          """.stripMargin
       }
 
     case (VARCHAR | CHAR, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
@@ -2220,9 +2220,9 @@ object ScalarOperatorGens {
         s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
-           |${SQL_TIMESTAMP_TERM}.fromEpochMillis(
+           |$SQL_TIMESTAMP_TERM.fromEpochMillis(
            |  ${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString()))
-           |""".stripMargin
+          """.stripMargin
       case _ => throw new UnsupportedOperationException
     }
 
@@ -2236,8 +2236,20 @@ object ScalarOperatorGens {
       case TIME_WITHOUT_TIME_ZONE =>
         s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
-        val longTerm = s"$operandTerm.getMillisecond()"
-        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($longTerm, 3)"
+        // casting TimestampType to VARCHAR, if precision <= 3, keep the string representation
+        // consistent with the original design. Otherwise, use SqlTimestamp.toString(), which
+        // follows one of the following ISO-8601 formats:
+        //   uuuu-MM-dd'T'HH:mm:ss.SSSSSS
+        //   uuuu-MM-dd'T'HH:mm:ss.SSSSSSSSS
+        // The format used will be the shortest that outputs the full value of
+        // the time where the omitted parts are implied to be zero.
+        val precision = fromType.asInstanceOf[TimestampType].getPrecision
+        if (precision <= 3) {
+          val longTerm = s"$operandTerm.getMillisecond()"
+          s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($longTerm, 3)"
+        } else {
+          s"$operandTerm.toString()"
+        }
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
         val zone = ctx.addReusableTimeZone()

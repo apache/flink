@@ -52,8 +52,11 @@ import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.TimestampWithTimeZoneString;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -135,8 +138,26 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				return relBuilder.getRexBuilder().makeTimeLiteral(TimeString.fromCalendarFields(
 						valueAsCalendar(extractValue(valueLiteral, java.sql.Time.class))), 0);
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return relBuilder.getRexBuilder().makeTimestampLiteral(TimestampString.fromCalendarFields(
-						valueAsCalendar(extractValue(valueLiteral, java.sql.Timestamp.class))), 3);
+				TimestampType timestampType = (TimestampType) type;
+				Class<?> clazz = valueLiteral.getOutputDataType().getConversionClass();
+				LocalDateTime datetime = null;
+				if (clazz == LocalDateTime.class) {
+					datetime = valueLiteral.getValueAs(LocalDateTime.class)
+						.orElseThrow(() -> new TableException("Invalid literal."));
+				} else if (clazz == Timestamp.class) {
+					datetime = valueLiteral.getValueAs(Timestamp.class)
+						.orElseThrow(() -> new TableException("Invalid literal.")).toLocalDateTime();
+				} else {
+					throw new TableException("Invalid literal.");
+				}
+				return relBuilder.getRexBuilder().makeTimestampLiteral(
+					new TimestampString(
+						datetime.getYear(),
+						datetime.getMonthValue(),
+						datetime.getDayOfMonth(),
+						datetime.getHour(),
+						datetime.getMinute(),
+						datetime.getSecond()).withNanos(datetime.getNano()), timestampType.getPrecision());
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				TimeZone timeZone = TimeZone.getTimeZone(((FlinkContext) ((FlinkRelBuilder) this.relBuilder)
 						.getCluster().getPlanner().getContext()).getTableConfig().getLocalTimeZone());

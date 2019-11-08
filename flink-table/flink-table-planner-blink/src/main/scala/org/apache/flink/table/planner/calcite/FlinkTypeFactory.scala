@@ -133,7 +133,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
         timestampType.getKind match {
           case TimestampKind.PROCTIME => createProctimeIndicatorType(true)
           case TimestampKind.ROWTIME => createRowtimeIndicatorType(true)
-          case TimestampKind.REGULAR => createSqlType(TIMESTAMP)
+          case TimestampKind.REGULAR => createSqlType(TIMESTAMP, timestampType.getPrecision)
         }
       case _ =>
         seenTypes.get(t) match {
@@ -424,11 +424,12 @@ object FlinkTypeFactory {
         // blink runner support precision 3, but for consistent with flink runner, we set to 0.
         new TimeType()
       case TIMESTAMP =>
-        if (relDataType.getPrecision > 3) {
+        val precision = relDataType.getPrecision
+        if (precision > 9 || precision < 0) {
           throw new TableException(
-            s"TIMESTAMP precision is not supported: ${relDataType.getPrecision}")
+            s"TIMESTAMP precision is not supported: ${precision}")
         }
-        new TimestampType(3)
+        new TimestampType(precision)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         if (relDataType.getPrecision > 3) {
           throw new TableException(
