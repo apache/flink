@@ -118,7 +118,7 @@ public class FlinkKafkaProducer<IN>
 		 * case any subsequent {@link FlinkKafkaProducer#snapshotState(FunctionSnapshotContext)} requests will fail
 		 * and {@link FlinkKafkaProducer} will keep using the {@link FlinkKafkaInternalProducer}
 		 * from the previous checkpoint.
-		 * To decrease the chance of failing checkpoints there are three options:
+		 * To decrease the chance of failing checkpoints there are four options:
 		 * <li>decrease number of max concurrent checkpoints</li>
 		 * <li>make checkpoints more reliable (so that they complete faster)</li>
 		 * <li>increase the delay between checkpoints</li>
