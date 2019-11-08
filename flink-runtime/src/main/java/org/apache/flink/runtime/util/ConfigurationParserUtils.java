@@ -44,11 +44,16 @@ public class ConfigurationParserUtils {
 	 */
 	public static long getManagedMemorySize(Configuration configuration) {
 		long managedMemorySize;
-		try {
-			managedMemorySize = MemorySize.parse(
-				configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
-		} catch (IllegalArgumentException e) {
-			throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
+		if(configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)){
+			try {
+				managedMemorySize = MemorySize.parse(
+					configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
+			} catch (IllegalArgumentException e) {
+				throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
+			}
+		}
+		else {
+			return 0L;
 		}
 		checkConfigParameter( managedMemorySize > 0,
 			managedMemorySize, TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
