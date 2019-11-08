@@ -31,7 +31,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 
 /**
- * Util for generating output schema when doing prediction or transformation.
+ * Utils for merging input data with output data.
  *
  * <p>Input:
  * 1) Schema of input data being predicted or transformed.
@@ -48,83 +48,93 @@ import java.util.HashSet;
  * 2）The reserved columns are arranged ahead of the operator's output columns in the final output.
  * 3) If some of the reserved column names overlap with those of operator's output columns, then the operator's
  * output columns override the conflicting reserved columns.
+ * 4) The reserved columns in the result table preserve their orders as in the input table.
  *
  * <p>For example, if we have input data schema of ["id":INT, "f1":FLOAT, "f2":DOUBLE], and the operator outputs
- * a column "label" with type STRING, and we want to preserve the column "id", then we get the output
+ * a column "label" with type STRING, and we want to preserve the column "id", then we get the result
  * schema of ["id":INT, "label":STRING].
  */
 public class OutputColsHelper implements Serializable {
-	private transient String[] dataColNames;
-	private transient TypeInformation[] dataColTypes;
-	private transient String[] outputColNames;
-	private transient TypeInformation[] outputColTypes;
+	private String[] inputColNames;
+	private TypeInformation[] inputColTypes;
+	private String[] outputColNames;
+	private TypeInformation[] outputColTypes;
 
-	private int resultLength;
-	private int[] reservedColIndices;
-	private int[] reservedToResultIndices;
-	private int[] outputToResultIndices;
+	/**
+	 * Column indices in the input data that would be forward to the result.
+	 */
+	private int[] reservedCols;
 
-	public OutputColsHelper(TableSchema dataSchema, String outputColName, TypeInformation outputColType) {
-		this(dataSchema, outputColName, outputColType, null);
+	/**
+	 * The positions of reserved columns in the result.
+	 */
+	private int[] reservedColsPosInResult;
+
+	/**
+	 * The positions of output columns in the result.
+	 */
+	private int[] outputColsPosInResult;
+
+	public OutputColsHelper(TableSchema inputSchema, String outputColName, TypeInformation outputColType) {
+		this(inputSchema, outputColName, outputColType, inputSchema.getFieldNames());
 	}
 
-	public OutputColsHelper(TableSchema dataSchema, String outputColName, TypeInformation outputColType,
+	public OutputColsHelper(TableSchema inputSchema, String outputColName, TypeInformation outputColType,
 							String[] reservedColNames) {
-		this(dataSchema, new String[] {outputColName}, new TypeInformation[] {outputColType}, reservedColNames);
+		this(inputSchema, new String[]{outputColName}, new TypeInformation[]{outputColType}, reservedColNames);
 	}
 
-	public OutputColsHelper(TableSchema dataSchema, String[] outputColNames, TypeInformation[] outputColTypes) {
-		this(dataSchema, outputColNames, outputColTypes, null);
+	public OutputColsHelper(TableSchema inputSchema, String[] outputColNames, TypeInformation[] outputColTypes) {
+		this(inputSchema, outputColNames, outputColTypes, inputSchema.getFieldNames());
 	}
 
 	/**
 	 * The constructor.
 	 *
-	 * @param dataSchema       Schema of input data being predicted or transformed.
+	 * @param inputSchema      Schema of input data being predicted or transformed.
 	 * @param outputColNames   Output column names of the prediction/transformation operator.
 	 * @param outputColTypes   Output column types of the prediction/transformation operator.
 	 * @param reservedColNames Reserved column names, which is a subset of input data's column names that we want to preserve.
 	 */
-	public OutputColsHelper(TableSchema dataSchema, String[] outputColNames, TypeInformation[] outputColTypes,
+	public OutputColsHelper(TableSchema inputSchema, String[] outputColNames, TypeInformation[] outputColTypes,
 							String[] reservedColNames) {
-		this.dataColNames = dataSchema.getFieldNames();
-		this.dataColTypes = dataSchema.getFieldTypes();
+		this.inputColNames = inputSchema.getFieldNames();
+		this.inputColTypes = inputSchema.getFieldTypes();
 		this.outputColNames = outputColNames;
 		this.outputColTypes = outputColTypes;
 
-		HashSet <String> toReservedCols = new HashSet <>(
-			Arrays.asList(
-				reservedColNames == null ? this.dataColNames : reservedColNames
-			)
+		HashSet<String> toReservedCols = new HashSet<>(
+			Arrays.asList(reservedColNames == null ? this.inputColNames : reservedColNames)
 		);
-
-		ArrayList <Integer> reservedColIndices = new ArrayList <>(toReservedCols.size());
-		ArrayList <Integer> reservedColToResultIndex = new ArrayList <>(toReservedCols.size());
-		outputToResultIndices = new int[outputColNames.length];
-		Arrays.fill(outputToResultIndices, -1);
+		//the indices of the columns which need to be reserved.
+		ArrayList<Integer> reservedColIndices = new ArrayList<>(toReservedCols.size());
+		ArrayList<Integer> reservedColToResultIndex = new ArrayList<>(toReservedCols.size());
+		outputColsPosInResult = new int[outputColNames.length];
+		Arrays.fill(outputColsPosInResult, -1);
 		int index = 0;
-		for (int i = 0; i < dataColNames.length; i++) {
-			int key = ArrayUtils.indexOf(outputColNames, dataColNames[i]);
+		for (int i = 0; i < inputColNames.length; i++) {
+			int key = ArrayUtils.indexOf(outputColNames, inputColNames[i]);
 			if (key >= 0) {
-				outputToResultIndices[key] = index++;
+				outputColsPosInResult[key] = index++;
 				continue;
 			}
-			if (toReservedCols.contains(dataColNames[i])) {
+			//add these interested column.
+			if (toReservedCols.contains(inputColNames[i])) {
 				reservedColIndices.add(i);
 				reservedColToResultIndex.add(index++);
 			}
 		}
-		for (int i = 0; i < outputToResultIndices.length; i++) {
-			if (outputToResultIndices[i] == -1) {
-				outputToResultIndices[i] = index++;
+		for (int i = 0; i < outputColsPosInResult.length; i++) {
+			if (outputColsPosInResult[i] == -1) {
+				outputColsPosInResult[i] = index++;
 			}
 		}
-		this.resultLength = index;
-		this.reservedColIndices = new int[reservedColIndices.size()];
-		this.reservedToResultIndices = new int[reservedColIndices.size()];
-		for (int i = 0; i < this.reservedColIndices.length; i++) {
-			this.reservedColIndices[i] = reservedColIndices.get(i);
-			this.reservedToResultIndices[i] = reservedColToResultIndex.get(i);
+		//write reversed column information in array.
+		this.reservedCols = new int[reservedColIndices.size()];
+		this.reservedColsPosInResult = new int[reservedColIndices.size()];
+		for (int i = 0; i < this.reservedCols.length; i++) {
+			this.reservedCols[i] = reservedColIndices.get(i);
+			this.reservedColsPosInResult[i] = reservedColToResultIndex.get(i);
 		}
 	}
 
@@ -133,12 +143,12 @@ public class OutputColsHelper implements Serializable {
 	 *
 	 * @return the reserved colNames.
 	 */
-	public String[] getReservedColNames() {
-		String[] reservedColNames = new String[reservedColIndices.length];
-		for (int i = 0; i < reservedColIndices.length; i++) {
-			reservedColNames[i] = dataColNames[reservedColIndices[i]];
+	public String[] getReservedColumns() {
+		String[] passThroughColNames = new String[reservedCols.length];
+		for (int i = 0; i < reservedCols.length; i++) {
+			passThroughColNames[i] = inputColNames[reservedCols[i]];
 		}
-		return reservedColNames;
+		return passThroughColNames;
 	}
 
 	/**
@@ -148,38 +158,40 @@ public class OutputColsHelper implements Serializable {
 	 * @return The result table schema.
 	 */
 	public TableSchema getResultSchema() {
+		int resultLength = reservedCols.length + outputColNames.length;
 		String[] resultColNames = new String[resultLength];
 		TypeInformation[] resultColTypes = new TypeInformation[resultLength];
-		for (int i = 0; i < reservedColIndices.length; i++) {
-			resultColNames[reservedToResultIndices[i]] = dataColNames[reservedColIndices[i]];
-			resultColTypes[reservedToResultIndices[i]] = dataColTypes[reservedColIndices[i]];
+		for (int i = 0; i < reservedCols.length; i++) {
+			resultColNames[reservedColsPosInResult[i]] = inputColNames[reservedCols[i]];
+			resultColTypes[reservedColsPosInResult[i]] = inputColTypes[reservedCols[i]];
 		}
-		for (int i = 0; i < outputToResultIndices.length; i++) {
-			resultColNames[outputToResultIndices[i]] = outputColNames[i];
-			resultColTypes[outputToResultIndices[i]] = outputColTypes[i];
+		for (int i = 0; i < outputColsPosInResult.length; i++) {
+			resultColNames[outputColsPosInResult[i]] = outputColNames[i];
+			resultColTypes[outputColsPosInResult[i]] = outputColTypes[i];
 		}
 		return new TableSchema(resultColNames, resultColTypes);
 	}
 
 	/**
-	 * Get the result row.
+	 * Merge the input row and the output row.
 	 *
-	 * @param data   The input row being predicted or transformed.
+	 * @param input  The input row being predicted or transformed.
 	 * @param output The output row of the prediction/transformation operator.
 	 * @return The result row, which is a combination of preserved columns and the operator's
 	 * output columns.
 	 */
-	public Row getResultRow(Row data, Row output) {
-		int numOutputs = outputToResultIndices.length;
+	public Row getResultRow(Row input, Row output) {
+		int numOutputs = outputColsPosInResult.length;
 		if (output.getArity() != numOutputs) {
 			throw new IllegalArgumentException("Invalid output size");
 		}
+		int resultLength = reservedCols.length + outputColNames.length;
 		Row result = new Row(resultLength);
-		for (int i = 0; i < reservedColIndices.length; i++) {
-			result.setField(reservedToResultIndices[i], data.getField(reservedColIndices[i]));
+		for (int i = 0; i < reservedCols.length; i++) {
+			result.setField(reservedColsPosInResult[i], input.getField(reservedCols[i]));
 		}
 		for (int i = 0; i < numOutputs; i++) {
-			result.setField(outputToResultIndices[i], output.getField(i));
+			result.setField(outputColsPosInResult[i], output.getField(i));
 		}
 		return result;
 	}
