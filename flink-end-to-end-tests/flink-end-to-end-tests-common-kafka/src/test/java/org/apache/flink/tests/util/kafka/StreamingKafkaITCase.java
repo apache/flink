@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util;
+package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.categories.PreCommit;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.JobSubmission;
-import org.apache.flink.tests.util.kafka.KafkaResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
  * End-to-end test for the kafka connectors.
  */
 @RunWith(Parameterized.class)
-@Category(value = { TravisGroup1.class, PreCommit.class })
+@Category(value = {TravisGroup1.class, PreCommit.class})
 public class StreamingKafkaITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingKafkaITCase.class);
@@ -55,9 +55,9 @@ public class StreamingKafkaITCase extends TestLogger {
 	@Parameterized.Parameters(name = "{index}: kafka-version:{1}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-			{"flink-streaming-kafka010-test.*Kafka010Example.jar", "0.10.2.0"},
-			{"flink-streaming-kafka011-test.*Kafka011Example.jar", "0.11.0.2"},
-			{"flink-streaming-kafka-test.*KafkaExample.jar", "2.2.0"}
+			{"flink-streaming-kafka010-test.*/Kafka010Example.jar", "0.10.2.0"},
+			{"flink-streaming-kafka011-test.*/Kafka011Example.jar", "0.11.0.2"},
+			{"flink-streaming-kafka-test.*/KafkaExample.jar", "2.2.0"}
 		});
 	}
 

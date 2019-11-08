@@ -20,18 +20,15 @@ package org.apache.flink.tests.util.cache;
 
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
+import org.apache.flink.tests.util.TestUtils;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Optional;
@@ -44,7 +41,7 @@ import java.util.stream.Stream;
  */
 abstract class AbstractDownloadCache implements DownloadCache {
 
-	final Logger log = LoggerFactory.getLogger(getClass());
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractDownloadCache.class);
 
 	private final Path tmpDir;
 	private final Path downloadsDir;
@@ -72,7 +69,7 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 				if (matcher.matches()) {
 					if (exceedsTimeToLive(matcher)) {
-						log.info("Invalidating cache entry {}.", regenerateOriginalFileName(matcher));
+						LOG.info("Invalidating cache entry {}.", regenerateOriginalFileName(matcher));
 						Files.delete(cacheFile);
 					}
 				}
@@ -100,12 +97,12 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 		final Path cacheFile;
 		if (cachedFile.isPresent()) {
-			log.info("Using cached version of {}.", url);
+			LOG.info("Using cached version of {}.", url);
 			cacheFile = cachedFile.get();
 		} else {
 			final Path scopedDownloadDir = downloadsDir.resolve(String.valueOf(url.hashCode()));
 			Files.createDirectories(scopedDownloadDir);
-			log.info("Downloading {}.", url);
+			LOG.info("Downloading {}.", url);
 			AutoClosableProcess
 				.create(
 					CommandLineWrapper.wget(url)
@@ -138,7 +135,7 @@ abstract class AbstractDownloadCache implements DownloadCache {
 		}
 		final String originalFileName = regenerateOriginalFileName(matcher);
 
-		return copyDirectory(cacheFile, targetDir.resolve(originalFileName));
+		return TestUtils.copyDirectory(cacheFile, targetDir.resolve(originalFileName));
 	}
 
 	private Optional<Path> getCachedFile(final String url) throws IOException {
@@ -151,31 +148,5 @@ abstract class AbstractDownloadCache implements DownloadCache {
 				})
 				.findAny();
 		}
-	}
-
-	private static Path copyDirectory(final Path source, final Path destination) throws IOException {
-		Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes ignored)
-				throws IOException {
-				final Path targetRir = destination.resolve(source.relativize(dir));
-				try {
-					Files.copy(dir, targetRir);
-				} catch (FileAlreadyExistsException e) {
-					if (!Files.isDirectory(targetRir)) {
-						throw e;
-					}
-				}
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes ignored) throws IOException {
-				Files.copy(file, destination.resolve(source.relativize(file)));
-				return FileVisitResult.CONTINUE;
-			}
-		});
-
-		return destination;
 	}
 }

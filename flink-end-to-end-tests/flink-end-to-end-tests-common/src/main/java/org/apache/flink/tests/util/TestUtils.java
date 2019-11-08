@@ -22,9 +22,14 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -51,7 +56,6 @@ public class TestUtils {
 			final List<Path> matchingJars = dependencyJars
 				.filter(jar -> Pattern.compile(jarNameRegex).matcher(jar.toAbsolutePath().toString()).find())
 				.collect(Collectors.toList());
-			System.out.println(matchingJars);
 			switch (matchingJars.size()) {
 				case 0:
 					throw new RuntimeException(
@@ -71,5 +75,39 @@ public class TestUtils {
 		} catch (final IOException ioe) {
 			throw new RuntimeException("Could not search for resource jars.", ioe);
 		}
+	}
+
+	/**
+	 * Copy all the files and sub-directories under source directory to destination directory recursively.
+	 *
+	 * @param source      directory or file path to copy from.
+	 * @param destination directory or file path to copy to.
+	 * @return Path of the destination directory.
+	 * @throws IOException if any IO error happen.
+	 */
+	public static Path copyDirectory(final Path source, final Path destination) throws IOException {
+		Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes ignored)
+				throws IOException {
+				final Path targetRir = destination.resolve(source.relativize(dir));
+				try {
+					Files.copy(dir, targetRir, StandardCopyOption.COPY_ATTRIBUTES);
+				} catch (FileAlreadyExistsException e) {
+					if (!Files.isDirectory(targetRir)) {
+						throw e;
+					}
+				}
+				return FileVisitResult.CONTINUE;
+			}
+
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes ignored) throws IOException {
+				Files.copy(file, destination.resolve(source.relativize(file)), StandardCopyOption.COPY_ATTRIBUTES);
+				return FileVisitResult.CONTINUE;
+			}
+		});
+
+		return destination;
 	}
 }

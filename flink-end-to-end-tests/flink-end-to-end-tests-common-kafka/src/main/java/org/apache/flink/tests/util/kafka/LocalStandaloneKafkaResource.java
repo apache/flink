@@ -50,9 +50,6 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.tests.util.AutoClosableProcess.runBlocking;
-import static org.apache.flink.tests.util.AutoClosableProcess.runNonBlocking;
-
 /**
  * {@link KafkaResource} that downloads kafka and sets up a local kafka cluster with the bundled zookeeper.
  */
@@ -101,7 +98,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 		final Path kafkaArchive = downloadCache.getOrDownload(getKafkaDownloadUrl(kafkaVersion), downloadDirectory);
 
 		LOG.info("Kafka location: {}", kafkaDir.toAbsolutePath());
-		runBlocking(CommandLineWrapper
+		AutoClosableProcess.runBlocking(CommandLineWrapper
 			.tar(kafkaArchive)
 			.extract()
 			.zipped()
@@ -130,13 +127,13 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	private void setupKafkaCluster() throws IOException {
 		LOG.info("Starting zookeeper");
-		runBlocking(
+		AutoClosableProcess.runBlocking(
 			kafkaDir.resolve(Paths.get("bin", "zookeeper-server-start.sh")).toString(),
 			"-daemon",
 			kafkaDir.resolve(Paths.get("config", "zookeeper.properties")).toString()
 		);
 		LOG.info("Starting kafka");
-		runBlocking(
+		AutoClosableProcess.runBlocking(
 			kafkaDir.resolve(Paths.get("bin", "kafka-server-start.sh")).toString(),
 			"-daemon",
 			kafkaDir.resolve(Paths.get("config", "server.properties")).toString()
@@ -156,7 +153,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 	@Override
 	public void afterTestSuccess() {
 		try {
-			runBlocking(
+			AutoClosableProcess.runBlocking(
 				kafkaDir.resolve(Paths.get("bin", "kafka-server-stop.sh")).toString()
 			);
 			while (isKafkaRunning(kafkaDir)) {
@@ -171,7 +168,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 			LOG.warn("Error while shutting down kafka.", ioe);
 		}
 		try {
-			runBlocking(
+			AutoClosableProcess.runBlocking(
 				kafkaDir.resolve(Paths.get("bin", "zookeeper-server-stop.sh")).toString()
 			);
 			while (isZookeeperRunning(kafkaDir)) {
@@ -223,7 +220,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public void createTopic(int replicationFactor, int numPartitions, String topic) throws IOException {
-		runBlocking(
+		AutoClosableProcess.runBlocking(
 			kafkaDir.resolve(Paths.get("bin", "kafka-topics.sh")).toString(),
 			"--create",
 			"--zookeeper",
@@ -238,7 +235,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public void sendMessages(String topic, String... messages) throws IOException {
-		try (AutoClosableProcess autoClosableProcess = runNonBlocking(
+		try (AutoClosableProcess autoClosableProcess = AutoClosableProcess.runNonBlocking(
 			kafkaDir.resolve(Paths.get("bin", "kafka-console-producer.sh")).toString(),
 			"--broker-list",
 			KAFKA_ADDRESS,
@@ -296,7 +293,7 @@ public class LocalStandaloneKafkaResource implements KafkaResource {
 
 	@Override
 	public void setNumPartitions(int numPartitions, String topic) throws IOException {
-		runBlocking(
+		AutoClosableProcess.runBlocking(
 			kafkaDir.resolve(Paths.get("bin", "kafka-topics.sh")).toString(),
 			"--alter",
 			"--topic",

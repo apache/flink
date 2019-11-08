@@ -97,12 +97,7 @@ public final class FlinkDistribution implements ExternalResource {
 		final Path flinkDir = temporaryFolder.newFolder().toPath();
 
 		LOG.info("Copying distribution to {}.", flinkDir);
-		AutoClosableProcess.create(
-			"cp",
-			"-R",
-			originalFlinkDir.toAbsolutePath().toString() + "/",
-			flinkDir.toAbsolutePath().toString()
-		).runBlocking();
+		TestUtils.copyDirectory(originalFlinkDir, flinkDir);
 
 		bin = flinkDir.resolve("bin");
 		opt = flinkDir.resolve("opt");
@@ -137,15 +132,6 @@ public final class FlinkDistribution implements ExternalResource {
 			}
 		}
 		afterTestSuccess();
-	}
-
-	/**
-	 * Read the value of `rest.port` part in FLINK_DIST_DIR/conf/flink-conf.yaml.
-	 *
-	 * @return the rest port which standalone Flink cluster will listen.
-	 */
-	public int getRestPort() {
-		return defaultConfig.getInteger("rest.port", 8081);
 	}
 
 	public void startJobManager() throws IOException {

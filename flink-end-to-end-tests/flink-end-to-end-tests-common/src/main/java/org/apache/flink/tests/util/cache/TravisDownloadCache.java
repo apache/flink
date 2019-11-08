@@ -53,7 +53,6 @@ public final class TravisDownloadCache extends AbstractDownloadCache {
 	@Override
 	String generateCacheFileName(final String url, final String fileName) {
 		final String hash = String.valueOf(url.hashCode());
-
 		return hash + CACHE_FILE_NAME_DELIMITER + buildNumber + CACHE_FILE_NAME_DELIMITER + fileName;
 	}
 
@@ -65,14 +64,12 @@ public final class TravisDownloadCache extends AbstractDownloadCache {
 	@Override
 	boolean exceedsTimeToLive(final Matcher matcher) {
 		int cachedBuildNumber = Integer.parseInt(matcher.group("build"));
-
 		return buildNumber - cachedBuildNumber > ttl;
 	}
 
 	@Override
 	boolean matchesCachedFile(final Matcher matcher, final String url) {
 		final String hash = matcher.group("hash");
-
 		return url.hashCode() == Integer.parseInt(hash);
 	}
 }
