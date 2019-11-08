@@ -86,13 +86,18 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def copy(from: T): T = {
-    initArray()
-    var i = 0
-    while (i < arity) {
-      fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
-      i += 1
+    if (from == null) {
+      null.asInstanceOf[T]
     }
-    createInstance(fields)
+    else {
+      initArray()
+      var i = 0
+      while (i < arity) {
+        fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
+        i += 1
+      }
+      createInstance(fields)
+    }
   }
 
   def serialize(value: T, target: DataOutputView) {
