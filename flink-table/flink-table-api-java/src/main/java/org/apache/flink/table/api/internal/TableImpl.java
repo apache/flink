@@ -407,8 +407,8 @@ public class TableImpl implements Table {
 	}
 
 	@Override
-	public void insertInto(String tablePath, String... tablePathContinued) {
-		tableEnvironment.insertInto(this, tablePath, tablePathContinued);
+	public void insertInto(String tablePath) {
+		tableEnvironment.insertInto(tablePath, this);
 	}
 
 	@Override

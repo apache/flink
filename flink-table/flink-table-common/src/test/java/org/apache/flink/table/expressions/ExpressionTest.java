@@ -28,6 +28,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -70,6 +71,27 @@ public class ExpressionTest {
 	@Test
 	public void testExpressionEquality() {
 		assertEquals(TREE_WITH_VALUE, TREE_WITH_SAME_VALUE);
+	}
+
+	@Test
+	public void testArrayValueLiteralEquality() {
+		assertEquals(
+			new ValueLiteralExpression(new Integer[][]{null, null, {1, 2, 3}}),
+			new ValueLiteralExpression(new Integer[][]{null, null, {1, 2, 3}}));
+
+		assertEquals(
+			new ValueLiteralExpression(
+				new String[][]{null, null, {"1", "2", "3", "Dog's"}},
+				DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
+			new ValueLiteralExpression(
+				new String[][]{null, null, {"1", "2", "3", "Dog's"}},
+				DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING())))
+		);
+
+		assertEquals(
+			new ValueLiteralExpression("abc".getBytes(StandardCharsets.UTF_8)),
+			new ValueLiteralExpression("abc".getBytes(StandardCharsets.UTF_8))
+		);
 	}
 
 	@Test

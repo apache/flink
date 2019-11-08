@@ -1052,23 +1052,51 @@ abstract class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
   // ----------------------------------------------------------------------------------------------
+  protected def makeReusableInSplits(expr: GeneratedExpression): GeneratedExpression = {
+    // prepare declaration in class
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(expr.resultType)
+    if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
+      reusableMemberStatements.add(s"private boolean ${expr.nullTerm};")
+    }
+    reusableMemberStatements.add(s"private $resultTypeTerm ${expr.resultTerm};")
 
-  protected def makeReusableInSplits(exprs: Iterable[GeneratedExpression]): Unit = {
-    // add results of expressions to member area such that all split functions can access it
-    exprs.foreach { expr =>
-
-      // declaration
-      val resultTypeTerm = primitiveTypeTermForTypeInfo(expr.resultType)
-      if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
-        reusableMemberStatements.add(s"private boolean ${expr.nullTerm};")
-      }
-      reusableMemberStatements.add(s"private $resultTypeTerm ${expr.resultTerm};")
-
-      // assignment
+    // when expr has no code, no need to split it into a method, but still need to assign
+    if (expr.code.isEmpty) {
       if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
         reusablePerRecordStatements.add(s"this.${expr.nullTerm} = ${expr.nullTerm};")
       }
       reusablePerRecordStatements.add(s"this.${expr.resultTerm} = ${expr.resultTerm};")
+      expr
+    } else {
+      // create a method for the unboxing block
+      val methodName = newName(s"inputUnboxingSplit")
+      val method =
+        if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
+          s"""
+             |private final void $methodName() throws Exception {
+             |  ${expr.code}
+             |  this.${expr.nullTerm} = ${expr.nullTerm};
+             |  this.${expr.resultTerm} = ${expr.resultTerm};
+             |}
+           """.stripMargin
+        } else {
+          s"""
+             |private final void $methodName() throws Exception {
+             |  ${expr.code}
+             |  this.${expr.resultTerm} = ${expr.resultTerm};
+             |}
+           """.stripMargin
+        }
+
+      // add this method to reusable section for later generation
+      reusableMemberStatements.add(method)
+
+      // create method call
+      GeneratedExpression(
+        expr.resultTerm,
+        expr.nullTerm,
+        s"$methodName();",
+        expr.resultType)
     }
   }
 
@@ -1081,7 +1109,9 @@ abstract class CodeGenerator(
       hasCodeSplits = true
 
       // add input unboxing to member area such that all split functions can access it
-      makeReusableInSplits(reusableInputUnboxingExprs.values)
+      reusableInputUnboxingExprs.keys.foreach(
+        key =>
+          reusableInputUnboxingExprs(key) = makeReusableInSplits(reusableInputUnboxingExprs(key)))
 
       // add split methods to the member area and return the code necessary to call those methods
       val methodCalls = splits.map { split =>

@@ -21,12 +21,23 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.ObjectPath;
 
+import org.junit.Assume;
 import org.junit.Test;
 
 /**
  * Base class for testing HiveCatalog.
  */
 public abstract class HiveCatalogTestBase extends CatalogTestBase {
+
+	// ------ table and column stats ------
+
+	@Override
+	@Test
+	public void testAlterTableStats() throws Exception {
+		String hiveVersion = ((HiveCatalog) catalog).getHiveVersion();
+		Assume.assumeTrue(hiveVersion.compareTo("1.2.1") >= 0);
+		super.testAlterTableStats();
+	}
 
 	// ------ functions ------
 

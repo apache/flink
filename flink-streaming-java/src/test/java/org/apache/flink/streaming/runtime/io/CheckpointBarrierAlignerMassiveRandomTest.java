@@ -138,7 +138,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			this.currentBarriers = new int[numberOfChannels];
 			this.bufferPools = bufferPools;
 			this.barrierGens = barrierGens;
-			this.isAvailable = AVAILABLE;
+			availabilityHelper.resetAvailable();
 		}
 
 		@Override

@@ -48,10 +48,11 @@ public class DatabaseCalciteSchemaTest {
 	@Test
 	public void testCatalogTable() throws TableAlreadyExistException, DatabaseNotExistException {
 		GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(catalogName, databaseName);
+		CatalogManager catalogManager = new CatalogManager(catalogName, catalog);
 		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(true,
 			databaseName,
 			catalogName,
-			catalog);
+			catalogManager);
 
 		catalog.createTable(new ObjectPath(databaseName, tableName), new TestCatalogBaseTable(), false);
 		Table table = calciteSchema.getTable(tableName);

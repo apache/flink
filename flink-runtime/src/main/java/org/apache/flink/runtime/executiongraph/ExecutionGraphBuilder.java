@@ -45,7 +45,7 @@ import org.apache.flink.runtime.executiongraph.metrics.NumberOfFullRestartsGauge
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -98,7 +98,7 @@ public class ExecutionGraphBuilder {
 			Time allocationTimeout,
 			Logger log,
 			ShuffleMaster<?> shuffleMaster,
-			PartitionTracker partitionTracker) throws JobExecutionException, JobException {
+			JobMasterPartitionTracker partitionTracker) throws JobExecutionException, JobException {
 
 		final FailoverStrategy.Factory failoverStrategy =
 			FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
@@ -139,7 +139,7 @@ public class ExecutionGraphBuilder {
 		Time allocationTimeout,
 		Logger log,
 		ShuffleMaster<?> shuffleMaster,
-		PartitionTracker partitionTracker,
+		JobMasterPartitionTracker partitionTracker,
 		FailoverStrategy.Factory failoverStrategyFactory) throws JobExecutionException, JobException {
 
 		checkNotNull(jobGraph, "job graph cannot be null");
@@ -180,8 +180,7 @@ public class ExecutionGraphBuilder {
 					partitionReleaseStrategyFactory,
 					shuffleMaster,
 					partitionTracker,
-					jobGraph.getScheduleMode(),
-					jobGraph.getAllowQueuedScheduling());
+					jobGraph.getScheduleMode());
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

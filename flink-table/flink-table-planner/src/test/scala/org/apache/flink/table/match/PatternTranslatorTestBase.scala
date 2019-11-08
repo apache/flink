@@ -31,6 +31,7 @@ import org.apache.flink.table.plan.nodes.datastream.{DataStreamMatch, DataStream
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
+
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
@@ -68,7 +69,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
 
   def verifyPattern(matchRecognize: String, expected: Pattern[Row, _ <: Row]): Unit = {
     // create RelNode from SQL expression
-    val parsed = context._3.parse(
+    val parsed = context._3.getParser.parse(
       s"""
          |SELECT *
          |FROM $tableName

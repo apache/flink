@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -128,9 +129,8 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			try {
-				cluster.getClusterClient().submitJob(jobGraph, getClass().getClassLoader()).getJobExecutionResult();
-			}
-			catch (ProgramInvocationException root) {
+				ClientUtils.submitJobAndWaitForResult(cluster.getClusterClient(), jobGraph, getClass().getClassLoader()).getJobExecutionResult();
+			} catch (ProgramInvocationException root) {
 				Throwable cause = root.getCause();
 
 				// search for nested SuccessExceptions

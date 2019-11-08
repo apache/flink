@@ -32,7 +32,7 @@ import java.util.Optional;
 public class PreviousAllocationSlotSelectionStrategyTest extends LocationPreferenceSlotSelectionStrategyTest {
 
 	public PreviousAllocationSlotSelectionStrategyTest() {
-		super(PreviousAllocationSlotSelectionStrategy.INSTANCE);
+		super(PreviousAllocationSlotSelectionStrategy.create());
 	}
 
 	@Test
@@ -41,12 +41,12 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml2), Collections.singleton(aid3));
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-		Assert.assertEquals(ssc3, match.get().getSlotInfo());
+		Assert.assertEquals(slotInfo3, match.get().getSlotInfo());
 
 		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tmlX, tml1), new HashSet<>(Arrays.asList(aidX, aid2)));
 		match = runMatching(slotProfile);
 
-		Assert.assertEquals(ssc2, match.get().getSlotInfo());
+		Assert.assertEquals(slotInfo2, match.get().getSlotInfo());
 	}
 
 	@Test
@@ -55,7 +55,7 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singleton(aidX));
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-		Assert.assertEquals(ssc4, match.get().getSlotInfo());
+		Assert.assertEquals(slotInfo4, match.get().getSlotInfo());
 	}
 
 	@Test
@@ -82,6 +82,6 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
 		// we expect that the candidate that is not blacklisted is returned
-		Assert.assertEquals(ssc2, match.get().getSlotInfo());
+		Assert.assertEquals(slotInfo2, match.get().getSlotInfo());
 	}
 }

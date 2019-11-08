@@ -39,12 +39,13 @@ final class LogicalSink(
     input: RelNode,
     sink: TableSink[_],
     sinkName: String,
-    val catalogTable: CatalogTable)
+    val catalogTable: CatalogTable,
+    val staticPartitions: Map[String, String])
   extends Sink(cluster, traitSet, input, sink, sinkName) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new LogicalSink(
-      cluster, traitSet, inputs.head, sink, sinkName, catalogTable)
+      cluster, traitSet, inputs.head, sink, sinkName, catalogTable, staticPartitions)
   }
 
 }
@@ -54,9 +55,10 @@ object LogicalSink {
   def create(input: RelNode,
       sink: TableSink[_],
       sinkName: String,
-      catalogTable: CatalogTable = null): LogicalSink = {
+      catalogTable: CatalogTable = null,
+      staticPartitions: Map[String, String] = Map()): LogicalSink = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
     new LogicalSink(
-      input.getCluster, traits, input, sink, sinkName, catalogTable)
+      input.getCluster, traits, input, sink, sinkName, catalogTable, staticPartitions)
   }
 }

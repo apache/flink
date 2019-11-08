@@ -24,6 +24,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -61,10 +62,16 @@ public class CatalogStatisticsTest {
 	public void testGetStatsFromCatalog() throws Exception {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tEnv = TableEnvironment.create(settings);
-		tEnv.registerTableSource("T1", new TestTableSource(true, tableSchema));
-		tEnv.registerTableSource("T2", new TestTableSource(true, tableSchema));
 		Catalog catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
 		assertNotNull(catalog);
+		catalog.createTable(
+			ObjectPath.fromString("default_database.T1"),
+			ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
+			false);
+		catalog.createTable(
+			ObjectPath.fromString("default_database.T2"),
+			ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
+			false);
 
 		catalog.alterTableStatistics(ObjectPath.fromString("default_database.T1"),
 				new CatalogTableStatistics(100, 10, 1000L, 2000L), true);

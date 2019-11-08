@@ -26,14 +26,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -42,7 +40,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -78,8 +76,6 @@ import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -91,7 +87,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.function.Function;
@@ -171,11 +166,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
 			DirectScheduledExecutorService executor = new DirectScheduledExecutorService();
-			ExecutionGraph eg = createExecutionGraphWithoutQueuedScheduling(
-				jobId,
-				new TestingSlotProvider(ignore -> new CompletableFuture<>()),
-				executor,
-				executor);
+			ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobId)
+				.setFutureExecutor(executor)
+				.setIoExecutor(executor)
+				.setSlotProvider(new TestingSlotProvider(ignore -> new CompletableFuture<>()))
+				.setBlobWriter(blobWriter)
+				.build();
 
 			eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
@@ -361,7 +357,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that {@link Execution#completeCancelling(Map, IOMetrics)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
+	 * Verifies that {@link Execution#completeCancelling(Map, IOMetrics, boolean)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
 	 * store the given accumulators and metrics correctly.
 	 */
 	@Test
@@ -448,7 +444,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		DirectScheduledExecutorService directExecutor = new DirectScheduledExecutorService();
 
 		// execution graph that executes actions synchronously
-		ExecutionGraph eg = createExecutionGraphWithoutQueuedScheduling(jobId, slotProvider, directExecutor, TestingUtils.defaultExecutor());
+		ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobId)
+			.setFutureExecutor(directExecutor)
+			.setIoExecutor(TestingUtils.defaultExecutor())
+			.setSlotProvider(slotProvider)
+			.setBlobWriter(blobWriter)
+			.build();
 
 		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
@@ -512,7 +513,13 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		DirectScheduledExecutorService executorService = new DirectScheduledExecutorService();
 
 		// execution graph that executes actions synchronously
-		ExecutionGraph eg = createExecutionGraphWithoutQueuedScheduling(new JobID(), slotProvider, executorService, TestingUtils.defaultExecutor());
+		ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(new JobID())
+			.setFutureExecutor(executorService)
+			.setIoExecutor(TestingUtils.defaultExecutor())
+			.setSlotProvider(slotProvider)
+			.setBlobWriter(blobWriter)
+			.build();
+
 		checkJobOffloaded(eg);
 
 		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
@@ -527,21 +534,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		assertEquals(dop1 + dop2, executions.size());
 
 		return new Tuple2<>(eg, executions);
-	}
-
-	@Nonnull
-	private ExecutionGraph createExecutionGraphWithoutQueuedScheduling(
-			JobID jobId,
-			SlotProvider slotProvider,
-			ScheduledExecutorService futureExecutor,
-			Executor ioExecutor) throws JobException, JobExecutionException {
-		return new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobId)
-			.setFutureExecutor(futureExecutor)
-			.setIoExecutor(ioExecutor)
-			.setSlotProvider(slotProvider)
-			.setBlobWriter(blobWriter)
-			.setAllowQueuedScheduling(false)
-			.build();
 	}
 
 	@Test
@@ -689,7 +681,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			.setSlotProvider(slotProvider)
 			.setFutureExecutor(new DirectScheduledExecutorService())
 			.setScheduleMode(ScheduleMode.EAGER)
-			.allowQueuedScheduling()
 			.build();
 
 		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
@@ -791,7 +782,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			timeout,
 			LoggerFactory.getLogger(getClass()),
 			NettyShuffleMaster.INSTANCE,
-			NoOpPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE);
 	}
 
 	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {

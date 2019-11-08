@@ -29,7 +29,6 @@ import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
-
 class TableEnvironmentTest {
 
   // used for accurate exception information checking.
@@ -44,7 +43,7 @@ class TableEnvironmentTest {
   @Test
   def testScanNonExistTable(): Unit = {
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Table 'MyTable' was not found")
+    thrown.expectMessage("Table `MyTable` was not found")
     tableEnv.scan("MyTable")
   }
 
@@ -60,7 +59,8 @@ class TableEnvironmentTest {
 
     // register on a conflict name
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Could not execute CreateTable in path")
+    thrown.expectMessage(
+      "Temporary table `default_catalog`.`default_database`.`MyTable` already exists")
     tableEnv.registerDataStream("MyTable", env.fromElements[(Int, Long)]())
   }
 

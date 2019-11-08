@@ -267,6 +267,19 @@ class StreamTableEnvironmentImpl (
         Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
     insertInto(table, sinkPath, sinkPathContinued: _*)
   }
+
+  override def createTemporaryView[T](
+      path: String,
+      dataStream: DataStream[T]): Unit = {
+    createTemporaryView(path, fromDataStream(dataStream))
+  }
+
+  override def createTemporaryView[T](
+      path: String,
+      dataStream: DataStream[T],
+      fields: Expression*): Unit = {
+    createTemporaryView(path, fromDataStream(dataStream, fields: _*))
+  }
 }
 
 object StreamTableEnvironmentImpl {

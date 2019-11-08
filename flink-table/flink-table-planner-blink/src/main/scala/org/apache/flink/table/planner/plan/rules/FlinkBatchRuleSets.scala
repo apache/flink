@@ -90,6 +90,10 @@ object FlinkBatchRuleSets {
     RewriteCoalesceRule.CALC_INSTANCE
   )
 
+  private val LIMIT_RULES: RuleSet = RuleSets.ofList(
+    //push down localLimit
+    PushLimitIntoTableSourceScanRule.INSTANCE)
+
   /**
     * RuleSet to simplify predicate expressions in filters and joins
     */
@@ -338,7 +342,8 @@ object FlinkBatchRuleSets {
     * RuleSet to do logical optimize for batch
     */
   val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList((
-    FILTER_RULES.asScala ++
+    LIMIT_RULES.asScala ++
+      FILTER_RULES.asScala ++
       PROJECT_RULES.asScala ++
       PRUNE_EMPTY_RULES.asScala ++
       LOGICAL_RULES.asScala ++
@@ -351,6 +356,8 @@ object FlinkBatchRuleSets {
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
     // transpose calc past snapshot
     CalcSnapshotTransposeRule.INSTANCE,
+    // Rule that splits python ScalarFunctions from join conditions
+    SplitPythonConditionFromJoinRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions

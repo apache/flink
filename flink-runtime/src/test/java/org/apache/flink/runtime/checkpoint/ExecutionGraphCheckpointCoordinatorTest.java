@@ -141,7 +141,6 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		final ExecutionGraph executionGraph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobVertex)
 			.setRpcTimeout(timeout)
 			.setAllocationTimeout(timeout)
-			.allowQueuedScheduling()
 			.build();
 
 		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());

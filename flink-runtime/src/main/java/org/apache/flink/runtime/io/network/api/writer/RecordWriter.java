@@ -23,6 +23,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -56,7 +58,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * @param <T> the type of the record that can be emitted with this record writer
  */
-public abstract class RecordWriter<T extends IOReadableWritable> {
+public abstract class RecordWriter<T extends IOReadableWritable> implements AvailabilityProvider {
 
 	/** Default name for the output flush thread, if no name with a task reference is given. */
 	@VisibleForTesting
@@ -185,6 +187,11 @@ public abstract class RecordWriter<T extends IOReadableWritable> {
 	protected void finishBufferBuilder(BufferBuilder bufferBuilder) {
 		numBytesOut.inc(bufferBuilder.finish());
 		numBuffersOut.inc();
+	}
+
+	@Override
+	public CompletableFuture<?> isAvailable() {
+		return targetPartition.isAvailable();
 	}
 
 	/**

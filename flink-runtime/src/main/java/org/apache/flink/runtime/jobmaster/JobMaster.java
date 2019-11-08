@@ -40,7 +40,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -198,7 +198,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private Map<String, Object> accumulators;
 
-	private final PartitionTracker partitionTracker;
+	private final JobMasterPartitionTracker partitionTracker;
 
 	// ------------------------------------------------------------------------
 
@@ -893,7 +893,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (newJobStatus.isGloballyTerminalState()) {
 			runAsync(() -> registeredTaskManagers.keySet()
-				.forEach(partitionTracker::stopTrackingAndReleasePartitionsFor));
+				.forEach(newJobStatus == JobStatus.FINISHED
+					? partitionTracker::stopTrackingAndReleaseOrPromotePartitionsFor
+					: partitionTracker::stopTrackingAndReleasePartitionsFor));
 
 			final ArchivedExecutionGraph archivedExecutionGraph = schedulerNG.requestJob();
 			scheduledExecutorService.execute(() -> jobCompletionActions.jobReachedGloballyTerminalState(archivedExecutionGraph));

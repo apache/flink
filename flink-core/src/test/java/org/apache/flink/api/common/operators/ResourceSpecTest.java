@@ -141,6 +141,8 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 
 		ResourceSpec rs3 = rs1.merge(rs2);
+		assertEquals(2.0, rs3.getCpuCores(), 0.000001);
+		assertEquals(200, rs3.getHeapMemory());
 		assertEquals(1.1, rs3.getGPUResource(), 0.000001);
 
 		ResourceSpec rs4 = rs1.merge(rs3);

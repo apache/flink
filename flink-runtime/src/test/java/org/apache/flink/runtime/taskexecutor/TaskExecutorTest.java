@@ -193,8 +193,6 @@ public class TaskExecutorTest extends TestLogger {
 
 	private Configuration configuration;
 
-	private TaskManagerConfiguration taskManagerConfiguration;
-
 	private TaskManagerLocation taskManagerLocation;
 
 	private JobID jobId;
@@ -220,7 +218,6 @@ public class TaskExecutorTest extends TestLogger {
 			null);
 
 		configuration = new Configuration();
-		taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 
 		taskManagerLocation = new LocalTaskManagerLocation();
 		jobId = new JobID();

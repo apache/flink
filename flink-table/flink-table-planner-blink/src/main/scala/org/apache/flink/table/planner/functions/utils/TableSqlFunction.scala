@@ -67,7 +67,8 @@ class TableSqlFunction(
     functionImpl) {
 
   /**
-    * Get the user-defined table function.
+    * This is temporary solution for hive udf and should be removed once FLIP-65 is finished,
+    * please pass the non-null input arguments.
     */
   def makeFunction(constants: Array[AnyRef], argTypes: Array[LogicalType]): TableFunction[_] =
     udtf

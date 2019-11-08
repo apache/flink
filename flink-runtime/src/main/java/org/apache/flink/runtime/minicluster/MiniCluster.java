@@ -653,21 +653,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	public CompletableFuture<JobSubmissionResult> submitJob(JobGraph jobGraph) {
 		final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture = getDispatcherGatewayFuture();
-
-		// we have to allow queued scheduling in Flip-6 mode because we need to request slots
-		// from the ResourceManager
-		jobGraph.setAllowQueuedScheduling(true);
-
 		final CompletableFuture<InetSocketAddress> blobServerAddressFuture = createBlobServerAddress(dispatcherGatewayFuture);
-
 		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJobFiles(blobServerAddressFuture, jobGraph);
-
 		final CompletableFuture<Acknowledge> acknowledgeCompletableFuture = jarUploadFuture
 			.thenCombine(
 				dispatcherGatewayFuture,
 				(Void ack, DispatcherGateway dispatcherGateway) -> dispatcherGateway.submitJob(jobGraph, rpcTimeout))
 			.thenCompose(Function.identity());
-
 		return acknowledgeCompletableFuture.thenApply(
 			(Acknowledge ignored) -> new JobSubmissionResult(jobGraph.getJobID()));
 	}

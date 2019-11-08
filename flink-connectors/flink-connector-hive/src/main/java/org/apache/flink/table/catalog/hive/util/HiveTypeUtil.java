@@ -323,4 +323,13 @@ public class HiveTypeUtil {
 					String.format("Flink doesn't support converting type %s to Hive type yet.", dataType.toString()));
 		}
 	}
+
+	/**
+	 * INTERVAL are not available in older versions. So better to have our own enum for primitive categories.
+	 */
+	public enum HivePrimitiveCategory {
+		VOID, BOOLEAN, BYTE, SHORT, INT, LONG, FLOAT, DOUBLE, STRING,
+		DATE, TIMESTAMP, BINARY, DECIMAL, VARCHAR, CHAR, INTERVAL_YEAR_MONTH, INTERVAL_DAY_TIME,
+		UNKNOWN
+	}
 }

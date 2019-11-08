@@ -29,7 +29,7 @@ import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFuncti
 import org.apache.flink.table.sinks.TableSink
 
 /**
-  * This table environment is the entry point and central context for creating Table & SQL
+  * This table environment is the entry point and central context for creating Table and SQL
   * API programs that integrate with the Scala-specific [[DataStream]] API.
   *
   * It is unified for bounded and unbounded data processing.
@@ -113,37 +113,94 @@ trait StreamTableEnvironment extends TableEnvironment {
   def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table
 
   /**
-    * Registers the given [[DataStream]] as table in the
-    * [[TableEnvironment]]'s catalog.
+    * Creates a view from the given [[DataStream]].
+    * Registered views can be referenced in SQL queries.
+    *
+    * The field names of the [[Table]] are automatically derived
+    * from the type of the [[DataStream]].
+    *
+    * The view is registered in the namespace of the current catalog and database. To register the
+    * view in a different catalog use [[createTemporaryView]].
+    *
+    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+    * it will be inaccessible in the current session. To make the permanent object available again
+    * you can drop the corresponding temporary object.
+    *
+    * @param name The name under which the [[DataStream]] is registered in the catalog.
+    * @param dataStream The [[DataStream]] to register.
+    * @tparam T The type of the [[DataStream]] to register.
+    * @deprecated use [[createTemporaryView]]
+    */
+  @deprecated
+  def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit
+
+  /**
+    * Creates a view from the given [[DataStream]] in a given path.
     * Registered tables can be referenced in SQL queries.
     *
     * The field names of the [[Table]] are automatically derived
     * from the type of the [[DataStream]].
     *
-    * @param name The name under which the [[DataStream]] is registered in the catalog.
-    * @param dataStream The [[DataStream]] to register.
-    * @tparam T The type of the [[DataStream]] to register.
+    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+    * it will be inaccessible in the current session. To make the permanent object available again
+    * you can drop the corresponding temporary object.
+    *
+    * @param path The path under which the [[DataStream]] is created.
+    *             See also the [[TableEnvironment]] class description for the format of the path.
+    * @param dataStream The [[DataStream]] out of which to create the view.
+    * @tparam T The type of the [[DataStream]].
     */
-  def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit
+  def createTemporaryView[T](path: String, dataStream: DataStream[T]): Unit
 
   /**
-    * Registers the given [[DataStream]] as table with specified field names in the
-    * [[TableEnvironment]]'s catalog.
-    * Registered tables can be referenced in SQL queries.
+    * Creates a view from the given [[DataStream]] in a given path with specified field names.
+    * Registered views can be referenced in SQL queries.
     *
     * Example:
     *
     * {{{
-    *   val set: DataStream[(String, Long)] = ...
-    *   tableEnv.registerDataStream("myTable", set, 'a, 'b)
+    *   val stream: DataStream[(String, Long)] = ...
+    *   tableEnv.registerDataStream("myTable", stream, 'a, 'b)
     * }}}
+    *
+    * The view is registered in the namespace of the current catalog and database. To register the
+    * view in a different catalog use [[createTemporaryView]].
+    *
+    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+    * it will be inaccessible in the current session. To make the permanent object available again
+    * you can drop the corresponding temporary object.
     *
     * @param name The name under which the [[DataStream]] is registered in the catalog.
     * @param dataStream The [[DataStream]] to register.
-    * @param fields The field names of the registered table.
+    * @param fields The field names of the registered view.
     * @tparam T The type of the [[DataStream]] to register.
+    * @deprecated use [[createTemporaryView]]
     */
+  @deprecated
   def registerDataStream[T](name: String, dataStream: DataStream[T], fields: Expression*): Unit
+
+  /**
+    * Creates a view from the given [[DataStream]] in a given path with specified field names.
+    * Registered views can be referenced in SQL queries.
+    *
+    * Example:
+    *
+    * {{{
+    *   val stream: DataStream[(String, Long)] = ...
+    *   tableEnv.createTemporaryView("cat.db.myTable", stream, 'a, 'b)
+    * }}}
+    *
+    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+    * it will be inaccessible in the current session. To make the permanent object available again
+    * you can drop the corresponding temporary object.
+    *
+    * @param path The path under which the [[DataStream]] is created.
+    *             See also the [[TableEnvironment]] class description for the format of the path.
+    * @param dataStream The [[DataStream]] out of which to create the view.
+    * @param fields The field names of the created view.
+    * @tparam T The type of the [[DataStream]].
+    */
+  def createTemporaryView[T](path: String, dataStream: DataStream[T], fields: Expression*): Unit
 
   /**
     * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
@@ -248,7 +305,9 @@ trait StreamTableEnvironment extends TableEnvironment {
     *                          of the [[TableSink]] is provided.
     * @param sinkPathContinued The remaining part of the path of the registered [[TableSink]] to
     *                          which the [[Table]] is written.
+    * @deprecated use `TableEnvironment#insertInto(String, Table)`
     */
+  @deprecated
   def insertInto(
     table: Table,
     queryConfig: StreamQueryConfig,
@@ -302,7 +361,7 @@ trait StreamTableEnvironment extends TableEnvironment {
     *       .field("count", "DECIMAL")
     *       .field("proc-time", "TIMESTAMP").proctime())
     *   .inAppendMode()
-    *   .registerSource("MyTable")
+    *   .createTemporaryTable("MyTable")
     * }}}
     *
     * @param connectorDescriptor connector descriptor describing the external system
@@ -313,7 +372,7 @@ trait StreamTableEnvironment extends TableEnvironment {
 object StreamTableEnvironment {
 
   /**
-    * Creates a table environment that is the entry point and central context for creating Table &
+    * Creates a table environment that is the entry point and central context for creating Table and
     * SQL API programs that integrate with the Scala-specific [[DataStream]] API.
     *
     * It is unified for bounded and unbounded data processing.
@@ -339,7 +398,7 @@ object StreamTableEnvironment {
   }
 
   /**
-    * Creates a table environment that is the entry point and central context for creating Table &
+    * Creates a table environment that is the entry point and central context for creating Table and
     * SQL API programs that integrate with the Scala-specific [[DataStream]] API.
     *
     * It is unified for bounded and unbounded data processing.
@@ -367,7 +426,7 @@ object StreamTableEnvironment {
   }
 
   /**
-    * Creates a table environment that is the entry point and central context for creating Table &
+    * Creates a table environment that is the entry point and central context for creating Table and
     * SQL API programs that integrate with the Scala-specific [[DataStream]] API.
     *
     * It is unified for bounded and unbounded data processing.

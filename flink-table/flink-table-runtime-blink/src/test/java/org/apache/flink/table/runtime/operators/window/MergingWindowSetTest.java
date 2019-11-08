@@ -418,6 +418,11 @@ public class MergingWindowSetTest {
 		}
 
 		@Override
+		public boolean isEmpty() throws Exception {
+			return map.isEmpty();
+		}
+
+		@Override
 		public void clear() {
 			map.clear();
 		}
@@ -586,6 +591,11 @@ public class MergingWindowSetTest {
 		@Override
 		public Iterator<Map.Entry<UK, UV>> iterator() throws Exception {
 			return internalMap.entrySet().iterator();
+		}
+
+		@Override
+		public boolean isEmpty() {
+			return internalMap.isEmpty();
 		}
 
 		@Override

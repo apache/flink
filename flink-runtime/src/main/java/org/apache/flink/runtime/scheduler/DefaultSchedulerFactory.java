@@ -28,7 +28,7 @@ import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
@@ -65,7 +65,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
 			final Time slotRequestTimeout,
 			final ShuffleMaster<?> shuffleMaster,
-			final PartitionTracker partitionTracker) throws Exception {
+			final JobMasterPartitionTracker partitionTracker) throws Exception {
 
 		final SchedulingStrategyFactory schedulingStrategyFactory = createSchedulingStrategyFactory(jobGraph.getScheduleMode());
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy = RestartBackoffTimeStrategyFactoryLoader
@@ -81,8 +81,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
 			jobGraph.getScheduleMode(),
 			slotProvider,
-			slotRequestTimeout,
-			true);
+			slotRequestTimeout);
 
 		return new DefaultScheduler(
 			log,

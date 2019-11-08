@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -37,7 +38,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Assume;
@@ -224,7 +225,6 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 				miniClusterResource.getClusterClient() instanceof MiniClusterClient);
 
 		clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
-		clusterClient.setDetached(true);
 
 		jobGraph = new JobGraph();
 
@@ -252,7 +252,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 						0),
 				null));
 
-		clusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+		ClientUtils.submitJob(clusterClient, jobGraph);
 		invokeLatch.await(60, TimeUnit.SECONDS);
 		waitForJob();
 	}
@@ -288,14 +288,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 			if (taskIndex == 0) {
 				numberOfRestarts.countDown();
 			}
 			invokeLatch.countDown();
 			finishLatch.await();
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 
 		@Override
@@ -345,10 +345,10 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			invokeLatch.countDown();
 			finishLatch.await();
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 
 		@Override

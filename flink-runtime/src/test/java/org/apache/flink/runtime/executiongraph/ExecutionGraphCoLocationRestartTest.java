@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -46,6 +47,11 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 	private static final int NUM_TASKS = 31;
 
+	@Override
+	protected ComponentMainThreadExecutor getComponentMainThreadExecutor() {
+		return ComponentMainThreadExecutorServiceAdapter.forMainThread();
+	}
+
 	@Test
 	public void testConstraintsAfterRestart() throws Exception {
 
@@ -69,7 +75,6 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 				new TestRestartStrategy(
 					1,
 					false))
-			.allowQueuedScheduling()
 			.build();
 
 		// enable the queued scheduling for the slot pool

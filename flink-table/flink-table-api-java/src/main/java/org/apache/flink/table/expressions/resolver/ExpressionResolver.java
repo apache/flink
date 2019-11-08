@@ -296,7 +296,7 @@ public class ExpressionResolver {
 				.lookupBuiltInFunction(BuiltInFunctionDefinitions.AS);
 
 			return new CallExpression(
-				lookupOfAs.getObjectIdentifier(),
+				lookupOfAs.getFunctionIdentifier(),
 				lookupOfAs.getFunctionDefinition(),
 				Arrays.asList(expression, valueLiteral(alias)),
 				expression.getOutputDataType());
@@ -307,7 +307,7 @@ public class ExpressionResolver {
 				.lookupBuiltInFunction(BuiltInFunctionDefinitions.CAST);
 
 			return new CallExpression(
-				lookupOfCast.getObjectIdentifier(),
+				lookupOfCast.getFunctionIdentifier(),
 				lookupOfCast.getFunctionDefinition(),
 				Arrays.asList(expression, typeLiteral(dataType)),
 				dataType);
@@ -318,7 +318,7 @@ public class ExpressionResolver {
 				.lookupBuiltInFunction(definition);
 
 			return new CallExpression(
-				lookupOfDefinition.getObjectIdentifier(),
+				lookupOfDefinition.getFunctionIdentifier(),
 				lookupOfDefinition.getFunctionDefinition(),
 				Collections.singletonList(expression),
 				expression.getOutputDataType()); // the output type is equal to the input type
@@ -329,7 +329,7 @@ public class ExpressionResolver {
 				.lookupBuiltInFunction(BuiltInFunctionDefinitions.GET);
 
 			return new CallExpression(
-				lookupOfGet.getObjectIdentifier(),
+				lookupOfGet.getFunctionIdentifier(),
 				lookupOfGet.getFunctionDefinition(),
 				Arrays.asList(composite, key),
 				dataType);

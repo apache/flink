@@ -33,6 +33,27 @@ Values(type=[RecordType(INTEGER a, VARCHAR(2147483647) c)], tuples=[[]], values=
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFetchWithLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSort(fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[0], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[10], global=[false])
+         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFetchWithOffset">
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM MyTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY]]>
@@ -51,6 +72,27 @@ Calc(select=[a, c])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[20], global=[false])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFetchWithOffsetAndLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSort(offset=[10], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[10], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[20], global=[false])
+         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 20]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -147,6 +189,27 @@ Values(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLimitWithLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable LIMIT 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSort(fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[0], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[10], global=[false])
+         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLimitWithOffset0">
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM MyTable LIMIT 10 OFFSET 0]]>
@@ -188,6 +251,27 @@ Calc(select=[a, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLimitWithOffsetAndLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSort(offset=[1], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[1], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[11], global=[false])
+         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 11]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLimitWithoutOffset">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable LIMIT 5]]>
@@ -205,6 +289,27 @@ Limit(offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
    +- Limit(offset=[0], fetch=[5], global=[false])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOrderByWithLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable ORDER BY c LIMIT 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[10], global=[false])
+         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

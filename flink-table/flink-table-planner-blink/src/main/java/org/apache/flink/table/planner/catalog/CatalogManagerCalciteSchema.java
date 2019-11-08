@@ -62,14 +62,16 @@ public class CatalogManagerCalciteSchema extends FlinkSchema {
 
 	@Override
 	public Schema getSubSchema(String name) {
-		return catalogManager.getCatalog(name)
-			.map(catalog -> new CatalogCalciteSchema(name, catalog, isStreamingMode))
-			.orElse(null);
+		if (catalogManager.schemaExists(name)) {
+			return new CatalogCalciteSchema(name, catalogManager, isStreamingMode);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public Set<String> getSubSchemaNames() {
-		return new HashSet<>(catalogManager.getCatalogs());
+		return new HashSet<>(catalogManager.listCatalogs());
 	}
 
 	@Override

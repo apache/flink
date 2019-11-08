@@ -187,7 +187,7 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 			return false;
 		}
 		ValueLiteralExpression that = (ValueLiteralExpression) o;
-		return Objects.equals(value, that.value) && dataType.equals(that.dataType);
+		return Objects.deepEquals(value, that.value) && dataType.equals(that.dataType);
 	}
 
 	@Override

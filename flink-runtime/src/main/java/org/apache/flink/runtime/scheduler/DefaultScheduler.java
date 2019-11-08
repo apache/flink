@@ -32,7 +32,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ThrowingRestartStrategy;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -106,7 +106,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final JobManagerJobMetricGroup jobManagerJobMetricGroup,
 		final Time slotRequestTimeout,
 		final ShuffleMaster<?> shuffleMaster,
-		final PartitionTracker partitionTracker,
+		final JobMasterPartitionTracker partitionTracker,
 		final SchedulingStrategyFactory schedulingStrategyFactory,
 		final FailoverStrategy.Factory failoverStrategyFactory,
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
@@ -141,7 +141,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		this.executionFailureHandler = new ExecutionFailureHandler(
 			getFailoverTopology(),
-			failoverStrategyFactory.create(getFailoverTopology()),
+			failoverStrategyFactory.create(getFailoverTopology(), getResultPartitionAvailabilityChecker()),
 			restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology(), getJobGraph());
 		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getInputsLocationsRetriever());
@@ -150,6 +150,11 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	// ------------------------------------------------------------------------
 	// SchedulerNG
 	// ------------------------------------------------------------------------
+
+	@Override
+	protected long getNumberOfRestarts() {
+		return executionFailureHandler.getNumberOfRestarts();
+	}
 
 	@Override
 	protected void startSchedulingInternal() {
@@ -210,7 +215,14 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		return () -> {
 			final Set<ExecutionVertexID> verticesToRestart = executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
 
-			resetForNewExecutionIfInTerminalState(verticesToRestart);
+			resetForNewExecutions(verticesToRestart);
+
+			try {
+				restoreState(verticesToRestart);
+			} catch (Throwable t) {
+				handleGlobalFailure(t);
+				return;
+			}
 
 			schedulingStrategy.restartTasks(verticesToRestart);
 		};

@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -29,19 +28,16 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Client to interact with a {@link MiniCluster}.
@@ -59,40 +55,6 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	@Override
 	public Configuration getFlinkConfiguration() {
 		return new Configuration(configuration);
-	}
-
-	@Override
-	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		final CompletableFuture<JobSubmissionResult> jobSubmissionResultFuture = submitJob(jobGraph);
-
-		if (isDetached()) {
-			try {
-				final JobSubmissionResult jobSubmissionResult = jobSubmissionResultFuture.get();
-				return new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
-			} catch (InterruptedException | ExecutionException e) {
-				ExceptionUtils.checkInterrupted(e);
-
-				throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
-			}
-		} else {
-			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionResultFuture.thenCompose(
-				(JobSubmissionResult ignored) -> requestJobResult(jobGraph.getJobID()));
-
-			final JobResult jobResult;
-			try {
-				jobResult = jobResultFuture.get();
-			} catch (InterruptedException | ExecutionException e) {
-				ExceptionUtils.checkInterrupted(e);
-
-				throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
-			}
-
-			try {
-				return jobResult.toJobExecutionResult(classLoader);
-			} catch (JobExecutionException | IOException | ClassNotFoundException e) {
-				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
-			}
-		}
 	}
 
 	@Override

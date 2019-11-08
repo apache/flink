@@ -192,7 +192,7 @@ public class CliFrontendParser {
 		PYMODULE_OPTION.setArgName("pyModule");
 	}
 
-	private static final Options RUN_OPTIONS = getRunCommandOptions();
+	static final Options RUN_OPTIONS = getRunCommandOptions();
 
 	private static Options buildGeneralOptions(Options options) {
 		options.addOption(HELP_OPTION);
@@ -306,7 +306,7 @@ public class CliFrontendParser {
 	/**
 	 * Prints the help for the client.
 	 */
-	public static void printHelp(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelp(Collection<CustomCommandLine> customCommandLines) {
 		System.out.println("./flink <ACTION> [OPTIONS] [ARGUMENTS]");
 		System.out.println();
 		System.out.println("The following actions are available:");
@@ -321,7 +321,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForRun(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForRun(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -349,7 +349,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForList(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForList(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -364,7 +364,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForStop(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForStop(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -379,7 +379,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForCancel(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForCancel(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -394,7 +394,7 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
-	public static void printHelpForSavepoint(Collection<CustomCommandLine<?>> customCommandLines) {
+	public static void printHelpForSavepoint(Collection<CustomCommandLine> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -415,7 +415,7 @@ public class CliFrontendParser {
 	 * @param runOptions True if the run options should be printed, False to print only general options
 	 */
 	private static void printCustomCliOptions(
-			Collection<CustomCommandLine<?>> customCommandLines,
+			Collection<CustomCommandLine> customCommandLines,
 			HelpFormatter formatter,
 			boolean runOptions) {
 		// prints options from all available command-line classes
@@ -444,17 +444,6 @@ public class CliFrontendParser {
 	// --------------------------------------------------------------------------------------------
 	//  Line Parsing
 	// --------------------------------------------------------------------------------------------
-
-	public static RunOptions parseRunCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(RUN_OPTIONS, args, true);
-			return new RunOptions(line);
-		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
 
 	public static CommandLine parse(Options options, String[] args, boolean stopAtNonOptions) throws CliArgsException {
 		final DefaultParser parser = new DefaultParser();

@@ -98,11 +98,9 @@ public class ClientTest extends TestLogger {
 	@Test
 	public void testDetachedMode() throws Exception{
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-		clusterClient.setDetached(true);
-
 		try {
 			PackagedProgram prg = new PackagedProgram(TestExecuteTwice.class);
-			ClientUtils.executeProgram(clusterClient, prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -112,7 +110,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestEager.class);
-			ClientUtils.executeProgram(clusterClient, prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -122,7 +120,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
-			ClientUtils.executeProgram(clusterClient, prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -132,7 +130,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
-			ClientUtils.executeProgram(clusterClient, prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -142,7 +140,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAllAccumulator.class);
-			ClientUtils.executeProgram(clusterClient, prg, 1);
+			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -157,8 +155,6 @@ public class ClientTest extends TestLogger {
 	@Test
 	public void shouldSubmitToJobClient() throws Exception {
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-		clusterClient.setDetached(true);
-
 		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
 				plan,
 				new Configuration(),
@@ -167,8 +163,7 @@ public class ClientTest extends TestLogger {
 		ClientUtils.addJarFiles(jobGraph, Collections.emptyList());
 		jobGraph.setClasspaths(Collections.emptyList());
 
-		JobSubmissionResult result = clusterClient.submitJob(jobGraph, getClass().getClassLoader());
-
+		JobSubmissionResult result = ClientUtils.submitJob(clusterClient, jobGraph);
 		assertNotNull(result);
 	}
 
@@ -189,8 +184,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-			client.setDetached(true);
-			ClientUtils.executeProgram(client, packagedProgramMock, 1);
+			ClientUtils.executeProgram(client, packagedProgramMock, 1, true);
 			fail("Creating the local execution environment should not be possible");
 		}
 		catch (InvalidProgramException e) {

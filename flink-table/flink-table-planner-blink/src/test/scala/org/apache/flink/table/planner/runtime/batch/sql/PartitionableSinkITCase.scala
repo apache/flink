@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{SqlDialect, TableException, TableSchema, ValidationException}
+import org.apache.flink.table.api.{SqlDialect, TableEnvironment, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.catalog.{CatalogTableImpl, ObjectPath}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
@@ -148,19 +148,19 @@ class PartitionableSinkITCase extends BatchTestBase {
     registerTableSink(partitionColumns = Array("a", "b"))
     tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
     tEnv.execute("testJob")
-    assertEquals(List("1,3,I'm fine, thank",
-      "1,3,I'm fine, thank you",
-      "1,3,I'm fine, thank you, and you?"),
-      RESULT1.toList)
-    assertEquals(List("1,2,Hi",
-      "1,2,Hello"),
-      RESULT2.toList)
-    assertEquals(List("1,1,Hello world",
-      "1,1,Hello world, how are you?",
+    assertEquals(List("1,1,Hello world", "1,1,Hello world, how are you?"), RESULT1.toList)
+    assertEquals(List(
       "1,4,你好，陌生人",
       "1,4,你好，陌生人，我是",
       "1,4,你好，陌生人，我是中国人",
       "1,4,你好，陌生人，我是中国人，你来自哪里？"),
+      RESULT2.toList)
+    assertEquals(List(
+      "1,2,Hi",
+      "1,2,Hello",
+      "1,3,I'm fine, thank",
+      "1,3,I'm fine, thank you",
+      "1,3,I'm fine, thank you, and you?"),
       RESULT3.toList)
   }
 
@@ -186,21 +186,7 @@ class PartitionableSinkITCase extends BatchTestBase {
       rowType: RowTypeInfo = type3,
       grouping: Boolean = true,
       partitionColumns: Array[String] = Array[String]("a")): Unit = {
-    val properties = new DescriptorProperties()
-    properties.putString("supports-grouping", grouping.toString)
-    properties.putString(CONNECTOR_TYPE, "TestPartitionableSink")
-    partitionColumns.zipWithIndex.foreach { case (part, i) =>
-      properties.putString("partition-column." + i, part)
-    }
-
-    val table = new CatalogTableImpl(
-      new TableSchema(Array("a", "b", "c"), rowType.getFieldTypes),
-      util.Arrays.asList[String](partitionColumns: _*),
-      properties.asMap(),
-      ""
-    )
-    tEnv.getCatalog(tEnv.getCurrentCatalog).get()
-        .createTable(new ObjectPath(tEnv.getCurrentDatabase, tableName), table, false)
+    PartitionableSinkITCase.registerTableSink(tEnv, tableName, rowType, grouping, partitionColumns)
   }
 }
 
@@ -272,6 +258,29 @@ object PartitionableSinkITCase {
     row(4, 4L, "你好，陌生人，我是中国人"),
     row(4, 4L, "你好，陌生人，我是中国人，你来自哪里？")
   )
+
+  def registerTableSink(
+      tEnv: TableEnvironment,
+      tableName: String,
+      rowType: RowTypeInfo,
+      grouping: Boolean,
+      partitionColumns: Array[String]): Unit = {
+    val properties = new DescriptorProperties()
+    properties.putString("supports-grouping", grouping.toString)
+    properties.putString(CONNECTOR_TYPE, "TestPartitionableSink")
+    partitionColumns.zipWithIndex.foreach { case (part, i) =>
+      properties.putString("partition-column." + i, part)
+    }
+
+    val table = new CatalogTableImpl(
+      new TableSchema(Array("a", "b", "c"), rowType.getFieldTypes),
+      util.Arrays.asList[String](partitionColumns: _*),
+      properties.asMap(),
+      ""
+    )
+    tEnv.getCatalog(tEnv.getCurrentCatalog).get()
+        .createTable(new ObjectPath(tEnv.getCurrentDatabase, tableName), table, false)
+  }
 }
 
 private class TestSink(
@@ -293,18 +302,18 @@ private class TestSink(
   }
 
   override def getTableSchema: TableSchema = {
-    new TableSchema(Array("a", "b", "c"), type3.getFieldTypes)
+    new TableSchema(Array("a", "b", "c"), rowType.getFieldTypes)
   }
 
-  override def getOutputType: RowTypeInfo = type3
+  override def getOutputType: RowTypeInfo = rowType
 
   override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-    dataStream.addSink(new UnsafeMemorySinkFunction(type3))
+    dataStream.addSink(new UnsafeMemorySinkFunction(rowType))
         .setParallelism(dataStream.getParallelism)
   }
 
   override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
-    dataStream.addSink(new UnsafeMemorySinkFunction(type3))
+    dataStream.addSink(new UnsafeMemorySinkFunction(rowType))
         .setParallelism(dataStream.getParallelism)
   }
 

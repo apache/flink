@@ -176,7 +176,7 @@ public class MemoryManager {
 	}
 
 	/**
-	 * Checks if the memory manager all memory available.
+	 * Checks if the memory manager's memory is completely available (nothing allocated at the moment).
 	 *
 	 * @return True, if the memory manager is empty and valid, false if it is not empty or corrupted.
 	 */
@@ -328,8 +328,7 @@ public class MemoryManager {
 	 * the memory pool of its type, increasing its available limit for the later allocations.
 	 *
 	 * @param segments The segments to be released.
-	 * @throws NullPointerException Thrown, if the given collection is null.
-	 * @throws IllegalArgumentException Thrown, id the segments are of an incompatible type.
+	 * @throws IllegalArgumentException Thrown, if the segments are of an incompatible type.
 	 */
 	public void release(Collection<MemorySegment> segments) {
 		if (segments == null) {

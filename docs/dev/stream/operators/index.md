@@ -1016,7 +1016,7 @@ dataStream.rebalance()
             downstream operations will have a differing number of inputs from upstream operations.
 
         </p>
-        </p>
+        <p>
             Please see this figure for a visualization of the connection pattern in the above
             example:
         </p>

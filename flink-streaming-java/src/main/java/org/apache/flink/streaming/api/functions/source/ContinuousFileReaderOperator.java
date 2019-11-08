@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
@@ -62,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<TimestampedFileInputSplit, OUT>, OutputTypeConfigurable<OUT>, BoundedOneInput {
+	implements OneInputStreamOperator<TimestampedFileInputSplit, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -200,11 +199,6 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		waitSplitReaderFinished();
 
 		output.close();
-	}
-
-	@Override
-	public void endInput() throws Exception {
-		waitSplitReaderFinished();
 	}
 
 	private void waitSplitReaderFinished() throws InterruptedException {

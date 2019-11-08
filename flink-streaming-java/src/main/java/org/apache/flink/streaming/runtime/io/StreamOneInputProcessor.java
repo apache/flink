@@ -70,7 +70,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 		if (status == InputStatus.END_OF_INPUT) {
 			synchronized (lock) {
-				operatorChain.endInput(1);
+				operatorChain.endHeadOperatorInput(1);
 			}
 		}
 

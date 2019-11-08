@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -159,14 +160,11 @@ public class ProgramDeployer<C> implements Runnable {
 			result.setClusterInformation(clusterClient.getClusterId(), webInterfaceUrl);
 			// submit job (and get result)
 			if (awaitJobResult) {
-				clusterClient.setDetached(false);
-				final JobExecutionResult jobResult = clusterClient
-					.submitJob(jobGraph, context.getClassLoader())
-					.getJobExecutionResult(); // throws exception if job fails
+				// throws exception if job fails
+				final JobExecutionResult jobResult = ClientUtils.submitJobAndWaitForResult(clusterClient, jobGraph, context.getClassLoader());
 				executionResultBucket.add(jobResult);
 			} else {
-				clusterClient.setDetached(true);
-				clusterClient.submitJob(jobGraph, context.getClassLoader());
+				ClientUtils.submitJob(clusterClient, jobGraph);
 			}
 		} finally {
 			try {

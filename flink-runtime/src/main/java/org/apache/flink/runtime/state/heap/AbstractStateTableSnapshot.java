@@ -88,13 +88,6 @@ abstract class AbstractStateTableSnapshot<K, N, S>
 	 */
 	protected abstract StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> getStateMapSnapshotForKeyGroup(int keyGroup);
 
-	/**
-	 * Optional hook to release resources for this snapshot at the end of its lifecycle.
-	 */
-	@Override
-	public void release() {
-	}
-
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot getMetaInfoSnapshot() {

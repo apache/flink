@@ -64,6 +64,11 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/core_configuration.html %}
 
+### Execution
+
+{% include generated/deployment_configuration.html %}
+{% include generated/savepoint_config_configuration.html %}
+
 ### JobManager
 
 {% include generated/job_manager_configuration.html %}
@@ -183,6 +188,10 @@ The configuration keys in this section are independent of the used resource mana
 ### Environment
 
 {% include generated/environment_configuration.html %}
+
+### Pipeline
+
+{% include generated/pipeline_configuration.html %}
 
 ### Checkpointing
 

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -39,6 +40,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
+import org.apache.flink.runtime.jobgraph.topology.LogicalPipelinedRegion;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -74,6 +77,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 
@@ -117,10 +121,6 @@ public class StreamingJobGraphGenerator {
 
 	private final StreamGraphHasher defaultStreamGraphHasher;
 	private final List<StreamGraphHasher> legacyStreamGraphHashers;
-
-	private StreamingJobGraphGenerator(StreamGraph streamGraph) {
-		this(streamGraph, null);
-	}
 
 	private StreamingJobGraphGenerator(StreamGraph streamGraph, @Nullable JobID jobID) {
 		this.streamGraph = streamGraph;
@@ -600,25 +600,71 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private void setSlotSharingAndCoLocation() {
-		final HashMap<String, SlotSharingGroup> slotSharingGroups = new HashMap<>();
-		final HashMap<String, Tuple2<SlotSharingGroup, CoLocationGroup>> coLocationGroups = new HashMap<>();
+		setSlotSharing();
+		setCoLocation();
+	}
+
+	private void setSlotSharing() {
+		final Map<String, SlotSharingGroup> specifiedSlotSharingGroups = new HashMap<>();
+		final Map<JobVertexID, SlotSharingGroup> vertexRegionSlotSharingGroups = buildVertexRegionSlotSharingGroups();
+
+		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
+
+			final JobVertex vertex = entry.getValue();
+			final String slotSharingGroupKey = streamGraph.getStreamNode(entry.getKey()).getSlotSharingGroup();
+
+			final SlotSharingGroup effectiveSlotSharingGroup;
+			if (slotSharingGroupKey == null) {
+				effectiveSlotSharingGroup = null;
+			} else if (slotSharingGroupKey.equals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)) {
+				// fallback to the region slot sharing group by default
+				effectiveSlotSharingGroup = vertexRegionSlotSharingGroups.get(vertex.getID());
+			} else {
+				effectiveSlotSharingGroup = specifiedSlotSharingGroups.computeIfAbsent(
+					slotSharingGroupKey, k -> new SlotSharingGroup());
+			}
+
+			vertex.setSlotSharingGroup(effectiveSlotSharingGroup);
+		}
+	}
+
+	/**
+	 * Maps a vertex to its region slot sharing group.
+	 * If {@link ExecutionConfig#isAllVerticesInSameSlotSharingGroupByDefault()}
+	 * returns true, all regions will be in the same slot sharing group.
+	 */
+	private Map<JobVertexID, SlotSharingGroup> buildVertexRegionSlotSharingGroups() {
+		final Map<JobVertexID, SlotSharingGroup> vertexRegionSlotSharingGroups = new HashMap<>();
+		final SlotSharingGroup defaultSlotSharingGroup = new SlotSharingGroup();
+
+		final boolean allRegionsInSameSlotSharingGroup = streamGraph.getExecutionConfig()
+			.isAllVerticesInSameSlotSharingGroupByDefault();
+
+		final Set<LogicalPipelinedRegion> regions = new DefaultLogicalTopology(jobGraph).getLogicalPipelinedRegions();
+		for (LogicalPipelinedRegion region : regions) {
+			final SlotSharingGroup regionSlotSharingGroup;
+			if (allRegionsInSameSlotSharingGroup) {
+				regionSlotSharingGroup = defaultSlotSharingGroup;
+			} else {
+				regionSlotSharingGroup = new SlotSharingGroup();
+			}
+
+			for (JobVertexID jobVertexID : region.getVertexIDs()) {
+				vertexRegionSlotSharingGroups.put(jobVertexID, regionSlotSharingGroup);
+			}
+		}
+
+		return vertexRegionSlotSharingGroups;
+	}
+
+	private void setCoLocation() {
+		final Map<String, Tuple2<SlotSharingGroup, CoLocationGroup>> coLocationGroups = new HashMap<>();
 
 		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
 			final StreamNode node = streamGraph.getStreamNode(entry.getKey());
 			final JobVertex vertex = entry.getValue();
-
-			// configure slot sharing group
-			final String slotSharingGroupKey = node.getSlotSharingGroup();
-			final SlotSharingGroup sharingGroup;
-
-			if (slotSharingGroupKey != null) {
-				sharingGroup = slotSharingGroups.computeIfAbsent(
-						slotSharingGroupKey, (k) -> new SlotSharingGroup());
-				vertex.setSlotSharingGroup(sharingGroup);
-			} else {
-				sharingGroup = null;
-			}
+			final SlotSharingGroup sharingGroup = vertex.getSlotSharingGroup();
 
 			// configure co-location constraint
 			final String coLocationGroupKey = node.getCoLocationGroup();
@@ -628,7 +674,7 @@ public class StreamingJobGraphGenerator {
 				}
 
 				Tuple2<SlotSharingGroup, CoLocationGroup> constraint = coLocationGroups.computeIfAbsent(
-						coLocationGroupKey, (k) -> new Tuple2<>(sharingGroup, new CoLocationGroup()));
+						coLocationGroupKey, k -> new Tuple2<>(sharingGroup, new CoLocationGroup()));
 
 				if (constraint.f0 != sharingGroup) {
 					throw new IllegalStateException("Cannot co-locate operators from different slot sharing groups");

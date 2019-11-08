@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -1390,6 +1389,10 @@ public class SlotManagerImplTest extends TestLogger {
 
 	private TaskExecutorConnection createTaskExecutorConnection() {
 		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		return createTaskExecutorConnection(taskExecutorGateway);
+	}
+
+	private TaskExecutorConnection createTaskExecutorConnection(TaskExecutorGateway taskExecutorGateway) {
 		return new TaskExecutorConnection(ResourceID.generate(), taskExecutorGateway);
 	}
 
@@ -1498,5 +1501,56 @@ public class SlotManagerImplTest extends TestLogger {
 			1,
 			ResourceProfile.UNKNOWN,
 			(slotId, resourceProfile) -> new SlotStatus(slotId, resourceProfile, jobId, new AllocationID()));
+	}
+
+	/**
+	 * The spread out slot allocation strategy should spread out the allocated
+	 * slots across all available TaskExecutors. See FLINK-12122.
+	 */
+	@Test
+	public void testSpreadOutSlotAllocationStrategy() throws Exception {
+		try (SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
+			.setSlotMatchingStrategy(LeastUtilizationSlotMatchingStrategy.INSTANCE)
+			.build()) {
+			slotManager.start(
+				ResourceManagerId.generate(),
+				Executors.directExecutor(),
+				new TestingResourceActionsBuilder().build());
+
+			final List<CompletableFuture<JobID>> requestSlotFutures = new ArrayList<>();
+
+			final int numberTaskExecutors = 5;
+
+			// register n TaskExecutors with 2 slots each
+			for (int i = 0; i < numberTaskExecutors; i++) {
+				final CompletableFuture<JobID> requestSlotFuture = new CompletableFuture<>();
+				requestSlotFutures.add(requestSlotFuture);
+				registerTaskExecutorWithTwoSlots(slotManager, requestSlotFuture);
+			}
+
+			final JobID jobId = new JobID();
+
+			// request n slots
+			for (int i = 0; i < numberTaskExecutors; i++) {
+				assertTrue(slotManager.registerSlotRequest(createSlotRequest(jobId)));
+			}
+
+			// check that every TaskExecutor has received a slot request
+			final Set<JobID> jobIds = new HashSet<>(FutureUtils.combineAll(requestSlotFutures).get(10L, TimeUnit.SECONDS));
+			assertThat(jobIds, hasSize(1));
+			assertThat(jobIds, containsInAnyOrder(jobId));
+		}
+	}
+
+	private void registerTaskExecutorWithTwoSlots(SlotManagerImpl slotManager, CompletableFuture<JobID> firstRequestSlotFuture) {
+		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple5 -> {
+				firstRequestSlotFuture.complete(slotIDJobIDAllocationIDStringResourceManagerIdTuple5.f1);
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			})
+			.createTestingTaskExecutorGateway();
+		final TaskExecutorConnection firstTaskExecutorConnection = createTaskExecutorConnection(taskExecutorGateway);
+		final SlotReport firstSlotReport = createSlotReport(firstTaskExecutorConnection.getResourceID(), 2);
+		slotManager.registerTaskManager(firstTaskExecutorConnection, firstSlotReport);
 	}
 }

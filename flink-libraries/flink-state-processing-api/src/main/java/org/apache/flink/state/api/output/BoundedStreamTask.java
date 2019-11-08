@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
@@ -82,14 +82,14 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 	}
 
 	@Override
-	protected void processInput(DefaultActionContext context) throws Exception {
+	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		if (input.hasNext()) {
 			reuse.replace(input.next());
 			headOperator.setKeyContextElement1(reuse);
 			headOperator.processElement(reuse);
 		} else {
 			headOperator.endInput();
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 	}
 

@@ -33,19 +33,19 @@ import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => J
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, UnresolvedIdentifier}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableAggregateFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.operations.{DataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkChainedProgram, FlinkStreamProgram, StreamOptimizeContext}
+import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
@@ -87,13 +87,15 @@ abstract class TableTestBase {
   @Rule
   def name: TestName = testName
 
-  def streamTestUtil(): StreamTableTestUtil = StreamTableTestUtil(this)
+  def streamTestUtil(conf: TableConfig = new TableConfig): StreamTableTestUtil =
+    StreamTableTestUtil(this, conf = conf)
 
   def scalaStreamTestUtil(): ScalaStreamTableTestUtil = ScalaStreamTableTestUtil(this)
 
   def javaStreamTestUtil(): JavaStreamTableTestUtil = JavaStreamTableTestUtil(this)
 
-  def batchTestUtil(): BatchTableTestUtil = BatchTableTestUtil(this)
+  def batchTestUtil(conf: TableConfig = new TableConfig): BatchTableTestUtil =
+    BatchTableTestUtil(this, conf = conf)
 
   def scalaBatchTestUtil(): ScalaBatchTableTestUtil = ScalaBatchTableTestUtil(this)
 
@@ -137,7 +139,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def writeToSink(table: Table, sink: TableSink[_], sinkName: String): Unit = {
     val tableEnv = getTableEnv
     tableEnv.registerTableSink(sinkName, sink)
-    tableEnv.insertInto(table, sinkName)
+    tableEnv.insertInto(sinkName, table)
   }
 
   /**
@@ -478,9 +480,9 @@ abstract class TableTestUtil(
     test: TableTestBase,
     // determines if the table environment should work in a batch or streaming mode
     isStreamingMode: Boolean,
-    catalogManager: Option[CatalogManager] = None)
+    catalogManager: Option[CatalogManager] = None,
+    val tableConfig: TableConfig)
   extends TableTestUtilBase(test, isStreamingMode) {
-  protected val tableConfig: TableConfig = new TableConfig
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager, tableConfig)
   val tableEnv: TableEnvironment = testingTableEnv
@@ -558,12 +560,32 @@ abstract class TableTestUtil(
     testingTableEnv.registerFunction(name, function)
   }
 
+  def verifySqlUpdate(sql: String): Unit = {
+    doVerifySqlUpdate(
+      sql,
+      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      withRowType = false,
+      withRetractTraits = false,
+      printPlanBefore = true)
+  }
+
   def verifyPlan(): Unit = {
     doVerifyPlan(
       SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRowType = false,
       withRetractTraits = false,
       printPlanBefore = true)
+  }
+
+  def doVerifySqlUpdate(
+      sql: String,
+      explainLevel: SqlExplainLevel,
+      withRowType: Boolean,
+      withRetractTraits: Boolean,
+      printPlanBefore: Boolean): Unit = {
+    tableEnv.sqlUpdate(sql)
+    assertEqualsOrExpand("sql", sql)
+    doVerifyPlan(explainLevel, withRowType, withRetractTraits, printPlanBefore)
   }
 
   def doVerifyPlan(
@@ -675,8 +697,9 @@ abstract class JavaTableTestUtil(
   */
 case class StreamTableTestUtil(
     test: TableTestBase,
-    catalogManager: Option[CatalogManager] = None)
-  extends TableTestUtil(test, isStreamingMode = true, catalogManager) {
+    catalogManager: Option[CatalogManager] = None,
+    conf: TableConfig = new TableConfig)
+  extends TableTestUtil(test, isStreamingMode = true, catalogManager, conf) {
 
   /**
     * Register a table with specific row time field and offset.
@@ -814,8 +837,9 @@ case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUti
   */
 case class BatchTableTestUtil(
     test: TableTestBase,
-    catalogManager: Option[CatalogManager] = None)
-  extends TableTestUtil(test, isStreamingMode = false, catalogManager) {
+    catalogManager: Option[CatalogManager] = None,
+    conf: TableConfig = new TableConfig)
+  extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
     val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConfiguration)
@@ -954,10 +978,11 @@ class TestingTableEnvironment private(
     )
   }
 
-  override def insertInto(table: Table, path: String, pathContinued: String*): Unit = {
-    val fullPath = List(path) ++ pathContinued.toList
+  override def insertInto(path: String, table: Table): Unit = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
 
-    val modifyOperations = List(new CatalogSinkModifyOperation(fullPath, table.getQueryOperation))
+    val modifyOperations = List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation))
     if (isEagerOperationTranslation) {
       translate(modifyOperations)
     } else {
@@ -966,7 +991,7 @@ class TestingTableEnvironment private(
   }
 
   override def sqlUpdate(stmt: String): Unit = {
-    val operations = planner.parse(stmt)
+    val operations = parser.parse(stmt)
     if (operations.size != 1) {
       throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type INSERT.")

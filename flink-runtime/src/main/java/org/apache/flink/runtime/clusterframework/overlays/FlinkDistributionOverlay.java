@@ -20,10 +20,10 @@ package org.apache.flink.runtime.clusterframework.overlays;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,38 +32,36 @@ import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_BIN_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_HOME_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
-import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_PLUGINS_DIR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Overlays Flink into a container, based on supplied bin/conf/lib directories.
  *
- * The overlayed Flink is indistinguishable from (and interchangeable with)
+ * <p>The overlayed Flink is indistinguishable from (and interchangeable with)
  * a normal installation of Flink.  For a docker image-based container, it should be
  * possible to bypass this overlay and rely on the normal installation method.
  *
- * The following files are copied to the container:
+ * <p>The following files are copied to the container:
  *  - flink/bin/
  *  - flink/conf/
  *  - flink/lib/
  */
 public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkDistributionOverlay.class);
-
 	static final Path TARGET_ROOT = new Path("flink");
 
-	final File flinkBinPath;
-	final File flinkConfPath;
-	final File flinkLibPath;
-	final File flinkPluginsPath;
+	private final File flinkBinPath;
+	private final File flinkConfPath;
+	private final File flinkLibPath;
+	@Nullable
+	private final File flinkPluginsPath;
 
-	public FlinkDistributionOverlay(File flinkBinPath, File flinkConfPath, File flinkLibPath, File flinkPluginsPath) {
+	FlinkDistributionOverlay(File flinkBinPath, File flinkConfPath, File flinkLibPath, @Nullable File flinkPluginsPath) {
 		this.flinkBinPath = checkNotNull(flinkBinPath);
 		this.flinkConfPath = checkNotNull(flinkConfPath);
 		this.flinkLibPath = checkNotNull(flinkLibPath);
-		this.flinkPluginsPath = checkNotNull(flinkPluginsPath);
+		this.flinkPluginsPath = flinkPluginsPath;
 	}
 
 	@Override
@@ -75,11 +73,8 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		addPathRecursively(flinkBinPath, TARGET_ROOT, container);
 		addPathRecursively(flinkConfPath, TARGET_ROOT, container);
 		addPathRecursively(flinkLibPath, TARGET_ROOT, container);
-		if (flinkPluginsPath.isDirectory()) {
+		if (flinkPluginsPath != null) {
 			addPathRecursively(flinkPluginsPath, TARGET_ROOT, container);
-		}
-		else {
-			LOG.warn("The plugins directory '" + flinkPluginsPath + "' doesn't exist.");
 		}
 	}
 
@@ -94,12 +89,13 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		File flinkBinPath;
 		File flinkConfPath;
 		File flinkLibPath;
+		@Nullable
 		File flinkPluginsPath;
 
 		/**
 		 * Configures the overlay using the current environment.
 		 *
-		 * Locates Flink using FLINK_???_DIR environment variables as provided to all Flink processes by config.sh.
+		 * <p>Locates Flink using FLINK_???_DIR environment variables as provided to all Flink processes by config.sh.
 		 *
 		 * @param globalConfiguration the current configuration.
 		 */
@@ -107,7 +103,7 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 			flinkBinPath = getObligatoryFileFromEnvironment(ENV_FLINK_BIN_DIR);
 			flinkConfPath = getObligatoryFileFromEnvironment(ENV_FLINK_CONF_DIR);
 			flinkLibPath = getObligatoryFileFromEnvironment(ENV_FLINK_LIB_DIR);
-			flinkPluginsPath = getObligatoryFileFromEnvironment(ENV_FLINK_PLUGINS_DIR);
+			flinkPluginsPath = PluginConfig.getPluginsDir().orElse(null);
 
 			return this;
 		}

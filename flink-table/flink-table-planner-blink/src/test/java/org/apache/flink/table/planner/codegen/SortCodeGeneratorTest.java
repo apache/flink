@@ -48,6 +48,7 @@ import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.sort.BinaryInMemorySortBuffer;
 import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -82,6 +83,8 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
+import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
+import static org.junit.Assert.assertThat;
 
 /**
  * Random test for sort code generator.
@@ -262,7 +265,7 @@ public class SortCodeGeneratorTest {
 					}
 					break;
 				case ANY:
-					seeds[i] = new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
+					seeds[i] = new BinaryGeneric<>(rnd.nextInt());
 					break;
 				default:
 					throw new RuntimeException("Not support!");
@@ -314,7 +317,7 @@ public class SortCodeGeneratorTest {
 			case ROW:
 				return GenericRow.of(new Object[]{null});
 			case ANY:
-				return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
+				return new BinaryGeneric<>(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
 		}
@@ -355,7 +358,7 @@ public class SortCodeGeneratorTest {
 					return GenericRow.of(GenericRow.of(new Object[]{null}));
 				}
 			case ANY:
-				return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
+				return new BinaryGeneric<>(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
 		}
@@ -396,7 +399,7 @@ public class SortCodeGeneratorTest {
 					return GenericRow.of(GenericRow.of(rnd.nextInt()));
 				}
 			case ANY:
-				return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
+				return new BinaryGeneric<>(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
 		}
@@ -562,6 +565,11 @@ public class SortCodeGeneratorTest {
 					Object o2 = TypeGetterSetters.get(result.get(i), keys[j], keyTypes[j]);
 					if (keyTypes[j] instanceof VarBinaryType) {
 						Assert.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
+					} else if (keyTypes[j] instanceof TypeInformationAnyType) {
+						assertThat(
+							msg,
+							(BinaryGeneric) o1,
+							equivalent((BinaryGeneric) o2, new BinaryGenericSerializer<>(IntSerializer.INSTANCE)));
 					} else {
 						Assert.assertEquals(msg, o1, o2);
 					}

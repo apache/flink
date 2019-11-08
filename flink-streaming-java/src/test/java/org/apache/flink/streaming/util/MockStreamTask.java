@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -85,8 +85,8 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 	}
 
 	@Override
-	protected void processInput(DefaultActionContext context) throws Exception {
-		context.allActionsCompleted();
+	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+		controller.allActionsCompleted();
 	}
 
 	@Override

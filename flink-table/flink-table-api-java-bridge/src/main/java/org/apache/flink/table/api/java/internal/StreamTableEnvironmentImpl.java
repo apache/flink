@@ -209,12 +209,22 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T> void registerDataStream(String name, DataStream<T> dataStream) {
-		registerTable(name, fromDataStream(dataStream));
+		createTemporaryView(name, dataStream);
+	}
+
+	@Override
+	public <T> void createTemporaryView(String path, DataStream<T> dataStream) {
+		createTemporaryView(path, fromDataStream(dataStream));
 	}
 
 	@Override
 	public <T> void registerDataStream(String name, DataStream<T> dataStream, String fields) {
-		registerTable(name, fromDataStream(dataStream, fields));
+		createTemporaryView(name, dataStream, fields);
+	}
+
+	@Override
+	public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
+		createTemporaryView(path, fromDataStream(dataStream, fields));
 	}
 
 	@Override

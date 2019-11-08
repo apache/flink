@@ -33,16 +33,16 @@ import java.util.Map;
 @Internal
 public class CatalogQueryOperation implements QueryOperation {
 
-	private final ObjectIdentifier objectIdentifier;
+	private final ObjectIdentifier tableIdentifier;
 	private final TableSchema tableSchema;
 
-	public CatalogQueryOperation(ObjectIdentifier objectIdentifier, TableSchema tableSchema) {
-		this.objectIdentifier = objectIdentifier;
+	public CatalogQueryOperation(ObjectIdentifier tableIdentifier, TableSchema tableSchema) {
+		this.tableIdentifier = tableIdentifier;
 		this.tableSchema = tableSchema;
 	}
 
-	public ObjectIdentifier getObjectIdentifier() {
-		return objectIdentifier;
+	public ObjectIdentifier getTableIdentifier() {
+		return tableIdentifier;
 	}
 
 	@Override
@@ -53,7 +53,7 @@ public class CatalogQueryOperation implements QueryOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("identifier", objectIdentifier);
+		args.put("identifier", tableIdentifier);
 		args.put("fields", tableSchema.getFieldNames());
 
 		return OperationUtils.formatWithChildren("CatalogTable", args, getChildren(), Operation::asSummaryString);

@@ -297,7 +297,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visit(CatalogQueryOperation catalogTable) {
-			ObjectIdentifier objectIdentifier = catalogTable.getObjectIdentifier();
+			ObjectIdentifier objectIdentifier = catalogTable.getTableIdentifier();
 			return relBuilder.scan(
 				objectIdentifier.getCatalogName(),
 				objectIdentifier.getDatabaseName(),
@@ -472,9 +472,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				return new RexNodeExpression(convertedNode, ((ResolvedExpression) expr).getOutputDataType());
 			}).collect(Collectors.toList());
 
-			CallExpression newCall = new CallExpression(
-					callExpression.getObjectIdentifier().get(), callExpression.getFunctionDefinition(), newChildren,
+			CallExpression newCall;
+			if (callExpression.getFunctionIdentifier().isPresent()) {
+				newCall = new CallExpression(
+					callExpression.getFunctionIdentifier().get(), callExpression.getFunctionDefinition(), newChildren,
 					callExpression.getOutputDataType());
+			} else {
+				newCall = new CallExpression(
+					callExpression.getFunctionDefinition(), newChildren, callExpression.getOutputDataType());
+			}
 			return convertExprToRexNode(newCall);
 		}
 

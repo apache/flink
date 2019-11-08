@@ -60,11 +60,6 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 	}
 
 	@Override
-	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) {
-		throw new UnsupportedOperationException("Not needed in test.");
-	}
-
-	@Override
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}

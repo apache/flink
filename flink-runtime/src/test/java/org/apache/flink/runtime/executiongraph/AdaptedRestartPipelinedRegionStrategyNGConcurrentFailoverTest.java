@@ -27,8 +27,8 @@ import org.apache.flink.runtime.executiongraph.AdaptedRestartPipelinedRegionStra
 import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
-import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -265,7 +265,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(TEST_JOB_ID, DEFAULT_PARALLELISM);
 
-		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			jg.getJobID(),
 			NettyShuffleMaster.INSTANCE,
 			ignored -> Optional.empty());

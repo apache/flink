@@ -277,4 +277,22 @@ Calc(select=[b, y])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testUDFInJoinCondition">
+		<Resource name="planBefore">
+			<![CDATA[
+LogicalJoin(condition=[AND(=($1, $4), =(org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$ad6edb4d4c8a8ac04216f9aeaab1e36f($0, $3), 10))], joinType=[inner])
+:- LogicalTableScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]])
+]]>
+		</Resource>
+		<Resource name="planAfter">
+			<![CDATA[
+HashJoin(joinType=[InnerJoin], where=[AND(=(b, e), =(Merger$(a, d), 10))], select=[a, b, c, d, e, f], build=[right])
+:- Exchange(distribution=[hash[b]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[e]])
+   +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+		</Resource>
+	</TestCase>
 </Root>

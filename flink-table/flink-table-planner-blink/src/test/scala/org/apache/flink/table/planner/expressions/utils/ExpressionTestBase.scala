@@ -69,6 +69,7 @@ abstract class ExpressionTestBase {
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   private val relBuilder = planner.getRelBuilder
   private val calcitePlanner = planner.createFlinkPlanner
+  private val parser = planner.plannerContext.createCalciteParser()
 
   // setup test utils
   private val tableName = "testTable"
@@ -179,7 +180,7 @@ abstract class ExpressionTestBase {
 
   private def addSqlTestExpr(sqlExpr: String, expected: String): Unit = {
     // create RelNode from SQL expression
-    val parsed = calcitePlanner.parse(s"SELECT $sqlExpr FROM $tableName")
+    val parsed = parser.parse(s"SELECT $sqlExpr FROM $tableName")
     val validated = calcitePlanner.validate(parsed)
     val converted = calcitePlanner.rel(validated).rel
     addTestExpr(converted, expected, sqlExpr)

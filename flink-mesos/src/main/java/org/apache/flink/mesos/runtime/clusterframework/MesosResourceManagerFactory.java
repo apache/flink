@@ -21,6 +21,7 @@ package org.apache.flink.mesos.runtime.clusterframework;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.mesos.util.MesosUtils;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -35,6 +36,9 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesCo
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -43,23 +47,17 @@ import javax.annotation.Nullable;
  */
 public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(MesosResourceManagerFactory.class);
+
 	@Nonnull
 	private final MesosServices mesosServices;
 
 	@Nonnull
 	private final MesosConfiguration schedulerConfiguration;
 
-	@Nonnull
-	private final MesosTaskManagerParameters taskManagerParameters;
-
-	@Nonnull
-	private final ContainerSpecification taskManagerContainerSpec;
-
-	public MesosResourceManagerFactory(@Nonnull MesosServices mesosServices, @Nonnull MesosConfiguration schedulerConfiguration, @Nonnull MesosTaskManagerParameters taskManagerParameters, @Nonnull ContainerSpecification taskManagerContainerSpec) {
+	public MesosResourceManagerFactory(@Nonnull MesosServices mesosServices, @Nonnull MesosConfiguration schedulerConfiguration) {
 		this.mesosServices = mesosServices;
 		this.schedulerConfiguration = schedulerConfiguration;
-		this.taskManagerParameters = taskManagerParameters;
-		this.taskManagerContainerSpec = taskManagerContainerSpec;
 	}
 
 	@Override
@@ -78,6 +76,9 @@ public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<Re
 			rmServicesConfiguration,
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor());
+
+		final MesosTaskManagerParameters taskManagerParameters = MesosUtils.createTmParameters(configuration, LOG);
+		final ContainerSpecification taskManagerContainerSpec = MesosUtils.createContainerSpec(configuration);
 
 		return new MesosResourceManager(
 			rpcService,

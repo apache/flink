@@ -35,14 +35,17 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import scala.collection.JavaConverters;
 
@@ -74,7 +77,7 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		hiveShell.execute("create table db1.src (x int, y int)");
 		hiveShell.execute("create table db1.part (x int) partitioned by (y int)");
-		hiveShell.insertInto("db1", "src").addRow(1, 1).addRow(2, null).commit();
+		HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src").addRow(new Object[]{1, 1}).addRow(new Object[]{2, null}).commit();
 
 		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 
@@ -138,7 +141,8 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create table db1.dest (i int,s string) " + suffix);
 
 		// prepare source data with Hive
-		hiveShell.execute("insert into db1.src values (1,'a'),(2,'b')");
+		// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
+		hiveShell.execute("insert into table db1.src values (1,'a'),(2,'b')");
 
 		// populate dest table with source table
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
@@ -158,7 +162,8 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.execute("create table db1.src2 (x decimal(10,2))");
 			hiveShell.execute("create table db1.dest (x decimal(10,2))");
 			// populate src1 from Hive
-			hiveShell.execute("insert into db1.src1 values (1.0),(2.12),(5.123),(5.456),(123456789.12)");
+			// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
+			hiveShell.execute("insert into table db1.src1 values (1.0),(2.12),(5.123),(5.456),(123456789.12)");
 
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			// populate src2 with same data from Flink
@@ -183,7 +188,7 @@ public class TableEnvHiveConnectorTest {
 		try {
 			// non-partitioned
 			hiveShell.execute("create table db1.dest (x int, y string)");
-			hiveShell.insertInto("db1", "dest").addRow(1, "a").addRow(2, "b").commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "dest").addRow(new Object[]{1, "a"}).addRow(new Object[]{2, "b"}).commit();
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert overwrite db1.dest values (3,'c')");
@@ -192,7 +197,8 @@ public class TableEnvHiveConnectorTest {
 
 			// static partition
 			hiveShell.execute("create table db1.part(x int) partitioned by (y int)");
-			hiveShell.insertInto("db1", "part").addRow(1, 1).addRow(2, 2).commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part").addRow(new Object[]{1}).commit("y=1");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part").addRow(new Object[]{2}).commit("y=2");
 			tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert overwrite db1.part partition (y=1) select 100");
 			tableEnv.execute("insert overwrite static partition");
@@ -214,7 +220,7 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.src (x int)");
-			hiveShell.insertInto("db1", "src").addRow(1).addRow(2).commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src").addRow(new Object[]{1}).addRow(new Object[]{2}).commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert into db1.dest partition (p1='1''1', p2=1.1) select x from db1.src");
@@ -231,7 +237,11 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.src (x int, y string, z double)");
-			hiveShell.insertInto("db1", "src").addRow(1, "a", 1.1).addRow(2, "a", 2.2).addRow(3, "b", 3.3).commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{1, "a", 1.1})
+					.addRow(new Object[]{2, "a", 2.2})
+					.addRow(new Object[]{3, "b", 3.3})
+					.commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
@@ -248,7 +258,7 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.src (x int, y string)");
-			hiveShell.insertInto("db1", "src").addRow(1, "a").addRow(2, "b").commit();
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src").addRow(new Object[]{1, "a"}).addRow(new Object[]{2, "b"}).commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 double, p2 string)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.sqlUpdate("insert into db1.dest partition (p1=1.1) select x,y from db1.src");
@@ -257,6 +267,41 @@ public class TableEnvHiveConnectorTest {
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\t1.1\ta", "2\t1.1\tb"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testUDTF() throws Exception {
+		// W/o https://issues.apache.org/jira/browse/HIVE-11878 Hive registers the App classloader as the classloader
+		// for the UDTF and closes the App classloader when we tear down the session. This causes problems for JUnit code
+		// and shutdown hooks that have to run after the test finishes, because App classloader can no longer load new
+		// classes. And will crash the forked JVM, thus failing the test phase.
+		// Therefore disable such tests for older Hive versions.
+		String hiveVersion = HiveShimLoader.getHiveVersion();
+		Assume.assumeTrue(hiveVersion.compareTo("2.0.0") >= 0 || hiveVersion.compareTo("1.3.0") >= 0);
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.simple (i int,a array<int>)");
+			hiveShell.execute("create table db1.nested (a array<map<int, string>>)");
+			hiveShell.execute("create function hiveudtf as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDTFExplode'");
+			hiveShell.insertInto("db1", "simple").addRow(3, Arrays.asList(1, 2, 3)).commit();
+			Map<Integer, String> map1 = new HashMap<>();
+			map1.put(1, "a");
+			map1.put(2, "b");
+			Map<Integer, String> map2 = new HashMap<>();
+			map2.put(3, "c");
+			hiveShell.insertInto("db1", "nested").addRow(Arrays.asList(map1, map2)).commit();
+
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			List<Row> results = HiveTestUtils.collectTable(tableEnv,
+					tableEnv.sqlQuery("select x from db1.simple, lateral table(hiveudtf(a)) as T(x)"));
+			assertEquals("[1, 2, 3]", results.toString());
+			results = HiveTestUtils.collectTable(tableEnv,
+					tableEnv.sqlQuery("select x from db1.nested, lateral table(hiveudtf(a)) as T(x)"));
+			assertEquals("[{1=a, 2=b}, {3=c}]", results.toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+			hiveShell.execute("drop function hiveudtf");
 		}
 	}
 

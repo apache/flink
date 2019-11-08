@@ -126,7 +126,7 @@ public class RemoteExecutor extends PlanExecutor {
 		try (ClusterClient<?> client = new RestClusterClient<>(
 				clientConfiguration,
 				"RemoteExecutor")) {
-			return client.submitJob(jobGraph, classLoader).getJobExecutionResult();
+			return ClientUtils.submitJobAndWaitForResult(client, jobGraph, classLoader).getJobExecutionResult();
 		}
 	}
 }

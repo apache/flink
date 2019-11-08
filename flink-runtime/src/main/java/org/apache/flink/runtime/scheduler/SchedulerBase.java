@@ -30,6 +30,8 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -49,10 +51,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
+import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyResolving;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -88,13 +91,17 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.metrics.MetricNames.NUMBER_OF_RESTARTS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base class which can be used to implement {@link SchedulerNG}.
@@ -156,7 +163,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final JobManagerJobMetricGroup jobManagerJobMetricGroup,
 		final Time slotRequestTimeout,
 		final ShuffleMaster<?> shuffleMaster,
-		final PartitionTracker partitionTracker) throws Exception {
+		final JobMasterPartitionTracker partitionTracker) throws Exception {
 
 		this.log = checkNotNull(log);
 		this.jobGraph = checkNotNull(jobGraph);
@@ -188,12 +195,14 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.failoverTopology = executionGraph.getFailoverTopology();
 
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
+
+		jobManagerJobMetricGroup.gauge(NUMBER_OF_RESTARTS, this::getNumberOfRestarts);
 	}
 
 	private ExecutionGraph createAndRestoreExecutionGraph(
 		JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
 		ShuffleMaster<?> shuffleMaster,
-		PartitionTracker partitionTracker) throws Exception {
+		JobMasterPartitionTracker partitionTracker) throws Exception {
 
 		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup, shuffleMaster, partitionTracker);
 
@@ -202,7 +211,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		if (checkpointCoordinator != null) {
 			// check whether we find a valid checkpoint
 			if (!checkpointCoordinator.restoreLatestCheckpointedState(
-				newExecutionGraph.getAllVertices(),
+				new HashSet<>(newExecutionGraph.getAllVertices().values()),
 				false,
 				false)) {
 
@@ -217,7 +226,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	private ExecutionGraph createExecutionGraph(
 		JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
 		ShuffleMaster<?> shuffleMaster,
-		final PartitionTracker partitionTracker) throws JobExecutionException, JobException {
+		final JobMasterPartitionTracker partitionTracker) throws JobExecutionException, JobException {
 		return ExecutionGraphBuilder.buildGraph(
 			null,
 			jobGraph,
@@ -277,9 +286,36 @@ public abstract class SchedulerBase implements SchedulerNG {
 		}
 	}
 
-	protected void resetForNewExecutionIfInTerminalState(final Collection<ExecutionVertexID> verticesToDeploy) {
-		verticesToDeploy.forEach(executionVertexId -> getExecutionVertex(executionVertexId)
-			.resetForNewExecutionIfInTerminalState());
+	protected void resetForNewExecutions(final Collection<ExecutionVertexID> vertices) {
+		vertices.forEach(executionVertexId -> getExecutionVertex(executionVertexId)
+			.resetForNewExecution());
+	}
+
+	protected void restoreState(final Set<ExecutionVertexID> vertices) throws Exception {
+		// if there is checkpointed state, reload it into the executions
+		if (executionGraph.getCheckpointCoordinator() != null) {
+			// abort pending checkpoints to
+			// i) enable new checkpoint triggering without waiting for last checkpoint expired.
+			// ii) ensure the EXACTLY_ONCE semantics if needed.
+			executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(
+				new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
+
+			executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
+				getInvolvedExecutionJobVertices(vertices),
+				false,
+				true);
+		}
+	}
+
+	private Set<ExecutionJobVertex> getInvolvedExecutionJobVertices(
+			final Set<ExecutionVertexID> executionVertices) {
+
+		final Set<ExecutionJobVertex> tasks = new HashSet<>();
+		for (ExecutionVertexID executionVertexID : executionVertices) {
+			final ExecutionVertex executionVertex = getExecutionVertex(executionVertexID);
+			tasks.add(executionVertex.getJobVertex());
+		}
+		return tasks;
 	}
 
 	protected void transitionToScheduled(final Collection<ExecutionVertexID> verticesToDeploy) {
@@ -302,6 +338,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	protected final SchedulingTopology<?, ?> getSchedulingTopology() {
 		return schedulingTopology;
+	}
+
+	protected final ResultPartitionAvailabilityChecker getResultPartitionAvailabilityChecker() {
+		return getExecutionGraph().getResultPartitionAvailabilityChecker();
 	}
 
 	protected final InputsLocationsRetriever getInputsLocationsRetriever() {
@@ -334,6 +374,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 	protected JobGraph getJobGraph() {
 		return jobGraph;
 	}
+
+	protected abstract long getNumberOfRestarts();
 
 	// ------------------------------------------------------------------------
 	// SchedulerNG
@@ -376,16 +418,45 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	@Override
-	public abstract void handleGlobalFailure(final Throwable cause);
-
-	@Override
 	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
 		final Optional<ExecutionVertexID> executionVertexId = getExecutionVertexId(taskExecutionState.getID());
-		if (executionVertexId.isPresent()) {
-			executionGraph.updateState(taskExecutionState);
-			updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
+
+		boolean updateSuccess = executionGraph.updateState(taskExecutionState);
+
+		if (updateSuccess) {
+			checkState(executionVertexId.isPresent());
+
+			if (isNotifiable(executionVertexId.get(), taskExecutionState)) {
+				updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
+			}
 			return true;
+		} else {
+			return false;
 		}
+	}
+
+	private boolean isNotifiable(
+			final ExecutionVertexID executionVertexId,
+			final TaskExecutionState taskExecutionState) {
+
+		final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
+
+		// only notifies FINISHED and FAILED states which are needed at the moment.
+		// can be refined in FLINK-14233 after the legacy scheduler is removed and
+		// the actions are factored out from ExecutionGraph.
+		switch (taskExecutionState.getExecutionState()) {
+			case FINISHED:
+			case FAILED:
+				// only notifies a state update if it's effective, namely it successfully
+				// turns the execution state to the expected value.
+				if (executionVertex.getExecutionState() == taskExecutionState.getExecutionState()) {
+					return true;
+				}
+				break;
+			default:
+				break;
+		}
+
 		return false;
 	}
 

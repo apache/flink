@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.runtime.io.AvailabilityProvider;
+
 import java.io.IOException;
 
 /**
@@ -26,7 +28,7 @@ import java.io.IOException;
  * <p>The data producing side (result partition writers) request buffers in a synchronous fashion,
  * whereas the input side requests asynchronously.
  */
-public interface BufferProvider {
+public interface BufferProvider extends AvailabilityProvider {
 
 	/**
 	 * Returns a {@link Buffer} instance from the buffer provider, if one is available.

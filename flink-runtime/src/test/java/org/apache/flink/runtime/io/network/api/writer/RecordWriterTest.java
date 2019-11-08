@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -33,15 +34,22 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.Se
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
@@ -64,13 +72,17 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.io.AvailabilityProvider.AVAILABLE;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -417,6 +429,45 @@ public class RecordWriterTest {
 		}
 	}
 
+	/**
+	 * Tests that the RecordWriter is available iif the respective LocalBufferPool has at-least one available buffer.
+	 */
+	@Test
+	public void testIsAvailableOrNot() throws Exception {
+		// setup
+		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1);
+		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
+			.setBufferPoolFactory(p -> localPool)
+			.build();
+		resultPartition.setup();
+		final ResultPartitionWriter partitionWrapper = new ConsumableNotifyingResultPartitionWriterDecorator(
+			new NoOpTaskActions(),
+			new JobID(),
+			resultPartition,
+			new NoOpResultPartitionConsumableNotifier());
+		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
+
+		try {
+			// record writer is available because of initial available global pool
+			assertTrue(recordWriter.isAvailable().isDone());
+
+			// request one buffer from the local pool to make it unavailable afterwards
+			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder();
+			assertNotNull(bufferBuilder);
+			assertFalse(recordWriter.isAvailable().isDone());
+
+			// recycle the buffer to make the local pool available again
+			final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(bufferBuilder);
+			buffer.recycleBuffer();
+			assertTrue(recordWriter.isAvailable().isDone());
+			assertEquals(recordWriter.AVAILABLE, recordWriter.isAvailable());
+		} finally {
+			localPool.lazyDestroy();
+			globalPool.destroy();
+		}
+	}
+
 	private void verifyBroadcastBufferOrEventIndependence(boolean broadcastEvent) throws Exception {
 		@SuppressWarnings("unchecked")
 		ArrayDeque<BufferConsumer>[] queues = new ArrayDeque[]{new ArrayDeque(), new ArrayDeque()};
@@ -544,6 +595,11 @@ public class RecordWriterTest {
 		}
 
 		@Override
+		public CompletableFuture<?> isAvailable() {
+			return AVAILABLE;
+		}
+
+		@Override
 		public void close() {
 		}
 	}
@@ -617,6 +673,11 @@ public class RecordWriterTest {
 		@Override
 		public void finish() {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CompletableFuture<?> isAvailable() {
+			return AVAILABLE;
 		}
 
 		@Override

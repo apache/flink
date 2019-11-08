@@ -114,8 +114,6 @@ public class StreamGraphGenerator {
 
 	private boolean chaining = true;
 
-	private boolean isSlotSharingEnabled = true;
-
 	private ScheduleMode scheduleMode = DEFAULT_SCHEDULE_MODE;
 
 	private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts;
@@ -158,11 +156,6 @@ public class StreamGraphGenerator {
 
 	public StreamGraphGenerator setChaining(boolean chaining) {
 		this.chaining = chaining;
-		return this;
-	}
-
-	public StreamGraphGenerator setSlotSharingEnabled(boolean isSlotSharingEnabled) {
-		this.isSlotSharingEnabled = isSlotSharingEnabled;
 		return this;
 	}
 
@@ -749,10 +742,6 @@ public class StreamGraphGenerator {
 	 * @param inputIds The IDs of the input operations.
 	 */
 	private String determineSlotSharingGroup(String specifiedGroup, Collection<Integer> inputIds) {
-		if (!isSlotSharingEnabled) {
-			return null;
-		}
-
 		if (specifiedGroup != null) {
 			return specifiedGroup;
 		} else {

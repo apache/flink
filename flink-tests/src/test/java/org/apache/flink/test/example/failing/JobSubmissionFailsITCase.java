@@ -19,6 +19,7 @@
 
 package org.apache.flink.test.example.failing;
 
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -126,10 +127,13 @@ public class JobSubmissionFailsITCase extends TestLogger {
 
 	private void runJobSubmissionTest(JobGraph jobGraph, Predicate<Exception> failurePredicate) throws org.apache.flink.client.program.ProgramInvocationException {
 		ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
-		client.setDetached(detached);
 
 		try {
-			client.submitJob(jobGraph, JobSubmissionFailsITCase.class.getClassLoader());
+			if (detached) {
+				ClientUtils.submitJob(client, jobGraph);
+			} else {
+				ClientUtils.submitJobAndWaitForResult(client, jobGraph, JobSubmissionFailsITCase.class.getClassLoader());
+			}
 			fail("Job submission should have thrown an exception.");
 		} catch (Exception e) {
 			if (!failurePredicate.test(e)) {
@@ -137,8 +141,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			}
 		}
 
-		client.setDetached(false);
-		client.submitJob(getWorkingJobGraph(), JobSubmissionFailsITCase.class.getClassLoader());
+		ClientUtils.submitJobAndWaitForResult(client, getWorkingJobGraph(), JobSubmissionFailsITCase.class.getClassLoader());
 	}
 
 	@Nonnull

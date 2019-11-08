@@ -28,14 +28,26 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 object DateTimeTestUtil {
 
   def localDate(s: String): LocalDate = {
-    LocalDateConverter.INSTANCE.toExternal(dateStringToUnixDate(s))
+    if (s == null) {
+      null
+    } else {
+      LocalDateConverter.INSTANCE.toExternal(dateStringToUnixDate(s))
+    }
   }
 
   def localTime(s: String): LocalTime = {
-    LocalTimeConverter.INSTANCE.toExternal(DateTimeUtils.timeStringToUnixDate(s))
+    if (s == null) {
+      null
+    } else {
+      LocalTimeConverter.INSTANCE.toExternal(DateTimeUtils.timeStringToUnixDate(s))
+    }
   }
 
   def localDateTime(s: String): LocalDateTime = {
-    LocalDateTimeConverter.INSTANCE.toExternal(DateTimeUtils.timestampStringToUnixDate(s))
+    if (s == null) {
+      null
+    } else {
+      LocalDateTimeConverter.INSTANCE.toExternal(DateTimeUtils.timestampStringToUnixDate(s))
+    }
   }
 }

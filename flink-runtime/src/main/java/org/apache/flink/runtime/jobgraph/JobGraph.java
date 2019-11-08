@@ -73,9 +73,6 @@ public class JobGraph implements Serializable {
 	/** Name of this job. */
 	private final String jobName;
 
-	/** flag to enable queued scheduling */
-	private boolean allowQueuedScheduling;
-
 	/** The mode in which the job is scheduled */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
@@ -218,14 +215,6 @@ public class JobGraph implements Serializable {
 	 */
 	public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
 		return serializedExecutionConfig;
-	}
-
-	public void setAllowQueuedScheduling(boolean allowQueuedScheduling) {
-		this.allowQueuedScheduling = allowQueuedScheduling;
-	}
-
-	public boolean getAllowQueuedScheduling() {
-		return allowQueuedScheduling;
 	}
 
 	public void setScheduleMode(ScheduleMode scheduleMode) {

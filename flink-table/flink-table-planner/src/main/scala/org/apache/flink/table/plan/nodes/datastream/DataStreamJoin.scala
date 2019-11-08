@@ -51,6 +51,8 @@ class DataStreamJoin(
   with CommonJoin
   with DataStreamRel {
 
+  validatePythonFunctionInJoinCondition(joinCondition)
+
   override def deriveRowType(): RelDataType = schema.relDataType
 
   override def needsUpdatesAsRetraction: Boolean = true

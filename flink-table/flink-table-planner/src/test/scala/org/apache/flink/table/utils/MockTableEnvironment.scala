@@ -91,6 +91,8 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def useDatabase(databaseName: String): Unit = ???
 
+  override def insertInto(sinkPath: String, table: Table): Unit = ???
+
   override def insertInto(
     table: Table,
     sinkPath: String,
@@ -101,4 +103,19 @@ class MockTableEnvironment extends TableEnvironment {
   override def loadModule(moduleName: String, module: Module): Unit = ???
 
   override def unloadModule(moduleName: String): Unit = ???
+
+  override def createTemporaryView(
+    path: String,
+    view: Table): Unit = ???
+
+  override def listTemporaryTables(): Array[String] = ???
+
+  override def listTemporaryViews(): Array[String] = ???
+
+  override def from(path: String): Table = ???
+
+  override def dropTemporaryTable(path: String): Boolean = ???
+
+  override def dropTemporaryView(path: String): Boolean = ???
+
 }

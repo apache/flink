@@ -55,6 +55,14 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = (ignore1, ignore2) -> { };
 
+	private CheckpointConsumer checkpointConsumer = (
+		executionAttemptID,
+		jobId,
+		checkpointId,
+		timestamp,
+		checkpointOptions,
+		advanceToEndOfEventTime) -> { };
+
 	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
 		this.submitConsumer = submitConsumer;
 	}
@@ -69,6 +77,10 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	public void setReleasePartitionsConsumer(BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer) {
 		this.releasePartitionsConsumer = releasePartitionsConsumer;
+	}
+
+	public void setCheckpointConsumer(CheckpointConsumer checkpointConsumer) {
+		this.checkpointConsumer = checkpointConsumer;
 	}
 
 	@Override
@@ -123,7 +135,16 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			long checkpointId,
 			long timestamp,
 			CheckpointOptions checkpointOptions,
-			boolean advanceToEndOfEventTime) {}
+			boolean advanceToEndOfEventTime) {
+
+		checkpointConsumer.accept(
+			executionAttemptID,
+			jobId,
+			checkpointId,
+			timestamp,
+			checkpointOptions,
+			advanceToEndOfEventTime);
+	}
 
 	@Override
 	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
@@ -134,5 +155,19 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 		} else {
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		}
+	}
+
+	/**
+	 * Consumer that accepts checkpoint trigger information.
+	 */
+	public interface CheckpointConsumer {
+
+		void accept(
+			ExecutionAttemptID executionAttemptID,
+			JobID jobId,
+			long checkpointId,
+			long timestamp,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime);
 	}
 }

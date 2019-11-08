@@ -28,15 +28,13 @@ import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.module.Module;
-import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
-import org.apache.flink.table.module.exceptions.ModuleNotFoundException;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
 import java.util.Optional;
 
 /**
- * A table environment is the base class, entry point, and central context for creating Table & SQL
+ * A table environment is the base class, entry point, and central context for creating Table and SQL
  * API programs.
  *
  * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no distinction
@@ -50,6 +48,14 @@ import java.util.Optional;
  *     <li>Offering further configuration options.</li>
  * </ul>
  *
+ * <p>The path in methods such as {@link #createTemporaryView(String, Table)} should be a proper SQL identifier.
+ * The syntax is following [[catalog-name.]database-name.]object-name, where the catalog name and database are
+ * optional. For path resolution see {@link #useCatalog(String)} and {@link #useDatabase(String)}. All keywords
+ * or other special characters need to be escaped.
+ *
+ * <p>Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' (table is a reserved keyword, thus must
+ * be escaped) in a catalog named 'cat.1' and database named 'db'.
+ *
  * <p>Note: This environment is meant for pure table programs. If you would like to convert from or to
  * other Flink APIs, it might be necessary to use one of the available language-specific table environments
  * in the corresponding bridging modules.
@@ -58,7 +64,7 @@ import java.util.Optional;
 public interface TableEnvironment {
 
 	/**
-	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * Creates a table environment that is the entry point and central context for creating Table and SQL
 	 * API programs.
 	 *
 	 * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no distinction
@@ -108,20 +114,20 @@ public interface TableEnvironment {
 
 	/**
 	 * Loads a {@link Module} under a unique name. Modules will be kept in the loaded order.
+	 * ValidationException is thrown when there is already a module with the same name.
 	 *
 	 * @param moduleName name of the {@link Module}
 	 * @param module the module instance
-	 * @throws ModuleAlreadyExistException thrown when there is already a module with the same name
 	 */
-	void loadModule(String moduleName, Module module) throws ModuleAlreadyExistException;
+	void loadModule(String moduleName, Module module);
 
 	/**
 	 * Unloads a {@link Module} with given name.
+	 * ValidationException is thrown when there is no module with the given name
 	 *
 	 * @param moduleName name of the {@link Module}
-	 * @throws ModuleNotFoundException thrown when there is no module with the given name
 	 */
-	void unloadModule(String moduleName) throws ModuleNotFoundException;
+	void unloadModule(String moduleName);
 
 	/**
 	 * Registers a {@link ScalarFunction} under a unique name. Replaces already existing
@@ -133,18 +139,43 @@ public interface TableEnvironment {
 	 * Registers a {@link Table} under a unique name in the TableEnvironment's catalog.
 	 * Registered tables can be referenced in SQL queries.
 	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name The name under which the table will be registered.
 	 * @param table The table to register.
+	 * @deprecated use {@link #createTemporaryView(String, Table)}
 	 */
+	@Deprecated
 	void registerTable(String name, Table table);
+
+	/**
+	 * Registers a {@link Table} API object as a temporary view similar to SQL temporary views.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the view will be registered.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param view The view to register.
+	 */
+	void createTemporaryView(String path, Table view);
 
 	/**
 	 * Registers an external {@link TableSource} in this {@link TableEnvironment}'s catalog.
 	 * Registered tables can be referenced in SQL queries.
 	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name        The name under which the {@link TableSource} is registered.
 	 * @param tableSource The {@link TableSource} to register.
+	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
 	 */
+	@Deprecated
 	void registerTableSource(String name, TableSource<?> tableSource);
 
 	/**
@@ -152,11 +183,15 @@ public interface TableEnvironment {
 	 * {@link TableEnvironment}'s catalog.
 	 * Registered sink tables can be referenced in SQL DML statements.
 	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name The name under which the {@link TableSink} is registered.
 	 * @param fieldNames The field names to register with the {@link TableSink}.
 	 * @param fieldTypes The field types to register with the {@link TableSink}.
 	 * @param tableSink The {@link TableSink} to register.
-	 * @deprecated Use {@link #registerTableSink(String, TableSink)} instead.
+	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
 	 */
 	@Deprecated
 	void registerTableSink(String name, String[] fieldNames, TypeInformation<?>[] fieldTypes, TableSink<?> tableSink);
@@ -166,9 +201,15 @@ public interface TableEnvironment {
 	 * this {@link TableEnvironment}'s catalog.
 	 * Registered sink tables can be referenced in SQL DML statements.
 	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name The name under which the {@link TableSink} is registered.
 	 * @param configuredSink The configured {@link TableSink} to register.
+	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
 	 */
+	@Deprecated
 	void registerTableSink(String name, TableSink<?> configuredSink);
 
 	/**
@@ -200,8 +241,49 @@ public interface TableEnvironment {
 	 * @return The resulting {@link Table}.
 	 * @see TableEnvironment#useCatalog(String)
 	 * @see TableEnvironment#useDatabase(String)
+	 * @deprecated use {@link #from(String)}
 	 */
+	@Deprecated
 	Table scan(String... tablePath);
+
+	/**
+	 * Reads a registered table and returns the resulting {@link Table}.
+	 *
+	 * <p>A table to scan must be registered in the {@link TableEnvironment}.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+	 *
+	 * <p>Examples:
+	 *
+	 * <p>Reading a table from default catalog and database.
+	 * <pre>
+	 * {@code
+	 *   Table tab = tableEnv.from("tableName");
+	 * }
+	 * </pre>
+	 *
+	 * <p>Reading a table from a registered catalog.
+	 * <pre>
+	 * {@code
+	 *   Table tab = tableEnv.from("catalogName.dbName.tableName");
+	 * }
+	 * </pre>
+	 *
+	 * <p>Reading a table from a registered catalog with escaping. ({@code Table} is a reserved keyword).
+	 * Dots in e.g. a database name also must be escaped.
+	 * <pre>
+	 * {@code
+	 *   Table tab = tableEnv.from("catalogName.`db.Name`.`Table`");
+	 * }
+	 * </pre>
+	 *
+	 * @param path The path of a table API object to scan.
+	 * @return Either a table or virtual table (=view).
+	 * @see TableEnvironment#useCatalog(String)
+	 * @see TableEnvironment#useDatabase(String)
+	 */
+	Table from(String path);
 
 	/**
 	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
@@ -214,8 +296,21 @@ public interface TableEnvironment {
 	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
 	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
 	 *        {@link Table} is written.
+	 * @deprecated use {@link #insertInto(String, Table)}
 	 */
+	@Deprecated
 	void insertInto(Table table, String sinkPath, String... sinkPathContinued);
+
+	/**
+	 * Instructs to write the content of a {@link Table} API object into a table.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+	 *
+	 * @param targetPath The path of the registered {@link TableSink} to which the {@link Table} is written.
+	 * @param table The Table to write to the sink.
+	 */
+	void insertInto(String targetPath, Table table);
 
 	/**
 	 * Creates a table source and/or table sink from a descriptor.
@@ -272,11 +367,34 @@ public interface TableEnvironment {
 	String[] listDatabases();
 
 	/**
-	 * Gets the names of all tables registered in the current database of the current catalog.
+	 * Gets the names of all tables available in the current namespace (the current database of the current catalog).
+	 * It returns both temporary and permanent tables and views.
 	 *
 	 * @return A list of the names of all registered tables in the current database of the current catalog.
+	 * @see #listTemporaryTables()
+	 * @see #listTemporaryViews()
 	 */
 	String[] listTables();
+
+	/**
+	 * Gets the names of all temporary tables and views available in the current namespace (the current
+	 * database of the current catalog).
+	 *
+	 * @return A list of the names of all registered temporary tables and views in the current database
+	 * of the current catalog.
+	 * @see #listTables()
+	 */
+	String[] listTemporaryTables();
+
+	/**
+	 * Gets the names of all temporary views available in the current namespace (the current
+	 * database of the current catalog).
+	 *
+	 * @return A list of the names of all registered temporary views in the current database
+	 * of the current catalog.
+	 * @see #listTables()
+	 */
+	String[] listTemporaryViews();
 
 	/**
 	 * Gets the names of all user defined functions registered in this environment.
@@ -287,6 +405,26 @@ public interface TableEnvironment {
 	 * Gets the names of all functions in this environment.
 	 */
 	String[] listFunctions();
+
+	/**
+	 * Drops a temporary table registered in the given path.
+	 *
+	 * <p>If a permanent table with a given path exists, it will be used
+	 * from now on for any queries that reference this path.
+	 *
+	 * @return true if a table existed in the given path and was removed
+	 */
+	boolean dropTemporaryTable(String path);
+
+	/**
+	 * Drops a temporary view registered in the given path.
+	 *
+	 * <p>If a permanent table or view with a given path exists, it will be used
+	 * from now on for any queries that reference this path.
+	 *
+	 * @return true if a view existed in the given path and was removed
+	 */
+	boolean dropTemporaryView(String path);
 
 	/**
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute

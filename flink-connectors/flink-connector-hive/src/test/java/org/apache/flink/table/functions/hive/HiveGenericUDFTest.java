@@ -29,22 +29,23 @@ import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAddMonths;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCase;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCeil;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateDiff;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDecode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFMapKeys;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStruct;
+import org.junit.Assume;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 
+import static org.apache.flink.table.HiveVersionTestUtil.HIVE_110_OR_LATER;
+import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -93,9 +94,10 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testAddMonths() {
+	public void testAddMonths() throws Exception {
+		Assume.assumeTrue(HIVE_110_OR_LATER);
 		HiveGenericUDF udf = init(
-			GenericUDFAddMonths.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFAddMonths"),
 			new Object[] {
 				null,
 				1
@@ -111,12 +113,13 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testDateFormat() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+	public void testDateFormat() throws Exception {
+		Assume.assumeTrue(HIVE_120_OR_LATER);
 		String constYear = "y";
 		String constMonth = "M";
 
 		HiveGenericUDF udf = init(
-			GenericUDFDateFormat.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat"),
 			new Object[] {
 				null,
 				constYear
@@ -130,7 +133,7 @@ public class HiveGenericUDFTest {
 		assertEquals("2009", udf.eval("2009-08-31", constYear));
 
 		udf = init(
-			GenericUDFDateFormat.class,
+			Class.forName("org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat"),
 			new Object[] {
 				null,
 				constMonth

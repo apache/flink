@@ -24,6 +24,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
@@ -35,13 +36,14 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -54,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the buffers for the network data transfer. When new local buffer pools are created, the
  * NetworkBufferPool dynamically redistributes the buffers between the pools.
  */
-public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvider {
+public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvider, AvailabilityProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkBufferPool.class);
 
@@ -62,7 +64,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 	private final int memorySegmentSize;
 
-	private final ArrayBlockingQueue<MemorySegment> availableMemorySegments;
+	private final ArrayDeque<MemorySegment> availableMemorySegments;
 
 	private volatile boolean isDestroyed;
 
@@ -77,6 +79,8 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	private final int numberOfSegmentsToRequest;
 
 	private final Duration requestSegmentsTimeout;
+
+	private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
 	@VisibleForTesting
 	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize, int numberOfSegmentsToRequest) {
@@ -106,7 +110,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		final long sizeInLong = (long) segmentSize;
 
 		try {
-			this.availableMemorySegments = new ArrayBlockingQueue<>(numberOfSegmentsToAllocate);
+			this.availableMemorySegments = new ArrayDeque<>(numberOfSegmentsToAllocate);
 		}
 		catch (OutOfMemoryError err) {
 			throw new OutOfMemoryError("Could not allocate buffer queue of length "
@@ -134,6 +138,8 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 					", missing (Mb): " + missingMb + "). Cause: " + err.getMessage());
 		}
 
+		availabilityHelper.resetAvailable();
+
 		long allocatedMb = (sizeInLong * availableMemorySegments.size()) >> 20;
 
 		LOG.info("Allocated {} MB for network buffer pool (number of memory segments: {}, bytes per segment: {}).",
@@ -142,14 +148,16 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 	@Nullable
 	public MemorySegment requestMemorySegment() {
-		return availableMemorySegments.poll();
+		synchronized (availableMemorySegments) {
+			return internalRequestMemorySegment();
+		}
 	}
 
 	public void recycle(MemorySegment segment) {
 		// Adds the segment back to the queue, which does not immediately free the memory
 		// however, since this happens when references to the global pool are also released,
 		// making the availableMemorySegments queue and its contained object reclaimable
-		availableMemorySegments.add(checkNotNull(segment));
+		internalRecycleMemorySegments(Collections.singleton(checkNotNull(segment)));
 	}
 
 	@Override
@@ -170,7 +178,12 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 					throw new IllegalStateException("Buffer pool is destroyed.");
 				}
 
-				final MemorySegment segment = availableMemorySegments.poll(2, TimeUnit.SECONDS);
+				MemorySegment segment;
+				synchronized (availableMemorySegments) {
+					if ((segment = internalRequestMemorySegment()) == null) {
+						availableMemorySegments.wait(2000);
+					}
+				}
 				if (segment != null) {
 					segments.add(segment);
 				}
@@ -199,26 +212,54 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		return segments;
 	}
 
+	@Nullable
+	private MemorySegment internalRequestMemorySegment() {
+		assert Thread.holdsLock(availableMemorySegments);
+
+		final MemorySegment segment = availableMemorySegments.poll();
+		if (availableMemorySegments.isEmpty() && segment != null) {
+			availabilityHelper.resetUnavailable();
+		}
+		return segment;
+	}
+
 	@Override
 	public void recycleMemorySegments(Collection<MemorySegment> segments) throws IOException {
 		recycleMemorySegments(segments, segments.size());
 	}
 
 	private void recycleMemorySegments(Collection<MemorySegment> segments, int size) throws IOException {
+		internalRecycleMemorySegments(segments);
+
 		synchronized (factoryLock) {
 			numTotalRequiredBuffers -= size;
-
-			availableMemorySegments.addAll(segments);
 
 			// note: if this fails, we're fine for the buffer pool since we already recycled the segments
 			redistributeBuffers();
 		}
 	}
 
+	private void internalRecycleMemorySegments(Collection<MemorySegment> segments) {
+		CompletableFuture<?> toNotify = null;
+		synchronized (availableMemorySegments) {
+			if (availableMemorySegments.isEmpty() && !segments.isEmpty()) {
+				toNotify = availabilityHelper.getUnavailableToResetAvailable();
+			}
+			availableMemorySegments.addAll(segments);
+			availableMemorySegments.notifyAll();
+		}
+
+		if (toNotify != null) {
+			toNotify.complete(null);
+		}
+	}
+
 	public void destroy() {
 		synchronized (factoryLock) {
 			isDestroyed = true;
+		}
 
+		synchronized (availableMemorySegments) {
 			MemorySegment segment;
 			while ((segment = availableMemorySegments.poll()) != null) {
 				segment.free();
@@ -235,7 +276,9 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	}
 
 	public int getNumberOfAvailableMemorySegments() {
-		return availableMemorySegments.size();
+		synchronized (availableMemorySegments) {
+			return availableMemorySegments.size();
+		}
 	}
 
 	public int getNumberOfRegisteredBufferPools() {
@@ -254,6 +297,15 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		}
 
 		return buffers;
+	}
+
+	/**
+	 * Returns a future that is completed when there are free segments
+	 * in this pool.
+	 */
+	@Override
+	public CompletableFuture<?> isAvailable() {
+		return availabilityHelper.isAvailable();
 	}
 
 	// ------------------------------------------------------------------------

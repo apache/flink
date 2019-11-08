@@ -55,6 +55,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
   private val tableName = "testTable"
   private val context = prepareContext(testTableTypeInfo)
   private val calcitePlanner: FlinkPlannerImpl = context._2.createFlinkPlanner
+  private val parser = context._2.plannerContext.createCalciteParser()
 
   private def prepareContext(typeInfo: TypeInformation[Row])
   : (RelBuilder, PlannerBase, StreamExecutionEnvironment) = {
@@ -80,7 +81,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
 
   def verifyPattern(matchRecognize: String, expected: Pattern[BaseRow, _ <: BaseRow]): Unit = {
     // create RelNode from SQL expression
-    val parsed = calcitePlanner.parse(
+    val parsed = parser.parse(
       s"""
          |SELECT *
          |FROM $tableName

@@ -43,9 +43,6 @@ import java.util.concurrent.CompletableFuture;
  */
 public abstract class ClusterClient<T> implements AutoCloseable {
 
-	/** Switch for blocking/detached job submission of the client. */
-	private boolean detachedJobSubmission = false;
-
 	/**
 	 * User overridable hook to close the client, possibly closes internal services.
 	 * @deprecated use the {@link #close()} instead. This method stays for backwards compatibility.
@@ -154,34 +151,10 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	public abstract T getClusterId();
 
 	/**
-	 * Set the mode of this client (detached or blocking job execution).
-	 * @param isDetached If true, the client will submit programs detached via the {@code run} method
-	 */
-	public void setDetached(boolean isDetached) {
-		this.detachedJobSubmission = isDetached;
-	}
-
-	/**
-	 * A flag to indicate whether this clients submits jobs detached.
-	 * @return True if the Client submits detached, false otherwise
-	 */
-	public boolean isDetached() {
-		return detachedJobSubmission;
-	}
-
-	/**
 	 * Return the Flink configuration object.
 	 * @return The Flink configuration object
 	 */
 	public abstract Configuration getFlinkConfiguration();
-
-	/**
-	 * Calls the subclasses' submitJob method. It may decide to simply call one of the run methods or it may perform
-	 * some custom job submission logic.
-	 * @param jobGraph The JobGraph to be submitted
-	 * @return JobSubmissionResult
-	 */
-	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException;
 
 	/**
 	 * Submit the given {@link JobGraph} to the cluster.

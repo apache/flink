@@ -28,11 +28,11 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
  */
 public class TestingSlotProviderStrategy extends SlotProviderStrategy.NormalSlotProviderStrategy{
 
-	private TestingSlotProviderStrategy(SlotProvider slotProvider, Time allocationTimeout, boolean allowQueuedScheduling) {
-		super(slotProvider, allocationTimeout, allowQueuedScheduling);
+	private TestingSlotProviderStrategy(SlotProvider slotProvider, Time allocationTimeout) {
+		super(slotProvider, allocationTimeout);
 	}
 
-	public static TestingSlotProviderStrategy from(SlotProvider slotProvider, boolean allowQueuedScheduling) {
-		return new TestingSlotProviderStrategy(slotProvider, Time.seconds(10L), allowQueuedScheduling);
+	public static TestingSlotProviderStrategy from(SlotProvider slotProvider) {
+		return new TestingSlotProviderStrategy(slotProvider, Time.seconds(10L));
 	}
 }

@@ -293,7 +293,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// it can occur as the result of races
 			{
 				vertex.scheduleForExecution(
-					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1), false),
+					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1)),
 					LocationPreferenceConstraint.ALL,
 					Collections.emptySet());
 
@@ -333,7 +333,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 				vertex.scheduleForExecution(
-					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1), false),
+					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1)),
 					LocationPreferenceConstraint.ALL,
 					Collections.emptySet());
 			}

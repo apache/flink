@@ -240,8 +240,6 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 		vertex.setParallelism(1);
 
 		final JobGraph jobGraph = new JobGraph("Test job graph", vertex);
-		jobGraph.setAllowQueuedScheduling(true);
-
 		final PermanentBlobKey permanentBlobKey = blobServer.putPermanent(jobGraph.getJobID(), new byte[256]);
 		jobGraph.addUserJarBlobKey(permanentBlobKey);
 

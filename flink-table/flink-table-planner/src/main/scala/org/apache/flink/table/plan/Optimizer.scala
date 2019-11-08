@@ -182,7 +182,7 @@ abstract class Optimizer(
   protected def optimizeLogicalRewritePlan(relNode: RelNode): RelNode = {
     val logicalRewriteRuleSet = getLogicalRewriteRuleSet
     if (logicalRewriteRuleSet.iterator().hasNext) {
-      runHepPlannerSimultaneously(
+      runHepPlannerSequentially(
         HepMatchOrder.TOP_DOWN,
         logicalRewriteRuleSet,
         relNode,

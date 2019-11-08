@@ -203,7 +203,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	private void checkFinished(InputStatus status, int inputIndex) throws Exception {
 		if (status == InputStatus.END_OF_INPUT) {
 			synchronized (lock) {
-				operatorChain.endInput(getInputId(inputIndex));
+				operatorChain.endHeadOperatorInput(getInputId(inputIndex));
 				inputSelectionHandler.nextSelection();
 			}
 		}

@@ -67,7 +67,6 @@ public class AbstractYarnClusterTest extends TestLogger {
 		final YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			new Configuration(),
 			yarnConfiguration,
-			temporaryFolder.newFolder().getAbsolutePath(),
 			yarnClient,
 			false);
 

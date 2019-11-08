@@ -27,10 +27,10 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.TestingPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -74,7 +74,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 		sinkVertex.connectNewDataSetAsInput(operatorVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
 		// setup partition tracker to intercept partition release calls
-		final TestingPartitionTracker partitionTracker = new TestingPartitionTracker();
+		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 		final Queue<ResultPartitionID> releasedPartitions = new ArrayDeque<>();
 		partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
 			partitionIds -> releasedPartitions.add(partitionIds.iterator().next()));
@@ -125,7 +125,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 		operator3Vertex.connectNewDataSetAsInput(operator1Vertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
 		// setup partition tracker to intercept partition release calls
-		final TestingPartitionTracker partitionTracker = new TestingPartitionTracker();
+		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 		final Queue<ResultPartitionID> releasedPartitions = new ArrayDeque<>();
 		partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
 			partitionIds -> releasedPartitions.add(partitionIds.iterator().next()));
@@ -176,7 +176,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 		return executionGraph.getJobVertex(jobVertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
 	}
 
-	private ExecutionGraph createExecutionGraph(final PartitionTracker partitionTracker, final JobVertex... vertices) throws Exception {
+	private ExecutionGraph createExecutionGraph(final JobMasterPartitionTracker partitionTracker, final JobVertex... vertices) throws Exception {
 		final ExecutionGraph executionGraph = ExecutionGraphBuilder.buildGraph(
 			null,
 			new JobGraph(new JobID(), "test job", vertices),

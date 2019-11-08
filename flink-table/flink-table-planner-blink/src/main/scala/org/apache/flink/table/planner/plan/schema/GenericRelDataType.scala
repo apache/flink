@@ -64,6 +64,6 @@ class GenericRelDataType(
     * [[ArraySqlType]], [[MapSqlType]]... use generateTypeString to equals and hashcode.
     */
   override def generateTypeString(sb: lang.StringBuilder, withDetail: Boolean): Unit = {
-    sb.append(toString)
+    sb.append(s"ANY('${genericType.getTypeInformation}')")
   }
 }

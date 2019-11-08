@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import warnings
 from abc import ABCMeta
 
 from py4j.java_gateway import get_method
@@ -1272,7 +1273,10 @@ class ConnectTableDescriptor(Descriptor):
 
         :param name: Table name to be registered in the table environment.
         :return: This object.
+
+        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
         """
+        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
         self._j_connect_table_descriptor = self._j_connect_table_descriptor.registerTableSink(name)
         return self
 
@@ -1283,7 +1287,10 @@ class ConnectTableDescriptor(Descriptor):
 
         :param name: Table name to be registered in the table environment.
         :return: This object.
+
+        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
         """
+        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
         self._j_connect_table_descriptor = \
             self._j_connect_table_descriptor.registerTableSource(name)
         return self
@@ -1295,9 +1302,31 @@ class ConnectTableDescriptor(Descriptor):
 
         :param name: Table name to be registered in the table environment.
         :return: This object.
+
+        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
         """
+        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
         self._j_connect_table_descriptor = \
             self._j_connect_table_descriptor.registerTableSourceAndSink(name)
+        return self
+
+    def create_temporary_table(self, path):
+        """
+        Registers the table described by underlying properties in a given path.
+
+        There is no distinction between source and sink at the descriptor level anymore as this
+        method does not perform actual class lookup. It only stores the underlying properties. The
+        actual source/sink lookup is performed when the table is used.
+
+        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+        it will be inaccessible in the current session. To make the permanent object available
+        again you can drop the corresponding temporary object.
+
+        .. note:: The schema must be explicitly defined.
+
+        :param path: path where to register the temporary table
+        """
+        self._j_connect_table_descriptor.createTemporaryTable(path)
         return self
 
 

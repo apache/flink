@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.module;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.module.exceptions.ModuleAlreadyExistException;
-import org.apache.flink.table.module.exceptions.ModuleNotFoundException;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
@@ -30,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -42,39 +42,41 @@ public class ModuleManager {
 	public ModuleManager() {
 		this.modules = new LinkedHashMap<>();
 
-		modules.put(ModuleConfig.CORE_MODULE_NAME, CoreModule.INSTANCE);
+		modules.put(MODULE_TYPE_CORE, CoreModule.INSTANCE);
 	}
 
 	/**
 	 * Load a module under a unique name. Modules will be kept in the loaded order, and new module
 	 * will be added to the end.
+	 * ValidationException is thrown when there is already a module with the same name.
 	 *
 	 * @param name name of the module
 	 * @param module the module instance
-	 * @throws ModuleAlreadyExistException thrown when there is already a module with the same name
 	 */
-	public void loadModule(String name, Module module) throws ModuleAlreadyExistException {
+	public void loadModule(String name, Module module) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty string");
 		checkNotNull(module, "module cannot be null");
 
 		if (!modules.containsKey(name)) {
 			modules.put(name, module);
 		} else {
-			throw new ModuleAlreadyExistException(name);
+			throw new ValidationException(
+				String.format("A module with name %s already exists", name));
 		}
 	}
 
 	/**
 	 * Unload a module with given name.
+	 * ValidationException is thrown when there is no module with the given name.
 	 *
 	 * @param name name of the module
-	 * @throws ModuleNotFoundException thrown when there is no module with the given name
 	 */
-	public void unloadModule(String name) throws ModuleNotFoundException {
+	public void unloadModule(String name) {
 		if (modules.containsKey(name)) {
 			modules.remove(name);
 		} else {
-			throw new ModuleNotFoundException(name);
+			throw new ValidationException(
+				String.format("No module with name %s exists", name));
 		}
 	}
 

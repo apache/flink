@@ -20,6 +20,7 @@ package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.JavaGcCleanerWrapper;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -110,13 +111,7 @@ public class MemoryUtils {
 	 */
 	@SuppressWarnings("UseOfSunClasses")
 	static Runnable createMemoryGcCleaner(Object owner, long address) {
-		// TODO: rollbacked to direct memory because of FLINK-13985
-		// The release call is wrapped with the sun.misc.Cleaner
-		// which will schedule it before GC is run for the owner object (not reachable in user code).
-		// but only if sun.misc.Cleaner::clean has not been already called explicitly by user before.
-		// If sun.misc.Cleaner::clean is called after GC it will not call the release.
-		// This way we guarantee that there will always be a release at some point but only once.
-		return null; // sun.misc.Cleaner.create(owner, () -> releaseUnsafe(address))::clean;
+		return JavaGcCleanerWrapper.create(owner, () -> releaseUnsafe(address));
 	}
 
 	private static void releaseUnsafe(long address) {

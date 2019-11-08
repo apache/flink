@@ -25,6 +25,7 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.CalciteConfig;
+import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkRelBuilderFactory;
@@ -131,6 +132,15 @@ public class PlanningConfigurationBuilder {
 			isLenient -> createCatalogReader(isLenient, currentCatalog, currentDatabase),
 			planner,
 			typeFactory);
+	}
+
+	/**
+	 * Creates a configured instance of {@link CalciteParser}.
+	 *
+	 * @return configured calcite parser
+	 */
+	public CalciteParser createCalciteParser() {
+		return new CalciteParser(getSqlParserConfig());
 	}
 
 	/** Returns the Calcite {@link org.apache.calcite.plan.RelOptPlanner} that will be used. */

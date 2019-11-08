@@ -52,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * The difference is that BinaryRow is placed on a discontinuous memory, and the variable length
  * type can also be placed on a fixed length area (If it's short enough).
  */
-public final class BinaryRow extends BinaryFormat implements BaseRow {
+public final class BinaryRow extends BinarySection implements BaseRow {
 
 	public static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
 	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? ~0xFFL : ~(0xFFL << 56L);
@@ -287,7 +287,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndLen = segments[0].getLong(fieldOffset);
-		return BinaryString.readBinaryStringFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
+		return BinaryFormat.readBinaryStringFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
 	}
 
 	@Override
@@ -315,7 +315,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndLen = segments[0].getLong(fieldOffset);
-		return readBinaryFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
+		return BinaryFormat.readBinaryFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
 	}
 
 	@Override
@@ -411,7 +411,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	private boolean equalsFrom(Object o, int startIndex) {
-		if (o != null && o instanceof BinaryRow) {
+		if (o instanceof BinaryRow) {
 			BinaryRow other = (BinaryRow) o;
 			return sizeInBytes == other.sizeInBytes &&
 					SegmentsUtil.equals(

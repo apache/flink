@@ -53,6 +53,7 @@ import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -65,12 +66,10 @@ import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitio
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutorFactory;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxProcessor;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.SuspendedMailboxDefaultAction;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -273,16 +272,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * This method implements the default action of the task (e.g. processing one event from the input). Implementations
 	 * should (in general) be non-blocking.
 	 *
-	 * @param context context object for collaborative interaction between the action and the stream task.
+	 * @param controller controller object for collaborative interaction between the action and the stream task.
 	 * @throws Exception on any problems in the action.
 	 */
-	protected void processInput(DefaultActionContext context) throws Exception {
+	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		InputStatus status = inputProcessor.processInput();
 		if (status == InputStatus.END_OF_INPUT) {
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 		else if (status == InputStatus.NOTHING_AVAILABLE) {
-			SuspendedMailboxDefaultAction suspendedDefaultAction = context.suspendDefaultAction();
+			MailboxDefaultAction.Suspension suspendedDefaultAction = controller.suspendDefaultAction();
 			inputProcessor.isAvailable().thenRun(suspendedDefaultAction::resume);
 		}
 	}
@@ -449,10 +448,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// See FLINK-7430
 				isRunning = false;
 			}
-			MailboxExecutor mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
-			while (mainMailboxExecutor.tryYield()) {
-				// Run until we have processed all remaining letters.
-			}
+			// processes the remaining mails; no new mails can be enqueued
+			mailboxProcessor.drain();
 
 			// make sure all timers finish
 			timerService.awaitPendingAfterQuiesce();
@@ -582,6 +579,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			StreamOperator<?> operator = allOperators[i];
 			if (operator != null) {
 				operator.close();
+			}
+
+			// The operators on the chain, except for the head operator, must be one-input operators.
+			// So after the upstream operator on the chain is closed, the input of its downstream operator
+			// reaches the end.
+			if (i > 0) {
+				operatorChain.endNonHeadOperatorInput(allOperators[i - 1]);
 			}
 		}
 	}

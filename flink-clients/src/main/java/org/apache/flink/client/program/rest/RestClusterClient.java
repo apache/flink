@@ -26,14 +26,11 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.DetachedJobExecutionResult;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -232,43 +229,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		}
 	}
 
-	@Override
-	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		LOG.info("Submitting job {} (detached: {}).", jobGraph.getJobID(), isDetached());
-
-		final CompletableFuture<JobSubmissionResult> jobSubmissionFuture = submitJob(jobGraph);
-
-		if (isDetached()) {
-			try {
-				final JobSubmissionResult jobSubmissionResult = jobSubmissionFuture.get();
-
-				LOG.warn("Job was executed in detached mode, the results will be available on completion.");
-
-				return new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
-			} catch (Exception e) {
-				throw new ProgramInvocationException("Could not submit job",
-					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
-			}
-		} else {
-			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionFuture.thenCompose(
-				ignored -> requestJobResult(jobGraph.getJobID()));
-
-			final JobResult jobResult;
-			try {
-				jobResult = jobResultFuture.get();
-			} catch (Exception e) {
-				throw new ProgramInvocationException("Could not retrieve the execution result.",
-					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
-			}
-
-			try {
-				return jobResult.toJobExecutionResult(classLoader);
-			} catch (JobExecutionException | IOException | ClassNotFoundException e) {
-				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
-			}
-		}
-	}
-
 	/**
 	 * Requests the job details.
 	 *
@@ -318,9 +278,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	 */
 	@Override
 	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
-		// we have to enable queued scheduling because slot will be allocated lazily
-		jobGraph.setAllowQueuedScheduling(true);
-
 		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
 			try {
 				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
