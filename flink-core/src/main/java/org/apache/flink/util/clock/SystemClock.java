@@ -20,13 +20,13 @@ package org.apache.flink.util.clock;
 
 /**
  * A clock that returns the time of the system / process.
- * 
+ *
  * <p>This clock uses {@link System#currentTimeMillis()} for <i>absolute time</i>
  * and {@link System#nanoTime()} for <i>relative time</i>.
- * 
+ *
  * <p>This SystemClock exists as a singleton instance.
  */
-public class SystemClock extends Clock {
+public final class SystemClock extends Clock {
 
 	private static final SystemClock INSTANCE = new SystemClock();
 

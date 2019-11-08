@@ -18,13 +18,14 @@
 
 package org.apache.flink.util.clock;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * {@link Clock} implementation which allows to advance time manually.
+ * A {@link Clock} implementation which allows to advance time manually.
  */
-public class ManualClock extends Clock {
+public final class ManualClock extends Clock {
 
 	private AtomicLong currentTime = new AtomicLong(0L);
 
@@ -43,7 +44,19 @@ public class ManualClock extends Clock {
 		return currentTime.get();
 	}
 
+	/**
+	 * Advances the time by the given duration. Time can also move backwards by supplying a negative
+	 * value. This method performs no overflow check.
+	 */
 	public void advanceTime(long duration, TimeUnit timeUnit) {
 		currentTime.addAndGet(timeUnit.toNanos(duration));
+	}
+
+	/**
+	 * Advances the time by the given duration. Time can also move backwards by supplying a negative
+	 * value. This method performs no overflow check.
+	 */
+	public void advanceTime(Duration duration) {
+		currentTime.addAndGet(duration.toNanos());
 	}
 }

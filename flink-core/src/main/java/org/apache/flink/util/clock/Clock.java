@@ -20,21 +20,35 @@ package org.apache.flink.util.clock;
 
 /**
  * A clock that gives access to time. This clock returns two flavors of time:
- * 
- * <p><b>Absolute Time:</b> This refers to real world wall clock time, and it typically
- * derived from a system clock. It is subject to clock drift and inaccuracy, and can jump
- * if the system clock is adjusted.
- * 
- * <p><b>Relative Time:</b> This time advances at the same speed as the <i>absolute time</i>,
- * but the timestamps can only be referred to relative to each other. The timestamps have
- * no absolute meaning and cannot be compared across JVM processes. The source for the
- * timestamps is not affected by adjustments to the system clock, so it never jumps.
+ *
+ * <h3>Absolute Time</h3>
+ *
+ * <p>This refers to real world wall clock time, and it is typically
+ * derived from a system clock. It is subject to clock drift and inaccuracy, and can jump if the
+ * system clock is adjusted. Absolute time behaves similar to {@link System#currentTimeMillis()}.
+ *
+ * <h3>Relative Time</h3>
+ *
+ * <p>This time advances at the same speed as the <i>absolute time</i>,
+ * but the timestamps can only be referred to relative to each other. The timestamps have no
+ * absolute meaning and cannot be compared across JVM processes. The source for the timestamps is
+ * not affected by adjustments to the system clock, so it never jumps. Relative time behaves similar
+ * to {@link System#nanoTime()}.
  */
 public abstract class Clock {
 
+	/**
+	 * Gets the current absolute time, in milliseconds.
+	 */
 	public abstract long absoluteTimeMillis();
 
+	/**
+	 * Gets the current relative time, in milliseconds.
+	 */
 	public abstract long relativeTimeMillis();
 
+	/**
+	 * Gets the current relative time, in nanoseconds.
+	 */
 	public abstract long relativeTimeNanos();
 }
