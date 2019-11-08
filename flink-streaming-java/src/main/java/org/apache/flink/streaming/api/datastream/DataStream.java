@@ -21,6 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -84,6 +88,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndPeriodicWatermarksOperator;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndPunctuatedWatermarksOperator;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -869,6 +874,42 @@ public class DataStream<T> {
 	// ------------------------------------------------------------------------
 	//  Timestamps and watermarks
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Assigns timestamps to the elements in the data stream and generates watermarks to
+	 * signal event time progress.
+	 *
+	 * <p>For each event in the data stream, the {@link TimestampAssigner#extractTimestamp(Object, long)}
+	 * method is called to assign an event timestamp.
+	 *
+	 * <p>For each event in the data stream, the {@link WatermarkGenerator#onEvent(Object, long, WatermarkOutput)}
+	 * will be called.
+	 *
+	 * <p>Periodically (defined by the {@link ExecutionConfig#getAutoWatermarkInterval()}), the
+	 * {@link WatermarkGenerator#onPeriodicEmit(WatermarkOutput)} method will be called.
+	 *
+	 * <p>Common watermark generation patterns can be found in the
+	 * {@link org.apache.flink.api.common.eventtime.WatermarkStrategies} class.
+	 *
+	 * @param timestampAssigner The function to assign timestamps to events.
+	 * @param watermarkStrategy The strategy to generate watermarks based on event timestamps.
+	 * @return The stream after the transformation, with assigned timestamps and watermarks.
+	 */
+	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
+			TimestampAssigner<T> timestampAssigner,
+			WatermarkStrategy<T> watermarkStrategy) {
+
+		final TimestampAssigner<T> cleanedAssigner = clean(timestampAssigner);
+
+		final TimestampsAndWatermarksOperator<T> operator =
+			new TimestampsAndWatermarksOperator<>(cleanedAssigner, watermarkStrategy);
+
+		// match parallelism to input, to have a 1:1 source -> timestamps/watermarks relationship and chain
+		final int inputParallelism = getTransformation().getParallelism();
+
+		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
+			.setParallelism(inputParallelism);
+	}
 
 	/**
 	 * Assigns timestamps to the elements in the data stream and periodically creates
