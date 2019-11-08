@@ -19,8 +19,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-
 /**
  * Task interface used by {@link BackPressureSampleService} for back pressure tracking.
  */
@@ -29,7 +27,5 @@ public interface BackPressureSampleableTask {
 	boolean isRunning();
 
 	boolean isBackPressured();
-
-	ExecutionAttemptID getExecutionId();
 
 }

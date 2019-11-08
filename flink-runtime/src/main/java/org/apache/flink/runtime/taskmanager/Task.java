@@ -464,14 +464,14 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 	@Override
 	public boolean isBackPressured() {
-		if (invokable == null || consumableNotifyingPartitionWriters.length == 0) {
-			return true;
+		if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
+			return false;
 		}
 		final CompletableFuture<?>[] outputFutures = new CompletableFuture[consumableNotifyingPartitionWriters.length];
 		for (int i = 0; i < outputFutures.length; ++i) {
 			outputFutures[i] = consumableNotifyingPartitionWriters[i].isAvailable();
 		}
-		return CompletableFuture.allOf(outputFutures).isDone();
+		return !CompletableFuture.allOf(outputFutures).isDone();
 	}
 
 	// ------------------------------------------------------------------------

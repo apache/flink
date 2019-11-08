@@ -34,7 +34,10 @@ public class OperatorBackPressureStats implements Serializable {
 	/** ID of the corresponding request. */
 	private final int requestId;
 
-	/** End time stamp when all subtask back pressure ratios were collected at the JobManager. */
+	/**
+	 * End time stamp when all responses of the back pressure request
+	 * were collected at BackPressureRequestCoordinator.
+	 */
 	private final long endTimestamp;
 
 	/** Back pressure ratio per subtask. */

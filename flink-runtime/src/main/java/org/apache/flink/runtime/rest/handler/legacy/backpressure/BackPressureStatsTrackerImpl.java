@@ -57,6 +57,7 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 	/** Lock guarding trigger operations. */
 	private final Object lock = new Object();
 
+	/** Coordinator for back pressure stats request. */
 	private final BackPressureRequestCoordinator coordinator;
 
 	/**
@@ -73,6 +74,10 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 	 */
 	private final Set<ExecutionJobVertex> pendingStats = new HashSet<>();
 
+	/**
+	 * Time interval, in milliseconds, after which the available back pressure
+	 * stats are deprecated and need to be refreshed.
+	 */
 	private final int backPressureStatsRefreshInterval;
 
 	/** Flag indicating whether the stats tracker has been shut down. */
@@ -82,19 +87,21 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 	/**
 	 * Creates a back pressure statistics tracker.
 	 *
-	 * @param cleanUpInterval     Clean up interval for completed stats.
-	 * @param backPressureStatsRefreshInterval
+	 * @param coordinator Coordinator for back pressure stats request.
+	 * @param cleanUpInterval Clean up interval for completed stats.
+	 * @param refreshInterval Time interval after which the available back pressure
+	 *                        stats are deprecated and need to be refreshed.
 	 */
 	public BackPressureStatsTrackerImpl(
 			BackPressureRequestCoordinator coordinator,
 			int cleanUpInterval,
-			int backPressureStatsRefreshInterval) {
+			int refreshInterval) {
 
-		checkArgument(backPressureStatsRefreshInterval >= 0,
+		checkArgument(refreshInterval >= 0,
 			"The back pressure stats refresh interval must be greater than or equal to 0.");
 
-		this.coordinator = checkNotNull(coordinator, "Back pressure request coordinator must not be null.");
-		this.backPressureStatsRefreshInterval = backPressureStatsRefreshInterval;
+		this.coordinator = checkNotNull(coordinator);
+		this.backPressureStatsRefreshInterval = refreshInterval;
 		this.operatorStatsCache = CacheBuilder.newBuilder()
 				.concurrencyLevel(1)
 				.expireAfterAccess(cleanUpInterval, TimeUnit.MILLISECONDS)
@@ -119,11 +126,11 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 	}
 
 	/**
-	 * Triggers a back pressure request for a operator to gather the back pressure
-	 * statistics. If there is a request in progress for the operator, the call
+	 * Triggers a back pressure request for a vertex to gather the back pressure
+	 * statistics. If there is a request in progress for the vertex, the call
 	 * is ignored.
 	 *
-	 * @param vertex Operator to get the stats for.
+	 * @param vertex Vertex to get the stats for.
 	 */
 	private void triggerBackPressureRequestInternal(final ExecutionJobVertex vertex) {
 		assert(Thread.holdsLock(lock));
@@ -179,13 +186,13 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 	}
 
 	/**
-	 * Callback on completed task back pressure request.
+	 * Callback on completed back pressure request.
 	 */
-	class BackPressureRequestCompletionCallback implements BiFunction<BackPressureStats, Throwable, Void> {
+	private class BackPressureRequestCompletionCallback implements BiFunction<BackPressureStats, Throwable, Void> {
 
 		private final ExecutionJobVertex vertex;
 
-		public BackPressureRequestCompletionCallback(ExecutionJobVertex vertex) {
+		BackPressureRequestCompletionCallback(ExecutionJobVertex vertex) {
 			this.vertex = vertex;
 		}
 

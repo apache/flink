@@ -20,10 +20,12 @@ package org.apache.flink.runtime.rest.handler.legacy.backpressure;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
+import javax.annotation.Nonnegative;
+
 import java.util.Collections;
 import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Back pressure stats for one or more tasks.
@@ -38,26 +40,21 @@ public class BackPressureStats {
 	/** Time stamp, when the request was triggered. */
 	private final long startTime;
 
-	/** Time stamp, when all back pressure stats were collected at the JobManager. */
+	/** Time stamp, when all back pressure stats were collected at the BackPressureRequestCoordinator. */
 	private final long endTime;
 
-	/** Map of back pressure ratio by execution ID. */
+	/** Map of back pressure ratios by execution ID. */
 	private final Map<ExecutionAttemptID, Double> backPressureRatios;
 
 	public BackPressureStats(
-			int requestId,
-			long startTime,
-			long endTime,
+			@Nonnegative int requestId,
+			@Nonnegative long startTime,
+			@Nonnegative long endTime,
 			Map<ExecutionAttemptID, Double> backPressureRatios) {
-
-		checkArgument(requestId >= 0, "Negative request ID.");
-		checkArgument(startTime >= 0, "Negative start time.");
-		checkArgument(endTime >= startTime, "End time before start time.");
-
 		this.requestId = requestId;
 		this.startTime = startTime;
 		this.endTime = endTime;
-		this.backPressureRatios = Collections.unmodifiableMap(backPressureRatios);
+		this.backPressureRatios = Collections.unmodifiableMap(checkNotNull(backPressureRatios));
 	}
 
 	public int getRequestId() {

@@ -90,7 +90,7 @@ public class BackPressureRequestCoordinator {
 			Executor executor,
 			long requestTimeout) {
 
-		checkArgument(requestTimeout >= 0L, "Illegal request timeout: " + requestTimeout);
+		checkArgument(requestTimeout >= 0L, "The request timeout must be non-negative.");
 
 		this.executor = checkNotNull(executor);
 		this.requestTimeout = Time.milliseconds(requestTimeout);
@@ -103,7 +103,6 @@ public class BackPressureRequestCoordinator {
 	 * @return A future of the completed task back pressure stats.
 	 */
 	CompletableFuture<BackPressureStats> triggerBackPressureRequest(ExecutionVertex[] tasks) {
-
 		checkNotNull(tasks, "Tasks to request must not be null.");
 		checkArgument(tasks.length >= 1, "No tasks to request.");
 
@@ -126,54 +125,58 @@ public class BackPressureRequestCoordinator {
 
 		synchronized (lock) {
 			if (isShutDown) {
-				return FutureUtils.completedExceptionally(new IllegalStateException("Shut down"));
+				return FutureUtils.completedExceptionally(new IllegalStateException("Shut down."));
 			}
 
-			final int requestId = requestIdCounter++;
+			int requestId = requestIdCounter++;
 
-			LOG.debug("Triggering task back pressure request {}", requestId);
+			LOG.debug("Triggering task back pressure request {}.", requestId);
 
-			final PendingBackPressureRequest pending = new PendingBackPressureRequest(requestId, triggerIds);
+			PendingBackPressureRequest pending = new PendingBackPressureRequest(requestId, triggerIds);
 
 			// Add the pending request before scheduling the discard task to
 			// prevent races with removing it again.
 			pendingRequests.put(requestId, pending);
 
-			// Trigger all requests. The request will be discarded if it takes
-			// too long. We don't send cancel messages to the task managers,
-			// but only wait for the responses and then ignore them.
-			for (Execution execution: executions) {
-				final CompletableFuture<TaskBackPressureResponse> taskBackPressureFuture =
-					execution.requestBackPressure(requestId, requestTimeout);
-
-				taskBackPressureFuture.handleAsync(
-					(TaskBackPressureResponse taskBackPressureResponse, Throwable throwable) -> {
-						if (taskBackPressureResponse != null) {
-							collectTaskBackPressureStat(
-								taskBackPressureResponse.getRequestId(),
-								taskBackPressureResponse.getExecutionAttemptID(),
-								taskBackPressureResponse.getBackPressureRatio());
-						} else {
-							cancelBackPressureRequest(requestId, throwable);
-						}
-
-						return null;
-					},
-					executor);
-			}
+			requestBackPressure(executions, requestId);
 
 			return pending.getBackPressureStatsFuture();
 		}
 	}
 
 	/**
-	 * Cancels a pending task back pressure request.
-	 *
-	 * @param requestId ID of the request to cancel.
-	 * @param cause Cause of the cancelling (can be <code>null</code>).
+	 * Requests back pressure stats from all the given executions. The response would
+	 * be ignored if it does not return within timeout.
 	 */
-	@VisibleForTesting
-	void cancelBackPressureRequest(int requestId, @Nullable Throwable cause) {
+	private void requestBackPressure(Execution[] executions, int requestId) {
+		assert Thread.holdsLock(lock);
+
+		for (Execution execution: executions) {
+			CompletableFuture<TaskBackPressureResponse> taskBackPressureFuture =
+				execution.requestBackPressure(requestId, requestTimeout);
+
+			taskBackPressureFuture.handleAsync(
+				(TaskBackPressureResponse taskBackPressureResponse, Throwable throwable) -> {
+					if (taskBackPressureResponse != null) {
+						handleSuccessfulTaskBackPressureResponse(taskBackPressureResponse);
+					} else {
+						handleFailedTaskBackPressureResponse(requestId, throwable);
+					}
+
+					return null;
+				},
+				executor);
+		}
+	}
+
+	/**
+	 * Handles the failed task back pressure response by canceling the corresponding unfinished
+	 * pending back pressure request.
+	 *
+	 * @param requestId ID of the request.
+	 * @param cause Cause of the failure (can be <code>null</code>).
+	 */
+	private void handleFailedTaskBackPressureResponse(int requestId, @Nullable Throwable cause) {
 		synchronized (lock) {
 			if (isShutDown) {
 				return;
@@ -182,9 +185,9 @@ public class BackPressureRequestCoordinator {
 			PendingBackPressureRequest pendingRequest = pendingRequests.remove(requestId);
 			if (pendingRequest != null) {
 				if (cause != null) {
-					LOG.info("Cancelling back pressure request " + requestId, cause);
+					LOG.info(String.format("Cancelling back pressure request %d.", requestId), cause);
 				} else {
-					LOG.info("Cancelling back pressure request {}", requestId);
+					LOG.info("Cancelling back pressure request {}.", requestId);
 				}
 
 				pendingRequest.discard(cause);
@@ -208,6 +211,7 @@ public class BackPressureRequestCoordinator {
 				}
 
 				pendingRequests.clear();
+				recentPendingRequests.clear();
 
 				isShutDown = true;
 			}
@@ -215,20 +219,17 @@ public class BackPressureRequestCoordinator {
 	}
 
 	/**
-	 * Collects back pressure stat of a task.
+	 * Handles the successfully returned task back pressure response by collecting
+	 * the corresponding back pressure ratio.
 	 *
-	 * @param requestId ID of the request.
-	 * @param executionId ID of the task requested.
-	 * @param taskBackPressureRatio Back pressure ratio of the task.
-	 *
+	 * @param taskBackPressureResponse The returned task back pressure response.
 	 * @throws IllegalStateException If the request ID is unknown and not recently
 	 *                               finished or the request has been cancelled.
 	 */
-	@VisibleForTesting
-	void collectTaskBackPressureStat(
-			int requestId,
-			ExecutionAttemptID executionId,
-			double taskBackPressureRatio) {
+	private void handleSuccessfulTaskBackPressureResponse(TaskBackPressureResponse taskBackPressureResponse) {
+		int requestId = taskBackPressureResponse.getRequestId();
+		ExecutionAttemptID executionId = taskBackPressureResponse.getExecutionAttemptID();
+		double taskBackPressureRatio = taskBackPressureResponse.getBackPressureRatio();
 
 		synchronized (lock) {
 			if (isShutDown) {
@@ -236,7 +237,7 @@ public class BackPressureRequestCoordinator {
 			}
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Collecting back pressure request {} result of task {}.", requestId, executionId);
+				LOG.debug("Collecting back pressure response of request {} from task {}.", requestId, executionId);
 			}
 
 			PendingBackPressureRequest pending = pendingRequests.get(requestId);
@@ -258,7 +259,7 @@ public class BackPressureRequestCoordinator {
 				}
 			} else {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Unknown request ID " + requestId);
+					LOG.debug(String.format("Unknown request ID %d.", requestId));
 				}
 			}
 		}
@@ -307,59 +308,62 @@ public class BackPressureRequestCoordinator {
 			this.backPressureStatsFuture = new CompletableFuture<>();
 		}
 
-		boolean isComplete() {
-			if (isDiscarded) {
-				throw new IllegalStateException("Discarded");
-			}
+		private boolean isComplete() {
+			checkDiscarded();
 
 			return pendingTasks.isEmpty();
 		}
 
-		void discard(Throwable cause) {
+		private void discard(Throwable cause) {
 			if (!isDiscarded) {
 				pendingTasks.clear();
 				backPressureRatios.clear();
 
-				backPressureStatsFuture.completeExceptionally(new RuntimeException("Discarded", cause));
+				backPressureStatsFuture.completeExceptionally(new RuntimeException("Discarded.", cause));
 
 				isDiscarded = true;
 			}
 		}
 
-		void collectBackPressureStats(ExecutionAttemptID executionId, double backPressureRatio) {
-			if (isDiscarded) {
-				throw new IllegalStateException("Discarded");
-			}
+		private void collectBackPressureStats(ExecutionAttemptID executionId, double backPressureRatio) {
+			checkDiscarded();
+			checkCompleted();
 
 			if (pendingTasks.remove(executionId)) {
 				backPressureRatios.put(executionId, backPressureRatio);
-			} else if (isComplete()) {
-				throw new IllegalStateException("Completed");
 			} else {
-				throw new IllegalArgumentException("Unknown task " + executionId);
+				throw new IllegalArgumentException(String.format("Unknown task %s.", executionId));
 			}
 		}
 
-		void completePromiseAndDiscard() {
-			if (isComplete()) {
-				isDiscarded = true;
+		private void completePromiseAndDiscard() {
+			isDiscarded = true;
 
-				long endTime = System.currentTimeMillis();
+			long endTime = System.currentTimeMillis();
 
-				BackPressureStats backPressureStats = new BackPressureStats(
-						requestId,
-						startTime,
-						endTime,
-						backPressureRatios);
+			BackPressureStats backPressureStats = new BackPressureStats(
+				requestId,
+				startTime,
+				endTime,
+				backPressureRatios);
 
-				backPressureStatsFuture.complete(backPressureStats);
-			} else {
-				throw new IllegalStateException("Not completed yet");
-			}
+			backPressureStatsFuture.complete(backPressureStats);
 		}
 
-		CompletableFuture<BackPressureStats> getBackPressureStatsFuture() {
+		private CompletableFuture<BackPressureStats> getBackPressureStatsFuture() {
 			return backPressureStatsFuture;
+		}
+
+		private void checkCompleted() {
+			if (pendingTasks.isEmpty()) {
+				throw new IllegalStateException("Completed.");
+			}
+		}
+
+		private void checkDiscarded() {
+			if (isDiscarded) {
+				throw new IllegalStateException("Discarded.");
+			}
 		}
 	}
 }
