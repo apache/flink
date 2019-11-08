@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sqlexec;
+package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.table.api.DataTypes;
@@ -44,8 +44,6 @@ import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.PlannerContext;
-import org.apache.flink.table.planner.operations.SqlConversionException;
-import org.apache.flink.table.planner.operations.SqlToOperationConverter;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 
@@ -70,7 +68,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test cases for {@link org.apache.flink.table.planner.operations.SqlToOperationConverter}.
+ * Test cases for {@link SqlToOperationConverter}.
  */
 public class SqlToOperationConverterTest {
 	private final TableConfig tableConfig = new TableConfig();
