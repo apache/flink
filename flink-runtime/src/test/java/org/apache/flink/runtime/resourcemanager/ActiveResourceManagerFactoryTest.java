@@ -55,6 +55,7 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
 	@Test
 	public void createResourceManager_WithDefaultConfiguration_ShouldSetManagedMemory() throws Exception {
 		final Configuration configuration = new Configuration();
+		configuration.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "512m");
 
 		final TestingActiveResourceManagerFactory resourceManagerFactory = new TestingActiveResourceManagerFactory();
 
@@ -89,7 +90,7 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
 				ClusterInformation clusterInformation,
 				@Nullable String webInterfaceUrl,
 				ResourceManagerMetricGroup resourceManagerMetricGroup) {
-			assertThat(configuration.contains(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE), is(true));
+			assertThat(configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE), is(true));
 
 			return null;
 		}
