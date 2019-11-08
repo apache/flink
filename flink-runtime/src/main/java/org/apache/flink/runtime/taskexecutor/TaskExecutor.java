@@ -247,7 +247,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
 
-		Preconditions.checkNotNull(metricQueryServiceAddress);
 		checkArgument(taskManagerConfiguration.getNumberSlots() > 0, "The number of slots has to be larger than 0.");
 
 		this.taskManagerConfiguration = checkNotNull(taskManagerConfiguration);
@@ -257,7 +256,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.partitionTracker = partitionTracker;
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.blobCacheService = checkNotNull(blobCacheService);
-		this.metricQueryServiceAddress = metricQueryServiceAddress;
+		this.metricQueryServiceAddress = checkNotNull(metricQueryServiceAddress);
 
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
 		this.jobManagerTable = taskExecutorServices.getJobManagerTable();

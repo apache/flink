@@ -66,6 +66,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,6 +80,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.hamcrest.CoreMatchers.is;
@@ -105,11 +107,21 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 	private String metricQueryServiceAddress;
 
+	private TestingRpcService rpcService;
+
 	@Before
 	public void setup() {
+		rpcService = new TestingRpcService();
 		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
-		metricRegistry.startQueryService(new TestingRpcService(), new ResourceID("mqs"));
+		metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
 		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
+	}
+
+	@After
+	public void teardown() throws ExecutionException, InterruptedException {
+		if (rpcService != null) {
+			rpcService.stopService().get();
+		}
 	}
 
 	/**
@@ -163,7 +175,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
 		} catch (Exception e) {
-			e.printStackTrace();
 			assertThat(e.getCause(), instanceOf(IllegalArgumentException.class));
 		}
 	}
