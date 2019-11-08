@@ -1253,7 +1253,7 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="4"><strong>Job (only available on JobManager)</strong></th>
+      <th rowspan="5"><strong>Job (only available on JobManager)</strong></th>
       <td>restartingTime</td>
       <td>The time it took to restart the job, or how long the current restart has been in progress (in milliseconds).</td>
       <td>Gauge</td>
