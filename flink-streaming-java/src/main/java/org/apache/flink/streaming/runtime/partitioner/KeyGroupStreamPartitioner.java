@@ -55,7 +55,6 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
 		}
-		Preconditions.checkNotNull(key, "HASH key must not be null!");
 		return KeyGroupRangeAssignment.assignKeyToParallelOperator(key, maxParallelism, numberOfChannels);
 	}
 

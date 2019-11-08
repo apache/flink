@@ -22,6 +22,8 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 public final class KeyGroupRangeAssignment {
 
 	/**
@@ -45,7 +47,8 @@ public final class KeyGroupRangeAssignment {
 	 * @param parallelism the current parallelism of the operator
 	 * @return the index of the parallel operator to which the given key should be routed.
 	 */
-	public static int assignKeyToParallelOperator(Object key, int maxParallelism, int parallelism) {
+	public static int assignKeyToParallelOperator(@Nullable Object key, int maxParallelism, int parallelism) {
+		Preconditions.checkNotNull(key, "Assigned key must not be null!");
 		return computeOperatorIndexForKeyGroup(maxParallelism, parallelism, assignToKeyGroup(key, maxParallelism));
 	}
 
