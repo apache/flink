@@ -221,17 +221,11 @@ class StreamPlanner(
   }
 
   private def getFlinkPlanner: FlinkPlannerImpl = {
-    val currentCatalogName = catalogManager.getCurrentCatalog
-    val currentDatabase = catalogManager.getCurrentDatabase
-
-    planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
+    planningConfigurationBuilder.createFlinkPlanner(catalogManager)
   }
 
   private[flink] def getRelBuilder: FlinkRelBuilder = {
-    val currentCatalogName = catalogManager.getCurrentCatalog
-    val currentDatabase = catalogManager.getCurrentDatabase
-
-    planningConfigurationBuilder.createRelBuilder(currentCatalogName, currentDatabase)
+    planningConfigurationBuilder.createRelBuilder(catalogManager)
   }
 
   private[flink] def getConfig: TableConfig = config

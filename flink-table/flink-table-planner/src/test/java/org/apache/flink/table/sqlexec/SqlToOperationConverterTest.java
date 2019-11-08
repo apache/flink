@@ -427,8 +427,7 @@ public class SqlToOperationConverterTest {
 
 	private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
 		tableConfig.setSqlDialect(sqlDialect);
-		return planningConfigurationBuilder.createFlinkPlanner(catalogManager.getCurrentCatalog(),
-			catalogManager.getCurrentDatabase());
+		return planningConfigurationBuilder.createFlinkPlanner(catalogManager);
 	}
 
 	//~ Inner Classes ----------------------------------------------------------

@@ -629,9 +629,7 @@ abstract class TableEnvImpl(
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
   @VisibleForTesting
   private[flink] def getFlinkPlanner: FlinkPlannerImpl = {
-    val currentCatalogName = catalogManager.getCurrentCatalog
-    val currentDatabase = catalogManager.getCurrentDatabase
 
-    planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
+    planningConfigurationBuilder.createFlinkPlanner(catalogManager)
   }
 }

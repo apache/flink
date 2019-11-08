@@ -33,6 +33,7 @@ import org.apache.flink.table.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.FlinkTypeSystem;
 import org.apache.flink.table.catalog.BasicOperatorTable;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogReader;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionCatalogOperatorTable;
@@ -61,8 +62,10 @@ import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
 
 /**
  * Utility class to create {@link org.apache.calcite.tools.RelBuilder} or {@link FrameworkConfig} used to create
@@ -83,10 +86,10 @@ public class PlanningConfigurationBuilder {
 	private CalciteSchema rootSchema;
 
 	public PlanningConfigurationBuilder(
-			TableConfig tableConfig,
-			FunctionCatalog functionCatalog,
-			CalciteSchema rootSchema,
-			ExpressionBridge<PlannerExpression> expressionBridge) {
+		TableConfig tableConfig,
+		FunctionCatalog functionCatalog,
+		CalciteSchema rootSchema,
+		ExpressionBridge<PlannerExpression> expressionBridge) {
 		this.tableConfig = tableConfig;
 		this.functionCatalog = functionCatalog;
 
@@ -106,15 +109,14 @@ public class PlanningConfigurationBuilder {
 	/**
 	 * Creates a configured {@link FlinkRelBuilder} for a planning session.
 	 *
-	 * @param currentCatalog the current default catalog to look for first during planning.
-	 * @param currentDatabase the current default database to look for first during planning.
+	 * @param catalogManager use for create catalogReader during planning.
 	 * @return configured rel builder
 	 */
-	public FlinkRelBuilder createRelBuilder(String currentCatalog, String currentDatabase) {
+	public FlinkRelBuilder createRelBuilder(CatalogManager catalogManager) {
 		RelOptCluster cluster = FlinkRelOptClusterFactory.create(
 			planner,
 			new RexBuilder(typeFactory));
-		RelOptSchema relOptSchema = createCatalogReader(false, currentCatalog, currentDatabase);
+		RelOptSchema relOptSchema = createCatalogReader(false, catalogManager);
 
 		return new FlinkRelBuilder(context, cluster, relOptSchema, expressionBridge);
 	}
@@ -122,14 +124,13 @@ public class PlanningConfigurationBuilder {
 	/**
 	 * Creates a configured {@link FlinkPlannerImpl} for a planning session.
 	 *
-	 * @param currentCatalog the current default catalog to look for first during planning.
-	 * @param currentDatabase the current default database to look for first during planning.
+	 * @param catalogManager use for create catalogReader during planning.
 	 * @return configured flink planner
 	 */
-	public FlinkPlannerImpl createFlinkPlanner(String currentCatalog, String currentDatabase) {
+	public FlinkPlannerImpl createFlinkPlanner(CatalogManager catalogManager) {
 		return new FlinkPlannerImpl(
 			createFrameworkConfig(),
-			isLenient -> createCatalogReader(isLenient, currentCatalog, currentDatabase),
+			isLenient -> createCatalogReader(isLenient, catalogManager),
 			planner,
 			typeFactory);
 	}
@@ -143,12 +144,16 @@ public class PlanningConfigurationBuilder {
 		return new CalciteParser(getSqlParserConfig());
 	}
 
-	/** Returns the Calcite {@link org.apache.calcite.plan.RelOptPlanner} that will be used. */
+	/**
+	 * Returns the Calcite {@link org.apache.calcite.plan.RelOptPlanner} that will be used.
+	 */
 	public RelOptPlanner getPlanner() {
 		return planner;
 	}
 
-	/** Returns the {@link FlinkTypeFactory} that will be used. */
+	/**
+	 * Returns the {@link FlinkTypeFactory} that will be used.
+	 */
 	public FlinkTypeFactory getTypeFactory() {
 		return typeFactory;
 	}
@@ -185,9 +190,8 @@ public class PlanningConfigurationBuilder {
 	}
 
 	private CatalogReader createCatalogReader(
-			boolean lenientCaseSensitivity,
-			String currentCatalog,
-			String currentDatabase) {
+		boolean lenientCaseSensitivity,
+		CatalogManager catalogManager) {
 		SqlParser.Config sqlParserConfig = getSqlParserConfig();
 		final boolean caseSensitive;
 		if (lenientCaseSensitivity) {
@@ -200,12 +204,17 @@ public class PlanningConfigurationBuilder {
 			.setCaseSensitive(caseSensitive)
 			.build();
 
+		List<List<String>> schemaPath = new ArrayList();
+		catalogManager.listCatalogs().stream().forEach(catalogName -> {
+			catalogManager.getCatalog(catalogName).ifPresent(catalog -> {
+				String database = catalog.getDefaultDatabase();
+				schemaPath.add(asList(catalogName, database));
+				schemaPath.add(asList(catalogName));
+			});
+		});
 		return new CatalogReader(
 			rootSchema,
-			asList(
-				asList(currentCatalog, currentDatabase),
-				singletonList(currentCatalog)
-			),
+			schemaPath,
 			typeFactory,
 			CalciteConfig.connectionConfig(parserConfig));
 	}
@@ -236,8 +245,8 @@ public class PlanningConfigurationBuilder {
 	 * Returns the {@link SqlToRelConverter} config.
 	 */
 	private SqlToRelConverter.Config getSqlToRelConverterConfig(
-			CalciteConfig calciteConfig,
-			ExpressionBridge<PlannerExpression> expressionBridge) {
+		CalciteConfig calciteConfig,
+		ExpressionBridge<PlannerExpression> expressionBridge) {
 		return JavaScalaConversionUtil.toJava(calciteConfig.sqlToRelConverterConfig()).orElseGet(
 			() -> SqlToRelConverter.configBuilder()
 				.withTrimUnusedFields(false)
