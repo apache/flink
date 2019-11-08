@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
@@ -32,6 +33,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.BindException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -42,9 +46,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link BootstrapToolsTest}.
@@ -358,6 +365,25 @@ public class BootstrapToolsTest extends TestLogger {
 			FutureUtils.completeAll(actorSystemFutures).get();
 		} finally {
 			ExecutorUtils.gracefulShutdown(10000L, TimeUnit.MILLISECONDS, executorService);
+		}
+	}
+
+	/**
+	 * Tests that the {@link ActorSystem} fails with an expressive exception if it cannot be
+	 * instantiated due to an occupied port.
+	 */
+	@Test
+	public void testActorSystemInstantiationFailureWhenPortOccupied() throws Exception {
+		final ServerSocket portOccupier = new ServerSocket(0, 10, InetAddress.getByName("0.0.0.0"));
+
+		try {
+			final int port = portOccupier.getLocalPort();
+			BootstrapTools.startActorSystem(new Configuration(), "0.0.0.0", port, LOG);
+			fail("Expected to fail with a BindException");
+		} catch (Exception e) {
+			assertThat(ExceptionUtils.findThrowable(e, BindException.class).isPresent(), is(true));
+		} finally {
+			portOccupier.close();
 		}
 	}
 }

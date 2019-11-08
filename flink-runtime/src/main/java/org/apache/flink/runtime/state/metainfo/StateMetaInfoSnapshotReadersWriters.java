@@ -165,7 +165,7 @@ public class StateMetaInfoSnapshotReadersWriters {
 			@Nonnull DataOutputView outputView) throws IOException {
 			final Map<String, String> optionsMap = snapshot.getOptionsImmutable();
 			final Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap =
-				snapshot.getSerializerConfigSnapshotsImmutable();
+				snapshot.getSerializerSnapshotsImmutable();
 
 			outputView.writeUTF(snapshot.getName());
 			outputView.writeInt(snapshot.getBackendStateType().ordinal());

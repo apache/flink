@@ -45,7 +45,6 @@ public class CustomInputSplitProgram {
 	public static void main(String[] args) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());
 
@@ -148,6 +147,15 @@ public class CustomInputSplitProgram {
 					return remainingSplits.remove(size - 1);
 				} else {
 					return null;
+				}
+			}
+		}
+
+		@Override
+		public void returnInputSplit(List<InputSplit> splits, int taskId) {
+			synchronized (this) {
+				for (InputSplit split : splits) {
+					remainingSplits.add((CustomInputSplit) split);
 				}
 			}
 		}

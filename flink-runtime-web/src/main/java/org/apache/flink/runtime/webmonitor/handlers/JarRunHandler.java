@@ -34,8 +34,6 @@ import org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.JarHan
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 import javax.annotation.Nonnull;
 
 import java.net.InetSocketAddress;
@@ -63,7 +61,6 @@ public class JarRunHandler extends
 	private final Executor executor;
 
 	public JarRunHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
@@ -71,7 +68,7 @@ public class JarRunHandler extends
 			final Path jarDir,
 			final Configuration configuration,
 			final Executor executor) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.jarDir = requireNonNull(jarDir);
 		this.configuration = requireNonNull(configuration);
@@ -101,20 +98,10 @@ public class JarRunHandler extends
 			return jobGraph;
 		});
 
-		CompletableFuture<Acknowledge> jobSubmissionFuture = jarUploadFuture.thenCompose(jobGraph -> {
-			// we have to enable queued scheduling because slots will be allocated lazily
-			jobGraph.setAllowQueuedScheduling(true);
-			return gateway.submitJob(jobGraph, timeout);
-		});
+		CompletableFuture<Acknowledge> jobSubmissionFuture = jarUploadFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
 
 		return jobSubmissionFuture
-			.thenCombine(jarUploadFuture, (ack, jobGraph) -> new JarRunResponseBody(jobGraph.getJobID()))
-			.exceptionally(throwable -> {
-				throw new CompletionException(new RestHandlerException(
-					throwable.getMessage(),
-					HttpResponseStatus.INTERNAL_SERVER_ERROR,
-					throwable));
-			});
+			.thenCombine(jarUploadFuture, (ack, jobGraph) -> new JarRunResponseBody(jobGraph.getJobID()));
 	}
 
 	private SavepointRestoreSettings getSavepointRestoreSettings(

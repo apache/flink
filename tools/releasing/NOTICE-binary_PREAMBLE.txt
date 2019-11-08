@@ -1,0 +1,17 @@
+// ------------------------------------------------------------------
+// NOTICE file corresponding to the section 4d of The Apache License,
+// Version 2.0, in this case for Apache Flink
+// ------------------------------------------------------------------
+
+Apache Flink
+Copyright 2014-2019 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- log4j:log4j:1.2.17
+
+This project bundles the following dependencies under the MIT/X11 license.
+See bundled license files for details.
+
+- org.slf4j:slf4j-log4j12:1.7.15
+

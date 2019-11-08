@@ -40,6 +40,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 
 import javax.annotation.Nullable;
 
@@ -132,21 +133,6 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 		AllocationID oldAllocationId);
 
 	/**
-	 * Registers an infoMessage listener
-	 *
-	 * @param infoMessageListenerAddress address of infoMessage listener to register to this resource manager
-	 */
-	void registerInfoMessageListener(String infoMessageListenerAddress);
-
-	/**
-	 * Unregisters an infoMessage listener
-	 *
-	 * @param infoMessageListenerAddress address of infoMessage listener to unregister from this resource manager
-	 *
-	 */
-	void unRegisterInfoMessageListener(String infoMessageListenerAddress);
-
-	/**
 	 * Deregister Flink from the underlying resource management system.
 	 *
 	 * @param finalStatus final status with which to deregister the Flink application
@@ -165,9 +151,9 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * Sends the heartbeat to resource manager from task manager
 	 *
 	 * @param heartbeatOrigin unique id of the task manager
-	 * @param slotReport Current slot allocation on the originating TaskManager
+	 * @param heartbeatPayload payload from the originating TaskManager
 	 */
-	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin, final SlotReport slotReport);
+	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin, final TaskExecutorHeartbeatPayload heartbeatPayload);
 
 	/**
 	 * Sends the heartbeat to resource manager from job manager
@@ -224,7 +210,7 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * @param timeout for the asynchronous operation
 	 * @return Future containing the collection of resource ids and the corresponding metric query service path
 	 */
-	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
+	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServiceAddresses(@RpcTimeout Time timeout);
 
 	/**
 	 * Request the file upload from the given {@link TaskExecutor} to the cluster's {@link BlobServer}. The

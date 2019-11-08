@@ -25,7 +25,10 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LineBreakElement.linebreak;
 import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * The set of configuration options relating to security.
@@ -298,6 +301,40 @@ public class SecurityOptions {
 		key("security.ssl.verify-hostname")
 			.defaultValue(true)
 			.withDescription("Flag to enable peer’s hostname verification during ssl handshake.");
+
+	/**
+	 * SSL engine provider.
+	 */
+	public static final ConfigOption<String> SSL_PROVIDER =
+		key("security.ssl.provider")
+			.defaultValue("JDK")
+			.withDescription(Description.builder()
+					.text("The SSL engine provider to use for the ssl transport:")
+					.list(
+						text("%s: default Java-based SSL engine", code("JDK")),
+						text("%s: openSSL-based SSL engine using system libraries",
+							code("OPENSSL"))
+					)
+					.text("%s is based on %s and comes in two flavours:",
+						code("OPENSSL"),
+						link("http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4", "netty-tcnative"))
+					.list(
+						text("dynamically linked: This will use your system's openSSL libraries " +
+							"(if compatible) and requires %s to be copied to %s",
+							code("opt/flink-shaded-netty-tcnative-dynamic-*.jar"),
+							code("lib/")),
+						text("statically linked: Due to potential licensing issues with " +
+								"openSSL (see %s), we cannot ship pre-built libraries. However, " +
+								"you can build the required library yourself and put it into %s:%s%s",
+							link("https://issues.apache.org/jira/browse/LEGAL-393", "LEGAL-393"),
+							code("lib/"),
+							linebreak(),
+							code("git clone https://github.com/apache/flink-shaded.git && " +
+								"cd flink-shaded && " +
+								"mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static"))
+					)
+					.build()
+				);
 
 	// ------------------------ ssl parameters --------------------------------
 

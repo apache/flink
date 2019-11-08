@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -49,7 +50,6 @@ public class ExecutionPlanCreationTest {
 	public void testGetExecutionPlan() {
 		try {
 			PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
-			assertNotNull(prg.getPreviewPlan());
 
 			InetAddress mockAddress = InetAddress.getLocalHost();
 			InetSocketAddress mockJmAddress = new InetSocketAddress(mockAddress, 12345);
@@ -60,7 +60,8 @@ public class ExecutionPlanCreationTest {
 			config.setInteger(JobManagerOptions.PORT, mockJmAddress.getPort());
 
 			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-			OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, -1);
+			Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, -1);
+			OptimizedPlan op = optimizer.compile(plan);
 			assertNotNull(op);
 
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

@@ -42,6 +42,6 @@ public class NumberOfFullRestartsGauge implements Gauge<Long> {
 
 	@Override
 	public Long getValue() {
-		return eg.getNumberOfFullRestarts();
+		return eg.getNumberOfRestarts();
 	}
 }

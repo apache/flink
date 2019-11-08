@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.entrypoint.parser;
 
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
@@ -43,6 +45,7 @@ public interface ParserResultFactory<T> {
 	 *
 	 * @param commandLine to extract the options from
 	 * @return Result of the parsing
+	 * @throws FlinkParseException Thrown on failures while parsing command line arguments
 	 */
-	T createResult(@Nonnull CommandLine commandLine);
+	T createResult(@Nonnull CommandLine commandLine) throws FlinkParseException;
 }

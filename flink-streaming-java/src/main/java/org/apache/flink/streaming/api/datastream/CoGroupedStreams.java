@@ -25,14 +25,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -504,7 +503,9 @@ public class CoGroupedStreams<T1, T2> {
 		}
 	}
 
-	private static class UnionSerializer<T1, T2> extends TypeSerializer<TaggedUnion<T1, T2>> {
+	@VisibleForTesting
+	@Internal
+	static class UnionSerializer<T1, T2> extends TypeSerializer<TaggedUnion<T1, T2>> {
 		private static final long serialVersionUID = 1L;
 
 		private final TypeSerializer<T1> oneSerializer;
@@ -522,12 +523,22 @@ public class CoGroupedStreams<T1, T2> {
 
 		@Override
 		public TypeSerializer<TaggedUnion<T1, T2>> duplicate() {
-			return this;
+			TypeSerializer<T1> duplicateOne = oneSerializer.duplicate();
+			TypeSerializer<T2> duplicateTwo = twoSerializer.duplicate();
+
+			// compare reference of nested serializers, if same instances returned, we can reuse
+			// this instance as well
+			if (duplicateOne != oneSerializer || duplicateTwo != twoSerializer) {
+				return new UnionSerializer<>(duplicateOne, duplicateTwo);
+			} else {
+				return this;
+			}
 		}
 
 		@Override
 		public TaggedUnion<T1, T2> createInstance() {
-			return null;
+			//we arbitrarily always create instance of one
+			return TaggedUnion.one(oneSerializer.createInstance());
 		}
 
 		@Override
@@ -606,72 +617,89 @@ public class CoGroupedStreams<T1, T2> {
 			if (obj instanceof UnionSerializer) {
 				UnionSerializer<T1, T2> other = (UnionSerializer<T1, T2>) obj;
 
-				return other.canEqual(this) && oneSerializer.equals(other.oneSerializer) && twoSerializer.equals(other.twoSerializer);
+				return oneSerializer.equals(other.oneSerializer) && twoSerializer.equals(other.twoSerializer);
 			} else {
 				return false;
 			}
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof UnionSerializer;
-		}
-
-		@Override
-		public TypeSerializerConfigSnapshot<TaggedUnion<T1, T2>> snapshotConfiguration() {
-			return new UnionSerializerConfigSnapshot<>(oneSerializer, twoSerializer);
-		}
-
-		@Override
-		public CompatibilityResult<TaggedUnion<T1, T2>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			if (configSnapshot instanceof UnionSerializerConfigSnapshot) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousSerializersAndConfigs =
-					((UnionSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
-
-				CompatibilityResult<T1> oneSerializerCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousSerializersAndConfigs.get(0).f0,
-					UnloadableDummyTypeSerializer.class,
-					previousSerializersAndConfigs.get(0).f1,
-					oneSerializer);
-
-				CompatibilityResult<T2> twoSerializerCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousSerializersAndConfigs.get(1).f0,
-					UnloadableDummyTypeSerializer.class,
-					previousSerializersAndConfigs.get(1).f1,
-					twoSerializer);
-
-				if (!oneSerializerCompatResult.isRequiresMigration() && !twoSerializerCompatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
-				} else if (oneSerializerCompatResult.getConvertDeserializer() != null && twoSerializerCompatResult.getConvertDeserializer() != null) {
-					return CompatibilityResult.requiresMigration(
-						new UnionSerializer<>(
-							new TypeDeserializerAdapter<>(oneSerializerCompatResult.getConvertDeserializer()),
-							new TypeDeserializerAdapter<>(twoSerializerCompatResult.getConvertDeserializer())));
-				}
-			}
-
-			return CompatibilityResult.requiresMigration();
+		public TypeSerializerSnapshot<TaggedUnion<T1, T2>> snapshotConfiguration() {
+			return new UnionSerializerSnapshot<>(this);
 		}
 	}
 
 	/**
 	 * The {@link TypeSerializerConfigSnapshot} for the {@link UnionSerializer}.
+	 *
+	 * @deprecated this snapshot class is no longer in use, and is maintained only for backwards compatibility.
+	 *             It is fully replaced by {@link UnionSerializerSnapshot}.
 	 */
+	@Deprecated
 	public static class UnionSerializerConfigSnapshot<T1, T2>
-			extends CompositeTypeSerializerConfigSnapshot<TaggedUnion<T1, T2>> {
+		extends CompositeTypeSerializerConfigSnapshot<TaggedUnion<T1, T2>> {
 
 		private static final int VERSION = 1;
 
-		/** This empty nullary constructor is required for deserializing the configuration. */
-		public UnionSerializerConfigSnapshot() {}
+		/**
+		 * This empty nullary constructor is required for deserializing the configuration.
+		 */
+		public UnionSerializerConfigSnapshot() {
+		}
 
 		public UnionSerializerConfigSnapshot(TypeSerializer<T1> oneSerializer, TypeSerializer<T2> twoSerializer) {
 			super(oneSerializer, twoSerializer);
 		}
 
 		@Override
+		public TypeSerializerSchemaCompatibility<TaggedUnion<T1, T2>> resolveSchemaCompatibility(TypeSerializer<TaggedUnion<T1, T2>> newSerializer) {
+			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs = getNestedSerializersAndConfigs();
+
+			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+				newSerializer,
+				new UnionSerializerSnapshot<>(),
+				nestedSerializersAndConfigs.get(0).f1,
+				nestedSerializersAndConfigs.get(1).f1
+			);
+		}
+
+		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+	}
+
+	/**
+	 * The {@link TypeSerializerSnapshot} for the {@link UnionSerializer}.
+	 */
+	public static class UnionSerializerSnapshot<T1, T2>
+		extends CompositeTypeSerializerSnapshot<TaggedUnion<T1, T2>, UnionSerializer<T1, T2>> {
+
+		private static final int VERSION = 2;
+
+		@SuppressWarnings("WeakerAccess")
+		public UnionSerializerSnapshot() {
+			super(UnionSerializer.class);
+		}
+
+		UnionSerializerSnapshot(UnionSerializer<T1, T2> serializerInstance) {
+			super(serializerInstance);
+		}
+
+		@Override
+		protected int getCurrentOuterSnapshotVersion() {
+			return VERSION;
+		}
+
+		@Override
+		protected TypeSerializer<?>[] getNestedSerializers(UnionSerializer<T1, T2> outerSerializer) {
+			return new TypeSerializer[]{outerSerializer.oneSerializer, outerSerializer.twoSerializer};
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected UnionSerializer<T1, T2> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+			return new UnionSerializer<>((TypeSerializer<T1>) nestedSerializers[0], (TypeSerializer<T2>) nestedSerializers[1]);
 		}
 	}
 

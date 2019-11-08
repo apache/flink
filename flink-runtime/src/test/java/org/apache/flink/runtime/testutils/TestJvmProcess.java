@@ -260,6 +260,10 @@ public abstract class TestJvmProcess {
 				Field pidField = clazz.getDeclaredField("pid");
 				pidField.setAccessible(true);
 				return pidField.getLong(process);
+			} else if (clazz.getName().equals("java.lang.ProcessImpl")) {
+				Method pid = clazz.getDeclaredMethod("pid");
+				pid.setAccessible(true);
+				return (long) pid.invoke(process);
 			} else {
 				return -1;
 			}

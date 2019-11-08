@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -166,7 +166,7 @@ under the License.
 								<filter>
 									<artifact>org.apache.flink:flink-hadoop-fs</artifact>
 									<excludes>
-										<exclude>org/apache/flink/runtime/util/**</exclude>
+										<exclude>org/apache/flink/runtime/util/HadoopUtils</exclude>
 										<exclude>org/apache/flink/runtime/fs/hdfs/HadoopRecoverable*</exclude>
 									</excludes>
 								</filter>
@@ -177,6 +177,7 @@ under the License.
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>META-INF/maven/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 							</filters>

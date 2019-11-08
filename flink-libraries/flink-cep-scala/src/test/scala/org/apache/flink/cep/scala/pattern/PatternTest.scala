@@ -113,7 +113,7 @@ class PatternTest {
 
     assertTrue(pattern.getCondition.isDefined)
     assertTrue(previous.getCondition.isDefined)
-    assertFalse(preprevious.getCondition.isDefined)
+    assertTrue(preprevious.getCondition.isDefined)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "next")

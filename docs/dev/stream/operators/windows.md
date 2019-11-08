@@ -371,7 +371,7 @@ Dynamic gaps are specified by implementing the `SessionWindowTimeGapExtractor` i
 
 <span class="label label-danger">Attention</span> Since session windows do not have a fixed start and end,
 they are  evaluated differently than tumbling and sliding windows. Internally, a session window operator
-creates a new window for each arriving record and merges windows together if their are closer to each other
+creates a new window for each arriving record and merges windows together if they are closer to each other
 than the defined gap.
 In order to be mergeable, a session window operator requires a merging [Trigger](#triggers) and a merging
 [Window Function](#window-functions), such as `ReduceFunction`, `AggregateFunction`, or `ProcessWindowFunction`
@@ -759,7 +759,7 @@ input
 
 class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
 
-  def process(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]): () = {
+  def process(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]) = {
     var count = 0L
     for (in <- input) {
       count = count + 1
@@ -783,7 +783,7 @@ When the window is closed, the `ProcessWindowFunction` will be provided with the
 This allows it to incrementally compute windows while having access to the
 additional window meta information of the `ProcessWindowFunction`.
 
-<span class="label label-info">Note</span> You can also the legacy `WindowFunction` instead of
+<span class="label label-info">Note</span> You can also use the legacy `WindowFunction` instead of
 `ProcessWindowFunction` for incremental window aggregation.
 
 #### Incremental Window Aggregation with ReduceFunction
@@ -819,7 +819,7 @@ private static class MyProcessWindowFunction
                     Iterable<SensorReading> minReadings,
                     Collector<Tuple2<Long, SensorReading>> out) {
       SensorReading min = minReadings.iterator().next();
-      out.collect(new Tuple2<Long, SensorReading>(window.getStart(), min));
+      out.collect(new Tuple2<Long, SensorReading>(context.window().getStart(), min));
   }
 }
 
@@ -836,12 +836,12 @@ input
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
-      window: TimeWindow,
+      context: ProcessWindowFunction[_, _, _, TimeWindow]#Context,
       minReadings: Iterable[SensorReading],
       out: Collector[(Long, SensorReading)] ) =>
       {
         val min = minReadings.iterator.next()
-        out.collect((window.getStart, min))
+        out.collect((context.window.getStart, min))
       }
   )
 
@@ -938,7 +938,7 @@ class AverageAggregate extends AggregateFunction[(String, Long), (Long, Long), D
 
 class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Double), String, TimeWindow] {
 
-  def process(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double]): () = {
+  def process(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double)]) = {
     val average = averages.iterator.next()
     out.collect((key, average))
   }
@@ -1034,7 +1034,7 @@ different keys and events for all of them currently fall into the *[12:00, 13:00
 then there will be 1000 window instances that each have their own keyed per-window state.
 
 There are two methods on the `Context` object that a `process()` invocation receives that allow
-access two the two types of state:
+access to the two types of state:
 
  - `globalState()`, which allows access to keyed state that is not scoped to a window
  - `windowState()`, which allows access to keyed state that is also scoped to the window

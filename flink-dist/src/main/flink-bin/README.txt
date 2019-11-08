@@ -1,6 +1,6 @@
 For the latest information about Flink, please visit our website at:
 
-   http://flink.apache.org
+   https://flink.apache.org
 
 and our GitHub Account 
 

@@ -246,7 +246,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		}
 	}
 
-	private static Row toRow(TestEntry entry) {
+	static Row toRow(TestEntry entry) {
 		Row row = new Row(5);
 		row.setField(0, entry.id);
 		row.setField(1, entry.title);

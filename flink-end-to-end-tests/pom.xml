@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,9 +36,12 @@ under the License.
 
 	<modules>
 		<module>flink-cli-test</module>
-		<module>flink-parent-child-classloading-test</module>
+		<module>flink-parent-child-classloading-test-program</module>
+		<module>flink-parent-child-classloading-test-lib-package</module>
 		<module>flink-dataset-allround-test</module>
+		<module>flink-dataset-fine-grained-recovery-test</module>
 		<module>flink-datastream-allround-test</module>
+		<module>flink-batch-sql-test</module>
 		<module>flink-stream-sql-test</module>
 		<module>flink-bucketing-sink-test</module>
 		<module>flink-distributed-cache-via-blob-test</module>
@@ -46,7 +49,6 @@ under the License.
 		<module>flink-stream-stateful-job-upgrade-test</module>
 		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
-		<module>flink-elasticsearch1-test</module>
 		<module>flink-elasticsearch2-test</module>
 		<module>flink-elasticsearch5-test</module>
 		<module>flink-elasticsearch6-test</module>
@@ -58,8 +60,18 @@ under the License.
 		<module>flink-state-evolution-test</module>
 		<module>flink-e2e-test-utils</module>
 		<module>flink-end-to-end-tests-common</module>
+		<module>flink-metrics-availability-test</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
 		<module>flink-heavy-deployment-stress-test</module>
+		<module>flink-connector-gcp-pubsub-emulator-tests</module>
+		<module>flink-streaming-kafka-test-base</module>
+		<module>flink-streaming-kafka-test</module>
+		<module>flink-streaming-kafka011-test</module>
+		<module>flink-streaming-kafka010-test</module>
+		<module>flink-plugins-test</module>
+		<module>flink-tpch-test</module>
+		<module>flink-streaming-kinesis-test</module>
+		<module>flink-elasticsearch7-test</module>
 	</modules>
 
 	<build>

@@ -26,7 +26,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -55,24 +54,19 @@ public class KeyGroupStreamPartitionerTest extends TestLogger {
 	}
 
 	@Test
-	public void testSelectChannelsLength() {
-		serializationDelegate1.setInstance(streamRecord1);
-
-		assertEquals(1, keyGroupPartitioner.selectChannels(serializationDelegate1, 1).length);
-		assertEquals(1, keyGroupPartitioner.selectChannels(serializationDelegate1, 2).length);
-		assertEquals(1, keyGroupPartitioner.selectChannels(serializationDelegate1, 1024).length);
-	}
-
-	@Test
 	public void testSelectChannelsGrouping() {
 		serializationDelegate1.setInstance(streamRecord1);
 		serializationDelegate2.setInstance(streamRecord2);
 
-		assertArrayEquals(keyGroupPartitioner.selectChannels(serializationDelegate1, 1),
-			keyGroupPartitioner.selectChannels(serializationDelegate2, 1));
-		assertArrayEquals(keyGroupPartitioner.selectChannels(serializationDelegate1, 2),
-			keyGroupPartitioner.selectChannels(serializationDelegate2, 2));
-		assertArrayEquals(keyGroupPartitioner.selectChannels(serializationDelegate1, 1024),
-			keyGroupPartitioner.selectChannels(serializationDelegate2, 1024));
+		assertEquals(selectChannels(serializationDelegate1, 1), selectChannels(serializationDelegate2, 1));
+		assertEquals(selectChannels(serializationDelegate1, 2), selectChannels(serializationDelegate2, 2));
+		assertEquals(selectChannels(serializationDelegate1, 1024), selectChannels(serializationDelegate2, 1024));
+	}
+
+	private int selectChannels(
+			SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> serializationDelegate,
+			int numberOfChannels) {
+		keyGroupPartitioner.setup(numberOfChannels);
+		return keyGroupPartitioner.selectChannel(serializationDelegate);
 	}
 }

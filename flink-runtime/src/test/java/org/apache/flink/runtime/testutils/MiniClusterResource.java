@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.util.ExceptionUtils;
@@ -35,8 +38,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Resource which starts a {@link MiniCluster} for testing purposes.
@@ -74,7 +80,7 @@ public class MiniClusterResource extends ExternalResource {
 	}
 
 	public URI getRestAddres() {
-		return miniCluster.getRestAddress();
+		return miniCluster.getRestAddress().join();
 	}
 
 	@Override
@@ -88,11 +94,41 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void after() {
-		temporaryFolder.delete();
-
 		Exception exception = null;
 
 		if (miniCluster != null) {
+			// try to cancel remaining jobs before shutting down cluster
+			try {
+				final Deadline jobCancellationDeadline =
+					Deadline.fromNow(
+						Duration.ofMillis(
+							miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds()));
+
+				final List<CompletableFuture<Acknowledge>> jobCancellationFutures = miniCluster
+					.listJobs()
+					.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS)
+					.stream()
+					.filter(status -> !status.getJobState().isGloballyTerminalState())
+					.map(status -> miniCluster.cancelJob(status.getJobId()))
+					.collect(Collectors.toList());
+
+				FutureUtils
+					.waitForAll(jobCancellationFutures)
+					.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+				CommonTestUtils.waitUntilCondition(() -> {
+					final long unfinishedJobs = miniCluster
+						.listJobs()
+						.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS)
+						.stream()
+						.filter(status -> !status.getJobState().isGloballyTerminalState())
+						.count();
+					return unfinishedJobs == 0;
+				}, jobCancellationDeadline);
+			} catch (Exception e) {
+				log.warn("Exception while shutting down remaining jobs.", e);
+			}
+
 			final CompletableFuture<?> terminationFuture = miniCluster.closeAsync();
 
 			try {
@@ -109,6 +145,8 @@ public class MiniClusterResource extends ExternalResource {
 		if (exception != null) {
 			log.warn("Could not properly shut down the MiniClusterResource.", exception);
 		}
+
+		temporaryFolder.delete();
 	}
 
 	private void startMiniCluster() throws Exception {
@@ -121,13 +159,13 @@ public class MiniClusterResource extends ExternalResource {
 			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
 		}
 
-		if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
-			configuration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
+		if (!configuration.contains(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE)) {
+			configuration.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
 		}
 
 		// set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
 		configuration.setInteger(JobManagerOptions.PORT, 0);
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
@@ -139,7 +177,7 @@ public class MiniClusterResource extends ExternalResource {
 
 		miniCluster.start();
 
-		final URI restAddress = miniCluster.getRestAddress();
+		final URI restAddress = miniCluster.getRestAddress().get();
 		createClientConfiguration(restAddress);
 	}
 

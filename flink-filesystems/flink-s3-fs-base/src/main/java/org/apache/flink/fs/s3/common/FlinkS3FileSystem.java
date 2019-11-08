@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3.common.utils.RefCountedFile;
 import org.apache.flink.fs.s3.common.utils.RefCountedTmpFileCreator;
-import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.fs.s3.common.writer.S3RecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
@@ -60,7 +60,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 	private final FunctionWithException<File, RefCountedFile, IOException> tmpFileCreator;
 
 	@Nullable
-	private final S3MultiPartUploader s3UploadHelper;
+	private final S3AccessHelper s3AccessHelper;
 
 	private final Executor uploadThreadPool;
 
@@ -83,7 +83,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 			String localTmpDirectory,
 			@Nullable String entropyInjectionKey,
 			int entropyLength,
-			@Nullable S3MultiPartUploader s3UploadHelper,
+			@Nullable S3AccessHelper s3UploadHelper,
 			long s3uploadPartSize,
 			int maxConcurrentUploadsPerStream) {
 
@@ -99,7 +99,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 		// recoverable writer parameter configuration initialization
 		this.localTmpDir = Preconditions.checkNotNull(localTmpDirectory);
 		this.tmpFileCreator = RefCountedTmpFileCreator.inDirectories(new File(localTmpDirectory));
-		this.s3UploadHelper = s3UploadHelper;
+		this.s3AccessHelper = s3UploadHelper;
 		this.uploadThreadPool = Executors.newCachedThreadPool();
 
 		Preconditions.checkArgument(s3uploadPartSize >= S3_MULTIPART_MIN_PART_SIZE);
@@ -131,7 +131,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 
 	@Override
 	public RecoverableWriter createRecoverableWriter() throws IOException {
-		if (s3UploadHelper == null) {
+		if (s3AccessHelper == null) {
 			// this is the case for Presto
 			throw new UnsupportedOperationException("This s3 file system implementation does not support recoverable writers.");
 		}
@@ -139,7 +139,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 		return S3RecoverableWriter.writer(
 				getHadoopFileSystem(),
 				tmpFileCreator,
-				s3UploadHelper,
+				s3AccessHelper,
 				uploadThreadPool,
 				s3uploadPartSize,
 				maxConcurrentUploadsPerStream);

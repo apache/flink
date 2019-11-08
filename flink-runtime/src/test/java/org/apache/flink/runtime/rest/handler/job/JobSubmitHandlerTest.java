@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -53,6 +54,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -64,8 +66,13 @@ import java.util.concurrent.CompletableFuture;
 public class JobSubmitHandlerTest extends TestLogger {
 
 	@Parameterized.Parameters(name = "SSL enabled: {0}")
-	public static Iterable<Boolean> data() {
-		return Arrays.asList(true, false);
+	public static Iterable<Tuple2<Boolean, String>> data() {
+		ArrayList<Tuple2<Boolean, String>> parameters = new ArrayList<>(3);
+		parameters.add(Tuple2.of(false, "no SSL"));
+		for (String sslProvider : SSLUtilsTest.AVAILABLE_SSL_PROVIDERS) {
+			parameters.add(Tuple2.of(true, sslProvider));
+		}
+		return parameters;
 	}
 
 	@ClassRule
@@ -75,9 +82,9 @@ public class JobSubmitHandlerTest extends TestLogger {
 
 	private BlobServer blobServer;
 
-	public JobSubmitHandlerTest(boolean withSsl) {
-		this.configuration = withSsl
-			? SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores()
+	public JobSubmitHandlerTest(Tuple2<Boolean, String> withSsl) {
+		this.configuration = withSsl.f0
+			? SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(withSsl.f1)
 			: new Configuration();
 	}
 
@@ -106,7 +113,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -138,7 +144,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -167,7 +172,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -198,7 +202,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(dispatcherGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -244,7 +247,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
-			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),

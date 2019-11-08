@@ -29,7 +29,6 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
-import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
@@ -45,14 +44,11 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -62,12 +58,11 @@ public class SubtaskExecutionAttemptDetailsHandler
 	extends AbstractSubtaskAttemptHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters>
 	implements JsonArchivist {
 
-	private final MetricFetcher<?> metricFetcher;
+	private final MetricFetcher metricFetcher;
 
 	/**
 	 * Instantiates a new subtask execution attempt details handler.
 	 *
-	 * @param localRestAddress    the local rest address
 	 * @param leaderRetriever     the leader retriever
 	 * @param timeout             the timeout
 	 * @param responseHeaders     the response headers
@@ -76,16 +71,15 @@ public class SubtaskExecutionAttemptDetailsHandler
 	 * @param executor            the executor
 	 */
 	public SubtaskExecutionAttemptDetailsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
+			MetricFetcher metricFetcher) {
 
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
@@ -98,7 +92,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 		final JobID jobID = request.getPathParameter(JobIDPathParameter.class);
 		final JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
 
-		return createDetailsInfo(execution, jobID, jobVertexID, metricFetcher);
+		return SubtaskExecutionAttemptDetailsInfo.create(execution, metricFetcher, jobID, jobVertexID);
 	}
 
 	@Override
@@ -106,7 +100,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 		List<ArchivedJson> archive = new ArrayList<>(16);
 		for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
 			for (AccessExecutionVertex subtask : task.getTaskVertices()) {
-				ResponseBody curAttemptJson = createDetailsInfo(subtask.getCurrentExecutionAttempt(), graph.getJobID(), task.getJobVertexId(), null);
+				ResponseBody curAttemptJson = SubtaskExecutionAttemptDetailsInfo.create(subtask.getCurrentExecutionAttempt(), null, graph.getJobID(), task.getJobVertexId());
 				String curAttemptPath = getMessageHeaders().getTargetRestEndpointURL()
 					.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
 					.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
@@ -117,33 +111,18 @@ public class SubtaskExecutionAttemptDetailsHandler
 
 				for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
 					AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
-					ResponseBody json = createDetailsInfo(attempt, graph.getJobID(), task.getJobVertexId(), null);
-					String path = getMessageHeaders().getTargetRestEndpointURL()
-						.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-						.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
-						.replace(':' + SubtaskIndexPathParameter.KEY, String.valueOf(subtask.getParallelSubtaskIndex()))
-						.replace(':' + SubtaskAttemptPathParameter.KEY, String.valueOf(attempt.getAttemptNumber()));
-					archive.add(new ArchivedJson(path, json));
+					if (attempt != null) {
+						ResponseBody json = SubtaskExecutionAttemptDetailsInfo.create(attempt, null, graph.getJobID(), task.getJobVertexId());
+						String path = getMessageHeaders().getTargetRestEndpointURL()
+							.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+							.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
+							.replace(':' + SubtaskIndexPathParameter.KEY, String.valueOf(subtask.getParallelSubtaskIndex()))
+							.replace(':' + SubtaskAttemptPathParameter.KEY, String.valueOf(attempt.getAttemptNumber()));
+						archive.add(new ArchivedJson(path, json));
+					}
 				}
 			}
 		}
 		return archive;
-	}
-
-	private static SubtaskExecutionAttemptDetailsInfo createDetailsInfo(
-			AccessExecution execution,
-			JobID jobID,
-			JobVertexID jobVertexID,
-			@Nullable MetricFetcher<?> metricFetcher) {
-		final MutableIOMetrics ioMetrics = new MutableIOMetrics();
-
-		ioMetrics.addIOMetrics(
-			execution,
-			metricFetcher,
-			jobID.toString(),
-			jobVertexID.toString()
-		);
-
-		return SubtaskExecutionAttemptDetailsInfo.create(execution, ioMetrics);
 	}
 }

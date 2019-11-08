@@ -18,14 +18,12 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.MathUtils;
@@ -33,7 +31,6 @@ import org.apache.flink.util.MathUtils;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -43,6 +40,7 @@ import java.util.Objects;
  * @param <K> type of the timer key.
  * @param <N> type of the timer namespace.
  */
+@Internal
 public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer<K, N>> {
 
 	private static final long serialVersionUID = 1L;
@@ -64,7 +62,7 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	/** True iff the serialized type (and composite objects) are immutable. */
 	private final boolean immutableType;
 
-	TimerSerializer(
+	public TimerSerializer(
 		@Nonnull TypeSerializer<K> keySerializer,
 		@Nonnull TypeSerializer<N> namespaceSerializer) {
 		this(
@@ -204,47 +202,8 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof TimerSerializer;
-	}
-
-	@Override
-	public TypeSerializerConfigSnapshot<TimerHeapInternalTimer<K, N>> snapshotConfiguration() {
-		return new TimerSerializerConfigSnapshot<>(keySerializer, namespaceSerializer);
-	}
-
-	@Override
-	public CompatibilityResult<TimerHeapInternalTimer<K, N>> ensureCompatibility(
-		TypeSerializerConfigSnapshot configSnapshot) {
-
-		if (configSnapshot instanceof TimerSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousSerializersAndConfigs =
-				((TimerSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
-
-			if (previousSerializersAndConfigs.size() == 2) {
-				Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> keySerializerAndSnapshot =
-					previousSerializersAndConfigs.get(KEY_SERIALIZER_SNAPSHOT_INDEX);
-				Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> namespaceSerializerAndSnapshot =
-					previousSerializersAndConfigs.get(NAMESPACE_SERIALIZER_SNAPSHOT_INDEX);
-				CompatibilityResult<K> keyCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					keySerializerAndSnapshot.f0,
-					UnloadableDummyTypeSerializer.class,
-					keySerializerAndSnapshot.f1,
-					keySerializer);
-
-				CompatibilityResult<N> namespaceCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					namespaceSerializerAndSnapshot.f0,
-					UnloadableDummyTypeSerializer.class,
-					namespaceSerializerAndSnapshot.f1,
-					namespaceSerializer);
-
-				if (!keyCompatibilityResult.isRequiresMigration()
-					&& !namespaceCompatibilityResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
-				}
-			}
-		}
-		return CompatibilityResult.requiresMigration();
+	public TimerSerializerSnapshot<K, N> snapshotConfiguration() {
+		return new TimerSerializerSnapshot<>(this);
 	}
 
 	@Nonnull
@@ -262,7 +221,12 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	 *
 	 * @param <K> type of key.
 	 * @param <N> type of namespace.
+	 *
+	 * @deprecated this snapshot class is no longer in use, and is maintained only
+	 *             for backwards compatibility purposes. It is fully replaced by
+	 *             {@link TimerSerializerSnapshot}.
 	 */
+	@Deprecated
 	public static class TimerSerializerConfigSnapshot<K, N> extends CompositeTypeSerializerConfigSnapshot<TimerHeapInternalTimer<K, N>> {
 
 		private static final int VERSION = 1;
@@ -288,6 +252,22 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<TimerHeapInternalTimer<K, N>> resolveSchemaCompatibility(
+				TypeSerializer<TimerHeapInternalTimer<K, N>> newSerializer) {
+
+			final TypeSerializerSnapshot<?>[] nestedSnapshots = getNestedSerializersAndConfigs()
+				.stream()
+				.map(t -> t.f1)
+				.toArray(TypeSerializerSnapshot[]::new);
+
+			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+				newSerializer,
+				new TimerSerializerSnapshot<>(),
+				nestedSnapshots
+			);
 		}
 	}
 }

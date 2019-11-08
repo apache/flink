@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
@@ -113,6 +114,28 @@ public class MemorySize implements java.io.Serializable {
 	@Override
 	public String toString() {
 		return bytes + " bytes";
+	}
+
+	// ------------------------------------------------------------------------
+	//  Calculations
+	// ------------------------------------------------------------------------
+
+	public MemorySize add(MemorySize that) {
+		return new MemorySize(Math.addExact(this.bytes, that.bytes));
+	}
+
+	public MemorySize subtract(MemorySize that) {
+		return new MemorySize(Math.subtractExact(this.bytes, that.bytes));
+	}
+
+	public MemorySize multiply(double multiplier) {
+		checkArgument(multiplier >= 0, "multiplier must be >= 0");
+
+		BigDecimal product = BigDecimal.valueOf(this.bytes).multiply(BigDecimal.valueOf(multiplier));
+		if (product.compareTo(BigDecimal.valueOf(Long.MAX_VALUE)) > 0) {
+			throw new ArithmeticException("long overflow");
+		}
+		return new MemorySize(product.longValue());
 	}
 
 	// ------------------------------------------------------------------------

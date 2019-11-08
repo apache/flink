@@ -19,69 +19,99 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Execution Environment for remote execution with the Client.
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	protected final ClusterClient<?> client;
+	private final ClusterClient<?> client;
 
-	protected final List<URL> jarFilesToAttach;
+	private final boolean detached;
 
-	protected final List<URL> classpathsToAttach;
+	private final List<URL> jarFilesToAttach;
 
-	protected final ClassLoader userCodeClassLoader;
+	private final List<URL> classpathsToAttach;
 
-	protected final SavepointRestoreSettings savepointSettings;
+	private final ClassLoader userCodeClassLoader;
 
-	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings) {
+	private final SavepointRestoreSettings savepointSettings;
+
+	private final AtomicReference<JobExecutionResult> jobExecutionResult;
+
+	private boolean alreadyCalled;
+
+	public ContextEnvironment(
+		ClusterClient<?> remoteConnection,
+		List<URL> jarFiles,
+		List<URL> classpaths,
+		ClassLoader userCodeClassLoader,
+		SavepointRestoreSettings savepointSettings,
+		boolean detached,
+		AtomicReference<JobExecutionResult> jobExecutionResult) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.savepointSettings = savepointSettings;
+
+		this.detached = detached;
+		this.alreadyCalled = false;
+
+		this.jobExecutionResult = jobExecutionResult;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
-		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
-				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointSettings).getJobExecutionResult();
-		return this.lastJobExecutionResult;
+		verifyExecuteIsCalledOnceWhenInDetachedMode();
+
+		Plan plan = createProgramPlan(jobName);
+
+		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
+				plan,
+				client.getFlinkConfiguration(),
+				getParallelism());
+
+		ClientUtils.addJarFiles(jobGraph, this.jarFilesToAttach);
+		jobGraph.setClasspaths(this.classpathsToAttach);
+
+		if (detached) {
+			lastJobExecutionResult = ClientUtils.submitJob(client, jobGraph);
+		} else {
+			lastJobExecutionResult = ClientUtils.submitJobAndWaitForResult(client, jobGraph, userCodeClassLoader).getJobExecutionResult();
+		}
+
+		setJobExecutionResult(lastJobExecutionResult);
+
+		return lastJobExecutionResult;
 	}
 
-	@Override
-	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan("unnamed job");
-
-		OptimizedPlan op = ClusterClient.getOptimizedPlan(client.compiler, plan, getParallelism());
-		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
-		return gen.getOptimizerPlanAsJSON(op);
+	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
+		if (alreadyCalled && detached) {
+			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
+		}
+		alreadyCalled = true;
 	}
 
-	@Override
-	public void startNewSession() throws Exception {
-		client.endSession(jobID);
-		jobID = JobID.generate();
+	public void setJobExecutionResult(JobExecutionResult jobExecutionResult) {
+		this.jobExecutionResult.set(jobExecutionResult);
 	}
 
 	@Override
 	public String toString() {
-		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
-				+ ") : " + getIdString();
+		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ")";
 	}
 
 	public ClusterClient<?> getClient() {
@@ -104,13 +134,17 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		return savepointSettings;
 	}
 
+	public boolean isDetached() {
+		return detached;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
-	static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(ContextEnvironmentFactory factory) {
 		initializeContextEnvironment(factory);
 	}
 
-	static void unsetContext() {
+	public static void unsetContext() {
 		resetContextEnvironment();
 	}
 }

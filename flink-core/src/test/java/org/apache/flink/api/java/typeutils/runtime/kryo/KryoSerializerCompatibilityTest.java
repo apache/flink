@@ -279,7 +279,9 @@ public class KryoSerializerCompatibilityTest {
 		@SuppressWarnings("unchecked")
 		TypeSerializerSchemaCompatibility<TestClass> compatResult =
 			kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializer);
-		assertTrue(compatResult.isCompatibleAsIs());
+		assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
+
+		kryoSerializer = (KryoSerializer<TestClass>) compatResult.getReconfiguredSerializer();
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
 		assertEquals(testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());
 		assertEquals(testClassBId, kryoSerializer.getKryo().getRegistration(TestClassB.class).getId());

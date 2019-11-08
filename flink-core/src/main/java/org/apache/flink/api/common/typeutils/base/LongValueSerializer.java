@@ -82,11 +82,6 @@ public final class LongValueSerializer extends TypeSerializerSingleton<LongValue
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof LongValueSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<LongValue> snapshotConfiguration() {
 		return new LongValueSerializerSnapshot();
 	}
@@ -96,10 +91,11 @@ public final class LongValueSerializer extends TypeSerializerSingleton<LongValue
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class LongValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<LongValue> {
 
 		public LongValueSerializerSnapshot() {
-			super(LongValueSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

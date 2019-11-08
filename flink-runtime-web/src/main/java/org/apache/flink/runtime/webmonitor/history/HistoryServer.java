@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -61,6 +62,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * The HistoryServer provides a WebInterface and REST API to retrieve information about finished jobs for which
@@ -109,11 +111,7 @@ public class HistoryServer {
 		LOG.info("Loading configuration from {}", configDir);
 		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration(configDir);
 
-		try {
-			FileSystem.initialize(flinkConfig);
-		} catch (IOException e) {
-			throw new Exception("Error while setting the default filesystem scheme from configuration.", e);
-		}
+		FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
 		// run the history server
 		SecurityUtils.install(new SecurityConfiguration(flinkConfig));
@@ -137,15 +135,26 @@ public class HistoryServer {
 	}
 
 	public HistoryServer(Configuration config) throws IOException, FlinkException {
-		this(config, new CountDownLatch(0));
+		this(config, (event) -> {});
 	}
 
-	public HistoryServer(Configuration config, CountDownLatch numFinishedPolls) throws IOException, FlinkException {
+	/**
+	 * Creates HistoryServer instance.
+	 * @param config configuration
+	 * @param jobArchiveEventListener Listener for job archive operations. First param is operation, second
+	 *                                    param is id of the job.
+	 * @throws IOException When creation of SSL factory failed
+	 * @throws FlinkException When configuration error occurred
+	 */
+	public HistoryServer(
+			Configuration config,
+			Consumer<HistoryServerArchiveFetcher.ArchiveEvent> jobArchiveEventListener
+	) throws IOException, FlinkException {
 		Preconditions.checkNotNull(config);
-		Preconditions.checkNotNull(numFinishedPolls);
+		Preconditions.checkNotNull(jobArchiveEventListener);
 
 		this.config = config;
-		if (config.getBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED) && SSLUtils.isRestSSLEnabled(config)) {
+		if (HistoryServerUtils.isSSLEnabled(config)) {
 			LOG.info("Enabling SSL for the history server.");
 			try {
 				this.serverSSLFactory = SSLUtils.createRestServerSSLEngineFactory(config);
@@ -165,6 +174,8 @@ public class HistoryServer {
 			webDirectory = System.getProperty("java.io.tmpdir") + File.separator + "flink-web-history-" + UUID.randomUUID();
 		}
 		webDir = new File(webDirectory);
+
+		boolean cleanupExpiredArchives = config.getBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
 
 		String refreshDirectories = config.getString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
 		if (refreshDirectories == null) {
@@ -187,7 +198,7 @@ public class HistoryServer {
 		}
 
 		long refreshIntervalMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, numFinishedPolls);
+		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, jobArchiveEventListener, cleanupExpiredArchives);
 
 		this.shutdownHook = ShutdownHookUtil.addShutdownHook(
 			HistoryServer.this::stop,
@@ -280,7 +291,7 @@ public class HistoryServer {
 
 	private void createDashboardConfigFile() throws IOException {
 		try (FileWriter fw = createOrGetFile(webDir, "config")) {
-			fw.write(createConfigJson(DashboardConfiguration.from(webRefreshIntervalMillis, ZonedDateTime.now())));
+			fw.write(createConfigJson(DashboardConfiguration.from(webRefreshIntervalMillis, ZonedDateTime.now(), false)));
 			fw.flush();
 		} catch (IOException ioe) {
 			LOG.error("Failed to write config file.");

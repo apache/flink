@@ -18,31 +18,37 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.testutils.CustomEqualityMatcher;
+import org.apache.flink.testutils.DeeplyEqualsChecker;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TestLogger;
+
+import org.apache.commons.lang3.SerializationException;
+import org.apache.commons.lang3.SerializationUtils;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CyclicBarrier;
 
-import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
-import org.junit.Assert;
-
-import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Abstract test base for serializers.
@@ -53,6 +59,16 @@ import org.junit.Test;
  * internal state would be corrupt, which becomes evident when toString is called.
  */
 public abstract class SerializerTestBase<T> extends TestLogger {
+
+	private final DeeplyEqualsChecker checker;
+
+	protected SerializerTestBase() {
+		this.checker = new DeeplyEqualsChecker();
+	}
+
+	protected SerializerTestBase(DeeplyEqualsChecker checker) {
+		this.checker = checker;
+	}
 
 	protected abstract TypeSerializer<T> createSerializer();
 
@@ -122,9 +138,16 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 
 		TypeSerializerSchemaCompatibility<T> strategy = restoredConfig.resolveSchemaCompatibility(getSerializer());
-		assertTrue(strategy.isCompatibleAsIs());
-
-		TypeSerializer<T> restoreSerializer = restoredConfig.restoreSerializer();
+		final TypeSerializer<T> restoreSerializer;
+		if (strategy.isCompatibleAsIs()) {
+			restoreSerializer = restoredConfig.restoreSerializer();
+		}
+		else if (strategy.isCompatibleWithReconfiguredSerializer()) {
+			restoreSerializer = strategy.getReconfiguredSerializer();
+		}
+		else {
+			throw new AssertionError("Unable to restore serializer with " + strategy);
+		}
 		assertEquals(serializer.getClass(), restoreSerializer.getClass());
 	}
 
@@ -436,48 +459,38 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testDuplicate() throws Exception {
+		final int numThreads = 10;
+		final TypeSerializer<T> serializer = getSerializer();
+		final CyclicBarrier startLatch = new CyclicBarrier(numThreads);
+		final List<SerializerRunner<T>> concurrentRunners = new ArrayList<>(numThreads);
+		Assert.assertEquals(serializer, serializer.duplicate());
+
+		T[] testData = getData();
+
+		for (int i = 0; i < numThreads; ++i) {
+			SerializerRunner<T> runner = new SerializerRunner<>(
+				startLatch,
+				serializer.duplicate(),
+				testData,
+				120L,
+				checker);
+
+			runner.start();
+			concurrentRunners.add(runner);
+		}
+
+		for (SerializerRunner<T> concurrentRunner : concurrentRunners) {
+			concurrentRunner.join();
+			concurrentRunner.checkResult();
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
-	protected void deepEquals(String message, T should, T is) {
-		Assert.assertTrue((should == null && is == null) || (should != null && is != null));
-		if (should == null) {
-			return;
-		}
-		if (should.getClass().isArray()) {
-			if (should instanceof boolean[]) {
-				Assert.assertTrue(message, Arrays.equals((boolean[]) should, (boolean[]) is));
-			}
-			else if (should instanceof byte[]) {
-				assertArrayEquals(message, (byte[]) should, (byte[]) is);
-			}
-			else if (should instanceof short[]) {
-				assertArrayEquals(message, (short[]) should, (short[]) is);
-			}
-			else if (should instanceof int[]) {
-				assertArrayEquals(message, (int[]) should, (int[]) is);
-			}
-			else if (should instanceof long[]) {
-				assertArrayEquals(message, (long[]) should, (long[]) is);
-			}
-			else if (should instanceof float[]) {
-				assertArrayEquals(message, (float[]) should, (float[]) is, 0.0f);
-			}
-			else if (should instanceof double[]) {
-				assertArrayEquals(message, (double[]) should, (double[]) is, 0.0);
-			}
-			else if (should instanceof char[]) {
-				assertArrayEquals(message, (char[]) should, (char[]) is);
-			}
-			else {
-				assertArrayEquals(message, (Object[]) should, (Object[]) is);
-			}
-		}
-		else if (should instanceof Throwable) {
-			assertEquals(((Throwable)should).getMessage(), ((Throwable)is).getMessage());
-		}
-		else {
-			assertEquals(message,  should, is);
-		}
+	private void deepEquals(String message, T should, T is) {
+		assertThat(message, is, CustomEqualityMatcher.deeplyEquals(should).withChecker(checker));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -526,6 +539,76 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 	}
 
+	/**
+	 * Runner to test serializer duplication via concurrency.
+	 * @param <T> type of the test elements.
+	 */
+	static class SerializerRunner<T> extends Thread {
+		final CyclicBarrier allReadyBarrier;
+		final TypeSerializer<T> serializer;
+		final T[] testData;
+		final long durationLimitMillis;
+		Throwable failure;
+		final DeeplyEqualsChecker checker;
+
+		SerializerRunner(
+			CyclicBarrier allReadyBarrier,
+			TypeSerializer<T> serializer,
+			T[] testData,
+			long testTargetDurationMillis, DeeplyEqualsChecker checker) {
+
+			this.allReadyBarrier = allReadyBarrier;
+			this.serializer = serializer;
+			this.testData = testData;
+			this.durationLimitMillis =  testTargetDurationMillis;
+			this.checker = checker;
+			this.failure = null;
+		}
+
+		@Override
+		public void run() {
+			DataInputDeserializer dataInputDeserializer = new DataInputDeserializer();
+			DataOutputSerializer dataOutputSerializer = new DataOutputSerializer(128);
+			try {
+				allReadyBarrier.await();
+				final long endTimeNanos = System.nanoTime() + durationLimitMillis * 1_000_000L;
+				while (true) {
+					for (T testItem : testData) {
+						serializer.serialize(testItem, dataOutputSerializer);
+						dataInputDeserializer.setBuffer(
+							dataOutputSerializer.getSharedBuffer(),
+							0,
+							dataOutputSerializer.length());
+						T serdeTestItem = serializer.deserialize(dataInputDeserializer);
+						T copySerdeTestItem = serializer.copy(serdeTestItem);
+						dataOutputSerializer.clear();
+
+						assertThat(
+							"Serialization/Deserialization cycle resulted in an object that are not equal to the original.",
+							copySerdeTestItem,
+							CustomEqualityMatcher.deeplyEquals(testItem).withChecker(checker));
+
+						// try to enforce some upper bound to the test time
+						if (System.nanoTime() >= endTimeNanos) {
+							return;
+						}
+					}
+				}
+			} catch (Throwable ex) {
+				failure = ex;
+			}
+		}
+
+		void checkResult() throws Exception {
+			if (failure != null) {
+				if (failure instanceof AssertionError) {
+					throw (AssertionError) failure;
+				} else {
+					throw (Exception) failure;
+				}
+			}
+		}
+	}
 
 	private static final class TestInputView extends DataInputStream implements DataInputView {
 

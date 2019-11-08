@@ -34,7 +34,7 @@ public class SlotReport implements Serializable, Iterable<SlotStatus> {
 
 	private static final long serialVersionUID = -3150175198722481689L;
 
-	/** The slots status of the TaskManager */
+	/** The slots status of the TaskManager. */
 	private final Collection<SlotStatus> slotsStatus;
 
 	public SlotReport() {
@@ -52,5 +52,12 @@ public class SlotReport implements Serializable, Iterable<SlotStatus> {
 	@Override
 	public Iterator<SlotStatus> iterator() {
 		return slotsStatus.iterator();
+	}
+
+	@Override
+	public String toString() {
+		return "SlotReport{" +
+			"slotsStatus=" + slotsStatus +
+			'}';
 	}
 }

@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,11 +40,11 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 
 	/** The type serializer for the keys in the map state. */
 	@Nonnull
-	private final TypeSerializer<K> keySerializer;
+	private final StateSerializerProvider<K> keySerializerProvider;
 
 	/** The type serializer for the values in the map state. */
 	@Nonnull
-	private final TypeSerializer<V> valueSerializer;
+	private final StateSerializerProvider<V> valueSerializerProvider;
 
 	public RegisteredBroadcastStateBackendMetaInfo(
 			@Nonnull final String name,
@@ -50,19 +52,19 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 			@Nonnull final TypeSerializer<K> keySerializer,
 			@Nonnull final TypeSerializer<V> valueSerializer) {
 
-		super(name);
-		Preconditions.checkArgument(assignmentMode == OperatorStateHandle.Mode.BROADCAST);
-		this.assignmentMode = assignmentMode;
-		this.keySerializer = keySerializer;
-		this.valueSerializer = valueSerializer;
+		this(
+			name,
+			assignmentMode,
+			StateSerializerProvider.fromNewRegisteredSerializer(keySerializer),
+			StateSerializerProvider.fromNewRegisteredSerializer(valueSerializer));
 	}
 
 	public RegisteredBroadcastStateBackendMetaInfo(@Nonnull RegisteredBroadcastStateBackendMetaInfo<K, V> copy) {
 		this(
 			Preconditions.checkNotNull(copy).name,
 			copy.assignmentMode,
-			copy.keySerializer.duplicate(),
-			copy.valueSerializer.duplicate());
+			copy.getKeySerializer().duplicate(),
+			copy.getValueSerializer().duplicate());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -71,10 +73,13 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 			snapshot.getName(),
 			OperatorStateHandle.Mode.valueOf(
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)),
-			(TypeSerializer<K>) Preconditions.checkNotNull(
-				snapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER)),
-			(TypeSerializer<V>) Preconditions.checkNotNull(
-				snapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
+			StateSerializerProvider.fromPreviousSerializerSnapshot(
+				(TypeSerializerSnapshot<K>) Preconditions.checkNotNull(
+					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER))),
+			StateSerializerProvider.fromPreviousSerializerSnapshot(
+				(TypeSerializerSnapshot<V>) Preconditions.checkNotNull(
+					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
+
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.BROADCAST == snapshot.getBackendStateType());
 	}
 
@@ -86,6 +91,19 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 		return new RegisteredBroadcastStateBackendMetaInfo<>(this);
 	}
 
+	private RegisteredBroadcastStateBackendMetaInfo(
+		@Nonnull final String name,
+		@Nonnull final OperatorStateHandle.Mode assignmentMode,
+		@Nonnull final StateSerializerProvider<K> keySerializerProvider,
+		@Nonnull final StateSerializerProvider<V> valueSerializerProvider) {
+
+		super(name);
+		Preconditions.checkArgument(assignmentMode == OperatorStateHandle.Mode.BROADCAST);
+		this.assignmentMode = assignmentMode;
+		this.keySerializerProvider = keySerializerProvider;
+		this.valueSerializerProvider = valueSerializerProvider;
+	}
+
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
@@ -94,12 +112,32 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 
 	@Nonnull
 	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
+		return keySerializerProvider.currentSchemaSerializer();
+	}
+
+	@Nonnull
+	public TypeSerializerSchemaCompatibility<K> updateKeySerializer(TypeSerializer<K> newKeySerializer) {
+		return keySerializerProvider.registerNewSerializerForRestoredState(newKeySerializer);
+	}
+
+	@Nullable
+	public TypeSerializer<K> getPreviousKeySerializer() {
+		return keySerializerProvider.previousSchemaSerializer();
 	}
 
 	@Nonnull
 	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializer;
+		return valueSerializerProvider.currentSchemaSerializer();
+	}
+
+	@Nonnull
+	public TypeSerializerSchemaCompatibility<V> updateValueSerializer(TypeSerializer<V> newValueSerializer) {
+		return valueSerializerProvider.registerNewSerializerForRestoredState(newValueSerializer);
+	}
+
+	@Nullable
+	public TypeSerializer<V> getPreviousValueSerializer() {
+		return valueSerializerProvider.previousSchemaSerializer();
 	}
 
 	@Nonnull
@@ -122,16 +160,16 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 
 		return Objects.equals(name, other.getName())
 				&& Objects.equals(assignmentMode, other.getAssignmentMode())
-				&& Objects.equals(keySerializer, other.getKeySerializer())
-				&& Objects.equals(valueSerializer, other.getValueSerializer());
+				&& Objects.equals(getKeySerializer(), other.getKeySerializer())
+				&& Objects.equals(getValueSerializer(), other.getValueSerializer());
 	}
 
 	@Override
 	public int hashCode() {
 		int result = name.hashCode();
 		result = 31 * result + assignmentMode.hashCode();
-		result = 31 * result + keySerializer.hashCode();
-		result = 31 * result + valueSerializer.hashCode();
+		result = 31 * result + getKeySerializer().hashCode();
+		result = 31 * result + getValueSerializer().hashCode();
 		return result;
 	}
 
@@ -139,8 +177,8 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 	public String toString() {
 		return "RegisteredBroadcastBackendStateMetaInfo{" +
 				"name='" + name + '\'' +
-				", keySerializer=" + keySerializer +
-				", valueSerializer=" + valueSerializer +
+				", keySerializer=" + getKeySerializer() +
+				", valueSerializer=" + getValueSerializer() +
 				", assignmentMode=" + assignmentMode +
 				'}';
 	}
@@ -154,8 +192,12 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 		Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap = new HashMap<>(2);
 		String keySerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString();
 		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
+
+		TypeSerializer<K> keySerializer = getKeySerializer();
 		serializerMap.put(keySerializerKey, keySerializer.duplicate());
 		serializerConfigSnapshotsMap.put(keySerializerKey, keySerializer.snapshotConfiguration());
+
+		TypeSerializer<V> valueSerializer = getValueSerializer();
 		serializerMap.put(valueSerializerKey, valueSerializer.duplicate());
 		serializerConfigSnapshotsMap.put(valueSerializerKey, valueSerializer.snapshotConfiguration());
 

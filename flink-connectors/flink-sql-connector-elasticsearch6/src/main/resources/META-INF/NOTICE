@@ -1,0 +1,45 @@
+flink-sql-connector-elasticsearch6
+Copyright 2014-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.fasterxml.jackson.core:jackson-core:2.8.10
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.8.10
+- com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.8.10
+- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.8.10
+- commons-codec:commons-codec:1.10
+- commons-logging:commons-logging:1.1.3
+- org.apache.httpcomponents:httpasyncclient:4.1.2
+- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpcore:4.4.6
+- org.apache.httpcomponents:httpcore-nio:4.4.5
+- org.apache.logging.log4j:log4j-api:2.9.1
+- org.apache.logging.log4j:log4j-to-slf4j:2.9.1
+- org.apache.lucene:lucene-analyzers-common:7.3.1
+- org.apache.lucene:lucene-backward-codecs:7.3.1
+- org.apache.lucene:lucene-core:7.3.1
+- org.apache.lucene:lucene-grouping:7.3.1
+- org.apache.lucene:lucene-highlighter:7.3.1
+- org.apache.lucene:lucene-join:7.3.1
+- org.apache.lucene:lucene-memory:7.3.1
+- org.apache.lucene:lucene-misc:7.3.1
+- org.apache.lucene:lucene-queries:7.3.1
+- org.apache.lucene:lucene-queryparser:7.3.1
+- org.apache.lucene:lucene-sandbox:7.3.1
+- org.apache.lucene:lucene-spatial:7.3.1
+- org.apache.lucene:lucene-spatial-extras:7.3.1
+- org.apache.lucene:lucene-spatial3d:7.3.1
+- org.apache.lucene:lucene-suggest:7.3.1
+- org.elasticsearch:elasticsearch:6.3.1
+- org.elasticsearch:elasticsearch-cli:6.3.1
+- org.elasticsearch:elasticsearch-core:6.3.1
+- org.elasticsearch:elasticsearch-secure-sm:6.3.1
+- org.elasticsearch:elasticsearch-x-content:6.3.1
+- org.elasticsearch.client:elasticsearch-rest-client:6.3.1
+- org.elasticsearch.client:elasticsearch-rest-high-level-client:6.3.1
+- org.elasticsearch.plugin:aggs-matrix-stats-client:6.3.1
+- org.elasticsearch.plugin:parent-join-client:6.3.1
+- org.elasticsearch.plugin:rank-eval-client:6.3.1

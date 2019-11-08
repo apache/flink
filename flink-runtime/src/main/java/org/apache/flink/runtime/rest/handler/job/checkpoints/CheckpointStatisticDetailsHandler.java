@@ -43,7 +43,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -52,7 +51,6 @@ import java.util.concurrent.Executor;
 public class CheckpointStatisticDetailsHandler extends AbstractCheckpointHandler<CheckpointStatistics, CheckpointMessageParameters> implements JsonArchivist {
 
 	public CheckpointStatisticDetailsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -61,7 +59,6 @@ public class CheckpointStatisticDetailsHandler extends AbstractCheckpointHandler
 			Executor executor,
 			CheckpointStatsCache checkpointStatsCache) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

@@ -20,14 +20,14 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +55,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	private final ResultPartitionManager partitionManager;
 
 	/** Task event dispatcher for backwards events. */
-	private final TaskEventDispatcher taskEventDispatcher;
+	private final TaskEventPublisher taskEventPublisher;
 
 	/** The consumed subpartition. */
 	private volatile ResultSubpartitionView subpartitionView;
@@ -67,10 +67,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int channelIndex,
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
-		TaskEventDispatcher taskEventDispatcher,
-		TaskIOMetricGroup metrics) {
+		TaskEventPublisher taskEventPublisher,
+		InputChannelMetrics metrics) {
 
-		this(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher,
+		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher,
 			0, 0, metrics);
 	}
 
@@ -79,15 +79,15 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int channelIndex,
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
-		TaskEventDispatcher taskEventDispatcher,
+		TaskEventPublisher taskEventPublisher,
 		int initialBackoff,
 		int maxBackoff,
-		TaskIOMetricGroup metrics) {
+		InputChannelMetrics metrics) {
 
 		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
 
 		this.partitionManager = checkNotNull(partitionManager);
-		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
+		this.taskEventPublisher = checkNotNull(taskEventPublisher);
 	}
 
 	// ------------------------------------------------------------------------
@@ -193,7 +193,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			}
 		}
 
-		numBytesIn.inc(next.buffer().getSizeUnsafe());
+		numBytesIn.inc(next.buffer().getSize());
 		numBuffersIn.inc();
 		return Optional.of(new BufferAndAvailability(next.buffer(), next.isMoreAvailable(), next.buffersInBacklog()));
 	}
@@ -223,7 +223,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		checkError();
 		checkState(subpartitionView != null, "Tried to send task event to producer before requesting the subpartition.");
 
-		if (!taskEventDispatcher.publish(partitionId, event)) {
+		if (!taskEventPublisher.publish(partitionId, event)) {
 			throw new IOException("Error while publishing event " + event + " to producer. The producer could not be found.");
 		}
 	}
@@ -235,13 +235,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	@Override
 	boolean isReleased() {
 		return isReleased;
-	}
-
-	@Override
-	void notifySubpartitionConsumed() throws IOException {
-		if (subpartitionView != null) {
-			subpartitionView.notifySubpartitionConsumed();
-		}
 	}
 
 	/**
@@ -258,6 +251,17 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 				subpartitionView = null;
 			}
 		}
+	}
+
+	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		ResultSubpartitionView view = subpartitionView;
+
+		if (view != null) {
+			return view.unsynchronizedGetNumberOfQueuedBuffers();
+		}
+
+		return 0;
 	}
 
 	@Override

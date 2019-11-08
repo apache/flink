@@ -26,10 +26,9 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 
@@ -37,6 +36,8 @@ import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
  * Configuration object for the {@link MiniCluster}.
  */
 public class MiniClusterConfiguration {
+
+	static final String SCHEDULER_TYPE_KEY = JobManagerOptions.SCHEDULER.key();
 
 	private final UnmodifiableConfiguration configuration;
 
@@ -57,10 +58,23 @@ public class MiniClusterConfiguration {
 			RpcServiceSharing rpcServiceSharing,
 			@Nullable String commonBindAddress) {
 
-		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
+		this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
 		this.numTaskManagers = numTaskManagers;
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
 		this.commonBindAddress = commonBindAddress;
+	}
+
+	private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
+		String schedulerType = System.getProperty(SCHEDULER_TYPE_KEY);
+		if (StringUtils.isNullOrWhitespaceOnly(schedulerType)) {
+			schedulerType = JobManagerOptions.SCHEDULER.defaultValue();
+		}
+
+		if (!configuration.contains(JobManagerOptions.SCHEDULER)) {
+			configuration.setString(JobManagerOptions.SCHEDULER, schedulerType);
+		}
+
+		return new UnmodifiableConfiguration(configuration);
 	}
 
 	// ------------------------------------------------------------------------
@@ -87,15 +101,8 @@ public class MiniClusterConfiguration {
 				configuration.getString(TaskManagerOptions.HOST, "localhost");
 	}
 
-	public String getResourceManagerBindAddress() {
-		return commonBindAddress != null ?
-			commonBindAddress :
-			configuration.getString(JobManagerOptions.ADDRESS, "localhost"); // TODO: Introduce proper configuration constant for the resource manager hostname
-	}
-
 	public Time getRpcTimeout() {
-		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
-		return Time.of(duration.length(), duration.unit());
+		return AkkaUtils.getTimeoutAsTime(configuration);
 	}
 
 	public UnmodifiableConfiguration getConfiguration() {

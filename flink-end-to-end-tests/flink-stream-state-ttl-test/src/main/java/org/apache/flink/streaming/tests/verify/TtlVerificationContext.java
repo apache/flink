@@ -36,10 +36,10 @@ public class TtlVerificationContext<UV, GV> implements Serializable {
 
 	@SuppressWarnings("unchecked")
 	public TtlVerificationContext(
-		int key,
-		@Nonnull String verifierId,
-		@Nonnull List<ValueWithTs<?>> prevUpdates,
-		@Nonnull TtlUpdateContext<?, ?> updateContext) {
+			int key,
+			@Nonnull String verifierId,
+			@Nonnull List<ValueWithTs<?>> prevUpdates,
+			@Nonnull TtlUpdateContext<?, ?> updateContext) {
 		this.key = key;
 		this.verifierId = verifierId;
 		this.prevUpdates = new ArrayList<>();

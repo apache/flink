@@ -20,19 +20,16 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.cli.CliFrontendTestBase;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
-import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.TestingClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
-import org.apache.flink.yarn.util.FakeClusterClient;
 import org.apache.flink.yarn.util.NonDeployingYarnClusterDescriptor;
 
-import org.apache.commons.cli.CommandLine;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -40,8 +37,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.client.cli.CliFrontendRunTest.verifyCliFrontend;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
 
 /**
@@ -73,71 +70,60 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		configuration.setInteger(JobManagerOptions.PORT, 8081);
 
-		FlinkYarnSessionCli yarnCLI = new TestingFlinkYarnSessionCli(
+		final ClusterClientServiceLoader testServiceLoader =
+			new TestingYarnClusterClientServiceLoader(new TestingClusterClient<>());
+
+		final FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
 			configuration,
+			testServiceLoader,
 			tmp.getRoot().getAbsolutePath(),
 			"y",
-			"yarn");
+			"yarn",
+			true);
 
 		// test detached mode
 		{
-			String[] parameters = {"-m", "yarn-cluster", "-yn", "1", "-p", "2", "-d", testJarPath};
-			verifyCliFrontend(yarnCLI, parameters, 2, true, true);
+			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-d", testJarPath};
+			verifyCliFrontend(testServiceLoader, yarnCLI, parameters, 2, true);
 		}
 
 		// test detached mode
 		{
-			String[] parameters = {"-m", "yarn-cluster", "-yn", "1", "-p", "2", "-yd", testJarPath};
-			verifyCliFrontend(yarnCLI, parameters, 2, true, true);
+			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-yd", testJarPath};
+			verifyCliFrontend(testServiceLoader, yarnCLI, parameters, 2, true);
 		}
 	}
 
-	private static class TestingFlinkYarnSessionCli extends FlinkYarnSessionCli {
-		@SuppressWarnings("unchecked")
+	private static class TestingYarnClusterClientServiceLoader implements ClusterClientServiceLoader {
+
 		private final ClusterClient<ApplicationId> clusterClient;
-		private final String configurationDirectory;
 
-		private TestingFlinkYarnSessionCli(
-				Configuration configuration,
-				String configurationDirectory,
-				String shortPrefix,
-				String longPrefix) throws Exception {
-			super(configuration, configurationDirectory, shortPrefix, longPrefix);
-
-			this.clusterClient = new FakeClusterClient(configuration);
-			this.configurationDirectory = configurationDirectory;
+		TestingYarnClusterClientServiceLoader(ClusterClient<ApplicationId> clusterClient) {
+			this.clusterClient = checkNotNull(clusterClient);
 		}
 
 		@Override
-		public AbstractYarnClusterDescriptor createClusterDescriptor(CommandLine commandLine)
-			throws FlinkException {
-			AbstractYarnClusterDescriptor parent = super.createClusterDescriptor(commandLine);
-			return new NonDeployingDetachedYarnClusterDescriptor(
+		public ClusterClientFactory<ApplicationId> getClusterClientFactory(Configuration configuration) {
+			return new TestingYarnClusterClientFactory(clusterClient);
+		}
+	}
+
+	private static class TestingYarnClusterClientFactory extends YarnClusterClientFactory {
+
+		private final ClusterClient<ApplicationId> clusterClient;
+
+		TestingYarnClusterClientFactory(ClusterClient<ApplicationId> clusterClient) {
+			this.clusterClient = checkNotNull(clusterClient);
+		}
+
+		@Override
+		public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
+			YarnClusterDescriptor parent = super.createClusterDescriptor(configuration);
+			return new NonDeployingYarnClusterDescriptor(
 					parent.getFlinkConfiguration(),
 					(YarnConfiguration) parent.getYarnClient().getConfig(),
-					configurationDirectory,
 					parent.getYarnClient(),
 					clusterClient);
 		}
 	}
-
-	private static class NonDeployingDetachedYarnClusterDescriptor extends NonDeployingYarnClusterDescriptor {
-
-		NonDeployingDetachedYarnClusterDescriptor(
-			Configuration flinkConfiguration,
-			YarnConfiguration yarnConfiguration, String configurationDirectory,
-			YarnClient yarnClient,
-			ClusterClient<ApplicationId> clusterClient) {
-			super(flinkConfiguration, yarnConfiguration, configurationDirectory, yarnClient,
-				clusterClient);
-		}
-
-		@Override
-		public ClusterClient<ApplicationId> deployJobCluster(
-				ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached) {
-			assertTrue(detached);
-			return super.deployJobCluster(clusterSpecification, jobGraph, true);
-		}
-	}
-
 }

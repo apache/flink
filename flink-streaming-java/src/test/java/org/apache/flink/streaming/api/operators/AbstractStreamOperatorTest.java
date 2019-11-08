@@ -308,6 +308,8 @@ public class AbstractStreamOperatorTest {
 		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
 		// now, restore in two operators, first operator 1
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot, maxParallelism, 1, 2, 0);
 
 		TestOperator testOperator1 = new TestOperator();
 
@@ -321,7 +323,7 @@ public class AbstractStreamOperatorTest {
 						0 /* subtask index */);
 
 		testHarness1.setup();
-		testHarness1.initializeState(snapshot);
+		testHarness1.initializeState(initState1);
 		testHarness1.open();
 
 		testHarness1.processWatermark(10L);
@@ -349,6 +351,9 @@ public class AbstractStreamOperatorTest {
 		assertTrue(extractResult(testHarness1).isEmpty());
 
 		// now, for the second operator
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot, maxParallelism, 1, 2, 1);
+
 		TestOperator testOperator2 = new TestOperator();
 
 		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String> testHarness2 =
@@ -361,7 +366,7 @@ public class AbstractStreamOperatorTest {
 						1 /* subtask index */);
 
 		testHarness2.setup();
-		testHarness2.initializeState(snapshot);
+		testHarness2.initializeState(initState2);
 		testHarness2.open();
 
 		testHarness2.processWatermark(10L);
@@ -453,6 +458,9 @@ public class AbstractStreamOperatorTest {
 				testHarness2.snapshot(0, 0)
 			);
 
+		OperatorSubtaskState initSubTaskState =
+			AbstractStreamOperatorTestHarness.repartitionOperatorState(repackagedState, maxParallelism, 2, 1, 0);
+
 		// now, for the third operator that scales down from parallelism of 2 to 1
 		TestOperator testOperator3 = new TestOperator();
 
@@ -466,7 +474,7 @@ public class AbstractStreamOperatorTest {
 				0 /* subtask index */);
 
 		testHarness3.setup();
-		testHarness3.initializeState(repackagedState);
+		testHarness3.initializeState(initSubTaskState);
 		testHarness3.open();
 
 		testHarness3.processWatermark(30L);
@@ -513,7 +521,6 @@ public class AbstractStreamOperatorTest {
 				CheckpointOptions.forCheckpointWithDefaultLocation(),
 				new MemCheckpointStreamFactory(Integer.MAX_VALUE));
 
-		verify(context).close();
 	}
 
 	/**
@@ -551,10 +558,8 @@ public class AbstractStreamOperatorTest {
 					new MemCheckpointStreamFactory(Integer.MAX_VALUE));
 			fail("Exception expected.");
 		} catch (Exception e) {
-			assertEquals(failingException, e.getCause());
+			assertEquals(failingException.getMessage(), e.getCause().getMessage());
 		}
-
-		verify(context).close();
 	}
 
 	/**
@@ -631,12 +636,11 @@ public class AbstractStreamOperatorTest {
 					new MemCheckpointStreamFactory(Integer.MAX_VALUE));
 			fail("Exception expected.");
 		} catch (Exception e) {
-			assertEquals(failingException, e.getCause());
+			assertEquals(failingException.getMessage(), e.getCause().getMessage());
 		}
 
 		// verify that the context has been closed, the operator snapshot result has been cancelled
 		// and that all futures have been cancelled.
-		verify(context).close();
 		verify(operatorSnapshotResult).cancel();
 
 		verify(futureKeyedStateHandle).cancel(anyBoolean());

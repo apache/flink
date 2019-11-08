@@ -915,13 +915,19 @@ class DataStream[T](stream: JavaStream[T]) {
    * Operator used for directing tuples to specific named outputs using an
    * OutputSelector. Calling this method on an operator creates a new
    * [[SplitStream]].
+   *
+   * @deprecated Please use side output instead.
    */
+  @deprecated
   def split(selector: OutputSelector[T]): SplitStream[T] = asScalaStream(stream.split(selector))
 
   /**
    * Creates a new [[SplitStream]] that contains only the elements satisfying the
    *  given output selector predicate.
+   *
+   * @deprecated Please use side output instead.
    */
+  @deprecated
   def split(fun: T => TraversableOnce[String]): SplitStream[T] = {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")

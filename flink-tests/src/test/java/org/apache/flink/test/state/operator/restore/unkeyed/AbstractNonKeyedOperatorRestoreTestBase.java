@@ -21,9 +21,9 @@ package org.apache.flink.test.state.operator.restore.unkeyed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -52,7 +52,10 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOp
 			MigrationVersion.v1_3,
 			MigrationVersion.v1_4,
 			MigrationVersion.v1_5,
-			MigrationVersion.v1_6);
+			MigrationVersion.v1_6,
+			MigrationVersion.v1_7,
+			MigrationVersion.v1_8,
+			MigrationVersion.v1_9);
 	}
 
 	protected AbstractNonKeyedOperatorRestoreTestBase(MigrationVersion migrationVersion) {

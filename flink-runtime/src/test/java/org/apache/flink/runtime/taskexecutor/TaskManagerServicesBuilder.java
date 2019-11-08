@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -39,27 +42,30 @@ public class TaskManagerServicesBuilder {
 	private TaskManagerLocation taskManagerLocation;
 	private MemoryManager memoryManager;
 	private IOManager ioManager;
-	private NetworkEnvironment networkEnvironment;
+	private ShuffleEnvironment<?, ?> shuffleEnvironment;
+	private KvStateService kvStateService;
 	private BroadcastVariableManager broadcastVariableManager;
 	private TaskSlotTable taskSlotTable;
 	private JobManagerTable jobManagerTable;
 	private JobLeaderService jobLeaderService;
 	private TaskExecutorLocalStateStoresManager taskStateManager;
+	private TaskEventDispatcher taskEventDispatcher;
 
 	public TaskManagerServicesBuilder() {
 		taskManagerLocation = new LocalTaskManagerLocation();
-		memoryManager = new MemoryManager(
-			MemoryManager.MIN_PAGE_SIZE,
-			1,
-			MemoryManager.MIN_PAGE_SIZE,
-			MemoryType.HEAP,
-			false);
+		memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(MemoryManager.MIN_PAGE_SIZE)
+			.setPageSize(MemoryManager.MIN_PAGE_SIZE)
+			.build();
 		ioManager = mock(IOManager.class);
-		networkEnvironment = mock(NetworkEnvironment.class);
+		shuffleEnvironment = mock(ShuffleEnvironment.class);
+		kvStateService = new KvStateService(new KvStateRegistry(), null, null);
 		broadcastVariableManager = new BroadcastVariableManager();
+		taskEventDispatcher = new TaskEventDispatcher();
 		taskSlotTable = mock(TaskSlotTable.class);
 		jobManagerTable = new JobManagerTable();
-		jobLeaderService = new JobLeaderService(taskManagerLocation);
+		jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
 	}
 
@@ -78,8 +84,13 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
-	public TaskManagerServicesBuilder setNetworkEnvironment(NetworkEnvironment networkEnvironment) {
-		this.networkEnvironment = networkEnvironment;
+	public TaskManagerServicesBuilder setShuffleEnvironment(ShuffleEnvironment<?, ?> shuffleEnvironment) {
+		this.shuffleEnvironment = shuffleEnvironment;
+		return this;
+	}
+
+	public TaskManagerServicesBuilder setKvStateService(KvStateService kvStateService) {
+		this.kvStateService = kvStateService;
 		return this;
 	}
 
@@ -113,11 +124,13 @@ public class TaskManagerServicesBuilder {
 			taskManagerLocation,
 			memoryManager,
 			ioManager,
-			networkEnvironment,
+			shuffleEnvironment,
+			kvStateService,
 			broadcastVariableManager,
 			taskSlotTable,
 			jobManagerTable,
 			jobLeaderService,
-			taskStateManager);
+			taskStateManager,
+			taskEventDispatcher);
 	}
 }

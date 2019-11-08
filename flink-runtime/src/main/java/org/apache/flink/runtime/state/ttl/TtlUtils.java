@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state.ttl;
 import javax.annotation.Nullable;
 
 /** Common functions related to State TTL. */
-class TtlUtils {
+public class TtlUtils {
 	static <V> boolean expired(@Nullable TtlValue<V> ttlValue, long ttl, TtlTimeProvider timeProvider) {
 		return expired(ttlValue, ttl, timeProvider.currentTimestamp());
 	}
@@ -34,7 +34,7 @@ class TtlUtils {
 		return expired(ts, ttl, timeProvider.currentTimestamp());
 	}
 
-	private static boolean expired(long ts, long ttl, long currentTimestamp) {
+	public static boolean expired(long ts, long ttl, long currentTimestamp) {
 		return getExpirationTimestamp(ts, ttl) <= currentTimestamp;
 	}
 

@@ -23,6 +23,11 @@
             <td>The address that the server binds itself.</td>
         </tr>
         <tr>
+            <td><h5>rest.bind-port</h5></td>
+            <td style="word-wrap: break-word;">"8081"</td>
+            <td>The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple Rest servers are running on the same machine.</td>
+        </tr>
+        <tr>
             <td><h5>rest.client.max-content-length</h5></td>
             <td style="word-wrap: break-word;">104857600</td>
             <td>The maximum content length in bytes that the client will handle.</td>
@@ -40,7 +45,7 @@
         <tr>
             <td><h5>rest.port</h5></td>
             <td style="word-wrap: break-word;">8081</td>
-            <td>The port that the server listens on / the client connects to.</td>
+            <td>The port that the client connects to. If rest.bind-port has not been specified, then the REST server will bind to this port.</td>
         </tr>
         <tr>
             <td><h5>rest.retry.delay</h5></td>

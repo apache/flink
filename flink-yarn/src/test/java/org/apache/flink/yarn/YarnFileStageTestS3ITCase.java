@@ -23,10 +23,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -53,12 +53,7 @@ import static org.junit.Assume.assumeNoException;
  */
 public class YarnFileStageTestS3ITCase extends TestLogger {
 
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
-
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
-
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
 
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
@@ -79,9 +74,7 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials exist
-		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+		S3TestCredentials.assumeCredentialsAvailable();
 
 		skipTest = false;
 
@@ -115,14 +108,14 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 		Map<String /* key */, String /* value */> parameters = new HashMap<>();
 
 		// set all different S3 fs implementation variants' configuration keys
-		parameters.put("fs.s3a.access.key", ACCESS_KEY);
-		parameters.put("fs.s3a.secret.key", SECRET_KEY);
+		parameters.put("fs.s3a.access.key", S3TestCredentials.getS3AccessKey());
+		parameters.put("fs.s3a.secret.key", S3TestCredentials.getS3SecretKey());
 
-		parameters.put("fs.s3.awsAccessKeyId", ACCESS_KEY);
-		parameters.put("fs.s3.awsSecretAccessKey", SECRET_KEY);
+		parameters.put("fs.s3.awsAccessKeyId", S3TestCredentials.getS3AccessKey());
+		parameters.put("fs.s3.awsSecretAccessKey", S3TestCredentials.getS3SecretKey());
 
-		parameters.put("fs.s3n.awsAccessKeyId", ACCESS_KEY);
-		parameters.put("fs.s3n.awsSecretAccessKey", SECRET_KEY);
+		parameters.put("fs.s3n.awsAccessKeyId", S3TestCredentials.getS3AccessKey());
+		parameters.put("fs.s3n.awsSecretAccessKey", S3TestCredentials.getS3SecretKey());
 
 		try (PrintStream out = new PrintStream(new FileOutputStream(hadoopConfig))) {
 			out.println("<?xml version=\"1.0\"?>");
@@ -155,7 +148,7 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 	private void testRecursiveUploadForYarn(String scheme, String pathSuffix) throws Exception {
 		++numRecursiveUploadTests;
 
-		final Path basePath = new Path(scheme + "://" + BUCKET + '/' + TEST_DATA_DIR);
+		final Path basePath = new Path(S3TestCredentials.getTestBucketUriWithScheme(scheme) + TEST_DATA_DIR);
 		final HadoopFileSystem fs = (HadoopFileSystem) basePath.getFileSystem();
 
 		assumeFalse(fs.exists(basePath));
@@ -169,23 +162,6 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 			// clean up
 			fs.delete(basePath, true);
 		}
-	}
-
-	/**
-	 * Verifies that nested directories are properly copied with a <tt>s3a://</tt> file
-	 * systems during resource uploads for YARN.
-	 */
-	@Test
-	public void testRecursiveUploadForYarnS3() throws Exception {
-		try {
-			Class.forName("org.apache.hadoop.fs.s3.S3FileSystem");
-		} catch (ClassNotFoundException e) {
-			// not in the classpath, cannot run this test
-			String msg = "Skipping test because S3FileSystem is not in the class path";
-			log.info(msg);
-			assumeNoException(msg, e);
-		}
-		testRecursiveUploadForYarn("s3", "testYarn-s3");
 	}
 
 	@Test

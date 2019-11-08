@@ -127,14 +127,20 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	// ------------------------------------------------------------------------
 
 	private void reportCounter(final String name, final Counter counter) {
-		send(name, String.valueOf(counter.getCount()));
+		send(name, counter.getCount());
 	}
 
 	private void reportGauge(final String name, final Gauge<?> gauge) {
 		Object value = gauge.getValue();
-		if (value != null) {
-			send(name, value.toString());
+		if (value == null) {
+			return;
 		}
+
+		if (value instanceof Number) {
+			send(numberIsNegative((Number) value), name, value.toString());
+		}
+
+		send(name, value.toString());
 	}
 
 	private void reportHistogram(final String name, final Histogram histogram) {
@@ -143,25 +149,25 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 			HistogramStatistics statistics = histogram.getStatistics();
 
 			if (statistics != null) {
-				send(prefix(name, "count"), String.valueOf(histogram.getCount()));
-				send(prefix(name, "max"), String.valueOf(statistics.getMax()));
-				send(prefix(name, "min"), String.valueOf(statistics.getMin()));
-				send(prefix(name, "mean"), String.valueOf(statistics.getMean()));
-				send(prefix(name, "stddev"), String.valueOf(statistics.getStdDev()));
-				send(prefix(name, "p50"), String.valueOf(statistics.getQuantile(0.5)));
-				send(prefix(name, "p75"), String.valueOf(statistics.getQuantile(0.75)));
-				send(prefix(name, "p95"), String.valueOf(statistics.getQuantile(0.95)));
-				send(prefix(name, "p98"), String.valueOf(statistics.getQuantile(0.98)));
-				send(prefix(name, "p99"), String.valueOf(statistics.getQuantile(0.99)));
-				send(prefix(name, "p999"), String.valueOf(statistics.getQuantile(0.999)));
+				send(prefix(name, "count"), histogram.getCount());
+				send(prefix(name, "max"), statistics.getMax());
+				send(prefix(name, "min"), statistics.getMin());
+				send(prefix(name, "mean"), statistics.getMean());
+				send(prefix(name, "stddev"), statistics.getStdDev());
+				send(prefix(name, "p50"), statistics.getQuantile(0.5));
+				send(prefix(name, "p75"), statistics.getQuantile(0.75));
+				send(prefix(name, "p95"), statistics.getQuantile(0.95));
+				send(prefix(name, "p98"), statistics.getQuantile(0.98));
+				send(prefix(name, "p99"), statistics.getQuantile(0.99));
+				send(prefix(name, "p999"), statistics.getQuantile(0.999));
 			}
 		}
 	}
 
 	private void reportMeter(final String name, final Meter meter) {
 		if (meter != null) {
-			send(prefix(name, "rate"), String.valueOf(meter.getRate()));
-			send(prefix(name, "count"), String.valueOf(meter.getCount()));
+			send(prefix(name, "rate"), meter.getRate());
+			send(prefix(name, "count"), meter.getCount());
 		}
 	}
 
@@ -177,6 +183,23 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		} else {
 			return "";
 		}
+	}
+
+	private void send(String name, double value) {
+		send(numberIsNegative(value), name, String.valueOf(value));
+	}
+
+	private void send(String name, long value) {
+		send(value < 0, name, String.valueOf(value));
+	}
+
+	private void send(boolean resetToZero, String name, String value) {
+		if (resetToZero) {
+			// negative values are interpreted as reductions instead of absolute values
+			// reset value to 0 before applying reduction as a workaround
+			send(name, "0");
+		}
+		send(name, value);
 	}
 
 	private void send(final String name, final String value) {
@@ -215,5 +238,9 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		}
 
 		return chars == null ? input : new String(chars, 0, pos);
+	}
+
+	private boolean numberIsNegative(Number input) {
+		return Double.compare(input.doubleValue(), 0) < 0;
 	}
 }

@@ -34,7 +34,7 @@ public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> {
 	private static final long serialVersionUID = -744070793650644485L;
 
 	/** This value state tracks the current sequence number per key. */
-	private volatile ValueState<Long> sequenceValue;
+	private transient ValueState<Long> sequenceValue;
 
 	/** This defines how semantics are checked for each update. */
 	private final ValidatorFunction validator;
@@ -60,7 +60,7 @@ public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> {
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
+	public void open(Configuration parameters) {
 		ValueStateDescriptor<Long> sequenceStateDescriptor =
 			new ValueStateDescriptor<>("sequenceState", Long.class);
 

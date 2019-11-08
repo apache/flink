@@ -21,11 +21,13 @@ package org.apache.flink.fs.s3.common;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
+import org.apache.flink.runtime.util.HadoopConfigLoader;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,10 +140,12 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 				}
 			}
 
-			final String localTmpDirectory = flinkConfig.getString(CoreOptions.TMP_DIRS);
+			final String[] localTmpDirectories = ConfigurationUtils.parseTempDirectories(flinkConfig);
+			Preconditions.checkArgument(localTmpDirectories.length > 0);
+			final String localTmpDirectory = localTmpDirectories[0];
 			final long s3minPartSize = flinkConfig.getLong(PART_UPLOAD_MIN_SIZE);
 			final int maxConcurrentUploads = flinkConfig.getInteger(MAX_CONCURRENT_UPLOADS);
-			final S3MultiPartUploader s3AccessHelper = getS3AccessHelper(fs);
+			final S3AccessHelper s3AccessHelper = getS3AccessHelper(fs);
 
 			return new FlinkS3FileSystem(
 					fs,
@@ -166,6 +170,6 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 		URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig);
 
 	@Nullable
-	protected abstract S3MultiPartUploader getS3AccessHelper(org.apache.hadoop.fs.FileSystem fs);
+	protected abstract S3AccessHelper getS3AccessHelper(org.apache.hadoop.fs.FileSystem fs);
 }
 

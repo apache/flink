@@ -15,27 +15,37 @@ The faults that can be currently introduced to the Flink cluster include:
 * Network partitions
 
 There are many more properties other than job availability that could be
-verified but are not yet covered by this test suite, e.g., end-to-end exactly-once processing
+verified but are not yet fully covered by this project, e.g., end-to-end exactly-once processing
 semantics.
 
 ## Usage
+
+### Setting up the Environment
 See the [Jepsen documentation](https://github.com/jepsen-io/jepsen#setting-up-a-jepsen-environment)
-for how to set up the environment to run tests. The script under `scripts/run-tests.sh` documents how to invoke
-tests. The Flink job used for testing is located under
-`flink-end-to-end-tests/flink-datastream-allround-test`. You have to build the job first and copy
-the resulting jar (`DataStreamAllroundTestProgram.jar`) to the `./bin` directory of this project's
-root.
+for details on how to set up the environment required to run the tests.
+To simplify development, we have prepared Dockerfiles and a [Docker Compose](https://docs.docker.com/compose/) template
+so that you can run the tests locally in containers (see Section [Docker](#usage-docker)).
+
+### Running Tests
+This project does not comprise of only a single test that can be run but rather a parameterizable
+test template. This allows the user to specify the cluster manager that Flink should be on, the
+location of the high availability storage directory, the jobs to be submitted, etc.
+The script under `docker/run-tests.sh` shows examples on how to specify and run tests.
+By default, the example tests run the `DataStreamAllroundTestProgram`, which is located under
+`flink-end-to-end-tests/flink-datastream-allround-test` of the Flink project root.
+Before running the tests, you have to build the job first, and copy the resulting jar
+(`DataStreamAllroundTestProgram.jar`) to the `./bin` directory of this project's root.
+Also included in the examples is a more complicated scenario with two jobs that share a Kafka
+topic. See the `run-tests.sh` script for details on how to enable and run this test.
 
 ### Docker
-
-To simplify development, we have prepared Dockerfiles and a Docker Compose template
-so that you can run the tests locally in containers. To build the images
-and start the containers, simply run:
+To build the images and start the containers, simply run:
 
     $ cd docker
     $ ./up.sh
 
-After the containers started, open a new terminal window and run `docker exec -it jepsen-control bash`.
+This should start one control node container and three containers that will be used as DB nodes.
+After the containers have started, open a new terminal window and run `docker exec -it jepsen-control bash`.
 This will allow you to run arbitrary commands on the control node.
 To start the tests, you can use the `run-tests.sh` script in the `docker` directory,
 which expects the number of test iterations, and a URI to a Flink distribution, e.g.,
@@ -68,4 +78,5 @@ or
 depending on whether the test passed or not. If neither output is generated, the test did not finish
 properly due to problems of the environment, bugs in Jepsen or in the test suite, etc.
 
-In addition, the test directories contain all relevant log files aggregated from all hosts.
+In addition, the test directories contain all relevant log files, and the jstack output for all Flink JVMs
+aggregated from the DB nodes.

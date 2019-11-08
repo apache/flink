@@ -27,7 +27,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -55,9 +55,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.rocksdb</groupId>
-			<artifactId>rocksdbjni</artifactId>
-			<version>5.7.5</version>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>frocksdbjni</artifactId>
+			<version>5.17.2-artisans-1.0</version>
 		</dependency>
 
 		<!-- test dependencies -->

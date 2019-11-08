@@ -54,12 +54,10 @@ public class SavepointDisposalHandlers extends AbstractAsynchronousOperationHand
 	public class SavepointDisposalTriggerHandler extends TriggerHandler<RestfulGateway, SavepointDisposalRequest, EmptyMessageParameters> {
 
 		public SavepointDisposalTriggerHandler(
-				CompletableFuture<String> localRestAddress,
 				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				Time timeout,
 				Map<String, String> responseHeaders) {
 			super(
-				localRestAddress,
 				leaderRetriever,
 				timeout,
 				responseHeaders,
@@ -90,12 +88,10 @@ public class SavepointDisposalHandlers extends AbstractAsynchronousOperationHand
 	public class SavepointDisposalStatusHandler extends StatusHandler<RestfulGateway, AsynchronousOperationInfo, SavepointDisposalStatusMessageParameters> {
 
 		public SavepointDisposalStatusHandler(
-				CompletableFuture<String> localRestAddress,
 				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				Time timeout,
 				Map<String, String> responseHeaders) {
 			super(
-				localRestAddress,
 				leaderRetriever,
 				timeout,
 				responseHeaders,

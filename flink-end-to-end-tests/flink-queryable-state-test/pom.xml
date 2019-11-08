@@ -23,7 +23,7 @@
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -47,7 +47,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-queryable-state-client-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-queryable-state-client-java</artifactId>
 			<version>${project.version}</version>
 			<!-- compile scope since it is used by the client jar -->
 		</dependency>

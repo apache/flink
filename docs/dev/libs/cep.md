@@ -38,7 +38,7 @@ library makes when [dealing with lateness](#handling-lateness-in-event-time) in 
 
 ## Getting Started
 
-If you want to jump right in, [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html) and
+If you want to jump right in, [set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html) and
 add the FlinkCEP dependency to the `pom.xml` of your project.
 
 <div class="codetabs" markdown="1">
@@ -63,7 +63,7 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 </div>
 </div>
 
-{% info %} FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({{site.baseurl}}/dev/linking.html).
+{% info %} FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({{site.baseurl}}/dev/projectsetup/dependencies.html).
 
 Now you can start writing your first CEP program using the Pattern API.
 
@@ -101,14 +101,16 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
 
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
-DataStream<Alert> result = patternStream.select(
-    new PatternSelectFunction<Event, Alert>() {
+DataStream<Alert> result = patternStream.process(
+    new PatternProcessFunction<Event, Alert>() {
         @Override
-        public Alert select(Map<String, List<Event>> pattern) throws Exception {
-            return createAlertFrom(pattern);
+        public void processMatch(
+                Map<String, List<Event>> pattern,
+                Context ctx,
+                Collector<Alert> out) throws Exception {
+            out.collect(createAlertFrom(pattern));
         }
-    }
-});
+    });
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -121,7 +123,15 @@ val pattern = Pattern.begin[Event]("start").where(_.getId == 42)
 
 val patternStream = CEP.pattern(input, pattern)
 
-val result: DataStream[Alert] = patternStream.select(createAlert(_))
+val result: DataStream[Alert] = patternStream.process(
+    new PatternProcessFunction[Event, Alert]() {
+        override def processMatch(
+              `match`: util.Map[String, util.List[Event]],
+              ctx: PatternProcessFunction.Context,
+              out: Collector[Alert]): Unit = {
+            out.collect(createAlertFrom(pattern))
+        }
+    })
 {% endhighlight %}
 </div>
 </div>
@@ -300,6 +310,8 @@ middle.oneOrMore()
 {% warn Attention %} The call to `ctx.getEventsForPattern(...)` finds all the
 previously accepted events for a given potential match. The cost of this operation can vary, so when implementing
 your condition, try to minimize its use.
+
+Described context gives one access to event time characteristics as well. For more info see [Time context](#time-context).
 
 **Simple Conditions:** This type of condition extends the aforementioned `IterativeCondition` class and decides
 whether to accept an event or not, based *only* on properties of the event itself.
@@ -1262,9 +1274,10 @@ pattern.within(Time.seconds(10))
 
 ### After Match Skip Strategy
 
-For a given pattern, the same event may be assigned to multiple successful matches. To control to how many matches an event will be assigned, you need to specify the skip strategy called `AfterMatchSkipStrategy`. There are four types of skip strategies, listed as follows:
+For a given pattern, the same event may be assigned to multiple successful matches. To control to how many matches an event will be assigned, you need to specify the skip strategy called `AfterMatchSkipStrategy`. There are five types of skip strategies, listed as follows:
 
 * <strong>*NO_SKIP*</strong>: Every possible match will be emitted.
+* <strong>*SKIP_TO_NEXT*</strong>: Discards every partial match that started with the same event, emitted match was started.
 * <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that started after the match started but before it ended.
 * <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that started after the match started but before the first event of *PatternName* occurred.
 * <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that started after the match started but before the last event of *PatternName* occurred.
@@ -1324,7 +1337,7 @@ For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the diff
 </table>
 
 Have a look also at another example to better see the difference between NO_SKIP and SKIP_TO_FIRST:
-Pattern: `(a | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the results will be:
+Pattern: `(a | b | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the results will be:
 
 
 <table class="table table-bordered">
@@ -1339,12 +1352,11 @@ Pattern: `(a | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the r
             <code>a b c1 c2 c3 d</code><br>
             <code>b c1 c2 c3 d</code><br>
             <code>c1 c2 c3 d</code><br>
-            <code>c2 c3 d</code><br>
         </td>
         <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>c*</code>]</td>
         <td>
             <code>a b c1 c2 c3 d</code><br>
             <code>c1 c2 c3 d</code><br>
@@ -1373,7 +1385,7 @@ Pattern: `a b+` and sequence: `a b1 b2 b3` Then the results will be:
         <td>After found matching <code>a b1</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_NEXT</strong>[<code>b*</code>]</td>
+        <td><strong>SKIP_TO_NEXT</strong></td>
         <td>
             <code>a b1</code><br>
         </td>
@@ -1477,92 +1489,62 @@ The input stream can be *keyed* or *non-keyed* depending on your use-case.
 
 ### Selecting from Patterns
 
-Once you have obtained a `PatternStream` you can select from detected event sequences via the `select` or `flatSelect` methods.
+Once you have obtained a `PatternStream` you can apply transformation to detected event sequences. The suggested way of doing that
+is by `PatternProcessFunction`.
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-The `select()` method requires a `PatternSelectFunction` implementation.
-A `PatternSelectFunction` has a `select` method which is called for each matching event sequence.
+A `PatternProcessFunction` has a `processMatch` method which is called for each matching event sequence.
 It receives a match in the form of `Map<String, List<IN>>` where the key is the name of each pattern in your pattern
 sequence and the value is a list of all accepted events for that pattern (`IN` is the type of your input elements).
 The events for a given pattern are ordered by timestamp. The reason for returning a list of accepted events for each
-pattern is that when using looping patterns (e.g. `oneToMany()` and `times()`), more than one event may be accepted for a given pattern. The selection function returns exactly one result.
+pattern is that when using looping patterns (e.g. `oneToMany()` and `times()`), more than one event may be accepted for a given pattern.
 
 {% highlight java %}
-class MyPatternSelectFunction<IN, OUT> implements PatternSelectFunction<IN, OUT> {
+class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> {
     @Override
-    public OUT select(Map<String, List<IN>> pattern) {
-        IN startEvent = pattern.get("start").get(0);
-        IN endEvent = pattern.get("end").get(0);
-        return new OUT(startEvent, endEvent);
+    public void processMatch(Map<String, List<IN>> match, Context ctx, Collector<OUT> out) throws Exception;
+        IN startEvent = match.get("start").get(0);
+        IN endEvent = match.get("end").get(0);
+        out.collect(OUT(startEvent, endEvent));
     }
 }
 {% endhighlight %}
 
-A `PatternFlatSelectFunction` is similar to the `PatternSelectFunction`, with the only distinction that it can return an
-arbitrary number of results. To do this, the `select` method has an additional `Collector` parameter which is
-used to forward your output elements downstream.
+The `PatternProcessFunction` gives access to a `Context` object. Thanks to it, one can access time related
+characteristics such as `currentProcessingTime` or `timestamp` of current match (which is the timestamp of the last element assigned to the match).
+For more info see [Time context](#time-context).
+Through this context one can also emit results to a [side-output]({{ site.baseurl }}/dev/stream/side_output.html).
 
-{% highlight java %}
-class MyPatternFlatSelectFunction<IN, OUT> implements PatternFlatSelectFunction<IN, OUT> {
-    @Override
-    public void flatSelect(Map<String, List<IN>> pattern, Collector<OUT> collector) {
-        IN startEvent = pattern.get("start").get(0);
-        IN endEvent = pattern.get("end").get(0);
 
-        for (int i = 0; i < startEvent.getValue(); i++ ) {
-            collector.collect(new OUT(startEvent, endEvent));
-        }
-    }
-}
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-The `select()` method takes a selection function as argument, which is called for each matching event sequence.
-It receives a match in the form of `Map[String, Iterable[IN]]` where the key is the name of each pattern in your pattern
-sequence and the value is an Iterable over all accepted events for that pattern (`IN` is the type of your input elements).
-
-The events for a given pattern are ordered by timestamp. The reason for returning an iterable of accepted events for each pattern is that when using looping patterns (e.g. `oneToMany()` and `times()`), more than one event may be accepted for a given pattern. The selection function returns exactly one result per call.
-
-{% highlight scala %}
-def selectFn(pattern : Map[String, Iterable[IN]]): OUT = {
-    val startEvent = pattern.get("start").get.next
-    val endEvent = pattern.get("end").get.next
-    OUT(startEvent, endEvent)
-}
-{% endhighlight %}
-
-The `flatSelect` method is similar to the `select` method. Their only difference is that the function passed to the
-`flatSelect` method can return an arbitrary number of results per call. In order to do this, the function for
-`flatSelect` has an additional `Collector` parameter which is used to forward your output elements downstream.
-
-{% highlight scala %}
-def flatSelectFn(pattern : Map[String, Iterable[IN]], collector : Collector[OUT]) = {
-    val startEvent = pattern.get("start").get.next
-    val endEvent = pattern.get("end").get.next
-    for (i <- 0 to startEvent.getValue) {
-        collector.collect(OUT(startEvent, endEvent))
-    }
-}
-{% endhighlight %}
-</div>
-</div>
-
-### Handling Timed Out Partial Patterns
+#### Handling Timed Out Partial Patterns
 
 Whenever a pattern has a window length attached via the `within` keyword, it is possible that partial event sequences
-are discarded because they exceed the window length. To react to these timed out partial matches the `select`
-and `flatSelect` API calls allow you to specify a timeout handler. This timeout handler is called for each timed out
-partial event sequence. The timeout handler receives all the events that have been matched so far by the pattern, and
-the timestamp when the timeout was detected.
+are discarded because they exceed the window length. To act upon a timed out partial match one can use `TimedOutPartialMatchHandler` interface.
+The interface is supposed to be used in a mixin style. This mean you can additionally implement this interface with your `PatternProcessFunction`.
+The `TimedOutPartialMatchHandler` provides the additional `processTimedOutMatch` method which will be called for every timed out partial match.
 
-To treat partial patterns, the `select` and `flatSelect` API calls offer an overloaded version which takes as
-parameters
+{% highlight java %}
+class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> implements TimedOutPartialMatchHandler<IN> {
+    @Override
+    public void processMatch(Map<String, List<IN>> match, Context ctx, Collector<OUT> out) throws Exception;
+        ...
+    }
 
- * `PatternTimeoutFunction`/`PatternFlatTimeoutFunction`
- * [OutputTag]({{ site.baseurl }}/dev/stream/side_output.html) for the side output in which the timed out matches will be returned
- * and the known `PatternSelectFunction`/`PatternFlatSelectFunction`.
+    @Override
+    public void processTimedOutMatch(Map<String, List<IN>> match, Context ctx) throws Exception;
+        IN startEvent = match.get("start").get(0);
+        ctx.output(outputTag, T(startEvent));
+    }
+}
+{% endhighlight %}
+
+<span class="label label-info">Note</span> The `processTimedOutMatch` does not give one access to the main output. You can still emit results
+through [side-outputs]({{ site.baseurl }}/dev/stream/side_output.html) though, through the `Context` object.
+
+
+#### Convenience API
+
+The aforementioned `PatternProcessFunction` was introduced in Flink 1.8 and since then it is the recommended way to interact with matches.
+One can still use the old style API like `select`/`flatSelect`, which internally will be translated into a `PatternProcessFunction`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1572,18 +1554,21 @@ PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
 OutputTag<String> outputTag = new OutputTag<String>("side-output"){};
 
-SingleOutputStreamOperator<ComplexEvent> result = patternStream.select(
-    outputTag,
-    new PatternTimeoutFunction<Event, TimeoutEvent>() {...},
-    new PatternSelectFunction<Event, ComplexEvent>() {...}
-);
-
-DataStream<TimeoutEvent> timeoutResult = result.getSideOutput(outputTag);
-
 SingleOutputStreamOperator<ComplexEvent> flatResult = patternStream.flatSelect(
     outputTag,
-    new PatternFlatTimeoutFunction<Event, TimeoutEvent>() {...},
-    new PatternFlatSelectFunction<Event, ComplexEvent>() {...}
+    new PatternFlatTimeoutFunction<Event, TimeoutEvent>() {
+        public void timeout(
+                Map<String, List<Event>> pattern,
+                long timeoutTimestamp,
+                Collector<TimeoutEvent> out) throws Exception {
+            out.collect(new TimeoutEvent());
+        }
+    },
+    new PatternFlatSelectFunction<Event, ComplexEvent>() {
+        public void flatSelect(Map<String, List<IN>> pattern, Collector<OUT> out) throws Exception {
+            out.collect(new ComplexEvent());
+        }
+    }
 );
 
 DataStream<TimeoutEvent> timeoutFlatResult = flatResult.getSideOutput(outputTag);
@@ -1594,23 +1579,7 @@ DataStream<TimeoutEvent> timeoutFlatResult = flatResult.getSideOutput(outputTag)
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
-val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
-val outputTag = OutputTag[String]("side-output")
-
-val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.select(outputTag){
-    (pattern: Map[String, Iterable[Event]], timestamp: Long) => TimeoutEvent()
-} {
-    pattern: Map[String, Iterable[Event]] => ComplexEvent()
-}
-
-val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag)
-{% endhighlight %}
-
-The `flatSelect` API call offers the same overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
-In contrast to the `select` functions, the `flatSelect` functions are called with a `Collector`. You can use the collector to emit an arbitrary number of events.
-
-{% highlight scala %}
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
 val outputTag = OutputTag[String]("side-output")
@@ -1623,13 +1592,15 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.flatSelect(
         out.collect(ComplexEvent())
 }
 
-val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag)
+val timeoutResult: DataStream[TimeoutEvent] = result.getSideOutput(outputTag)
 {% endhighlight %}
 
 </div>
 </div>
 
-## Handling Lateness in Event Time
+## Time in CEP library
+
+### Handling Lateness in Event Time
 
 In `CEP` the order in which elements are processed matters. To guarantee that elements are processed in the correct order when working in event time, an incoming element is initially put in a buffer where elements are *sorted in ascending order based on their timestamp*, and when a watermark arrives, all the elements in this buffer with timestamps smaller than that of the watermark are processed. This implies that elements between watermarks are processed in event-time order.
 
@@ -1655,7 +1626,6 @@ SingleOutputStreamOperator<ComplexEvent> result = patternStream
 
 DataStream<String> lateData = result.getSideOutput(lateDataOutputTag);
 
-
 {% endhighlight %}
 
 </div>
@@ -1674,12 +1644,45 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream
           pattern: Map[String, Iterable[ComplexEvent]] => ComplexEvent()
       }
 
-val lateData: DataStream<String> = result.getSideOutput(lateDataOutputTag)
+val lateData: DataStream[String] = result.getSideOutput(lateDataOutputTag)
 
 {% endhighlight %}
 
 </div>
 </div>
+
+### Time context
+
+In [PatternProcessFunction](#selecting-from-patterns) as well as in [IterativeCondition](#conditions) user has access to a context
+that implements `TimeContext` as follows:
+
+{% highlight java %}
+/**
+ * Enables access to time related characteristics such as current processing time or timestamp of
+ * currently processed element. Used in {@link PatternProcessFunction} and
+ * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}
+ */
+@PublicEvolving
+public interface TimeContext {
+
+	/**
+	 * Timestamp of the element currently being processed.
+	 *
+	 * <p>In case of {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime} this
+	 * will be set to the time when event entered the cep operator.
+	 */
+	long timestamp();
+
+	/** Returns the current processing time. */
+	long currentProcessingTime();
+}
+{% endhighlight %}
+
+This context gives user access to time characteristics of processed events (incoming records in case of `IterativeCondition` and matches in case of `PatternProcessFunction`).
+Call to `TimeContext#currentProcessingTime` always gives you the value of current processing time and this call should be preferred to e.g. calling `System.currentTimeMillis()`.
+
+In case of `TimeContext#timestamp()` the returned value is equal to assigned timestamp in case of `EventTime`. In `ProcessingTime` this will equal to the point of time when said event entered
+cep operator (or when the match was generated in case of `PatternProcessFunction`). This means that the value will be consistent across multiple calls to that method.
 
 ## Examples
 
@@ -1742,7 +1745,7 @@ val pattern = Pattern.begin[Event]("start")
 
 val patternStream = CEP.pattern(partitionedInput, pattern)
 
-val alerts = patternStream.select(createAlert(_)))
+val alerts = patternStream.select(createAlert(_))
 {% endhighlight %}
 </div>
 </div>

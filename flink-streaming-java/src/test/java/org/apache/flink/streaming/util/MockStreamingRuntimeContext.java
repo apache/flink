@@ -25,6 +25,8 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import java.util.Collections;
 
@@ -79,6 +81,8 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
 	private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
 		private static final long serialVersionUID = -1153976702711944427L;
 
+		private transient TestProcessingTimeService testProcessingTimeService;
+
 		@Override
 		public ExecutionConfig getExecutionConfig() {
 			return new ExecutionConfig();
@@ -87,6 +91,14 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
 		@Override
 		public OperatorID getOperatorID() {
 			return new OperatorID();
+		}
+
+		@Override
+		protected ProcessingTimeService getProcessingTimeService() {
+			if (testProcessingTimeService == null) {
+				testProcessingTimeService = new TestProcessingTimeService();
+			}
+			return testProcessingTimeService;
 		}
 	}
 }

@@ -22,6 +22,7 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -31,8 +32,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
-import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
+import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
 
@@ -92,8 +93,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
@@ -142,8 +144,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, breaking),
@@ -193,8 +196,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
@@ -244,8 +248,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
@@ -292,8 +297,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
@@ -342,8 +348,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, breaking),
@@ -394,8 +401,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
@@ -525,8 +533,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3),
@@ -579,8 +588,9 @@ public class UntilConditionITCase {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3),
@@ -631,10 +641,10 @@ public class UntilConditionITCase {
 		});
 
 		NFA<Event> nfa = compile(pattern, false);
-
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3),

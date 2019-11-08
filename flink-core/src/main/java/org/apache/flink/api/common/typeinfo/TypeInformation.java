@@ -35,10 +35,10 @@ import java.util.Map;
  * TypeInformation is the core class of Flink's type system. Flink requires a type information
  * for all types that are used as input or return type of a user function. This type information
  * class acts as the tool to generate serializers and comparators, and to perform semantic checks
- * such as whether the fields that are uses as join/grouping keys actually exist.
+ * such as whether the fields that are used as join/grouping keys actually exist.
  *
  * <p>The type information also bridges between the programming languages object model and a
- * logical flat schema. It maps fields from the types to to columns (fields) in a flat schema.
+ * logical flat schema. It maps fields from the types to columns (fields) in a flat schema.
  * Not all fields from a type are mapped to a separate fields in the flat schema and
  * often, entire types are mapped to one field. It is important to notice that the schema must
  * hold for all instances of a type. For that reason, elements in lists and arrays are not
@@ -108,7 +108,7 @@ public abstract class TypeInformation<T> implements Serializable {
 
 	/**
 	 * Gets the number of logical fields in this type. This includes its nested and transitively nested
-	 * fields, in the case of composite types. In the example below, the OuterType type has three
+	 * fields, in the case of composite types. In the example above, the OuterType type has three
 	 * fields in total.
 	 *
 	 * <p>The total number of fields must be at least 1.

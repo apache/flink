@@ -23,13 +23,12 @@ import org.apache.flink.api.common.serialization.TypeInformationSerializationSch
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
 import kafka.server.KafkaServer;
 import org.apache.kafka.common.errors.ProducerFencedException;
@@ -50,7 +49,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic;
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic.AT_LEAST_ONCE;
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic.EXACTLY_ONCE;
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
@@ -60,7 +59,7 @@ import static org.junit.Assert.fail;
  * IT cases for the {@link FlinkKafkaProducer011}.
  */
 @SuppressWarnings("serial")
-public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
+public class FlinkKafkaProducer011ITCase extends KafkaTestBaseWithFlink {
 	protected String transactionalId;
 	protected Properties extraProperties;
 
@@ -116,6 +115,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			else {
 				initialActiveThreads = Optional.of(Thread.activeCount());
 			}
+			checkProducerLeak();
 		}
 	}
 
@@ -160,10 +160,11 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		}
 		catch (Exception ex) {
 			// testHarness1 will be fenced off after creating and closing testHarness2
-			if (!findThrowable(ex, ProducerFencedException.class).isPresent()) {
+			if (!findSerializedThrowable(ex, ProducerFencedException.class, ClassLoader.getSystemClassLoader()).isPresent()) {
 				throw ex;
 			}
 		}
+		checkProducerLeak();
 	}
 
 	@Test
@@ -206,55 +207,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 
 		deleteTestTopic(topic);
-	}
-
-	@Test
-	public void testFlinkKafkaProducer011FailTransactionCoordinatorBeforeNotify() throws Exception {
-		String topic = "flink-kafka-producer-fail-transaction-coordinator-before-notify";
-
-		Properties properties = createProperties();
-
-		FlinkKafkaProducer011<Integer> kafkaProducer = new FlinkKafkaProducer011<>(
-			topic,
-			integerKeyedSerializationSchema,
-			properties,
-			EXACTLY_ONCE);
-
-		OneInputStreamOperatorTestHarness<Integer, Object> testHarness1 = new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			IntSerializer.INSTANCE);
-
-		testHarness1.setup();
-		testHarness1.open();
-		testHarness1.processElement(42, 0);
-		testHarness1.snapshot(0, 1);
-		testHarness1.processElement(43, 2);
-		int transactionCoordinatorId = kafkaProducer.getTransactionCoordinatorId();
-		OperatorSubtaskState snapshot = testHarness1.snapshot(1, 3);
-
-		failBroker(transactionCoordinatorId);
-
-		try {
-			testHarness1.processElement(44, 4);
-			testHarness1.notifyOfCompletedCheckpoint(1);
-			testHarness1.close();
-		}
-		catch (Exception ex) {
-			// Expected... some random exception could be thrown by any of the above operations.
-		}
-		finally {
-			kafkaServer.restartBroker(transactionCoordinatorId);
-		}
-
-		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness2 = createTestHarness(topic)) {
-			testHarness2.setup();
-			testHarness2.initializeState(snapshot);
-			testHarness2.open();
-		}
-
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
-
-		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	/**
@@ -266,32 +219,32 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	public void testFailBeforeNotifyAndResumeWorkAfterwards() throws Exception {
 		String topic = "flink-kafka-producer-fail-before-notify";
 
-		OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic);
+		OneInputStreamOperatorTestHarness<Integer, Object> testHarness1 = createTestHarness(topic);
+		checkProducerLeak();
+		testHarness1.setup();
+		testHarness1.open();
+		testHarness1.processElement(42, 0);
+		testHarness1.snapshot(0, 1);
+		testHarness1.processElement(43, 2);
+		OperatorSubtaskState snapshot1 = testHarness1.snapshot(1, 3);
 
-		testHarness.setup();
-		testHarness.open();
-		testHarness.processElement(42, 0);
-		testHarness.snapshot(0, 1);
-		testHarness.processElement(43, 2);
-		OperatorSubtaskState snapshot1 = testHarness.snapshot(1, 3);
-
-		testHarness.processElement(44, 4);
-		testHarness.snapshot(2, 5);
-		testHarness.processElement(45, 6);
+		testHarness1.processElement(44, 4);
+		testHarness1.snapshot(2, 5);
+		testHarness1.processElement(45, 6);
 
 		// do not close previous testHarness to make sure that closing do not clean up something (in case of failure
 		// there might not be any close)
-		testHarness = createTestHarness(topic);
-		testHarness.setup();
+		OneInputStreamOperatorTestHarness<Integer, Object> testHarness2 = createTestHarness(topic);
+		testHarness2.setup();
 		// restore from snapshot1, transactions with records 44 and 45 should be aborted
-		testHarness.initializeState(snapshot1);
-		testHarness.open();
+		testHarness2.initializeState(snapshot1);
+		testHarness2.open();
 
 		// write and commit more records, after potentially lingering transactions
-		testHarness.processElement(46, 7);
-		testHarness.snapshot(4, 8);
-		testHarness.processElement(47, 9);
-		testHarness.notifyOfCompletedCheckpoint(4);
+		testHarness2.processElement(46, 7);
+		testHarness2.snapshot(4, 8);
+		testHarness2.processElement(47, 9);
+		testHarness2.notifyOfCompletedCheckpoint(4);
 
 		//now we should have:
 		// - records 42 and 43 in committed transactions
@@ -300,8 +253,18 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// - pending transaction with record 47
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 46));
 
-		testHarness.close();
+		try {
+			testHarness1.close();
+		} catch (Exception e) {
+			// The only acceptable exception is ProducerFencedException because testHarness2 uses the same
+			// transactional ID.
+			if (!(e.getCause() instanceof ProducerFencedException)) {
+				fail("Received unexpected exception " + e);
+			}
+		}
+		testHarness2.close();
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	@Test
@@ -349,6 +312,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// - aborted transactions with records 44 and 45
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	/**
@@ -407,6 +371,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			closeIgnoringProducerFenced(operatorToClose);
 		}
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	/**
@@ -432,9 +397,10 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		final int parallelism3 = 3;
 		final int maxParallelism = Math.max(parallelism1, Math.max(parallelism2, parallelism3));
 
-		List<OperatorStateHandle> operatorSubtaskState = repartitionAndExecute(
+		OperatorSubtaskState operatorSubtaskState = repartitionAndExecute(
 			topic,
-			Collections.emptyList(),
+			new OperatorSubtaskState(),
+			parallelism1,
 			parallelism1,
 			maxParallelism,
 			IntStream.range(0, parallelism1).boxed().iterator());
@@ -442,6 +408,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		operatorSubtaskState = repartitionAndExecute(
 			topic,
 			operatorSubtaskState,
+			parallelism1,
 			parallelism2,
 			maxParallelism,
 			IntStream.range(parallelism1,  parallelism1 + parallelism2).boxed().iterator());
@@ -449,6 +416,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		operatorSubtaskState = repartitionAndExecute(
 			topic,
 			operatorSubtaskState,
+			parallelism2,
 			parallelism3,
 			maxParallelism,
 			IntStream.range(parallelism1 + parallelism2,  parallelism1 + parallelism2 + parallelism3).boxed().iterator());
@@ -457,9 +425,10 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// not allow us to read all committed messages from the topic. Thus we initialize operators from
 		// OperatorSubtaskState once more, but without any new data. This should terminate all ongoing transactions.
 
-		operatorSubtaskState = repartitionAndExecute(
+		repartitionAndExecute(
 			topic,
 			operatorSubtaskState,
+			parallelism3,
 			1,
 			maxParallelism,
 			Collections.emptyIterator());
@@ -470,30 +439,31 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			0,
 			IntStream.range(0, parallelism1 + parallelism2 + parallelism3).boxed().collect(Collectors.toList()));
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
-	private List<OperatorStateHandle> repartitionAndExecute(
+	private OperatorSubtaskState repartitionAndExecute(
 			String topic,
-			List<OperatorStateHandle> inputStates,
-			int parallelism,
+			OperatorSubtaskState inputStates,
+			int oldParallelism,
+			int newParallelism,
 			int maxParallelism,
 			Iterator<Integer> inputData) throws Exception {
 
-		List<OperatorStateHandle> outputStates = new ArrayList<>();
+		List<OperatorSubtaskState> outputStates = new ArrayList<>();
 		List<OneInputStreamOperatorTestHarness<Integer, Object>> testHarnesses = new ArrayList<>();
 
-		for (int subtaskIndex = 0; subtaskIndex < parallelism; subtaskIndex++) {
+		for (int subtaskIndex = 0; subtaskIndex < newParallelism; subtaskIndex++) {
+			OperatorSubtaskState initState = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				inputStates, maxParallelism, oldParallelism, newParallelism, subtaskIndex);
+
 			OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
-				createTestHarness(topic, maxParallelism, parallelism, subtaskIndex, EXACTLY_ONCE);
+				createTestHarness(topic, maxParallelism, newParallelism, subtaskIndex, EXACTLY_ONCE);
 			testHarnesses.add(testHarness);
 
 			testHarness.setup();
 
-			testHarness.initializeState(new OperatorSubtaskState(
-				new StateObjectCollection<>(inputStates),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty()));
+			testHarness.initializeState(initState);
 			testHarness.open();
 
 			if (inputData.hasNext()) {
@@ -501,7 +471,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 				testHarness.processElement(nextValue, 0);
 				OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
-				outputStates.addAll(snapshot.getManagedOperatorState());
+				outputStates.add(snapshot);
 				checkState(snapshot.getRawOperatorState().isEmpty(), "Unexpected raw operator state");
 				checkState(snapshot.getManagedKeyedState().isEmpty(), "Unexpected managed keyed state");
 				checkState(snapshot.getRawKeyedState().isEmpty(), "Unexpected raw keyed state");
@@ -517,7 +487,8 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			testHarness.close();
 		}
 
-		return outputStates;
+		return AbstractStreamOperatorTestHarness.repackageState(
+			outputStates.toArray(new OperatorSubtaskState[outputStates.size()]));
 	}
 
 	@Test
@@ -543,6 +514,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42));
 
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	@Test
@@ -565,6 +537,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			}
 		}
 		deleteTestTopic(topic);
+		checkProducerLeak();
 	}
 
 	@Test
@@ -609,6 +582,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			testHarness.notifyOfCompletedCheckpoint(2);
 			testHarness.processElement(47, 9);
 		}
+		checkProducerLeak();
 	}
 
 	// shut down a Kafka broker
@@ -690,10 +664,19 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	}
 
 	private boolean isCausedBy(FlinkKafka011ErrorCode expectedErrorCode, Throwable ex) {
-		Optional<FlinkKafka011Exception> cause = findThrowable(ex, FlinkKafka011Exception.class);
+		// Extract the root cause kafka exception (if any) from the serialized throwable.
+		Optional<FlinkKafka011Exception> cause = findSerializedThrowable(ex, FlinkKafka011Exception.class, ClassLoader.getSystemClassLoader());
 		if (cause.isPresent()) {
 			return cause.get().getErrorCode().equals(expectedErrorCode);
 		}
 		return false;
+	}
+
+	private void checkProducerLeak() {
+		for (Thread t : Thread.getAllStackTraces().keySet()) {
+			if (t.getName().contains("kafka-producer-network-thread")) {
+				fail("Detected producer leak. Thread name: " + t.getName());
+			}
+		}
 	}
 }

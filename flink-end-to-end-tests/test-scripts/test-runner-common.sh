@@ -39,7 +39,7 @@ function run_test {
     export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
     echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
-    backup_config
+    backup_flink_dir
     start_timer
 
     function test_error() {
@@ -96,12 +96,13 @@ function post_test_validation {
 # Shuts down cluster and reverts changes to cluster configs
 function cleanup_proc {
     shutdown_all
-    revert_default_config
+    revert_flink_dir
 }
 
 # Cleans up all temporary folders and files
 function cleanup_tmp_files {
-    clean_log_files
+    rm ${FLINK_DIR}/log/*
+    echo "Deleted all files under ${FLINK_DIR}/log/"
 
     rm -rf ${TEST_DATA_DIR} 2> /dev/null
     echo "Deleted ${TEST_DATA_DIR}"

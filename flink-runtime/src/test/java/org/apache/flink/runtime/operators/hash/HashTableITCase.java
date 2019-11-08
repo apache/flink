@@ -30,6 +30,7 @@ import java.util.Map;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
 import org.apache.flink.core.memory.MemorySegment;
@@ -38,7 +39,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.hash.MutableHashTable.HashBucketIterator;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.UniformIntPairGenerator;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -95,19 +95,16 @@ public class HashTableITCase extends TestLogger {
 		this.pairBuildSideComparator = new IntPairComparator();
 		this.pairProbeSideComparator = new IntPairComparator();
 		this.pairComparator = new IntPairPairComparator();
-		
-		this.memManager = new MemoryManager(32 * 1024 * 1024,1);
+
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(32 * 1024 * 1024).build();
 		this.ioManager = new IOManagerAsync();
 	}
 	
 	@After
-	public void tearDown()
+	public void tearDown() throws Exception
 	{
 		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		this.ioManager.shutdown();
-		if (!this.ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
+		this.ioManager.close();
 		if (!this.memManager.verifyEmpty()) {
 			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
 		}

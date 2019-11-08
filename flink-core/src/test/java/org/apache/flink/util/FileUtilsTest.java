@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -31,18 +32,30 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -58,6 +71,41 @@ public class FileUtilsTest extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  Tests
 	// ------------------------------------------------------------------------
+
+	@Test
+	public void testReadAllBytes() throws Exception {
+		TemporaryFolder tmpFolder = null;
+		try {
+			tmpFolder = new TemporaryFolder(new File(this.getClass().getResource("/").getPath()));
+			tmpFolder.create();
+
+			final int fileSize = 1024;
+			final String testFilePath = tmpFolder.getRoot().getAbsolutePath() + File.separator
+				+ this.getClass().getSimpleName() + "_" + fileSize + ".txt";
+
+			{
+				String expectedMD5 = generateTestFile(testFilePath, 1024);
+				final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
+				assertEquals(expectedMD5, md5Hex(data));
+			}
+
+			{
+				String expectedMD5 = generateTestFile(testFilePath, 4096);
+				final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
+				assertEquals(expectedMD5, md5Hex(data));
+			}
+
+			{
+				String expectedMD5 = generateTestFile(testFilePath, 5120);
+				final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
+				assertEquals(expectedMD5, md5Hex(data));
+			}
+		} finally {
+			if (tmpFolder != null) {
+				tmpFolder.delete();
+			}
+		}
+	}
 
 	@Test
 	public void testDeletePathIfEmpty() throws IOException {
@@ -219,6 +267,74 @@ public class FileUtilsTest extends TestLogger {
 		assertDirEquals(compressDir.resolve(originalDir), extractDir.resolve(originalDir));
 	}
 
+	@Test
+	public void testListFilesInPathWithoutAnyFileReturnEmptyList() throws IOException {
+		final java.nio.file.Path testDir = tmp.newFolder("_test_0").toPath();
+
+		assertThat(FileUtils.listFilesInDirectory(testDir, FileUtils::isJarFile), is(empty()));
+	}
+
+	@Test
+	public void testListFilesInPath() throws IOException {
+		final java.nio.file.Path testDir = tmp.newFolder("_test_1").toPath();
+		final Collection<java.nio.file.Path> testFiles = prepareTestFiles(testDir);
+
+		final Collection<java.nio.file.Path> filesInDirectory = FileUtils.listFilesInDirectory(testDir, FileUtils::isJarFile);
+		assertThat(filesInDirectory, containsInAnyOrder(testFiles.toArray()));
+	}
+
+	@Test
+	public void testRelativizeOfAbsolutePath() throws IOException {
+		final java.nio.file.Path absolutePath = tmp.newFolder().toPath().toAbsolutePath();
+
+		final java.nio.file.Path rootPath = tmp.getRoot().toPath();
+		final java.nio.file.Path relativePath = FileUtils.relativizePath(rootPath, absolutePath);
+		assertFalse(relativePath.isAbsolute());
+		assertThat(rootPath.resolve(relativePath), is(absolutePath));
+	}
+
+	@Test
+	public void testRelativizeOfRelativePath() {
+		final java.nio.file.Path path = Paths.get("foobar");
+		assertFalse(path.isAbsolute());
+
+		final java.nio.file.Path relativePath = FileUtils.relativizePath(tmp.getRoot().toPath(), path);
+		assertThat(relativePath, is(path));
+	}
+
+	@Test
+	public void testAbsolutePathToURL() throws MalformedURLException {
+		final java.nio.file.Path absolutePath = tmp.getRoot().toPath().toAbsolutePath();
+		final URL absoluteURL = FileUtils.toURL(absolutePath);
+
+		final java.nio.file.Path transformedURL = Paths.get(absoluteURL.getPath());
+		assertThat(transformedURL, is(absolutePath));
+	}
+
+	@Test
+	public void testRelativePathToURL() throws MalformedURLException {
+		final java.nio.file.Path relativePath = Paths.get("foobar");
+		assertFalse(relativePath.isAbsolute());
+
+		final URL relativeURL = FileUtils.toURL(relativePath);
+		final java.nio.file.Path transformedPath = Paths.get(relativeURL.getPath());
+
+		assertThat(transformedPath, is(relativePath));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testListDirFailsIfDirectoryDoesNotExist() throws IOException {
+		final String fileName = "_does_not_exists_file";
+		FileUtils.listFilesInDirectory(tmp.getRoot().toPath().resolve(fileName), FileUtils::isJarFile);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testListAFileFailsBecauseDirectoryIsExpected() throws IOException {
+		final String fileName = "a.jar";
+		final File file = tmp.newFile(fileName);
+		FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -270,6 +386,76 @@ public class FileUtilsTest extends TestLogger {
 				generateRandomDirs(subdir, numFiles, numDirs, depth - 1);
 			}
 		}
+	}
+
+	/**
+	 * Generate some files in the directory {@code dir}.
+	 * @param dir the directory where the files are generated
+	 * @return The list of generated files
+	 * @throws IOException if I/O error occurs while generating the files
+	 */
+	public static Collection<java.nio.file.Path> prepareTestFiles(final java.nio.file.Path dir) throws IOException {
+		final java.nio.file.Path jobSubDir1 = Files.createDirectory(dir.resolve("_sub_dir1"));
+		final java.nio.file.Path jobSubDir2 = Files.createDirectory(dir.resolve("_sub_dir2"));
+		final java.nio.file.Path jarFile1 = Files.createFile(dir.resolve("file1.jar"));
+		final java.nio.file.Path jarFile2 = Files.createFile(dir.resolve("file2.jar"));
+		final java.nio.file.Path jarFile3 = Files.createFile(jobSubDir1.resolve("file3.jar"));
+		final java.nio.file.Path jarFile4 = Files.createFile(jobSubDir2.resolve("file4.jar"));
+		final Collection<java.nio.file.Path> jarFiles = new ArrayList<>();
+
+		Files.createFile(dir.resolve("file1.txt"));
+		Files.createFile(jobSubDir2.resolve("file2.txt"));
+
+		jarFiles.add(jarFile1);
+		jarFiles.add(jarFile2);
+		jarFiles.add(jarFile3);
+		jarFiles.add(jarFile4);
+		return jarFiles;
+	}
+
+	/**
+	 * Generates a random content file.
+	 *
+	 * @param outputFile the path of the output file
+	 * @param length the size of content to generate
+	 *
+	 * @return MD5 of the output file
+	 *
+	 * @throws IOException
+	 * @throws NoSuchAlgorithmException
+	 */
+	private static String generateTestFile(String outputFile, int length) throws IOException, NoSuchAlgorithmException {
+		Path outputFilePath = new Path(outputFile);
+
+		final FileSystem fileSystem = outputFilePath.getFileSystem();
+		try (final FSDataOutputStream fsDataOutputStream = fileSystem.create(outputFilePath, FileSystem.WriteMode.OVERWRITE)) {
+			return writeRandomContent(fsDataOutputStream, length);
+		}
+	}
+
+	private static String writeRandomContent(OutputStream out, int length) throws IOException, NoSuchAlgorithmException {
+		MessageDigest messageDigest = MessageDigest.getInstance("MD5");
+
+		Random random = new Random();
+		char startChar = 32, endChar = 127;
+		for (int i = 0; i < length; i++) {
+			int rnd = random.nextInt(endChar - startChar);
+			byte b = (byte) (startChar + rnd);
+
+			out.write(b);
+			messageDigest.update(b);
+		}
+
+		byte[] b = messageDigest.digest();
+		return org.apache.flink.util.StringUtils.byteToHexString(b);
+	}
+
+	private static String md5Hex(byte[] data) throws NoSuchAlgorithmException {
+		MessageDigest messageDigest = MessageDigest.getInstance("MD5");
+		messageDigest.update(data);
+
+		byte[] b = messageDigest.digest();
+		return org.apache.flink.util.StringUtils.byteToHexString(b);
 	}
 
 	// ------------------------------------------------------------------------

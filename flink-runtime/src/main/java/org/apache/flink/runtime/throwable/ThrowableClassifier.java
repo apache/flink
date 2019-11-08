@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.throwable;
 
+import java.util.Optional;
+
 /**
  * Helper class, given a exception do the classification.
  */
@@ -32,5 +34,30 @@ public class ThrowableClassifier {
 	public static ThrowableType getThrowableType(Throwable cause) {
 		final ThrowableAnnotation annotation = cause.getClass().getAnnotation(ThrowableAnnotation.class);
 		return annotation == null ? ThrowableType.RecoverableError : annotation.value();
+	}
+
+	/**
+	 * Checks whether a throwable chain contains a specific throwable type and returns the corresponding throwable.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param throwableType the throwable type to search for in the chain.
+	 * @return Optional throwable of the throwable type if available, otherwise empty
+	 */
+	public static Optional<Throwable> findThrowableOfThrowableType(Throwable throwable, ThrowableType throwableType) {
+		if (throwable == null || throwableType == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			final ThrowableAnnotation annotation = t.getClass().getAnnotation(ThrowableAnnotation.class);
+			if (annotation != null && annotation.value() == throwableType) {
+				return Optional.of(t);
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
 	}
 }

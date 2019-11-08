@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.util.ArrayUtils;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -116,12 +117,7 @@ public class CoreOptions {
 		if (append.isEmpty()) {
 			return basePatterns;
 		} else {
-			String[] appendPatterns = append.split(";");
-
-			String[] joinedPatterns = new String[basePatterns.length + appendPatterns.length];
-			System.arraycopy(basePatterns, 0, joinedPatterns, 0, basePatterns.length);
-			System.arraycopy(appendPatterns, 0, joinedPatterns, basePatterns.length, appendPatterns.length);
-			return joinedPatterns;
+			return ArrayUtils.concat(basePatterns, append.split(";"));
 		}
 	}
 
@@ -216,7 +212,8 @@ public class CoreOptions {
 	public static final ConfigOption<String> TMP_DIRS =
 		key("io.tmp.dirs")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
-			.withDeprecatedKeys("taskmanager.tmp.dirs");
+			.withDeprecatedKeys("taskmanager.tmp.dirs")
+			.withDescription("Directories for temporary files, separated by\",\", \"|\", or the system's java.io.File.pathSeparator.");
 
 	// ------------------------------------------------------------------------
 	//  program
@@ -225,7 +222,8 @@ public class CoreOptions {
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM = ConfigOptions
 		.key("parallelism.default")
-		.defaultValue(1);
+		.defaultValue(1)
+		.withDescription("Default parallelism for jobs.");
 
 	// ------------------------------------------------------------------------
 	//  file systems
@@ -238,7 +236,7 @@ public class CoreOptions {
 			.key("fs.default-scheme")
 			.noDefaultValue()
 			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
-				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
+				" May contain an authority, e.g. host:port in case of an HDFS NameNode.");
 
 	/**
 	 * Specifies whether file output writers should overwrite existing files by default.

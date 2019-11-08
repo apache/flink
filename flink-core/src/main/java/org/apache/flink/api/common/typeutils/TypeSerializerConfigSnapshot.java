@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadableWritable implements TypeSerializerSnapshot<T> {
 
 	/** Version / Magic number for the format that bridges between the old and new interface. */
-	private static final int ADAPTER_VERSION = 0x7a53c4f0;
+	static final int ADAPTER_VERSION = 0x7a53c4f0;
 
 	/** The user code class loader; only relevant if this configuration instance was deserialized from binary form. */
 	private ClassLoader userCodeClassLoader;
@@ -146,13 +146,57 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	@Override
 	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
 			TypeSerializer<T> newSerializer) {
+		if (newSerializer instanceof TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer<?>) {
+				@SuppressWarnings("unchecked")
+				SelfResolvingTypeSerializer<T> selfResolvingTypeSerializer = (SelfResolvingTypeSerializer<T>) newSerializer;
+				return selfResolvingTypeSerializer.resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(this);
+		}
 
-		// in prior versions, the compatibility check was in the serializer itself, so we
-		// delegate this call to the serializer.
-		final CompatibilityResult<T> compatibility = newSerializer.ensureCompatibility(this);
+		// we reach here if:
+		// - this legacy config snapshot did not override #resolveSchemaCompatibility to redirect
+		//   the compatibility check to a new TypeSerializerSnapshot
+		// - the corresponding newSerializer does not make use of the SelfResolvingTypeSerializer
+		//   to assist with the redirection
+		throw new UnsupportedOperationException(
+			"Serializer snapshot " + getClass().getName() + " is still implementing the deprecated TypeSerializerConfigSnapshot class.\n" +
+				"Please update it to implement the TypeSerializerSnapshot interface, to enable state evolution as well as being future-proof.\n\n" +
+				"- If possible, you should try to perform the update in-place, i.e. use the same snapshot class under the same name, but change it to implement TypeSerializerSnapshot instead.\n\n" +
+				"- Otherwise, if the above isn't possible (perhaps because the new snapshot is intended to have completely\n" +
+				"  different written contents or intended to have a different class name),\n" +
+				"  retain the old serializer snapshot class (extending TypeSerializerConfigSnapshot) under the same name\n" +
+				"  and give the updated serializer snapshot class (the one extending TypeSerializerSnapshot) a new name.\n" +
+				"  Afterwards, override the TypeSerializerConfigSnapshot#resolveSchemaCompatibility(TypeSerializer)\n" +
+				"  method on the old snapshot to perform the compatibility check based on configuration written by" +
+				"  the old serializer snapshot class."
+		);
+	}
 
-		return compatibility.isRequiresMigration() ?
-				TypeSerializerSchemaCompatibility.incompatible() :
-				TypeSerializerSchemaCompatibility.compatibleAsIs();
+	/**
+	 * This interface assists with the migration path to the new serialization abstraction.
+	 *
+	 * <p>This interface can be used for cases where the `ensureCompatibility` method cannot be removed.
+	 * Implementing this interface by your {@link TypeSerializer} would allow it to "redirect" the
+	 * compatibility check to the corresponding {code TypeSerializerSnapshot} class.
+	 *
+	 * <p>Please note that if it is possible to directly override
+	 * {@link TypeSerializerConfigSnapshot#resolveSchemaCompatibility} and preform the redirection logic there,
+	 * then that is the preferred way. This interface is useful for cases where there is not enough information,
+	 * and the new serializer should assist with the redirection.
+	 */
+	@Internal
+	public interface SelfResolvingTypeSerializer<E> {
+
+		/**
+		 * Resolve Schema Compatibility.
+		 *
+		 * <p>Given an instance of a {@code TypeSerializerConfigSnapshot} this method should redirect the compatibility
+		 * check to the new {@code TypeSerializerSnapshot} class along with the relevant information as present in the
+		 * given {@code deprecatedConfigSnapshot}.
+		 *
+		 * @param deprecatedConfigSnapshot the not yet migrated config snapshot class.
+		 * @return the compatibility result of the {@code deprecatedConfigSnapshot} with {@code this} serializer.
+		 */
+		TypeSerializerSchemaCompatibility<E> resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
+			TypeSerializerConfigSnapshot<E> deprecatedConfigSnapshot);
 	}
 }

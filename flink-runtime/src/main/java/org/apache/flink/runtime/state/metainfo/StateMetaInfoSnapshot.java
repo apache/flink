@@ -81,7 +81,7 @@ public class StateMetaInfoSnapshot {
 
 	/** The configurations of all the type serializers used with the state. */
 	@Nonnull
-	private final Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshots;
+	private final Map<String, TypeSerializerSnapshot<?>> serializerSnapshots;
 
 	// TODO this will go away once all serializers have the restoreSerializer() factory method properly implemented.
 	/** The serializers used by the state. */
@@ -92,8 +92,8 @@ public class StateMetaInfoSnapshot {
 		@Nonnull String name,
 		@Nonnull BackendStateType backendStateType,
 		@Nonnull Map<String, String> options,
-		@Nonnull Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshots) {
-		this(name, backendStateType, options, serializerConfigSnapshots, new HashMap<>());
+		@Nonnull Map<String, TypeSerializerSnapshot<?>> serializerSnapshots) {
+		this(name, backendStateType, options, serializerSnapshots, new HashMap<>());
 	}
 
 	/**
@@ -106,12 +106,12 @@ public class StateMetaInfoSnapshot {
 		@Nonnull String name,
 		@Nonnull BackendStateType backendStateType,
 		@Nonnull Map<String, String> options,
-		@Nonnull Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshots,
+		@Nonnull Map<String, TypeSerializerSnapshot<?>> serializerSnapshots,
 		@Nonnull Map<String, TypeSerializer<?>> serializers) {
 		this.name = name;
 		this.backendStateType = backendStateType;
 		this.options = options;
-		this.serializerConfigSnapshots = serializerConfigSnapshots;
+		this.serializerSnapshots = serializerSnapshots;
 		this.serializers = serializers;
 	}
 
@@ -121,13 +121,13 @@ public class StateMetaInfoSnapshot {
 	}
 
 	@Nullable
-	public TypeSerializerSnapshot<?> getTypeSerializerConfigSnapshot(@Nonnull String key) {
-		return serializerConfigSnapshots.get(key);
+	public TypeSerializerSnapshot<?> getTypeSerializerSnapshot(@Nonnull String key) {
+		return serializerSnapshots.get(key);
 	}
 
 	@Nullable
-	public TypeSerializerSnapshot<?> getTypeSerializerConfigSnapshot(@Nonnull CommonSerializerKeys key) {
-		return getTypeSerializerConfigSnapshot(key.toString());
+	public TypeSerializerSnapshot<?> getTypeSerializerSnapshot(@Nonnull CommonSerializerKeys key) {
+		return getTypeSerializerSnapshot(key.toString());
 	}
 
 	@Nullable
@@ -150,20 +150,9 @@ public class StateMetaInfoSnapshot {
 		return name;
 	}
 
-	@Nullable
-	public TypeSerializer<?> restoreTypeSerializer(@Nonnull String key) {
-		TypeSerializerSnapshot<?> configSnapshot = getTypeSerializerConfigSnapshot(key);
-		return (configSnapshot != null) ? configSnapshot.restoreSerializer() : null;
-	}
-
-	@Nullable
-	public TypeSerializer<?> restoreTypeSerializer(@Nonnull CommonSerializerKeys key) {
-		return restoreTypeSerializer(key.toString());
-	}
-
 	@Nonnull
-	public Map<String, TypeSerializerSnapshot<?>> getSerializerConfigSnapshotsImmutable() {
-		return Collections.unmodifiableMap(serializerConfigSnapshots);
+	public Map<String, TypeSerializerSnapshot<?>> getSerializerSnapshotsImmutable() {
+		return Collections.unmodifiableMap(serializerSnapshots);
 	}
 
 	/**

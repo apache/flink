@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -49,7 +49,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-asm</artifactId>
+			<artifactId>flink-shaded-asm-7</artifactId>
 		</dependency>
 
 		<!-- standard utilities -->
@@ -78,6 +78,12 @@ under the License.
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-compress</artifactId>
 			<!-- managed version -->
+		</dependency>
+
+		<!-- Ratelimiting dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
 		</dependency>
 
 		<!-- ================== test dependencies ================== -->
@@ -117,7 +123,7 @@ under the License.
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.16.20</version>
+			<version>1.16.22</version>
 			<scope>test</scope>
 		</dependency>
 

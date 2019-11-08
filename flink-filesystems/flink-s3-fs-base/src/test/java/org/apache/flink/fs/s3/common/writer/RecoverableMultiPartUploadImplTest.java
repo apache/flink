@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
 import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
@@ -35,8 +36,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -339,19 +340,19 @@ public class RecoverableMultiPartUploadImplTest {
 	}
 
 	/**
-	 * A {@link S3MultiPartUploader} that simulates uploading part files to S3 by
+	 * A {@link S3AccessHelper} that simulates uploading part files to S3 by
 	 * simply putting complete and incomplete part files in lists for further validation.
 	 */
-	private static class StubMultiPartUploader implements S3MultiPartUploader {
+	private static class StubMultiPartUploader implements S3AccessHelper {
 
 		private final List<RecoverableMultiPartUploadImplTest.TestUploadPartResult> completePartsUploaded = new ArrayList<>();
 		private final List<RecoverableMultiPartUploadImplTest.TestPutObjectResult> incompletePartsUploaded = new ArrayList<>();
 
-		public List<RecoverableMultiPartUploadImplTest.TestUploadPartResult> getCompletePartsUploaded() {
+		List<RecoverableMultiPartUploadImplTest.TestUploadPartResult> getCompletePartsUploaded() {
 			return completePartsUploaded;
 		}
 
-		public List<RecoverableMultiPartUploadImplTest.TestPutObjectResult> getIncompletePartsUploaded() {
+		List<RecoverableMultiPartUploadImplTest.TestPutObjectResult> getIncompletePartsUploaded() {
 			return incompletePartsUploaded;
 		}
 
@@ -361,15 +362,25 @@ public class RecoverableMultiPartUploadImplTest {
 		}
 
 		@Override
-		public UploadPartResult uploadPart(String key, String uploadId, int partNumber, InputStream file, long length) throws IOException {
-			final byte[] content = getFileContentBytes(file, MathUtils.checkedDownCast(length));
+		public UploadPartResult uploadPart(String key, String uploadId, int partNumber, File inputFile, long length) throws IOException {
+			final byte[] content = getFileContentBytes(inputFile, MathUtils.checkedDownCast(length));
 			return storeAndGetUploadPartResult(key, partNumber, content);
 		}
 
 		@Override
-		public PutObjectResult uploadIncompletePart(String key, InputStream file, long length) throws IOException {
-			final byte[] content = getFileContentBytes(file, MathUtils.checkedDownCast(length));
+		public PutObjectResult putObject(String key, File inputFile) throws IOException {
+			final byte[] content = getFileContentBytes(inputFile, MathUtils.checkedDownCast(inputFile.length()));
 			return storeAndGetPutObjectResult(key, content);
+		}
+
+		@Override
+		public boolean deleteObject(String key) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public long getObject(String key, File targetLocation) throws IOException {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
@@ -384,12 +395,12 @@ public class RecoverableMultiPartUploadImplTest {
 
 		@Override
 		public ObjectMetadata getObjectMetadata(String key) throws IOException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
-		private byte[] getFileContentBytes(InputStream file, int length) throws IOException {
+		private byte[] getFileContentBytes(File file, int length) throws IOException {
 			final byte[] content = new byte[length];
-			file.read(content, 0, length);
+			IOUtils.readFully(new FileInputStream(file), content, 0, length);
 			return content;
 		}
 

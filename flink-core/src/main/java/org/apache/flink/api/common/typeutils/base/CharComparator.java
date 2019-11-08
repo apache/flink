@@ -59,26 +59,7 @@ public final class CharComparator extends BasicTypeComparator<Character> {
 
 	@Override
 	public void putNormalizedKey(Character value, MemorySegment target, int offset, int numBytes) {
-		// note that the char is an unsigned data type in java and consequently needs
-		// no code that transforms the signed representation to an offset representation
-		// that is equivalent to unsigned, when compared byte by byte
-		if (numBytes == 2) {
-			// default case, full normalized key
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-			target.put(offset + 1, (byte) ((value      ) & 0xff));
-		}
-		else if (numBytes <= 0) {
-		}
-		else if (numBytes == 1) {
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-		}
-		else {
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-			target.put(offset + 1, (byte) ((value      ) & 0xff));
-			for (int i = 2; i < numBytes; i++) {
-				target.put(offset + i, (byte) 0);
-			}
-		}
+		NormalizedKeyUtil.putCharNormalizedKey(value, target, offset, numBytes);
 	}
 
 	@Override

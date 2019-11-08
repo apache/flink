@@ -19,15 +19,17 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,6 +113,9 @@ public class JobVertex implements java.io.Serializable {
 	/** Optional, the JSON for the optimizer properties of the operator result,
 	 * to be included in the JSON plan */
 	private String resultOptimizerProperties;
+
+	/** The input dependency constraint to schedule this vertex. */
+	private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -234,7 +239,6 @@ public class JobVertex implements java.io.Serializable {
 	public void setInvokableClass(Class<? extends AbstractInvokable> invokable) {
 		Preconditions.checkNotNull(invokable);
 		this.invokableClassName = invokable.getName();
-		this.isStoppable = StoppableTask.class.isAssignableFrom(invokable);
 	}
 
 	/**
@@ -379,6 +383,7 @@ public class JobVertex implements java.io.Serializable {
 	 * 
 	 * @return The slot sharing group to associate the vertex with, or {@code null}, if not associated with one.
 	 */
+	@Nullable
 	public SlotSharingGroup getSlotSharingGroup() {
 		return slotSharingGroup;
 	}
@@ -555,6 +560,14 @@ public class JobVertex implements java.io.Serializable {
 
 	public void setResultOptimizerProperties(String resultOptimizerProperties) {
 		this.resultOptimizerProperties = resultOptimizerProperties;
+	}
+
+	public InputDependencyConstraint getInputDependencyConstraint() {
+		return inputDependencyConstraint;
+	}
+
+	public void setInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
+		this.inputDependencyConstraint = inputDependencyConstraint;
 	}
 
 	// --------------------------------------------------------------------------------------------

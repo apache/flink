@@ -25,8 +25,10 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.minicluster.MiniCluster
 import org.apache.flink.runtime.testutils.{MiniClusterResource, MiniClusterResourceConfiguration}
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG
 import org.apache.flink.util.TestLogger
 import org.junit._
+import org.junit.experimental.categories.Category
 import org.junit.rules.TemporaryFolder
 
 import scala.tools.nsc.Settings
@@ -168,6 +170,61 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertTrue(output.contains("WC(world,10)"))
   }
 
+  @Test
+  def testSimpleSelectWithFilterBatchTableAPIQuery: Unit = {
+    val input =
+      """
+        |val data = Seq(
+        |    (1, 1L, "Hi"),
+        |    (2, 2L, "Hello"),
+        |    (3, 2L, "Hello world"))
+        |val t = benv.fromCollection(data).toTable(btenv, 'a, 'b, 'c).select('a,'c).where(
+        |'a% 2 === 1 )
+        |val results = t.toDataSet[Row].collect()
+        |results.foreach(println)
+        |:q
+      """.stripMargin
+    val output = processInShell(input)
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertFalse(output.toLowerCase.contains("exception"))
+    Assert.assertTrue(output.contains("1,Hi"))
+    Assert.assertTrue(output.contains("3,Hello world"))
+  }
+
+  @Test
+  def testGroupedAggregationStreamTableAPIQuery: Unit = {
+    val input =
+      """
+        |  val data = List(
+        |    ("Hello", 1),
+        |    ("word", 1),
+        |    ("Hello", 1),
+        |    ("bark", 1),
+        |    ("bark", 1),
+        |    ("bark", 1),
+        |    ("bark", 1),
+        |    ("bark", 1),
+        |    ("bark", 1),
+        |    ("flink", 1)
+        |  )
+        | val stream = senv.fromCollection(data)
+        | val table = stream.toTable(stenv, 'word, 'num)
+        | val resultTable = table.groupBy('word).select('num.sum as 'count).groupBy('count).select(
+        | 'count,'count.count as 'frequency)
+        | val results = resultTable.toRetractStream[Row]
+        | results.print
+        | senv.execute
+      """.stripMargin
+    val output = processInShell(input)
+    Assert.assertTrue(output.contains("6,1"))
+    Assert.assertTrue(output.contains("1,2"))
+    Assert.assertTrue(output.contains("2,1"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertFalse(output.toLowerCase.contains("exception"))
+  }
+
   /**
    * Submit external library.
    * Disabled due to FLINK-7111.
@@ -307,8 +364,86 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertFalse(output.contains("ERROR"))
     Assert.assertFalse(output.contains("Exception"))
   }
+
+  @Test
+  def testImportJavaCollection(): Unit = {
+    val input = """
+      import java.util.List
+      val jul: List[Int] = new java.util.ArrayList[Int]()
+      jul.add(2)
+      jul.add(4)
+      jul.add(6)
+      jul.add(8)
+      jul.add(10)
+      val str = "the java list size is: " + jul.size
+    """.stripMargin
+
+    val output = processInShell(input)
+
+    Assert.assertTrue(output.contains("the java list size is: 5"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertFalse(output.toLowerCase.contains("exception"))
+
+  }
+
+  @Test
+  def testImplicitConversionBetweenJavaAndScala(): Unit = {
+    val input =
+      """
+        import collection.JavaConversions._
+        import scala.collection.mutable.ArrayBuffer
+        val jul:java.util.List[Int] = ArrayBuffer(1,2,3,4,5)
+        val buf: Seq[Int] = jul
+        var sum = 0
+        buf.foreach(num => sum += num)
+        val str = "sum is: " + sum
+        val scala2jul = List(1,2,3)
+        scala2jul.add(7)
+      """.stripMargin
+
+    val output = processInShell(input)
+
+    Assert.assertTrue(output.contains("sum is: 15"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException"))
+  }
+
+  @Test
+  def testImportPackageConflict(): Unit = {
+    val input =
+      """
+        import org.apache.flink.table.api._
+        import java.util.List
+        val jul: List[Int] = new java.util.ArrayList[Int]()
+        jul.add(2)
+        jul.add(4)
+        jul.add(6)
+        jul.add(8)
+        jul.add(10)
+        val str = "the java list size is: " + jul.size
+      """.stripMargin
+
+    val output = processInShell(input)
+    Assert.assertTrue(output.contains("error: object util is not a member of package org.apache." +
+      "flink.table.api.java"))
+  }
+
+  @Test
+  def testGetMultiExecutionEnvironment(): Unit = {
+    val input =
+      """
+        |val newEnv = ExecutionEnvironment.getExecutionEnvironment
+      """.stripMargin
+    val output = processInShell(input)
+    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException: Execution " +
+      "Environment is already defined for this shell."))
+  }
+
 }
 
+@Category(Array(classOf[AlsoRunWithSchedulerNG]))
 object ScalaShellITCase {
 
   val configuration = new Configuration()

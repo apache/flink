@@ -66,7 +66,7 @@ public class RestServerSSLAuthITCase extends TestLogger {
 
 		try {
 			final Configuration baseConfig = new Configuration();
-			baseConfig.setInteger(RestOptions.PORT, 0);
+			baseConfig.setString(RestOptions.BIND_PORT, "0");
 			baseConfig.setString(RestOptions.ADDRESS, "localhost");
 			baseConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
 			baseConfig.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
@@ -89,9 +89,8 @@ public class RestServerSSLAuthITCase extends TestLogger {
 			RestServerEndpointConfiguration restServerConfig = RestServerEndpointConfiguration.fromConfiguration(serverConfig);
 			RestClientConfiguration restClientConfig = RestClientConfiguration.fromConfiguration(clientConfig);
 
-			RestfulGateway restfulGateway = TestingRestfulGateway.newBuilder().build();
+			RestfulGateway restfulGateway = new TestingRestfulGateway.Builder().build();
 			RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
-				CompletableFuture.completedFuture("http://localhost:1234"),
 				() -> CompletableFuture.completedFuture(restfulGateway),
 				RpcUtils.INF_TIMEOUT);
 

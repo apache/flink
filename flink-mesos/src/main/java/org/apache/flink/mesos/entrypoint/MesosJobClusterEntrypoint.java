@@ -21,22 +21,19 @@ package org.apache.flink.mesos.entrypoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerFactory;
-import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.mesos.util.MesosUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
-import org.apache.flink.runtime.entrypoint.component.JobDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -62,20 +59,12 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 				.addOption(BootstrapTools.newDynamicPropertiesOption());
 	}
 
-	private final Configuration dynamicProperties;
-
 	private MesosConfiguration schedulerConfiguration;
 
 	private MesosServices mesosServices;
 
-	private MesosTaskManagerParameters taskManagerParameters;
-
-	private ContainerSpecification taskManagerContainerSpec;
-
-	public MesosJobClusterEntrypoint(Configuration config, Configuration dynamicProperties) {
+	public MesosJobClusterEntrypoint(Configuration config) {
 		super(config);
-
-		this.dynamicProperties = Preconditions.checkNotNull(dynamicProperties);
 	}
 
 	@Override
@@ -85,14 +74,10 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 		final String hostname = config.getString(JobManagerOptions.ADDRESS);
 
 		// Mesos configuration
-		schedulerConfiguration = MesosEntrypointUtils.createMesosSchedulerConfiguration(config, hostname);
+		schedulerConfiguration = MesosUtils.createMesosSchedulerConfiguration(config, hostname);
 
 		// services
 		mesosServices = MesosServicesUtils.createMesosServices(config, hostname);
-
-		// TM configuration
-		taskManagerParameters = MesosEntrypointUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosEntrypointUtils.createContainerSpec(config, dynamicProperties);
 	}
 
 	@Override
@@ -109,13 +94,11 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return new JobDispatcherResourceManagerComponentFactory(
+	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
 			new MesosResourceManagerFactory(
 				mesosServices,
-				schedulerConfiguration,
-				taskManagerParameters,
-				taskManagerContainerSpec),
+				schedulerConfiguration),
 			FileJobGraphRetriever.createFrom(configuration));
 	}
 
@@ -138,9 +121,9 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 		}
 
 		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-		Configuration configuration = MesosEntrypointUtils.loadConfiguration(dynamicProperties, LOG);
+		Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
 
-		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration, dynamicProperties);
+		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
 	}

@@ -19,24 +19,23 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Serializer wrapper to add support of {@code null} value serialization.
@@ -65,12 +64,15 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	private final byte[] padding;
 
 	private NullableSerializer(@Nonnull TypeSerializer<T> originalSerializer, boolean padNullValueIfFixedLen) {
-		this.originalSerializer = originalSerializer;
-		this.padding = createPadding(originalSerializer.getLength(), padNullValueIfFixedLen);
-
+		this(originalSerializer, createPadding(originalSerializer.getLength(), padNullValueIfFixedLen));
 	}
 
-	private static <T> byte[] createPadding(int originalSerializerLength, boolean padNullValueIfFixedLen) {
+	private NullableSerializer(@Nonnull TypeSerializer<T> originalSerializer, byte[] padding) {
+		this.originalSerializer = originalSerializer;
+		this.padding = padding;
+	}
+
+	private static byte[] createPadding(int originalSerializerLength, boolean padNullValueIfFixedLen) {
 		boolean padNullValue = originalSerializerLength > 0 && padNullValueIfFixedLen;
 		return padNullValue ? new byte[originalSerializerLength] : EMPTY_BYTE_ARRAY;
 	}
@@ -79,7 +81,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	 * This method tries to serialize {@code null} value with the {@code originalSerializer}
 	 * and wraps it in case of {@link NullPointerException}, otherwise it returns the {@code originalSerializer}.
 	 *
-	 * @param originalSerializer serializer to wrap and add {@code null} support
+	 * @param originalSerializer     serializer to wrap and add {@code null} support
 	 * @param padNullValueIfFixedLen pad null value to preserve the fixed length of original serializer
 	 * @return serializer which supports {@code null} values
 	 */
@@ -99,22 +101,24 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		DataOutputSerializer dos = new DataOutputSerializer(length);
 		try {
 			serializer.serialize(null, dos);
-		} catch (IOException | RuntimeException e) {
+		}
+		catch (IOException | RuntimeException e) {
 			return false;
 		}
-		Preconditions.checkArgument(
+		checkArgument(
 			serializer.getLength() < 0 || serializer.getLength() == dos.getCopyOfBuffer().length,
 			"The serialized form of the null value should have the same length " +
 				"as any other if the length is fixed in the serializer");
 		DataInputDeserializer dis = new DataInputDeserializer(dos.getSharedBuffer());
 		try {
-			Preconditions.checkArgument(serializer.deserialize(dis) == null);
-		} catch (IOException e) {
+			checkArgument(serializer.deserialize(dis) == null);
+		}
+		catch (IOException e) {
 			throw new RuntimeException(
 				String.format("Unexpected failure to deserialize just serialized null value with %s",
 					serializer.getClass().getName()), e);
 		}
-		Preconditions.checkArgument(
+		checkArgument(
 			serializer.copy(null) == null,
 			"Serializer %s has to be able properly copy null value if it can serialize it",
 			serializer.getClass().getName());
@@ -125,10 +129,18 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		return padding.length > 0;
 	}
 
+	private int nullPaddingLength() {
+		return padding.length;
+	}
+
+	private TypeSerializer<T> originalSerializer() {
+		return originalSerializer;
+	}
+
 	/**
 	 * This method wraps the {@code originalSerializer} with the {@code NullableSerializer} if not already wrapped.
 	 *
-	 * @param originalSerializer serializer to wrap and add {@code null} support
+	 * @param originalSerializer     serializer to wrap and add {@code null} support
 	 * @param padNullValueIfFixedLen pad null value to preserve the fixed length of original serializer
 	 * @return wrapped serializer which supports {@code null} values
 	 */
@@ -176,7 +188,8 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		if (record == null) {
 			target.writeBoolean(true);
 			target.write(padding);
-		} else {
+		}
+		else {
 			target.writeBoolean(false);
 			originalSerializer.serialize(record, target);
 		}
@@ -209,7 +222,8 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		target.writeBoolean(isNull);
 		if (isNull) {
 			target.write(padding);
-		} else {
+		}
+		else {
 			originalSerializer.copy(source, target);
 		}
 	}
@@ -222,56 +236,34 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return (obj != null && obj.getClass() == getClass() &&
-			originalSerializer.canEqual(((NullableSerializer) obj).originalSerializer));
-	}
-
-	@Override
 	public int hashCode() {
 		return originalSerializer.hashCode();
 	}
 
 	@Override
-	public NullableSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return new NullableSerializerConfigSnapshot<>(originalSerializer);
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
+		return new NullableSerializerSnapshot<>(this);
 	}
 
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof NullableSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousKvSerializersAndConfigs =
-				((NullableSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
-
-			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-				previousKvSerializersAndConfigs.get(0).f0,
-				UnloadableDummyTypeSerializer.class,
-				previousKvSerializersAndConfigs.get(0).f1,
-				originalSerializer);
-
-			if (!compatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			} else if (compatResult.getConvertDeserializer() != null) {
-				return CompatibilityResult.requiresMigration(
-					new NullableSerializer<>(
-						new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer()), padNullValue()));
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
-	}
 
 	/**
 	 * Configuration snapshot for serializers of nullable types, containing the
 	 * configuration snapshot of its original serializer.
+	 *
+	 * @deprecated this snapshot class is no longer in use, and is maintained only for
+	 *             backwards compatibility purposes. It is fully replaced
+	 *             by {@link NullableSerializerSnapshot}.
 	 */
+	@Deprecated
 	@Internal
-	public static class NullableSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
+	public static class NullableSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<T> {
 		private static final int VERSION = 1;
 
-		/** This empty nullary constructor is required for deserializing the configuration. */
-		@SuppressWarnings("unused")
-		public NullableSerializerConfigSnapshot() {}
+		/**
+		 * This empty nullary constructor is required for deserializing the configuration.
+		 */
+		public NullableSerializerConfigSnapshot() {
+		}
 
 		NullableSerializerConfigSnapshot(TypeSerializer<T> originalSerializer) {
 			super(originalSerializer);
@@ -281,5 +273,84 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		public int getVersion() {
 			return VERSION;
 		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+			NullableSerializer<T> previousSerializer = (NullableSerializer<T>) restoreSerializer();
+			NullableSerializerSnapshot<T> newCompositeSnapshot = new NullableSerializerSnapshot<>(previousSerializer.nullPaddingLength());
+
+			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+				newSerializer,
+				newCompositeSnapshot,
+				getSingleNestedSerializerAndConfig().f1
+			);
+		}
 	}
+
+	/**
+	 * Snapshot for serializers of nullable types, containing the
+	 * snapshot of its original serializer.
+	 */
+	@SuppressWarnings({"unchecked", "WeakerAccess"})
+	public static class NullableSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<T, NullableSerializer<T>> {
+
+		private static final int VERSION = 2;
+		private int nullPaddingLength;
+
+		@SuppressWarnings("unused")
+		public NullableSerializerSnapshot() {
+			super(NullableSerializer.class);
+		}
+
+		public NullableSerializerSnapshot(NullableSerializer<T> serializerInstance) {
+			super(serializerInstance);
+			this.nullPaddingLength = serializerInstance.nullPaddingLength();
+		}
+
+		private NullableSerializerSnapshot(int nullPaddingLength) {
+			super(NullableSerializer.class);
+			checkArgument(nullPaddingLength >= 0,
+				"Computed NULL padding can not be negative. %s",
+				nullPaddingLength);
+
+			this.nullPaddingLength = nullPaddingLength;
+		}
+
+		@Override
+		protected int getCurrentOuterSnapshotVersion() {
+			return VERSION;
+		}
+
+		@Override
+		protected TypeSerializer<?>[] getNestedSerializers(NullableSerializer<T> outerSerializer) {
+			return new TypeSerializer[]{outerSerializer.originalSerializer()};
+		}
+
+		@Override
+		protected NullableSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+			checkState(nullPaddingLength >= 0,
+				"Negative padding size after serializer construction: %s",
+				nullPaddingLength);
+
+			final byte[] padding = (nullPaddingLength == 0) ? EMPTY_BYTE_ARRAY : new byte[nullPaddingLength];
+			TypeSerializer<T> nestedSerializer = (TypeSerializer<T>) nestedSerializers[0];
+			return new NullableSerializer<>(nestedSerializer, padding);
+		}
+
+		@Override
+		protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+			out.writeInt(nullPaddingLength);
+		}
+
+		@Override
+		protected void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+			nullPaddingLength = in.readInt();
+		}
+
+		@Override
+		protected boolean isOuterSnapshotCompatible(NullableSerializer<T> newSerializer) {
+			return nullPaddingLength == newSerializer.nullPaddingLength();
+		}
+	}
+
 }

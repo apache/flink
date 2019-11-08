@@ -49,7 +49,7 @@ public final class RestClientConfiguration {
 			final long connectionTimeout,
 			final long idlenessTimeout,
 			final int maxContentLength) {
-		checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
+		checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %s", maxContentLength);
 		this.sslHandlerFactory = sslHandlerFactory;
 		this.connectionTimeout = connectionTimeout;
 		this.idlenessTimeout = idlenessTimeout;

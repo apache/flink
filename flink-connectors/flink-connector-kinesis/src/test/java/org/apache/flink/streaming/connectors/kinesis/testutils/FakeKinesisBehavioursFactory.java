@@ -22,20 +22,25 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.util.Preconditions;
 
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
+import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.Record;
+import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -100,6 +105,10 @@ public class FakeKinesisBehavioursFactory {
 			final long millisBehindLatest) {
 		return new SingleShardEmittingAdaptiveNumOfRecordsKinesis(numOfRecords, numOfGetRecordsCalls,
 				millisBehindLatest);
+	}
+
+	public static KinesisProxyInterface blockingQueueGetRecords(Map<String, List<BlockingQueue<String>>> streamsToShardQueues) {
+		return new BlockingQueueKinesis(streamsToShardQueues);
 	}
 
 	private static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
@@ -367,7 +376,7 @@ public class FakeKinesisBehavioursFactory {
 					if (streamNamesWithLastSeenShardIds.get(streamName) == null) {
 						result.addRetrievedShardToStream(streamName, shard);
 					} else {
-						if (StreamShardHandle.compareShardIds(
+						if (compareShardIds(
 							shard.getShard().getShardId(), streamNamesWithLastSeenShardIds.get(streamName)) > 0) {
 							result.addRetrievedShardToStream(streamName, shard);
 						}
@@ -386,5 +395,123 @@ public class FakeKinesisBehavioursFactory {
 		public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) {
 			return null;
 		}
+
+		/**
+		 * Utility function to compare two shard ids.
+		 *
+		 * @param firstShardId first shard id to compare
+		 * @param secondShardId second shard id to compare
+		 * @return a value less than 0 if the first shard id is smaller than the second shard id,
+		 *         or a value larger than 0 the first shard is larger than the second shard id,
+		 *         or 0 if they are equal
+		 */
+		private static int compareShardIds(String firstShardId, String secondShardId) {
+			if (!isValidShardId(firstShardId)) {
+				throw new IllegalArgumentException("The first shard id has invalid format.");
+			}
+
+			if (!isValidShardId(secondShardId)) {
+				throw new IllegalArgumentException("The second shard id has invalid format.");
+			}
+
+			// digit segment of the shard id starts at index 8
+			return Long.compare(Long.parseLong(firstShardId.substring(8)), Long.parseLong(secondShardId.substring(8)));
+		}
+
+		/**
+		 * Checks if a shard id has valid format.
+		 * Kinesis stream shard ids have 12-digit numbers left-padded with 0's,
+		 * prefixed with "shardId-", ex. "shardId-000000000015".
+		 *
+		 * @param shardId the shard id to check
+		 * @return whether the shard id is valid
+		 */
+		private static boolean isValidShardId(String shardId) {
+			if (shardId == null) {
+				return false;
+			}
+			return shardId.matches("^shardId-\\d{12}");
+		}
 	}
+
+	private static class BlockingQueueKinesis implements KinesisProxyInterface {
+
+		private Map<String, List<StreamShardHandle>> streamsWithListOfShards = new HashMap<>();
+		private Map<String, BlockingQueue<String>> shardIteratorToQueueMap = new HashMap<>();
+
+		private static String getShardIterator(StreamShardHandle shardHandle) {
+			return shardHandle.getStreamName() + "-" + shardHandle.getShard().getShardId();
+		}
+
+		public BlockingQueueKinesis(Map<String, List<BlockingQueue<String>>> streamsToShardCount) {
+			for (Map.Entry<String, List<BlockingQueue<String>>> streamToShardQueues : streamsToShardCount.entrySet()) {
+				String streamName = streamToShardQueues.getKey();
+				int shardCount = streamToShardQueues.getValue().size();
+
+				if (shardCount == 0) {
+					// don't do anything
+				} else {
+					List<StreamShardHandle> shardsOfStream = new ArrayList<>(shardCount);
+					for (int i = 0; i < shardCount; i++) {
+						StreamShardHandle shardHandle = new StreamShardHandle(
+							streamName,
+							new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(i))
+								.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("0"))
+								.withHashKeyRange(new HashKeyRange().withStartingHashKey("0").withEndingHashKey("0")));
+						shardsOfStream.add(shardHandle);
+						shardIteratorToQueueMap.put(getShardIterator(shardHandle), streamToShardQueues.getValue().get(i));
+					}
+					streamsWithListOfShards.put(streamName, shardsOfStream);
+				}
+			}
+		}
+
+		@Override
+		public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) {
+			GetShardListResult result = new GetShardListResult();
+			for (Map.Entry<String, List<StreamShardHandle>> streamsWithShards : streamsWithListOfShards.entrySet()) {
+				String streamName = streamsWithShards.getKey();
+				for (StreamShardHandle shard : streamsWithShards.getValue()) {
+					if (streamNamesWithLastSeenShardIds.get(streamName) == null) {
+						result.addRetrievedShardToStream(streamName, shard);
+					} else {
+						if (StreamShardHandle.compareShardIds(
+							shard.getShard().getShardId(), streamNamesWithLastSeenShardIds.get(streamName)) > 0) {
+							result.addRetrievedShardToStream(streamName, shard);
+						}
+					}
+				}
+			}
+			return result;
+		}
+
+		@Override
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
+			return getShardIterator(shard);
+		}
+
+		@Override
+		public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) {
+			BlockingQueue<String> queue = Preconditions.checkNotNull(this.shardIteratorToQueueMap.get(shardIterator),
+			"no queue for iterator %s", shardIterator);
+			List<Record> records = Collections.emptyList();
+			try {
+				String data = queue.take();
+				Record record = new Record()
+					.withData(
+						ByteBuffer.wrap(data.getBytes(ConfigConstants.DEFAULT_CHARSET)))
+					.withPartitionKey(UUID.randomUUID().toString())
+					.withApproximateArrivalTimestamp(new Date(System.currentTimeMillis()))
+					.withSequenceNumber(String.valueOf(0));
+				records = Collections.singletonList(record);
+			} catch (InterruptedException e) {
+				shardIterator = null;
+			}
+			return new GetRecordsResult()
+				.withRecords(records)
+				.withMillisBehindLatest(0L)
+				.withNextShardIterator(shardIterator);
+		}
+	}
+
 }

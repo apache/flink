@@ -30,7 +30,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -58,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @NotThreadSafe
 final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload {
 
-	private final S3MultiPartUploader s3MPUploader;
+	private final S3AccessHelper s3AccessHelper;
 
 	private final Executor uploadThreadPool;
 
@@ -71,7 +70,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 	// ------------------------------------------------------------------------
 
 	private RecoverableMultiPartUploadImpl(
-			S3MultiPartUploader s3uploader,
+			S3AccessHelper s3AccessHelper,
 			Executor uploadThreadPool,
 			String uploadId,
 			String objectName,
@@ -81,10 +80,10 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 	) {
 		checkArgument(numBytes >= 0L);
 
-		this.s3MPUploader = checkNotNull(s3uploader);
+		this.s3AccessHelper = checkNotNull(s3AccessHelper);
 		this.uploadThreadPool = checkNotNull(uploadThreadPool);
 		this.currentUploadInfo = new MultiPartUploadInfo(objectName, uploadId, partsSoFar, numBytes, incompletePart);
-		this.namePrefixForTempObjects = incompleteObjectNamePrefix(objectName);
+		this.namePrefixForTempObjects = createIncompletePartObjectNamePrefix(objectName);
 		this.uploadsInProgress = new ArrayDeque<>();
 	}
 
@@ -111,7 +110,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		currentUploadInfo.registerNewPart(partLength);
 
 		file.retain(); // keep the file while the async upload still runs
-		uploadThreadPool.execute(new UploadTask(s3MPUploader, currentUploadInfo, file, future));
+		uploadThreadPool.execute(new UploadTask(s3AccessHelper, currentUploadInfo, file, future));
 	}
 
 	@Override
@@ -124,7 +123,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		final S3Recoverable snapshot = snapshotAndGetRecoverable(null);
 
 		return new S3Committer(
-				s3MPUploader,
+				s3AccessHelper,
 				snapshot.getObjectName(),
 				snapshot.uploadId(),
 				snapshot.parts(),
@@ -171,15 +170,10 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		}
 
 		// first, upload the trailing data file. during that time, other in-progress uploads may complete.
-		final String incompletePartObjectName = createTmpObjectName();
+		final String incompletePartObjectName = createIncompletePartObjectName();
 		file.retain();
-		try (InputStream inputStream = file.getInputStream()) {
-
-			// TODO: staged incomplete parts are not cleaned up as
-			// they do not fall under the user's global TTL on S3.
-			// Figure out a way to clean them.
-
-			s3MPUploader.uploadIncompletePart(incompletePartObjectName, inputStream, file.getPos());
+		try {
+			s3AccessHelper.putObject(incompletePartObjectName, file.getInputFile());
 		}
 		finally {
 			file.release();
@@ -192,7 +186,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
-	static String incompleteObjectNamePrefix(String objectName) {
+	static String createIncompletePartObjectNamePrefix(String objectName) {
 		checkNotNull(objectName);
 
 		final int lastSlash = objectName.lastIndexOf('/');
@@ -207,6 +201,10 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 			child = objectName.substring(lastSlash + 1);
 		}
 		return parent + (child.isEmpty() ? "" : '_') + child + "_tmp_";
+	}
+
+	private String createIncompletePartObjectName() {
+		return namePrefixForTempObjects + UUID.randomUUID().toString();
 	}
 
 	private void awaitPendingPartsUpload() throws IOException {
@@ -235,23 +233,19 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		return completedUploadEtag;
 	}
 
-	private String createTmpObjectName() {
-		return namePrefixForTempObjects + UUID.randomUUID().toString();
-	}
-
 	// ------------------------------------------------------------------------
 	//  factory methods
 	// ------------------------------------------------------------------------
 
 	public static RecoverableMultiPartUploadImpl newUpload(
-			final S3MultiPartUploader s3uploader,
+			final S3AccessHelper s3AccessHelper,
 			final Executor uploadThreadPool,
 			final String objectName) throws IOException {
 
-		final String multiPartUploadId = s3uploader.startMultiPartUpload(objectName);
+		final String multiPartUploadId = s3AccessHelper.startMultiPartUpload(objectName);
 
 		return new RecoverableMultiPartUploadImpl(
-				s3uploader,
+				s3AccessHelper,
 				uploadThreadPool,
 				multiPartUploadId,
 				objectName,
@@ -261,7 +255,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 	}
 
 	public static RecoverableMultiPartUploadImpl recoverUpload(
-			final S3MultiPartUploader s3uploader,
+			final S3AccessHelper s3AccessHelper,
 			final Executor uploadThreadPool,
 			final String multipartUploadId,
 			final String objectName,
@@ -270,7 +264,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 			final Optional<File> incompletePart) {
 
 		return new RecoverableMultiPartUploadImpl(
-				s3uploader,
+				s3AccessHelper,
 				uploadThreadPool,
 				multipartUploadId,
 				objectName,
@@ -286,7 +280,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
 	private static class UploadTask implements Runnable {
 
-		private final S3MultiPartUploader s3uploader;
+		private final S3AccessHelper s3AccessHelper;
 
 		private final String objectName;
 
@@ -299,7 +293,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		private final CompletableFuture<PartETag> future;
 
 		UploadTask(
-				final S3MultiPartUploader s3uploader,
+				final S3AccessHelper s3AccessHelper,
 				final MultiPartUploadInfo currentUpload,
 				final RefCountedFSOutputStream file,
 				final CompletableFuture<PartETag> future) {
@@ -313,15 +307,15 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 			// these are limits put by Amazon
 			checkArgument(partNumber >= 1  && partNumber <= 10_000);
 
-			this.s3uploader = checkNotNull(s3uploader);
+			this.s3AccessHelper = checkNotNull(s3AccessHelper);
 			this.file = checkNotNull(file);
 			this.future = checkNotNull(future);
 		}
 
 		@Override
 		public void run() {
-			try (final InputStream inputStream = file.getInputStream()) {
-				final UploadPartResult result = s3uploader.uploadPart(objectName, uploadId, partNumber, inputStream, file.getPos());
+			try {
+				final UploadPartResult result = s3AccessHelper.uploadPart(objectName, uploadId, partNumber, file.getInputFile(), file.getPos());
 				future.complete(new PartETag(result.getPartNumber(), result.getETag()));
 				file.release();
 			}

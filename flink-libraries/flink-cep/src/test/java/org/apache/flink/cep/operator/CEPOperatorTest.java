@@ -26,14 +26,18 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.cep.Event;
-import org.apache.flink.cep.PatternSelectFunction;
-import org.apache.flink.cep.PatternTimeoutFunction;
 import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.functions.PatternProcessFunction;
+import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.NFAState;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -43,6 +47,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
@@ -63,13 +68,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFA;
+import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.validateMockitoUsage;
+import static org.mockito.Mockito.verify;
 
 /**
- * Tests for {@link AbstractKeyedCEPPatternOperator}.
+ * Tests for {@link CepOperator}.
  */
 public class CEPOperatorTest extends TestLogger {
 
@@ -96,6 +107,31 @@ public class CEPOperatorTest extends TestLogger {
 			verifyWatermark(harness.getOutput().poll(), 42L);
 		} finally {
 			harness.close();
+		}
+	}
+
+	@Test
+	public void testProcessingTimestampisPassedToNFA() throws Exception {
+
+		final NFA<Event> nfa = NFACompiler.compileFactory(Pattern.<Event>begin("begin"), true).createNFA();
+		final NFA<Event> spyNFA = spy(nfa);
+
+		try (
+			OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+				CepOperatorTestUtilities.getCepTestHarness(createOperatorForNFA(spyNFA).build())) {
+
+			long timestamp = 5;
+			harness.open();
+			harness.setProcessingTime(timestamp);
+			StreamRecord<Event> event = event().withTimestamp(3).asStreamRecord();
+			harness.processElement(event);
+			verify(spyNFA).process(
+				any(SharedBufferAccessor.class),
+				any(NFAState.class),
+				eq(event.getValue()),
+				eq(timestamp),
+				any(AfterMatchSkipStrategy.class),
+				any(TimerService.class));
 		}
 	}
 
@@ -254,32 +290,14 @@ public class CEPOperatorTest extends TestLogger {
 			new OutputTag<Tuple2<Map<String, List<Event>>, Long>>("timedOut") {};
 		final KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> harness =
 			new KeyedOneInputStreamOperatorTestHarness<>(
-				new SelectTimeoutCepOperator<>(
+				new CepOperator<>(
 					Event.createTypeSerializer(),
 					false,
 					new NFAFactory(true),
 					null,
 					null,
-					new PatternSelectFunction<Event, Map<String, List<Event>>>() {
-						private static final long serialVersionUID = -5768297287711394420L;
-
-						@Override
-						public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
-							return pattern;
-						}
-					},
-					new PatternTimeoutFunction<Event, Tuple2<Map<String, List<Event>>, Long>>() {
-						private static final long serialVersionUID = 2843329425823093249L;
-
-						@Override
-						public Tuple2<Map<String, List<Event>>, Long> timeout(
-							Map<String, List<Event>> pattern,
-							long timeoutTimestamp) throws Exception {
-							return Tuple2.of(pattern, timeoutTimestamp);
-						}
-					},
-					timedOut
-				, null), new KeySelector<Event, Integer>() {
+					new TimedOutProcessFunction(timedOut),
+					null), new KeySelector<Event, Integer>() {
 				private static final long serialVersionUID = 7219185117566268366L;
 
 				@Override
@@ -334,7 +352,7 @@ public class CEPOperatorTest extends TestLogger {
 	@Test
 	public void testKeyedCEPOperatorNFAUpdate() throws Exception {
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
 			true,
 			new SimpleNFAFactory());
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(
@@ -393,7 +411,7 @@ public class CEPOperatorTest extends TestLogger {
 		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
 			true,
 			new SimpleNFAFactory());
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(
@@ -455,7 +473,7 @@ public class CEPOperatorTest extends TestLogger {
 
 	@Test
 	public void testKeyedCEPOperatorNFAUpdateTimes() throws Exception {
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
 			true,
 			new SimpleNFAFactory());
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
@@ -497,7 +515,7 @@ public class CEPOperatorTest extends TestLogger {
 		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
 			true,
 			new SimpleNFAFactory());
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(
@@ -548,7 +566,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperator(false);
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperator(false);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
 		try {
@@ -593,7 +611,7 @@ public class CEPOperatorTest extends TestLogger {
 			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
-			SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperator(false);
+			CepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperator(false);
 			harness = CepOperatorTestUtilities.getCepTestHarness(operator2);
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -646,7 +664,7 @@ public class CEPOperatorTest extends TestLogger {
 		Event middle1Event3 = new Event(41, "a", 4.0);
 		Event middle2Event1 = new Event(41, "b", 5.0);
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
 			false,
 			new ComplexNFAFactory());
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
@@ -738,7 +756,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		OutputTag<Event> lateDataTag = new OutputTag<Event>("late-data", TypeInformation.of(Event.class));
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
 			false,
 			new ComplexNFAFactory(),
 			null,
@@ -784,7 +802,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperator(true);
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperator(true);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
 		try {
@@ -812,7 +830,7 @@ public class CEPOperatorTest extends TestLogger {
 			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
-			SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperator(true);
+			CepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperator(true);
 			harness = CepOperatorTestUtilities.getCepTestHarness(operator2);
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -904,7 +922,7 @@ public class CEPOperatorTest extends TestLogger {
 			}
 		});
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
 			false,
 			new NFACompiler.NFAFactory<Event>() {
 				private static final long serialVersionUID = 477082663248051994L;
@@ -975,7 +993,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperatorWithComparator(true);
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperatorWithComparator(true);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
 		try {
@@ -1003,7 +1021,7 @@ public class CEPOperatorTest extends TestLogger {
 			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
-			SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperatorWithComparator(true);
+			CepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperatorWithComparator(true);
 			harness = CepOperatorTestUtilities.getCepTestHarness(operator2);
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -1032,7 +1050,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
-		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperatorWithComparator(false);
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperatorWithComparator(false);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
 		try {
@@ -1064,7 +1082,7 @@ public class CEPOperatorTest extends TestLogger {
 			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
-			SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperatorWithComparator(false);
+			CepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperatorWithComparator(false);
 			harness = CepOperatorTestUtilities.getCepTestHarness(operator2);
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -1101,12 +1119,12 @@ public class CEPOperatorTest extends TestLogger {
 		assertEquals(end, patternMap.get("end").get(0));
 	}
 
-	private SelectCepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOperator(
+	private CepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOperator(
 		boolean isProcessingTime) {
 		return CepOperatorTestUtilities.getKeyedCepOpearator(isProcessingTime, new NFAFactory());
 	}
 
-	private SelectCepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOperatorWithComparator(
+	private CepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOperatorWithComparator(
 		boolean isProcessingTime) {
 
 		return CepOperatorTestUtilities.getKeyedCepOpearator(isProcessingTime, new NFAFactory(), new org.apache.flink.cep.EventComparator<Event>() {
@@ -1176,7 +1194,7 @@ public class CEPOperatorTest extends TestLogger {
 		return CepOperatorTestUtilities.getCepTestHarness(getKeyedCepOpearator(isProcessingTime));
 	}
 
-	private SelectCepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOpearator(boolean isProcessingTime) {
+	private CepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOpearator(boolean isProcessingTime) {
 		return CepOperatorTestUtilities.getKeyedCepOpearator(isProcessingTime, new CEPOperatorTest.NFAFactory());
 	}
 
@@ -1321,6 +1339,31 @@ public class CEPOperatorTest extends TestLogger {
 			}).within(Time.milliseconds(10L));
 
 			return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
+		}
+	}
+
+	private static class TimedOutProcessFunction extends PatternProcessFunction<Event, Map<String, List<Event>>>
+		implements TimedOutPartialMatchHandler<Event> {
+
+		private final OutputTag<Tuple2<Map<String, List<Event>>, Long>> timedOutTag;
+
+		private TimedOutProcessFunction(OutputTag<Tuple2<Map<String, List<Event>>, Long>> timedOutTag) {
+			this.timedOutTag = timedOutTag;
+		}
+
+		@Override
+		public void processMatch(
+			Map<String, List<Event>> match,
+			PatternProcessFunction.Context ctx,
+			Collector<Map<String, List<Event>>> out) throws Exception {
+			out.collect(match);
+		}
+
+		@Override
+		public void processTimedOutMatch(
+			Map<String, List<Event>> match,
+			PatternProcessFunction.Context ctx) throws Exception {
+			ctx.output(timedOutTag, Tuple2.of(match, ctx.timestamp()));
 		}
 	}
 }

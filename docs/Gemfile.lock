@@ -31,6 +31,8 @@ GEM
       pathutil (~> 0.9)
       rouge (>= 1.7, < 4)
       safe_yaml (~> 1.0)
+    jekyll-multiple-languages (2.0.3)
+    jekyll-paginate (1.1.0)
     jekyll-sass-converter (1.5.1)
       sass (~> 3.4)
     jekyll-watch (2.0.0)
@@ -39,6 +41,8 @@ GEM
     kramdown (1.16.2)
     libv8 (3.16.14.19)
     liquid (4.0.0)
+    liquid-c (4.0.0)
+      liquid (>= 3.0.0)
     listen (3.1.5)
       rb-fsevent (~> 0.9, >= 0.9.4)
       rb-inotify (~> 0.9, >= 0.9.7)
@@ -75,7 +79,10 @@ DEPENDENCIES
   addressable (= 2.4.0)
   hawkins
   jekyll (= 3.7.2)
+  jekyll-multiple-languages (= 2.0.3)
+  jekyll-paginate (= 1.1.0)
   json (= 2.0.4)
+  liquid-c (= 4.0.0)
   octokit (~> 4.3.0)
   therubyracer (= 0.12.2)
 
@@ -83,4 +90,4 @@ RUBY VERSION
    ruby 2.3.1p112
 
 BUNDLED WITH
-   1.16.1
+   1.17.2

@@ -17,8 +17,8 @@
  */
 
 /**
- * This package contains the messages that are sent between {@link org.apache.flink.runtime.jobmanager.JobManager}
- * and {@link org.apache.flink.runtime.taskmanager.TaskManager} to coordinate the checkpoint snapshots of the
+ * This package contains the messages that are sent between {@link org.apache.flink.runtime.jobmaster.JobMaster}
+ * and {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} to coordinate the checkpoint snapshots of the
  * distributed dataflow.
  */
 package org.apache.flink.runtime.messages.checkpoint;

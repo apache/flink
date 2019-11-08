@@ -60,12 +60,21 @@ public class KafkaTopicsDescriptor implements Serializable {
 		return topicPattern != null;
 	}
 
-	public List<String> getFixedTopics() {
-		return fixedTopics;
+	/**
+	 * Check if the input topic matches the topics described by this KafkaTopicDescriptor.
+	 *
+	 * @return true if found a match.
+	 */
+	public boolean isMatchingTopic(String topic) {
+		if (isFixedTopics()) {
+			return getFixedTopics().contains(topic);
+		} else {
+			return topicPattern.matcher(topic).matches();
+		}
 	}
 
-	public Pattern getTopicPattern() {
-		return topicPattern;
+	public List<String> getFixedTopics() {
+		return fixedTopics;
 	}
 
 	@Override

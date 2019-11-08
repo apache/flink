@@ -17,30 +17,36 @@
 # limitations under the License.
 ################################################################################
 
-if [[ -z "$ARTIFACTS_AWS_BUCKET" ]]; then
+if [[ -z "$IT_CASE_S3_BUCKET" ]]; then
     echo "Did not find AWS environment variables, NOT running the e2e test."
     exit 0
 else
-    echo "Found AWS bucket $ARTIFACTS_AWS_BUCKET, running the e2e test."
+    echo "Found AWS bucket $IT_CASE_S3_BUCKET, running the e2e test."
 fi
 
-if [[ -z "$ARTIFACTS_AWS_ACCESS_KEY" ]]; then
+if [[ -z "$IT_CASE_S3_ACCESS_KEY" ]]; then
     echo "Did not find AWS environment variables, NOT running the e2e test."
     exit 0
 else
-    echo "Found AWS access key $ARTIFACTS_AWS_ACCESS_KEY, running the e2e test."
+    echo "Found AWS access key, running the e2e test."
 fi
 
-if [[ -z "$ARTIFACTS_AWS_SECRET_KEY" ]]; then
+if [[ -z "$IT_CASE_S3_SECRET_KEY" ]]; then
     echo "Did not find AWS environment variables, NOT running the e2e test."
     exit 0
 else
-    echo "Found AWS secret key $ARTIFACTS_AWS_SECRET_KEY, running the e2e test."
+    echo "Found AWS secret key, running the e2e test."
 fi
 
-AWS_REGION="${AWS_REGION:-eu-west-1}"
-AWS_ACCESS_KEY=$ARTIFACTS_AWS_ACCESS_KEY
-AWS_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
+# export credentials into environment variables for AWS client
+export AWS_REGION="${AWS_REGION:-us-east-1}"
+export AWS_ACCESS_KEY_ID="$IT_CASE_S3_ACCESS_KEY"
+export AWS_SECRET_ACCESS_KEY="$IT_CASE_S3_SECRET_KEY"
+
+AWS_ACCESS_KEY=$IT_CASE_S3_ACCESS_KEY
+AWS_SECRET_KEY=$IT_CASE_S3_SECRET_KEY
+
+S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/static/words"
 
 s3util="java -jar ${END_TO_END_DIR}/flink-e2e-test-utils/target/S3UtilProgram.jar"
 
@@ -49,36 +55,30 @@ s3util="java -jar ${END_TO_END_DIR}/flink-e2e-test-utils/target/S3UtilProgram.ja
 #
 # Globals:
 #   FLINK_DIR
-#   ARTIFACTS_AWS_ACCESS_KEY
-#   ARTIFACTS_AWS_SECRET_KEY
+#   IT_CASE_S3_ACCESS_KEY
+#   IT_CASE_S3_SECRET_KEY
 # Arguments:
-#   None
+#   $1 - s3 filesystem type (hadoop/presto)
 # Returns:
 #   None
 ###################################
 function s3_setup {
-  # make sure we delete the file at the end
-  function s3_cleanup {
-    rm $FLINK_DIR/lib/flink-s3-fs*.jar
-
-    # remove any leftover settings
-    sed -i -e 's/s3.access-key: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-    sed -i -e 's/s3.secret-key: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-  }
-  trap s3_cleanup EXIT
-
-  cp $FLINK_DIR/opt/flink-s3-fs-hadoop-*.jar $FLINK_DIR/lib/
-  echo "s3.access-key: $ARTIFACTS_AWS_ACCESS_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
-  echo "s3.secret-key: $ARTIFACTS_AWS_SECRET_KEY" >> "$FLINK_DIR/conf/flink-conf.yaml"
+  add_optional_plugin "s3-fs-$1"
+  set_config_key "s3.access-key" "$IT_CASE_S3_ACCESS_KEY"
+  set_config_key "s3.secret-key" "$IT_CASE_S3_SECRET_KEY"
 }
 
-s3_setup
+function s3_setup_with_provider {
+  add_optional_plugin "s3-fs-$1"
+  # reads (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+  set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+}
 
 ###################################
 # List s3 objects by full path prefix.
 #
 # Globals:
-#   ARTIFACTS_AWS_BUCKET
+#   IT_CASE_S3_BUCKET
 # Arguments:
 #   $1 - s3 full path key prefix
 # Returns:
@@ -86,14 +86,14 @@ s3_setup
 ###################################
 function s3_list {
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action listByFullPathPrefix --s3prefix "$1" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action listByFullPathPrefix --s3prefix "$1" --bucket $IT_CASE_S3_BUCKET
 }
 
 ###################################
 # Download s3 object.
 #
 # Globals:
-#   ARTIFACTS_AWS_BUCKET
+#   IT_CASE_S3_BUCKET
 # Arguments:
 #   $1 - local path to save file
 #   $2 - s3 object key
@@ -102,14 +102,14 @@ function s3_list {
 ###################################
 function s3_get {
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action downloadFile --localFile "$1" --s3file "$2" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action downloadFile --localFile "$1" --s3file "$2" --bucket $IT_CASE_S3_BUCKET
 }
 
 ###################################
 # Download s3 objects to folder by full path prefix.
 #
 # Globals:
-#   ARTIFACTS_AWS_BUCKET
+#   IT_CASE_S3_BUCKET
 # Arguments:
 #   $1 - local path to save folder with files
 #   $2 - s3 key full path prefix
@@ -121,14 +121,14 @@ function s3_get_by_full_path_and_filename_prefix {
   local file_prefix="${3-}"
   AWS_REGION=$AWS_REGION \
   ${s3util} --action downloadByFullPathAndFileNamePrefix \
-    --localFolder "$1" --s3prefix "$2" --s3filePrefix "${file_prefix}" --bucket $ARTIFACTS_AWS_BUCKET
+    --localFolder "$1" --s3prefix "$2" --s3filePrefix "${file_prefix}" --bucket $IT_CASE_S3_BUCKET
 }
 
 ###################################
 # Upload file to s3 object.
 #
 # Globals:
-#   ARTIFACTS_AWS_BUCKET
+#   IT_CASE_S3_BUCKET
 # Arguments:
 #   $1 - local file to upload
 #   $2 - s3 bucket
@@ -144,8 +144,8 @@ function s3_put {
   contentType="application/octet-stream"
   dateValue=`date -R`
   stringToSign="PUT\n\n${contentType}\n${dateValue}\n${resource}"
-  s3Key=$ARTIFACTS_AWS_ACCESS_KEY
-  s3Secret=$ARTIFACTS_AWS_SECRET_KEY
+  s3Key=$IT_CASE_S3_ACCESS_KEY
+  s3Secret=$IT_CASE_S3_SECRET_KEY
   signature=`echo -en ${stringToSign} | openssl sha1 -hmac ${s3Secret} -binary | base64`
   curl -X PUT -T "${local_file}" \
     -H "Host: ${bucket}.s3.amazonaws.com" \
@@ -174,8 +174,8 @@ function s3_delete {
   contentType="application/octet-stream"
   dateValue=`date -R`
   stringToSign="DELETE\n\n${contentType}\n${dateValue}\n${resource}"
-  s3Key=$ARTIFACTS_AWS_ACCESS_KEY
-  s3Secret=$ARTIFACTS_AWS_SECRET_KEY
+  s3Key=$IT_CASE_S3_ACCESS_KEY
+  s3Secret=$IT_CASE_S3_SECRET_KEY
   signature=`echo -en ${stringToSign} | openssl sha1 -hmac ${s3Secret} -binary | base64`
   curl -X DELETE \
     -H "Host: ${bucket}.s3.amazonaws.com" \
@@ -189,7 +189,7 @@ function s3_delete {
 # Delete s3 objects by full path prefix.
 #
 # Globals:
-#   ARTIFACTS_AWS_BUCKET
+#   IT_CASE_S3_BUCKET
 # Arguments:
 #   $1 - s3 key full path prefix
 # Returns:
@@ -197,7 +197,7 @@ function s3_delete {
 ###################################
 function s3_delete_by_full_path_prefix {
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action deleteByFullPathPrefix --s3prefix "$1" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action deleteByFullPathPrefix --s3prefix "$1" --bucket $IT_CASE_S3_BUCKET
 }
 
 ###################################
@@ -206,7 +206,7 @@ function s3_delete_by_full_path_prefix {
 # because SQL is used to query the s3 object.
 #
 # Globals:
-#   ARTIFACTS_AWS_BUCKET
+#   IT_CASE_S3_BUCKET
 # Arguments:
 #   $1 - s3 file object key
 #   $2 - s3 bucket
@@ -215,7 +215,7 @@ function s3_delete_by_full_path_prefix {
 ###################################
 function s3_get_number_of_lines_in_file {
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action numberOfLinesInFile --s3file "$1" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action numberOfLinesInFile --s3file "$1" --bucket $IT_CASE_S3_BUCKET
 }
 
 ###################################
@@ -224,7 +224,7 @@ function s3_get_number_of_lines_in_file {
 # because SQL is used to query the s3 objects.
 #
 # Globals:
-#   ARTIFACTS_AWS_BUCKET
+#   IT_CASE_S3_BUCKET
 # Arguments:
 #   $1 - s3 key prefix
 #   $2 - s3 bucket
@@ -236,5 +236,5 @@ function s3_get_number_of_lines_by_prefix {
   local file_prefix="${3-}"
   AWS_REGION=$AWS_REGION \
   ${s3util} --action numberOfLinesInFilesWithFullAndNamePrefix \
-    --s3prefix "$1" --s3filePrefix "${file_prefix}" --bucket $ARTIFACTS_AWS_BUCKET
+    --s3prefix "$1" --s3filePrefix "${file_prefix}" --bucket $IT_CASE_S3_BUCKET
 }

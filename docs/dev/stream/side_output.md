@@ -58,7 +58,9 @@ contains.
 Emitting data to a side output is possible from the following functions:
 
 - [ProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html)
+- [KeyedProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html#the-keyedprocessfunction)
 - CoProcessFunction
+- KeyedCoProcessFunction
 - [ProcessWindowFunction]({{ site.baseurl }}/dev/stream/operators/windows.html#processwindowfunction)
 - ProcessAllWindowFunction
 

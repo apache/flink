@@ -50,9 +50,8 @@ function run_test {
 }
 
 function test_cleanup {
-    unlink_queryable_state_lib
     clean_stdout_files
 }
 
-trap test_cleanup EXIT
+on_exit test_cleanup
 run_test $1

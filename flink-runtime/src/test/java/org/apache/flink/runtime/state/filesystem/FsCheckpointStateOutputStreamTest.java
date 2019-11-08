@@ -86,7 +86,7 @@ public class FsCheckpointStateOutputStreamTest {
 
 	@Test
 	public void testStateBelowMemThreshold() throws Exception {
-		runTest(222, 999, 512, false);
+		runTest(999, 1024, 1000, false);
 	}
 
 	@Test
@@ -216,7 +216,8 @@ public class FsCheckpointStateOutputStreamTest {
 				stream.write(bytes[pos++]);
 			}
 			else {
-				int num = rnd.nextInt(Math.min(10, bytes.length - pos));
+				int num = rnd.nextBoolean() ?
+					(bytes.length - pos) : rnd.nextInt(bytes.length - pos);
 				stream.write(bytes, pos, num);
 				pos += num;
 			}

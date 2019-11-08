@@ -19,13 +19,11 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -40,10 +38,8 @@ import org.junit.Test;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static org.mockito.Mockito.mock;
-
 /**
- * resourceManager HA test, including grant leadership and revoke leadership
+ * ResourceManager HA test, including grant leadership and revoke leadership.
  */
 public class ResourceManagerHATest extends TestLogger {
 
@@ -56,7 +52,7 @@ public class ResourceManagerHATest extends TestLogger {
 
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService() {
 			@Override
-			public void confirmLeaderSessionID(UUID leaderId) {
+			public void confirmLeadership(UUID leaderId, String leaderAddress) {
 				leaderSessionIdFuture.complete(leaderId);
 			}
 		};
@@ -64,20 +60,20 @@ public class ResourceManagerHATest extends TestLogger {
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
 
-		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
+		TestingHeartbeatServices heartbeatServices = new TestingHeartbeatServices();
 
 		ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = new ResourceManagerRuntimeServicesConfiguration(
 			Time.seconds(5L),
 			new SlotManagerConfiguration(
 				TestingUtils.infiniteTime(),
 				TestingUtils.infiniteTime(),
-				TestingUtils.infiniteTime()));
+				TestingUtils.infiniteTime(),
+				true,
+				false));
 		ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			resourceManagerRuntimeServicesConfiguration,
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor());
-
-		MetricRegistryImpl metricRegistry = mock(MetricRegistryImpl.class);
 
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
@@ -86,16 +82,16 @@ public class ResourceManagerHATest extends TestLogger {
 		final ResourceManager resourceManager =
 			new StandaloneResourceManager(
 				rpcService,
-				FlinkResourceManager.RESOURCE_MANAGER_NAME,
+				ResourceManager.RESOURCE_MANAGER_NAME,
 				rmResourceId,
 				highAvailabilityServices,
 				heartbeatServices,
 				resourceManagerRuntimeServices.getSlotManager(),
-				metricRegistry,
 				resourceManagerRuntimeServices.getJobLeaderIdService(),
 				new ClusterInformation("localhost", 1234),
 				testingFatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup()) {
+				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
+				Time.minutes(5L)) {
 
 				@Override
 				public void revokeLeadership() {

@@ -22,9 +22,8 @@ import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import kafka.server.KafkaServer;
@@ -100,7 +99,7 @@ public abstract class KafkaTestEnvironment {
 		return new Config();
 	}
 
-	public abstract void prepare(Config config);
+	public abstract void prepare(Config config) throws Exception;
 
 	public void shutdown() throws Exception {
 		for (NetworkFailuresProxy proxy : networkFailuresProxies) {
@@ -128,10 +127,10 @@ public abstract class KafkaTestEnvironment {
 
 	// -- consumer / producer instances:
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
-		return getConsumer(topics, new KeyedDeserializationSchemaWrapper<T>(deserializationSchema), props);
+		return getConsumer(topics, new KafkaDeserializationSchemaWrapper<T>(deserializationSchema), props);
 	}
 
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(String topic, KeyedDeserializationSchema<T> readSchema, Properties props) {
+	public <T> FlinkKafkaConsumerBase<T> getConsumer(String topic, KafkaDeserializationSchema<T> readSchema, Properties props) {
 		return getConsumer(Collections.singletonList(topic), readSchema, props);
 	}
 
@@ -139,7 +138,7 @@ public abstract class KafkaTestEnvironment {
 		return getConsumer(Collections.singletonList(topic), deserializationSchema, props);
 	}
 
-	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
+	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props);
 
 	public abstract <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(
 			Properties properties,
@@ -155,11 +154,10 @@ public abstract class KafkaTestEnvironment {
 														KeyedSerializationSchema<T> serSchema, Properties props,
 														FlinkKafkaPartitioner<T> partitioner);
 
-	public abstract <T> DataStreamSink<T> writeToKafkaWithTimestamps(
-			DataStream<T> stream,
-			String topic,
-			KeyedSerializationSchema<T> serSchema,
-			Properties props);
+	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
+			KafkaSerializationSchema<T> serSchema, Properties props) {
+		throw new RuntimeException("KafkaSerializationSchema is only supported on the modern Kafka Connector.");
+	}
 
 	// -- offset handlers
 

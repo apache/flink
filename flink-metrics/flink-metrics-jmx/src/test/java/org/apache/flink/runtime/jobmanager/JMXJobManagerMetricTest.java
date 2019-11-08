@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -100,14 +101,15 @@ public class JMXJobManagerMetricTest extends TestLogger {
 					50,
 					5,
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-					true),
+					true,
+					false,
+					0),
 				null));
 
 			ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
-			client.setDetached(true);
-			client.submitJob(jobGraph, JMXJobManagerMetricTest.class.getClassLoader());
+			ClientUtils.submitJob(client, jobGraph);
 
-			FutureUtils.retrySuccesfulWithDelay(
+			FutureUtils.retrySuccessfulWithDelay(
 				() -> client.getJobStatus(jobGraph.getJobID()),
 				Time.milliseconds(10),
 				deadline,

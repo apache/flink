@@ -43,17 +43,20 @@ public class SafetyNetCloseableRegistryTest
 	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	@Override
-	protected WrappingProxyCloseable<? extends Closeable> createCloseable() {
-		return new WrappingProxyCloseable<Closeable>() {
+	protected void registerCloseable(final Closeable closeable) throws IOException {
+		final WrappingProxyCloseable<Closeable> wrappingProxyCloseable = new WrappingProxyCloseable<Closeable>() {
 
 			@Override
-			public void close() throws IOException {}
+			public void close() throws IOException {
+				closeable.close();
+			}
 
 			@Override
 			public Closeable getWrappedDelegate() {
-				return this;
+				return closeable;
 			}
 		};
+		closeableRegistry.registerCloseable(wrappingProxyCloseable);
 	}
 
 	@Override

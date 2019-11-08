@@ -19,7 +19,8 @@
 package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
+import org.apache.flink.runtime.util.HadoopConfigLoader;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -52,6 +53,24 @@ public class S3EntropyFsFactoryTest extends TestLogger {
 		assertEquals(7, fs.generateEntropy().length());
 	}
 
+	/**
+	 * Test validates that the produced by AbstractS3FileSystemFactory object will contains
+	 * only first path from multiple paths in config.
+	 */
+	@Test
+	public void testMultipleTempDirsConfig() throws Exception {
+		final Configuration conf = new Configuration();
+		String dir1 =  "/tmp/dir1";
+		String dir2 =  "/tmp/dir2";
+		conf.setString("io.tmp.dirs", dir1 + "," + dir2);
+
+		TestFsFactory factory = new TestFsFactory();
+		factory.configure(conf);
+
+		FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
+		assertEquals(fs.getLocalTmpDir(), dir1);
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static final class TestFsFactory extends AbstractS3FileSystemFactory {
@@ -78,7 +97,7 @@ public class S3EntropyFsFactoryTest extends TestLogger {
 
 		@Nullable
 		@Override
-		protected S3MultiPartUploader getS3AccessHelper(FileSystem fs) {
+		protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
 			return null;
 		}
 

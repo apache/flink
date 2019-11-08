@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -185,5 +186,10 @@ public class ImmutableMapStateTest {
 		assertEquals(5L, value);
 
 		mapState.clear();
+	}
+
+	@Test
+	public void testIsEmpty() throws Exception {
+		assertFalse(mapState.isEmpty());
 	}
 }

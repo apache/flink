@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.185</presto.version>
+		<presto.version>0.187</presto.version>
 	</properties>
 
 	<dependencies>
@@ -135,6 +135,10 @@ under the License.
 					<artifactId>aircompressor</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>io.airlift</groupId>
+					<artifactId>log-manager</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>javax.inject</groupId>
 					<artifactId>javax.inject</artifactId>
 				</exclusion>
@@ -190,10 +194,41 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>ban-openjdk.jol</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<!-- Incompatible license -->
+										<exclude>org.openjdk.jol:*</exclude>
+									</excludes>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -210,9 +245,6 @@ under the License.
 								<includes>
 									<include>*:*</include>
 								</includes>
-								<excludes>
-									<exclude>org.openjdk.jol</exclude>
-								</excludes>
 							</artifactSet>
 							<relocations>
 								<!-- relocate the references to Hadoop to match the pre-shaded hadoop artifact -->
@@ -258,6 +290,12 @@ under the License.
 									<pattern>com.google</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.google</shadedPattern>
 								</relocation>
+
+								<!-- shade Flink's Hadoop FS utility classes -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.common</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
@@ -269,6 +307,7 @@ under the License.
 										<exclude>META-INF/maven/io.airlift/**</exclude>
 										<exclude>META-INF/maven/com*/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 								<filter>
@@ -284,5 +323,47 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>java11</id>
+			<activation>
+				<jdk>11</jdk>
+			</activation>
+			<dependencies>
+				<dependency>
+					<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+					<version>2.3.0</version>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>shade-flink</id>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<relocations combine.children="append">
+										<relocation>
+											<pattern>javax.xml.bind</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.javax.xml.bind</shadedPattern>
+										</relocation>
+									</relocations>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>

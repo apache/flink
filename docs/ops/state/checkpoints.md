@@ -72,7 +72,7 @@ state.checkpoints.dir: hdfs:///checkpoints/
 #### Configure for per job when constructing the state backend
 
 {% highlight java %}
-env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/");
+env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
 {% endhighlight %}
 
 ### Difference to Savepoints

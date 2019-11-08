@@ -27,7 +27,7 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
  *****************************************************************************/
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.rest.handler.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.LeaderRetrievalHandler;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.handler.util.MimeTypes;
@@ -69,7 +69,6 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
-import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
@@ -93,7 +92,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * example.</p>
  */
 @ChannelHandler.Sharable
-public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectHandler<T> {
+public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRetrievalHandler<T> {
 
 	/** Timezone in which this server answers its "if-modified" requests. */
 	private static final TimeZone GMT_TIMEZONE = TimeZone.getTimeZone("GMT");
@@ -111,11 +110,10 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 
 	public StaticFileServerHandler(
 			GatewayRetriever<? extends T> retriever,
-			CompletableFuture<String> localJobManagerAddressFuture,
 			Time timeout,
 			File rootPath) throws IOException {
 
-		super(localJobManagerAddressFuture, retriever, timeout, Collections.emptyMap());
+		super(retriever, timeout, Collections.emptyMap());
 
 		this.rootPath = checkNotNull(rootPath).getCanonicalFile();
 	}

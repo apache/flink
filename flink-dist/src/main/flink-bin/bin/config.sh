@@ -111,7 +111,6 @@ KEY_TASKM_MEM_MB="taskmanager.heap.mb"
 KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
 KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
-KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
 
 KEY_TASKM_NET_BUF_FRACTION="taskmanager.network.memory.fraction"
 KEY_TASKM_NET_BUF_MIN="taskmanager.network.memory.min"
@@ -296,26 +295,33 @@ bin=`dirname "$target"`
 SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 
 # Define the main directory of the flink installation
-FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
-FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
-FLINK_OPT_DIR=$FLINK_ROOT_DIR/opt
+# If config.sh is called by pyflink-shell.sh in python bin directory(pip installed), then do not need to set the FLINK_HOME here.
+if [ -z "$_FLINK_HOME_DETERMINED" ]; then
+    FLINK_HOME=`dirname "$SYMLINK_RESOLVED_BIN"`
+fi
+FLINK_LIB_DIR=$FLINK_HOME/lib
+FLINK_PLUGINS_DIR=$FLINK_HOME/plugins
+FLINK_OPT_DIR=$FLINK_HOME/opt
 
-### Exported environment variables ###
-export FLINK_CONF_DIR
-# export /lib dir to access it during deployment of the Yarn staging files
-export FLINK_LIB_DIR
-# export /opt dir to access it for the SQL client
-export FLINK_OPT_DIR
 
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a
 # directory, so it needs to be unmangled.
-FLINK_ROOT_DIR_MANGLED=`manglePath "$FLINK_ROOT_DIR"`
-if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf; fi
-FLINK_BIN_DIR=$FLINK_ROOT_DIR_MANGLED/bin
-DEFAULT_FLINK_LOG_DIR=$FLINK_ROOT_DIR_MANGLED/log
+FLINK_HOME_DIR_MANGLED=`manglePath "$FLINK_HOME"`
+if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_HOME_DIR_MANGLED/conf; fi
+FLINK_BIN_DIR=$FLINK_HOME_DIR_MANGLED/bin
+DEFAULT_FLINK_LOG_DIR=$FLINK_HOME_DIR_MANGLED/log
 FLINK_CONF_FILE="flink-conf.yaml"
 YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
+
+### Exported environment variables ###
+export FLINK_CONF_DIR
+export FLINK_BIN_DIR
+export FLINK_PLUGINS_DIR
+# export /lib dir to access it during deployment of the Yarn staging files
+export FLINK_LIB_DIR
+# export /opt dir to access it for the SQL client
+export FLINK_OPT_DIR
 
 ########################################################################################################################
 # ENVIRONMENT VARIABLES
@@ -394,12 +400,6 @@ fi
 if [ -z "${FLINK_TM_OFFHEAP}" ]; then
     FLINK_TM_OFFHEAP=$(readFromConfig ${KEY_TASKM_OFFHEAP} "false" "${YAML_CONF}")
 fi
-
-# Define FLINK_TM_MEM_PRE_ALLOCATE if it is not already set
-if [ -z "${FLINK_TM_MEM_PRE_ALLOCATE}" ]; then
-    FLINK_TM_MEM_PRE_ALLOCATE=$(readFromConfig ${KEY_TASKM_MEM_PRE_ALLOCATE} "false" "${YAML_CONF}")
-fi
-
 
 # Define FLINK_TM_NET_BUF_FRACTION if it is not already set
 if [ -z "${FLINK_TM_NET_BUF_FRACTION}" ]; then
@@ -569,7 +569,7 @@ rotateLogFilesWithPrefix() {
     while read -r log ; do
         rotateLogFile "$log"
     # find distinct set of log file names, ignoring the rotation number (trailing dot and digit)
-    done < <(find "$dir" ! -type d -path "${prefix}*" | sed -E s/\.[0-9]+$// | sort | uniq)
+    done < <(find "$dir" ! -type d -path "${prefix}*" | sed s/\.[0-9][0-9]*$// | sort | uniq)
 }
 
 rotateLogFile() {

@@ -41,12 +41,21 @@ echo "Flink dist directory: $FLINK_DIR"
 
 FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/.*<version>\(.*\)<\/version>/\1/p')
 
-USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
 TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
 cd $TEST_INFRA_DIR
 TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
+
+source "${TEST_INFRA_DIR}/common_utils.sh"
+
+NODENAME=${NODENAME:-`hostname -f`}
+
+# REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
+# they should be used in curl command to query Flink REST API
+REST_PROTOCOL="http"
+CURL_SSL_ARGS=""
+source "${TEST_INFRA_DIR}/common_ssl.sh"
 
 function print_mem_use_osx {
     declare -a mem_types=("active" "inactive" "wired down")
@@ -69,38 +78,58 @@ function print_mem_use {
     fi
 }
 
-function backup_config() {
-    # back up the masters and flink-conf.yaml
-    cp $FLINK_DIR/conf/masters $FLINK_DIR/conf/masters.bak
-    cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+BACKUP_FLINK_DIRS="conf lib plugins"
+
+function backup_flink_dir() {
+    mkdir -p "${TEST_DATA_DIR}/tmp/backup"
+    # Note: not copying all directory tree, as it may take some time on some file systems.
+    for dirname in ${BACKUP_FLINK_DIRS}; do
+        cp -r "${FLINK_DIR}/${dirname}" "${TEST_DATA_DIR}/tmp/backup/"
+    done
 }
 
-function revert_default_config() {
+function revert_flink_dir() {
 
-    # revert our modifications to the masters file
-    if [ -f $FLINK_DIR/conf/masters.bak ]; then
-        mv -f $FLINK_DIR/conf/masters.bak $FLINK_DIR/conf/masters
-    fi
+    for dirname in ${BACKUP_FLINK_DIRS}; do
+        if [ -d "${TEST_DATA_DIR}/tmp/backup/${dirname}" ]; then
+            rm -rf "${FLINK_DIR}/${dirname}"
+            mv "${TEST_DATA_DIR}/tmp/backup/${dirname}" "${FLINK_DIR}/"
+        fi
+    done
 
-    # revert our modifications to the Flink conf yaml
-    if [ -f $FLINK_DIR/conf/flink-conf.yaml.bak ]; then
-        mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
-    fi
+    rm -r "${TEST_DATA_DIR}/tmp/backup"
 
-    USE_SSL=OFF
+    REST_PROTOCOL="http"
+    CURL_SSL_ARGS=""
 }
 
-function set_conf() {
-    CONF_NAME=$1
-    VAL=$2
-    echo "$CONF_NAME: $VAL" >> $FLINK_DIR/conf/flink-conf.yaml
+function add_optional_lib() {
+    local lib_name=$1
+    cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
 }
 
-function change_conf() {
-    CONF_NAME=$1
-    OLD_VAL=$2
-    NEW_VAL=$3
-    sed -i -e "s/${CONF_NAME}: ${OLD_VAL}/${CONF_NAME}: ${NEW_VAL}/" ${FLINK_DIR}/conf/flink-conf.yaml
+function add_optional_plugin() {
+    # This is similar to add_optional_lib, but the jar would be copied to
+    # Flink's plugins dir (the nested folder name does not matter).
+    # Note: this may not work with some jars, as not all of them implement plugin api.
+    # Please check the corresponding code of the jar.
+    local plugin="$1"
+    local plugin_dir="$FLINK_DIR/plugins/$plugin"
+
+    mkdir -p "$plugin_dir"
+    cp "$FLINK_DIR/opt/flink-$plugin"*".jar" "$plugin_dir"
+}
+
+function delete_config_key() {
+    local config_key=$1
+    sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
+}
+
+function set_config_key() {
+    local config_key=$1
+    local value=$2
+    delete_config_key ${config_key}
+    echo "$config_key: $value" >> $FLINK_DIR/conf/flink-conf.yaml
 }
 
 function create_ha_config() {
@@ -124,8 +153,8 @@ function create_ha_config() {
 
     jobmanager.rpc.address: localhost
     jobmanager.rpc.port: 6123
-    jobmanager.heap.mb: 1024
-    taskmanager.heap.mb: 1024
+    jobmanager.heap.size: 1024m
+    taskmanager.heap.size: 1024m
     taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
     #==============================================================================
@@ -144,8 +173,8 @@ function create_ha_config() {
 
     rest.port: 8081
 
-    query.server.ports: 9000-9009
-    query.proxy.ports: 9010-9019
+    queryable-state.server.ports: 9000-9009
+    queryable-state.proxy.ports: 9010-9019
 EOL
 }
 
@@ -168,46 +197,6 @@ function get_node_ip {
     fi
 
     echo ${ip_addr}
-}
-
-function set_conf_ssl {
-
-    # clean up the dir that will be used for SSL certificates and trust stores
-    if [ -e "${TEST_DATA_DIR}/ssl" ]; then
-       echo "File ${TEST_DATA_DIR}/ssl exists. Deleting it..."
-       rm -rf "${TEST_DATA_DIR}/ssl"
-    fi
-    mkdir -p "${TEST_DATA_DIR}/ssl"
-
-    NODENAME=`hostname -f`
-    SANSTRING="dns:${NODENAME}"
-    for NODEIP in $(get_node_ip) ; do
-        SANSTRING="${SANSTRING},ip:${NODEIP}"
-    done
-
-    echo "Using SAN ${SANSTRING}"
-
-    # create certificates
-    keytool -genkeypair -alias ca -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true
-    keytool -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -exportcert > "${TEST_DATA_DIR}/ssl/ca.cer"
-    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/ca.truststore" -alias ca -storepass password -noprompt -file "${TEST_DATA_DIR}/ssl/ca.cer"
-
-    keytool -genkeypair -alias node -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -dname "CN=${NODENAME}" -ext SAN=${SANSTRING} -storepass password -keypass password -keyalg RSA
-    keytool -certreq -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -alias node -file "${TEST_DATA_DIR}/ssl/node.csr"
-    keytool -gencert -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -ext SAN=${SANSTRING} -infile "${TEST_DATA_DIR}/ssl/node.csr" -outfile "${TEST_DATA_DIR}/ssl/node.cer"
-    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/ca.cer" -alias ca -noprompt
-    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/node.cer" -alias node -noprompt
-
-    # adapt config
-    # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
-    # external communication channels)
-    set_conf security.ssl.enabled true
-    set_conf security.ssl.keystore ${TEST_DATA_DIR}/ssl/node.keystore
-    set_conf security.ssl.keystore-password password
-    set_conf security.ssl.key-password password
-    set_conf security.ssl.truststore ${TEST_DATA_DIR}/ssl/ca.truststore
-    set_conf security.ssl.truststore-password password
-    USE_SSL=ON
 }
 
 function start_ha_cluster {
@@ -243,26 +232,23 @@ function start_local_zk {
 
 function wait_dispatcher_running {
   # wait at most 10 seconds until the dispatcher is up
-  local QUERY_URL
-  if [ "x$USE_SSL" = "xON" ]; then
-    QUERY_URL="http://localhost:8081/taskmanagers"
-  else
-    QUERY_URL="https://localhost:8081/taskmanagers"
-  fi
-  for i in {1..10}; do
+  local QUERY_URL="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+  local TIMEOUT=20
+  for i in $(seq 1 ${TIMEOUT}); do
     # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl "$QUERY_URL" 2> /dev/null || true)
+    QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$QUERY_URL" 2> /dev/null || true)
 
     # ensure the taskmanagers field is there at all and is not empty
     if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
-
       echo "Dispatcher REST endpoint is up."
-      break
+      return
     fi
 
     echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
   done
+  echo "Dispatcher REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function start_cluster {
@@ -271,7 +257,9 @@ function start_cluster {
 }
 
 function start_taskmanagers {
-    tmnum=$1
+    local tmnum=$1
+    local c
+
     echo "Start ${tmnum} more task managers"
     for (( c=0; c<tmnum; c++ ))
     do
@@ -280,29 +268,45 @@ function start_taskmanagers {
 }
 
 function start_and_wait_for_tm {
-
-  tm_query_result=$(curl -s "http://localhost:8081/taskmanagers")
-
+  tm_query_result=`query_running_tms`
   # we assume that the cluster is running
   if ! [[ ${tm_query_result} =~ \{\"taskmanagers\":\[.*\]\} ]]; then
     echo "Your cluster seems to be unresponsive at the moment: ${tm_query_result}" 1>&2
     exit 1
   fi
 
-  running_tms=`curl -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
-
+  running_tms=`query_number_of_running_tms`
   ${FLINK_DIR}/bin/taskmanager.sh start
+  wait_for_number_of_running_tms $((running_tms+1))
+}
 
-  for i in {1..10}; do
-    local new_running_tms=`curl -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
-    if [ $((new_running_tms-running_tms)) -eq 0 ]; then
-      echo "TaskManager is not yet up."
+function query_running_tms {
+  local url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+  curl ${CURL_SSL_ARGS} -s "${url}"
+}
+
+function query_number_of_running_tms {
+  query_running_tms | grep -o "id" | wc -l
+}
+
+function wait_for_number_of_running_tms {
+  local TM_NUM_TO_WAIT=${1}
+  local TIMEOUT_COUNTER=10
+  local TIMEOUT_INC=4
+  local TIMEOUT=$(( $TIMEOUT_COUNTER * $TIMEOUT_INC ))
+  local TM_NUM_TEXT="Number of running task managers"
+  for i in $(seq 1 ${TIMEOUT_COUNTER}); do
+    local TM_NUM=`query_number_of_running_tms`
+    if [ $((TM_NUM - TM_NUM_TO_WAIT)) -eq 0 ]; then
+      echo "${TM_NUM_TEXT} has reached ${TM_NUM_TO_WAIT}."
+      return
     else
-      echo "TaskManager is up."
-      break
+      echo "${TM_NUM_TEXT} ${TM_NUM} is not yet ${TM_NUM_TO_WAIT}."
     fi
-    sleep 4
+    sleep ${TIMEOUT_INC}
   done
+  echo "${TM_NUM_TEXT} has not reached ${TM_NUM_TO_WAIT} within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function check_logs_for_errors {
@@ -315,7 +319,7 @@ function check_logs_for_errors {
       | grep -v "AskTimeoutException" \
       | grep -v "Error while loading kafka-version.properties" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
-      | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
+      | grep -v "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
       | grep -v "jvm-exit-on-fatal-error" \
       | grep -v '^INFO:.*AWSErrorCode=\[400 Bad Request\].*ServiceEndpoint=\[https://.*\.s3\.amazonaws\.com\].*RequestType=\[HeadBucketRequest\]' \
       | grep -v "RejectedExecutionException" \
@@ -324,6 +328,8 @@ function check_logs_for_errors {
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
       | grep -v "org.apache.flink.fs.shaded.hadoop3.org.apache.commons.beanutils.FluentPropertyBeanIntrospector  - Error when creating PropertyDescriptor for public final void org.apache.flink.fs.shaded.hadoop3.org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
       | grep -v "Error while loading kafka-version.properties :null" \
+      | grep -v "Failed Elasticsearch item request" \
+      | grep -v "[Terror] modules" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files:"
@@ -355,6 +361,9 @@ function check_logs_for_exceptions {
    | grep -v "java.io.InvalidClassException: org.apache.flink.formats.avro.typeutils.AvroSerializer" \
    | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
    | grep -v "java.lang.Exception: Artificial failure" \
+   | grep -v "org.apache.flink.runtime.checkpoint.CheckpointException" \
+   | grep -v "org.elasticsearch.ElasticsearchException" \
+   | grep -v "Elasticsearch exception" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files:"
@@ -367,7 +376,16 @@ function check_logs_for_exceptions {
 
 function check_logs_for_non_empty_out_files {
   echo "Checking for non-empty .out files..."
-  if grep -ri "." $FLINK_DIR/log/*.out > /dev/null; then
+  # exclude reflective access warnings as these are expected (and currently unavoidable) on Java 9
+  if grep -ri -v \
+    -e "WARNING: An illegal reflective access" \
+    -e "WARNING: Illegal reflective access"\
+    -e "WARNING: Please consider reporting"\
+    -e "WARNING: Use --illegal-access"\
+    -e "WARNING: All illegal access"\
+    $FLINK_DIR/log/*.out\
+   | grep "." \
+   > /dev/null; then
     echo "Found non-empty .out files:"
     cat $FLINK_DIR/log/*.out
     EXIT_CODE=1
@@ -412,34 +430,47 @@ function wait_for_job_state_transition {
 }
 
 function wait_job_running {
-  for i in {1..10}; do
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
 
     if [[ "$JOB_LIST_RESULT" == "" ]]; then
       echo "Job ($1) is not yet running."
     else
       echo "Job ($1) is running."
-      break
+      return
     fi
     sleep 1
   done
+  echo "Job ($1) has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function wait_job_terminal_state {
   local job=$1
-  local terminal_state=$2
+  local expected_terminal_state=$2
 
-  echo "Waiting for job ($job) to reach terminal state $terminal_state ..."
+  echo "Waiting for job ($job) to reach terminal state $expected_terminal_state ..."
 
   while : ; do
-    N=$(grep -o "Job $job reached globally terminal state $terminal_state" $FLINK_DIR/log/*standalonesession*.log | tail -1 || true)
-
+    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_DIR/log/*standalonesession*.log | tail -1 || true)
     if [[ -z $N ]]; then
       sleep 1
     else
-      break
+      local actual_terminal_state=$(echo $N | sed -n 's/.*state \([A-Z]*\).*/\1/p')
+      if [[ -z $expected_terminal_state ]] || [[ "$expected_terminal_state" == "$actual_terminal_state" ]]; then
+        echo "Job ($job) reached terminal state $actual_terminal_state"
+        break
+      else
+        echo "Job ($job) is in state $actual_terminal_state but expected $expected_terminal_state"
+        exit 1
+      fi
     fi
   done
+}
+
+function stop_with_savepoint {
+  "$FLINK_DIR"/bin/flink stop -p $2 $1
 }
 
 function take_savepoint {
@@ -451,6 +482,16 @@ function cancel_job {
 }
 
 function check_result_hash {
+  local error_code=0
+  check_result_hash_no_exit "$@" || error_code=$?
+
+  if [ "$error_code" != "0" ]
+  then
+    exit $error_code
+  fi
+}
+
+function check_result_hash_no_exit {
   local name=$1
   local outfile_prefix=$2
   local expected=$3
@@ -462,18 +503,19 @@ function check_result_hash {
     actual=$(LC_ALL=C sort $outfile_prefix* | md5sum | awk '{print $1}')
   else
     echo "Neither 'md5' nor 'md5sum' binary available."
-    exit 2
+    return 2
   fi
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
     echo "head hexdump of actual:"
     head $outfile_prefix* | hexdump -c
-    exit 1
+    return 1
   else
     echo "pass $name"
     # Output files are left behind in /tmp
   fi
+  return 0
 }
 
 # This function starts the given number of task managers and monitors their processes.
@@ -509,27 +551,23 @@ function kill_all {
 }
 
 function kill_random_taskmanager {
-  KILL_TM=$(jps | grep "TaskManager" | sort -R | head -n 1 | awk '{print $1}')
-  kill -9 "$KILL_TM"
-  echo "TaskManager $KILL_TM killed."
+  local pid=`jps | grep -E "TaskManagerRunner|TaskManager" | sort -R | head -n 1 | cut -d " " -f 1 || true`
+  kill -9 "$pid"
+  echo "TaskManager $pid killed."
 }
 
 function setup_flink_slf4j_metric_reporter() {
   INTERVAL="${1:-1 SECONDS}"
-  cp $FLINK_DIR/opt/flink-metrics-slf4j-*.jar $FLINK_DIR/lib/
-  set_conf "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
-  set_conf "metrics.reporter.slf4j.interval" "${INTERVAL}"
-}
-
-function rollback_flink_slf4j_metric_reporter() {
-  rm $FLINK_DIR/lib/flink-metrics-slf4j-*.jar
+  add_optional_lib "metrics-slf4j"
+  set_config_key "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
 }
 
 function get_job_metric {
   local job_id=$1
   local metric_name=$2
 
-  local json=$(curl -s http://localhost:8081/jobs/${job_id}/metrics?get=${metric_name})
+  local json=$(curl ${CURL_SSL_ARGS} -s ${REST_PROTOCOL}://${NODENAME}:8081/jobs/${job_id}/metrics?get=${metric_name})
   local metric_value=$(echo ${json} | sed -n 's/.*"value":"\(.*\)".*/\1/p')
 
   echo ${metric_value}
@@ -645,11 +683,6 @@ function clean_stdout_files {
     echo "Deleted all stdout files under ${FLINK_DIR}/log/"
 }
 
-function clean_log_files {
-    rm ${FLINK_DIR}/log/*
-    echo "Deleted all files under ${FLINK_DIR}/log/"
-}
-
 # Expect a string to appear in the log files of the task manager before a given timeout
 # $1: expected string
 # $2: timeout in seconds
@@ -686,3 +719,42 @@ function wait_for_restart_to_complete {
         fi
     done
 }
+
+function find_latest_completed_checkpoint {
+    local checkpoint_root_directory=$1
+    # a completed checkpoint must contain the _metadata file
+    local checkpoint_meta_file=$(ls -d ${checkpoint_root_directory}/chk-[1-9]*/_metadata | sort -Vr | head -n1)
+    echo "$(dirname "${checkpoint_meta_file}")"
+}
+
+function retry_times() {
+    local retriesNumber=$1
+    local backoff=$2
+    local command=${@:3}
+
+    for (( i = 0; i < ${retriesNumber}; i++ ))
+    do
+        if ${command}; then
+            return 0
+        fi
+
+        echo "Command: ${command} failed. Retrying..."
+        sleep ${backoff}
+    done
+
+    echo "Command: ${command} failed ${retriesNumber} times."
+    return 1
+}
+
+JOB_ID_REGEX_EXTRACTOR=".*JobID ([0-9,a-f]*)"
+
+function extract_job_id_from_job_submission_return() {
+    if [[ $1 =~ $JOB_ID_REGEX_EXTRACTOR ]];
+        then
+            JOB_ID="${BASH_REMATCH[1]}";
+        else
+            JOB_ID=""
+        fi
+    echo "$JOB_ID"
+}
+

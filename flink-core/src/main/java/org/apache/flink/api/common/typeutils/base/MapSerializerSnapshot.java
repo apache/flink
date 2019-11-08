@@ -18,75 +18,56 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import org.apache.flink.api.common.typeutils.CompositeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
 import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Snapshot class for the {@link MapSerializer}.
  */
-public class MapSerializerSnapshot<K, V> implements TypeSerializerSnapshot<Map<K, V>> {
+public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer<K, V>> {
 
 	private static final int CURRENT_VERSION = 1;
-
-	private CompositeSerializerSnapshot nestedKeyValueSerializerSnapshot;
 
 	/**
 	 * Constructor for read instantiation.
 	 */
-	public MapSerializerSnapshot() {}
+	public MapSerializerSnapshot() {
+		super(MapSerializer.class);
+	}
 
 	/**
 	 * Constructor to create the snapshot for writing.
 	 */
-	public MapSerializerSnapshot(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer) {
-		this.nestedKeyValueSerializerSnapshot = new CompositeSerializerSnapshot(keySerializer, valueSerializer);
+	public MapSerializerSnapshot(MapSerializer<K, V> mapSerializer) {
+		super(mapSerializer);
 	}
 
 	@Override
-	public int getCurrentVersion() {
+	public int getCurrentOuterSnapshotVersion() {
 		return CURRENT_VERSION;
 	}
 
 	@Override
-	public TypeSerializer<Map<K, V>> restoreSerializer() {
-		return new MapSerializer<>(
-			nestedKeyValueSerializerSnapshot.getRestoreSerializer(0),
-			nestedKeyValueSerializerSnapshot.getRestoreSerializer(1));
+	protected MapSerializer<K, V> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+		@SuppressWarnings("unchecked")
+		TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
+
+		@SuppressWarnings("unchecked")
+		TypeSerializer<V> valueSerializer = (TypeSerializer<V>) nestedSerializers[1];
+
+		return new MapSerializer<>(keySerializer, valueSerializer);
 	}
 
 	@Override
-	public TypeSerializerSchemaCompatibility<Map<K, V>> resolveSchemaCompatibility(TypeSerializer<Map<K, V>> newSerializer) {
-		checkState(nestedKeyValueSerializerSnapshot != null);
-
-		if (newSerializer instanceof MapSerializer) {
-			MapSerializer<K, V> serializer = (MapSerializer<K, V>) newSerializer;
-
-			return nestedKeyValueSerializerSnapshot.resolveCompatibilityWithNested(
-				TypeSerializerSchemaCompatibility.compatibleAsIs(),
-				serializer.getKeySerializer(),
-				serializer.getValueSerializer());
-		}
-		else {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
+	protected TypeSerializer<?>[] getNestedSerializers(MapSerializer<K, V> outerSerializer) {
+		return new TypeSerializer<?>[] { outerSerializer.getKeySerializer(), outerSerializer.getValueSerializer() };
 	}
 
-	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
-		nestedKeyValueSerializerSnapshot.writeCompositeSnapshot(out);
-	}
-
-	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		this.nestedKeyValueSerializerSnapshot = CompositeSerializerSnapshot.readCompositeSnapshot(in, userCodeClassLoader);
+	@SuppressWarnings("unchecked")
+	public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
+		return (TypeSerializerSnapshot<K>) getNestedSerializerSnapshots()[0];
 	}
 }

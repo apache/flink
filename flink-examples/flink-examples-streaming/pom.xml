@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -364,6 +364,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
+
 				</executions>
 			</plugin>
 
@@ -434,7 +435,6 @@ under the License.
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
 				<executions>
 					<!-- Add src/main/scala to eclipse build path -->
 					<execution>
@@ -469,14 +469,9 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.7</version>
 				<executions>
 					<execution>
 						<id>rename</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
 						<configuration>
 							<target>
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-IncrementalLearning.jar" tofile="${project.basedir}/target/IncrementalLearning.jar" />
@@ -491,80 +486,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
-
-			<!-- Use the shade plugin to build a fat jar for the kafka example -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-
-					<!-- State Machine Example -->
-					<execution>
-						<id>state-machine-example</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
-							<createDependencyReducedPom>false</createDependencyReducedPom>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.statemachine.StateMachineExample</mainClass>
-								</transformer>
-							</transformers>
-							<finalName>StateMachineExample</finalName>
-							<filters>
-								<filter>
-									<artifact>*</artifact>
-									<includes>
-										<include>org/apache/flink/streaming/examples/statemachine/**</include>
-										<include>org/apache/flink/streaming/util/serialization/**</include>
-										<include>org/apache/flink/streaming/connectors/kafka/**</include>
-										<include>org/apache/kafka/**</include>
-										<include>kafka/</include>
-									</includes>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-
-					<execution>
-						<id>fat-jar-twitter-example</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
-							<createDependencyReducedPom>false</createDependencyReducedPom>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.twitter.TwitterExample</mainClass>
-								</transformer>
-							</transformers>
-							<finalName>Twitter</finalName>
-							<filters>
-								<filter>
-									<artifact>*</artifact>
-									<includes>
-										<include>org/apache/flink/twitter/shaded/com/google/common/**</include>
-										<include>org/apache/flink/streaming/examples/twitter/**</include>
-										<include>org/apache/flink/streaming/connectors/twitter/**</include>
-										<include>org/apache/http/**</include>
-										<include>com/twitter/**</include>
-										<include>build.properties</include>
-									</includes>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 		</plugins>
 		
 		<pluginManagement>

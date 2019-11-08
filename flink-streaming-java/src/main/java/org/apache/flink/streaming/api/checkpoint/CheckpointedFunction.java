@@ -80,7 +80,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  *         countPerKey = context.getKeyedStateStore().getReducingState(
  *                 new ReducingStateDescriptor<>("perKeyCount", new AddFunction<>(), Long.class));
  *
- *         // get the state data structure for the per-key state
+ *         // get the state data structure for the per-partition state
  *         countPerPartition = context.getOperatorStateStore().getOperatorState(
  *                 new ListStateDescriptor<>("perPartitionCount", Long.class));
  *
@@ -116,7 +116,6 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * <h4>Operator State</h4>
  * Checkpointing some state that is part of the function object itself is possible in a simpler way
  * by directly implementing the {@link ListCheckpointed} interface.
- * That mechanism is similar to the previously used {@link Checkpointed} interface.
  *
  * <h4>Keyed State</h4>
  * Access to keyed state is possible via the {@link RuntimeContext}'s methods:

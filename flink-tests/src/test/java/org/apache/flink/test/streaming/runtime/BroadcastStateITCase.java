@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -45,7 +46,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}.
  */
-public class BroadcastStateITCase {
+public class BroadcastStateITCase extends AbstractTestBase {
 
 	@Test
 	public void testKeyedWithBroadcastTranslation() throws Exception {

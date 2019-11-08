@@ -40,7 +40,7 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
 
 	private static final Logger LOG = LoggerFactory.getLogger(S3Committer.class);
 
-	private final S3MultiPartUploader s3uploader;
+	private final S3AccessHelper s3AccessHelper;
 
 	private final String uploadId;
 
@@ -50,8 +50,8 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
 
 	private final long totalLength;
 
-	S3Committer(S3MultiPartUploader s3uploader, String objectName, String uploadId, List<PartETag> parts, long totalLength) {
-		this.s3uploader = checkNotNull(s3uploader);
+	S3Committer(S3AccessHelper s3AccessHelper, String objectName, String uploadId, List<PartETag> parts, long totalLength) {
+		this.s3AccessHelper = checkNotNull(s3AccessHelper);
 		this.objectName = checkNotNull(objectName);
 		this.uploadId = checkNotNull(uploadId);
 		this.parts = checkNotNull(parts);
@@ -64,7 +64,7 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
 			LOG.info("Committing {} with MPU ID {}", objectName, uploadId);
 
 			final AtomicInteger errorCount = new AtomicInteger();
-			s3uploader.commitMultiPartUpload(objectName, uploadId, parts, totalLength, errorCount);
+			s3AccessHelper.commitMultiPartUpload(objectName, uploadId, parts, totalLength, errorCount);
 
 			if (errorCount.get() == 0) {
 				LOG.debug("Successfully committed {} with MPU ID {}", objectName, uploadId);
@@ -82,14 +82,14 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
 			LOG.info("Trying to commit after recovery {} with MPU ID {}", objectName, uploadId);
 
 			try {
-				s3uploader.commitMultiPartUpload(objectName, uploadId, parts, totalLength, new AtomicInteger());
+				s3AccessHelper.commitMultiPartUpload(objectName, uploadId, parts, totalLength, new AtomicInteger());
 			} catch (IOException e) {
 				LOG.info("Failed to commit after recovery {} with MPU ID {}. " +
 						"Checking if file was committed before...", objectName, uploadId);
 				LOG.trace("Exception when committing:", e);
 
 				try {
-					ObjectMetadata metadata = s3uploader.getObjectMetadata(objectName);
+					ObjectMetadata metadata = s3AccessHelper.getObjectMetadata(objectName);
 					if (totalLength != metadata.getContentLength()) {
 						String message = String.format("Inconsistent result for object %s: conflicting lengths. " +
 										"Recovered committer for upload %s indicates %s bytes, present object is %s bytes",

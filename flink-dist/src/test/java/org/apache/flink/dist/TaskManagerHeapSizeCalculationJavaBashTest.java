@@ -20,8 +20,10 @@ package org.apache.flink.dist;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
+import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
@@ -69,24 +71,34 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that {@link TaskManagerServices#calculateNetworkBufferMemory(long, Configuration)} has the same
-	 * result as the shell script.
+	 * Tests that {@link NettyShuffleEnvironmentConfiguration#calculateNetworkBufferMemory(long, Configuration)}
+	 * has the same result as the shell script.
 	 */
 	@Test
 	public void compareNetworkBufShellScriptWithJava() throws Exception {
-		int managedMemSize = Integer.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue());
-		float managedMemFrac = TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue();
+		final int totalMemoryInMB = 1000; // 1000MB
+		final long networkBufMin = 64L << 20; // 64MB
+		final long networkBufMax = 1L << 30; // 1GB
+
+		int managedMemSize = Integer.valueOf(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue());
+		float managedMemFrac = TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.defaultValue();
 
 		// manual tests from org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateHeapSizeMB()
 
 		compareNetworkBufJavaVsScript(
-			getConfig(1000, false, 0.1f, 64L << 20, 1L << 30, managedMemSize, managedMemFrac), 0.0f);
+			getConfig(totalMemoryInMB, false, 0.1f, networkBufMin, networkBufMax, managedMemSize, managedMemFrac), 0.0f);
 
 		compareNetworkBufJavaVsScript(
-			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, 10 /*MB*/, managedMemFrac), 0.0f);
+			getConfig(totalMemoryInMB, true, 0.1f, networkBufMin, networkBufMax, 10 /*MB*/, managedMemFrac), 0.0f);
 
 		compareNetworkBufJavaVsScript(
-			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, managedMemSize, 0.1f), 0.0f);
+			getConfig(totalMemoryInMB, true, 0.1f, networkBufMin, networkBufMax, managedMemSize, 0.1f), 0.0f);
+
+		compareNetworkBufJavaVsScript(
+			getConfig(totalMemoryInMB, false, 0.6f, networkBufMin, networkBufMax, managedMemSize, managedMemFrac), 0.0f);
+
+		compareNetworkBufJavaVsScript(
+			getConfig(totalMemoryInMB, true, 0.6f, networkBufMin, networkBufMax, 10 /*MB*/, managedMemFrac), 0.0f);
 
 		// some automated tests with random (but valid) values
 
@@ -103,19 +115,29 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 	 */
 	@Test
 	public void compareHeapSizeShellScriptWithJava() throws Exception {
-		int managedMemSize = Integer.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue());
-		float managedMemFrac = TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue();
+		final int totalMemoryInMB = 1000; // 1000MB
+		final long networkBufMin = 64L << 20; // 64MB
+		final long networkBufMax = 1L << 30; // 1GB
+
+		int managedMemSize = Integer.valueOf(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue());
+		float managedMemFrac = TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.defaultValue();
 
 		// manual tests from org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateHeapSizeMB()
 
 		compareHeapSizeJavaVsScript(
-			getConfig(1000, false, 0.1f, 64L << 20, 1L << 30, managedMemSize, managedMemFrac), 0.0f);
+			getConfig(totalMemoryInMB, false, 0.1f, networkBufMin, networkBufMax, managedMemSize, managedMemFrac), 0.0f);
 
 		compareHeapSizeJavaVsScript(
-			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, 10 /*MB*/, managedMemFrac), 0.0f);
+			getConfig(totalMemoryInMB, true, 0.1f, networkBufMin, networkBufMax, 10 /*MB*/, managedMemFrac), 0.0f);
 
 		compareHeapSizeJavaVsScript(
-			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, managedMemSize, 0.1f), 0.0f);
+			getConfig(totalMemoryInMB, true, 0.1f, networkBufMin, networkBufMax, managedMemSize, 0.1f), 0.0f);
+
+		compareHeapSizeJavaVsScript(
+			getConfig(totalMemoryInMB, false, 0.6f, networkBufMin, networkBufMax, managedMemSize, managedMemFrac), 0.0f);
+
+		compareHeapSizeJavaVsScript(
+			getConfig(totalMemoryInMB, true, 0.6f, networkBufMin, networkBufMax, 10 /*MB*/, managedMemFrac), 0.0f);
 
 		// some automated tests with random (but valid) values
 
@@ -157,16 +179,16 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		config.setLong(KEY_TASKM_MEM_SIZE, javaMemMB);
 		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, useOffHeap);
 
-		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, netBufMemFrac);
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(netBufMemMin));
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(netBufMemMax));
+		config.setFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION, netBufMemFrac);
+		config.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(netBufMemMin));
+		config.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(netBufMemMax));
 
 		if (managedMemSizeMB == 0) {
-			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
+			config.removeConfig(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE);
 		} else {
-			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, managedMemSizeMB + "m");
+			config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, managedMemSizeMB + "m");
 		}
-		config.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, managedMemFrac);
+		config.setFloat(TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION, managedMemFrac);
 
 		return config;
 	}
@@ -192,15 +214,15 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		int javaMemMB = Math.max((int) (max >> 20), ran.nextInt(Integer.MAX_VALUE)) + 1;
 		boolean useOffHeap = ran.nextBoolean();
 
-		int managedMemSize = Integer.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue());
-		float managedMemFrac = TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue();
+		int managedMemSize = Integer.valueOf(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue());
+		float managedMemFrac = TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.defaultValue();
 
 		if (ran.nextBoolean()) {
 			// use fixed-size managed memory
 			Configuration config = getConfig(javaMemMB, useOffHeap, frac, min, max, managedMemSize, managedMemFrac);
 			long totalJavaMemorySize = ((long) javaMemMB) << 20; // megabytes to bytes
 			final int networkBufMB =
-				(int) (TaskManagerServices.calculateNetworkBufferMemory(totalJavaMemorySize, config) >> 20);
+				(int) (NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(totalJavaMemorySize, config) >> 20);
 			// max (exclusive): total - netbuf
 			managedMemSize = Math.min(javaMemMB - networkBufMB - 1, ran.nextInt(Integer.MAX_VALUE));
 		} else {
@@ -226,13 +248,14 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 
 		final long totalJavaMemorySizeMB = config.getLong(KEY_TASKM_MEM_SIZE, 0L);
 
-		long javaNetworkBufMem = TaskManagerServices.calculateNetworkBufferMemory(totalJavaMemorySizeMB << 20, config);
+		long javaNetworkBufMem = NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(
+			totalJavaMemorySizeMB << 20, config);
 
 		String[] command = {"src/test/bin/calcTMNetBufMem.sh",
 			totalJavaMemorySizeMB + "m",
-			String.valueOf(config.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
-			config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN),
-			config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX)};
+			String.valueOf(config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
+			config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN),
+			config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX)};
 
 		String scriptOutput = executeScript(command);
 
@@ -269,25 +292,22 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		String[] command = {"src/test/bin/calcTMHeapSizeMB.sh",
 			totalJavaMemorySizeMB + "m",
 			String.valueOf(config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)),
-			String.valueOf(config.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
-			config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN),
-			config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX),
-			config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE),
-			String.valueOf(config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION))};
+			String.valueOf(config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
+			config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN),
+			config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX),
+			config.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE),
+			String.valueOf(config.getFloat(TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION))};
 		String scriptOutput = executeScript(command);
 
-		long absoluteTolerance = (long) (javaHeapSizeMB * tolerance);
-		if (absoluteTolerance < 1) {
-			assertEquals("Different heap sizes with configuration: " + config.toString(),
-				String.valueOf(javaHeapSizeMB), scriptOutput);
-		} else {
-			Long scriptHeapSizeMB = Long.valueOf(scriptOutput);
-			assertThat(
-				"Different heap sizes (Java: " + javaHeapSizeMB + ", Script: " + scriptHeapSizeMB +
-					") with configuration: " + config.toString(), scriptHeapSizeMB,
-				allOf(greaterThanOrEqualTo(javaHeapSizeMB - absoluteTolerance),
-					lessThanOrEqualTo(javaHeapSizeMB + absoluteTolerance)));
-		}
+		// we need a tolerance of at least one, to compensate for MB/byte conversion rounding errors
+		long absoluteTolerance = Math.max(1L, (long) (javaHeapSizeMB * tolerance));
+
+		Long scriptHeapSizeMB = Long.valueOf(scriptOutput);
+		assertThat(
+			"Different heap sizes (Java: " + javaHeapSizeMB + ", Script: " + scriptHeapSizeMB +
+				") with configuration: " + config.toString(), scriptHeapSizeMB,
+			allOf(greaterThanOrEqualTo(javaHeapSizeMB - absoluteTolerance),
+				lessThanOrEqualTo(javaHeapSizeMB + absoluteTolerance)));
 	}
 
 	/**

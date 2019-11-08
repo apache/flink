@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-queryable-state</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -54,7 +54,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-queryable-state-client-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-queryable-state-client-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>

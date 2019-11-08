@@ -1944,7 +1944,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				EventTimeTrigger.create(),
 				lateness,
-				null /* late data output tag */);
+				lateOutputTag /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);
@@ -2043,7 +2043,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				PurgingTrigger.of(EventTimeTrigger.create()),
 				lateness,
-				null /* late data output tag */);
+				lateOutputTag /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);
@@ -2132,7 +2132,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				EventTimeTrigger.create(),
 				lateness,
-				null /* late data output tag */);
+				lateOutputTag /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);

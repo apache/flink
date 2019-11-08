@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,15 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -49,9 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -84,125 +77,136 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
 	}
 
+	@Test(timeout = 60000)
+	public void testDetachedMode() throws Exception {
+		runTest(this::runDetachedModeTest);
+	}
+
 	/**
 	 * Test regular operation, including command line parameter parsing.
 	 */
-	@Test(timeout = 60000) // timeout after a minute.
-	public void testDetachedMode() throws InterruptedException, IOException {
-		LOG.info("Starting testDetachedMode()");
-		addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
+	void runDetachedModeTest() throws Exception {
+		runTest(() -> {
+			LOG.info("Starting testDetachedMode()");
+			addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
 
-		File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
-		// get temporary file for reading input data for wordcount example
-		File tmpInFile = tmp.newFile();
-		FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT);
+			File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
+			// get temporary file for reading input data for wordcount example
+			File tmpInFile = tmp.newFile();
+			FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT);
 
-		ArrayList<String> args = new ArrayList<>();
-		args.add("-j");
-		args.add(flinkUberjar.getAbsolutePath());
+			ArrayList<String> args = new ArrayList<>();
+			args.add("-j");
+			args.add(flinkUberjar.getAbsolutePath());
 
-		args.add("-t");
-		args.add(flinkLibFolder.getAbsolutePath());
+			args.add("-t");
+			args.add(flinkLibFolder.getAbsolutePath());
 
-		args.add("-n");
-		args.add("1");
+			args.add("-t");
+			args.add(flinkShadedHadoopDir.getAbsolutePath());
 
-		args.add("-jm");
-		args.add("768m");
+			args.add("-jm");
+			args.add("768m");
 
-		args.add("-tm");
-		args.add("1024m");
+			args.add("-tm");
+			args.add("1024m");
 
-		if (SecureTestEnvironment.getTestKeytab() != null) {
-			args.add("-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + SecureTestEnvironment.getTestKeytab());
-		}
-		if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
-			args.add("-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=" + SecureTestEnvironment.getHadoopServicePrincipal());
-		}
-		args.add("--name");
-		args.add("MyCustomName");
+			if (SecureTestEnvironment.getTestKeytab() != null) {
+				args.add("-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + SecureTestEnvironment.getTestKeytab());
+			}
+			if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
+				args.add("-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=" + SecureTestEnvironment.getHadoopServicePrincipal());
+			}
 
-		args.add("--detached");
+			args.add("--name");
+			args.add("MyCustomName");
 
-		Runner clusterRunner =
-			startWithArgs(
-				args.toArray(new String[args.size()]),
-				"Flink JobManager is now running on", RunTypes.YARN_SESSION);
+			args.add("--applicationType");
+			args.add("Apache Flink 1.x");
 
-		// before checking any strings outputted by the CLI, first give it time to return
-		clusterRunner.join();
+			args.add("--detached");
 
-		// actually run a program, otherwise we wouldn't necessarily see any TaskManagers
-		// be brought up
-		Runner jobRunner = startWithArgs(new String[]{"run",
-				"--detached", exampleJarLocation.getAbsolutePath(),
-				"--input", tmpInFile.getAbsoluteFile().toString()},
-			"Job has been submitted with JobID", RunTypes.CLI_FRONTEND);
+			Runner clusterRunner =
+				startWithArgs(
+					args.toArray(new String[args.size()]),
+					"JobManager Web Interface:", RunTypes.YARN_SESSION);
 
-		jobRunner.join();
+			// before checking any strings outputted by the CLI, first give it time to return
+			clusterRunner.join();
 
-		// in "new" mode we can only wait after the job is submitted, because TMs
-		// are spun up lazily
-		LOG.info("Waiting until two containers are running");
-		// wait until two containers are running
-		while (getRunningContainers() < 2) {
-			sleep(500);
-		}
+			// actually run a program, otherwise we wouldn't necessarily see any TaskManagers
+			// be brought up
+			Runner jobRunner = startWithArgs(new String[]{"run",
+					"--detached", exampleJarLocation.getAbsolutePath(),
+					"--input", tmpInFile.getAbsoluteFile().toString()},
+				"Job has been submitted with JobID", RunTypes.CLI_FRONTEND);
 
-		// make sure we have two TMs running in either mode
-		long startTime = System.nanoTime();
-		while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS) &&
-			!(verifyStringsInNamedLogFiles(
-				new String[]{"switched from state RUNNING to FINISHED"}, "jobmanager.log"))) {
-			LOG.info("Still waiting for cluster to finish job...");
-			sleep(500);
-		}
+			jobRunner.join();
 
-		LOG.info("Two containers are running. Killing the application");
-
-		// kill application "externally".
-		try {
-			YarnClient yc = YarnClient.createYarnClient();
-			yc.init(YARN_CONFIGURATION);
-			yc.start();
-			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
-			Assert.assertEquals(1, apps.size()); // Only one running
-			ApplicationReport app = apps.get(0);
-
-			Assert.assertEquals("MyCustomName", app.getName());
-			ApplicationId id = app.getApplicationId();
-			yc.killApplication(id);
-
-			while (yc.getApplications(EnumSet.of(YarnApplicationState.KILLED)).size() == 0 &&
-					yc.getApplications(EnumSet.of(YarnApplicationState.FINISHED)).size() == 0) {
+			// in "new" mode we can only wait after the job is submitted, because TMs
+			// are spun up lazily
+			LOG.info("Waiting until two containers are running");
+			// wait until two containers are running
+			while (getRunningContainers() < 2) {
 				sleep(500);
 			}
-		} catch (Throwable t) {
-			LOG.warn("Killing failed", t);
-			Assert.fail();
-		} finally {
 
-			//cleanup the yarn-properties file
-			String confDirPath = System.getenv("FLINK_CONF_DIR");
-			File configDirectory = new File(confDirPath);
-			LOG.info("testDetachedPerJobYarnClusterInternal: Using configuration directory " + configDirectory.getAbsolutePath());
-
-			// load the configuration
-			LOG.info("testDetachedPerJobYarnClusterInternal: Trying to load configuration file");
-			Configuration configuration = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-
-			try {
-				File yarnPropertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(configuration.getString(YarnConfigOptions.PROPERTIES_FILE_LOCATION));
-				if (yarnPropertiesFile.exists()) {
-					LOG.info("testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}", yarnPropertiesFile.getAbsolutePath());
-					yarnPropertiesFile.delete();
-				}
-			} catch (Exception e) {
-				LOG.warn("testDetachedPerJobYarnClusterInternal: Exception while deleting the JobManager address file", e);
+			// make sure we have two TMs running in either mode
+			long startTime = System.nanoTime();
+			while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS) &&
+				!(verifyStringsInNamedLogFiles(
+					new String[]{"switched from state RUNNING to FINISHED"}, "jobmanager.log"))) {
+				LOG.info("Still waiting for cluster to finish job...");
+				sleep(500);
 			}
-		}
 
-		LOG.info("Finished testDetachedMode()");
+			LOG.info("Two containers are running. Killing the application");
+
+			// kill application "externally".
+			try {
+				YarnClient yc = YarnClient.createYarnClient();
+				yc.init(YARN_CONFIGURATION);
+				yc.start();
+				List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+				Assert.assertEquals(1, apps.size()); // Only one running
+				ApplicationReport app = apps.get(0);
+
+				Assert.assertEquals("MyCustomName", app.getName());
+				Assert.assertEquals("Apache Flink 1.x", app.getApplicationType());
+				ApplicationId id = app.getApplicationId();
+				yc.killApplication(id);
+
+				while (yc.getApplications(EnumSet.of(YarnApplicationState.KILLED)).size() == 0 &&
+					yc.getApplications(EnumSet.of(YarnApplicationState.FINISHED)).size() == 0) {
+					sleep(500);
+				}
+			} catch (Throwable t) {
+				LOG.warn("Killing failed", t);
+				Assert.fail();
+			} finally {
+
+				//cleanup the yarn-properties file
+				String confDirPath = System.getenv("FLINK_CONF_DIR");
+				File configDirectory = new File(confDirPath);
+				LOG.info("testDetachedPerJobYarnClusterInternal: Using configuration directory " + configDirectory.getAbsolutePath());
+
+				// load the configuration
+				LOG.info("testDetachedPerJobYarnClusterInternal: Trying to load configuration file");
+				Configuration configuration = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
+
+				try {
+					File yarnPropertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(configuration.getString(YarnConfigOptions.PROPERTIES_FILE_LOCATION));
+					if (yarnPropertiesFile.exists()) {
+						LOG.info("testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}", yarnPropertiesFile.getAbsolutePath());
+						yarnPropertiesFile.delete();
+					}
+				} catch (Exception e) {
+					LOG.warn("testDetachedPerJobYarnClusterInternal: Exception while deleting the JobManager address file", e);
+				}
+			}
+
+			LOG.info("Finished testDetachedMode()");
+		});
 	}
 
 	/**
@@ -211,10 +215,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 * <p>This test validates through 666*2 cores in the "cluster".
 	 */
 	@Test
-	public void testQueryCluster() throws IOException {
-		LOG.info("Starting testQueryCluster()");
-		runWithArgs(new String[] {"-q"}, "Summary: totalMemory 8192 totalCores 1332", null, RunTypes.YARN_SESSION, 0); // we have 666*2 cores.
-		LOG.info("Finished testQueryCluster()");
+	public void testQueryCluster() throws Exception {
+		runTest(() -> {
+			LOG.info("Starting testQueryCluster()");
+			runWithArgs(new String[]{"-q"}, "Summary: totalMemory 8192 totalCores 1332", null, RunTypes.YARN_SESSION, 0); // we have 666*2 cores.
+			LOG.info("Finished testQueryCluster()");
+		});
 	}
 
 	/**
@@ -231,15 +237,19 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Ignore("The test is too resource consuming (8.5 GB of memory)")
 	@Test
-	public void testResourceComputation() throws IOException {
-		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
-		LOG.info("Starting testResourceComputation()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
-				"-n", "5",
+	public void testResourceComputation() throws Exception {
+		runTest(() -> {
+			addTestAppender(YarnClusterDescriptor.class, Level.WARN);
+			LOG.info("Starting testResourceComputation()");
+			runWithArgs(new String[]{
+				"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
+				"-t", flinkShadedHadoopDir.getAbsolutePath(),
 				"-jm", "256m",
 				"-tm", "1585m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
-		LOG.info("Finished testResourceComputation()");
-		checkForLogString("This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.");
+			LOG.info("Finished testResourceComputation()");
+			checkForLogString("This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.");
+		});
 	}
 
 	/**
@@ -259,81 +269,19 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Ignore("The test is too resource consuming (8 GB of memory)")
 	@Test
-	public void testfullAlloc() throws IOException {
-		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
-		LOG.info("Starting testfullAlloc()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
-				"-n", "2",
+	public void testfullAlloc() throws Exception {
+		runTest(() -> {
+			addTestAppender(YarnClusterDescriptor.class, Level.WARN);
+			LOG.info("Starting testfullAlloc()");
+			runWithArgs(new String[]{
+				"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
+				"-t", flinkShadedHadoopDir.getAbsolutePath(),
 				"-jm", "256m",
 				"-tm", "3840m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
-		LOG.info("Finished testfullAlloc()");
-		checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
+			LOG.info("Finished testfullAlloc()");
+			checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
 				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
-	}
-
-	/**
-	 * Test the YARN Java API.
-	 */
-	@Test
-	public void testJavaAPI() throws Exception {
-		final int waitTime = 15;
-		LOG.info("Starting testJavaAPI()");
-
-		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		Configuration configuration = GlobalConfiguration.loadConfiguration();
-
-		try (final AbstractYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
-			configuration,
-			getYarnConfiguration(),
-			confDirPath,
-			getYarnClient(),
-			true)) {
-			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
-			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-
-			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(768)
-				.setTaskManagerMemoryMB(1024)
-				.setNumberTaskManagers(1)
-				.setSlotsPerTaskManager(1)
-				.createClusterSpecification();
-			// deploy
-			ClusterClient<ApplicationId> yarnClusterClient = null;
-			try {
-				yarnClusterClient = clusterDescriptor.deploySessionCluster(clusterSpecification);
-
-				GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
-				for (int second = 0; second < waitTime * 2; second++) { // run "forever"
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						LOG.warn("Interrupted", e);
-					}
-					GetClusterStatusResponse status = yarnClusterClient.getClusterStatus();
-					if (status != null && status.equals(expectedStatus)) {
-						LOG.info("ClusterClient reached status " + status);
-						break; // all good, cluster started
-					}
-					if (second > waitTime) {
-						// we waited for 15 seconds. cluster didn't come up correctly
-						Assert.fail("The custer didn't start after " + waitTime + " seconds");
-					}
-				}
-
-				// use the cluster
-				Assert.assertNotNull(yarnClusterClient.getClusterConnectionInfo());
-				Assert.assertNotNull(yarnClusterClient.getWebInterfaceURL());
-				LOG.info("All tests passed.");
-			} finally {
-				if (yarnClusterClient != null) {
-					// shutdown cluster
-					LOG.info("Shutting down the Flink Yarn application.");
-					yarnClusterClient.shutDownCluster();
-					yarnClusterClient.shutdown();
-				}
-			}
-		}
-		LOG.info("Finished testJavaAPI()");
+		});
 	}
 }

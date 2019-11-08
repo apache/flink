@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -250,6 +250,7 @@ under the License.
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/services/javax.xml.stream.*</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 							</filters>

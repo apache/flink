@@ -26,6 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -34,16 +35,20 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.emptyArray;
@@ -229,6 +234,65 @@ public class FutureUtilsTest extends TestLogger {
 
 		assertTrue(retryFuture.isCancelled());
 		assertTrue(scheduledFuture.isCancelled());
+	}
+
+	/**
+	 * Tests that the operation could be scheduled with expected delay.
+	 */
+	@Test
+	public void testScheduleWithDelay() throws Exception {
+		final ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		final int expectedResult = 42;
+		CompletableFuture<Integer> completableFuture = FutureUtils.scheduleWithDelay(
+			() -> expectedResult,
+			Time.milliseconds(0),
+			scheduledExecutor);
+
+		scheduledExecutor.triggerScheduledTasks();
+		final int actualResult = completableFuture.get();
+
+		assertEquals(expectedResult, actualResult);
+	}
+
+	/**
+	 * Tests that a scheduled task is canceled if the scheduled future is being cancelled.
+	 */
+	@Test
+	public void testScheduleWithDelayCancellation() {
+		final ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		final Runnable noOpRunnable = () -> {};
+		CompletableFuture<Void> completableFuture = FutureUtils.scheduleWithDelay(
+			noOpRunnable,
+			TestingUtils.infiniteTime(),
+			scheduledExecutor);
+
+		final ScheduledFuture<?> scheduledFuture = scheduledExecutor
+			.getScheduledTasks()
+			.iterator()
+			.next();
+
+		completableFuture.cancel(false);
+
+		assertTrue(completableFuture.isCancelled());
+		assertTrue(scheduledFuture.isCancelled());
+	}
+
+	/**
+	 * Tests that the operation is never scheduled if the delay is virtually infinite.
+	 */
+	@Test
+	public void testScheduleWithInfiniteDelayNeverSchedulesOperation() {
+		final Runnable noOpRunnable = () -> {};
+		final CompletableFuture<Void> completableFuture = FutureUtils.scheduleWithDelay(
+			noOpRunnable,
+			TestingUtils.infiniteTime(),
+			TestingUtils.defaultScheduledExecutor());
+
+		assertFalse(completableFuture.isDone());
+
+		completableFuture.cancel(false);
 	}
 
 	/**
@@ -570,5 +634,180 @@ public class FutureUtilsTest extends TestLogger {
 			TestingUtils.defaultExecutor());
 
 		assertThat(future.get(), is(Acknowledge.get()));
+	}
+
+	@Test
+	public void testHandleAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.handleAsyncIfNotDone(
+				future,
+				executor,
+				(o, t) -> null));
+	}
+
+	@Test
+	public void testApplyAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.thenApplyAsyncIfNotDone(
+				future,
+				executor,
+				o -> null));
+	}
+
+	@Test
+	public void testComposeAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.thenComposeAsyncIfNotDone(
+				future,
+				executor,
+				o -> null));
+	}
+
+	@Test
+	public void testWhenCompleteAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.whenCompleteAsyncIfNotDone(
+			future,
+			executor,
+			(o, throwable) -> {
+			}));
+	}
+
+	@Test
+	public void testThenAcceptAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.thenAcceptAsyncIfNotDone(
+				future,
+				executor,
+				o -> {
+				}));
+	}
+
+	private void testFutureContinuation(BiFunction<CompletableFuture<?>, Executor, CompletableFuture<?>> testFunctionGenerator) {
+
+		CompletableFuture<?> startFuture = new CompletableFuture<>();
+		final AtomicBoolean runWithExecutor = new AtomicBoolean(false);
+
+		Executor executor = r -> {
+			r.run();
+			runWithExecutor.set(true);
+		};
+
+		// branch for a start future that has not completed
+		CompletableFuture<?> continuationFuture = testFunctionGenerator.apply(startFuture, executor);
+		Assert.assertFalse(continuationFuture.isDone());
+
+		startFuture.complete(null);
+
+		Assert.assertTrue(runWithExecutor.get());
+		Assert.assertTrue(continuationFuture.isDone());
+
+		// branch for a start future that was completed
+		runWithExecutor.set(false);
+
+		continuationFuture = testFunctionGenerator.apply(startFuture, executor);
+
+		Assert.assertFalse(runWithExecutor.get());
+		Assert.assertTrue(continuationFuture.isDone());
+	}
+
+	@Test
+	public void testHandleUncaughtExceptionWithCompletedFuture() {
+		final CompletableFuture<String> future = CompletableFuture.completedFuture("foobar");
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		FutureUtils.handleUncaughtException(future, uncaughtExceptionHandler);
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(false));
+	}
+
+	@Test
+	public void testHandleUncaughtExceptionWithNormalCompletion() {
+		final CompletableFuture<String> future = new CompletableFuture<>();
+
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		FutureUtils.handleUncaughtException(future, uncaughtExceptionHandler);
+		future.complete("barfoo");
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(false));
+	}
+
+	@Test
+	public void testHandleUncaughtExceptionWithExceptionallyCompletedFuture() {
+		final CompletableFuture<String> future = FutureUtils.completedExceptionally(new FlinkException("foobar"));
+
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		FutureUtils.handleUncaughtException(future, uncaughtExceptionHandler);
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(true));
+	}
+
+	@Test
+	public void testHandleUncaughtExceptionWithExceptionallyCompletion() {
+		final CompletableFuture<String> future = new CompletableFuture<>();
+
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		FutureUtils.handleUncaughtException(future, uncaughtExceptionHandler);
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(false));
+		future.completeExceptionally(new FlinkException("barfoo"));
+		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(true));
+	}
+
+	private static class TestingUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
+
+		private Throwable exception = null;
+
+		@Override
+		public void uncaughtException(Thread t, Throwable e) {
+			exception = e;
+		}
+
+		private boolean hasBeenCalled() {
+			return exception != null;
+		}
+	}
+
+	@Test
+	public void testForwardNormal() throws Exception {
+		final CompletableFuture<String> source = new CompletableFuture<>();
+		final CompletableFuture<String> target = new CompletableFuture<>();
+
+		FutureUtils.forward(source, target);
+
+		assertThat(target.isDone(), is(source.isDone()));
+
+		source.complete("foobar");
+
+		assertThat(target.isDone(), is(source.isDone()));
+		assertThat(target.get(), is(equalTo(source.get())));
+	}
+
+	@Test
+	public void testForwardExceptionally() {
+		final CompletableFuture<String> source = new CompletableFuture<>();
+		final CompletableFuture<String> target = new CompletableFuture<>();
+
+		FutureUtils.forward(source, target);
+
+		assertThat(target.isDone(), is(source.isDone()));
+
+		source.completeExceptionally(new FlinkException("foobar"));
+
+		assertThat(target.isDone(), is(source.isDone()));
+
+		Throwable targetException = getThrowable(target);
+		Throwable actualException = getThrowable(source);
+
+		assertThat(targetException, is(equalTo(actualException)));
+	}
+
+	private static Throwable getThrowable(CompletableFuture<?> completableFuture) {
+		try {
+			completableFuture.join();
+		} catch (CompletionException e) {
+			return e.getCause();
+		}
+
+		throw new AssertionError("Future has not been completed exceptionally.");
 	}
 }

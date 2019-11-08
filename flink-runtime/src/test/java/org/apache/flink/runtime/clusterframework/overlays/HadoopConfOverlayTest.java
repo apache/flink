@@ -52,7 +52,7 @@ public class HadoopConfOverlayTest extends ContainerOverlayTestBase {
 		overlay.configure(spec);
 
 		assertEquals(TARGET_CONF_DIR.getPath(), spec.getEnvironmentVariables().get("HADOOP_CONF_DIR"));
-		assertEquals(TARGET_CONF_DIR.getPath(), spec.getDynamicConfiguration().getString(ConfigConstants.PATH_HADOOP_CONFIG, null));
+		assertEquals(TARGET_CONF_DIR.getPath(), spec.getFlinkConfiguration().getString(ConfigConstants.PATH_HADOOP_CONFIG, null));
 
 		checkArtifact(spec, new Path(TARGET_CONF_DIR, "core-site.xml"));
 		checkArtifact(spec, new Path(TARGET_CONF_DIR, "hdfs-site.xml"));

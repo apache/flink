@@ -38,17 +38,19 @@ import org.apache.flink.runtime.jobmanager.Tasks.ExceptionReceiver;
 import org.apache.flink.runtime.jobmanager.Tasks.ExceptionSender;
 import org.apache.flink.runtime.jobmanager.Tasks.Forwarder;
 import org.apache.flink.runtime.jobmanager.Tasks.InstantiationErrorSender;
-import org.apache.flink.runtime.jobmanager.Tasks.Receiver;
-import org.apache.flink.runtime.jobmanager.Tasks.Sender;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Receiver;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -62,15 +64,17 @@ import static org.junit.Assert.fail;
 /**
  * Integration test cases for the {@link MiniCluster}.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
-		final int parallelism = 23;
+		final int numOfTMs = 3;
+		final int slotsPerTM = 7;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
+			.setNumTaskManagers(numOfTMs)
+			.setNumSlotsPerTaskManager(slotsPerTM)
 			.setRpcServiceSharing(RpcServiceSharing.SHARED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
@@ -78,17 +82,18 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+			miniCluster.executeJobBlocking(getSimpleJob(numOfTMs * slotsPerTM));
 		}
 	}
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
-		final int parallelism = 23;
+		final int numOfTMs = 3;
+		final int slotsPerTM = 7;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
+			.setNumTaskManagers(numOfTMs)
+			.setNumSlotsPerTaskManager(slotsPerTM)
 			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
@@ -96,12 +101,57 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+			miniCluster.executeJobBlocking(getSimpleJob(numOfTMs * slotsPerTM));
 		}
 	}
 
 	@Test
-	public void testHandleJobsWhenNotEnoughSlot() throws Exception {
+	public void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
+		try {
+			setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode.EAGER);
+			fail("Job should fail.");
+		} catch (JobExecutionException e) {
+			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
+			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
+
+			//TODO: remove the legacy scheduler message check once legacy scheduler is removed
+			final String legacySchedulerErrorMessage = "Slots required: 2, slots allocated: 1";
+			final String ngSchedulerErrorMessage = "Could not allocate the required slot within slot request timeout";
+			assertTrue(findThrowableWithMessage(e, legacySchedulerErrorMessage).isPresent() ||
+				findThrowableWithMessage(e, ngSchedulerErrorMessage).isPresent());
+		}
+	}
+
+	@Test
+	public void testHandleBatchJobsWhenNotEnoughSlot() throws Exception {
+		try {
+			setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode.LAZY_FROM_SOURCES);
+			fail("Job should fail.");
+		} catch (JobExecutionException e) {
+			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
+			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
+
+			//TODO: remove the legacy scheduler message check once legacy scheduler is removed
+			final String legacySchedulerErrorMessage = "Could not allocate enough slots";
+			final String ngSchedulerErrorMessage = "Could not allocate the required slot within slot request timeout";
+			assertTrue(findThrowableWithMessage(e, legacySchedulerErrorMessage).isPresent() ||
+				findThrowableWithMessage(e, ngSchedulerErrorMessage).isPresent());
+		}
+	}
+
+	private void setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode scheduleMode) throws Exception {
+		final JobVertex vertex = new JobVertex("Test Vertex");
+		vertex.setParallelism(2);
+		vertex.setMaxParallelism(2);
+		vertex.setInvokableClass(BlockingNoOpInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph("Test Job", vertex);
+		jobGraph.setScheduleMode(scheduleMode);
+
+		runHandleJobsWhenNotEnoughSlots(jobGraph);
+	}
+
+	private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
 		final Configuration configuration = getDefaultConfiguration();
 		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 100L);
 
@@ -114,24 +164,7 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			final JobVertex vertex = new JobVertex("Test Vertex");
-			vertex.setParallelism(2);
-			vertex.setMaxParallelism(2);
-			vertex.setInvokableClass(BlockingNoOpInvokable.class);
-
-			final JobGraph jobGraph = new JobGraph("Test Job", vertex);
-			jobGraph.setScheduleMode(ScheduleMode.EAGER);
-
-			try {
-				miniCluster.executeJobBlocking(jobGraph);
-
-				fail("Job should fail.");
-			} catch (JobExecutionException e) {
-				assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
-
-				assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-				assertTrue(findThrowableWithMessage(e, "Slots required: 2, slots allocated: 1").isPresent());
-			}
+			miniCluster.executeJobBlocking(jobGraph);
 		}
 	}
 
@@ -551,7 +584,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	private Configuration getDefaultConfiguration() {
 		final Configuration configuration = new Configuration();
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		return configuration;
 	}

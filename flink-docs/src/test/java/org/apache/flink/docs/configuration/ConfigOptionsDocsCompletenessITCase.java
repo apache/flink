@@ -171,12 +171,14 @@ public class ConfigOptionsDocsCompletenessITCase {
 
 	private static Collection<DocumentedOption> parseDocumentedOptionsFromFile(Path file) throws IOException {
 		Document document = Jsoup.parse(file.toFile(), StandardCharsets.UTF_8.name());
+		document.outputSettings().syntax(Document.OutputSettings.Syntax.xml);
 		document.outputSettings().prettyPrint(false);
 		return document.getElementsByTag("table").stream()
 			.map(element -> element.getElementsByTag("tbody").get(0))
 			.flatMap(element -> element.getElementsByTag("tr").stream())
 			.map(tableRow -> {
-				String key = tableRow.child(0).text();
+				// Use split to exclude document key tag.
+				String key = tableRow.child(0).text().split(" ")[0];
 				String defaultValue = tableRow.child(1).text();
 				String description = tableRow.child(2)
 					.childNodes()
