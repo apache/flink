@@ -37,10 +37,8 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
@@ -113,23 +111,6 @@ public class HiveShimV100 implements HiveShim {
 			}
 		}
 		return views;
-	}
-
-	@Override
-	public Function getFunction(IMetaStoreClient client, String dbName, String functionName) throws NoSuchObjectException, TException {
-		try {
-			// hive-1.x doesn't throw NoSuchObjectException if function doesn't exist, instead it throws a MetaException
-			return client.getFunction(dbName, functionName);
-		} catch (MetaException e) {
-			// need to check the cause and message of this MetaException to decide whether it should actually be a NoSuchObjectException
-			if (e.getCause() instanceof NoSuchObjectException) {
-				throw (NoSuchObjectException) e.getCause();
-			}
-			if (e.getMessage().startsWith(NoSuchObjectException.class.getSimpleName())) {
-				throw new NoSuchObjectException(e.getMessage());
-			}
-			throw e;
-		}
 	}
 
 	@Override
