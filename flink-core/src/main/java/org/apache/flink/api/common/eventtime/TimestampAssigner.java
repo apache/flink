@@ -16,25 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions;
+package org.apache.flink.api.common.eventtime;
+
+import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.Function;
 
 /**
  * A {@code TimestampAssigner} assigns event time timestamps to elements.
  * These timestamps are used by all functions that operate on event time,
  * for example event time windows.
  *
- * <p>Timestamps are represented in milliseconds since the Epoch
- * (midnight, January 1, 1970 UTC).
+ * <p>Timestamps can be an arbitrary {@code long} value, but all built-in implementations
+ * represent it as the milliseconds since the Epoch (midnight, January 1, 1970 UTC),
+ * the same way as {@link System#currentTimeMillis()} does it.
  *
  * @param <T> The type of the elements to which this assigner assigns timestamps.
- *
- * @deprecated use {@link org.apache.flink.api.common.eventtime.TimestampAssigner}
  */
-@Deprecated
-public interface TimestampAssigner<T> extends org.apache.flink.api.common.eventtime.TimestampAssigner<T> {
+@Public
+@FunctionalInterface
+public interface TimestampAssigner<T> extends Function {
 
 	/**
-	 * Assigns a timestamp to an element, in milliseconds since the Epoch.
+	 * Assigns a timestamp to an element, in milliseconds since the Epoch. This is independent of
+	 * any particular time zone or calendar.
 	 *
 	 * <p>The method is passed the previously assigned timestamp of the element.
 	 * That previous timestamp may have been assigned from a previous assigner,
@@ -42,10 +46,9 @@ public interface TimestampAssigner<T> extends org.apache.flink.api.common.eventt
 	 * {@code Long.MIN_VALUE}.
 	 *
 	 * @param element The element that the timestamp will be assigned to.
-	 * @param previousElementTimestamp The previous internal timestamp of the element,
-	 *                                 or a negative value, if no timestamp has been assigned yet.
+	 * @param recordTimestamp The current internal timestamp of the element,
+	 *                         or a negative value, if no timestamp has been assigned yet.
 	 * @return The new timestamp.
 	 */
-	@Override
-	long extractTimestamp(T element, long previousElementTimestamp);
+	long extractTimestamp(T element, long recordTimestamp);
 }
