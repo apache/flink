@@ -72,7 +72,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     val evalResult =
       if (returnType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
         s"""
-           |$SQL_TIMESTAMP_TERM.fromEpochMillis(
+           |$SQL_TIMESTAMP.fromEpochMillis(
            |  $functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")}))
          """.stripMargin
       } else {

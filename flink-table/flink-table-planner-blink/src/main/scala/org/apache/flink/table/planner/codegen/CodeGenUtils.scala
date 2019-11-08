@@ -97,7 +97,7 @@ object CodeGenUtils {
 
   val STRING_UTIL: String = className[BinaryStringUtil]
 
-  val SQL_TIMESTAMP_TERM: String = className[SqlTimestamp]
+  val SQL_TIMESTAMP: String = className[SqlTimestamp]
 
   // ----------------------------------------------------------------------------------------
 

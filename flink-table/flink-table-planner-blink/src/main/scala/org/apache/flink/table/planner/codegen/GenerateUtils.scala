@@ -418,8 +418,8 @@ object GenerateUtils {
           literalValue.asInstanceOf[TimestampString])
         val fieldTimestamp =
           s"""
-             |$SQL_TIMESTAMP_TERM $fieldTerm =
-             |  $SQL_TIMESTAMP_TERM.fromEpochMillis(${millis}L, $nanoOfMillis);
+             |$SQL_TIMESTAMP $fieldTerm =
+             |  $SQL_TIMESTAMP.fromEpochMillis(${millis}L, $nanoOfMillis);
            """.stripMargin
         ctx.addReusableMember(fieldTimestamp)
         generateNonNullLiteral(literalType, fieldTerm, literalType)
@@ -494,11 +494,11 @@ object GenerateUtils {
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
       s"""
-         |$resultTerm = $SQL_TIMESTAMP_TERM.fromEpochMillis(
+         |$resultTerm = $SQL_TIMESTAMP.fromEpochMillis(
          |  $contextTerm.timerService().currentProcessingTime());
          |""".stripMargin.trim
     // the proctime has been materialized, so it's TIMESTAMP now, not PROCTIME_INDICATOR
-    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, new TimestampType(3))
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, resultType)
   }
 
   def generateCurrentTimestamp(
@@ -506,7 +506,7 @@ object GenerateUtils {
     new CurrentTimePointCallGen(false).generate(ctx, Seq(), new TimestampType(3))
   }
 
-  def generateRowtimeAccess(
+  def generateTimestampAccess(
       ctx: CodeGeneratorContext,
       contextTerm: String): GeneratedExpression = {
     val resultType = new TimestampType(true, TimestampKind.ROWTIME, 3)
@@ -517,7 +517,7 @@ object GenerateUtils {
 
     val accessCode =
       s"""
-         |$resultTerm = $SQL_TIMESTAMP_TERM.fromEpochMillis($contextTerm.timestamp());
+         |$resultTerm = $SQL_TIMESTAMP.fromEpochMillis($contextTerm.timestamp());
          |if ($resultTerm == null) {
          |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a " +
          |    "proper TimestampAssigner is defined and the stream environment uses the EventTime " +

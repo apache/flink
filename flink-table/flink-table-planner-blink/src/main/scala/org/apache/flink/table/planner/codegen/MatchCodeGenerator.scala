@@ -26,7 +26,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateNullLiteral, generateRowtimeAccess}
+import org.apache.flink.table.planner.codegen.GenerateUtils.{generateNullLiteral, generateTimestampAccess}
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.MatchCodeGenerator._
@@ -376,7 +376,7 @@ class MatchCodeGenerator(
           ctx.nullCheck)
 
       case MATCH_ROWTIME =>
-        generateRowtimeAccess(ctx, contextTerm)
+        generateTimestampAccess(ctx, contextTerm)
 
       case PROCTIME_MATERIALIZE =>
         // override proctime materialize code generation
@@ -393,7 +393,7 @@ class MatchCodeGenerator(
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
       s"""
-         |$resultTerm = $SQL_TIMESTAMP_TERM.fromEpochMillis($contextTerm.currentProcessingTime());
+         |$resultTerm = $SQL_TIMESTAMP.fromEpochMillis($contextTerm.currentProcessingTime());
          |""".stripMargin.trim
     // the proctime has been materialized, so it's TIMESTAMP now, not PROCTIME_INDICATOR
     GeneratedExpression(resultTerm, NEVER_NULL, resultCode, resultType)

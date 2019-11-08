@@ -410,8 +410,8 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val fieldTerm = s"timestamp"
     val field =
       s"""
-         |final $SQL_TIMESTAMP_TERM $fieldTerm =
-         |  $SQL_TIMESTAMP_TERM.fromEpochMillis(java.lang.System.currentTimeMillis());
+         |final $SQL_TIMESTAMP $fieldTerm =
+         |  $SQL_TIMESTAMP.fromEpochMillis(java.lang.System.currentTimeMillis());
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -450,12 +450,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val timestamp = addReusableTimestamp()
 
     // declaration
-    reusableMemberStatements.add(s"private $SQL_TIMESTAMP_TERM $fieldTerm;")
+    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
 
     // assignment
     val field =
       s"""
-         |$fieldTerm = $SQL_TIMESTAMP_TERM.fromEpochMillis(
+         |$fieldTerm = $SQL_TIMESTAMP.fromEpochMillis(
          |  $timestamp.getMillisecond() +
          |  java.util.TimeZone.getDefault().getOffset($timestamp.getMillisecond()));
          |""".stripMargin

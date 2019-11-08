@@ -175,7 +175,7 @@ object ScalarOperatorGens {
             }
           case TIMESTAMP_WITHOUT_TIME_ZONE =>
             generateOperatorIfNotNull(ctx, new TimestampType(3), left, right) {
-              (l, r) => s"$SQL_TIMESTAMP_TERM.fromEpochMillis(($l * ${MILLIS_PER_DAY}L) $op $r)"
+              (l, r) => s"$SQL_TIMESTAMP.fromEpochMillis(($l * ${MILLIS_PER_DAY}L) $op $r)"
             }
         }
 
@@ -193,7 +193,7 @@ object ScalarOperatorGens {
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
-            s"$SQL_TIMESTAMP_TERM.fromEpochMillis($leftTerm $op $r)"
+            s"$SQL_TIMESTAMP.fromEpochMillis($leftTerm $op $r)"
           }
         }
 
@@ -202,7 +202,7 @@ object ScalarOperatorGens {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
             s"""
-               |$SQL_TIMESTAMP_TERM.fromEpochMillis(
+               |$SQL_TIMESTAMP.fromEpochMillis(
                |  ${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($r)))
              """.stripMargin
           }
@@ -804,7 +804,7 @@ object ScalarOperatorGens {
 
     case (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$SQL_TIMESTAMP_TERM.fromEpochMillis($operandTerm)"
+        operandTerm => s"$SQL_TIMESTAMP.fromEpochMillis($operandTerm)"
       }
 
     case (from, to) =>
@@ -838,7 +838,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
           val zone = ctx.addReusableTimeZone()
-          s"$SQL_TIMESTAMP_TERM.fromEpochMillis($method($operandTerm, $zone))"
+          s"$SQL_TIMESTAMP.fromEpochMillis($method($operandTerm, $zone))"
       }
 
     // identity casting
@@ -973,7 +973,7 @@ object ScalarOperatorGens {
         resultNullable = true) {
         operandTerm =>
           s"""
-             |$SQL_TIMESTAMP_TERM.fromEpochMillis(
+             |$SQL_TIMESTAMP.fromEpochMillis(
             |  ${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString()))
           """.stripMargin
       }
@@ -1019,7 +1019,7 @@ object ScalarOperatorGens {
     case (DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
-          s"$SQL_TIMESTAMP_TERM.fromEpochMillis($DECIMAL_TERM.castToTimestamp($operandTerm))"
+          s"$SQL_TIMESTAMP.fromEpochMillis($DECIMAL_TERM.castToTimestamp($operandTerm))"
       }
 
     // NUMERIC TYPE -> Boolean
@@ -1040,7 +1040,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
           s"""
-             |$SQL_TIMESTAMP_TERM.fromEpochMillis(
+             |$SQL_TIMESTAMP.fromEpochMillis(
              |  $operandTerm * ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)
            """.stripMargin
       }
@@ -1059,7 +1059,7 @@ object ScalarOperatorGens {
     // Time -> Timestamp
     case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$SQL_TIMESTAMP_TERM.fromEpochMillis($operandTerm)"
+        operandTerm => s"$SQL_TIMESTAMP.fromEpochMillis($operandTerm)"
       }
 
     // Timestamp -> Time
@@ -1124,7 +1124,7 @@ object ScalarOperatorGens {
          (INTEGER, TIMESTAMP_WITHOUT_TIME_ZONE) |
          (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$SQL_TIMESTAMP_TERM.fromEpochMillis(((long) $operandTerm) * 1000)"
+        operandTerm => s"$SQL_TIMESTAMP.fromEpochMillis(((long) $operandTerm) * 1000)"
       }
 
     // Float -> Timestamp
@@ -1132,7 +1132,7 @@ object ScalarOperatorGens {
     case (FLOAT, TIMESTAMP_WITHOUT_TIME_ZONE) |
          (DOUBLE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$SQL_TIMESTAMP_TERM.fromEpochMillis((long) ($operandTerm * 1000))"
+        operandTerm => s"$SQL_TIMESTAMP.fromEpochMillis((long) ($operandTerm * 1000))"
       }
 
     // Timestamp -> Tinyint
@@ -2220,7 +2220,7 @@ object ScalarOperatorGens {
         s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
-           |$SQL_TIMESTAMP_TERM.fromEpochMillis(
+           |$SQL_TIMESTAMP.fromEpochMillis(
            |  ${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString()))
           """.stripMargin
       case _ => throw new UnsupportedOperationException

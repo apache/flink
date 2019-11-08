@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod, SQL_TIMESTAMP_TERM}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod, SQL_TIMESTAMP}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
@@ -82,7 +82,7 @@ class FloorCeilCallGen(
                 case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
                   val longTerm = s"${terms.head}.getMillisecond()"
                   s"""
-                     |$SQL_TIMESTAMP_TERM.fromEpochMillis(
+                     |$SQL_TIMESTAMP.fromEpochMillis(
                      |  ${qualifyMethod(temporalMethod.get)}(${terms(1)}, $longTerm))
                    """.stripMargin
                 case _ =>
@@ -96,7 +96,7 @@ class FloorCeilCallGen(
                 case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
                   val longTerm = s"${terms.head}.getMillisecond()"
                   s"""
-                     |$SQL_TIMESTAMP_TERM.fromEpochMillis(${qualifyMethod(arithmeticMethod)}(
+                     |$SQL_TIMESTAMP.fromEpochMillis(${qualifyMethod(arithmeticMethod)}(
                      |  $longTerm,
                      |  (long) ${unit.startUnit.multiplier.intValue()}))
                    """.stripMargin

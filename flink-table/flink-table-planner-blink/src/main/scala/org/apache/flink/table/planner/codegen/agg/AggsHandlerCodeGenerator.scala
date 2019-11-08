@@ -943,27 +943,27 @@ class AggsHandlerCodeGenerator(
       case w: PlannerWindowStart =>
         // return a Timestamp(Internal is SqlTimestamp)
         GeneratedExpression(
-          s"$SQL_TIMESTAMP_TERM.fromEpochMillis($NAMESPACE_TERM.getStart())",
+          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getStart())",
           "false",
           "",
           w.resultType)
       case w: PlannerWindowEnd =>
         // return a Timestamp(Internal is SqlTimestamp)
         GeneratedExpression(
-          s"$SQL_TIMESTAMP_TERM.fromEpochMillis($NAMESPACE_TERM.getEnd())",
+          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getEnd())",
           "false",
           "",
           w.resultType)
       case r: PlannerRowtimeAttribute =>
         // return a rowtime, use SqlTimestamp as internal type
         GeneratedExpression(
-          s"$SQL_TIMESTAMP_TERM.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
+          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
           "false",
           "",
           r.resultType)
       case p: PlannerProctimeAttribute =>
         // ignore this property, it will be null at the position later
-        GeneratedExpression(s"$SQL_TIMESTAMP_TERM.fromEpochMillis(-1L)", "true", "", p.resultType)
+        GeneratedExpression(s"$SQL_TIMESTAMP.fromEpochMillis(-1L)", "true", "", p.resultType)
     }
   }
 

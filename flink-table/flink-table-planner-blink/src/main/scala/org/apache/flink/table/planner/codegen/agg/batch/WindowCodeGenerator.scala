@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, SQL_TIMESTAMP_TERM, boxedTypeTermForType, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, SQL_TIMESTAMP, boxedTypeTermForType, newName}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
@@ -631,9 +631,9 @@ abstract class WindowCodeGenerator(
       // get assigned window start timestamp
       def windowProps(size: Expression) = {
         val (startWValue, endWValue, rowTimeValue) = (
-            s"$SQL_TIMESTAMP_TERM.fromEpochMillis($currentWindowTerm.getStart())",
-            s"$SQL_TIMESTAMP_TERM.fromEpochMillis($currentWindowTerm.getEnd())",
-            s"$SQL_TIMESTAMP_TERM.fromEpochMillis($currentWindowTerm.maxTimestamp())")
+            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.getStart())",
+            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.getEnd())",
+            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.maxTimestamp())")
         val start = if (startPos.isDefined) {
           s"$propTerm.setTimestamp($lastPos + ${startPos.get}, $startWValue, 3);"
         } else ""

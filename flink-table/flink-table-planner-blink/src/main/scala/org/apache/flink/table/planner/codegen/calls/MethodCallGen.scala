@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_STRING, qualifyMethod, SQL_TIMESTAMP_TERM}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_STRING, qualifyMethod, SQL_TIMESTAMP}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
@@ -66,7 +66,7 @@ class MethodCallGen(method: Method) extends CallGenerator {
         } else if ((method.getReturnType == classOf[Long]
             || method.getReturnType == classOf[java.lang.Long]) &&
             returnType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
-          s"$SQL_TIMESTAMP_TERM.fromEpochMillis($call)"
+          s"$SQL_TIMESTAMP.fromEpochMillis($call)"
         } else {
           call
         }
