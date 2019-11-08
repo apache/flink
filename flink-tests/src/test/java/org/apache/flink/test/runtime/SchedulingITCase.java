@@ -19,8 +19,8 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.client.job.JobClient;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -118,12 +118,11 @@ public class SchedulingITCase extends TestLogger {
 			MiniClusterClient miniClusterClient = new MiniClusterClient(configuration, miniCluster);
 
 			JobGraph jobGraph = createJobGraph(slotIdleTimeout << 1, parallelism);
-			CompletableFuture<JobSubmissionResult> submissionFuture = miniClusterClient.submitJob(jobGraph);
 
 			// wait for the submission to succeed
-			JobSubmissionResult jobSubmissionResult = submissionFuture.get();
+			JobClient jobClient = miniClusterClient.submitJob(jobGraph).get();
 
-			CompletableFuture<JobResult> resultFuture = miniClusterClient.requestJobResult(jobSubmissionResult.getJobID());
+			CompletableFuture<JobResult> resultFuture = jobClient.requestJobResult();
 
 			JobResult jobResult = resultFuture.get();
 

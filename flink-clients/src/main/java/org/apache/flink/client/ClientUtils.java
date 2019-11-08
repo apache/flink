@@ -20,6 +20,7 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.client.job.JobClient;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.ContextEnvironmentFactory;
@@ -110,7 +111,7 @@ public enum ClientUtils {
 		try {
 			return client
 				.submitJob(jobGraph)
-				.thenApply(JobSubmissionResult::getJobID)
+				.thenApply(JobClient::getJobID)
 				.thenApply(DetachedJobExecutionResult::new)
 				.get();
 		} catch (InterruptedException | ExecutionException e) {
@@ -132,8 +133,7 @@ public enum ClientUtils {
 		try {
 			jobResult = client
 				.submitJob(jobGraph)
-				.thenApply(JobSubmissionResult::getJobID)
-				.thenCompose(client::requestJobResult)
+				.thenCompose(JobClient::requestJobResult)
 				.get();
 		} catch (InterruptedException | ExecutionException e) {
 			ExceptionUtils.checkInterrupted(e);

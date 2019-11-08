@@ -19,7 +19,8 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.client.job.ClusterClientJobClientAdapter;
+import org.apache.flink.client.job.JobClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -66,8 +67,10 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 	}
 
 	@Override
-	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
-		return miniCluster.submitJob(jobGraph);
+	public CompletableFuture<JobClient> submitJob(@Nonnull JobGraph jobGraph) {
+		return miniCluster
+			.submitJob(jobGraph)
+			.thenApply(r -> new ClusterClientJobClientAdapter(r.getJobID(), this, true));
 	}
 
 	@Override
