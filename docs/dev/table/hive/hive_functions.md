@@ -169,7 +169,7 @@ Please reference to [Hive]({{ site.baseurl }}/dev/table/hive/index.html) for dat
 
 ## Use Hive Built-in Functions via HiveModule
 
-HiveModule provides Hive built-in functions as Flink system (built-in) functions to Flink SQL and Table API users.
+The `HiveModule` provides Hive built-in functions as Flink system (built-in) functions to Flink SQL and Table API users.
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">

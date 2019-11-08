@@ -23,13 +23,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Modules can extend Flink's built-in objects by defining a set of metadata, for example, functions.
-
-Modules are pluggable. Flink provides a few pre-built modules. Users can write their own too.
+Modules allow users to extend Flink's built-in objects, such as defining functions that behave like Flink 
+built-in functions. They are pluggable, and while Flink provides a few pre-built modules, users can write 
+their own.
 
 For example, users can define their own geo functions and plug them into Flink as built-in functions to be used in 
 Flink SQL and Table APIs. Another example is users can load an out-of-shelf Hive module to use Hive built-in 
-functions as part of Flink built-in functions.
+functions as Flink built-in functions.
 
 * This will be replaced by the TOC
 {:toc}
@@ -38,7 +38,7 @@ functions as part of Flink built-in functions.
 
 ### CoreModule
 
-`CoreModule` currently contains all system (built-in) functions. It's loaded by default.
+`CoreModule` contains all of Flink's system (built-in) functions and is loaded by default.
 
 ### HiveModule
 
@@ -51,18 +51,16 @@ Users can develop custom modules by implementing the `Module` interface.
 To use custom modules in SQL CLI, users should develop both a module and its corresponding module factory by implementing 
 the `ModuleFactory` interface.
 
-Module factory defines a set of properties for configuring the module when the SQL CLI bootstraps.
-The set of properties will be passed to a discovery service where the service tries to match the properties to
- a `ModuleFactory` and initiate a corresponding module instance.
+A module factory defines a set of properties for configuring the module when the SQL CLI bootstraps.
+Properties are passed to a discovery service where the service tries to match the properties to
+ a `ModuleFactory` and instantiate a corresponding module instance.
  
 
 ## Namespace and Resolution Order
 
-Objects provided by modules are taken as part of Flink's system (built-in) objects, thus they don't have any namespaces.
+Objects provided by modules are considered part of Flink's system (built-in) objects; thus, they don't have any namespaces.
 
-The order to load modules matter for resolution purpose. When there are two objects of the same name residing in two modules,
-Flink always resolve the object reference to the one in the 1st loaded module. 
-
+When there are two objects of the same name residing in two modules, Flink always resolves the object reference to the one in the 1st loaded module.
 
 ## Module API
 
