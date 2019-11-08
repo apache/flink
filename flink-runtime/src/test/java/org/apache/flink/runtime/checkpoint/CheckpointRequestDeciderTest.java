@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator.CheckpointTriggerRequest;
-import org.apache.flink.runtime.util.clock.ManualClock;
+import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.Test;
 

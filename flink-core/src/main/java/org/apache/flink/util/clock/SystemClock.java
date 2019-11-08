@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util.clock;
+package org.apache.flink.util.clock;
 
 /**
  * A clock that returns the time of the system / process.
