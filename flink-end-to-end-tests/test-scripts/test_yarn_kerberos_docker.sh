@@ -31,8 +31,8 @@ case $INPUT_TYPE in
     (dummy-fs)
         source "$(dirname "$0")"/common_dummy_fs.sh
         dummy_fs_setup
-        INPUT_ARGS="--input dummy://localhost/words"
-        EXPECTED_RESULT_LOG_CONTAINS=("my,1" "dear,2" "world,2")
+        INPUT_ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words"
+        EXPECTED_RESULT_LOG_CONTAINS=("my,2" "dear,4" "world,4")
     ;;
     (*)
         echo "Unknown input type $INPUT_TYPE"
