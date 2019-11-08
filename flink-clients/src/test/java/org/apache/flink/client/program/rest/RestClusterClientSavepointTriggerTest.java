@@ -184,7 +184,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
 			final RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			final String savepointPath = restClusterClient.cancelWithSavepoint(new JobID(), null);
+			final String savepointPath = restClusterClient.cancelWithSavepoint(new JobID(), null).get();
 			assertEquals(expectedSavepointDir, savepointPath);
 		}
 	}

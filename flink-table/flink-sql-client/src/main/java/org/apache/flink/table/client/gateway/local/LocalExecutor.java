@@ -429,7 +429,7 @@ public class LocalExecutor implements Executor {
 				// retrieve existing cluster
 				clusterClient = clusterDescriptor.retrieve(context.getClusterId());
 				try {
-					clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId)));
+					clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId))).get();
 				} catch (Throwable t) {
 					// the job might has finished earlier
 				}

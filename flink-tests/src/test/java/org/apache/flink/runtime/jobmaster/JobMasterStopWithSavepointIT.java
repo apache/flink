@@ -190,7 +190,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		final long syncSavepoint = syncSavepointId.get();
 		assertTrue(syncSavepoint > 0 && syncSavepoint < numberOfCheckpointsToExpect);
 
-		clusterClient.cancel(jobGraph.getJobID());
+		clusterClient.cancel(jobGraph.getJobID()).get();
 		assertThat(getJobStatus(), either(equalTo(JobStatus.CANCELLING)).or(equalTo(JobStatus.CANCELED)));
 	}
 

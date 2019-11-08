@@ -217,7 +217,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			taskManagerProcess = null;
 
 			// try to cancel the job
-			clusterClient.cancel(jobId);
+			clusterClient.cancel(jobId).get();
 
 			// we should see a failure within reasonable time (10s is the ask timeout).
 			// since the CI environment is often slow, we conservatively give it up to 2 minutes,

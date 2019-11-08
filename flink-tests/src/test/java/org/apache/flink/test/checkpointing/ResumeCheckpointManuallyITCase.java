@@ -304,7 +304,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		NotifyingInfiniteTupleSource.countDownLatch.await();
 
 		waitUntilExternalizedCheckpointCreated(checkpointDir, initialJobGraph.getJobID());
-		client.cancel(initialJobGraph.getJobID());
+		client.cancel(initialJobGraph.getJobID()).get();
 		waitUntilCanceled(initialJobGraph.getJobID(), client);
 
 		return getExternalizedCheckpointCheckpointPath(checkpointDir, initialJobGraph.getJobID());

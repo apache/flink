@@ -1255,7 +1255,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		@Override
 		public void close() throws Exception {
 			// Free cluster resources
-			clusterClient.cancel(jobId);
+			clusterClient.cancel(jobId).get();
 			// cancel() is non-blocking so do this to make sure the job finished
 			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccessfulWithDelay(
 				() -> clusterClient.getJobStatus(jobId),

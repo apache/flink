@@ -370,7 +370,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 		clusterClient.disposeSavepoint(savepointPath).get();
 
-		clusterClient.cancel(jobId);
+		clusterClient.cancel(jobId).get();
 
 		// make sure, the execution is finished to not influence other test methods
 		invokeThread.join(deadline.timeLeft().toMillis());
