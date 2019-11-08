@@ -26,7 +26,14 @@ import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.LegacySchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 
-final class SchedulerNGFactoryFactory {
+/**
+ * Factory for {@link SchedulerNGFactory}.
+ */
+public final class SchedulerNGFactoryFactory {
+
+	public static final String SCHEDULER_TYPE_LEGACY = "legacy";
+
+	public static final String SCHEDULER_TYPE_NG = "ng";
 
 	private SchedulerNGFactoryFactory() {}
 
@@ -36,10 +43,10 @@ final class SchedulerNGFactoryFactory {
 
 		final String schedulerName = configuration.getString(JobManagerOptions.SCHEDULER);
 		switch (schedulerName) {
-			case "legacy":
+			case SCHEDULER_TYPE_LEGACY:
 				return new LegacySchedulerFactory(restartStrategyFactory);
 
-			case "ng":
+			case SCHEDULER_TYPE_NG:
 				return new DefaultSchedulerFactory();
 
 			default:
