@@ -106,6 +106,10 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> imp
 
 	@Override
 	public T copy(T from) {
+		if (from == null) {
+			return null;
+		}
+
 		T target = instantiateRaw();
 		for (int i = 0; i < arity; i++) {
 			Object copy = fieldSerializers[i].copy(from.getField(i));
@@ -116,6 +120,10 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> imp
 	
 	@Override
 	public T copy(T from, T reuse) {
+		if (from == null) {
+			return null;
+		}
+
 		for (int i = 0; i < arity; i++) {
 			Object copy = fieldSerializers[i].copy((Object)from.getField(i), reuse.getField(i));
 			reuse.setField(copy, i);
