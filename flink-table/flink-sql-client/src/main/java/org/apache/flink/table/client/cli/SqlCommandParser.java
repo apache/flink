@@ -99,6 +99,10 @@ public final class SqlCommandParser {
 			"SHOW\\s+FUNCTIONS",
 			NO_OPERANDS),
 
+		SHOW_MODULES(
+			"SHOW\\s+MODULES",
+			NO_OPERANDS),
+
 		USE_CATALOG(
 			"USE\\s+CATALOG\\s+(.*)",
 			SINGLE_OPERAND),
