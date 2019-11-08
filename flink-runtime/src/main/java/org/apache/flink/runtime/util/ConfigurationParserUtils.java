@@ -28,7 +28,6 @@ import org.apache.flink.util.MathUtils;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.apache.flink.util.MathUtils.checkedDownCast;
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Utility class to extract related parameters from {@link Configuration} and to
