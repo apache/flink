@@ -42,10 +42,10 @@ public interface TimestampAssigner<T> extends org.apache.flink.api.common.eventt
 	 * {@code Long.MIN_VALUE}.
 	 *
 	 * @param element The element that the timestamp will be assigned to.
-	 * @param previousElementTimestamp The previous internal timestamp of the element,
+	 * @param recordTimestamp The previous internal timestamp of the element,
 	 *                                 or a negative value, if no timestamp has been assigned yet.
 	 * @return The new timestamp.
 	 */
 	@Override
-	long extractTimestamp(T element, long previousElementTimestamp);
+	long extractTimestamp(T element, long recordTimestamp);
 }
