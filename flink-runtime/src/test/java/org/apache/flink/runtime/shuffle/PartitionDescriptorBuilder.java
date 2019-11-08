@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 public class PartitionDescriptorBuilder {
 	private IntermediateResultPartitionID partitionId;
 	private ResultPartitionType partitionType;
+	private int totalNumberOfPartitions = 1;
 
 	private PartitionDescriptorBuilder() {
 		this.partitionId = new IntermediateResultPartitionID();
@@ -44,8 +45,13 @@ public class PartitionDescriptorBuilder {
 		return this;
 	}
 
+	public PartitionDescriptorBuilder setTotalNumberOfPartitions(int totalNumberOfPartitions) {
+		this.totalNumberOfPartitions = totalNumberOfPartitions;
+		return this;
+	}
+
 	public PartitionDescriptor build() {
-		return new PartitionDescriptor(new IntermediateDataSetID(), partitionId, partitionType, 1, 0);
+		return new PartitionDescriptor(new IntermediateDataSetID(), totalNumberOfPartitions, partitionId, partitionType, 1, 0);
 	}
 
 	public static PartitionDescriptorBuilder newBuilder() {
