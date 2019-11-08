@@ -525,6 +525,7 @@ public class TaskExecutorResourceUtils {
 		final FlinkInternalMemory flinkInternalMemory, final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
 		return new TaskExecutorResourceSpec(
 			flinkInternalMemory.frameworkHeap,
+			new MemorySize(0), // TODO: replace with actual framework off-heap memory size
 			flinkInternalMemory.taskHeap,
 			flinkInternalMemory.taskOffHeap,
 			flinkInternalMemory.shuffle,

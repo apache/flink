@@ -78,6 +78,8 @@ public class TaskExecutorResourceSpec {
 
 	private final MemorySize frameworkHeapSize;
 
+	private final MemorySize frameworkOffHeapMemorySize;
+
 	private final MemorySize taskHeapSize;
 
 	private final MemorySize taskOffHeapSize;
@@ -94,6 +96,7 @@ public class TaskExecutorResourceSpec {
 
 	public TaskExecutorResourceSpec(
 		MemorySize frameworkHeapSize,
+		MemorySize frameworkOffHeapSize,
 		MemorySize taskHeapSize,
 		MemorySize taskOffHeapSize,
 		MemorySize shuffleMemSize,
@@ -103,6 +106,7 @@ public class TaskExecutorResourceSpec {
 		MemorySize jvmOverheadSize) {
 
 		this.frameworkHeapSize = frameworkHeapSize;
+		this.frameworkOffHeapMemorySize = frameworkOffHeapSize;
 		this.taskHeapSize = taskHeapSize;
 		this.taskOffHeapSize = taskOffHeapSize;
 		this.shuffleMemSize = shuffleMemSize;
@@ -114,6 +118,10 @@ public class TaskExecutorResourceSpec {
 
 	public MemorySize getFrameworkHeapSize() {
 		return frameworkHeapSize;
+	}
+
+	public MemorySize getFrameworkOffHeapMemorySize() {
+		return frameworkOffHeapMemorySize;
 	}
 
 	public MemorySize getTaskHeapSize() {
@@ -149,7 +157,7 @@ public class TaskExecutorResourceSpec {
 	}
 
 	public MemorySize getTotalFlinkMemorySize() {
-		return frameworkHeapSize.add(taskHeapSize).add(taskOffHeapSize).add(shuffleMemSize).add(getManagedMemorySize());
+		return frameworkHeapSize.add(frameworkOffHeapMemorySize).add(taskHeapSize).add(taskOffHeapSize).add(shuffleMemSize).add(getManagedMemorySize());
 	}
 
 	public MemorySize getTotalProcessMemorySize() {
@@ -161,13 +169,14 @@ public class TaskExecutorResourceSpec {
 	}
 
 	public MemorySize getJvmDirectMemorySize() {
-		return taskOffHeapSize.add(shuffleMemSize);
+		return frameworkOffHeapMemorySize.add(taskOffHeapSize).add(shuffleMemSize);
 	}
 
 	@Override
 	public String toString() {
 		return "TaskExecutorResourceSpec {"
 			+ "frameworkHeapSize=" + frameworkHeapSize.toString()
+			+ ", frameworkOffHeapSize=" + frameworkOffHeapMemorySize.toString()
 			+ ", taskHeapSize=" + taskHeapSize.toString()
 			+ ", taskOffHeapSize=" + taskOffHeapSize.toString()
 			+ ", shuffleMemSize=" + shuffleMemSize.toString()
