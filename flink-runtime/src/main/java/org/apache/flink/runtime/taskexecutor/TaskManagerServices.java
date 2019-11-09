@@ -331,59 +331,11 @@ public class TaskManagerServices {
 	 */
 	private static MemoryManager createMemoryManager(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration) {
-		if (taskManagerServicesConfiguration.getOnHeapManagedMemorySize() != null &&
-			taskManagerServicesConfiguration.getOffHeapManagedMemorySize() != null) {
-			// flip49 enabled
+		final Map<MemoryType, Long> memorySizeByType = new HashMap<>();
+		memorySizeByType.put(MemoryType.HEAP, taskManagerServicesConfiguration.getOnHeapManagedMemorySize().getBytes());
+		memorySizeByType.put(MemoryType.OFF_HEAP, taskManagerServicesConfiguration.getOffHeapManagedMemorySize().getBytes());
 
-			final Map<MemoryType, Long> memorySizeByType = new HashMap<>();
-			memorySizeByType.put(MemoryType.HEAP, taskManagerServicesConfiguration.getOnHeapManagedMemorySize().getBytes());
-			memorySizeByType.put(MemoryType.OFF_HEAP, taskManagerServicesConfiguration.getOffHeapManagedMemorySize().getBytes());
-
-			return new MemoryManager(memorySizeByType,
-				taskManagerServicesConfiguration.getNumberOfSlots(),
-				taskManagerServicesConfiguration.getPageSize());
-		}
-
-		// computing the amount of memory to use depends on how much memory is available
-		// it strictly needs to happen AFTER the network stack has been initialized
-
-		// check if a value has been configured
-		long configuredMemory = taskManagerServicesConfiguration.getConfiguredMemory();
-
-		MemoryType memType = taskManagerServicesConfiguration.getMemoryType();
-
-		final long memorySize;
-
-		if (configuredMemory > 0) {
-			LOG.info("Limiting managed memory to {} MB." , configuredMemory);
-			memorySize = configuredMemory << 20; // megabytes to bytes
-		} else {
-			// similar to #calculateNetworkBufferMemory(TaskManagerServicesConfiguration tmConfig)
-			float memoryFraction = taskManagerServicesConfiguration.getMemoryFraction();
-
-			if (memType == MemoryType.HEAP) {
-				long freeHeapMemoryWithDefrag = taskManagerServicesConfiguration.getFreeHeapMemoryWithDefrag();
-				// network buffers allocated off-heap -> use memoryFraction of the available heap:
-				long relativeMemSize = (long) (freeHeapMemoryWithDefrag * memoryFraction);
-				LOG.info("Limiting managed memory to {} of the currently free heap space ({} MB)." , memoryFraction , relativeMemSize >> 20);
-				memorySize = relativeMemSize;
-			} else if (memType == MemoryType.OFF_HEAP) {
-				long maxJvmHeapMemory = taskManagerServicesConfiguration.getMaxJvmHeapMemory();
-				// The maximum heap memory has been adjusted according to the fraction (see
-				// calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config)), i.e.
-				// maxJvmHeap = jvmTotalNoNet - jvmTotalNoNet * memoryFraction = jvmTotalNoNet * (1 - memoryFraction)
-				// directMemorySize = jvmTotalNoNet * memoryFraction
-				long directMemorySize = (long) (maxJvmHeapMemory / (1.0 - memoryFraction) * memoryFraction);
-				LOG.info("Limiting managed memory to {} of the maximum memory size ({} MB).", memoryFraction, directMemorySize >> 20);
-				memorySize = directMemorySize;
-			} else {
-				throw new RuntimeException("No supported memory type detected.");
-			}
-		}
-
-		// now start the memory manager
-		return new MemoryManager(
-			Collections.singletonMap(memType, memorySize),
+		return new MemoryManager(memorySizeByType,
 			taskManagerServicesConfiguration.getNumberOfSlots(),
 			taskManagerServicesConfiguration.getPageSize());
 	}
