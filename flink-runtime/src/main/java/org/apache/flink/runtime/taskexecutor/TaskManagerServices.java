@@ -312,7 +312,6 @@ public class TaskManagerServices {
 		final ShuffleEnvironmentContext shuffleEnvironmentContext = new ShuffleEnvironmentContext(
 			taskManagerServicesConfiguration.getConfiguration(),
 			taskManagerServicesConfiguration.getResourceID(),
-			taskManagerServicesConfiguration.getMaxJvmHeapMemory(),
 			taskManagerServicesConfiguration.getShuffleMemorySize(),
 			taskManagerServicesConfiguration.isLocalCommunicationOnly(),
 			taskManagerServicesConfiguration.getTaskManagerAddress(),

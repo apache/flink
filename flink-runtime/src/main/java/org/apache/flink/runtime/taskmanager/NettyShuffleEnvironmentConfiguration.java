@@ -166,16 +166,13 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * sanity check them.
 	 *
 	 * @param configuration configuration object
-	 * @param maxJvmHeapMemory the maximum JVM heap size (in bytes)
-	 * @param shuffleMemorySize the size of memory reserved for shuffle environment, null if flip49 is disabled
+	 * @param shuffleMemorySize the size of memory reserved for shuffle environment
 	 * @param localTaskManagerCommunication true, to skip initializing the network stack
 	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
 	 * @return NettyShuffleEnvironmentConfiguration
 	 */
 	public static NettyShuffleEnvironmentConfiguration fromConfiguration(
 		Configuration configuration,
-		long maxJvmHeapMemory,
-		@Nullable // should only be null when flip49 is disabled
 		MemorySize shuffleMemorySize,
 		boolean localTaskManagerCommunication,
 		InetAddress taskManagerAddress) {
@@ -184,7 +181,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
-		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(configuration, maxJvmHeapMemory, shuffleMemorySize, pageSize);
+		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(configuration, shuffleMemorySize, pageSize);
 
 		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataport);
 
@@ -452,34 +449,18 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * Calculates the number of network buffers based on configuration and jvm heap size.
 	 *
 	 * @param configuration configuration object
-	 * @param maxJvmHeapMemory the maximum JVM heap size (in bytes)
-	 * @param shuffleMemorySize the size of memory reserved for shuffle environment, null if flip49 is disabled
+	 * @param shuffleMemorySize the size of memory reserved for shuffle environment
 	 * @param pageSize size of memory segment
 	 * @return the number of network buffers
 	 */
 	@SuppressWarnings("deprecation")
 	private static int calculateNumberOfNetworkBuffers(
 		Configuration configuration,
-		long maxJvmHeapMemory,
-		@Nullable // should only be null when flip49 is disabled
 		MemorySize shuffleMemorySize,
 		int pageSize) {
 
-		final int numberOfNetworkBuffers;
-		if (shuffleMemorySize != null) { // flip49 enbaled
-			numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(shuffleMemorySize.getBytes(), pageSize);
-			logIfIgnoringOldConfigs(configuration);
-		} else if (!hasNewNetworkConfig(configuration)) {
-			// fallback: number of network buffers
-			numberOfNetworkBuffers = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
-
-			checkOldNetworkConfig(numberOfNetworkBuffers);
-		} else {
-			logIfIgnoringOldConfigs(configuration);
-
-			final long networkMemorySize = calculateNewNetworkBufferMemory(configuration, maxJvmHeapMemory);
-			numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(networkMemorySize, pageSize);
-		}
+		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(shuffleMemorySize.getBytes(), pageSize);
+		logIfIgnoringOldConfigs(configuration);
 
 		return numberOfNetworkBuffers;
 	}
