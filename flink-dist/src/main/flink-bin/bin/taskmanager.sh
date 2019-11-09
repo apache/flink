@@ -54,9 +54,9 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     jvm_params=${lines[0]}
     export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
 
-    dynamic_configs=${lines[1]}
-    ARGS=(${ARGS[@]} ${dynamic_configs})
-    ARGS+=("--configDir" "${FLINK_CONF_DIR}")
+    IFS=$" "
+    dynamic_configs=(${lines[1]})
+    ARGS+=("--configDir" "${FLINK_CONF_DIR}" ${dynamic_configs[@]})
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then
