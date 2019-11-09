@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;
@@ -52,7 +53,6 @@ import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.TimestampWithTimeZoneString;
-import org.apache.flink.table.types.logical.TimestampType;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
