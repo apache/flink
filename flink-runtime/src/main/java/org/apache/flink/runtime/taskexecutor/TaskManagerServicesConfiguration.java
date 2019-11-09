@@ -23,8 +23,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
@@ -63,21 +61,6 @@ public class TaskManagerServicesConfiguration {
 	@Nullable
 	private final QueryableStateConfiguration queryableStateConfig;
 
-	private final long freeHeapMemoryWithDefrag;
-
-	private final long maxJvmHeapMemory;
-
-	/**
-	 * Managed memory (in megabytes).
-	 *
-	 * @see TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE
-	 */
-	private final long configuredMemory;
-
-	private final MemoryType memoryType;
-
-	private final float memoryFraction;
-
 	private final int pageSize;
 
 	private final long timerServiceShutdownTimeout;
@@ -88,7 +71,6 @@ public class TaskManagerServicesConfiguration {
 
 	private Optional<Time> systemResourceMetricsProbingInterval;
 
-	@Nullable // should only be null when flip49 is disabled
 	private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
 	public TaskManagerServicesConfiguration(
@@ -98,16 +80,10 @@ public class TaskManagerServicesConfiguration {
 			boolean localCommunicationOnly,
 			String[] tmpDirPaths,
 			String[] localRecoveryStateRootDirectories,
-			long freeHeapMemoryWithDefrag,
-			long maxJvmHeapMemory,
 			boolean localRecoveryEnabled,
 			@Nullable QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
-			long configuredMemory,
-			MemoryType memoryType,
-			float memoryFraction,
 			int pageSize,
-			@Nullable // should only be null when flip49 is disabled
 			TaskExecutorResourceSpec taskExecutorResourceSpec,
 			long timerServiceShutdownTimeout,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
@@ -119,15 +95,10 @@ public class TaskManagerServicesConfiguration {
 		this.localCommunicationOnly = localCommunicationOnly;
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
-		this.freeHeapMemoryWithDefrag = freeHeapMemoryWithDefrag;
-		this.maxJvmHeapMemory = maxJvmHeapMemory;
 		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.queryableStateConfig = queryableStateConfig;
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 
-		this.configuredMemory = configuredMemory;
-		this.memoryType = checkNotNull(memoryType);
-		this.memoryFraction = memoryFraction;
 		this.pageSize = pageSize;
 
 		this.taskExecutorResourceSpec = taskExecutorResourceSpec;
@@ -181,55 +152,20 @@ public class TaskManagerServicesConfiguration {
 		return numberOfSlots;
 	}
 
-	public float getMemoryFraction() {
-		return memoryFraction;
-	}
-
-	/**
-	 * Returns the memory type to use.
-	 *
-	 * @return on-heap or off-heap memory
-	 */
-	MemoryType getMemoryType() {
-		return memoryType;
-	}
-
-	long getFreeHeapMemoryWithDefrag() {
-		return freeHeapMemoryWithDefrag;
-	}
-
-	long getMaxJvmHeapMemory() {
-		return maxJvmHeapMemory;
-	}
-
-	/**
-	 * Returns the size of the managed memory (in megabytes), if configured.
-	 *
-	 * @return managed memory or a default value (currently <tt>-1</tt>) if not configured
-	 *
-	 * @see TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE
-	 */
-	long getConfiguredMemory() {
-		return configuredMemory;
-	}
-
 	public int getPageSize() {
 		return pageSize;
 	}
 
-	@Nullable // should only be null when flip49 is disabled
 	public MemorySize getShuffleMemorySize() {
-		return taskExecutorResourceSpec == null ? null : taskExecutorResourceSpec.getShuffleMemSize();
+		return taskExecutorResourceSpec.getShuffleMemSize();
 	}
 
-	@Nullable // should only be null when flip49 is disabled
 	public MemorySize getOnHeapManagedMemorySize() {
-		return taskExecutorResourceSpec == null ? null : taskExecutorResourceSpec.getOnHeapManagedMemorySize();
+		return taskExecutorResourceSpec.getOnHeapManagedMemorySize();
 	}
 
-	@Nullable // should only be null when flip49 is disabled
 	public MemorySize getOffHeapManagedMemorySize() {
-		return taskExecutorResourceSpec == null ? null : taskExecutorResourceSpec.getOffHeapManagedMemorySize();
+		return taskExecutorResourceSpec.getOffHeapManagedMemorySize();
 	}
 
 	long getTimerServiceShutdownTimeout() {
@@ -255,8 +191,6 @@ public class TaskManagerServicesConfiguration {
 	 * @param configuration The configuration.
 	 * @param resourceID resource ID of the task manager
 	 * @param remoteAddress identifying the IP address under which the TaskManager will be accessible
-	 * @param freeHeapMemoryWithDefrag an estimate of the size of the free heap memory
-	 * @param maxJvmHeapMemory the maximum JVM heap size
 	 * @param localCommunicationOnly True if only local communication is possible.
 	 *                               Use only in cases where only one task manager runs.
 	 *
@@ -266,8 +200,6 @@ public class TaskManagerServicesConfiguration {
 			Configuration configuration,
 			ResourceID resourceID,
 			InetAddress remoteAddress,
-			long freeHeapMemoryWithDefrag,
-			long maxJvmHeapMemory,
 			boolean localCommunicationOnly) {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
@@ -284,30 +216,7 @@ public class TaskManagerServicesConfiguration {
 
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
-		if (configuration.getBoolean(TaskManagerOptions.ENABLE_FLIP_49_CONFIG)) {
-			final TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
-			return new TaskManagerServicesConfiguration(
-				configuration,
-				resourceID,
-				remoteAddress,
-				localCommunicationOnly,
-				tmpDirs,
-				localStateRootDir,
-				freeHeapMemoryWithDefrag,
-				maxJvmHeapMemory,
-				localRecoveryMode,
-				queryableStateConfig,
-				ConfigurationParserUtils.getSlot(configuration),
-				ConfigurationParserUtils.getManagedMemorySize(configuration),
-				ConfigurationParserUtils.getMemoryType(configuration),
-				ConfigurationParserUtils.getManagedMemoryFraction(configuration),
-				ConfigurationParserUtils.getPageSize(configuration),
-				taskExecutorResourceSpec,
-				timerServiceShutdownTimeout,
-				retryingRegistrationConfiguration,
-				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
-		}
-
+		final TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 		return new TaskManagerServicesConfiguration(
 			configuration,
 			resourceID,
@@ -315,16 +224,11 @@ public class TaskManagerServicesConfiguration {
 			localCommunicationOnly,
 			tmpDirs,
 			localStateRootDir,
-			freeHeapMemoryWithDefrag,
-			maxJvmHeapMemory,
 			localRecoveryMode,
 			queryableStateConfig,
 			ConfigurationParserUtils.getSlot(configuration),
-			ConfigurationParserUtils.getManagedMemorySize(configuration),
-			ConfigurationParserUtils.getMemoryType(configuration),
-			ConfigurationParserUtils.getManagedMemoryFraction(configuration),
 			ConfigurationParserUtils.getPageSize(configuration),
-			null,
+			taskExecutorResourceSpec,
 			timerServiceShutdownTimeout,
 			retryingRegistrationConfiguration,
 			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));

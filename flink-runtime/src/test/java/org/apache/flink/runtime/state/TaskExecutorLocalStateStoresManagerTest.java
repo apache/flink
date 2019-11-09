@@ -46,7 +46,6 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static final long MEM_SIZE_PARAM = 128L * 1024 * 1024;
 	private static final int TOTAL_FLINK_MEMORY_MB = 512;
 
 	/**
@@ -211,8 +210,6 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 			config,
 			ResourceID.generate(),
 			InetAddress.getLocalHost(),
-			MEM_SIZE_PARAM,
-			MEM_SIZE_PARAM,
 			true);
 	}
 
