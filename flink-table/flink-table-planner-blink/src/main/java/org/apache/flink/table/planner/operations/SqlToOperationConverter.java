@@ -229,8 +229,7 @@ public class SqlToOperationConverter {
 				builder.field(fieldName,
 					TypeConversions.fromLogicalToDataType(
 						FlinkTypeFactory.toLogicalType(nameToType.get(fieldName))));
-			} else {
-				assert node.getKind() == SqlKind.AS;
+			} else if (node instanceof SqlBasicCall) {
 				SqlBasicCall call = (SqlBasicCall) node;
 				SqlNode validatedExpr = validator
 					.validateParameterizedExpression(call.operand(0), nameToType);
@@ -239,6 +238,8 @@ public class SqlToOperationConverter {
 					TypeConversions.fromLogicalToDataType(
 						FlinkTypeFactory.toLogicalType(validatedType)),
 					validatedExpr.toString());
+			} else {
+				throw new TableException("Unexpected table column type!");
 			}
 		}
 

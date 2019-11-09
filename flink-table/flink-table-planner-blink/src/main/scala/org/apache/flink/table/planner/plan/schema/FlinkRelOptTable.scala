@@ -47,11 +47,11 @@ import scala.collection.JavaConverters._
 /**
   * [[FlinkRelOptTable]] wraps a [[FlinkTable]]
   *
-  * @param schema     the [[RelOptSchema]] this table belongs to
-  * @param rowType    the type of rows returned by this table
-  * @param names      the identifier for this table. The identifier must be unique with
-  *                   respect to the Connection producing this table.
-  * @param table      wrapped flink table
+  * @param schema  the [[RelOptSchema]] this table belongs to
+  * @param rowType the type of rows returned by this table
+  * @param names   the identifier for this table. The identifier must be unique with
+  *                respect to the Connection producing this table.
+  * @param table   wrapped flink table
   */
 class FlinkRelOptTable protected(
     schema: RelOptSchema,
@@ -65,8 +65,8 @@ class FlinkRelOptTable protected(
   val DEFAULT_ROWCOUNT: Double = 1E8
 
   lazy val columnExprs: Map[String, String] = table match {
-    case cct : TableSourceTable[_] =>
-      cct.catalogTable.getSchema
+    case tableSourceTable : TableSourceTable[_] =>
+      tableSourceTable.catalogTable.getSchema
         .getTableColumns
         .filter(column => column.isGenerated)
         .map(column => (column.getName, column.getExpr.get()))
@@ -237,8 +237,10 @@ class FlinkRelOptTable protected(
         LogicalTableScan.create(cluster, this)
       } else {
         // Get row type of physical fields.
-        val physicalFields = getRowType.getFieldList
-          .filter(f => !columnExprs.contains(f.getName)).toList
+        val physicalFields = getRowType
+          .getFieldList
+          .filter(f => !columnExprs.contains(f.getName))
+          .toList
         val scanRowType = cluster.getTypeFactory.createStructType(physicalFields)
         val scan = LogicalTableScan.create(cluster, copy(table, scanRowType))
         if (columnExprs.isEmpty) {

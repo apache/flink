@@ -142,7 +142,7 @@ object TableSourceUtil {
     *                       computed columns should also be included.
     * @param tableSource    The [[TableSource]] to derive time attributes.
     * @param selectedFields The indices of all selected fields. None, if all fields are selected.
-    * @param streaming      Flag to determine whether the schema of a stream or batch table is created.
+    * @param streaming Flag to determine whether the schema of a stream or batch table is created.
     * @return The schema for the selected fields of the given [[TableSource]].
     */
   def getFieldNameType(
