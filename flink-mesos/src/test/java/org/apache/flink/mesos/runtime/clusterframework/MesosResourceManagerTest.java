@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
@@ -40,6 +41,8 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -270,8 +273,13 @@ public class MesosResourceManagerTest extends TestLogger {
 
 			// TaskExecutor templating
 			ContainerSpecification containerSpecification = new ContainerSpecification();
+
+			Configuration copiedConfig = new Configuration(flinkConfig);
+			copiedConfig.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY,
+				flinkConfig.getInteger(MesosTaskManagerParameters.MESOS_RM_TASKS_MEMORY_MB) + "m");
+			TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(copiedConfig);
 			ContaineredTaskManagerParameters containeredParams =
-				new ContaineredTaskManagerParameters(null, 1024, 768, 256, 4, new HashMap<String, String>());
+				new ContaineredTaskManagerParameters(spec, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
 				1.0, 1, 0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
 				Collections.<Protos.Volume>emptyList(), Collections.<Protos.Parameter>emptyList(), false,

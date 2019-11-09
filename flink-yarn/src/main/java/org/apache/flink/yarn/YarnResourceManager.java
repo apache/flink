@@ -554,7 +554,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		final String currDir = env.get(ApplicationConstants.Environment.PWD.key());
 
 		final ContaineredTaskManagerParameters taskManagerParameters =
-				ContaineredTaskManagerParameters.create(flinkConfig, tmResourceSpec, resource.getMemory(), numberOfTaskSlots);
+				ContaineredTaskManagerParameters.create(flinkConfig, tmResourceSpec, numberOfTaskSlots);
 
 		log.debug("TaskExecutor {} will be started with {}.",
 			containerId,
