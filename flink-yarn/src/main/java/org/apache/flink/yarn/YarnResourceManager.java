@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -104,6 +105,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	private final Configuration flinkConfig;
 
+	/** Flink configuration uploaded to yarn distributed cache by client. */
+	private final Configuration flinkClientConfig;
+
 	private final YarnConfiguration yarnConfig;
 
 	@Nullable
@@ -183,6 +187,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		this.resource = Resource.newInstance(defaultTaskManagerMemoryMB, defaultCpus);
 
 		this.slotsPerWorker = createWorkerSlotProfiles(flinkConfig);
+
+		// Load the flink config uploaded by flink client
+		this.flinkClientConfig = GlobalConfiguration.loadConfiguration(env.get(ApplicationConstants.Environment.PWD.key()));
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
@@ -587,6 +594,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 		Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
 
+		String taskManagerDynamicProperties = Utils.getDynamicProperties(flinkClientConfig, taskManagerConfig);
+
 		log.debug("TaskManager configuration: {}", taskManagerConfig);
 
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
@@ -594,7 +603,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			yarnConfig,
 			env,
 			taskManagerParameters,
-			taskManagerConfig,
+			taskManagerDynamicProperties,
 			currDir,
 			YarnTaskExecutorRunner.class,
 			log);

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -55,6 +56,7 @@ import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -79,6 +81,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
@@ -87,6 +90,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_APP_ID;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_HOME_DIR;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
@@ -127,7 +131,7 @@ public class YarnResourceManagerTest extends TestLogger {
 	public TemporaryFolder folder = new TemporaryFolder();
 
 	@Before
-	public void setup() {
+	public void setup() throws IOException {
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		flinkConfig = new Configuration();
@@ -145,6 +149,9 @@ public class YarnResourceManagerTest extends TestLogger {
 		env.put(ENV_FLINK_CLASSPATH, "");
 		env.put(ENV_HADOOP_USER_NAME, "foo");
 		env.put(FLINK_JAR_PATH, root.toURI().toString());
+		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
+
+		BootstrapTools.writeConfiguration(flinkConfig, new File(home.getAbsolutePath(), FLINK_CONF_FILENAME));
 	}
 
 	@After

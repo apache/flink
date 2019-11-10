@@ -201,7 +201,7 @@ public class UtilsTest extends TestLogger {
 			systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
 			CommonTestUtils.setEnv(systemEnv);
 			ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, env, tmParams,
-				taskManagerConf, workingDirectory, taskManagerMainClass, LOG);
+				"", workingDirectory, taskManagerMainClass, LOG);
 		} finally {
 			CommonTestUtils.setEnv(originalEnv);
 		}
