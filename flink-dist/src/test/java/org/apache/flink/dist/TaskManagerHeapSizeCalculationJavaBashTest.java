@@ -76,19 +76,18 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 	 */
 	@Test
 	public void compareNetworkBufShellScriptWithJava() throws Exception {
-		int managedMemSize = Integer.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue());
 		float managedMemFrac = TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue();
 
 		// manual tests from org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateHeapSizeMB()
 
 		compareNetworkBufJavaVsScript(
-			getConfig(1000, false, 0.1f, 64L << 20, 1L << 30, managedMemSize, managedMemFrac), 0.0f);
+			getConfig(1000, false, 0.1f, 64L << 20, 1L << 30, 0, managedMemFrac), 0.0f);
 
 		compareNetworkBufJavaVsScript(
 			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, 10 /*MB*/, managedMemFrac), 0.0f);
 
 		compareNetworkBufJavaVsScript(
-			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, managedMemSize, 0.1f), 0.0f);
+			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, 0, 0.1f), 0.0f);
 
 		// some automated tests with random (but valid) values
 
@@ -105,19 +104,18 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 	 */
 	@Test
 	public void compareHeapSizeShellScriptWithJava() throws Exception {
-		int managedMemSize = Integer.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue());
 		float managedMemFrac = TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue();
 
 		// manual tests from org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateHeapSizeMB()
 
 		compareHeapSizeJavaVsScript(
-			getConfig(1000, false, 0.1f, 64L << 20, 1L << 30, managedMemSize, managedMemFrac), 0.0f);
+			getConfig(1000, false, 0.1f, 64L << 20, 1L << 30, 0, managedMemFrac), 0.0f);
 
 		compareHeapSizeJavaVsScript(
 			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, 10 /*MB*/, managedMemFrac), 0.0f);
 
 		compareHeapSizeJavaVsScript(
-			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, managedMemSize, 0.1f), 0.0f);
+			getConfig(1000, true, 0.1f, 64L << 20, 1L << 30, 0, 0.1f), 0.0f);
 
 		// some automated tests with random (but valid) values
 
@@ -182,7 +180,7 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 	 * @return flink configuration
 	 */
 	private static Configuration getRandomConfig(final Random ran) {
-
+		int managedMemSize = 0;
 		float frac = Math.max(ran.nextFloat(), Float.MIN_VALUE);
 
 		// note: we are testing with integers only here to avoid overly complicated checks for
@@ -194,7 +192,6 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		int javaMemMB = Math.max((int) (max >> 20), ran.nextInt(Integer.MAX_VALUE)) + 1;
 		boolean useOffHeap = ran.nextBoolean();
 
-		int managedMemSize = Integer.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue());
 		float managedMemFrac = TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue();
 
 		if (ran.nextBoolean()) {
