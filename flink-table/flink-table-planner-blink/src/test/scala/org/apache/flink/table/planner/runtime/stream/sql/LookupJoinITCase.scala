@@ -84,6 +84,20 @@ class LookupJoinITCase extends StreamingTestBase {
     .field("name", Types.STRING)
     .build()
 
+  val userDataWithSameAge = List(
+    (11, 1L, "Julian"),
+    (22, 2L, "Jark"),
+    (33, 3L, "Fabian"),
+    (11, 4L, "Hello world")
+  )
+
+  val userWithSameAgeTableSourceWith2Keys = InMemoryLookupableTableSource.builder()
+    .data(userDataWithSameAge)
+    .field("age", Types.INT)
+    .field("id", Types.LONG)
+    .field("name", Types.STRING)
+    .build()
+
   @Test
   def testJoinTemporalTable(): Unit = {
     val streamTable = env.fromCollection(data)
@@ -513,6 +527,27 @@ class LookupJoinITCase extends StreamingTestBase {
 
     assertTrue(sink.getAppendResults.isEmpty)
     assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
+  }
+
+  @Test
+  def testJoinTemporalTableOnMultiKeyFieldsWithUDF(): Unit = {
+    val streamTable = env.fromCollection(data)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
+    tEnv.registerTable("T", streamTable)
+
+    tEnv.registerTableSource("userTable", userWithSameAgeTableSourceWith2Keys)
+
+    val sql = "SELECT T.id, T.content, D.name, D.age  FROM T JOIN userTable " +
+      "for system_time as of T.proctime AS D ON T.content = concat(D.name, '!') AND D.age = 11"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "9,Hello world!,Hello world,11")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertEquals(0, userWithSameAgeTableSourceWith2Keys.getResourceCounter)
   }
 
 }
