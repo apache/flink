@@ -159,9 +159,20 @@ public class BootstrapToolsTest extends TestLogger {
 			"-Dlog4j.configuration=file:./conf/log4j.properties"; // if set
 		final String mainClass =
 			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
-		final String args = "--configDir ./conf";
+		final String basicArgs = "--configDir ./conf";
+		final String mainArgs = "-Djobmanager.rpc.address=host1 -Dkey.a=v1";
+		final String args =  basicArgs + " " + mainArgs;
 		final String redirects =
 			"1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
+
+		assertEquals(
+			java + " " + jvmmem +
+				" " + // jvmOpts
+				" " + // logging
+				" " + mainClass + " " + basicArgs + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					false, false, false, this.getClass(), ""));
 
 		assertEquals(
 			java + " " + jvmmem +
@@ -170,7 +181,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, false, false, this.getClass()));
+					false, false, false, this.getClass(), mainArgs));
 
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
 		assertEquals(
@@ -180,7 +191,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, false, true, this.getClass()));
+					false, false, true, this.getClass(), mainArgs));
 
 		// logback only, with/out krb5
 		assertEquals(
@@ -190,7 +201,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, false, false, this.getClass()));
+					true, false, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
@@ -199,7 +210,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, false, true, this.getClass()));
+					true, false, true, this.getClass(), mainArgs));
 
 		// log4j, with/out krb5
 		assertEquals(
@@ -209,7 +220,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, true, false, this.getClass()));
+					false, true, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
@@ -218,7 +229,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, true, true, this.getClass()));
+					false, true, true, this.getClass(), mainArgs));
 
 		// logback + log4j, with/out krb5
 		assertEquals(
@@ -228,7 +239,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, false, this.getClass()));
+					true, true, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
@@ -237,7 +248,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 		// logback + log4j, with/out krb5, different JVM opts
 		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
@@ -248,7 +259,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, false, this.getClass()));
+					true, true, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
@@ -257,7 +268,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 		// logback + log4j, with/out krb5, different JVM opts
 		cfg.setString(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
@@ -268,7 +279,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, false, this.getClass()));
+					true, true, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
@@ -277,7 +288,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 		// now try some configurations with different yarn.container-start-command-template
 
@@ -290,7 +301,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
@@ -302,7 +313,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 	}
 
