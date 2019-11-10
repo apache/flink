@@ -1276,7 +1276,10 @@ Metrics related to data exchange between task executors using netty network comm
     </tr>
     <tr>
       <td>fullRestarts</td>
-      <td>The total number of full restarts since this job was submitted.</td>
+      <td>
+        The total number of full restarts since this job was submitted.
+        <span class="label label-danger">Attention:</span> Since 1.9.2, this metric also includes fine-grained restarts.
+      </td>
       <td>Gauge</td>
     </tr>
     <tr>
