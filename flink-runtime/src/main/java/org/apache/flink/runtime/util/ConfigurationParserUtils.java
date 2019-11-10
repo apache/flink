@@ -42,7 +42,7 @@ public class ConfigurationParserUtils {
 	 * @return managed memory size (in megabytes)
 	 */
 	public static long getManagedMemorySize(Configuration configuration) {
-		long managedMemorySize;
+		long managedMemorySize = 0L;
 		if(configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)){
 			try {
 				managedMemorySize = MemorySize.parse(
@@ -50,14 +50,12 @@ public class ConfigurationParserUtils {
 			} catch (IllegalArgumentException e) {
 				throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
 			}
+
+			checkConfigParameter( managedMemorySize > 0,
+				managedMemorySize, TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+				"MemoryManager needs at least one MB of memory. " +
+					"If you leave this config parameter empty, the system automatically pick a fraction of the available memory.");
 		}
-		else {
-			return 0L;
-		}
-		checkConfigParameter( managedMemorySize > 0,
-			managedMemorySize, TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
-			"MemoryManager needs at least one MB of memory. " +
-				"If you leave this config parameter empty, the system automatically pick a fraction of the available memory.");
 		return managedMemorySize;
 	}
 

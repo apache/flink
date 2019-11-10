@@ -43,27 +43,27 @@ public class NetworkBufferCalculationTest extends TestLogger {
 		Configuration config;
 
 		config = getConfig(
-			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
+			10L,
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 900L << 20)); // 900MB
 
 		config = getConfig(
-			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
+			10L,
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.2f, 60L << 20, 1L << 30, MemoryType.HEAP);
 		assertEquals((200L << 20) + 3 /* slightly too many due to floating point imprecision */,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 800L << 20)); // 800MB
 
-		config = getConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+		config = getConfig(10L, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 890L << 20)); // 890MB
 
-		config = getConfig(0, 0.1f, 0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
-		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 810L << 20)); // 810MB
+		config = getConfig(10L, 0.1f, 0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
+		assertEquals((90L << 20) + 1 /* one too many due to floating point imprecision */,
+			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 800L << 20)); // 800MB
 	}
 
 	/**
