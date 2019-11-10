@@ -418,7 +418,8 @@ public class BootstrapTools {
 			boolean hasLogback,
 			boolean hasLog4j,
 			boolean hasKrb5,
-			Class<?> mainClass) {
+			Class<?> mainClass,
+			String mainArgs) {
 
 		final Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
@@ -464,7 +465,11 @@ public class BootstrapTools {
 		startCommandValues.put("redirects",
 			"1> " + logDirectory + "/taskmanager.out " +
 			"2> " + logDirectory + "/taskmanager.err");
-		startCommandValues.put("args", "--configDir " + configDirectory);
+		String args = "--configDir " + configDirectory;
+		if (!mainArgs.isEmpty()) {
+			args += " " + mainArgs;
+		}
+		startCommandValues.put("args",  args);
 
 		final String commandTemplate = flinkConfig
 			.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,

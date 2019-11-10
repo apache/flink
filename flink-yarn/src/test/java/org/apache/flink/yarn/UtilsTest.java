@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -30,6 +31,7 @@ import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -57,5 +59,19 @@ public class UtilsTest extends TestLogger {
 		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
 			assertThat(files.count(), equalTo(0L));
 		}
+	}
+
+	@Test
+	public void testGetDynamicProperties() {
+		Configuration baseConfig = new Configuration();
+		baseConfig.setString("key.a", "a");
+		baseConfig.setString("key.b", "b1");
+
+		Configuration targetConfig = new Configuration();
+		targetConfig.setString("key.b", "b2");
+		targetConfig.setString("key.c", "c");
+
+		String dynamicProperties = Utils.getDynamicProperties(baseConfig, targetConfig);
+		assertEquals("-Dkey.b=b2 -Dkey.c=c", dynamicProperties);
 	}
 }
