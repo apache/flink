@@ -73,8 +73,8 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
-import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
+import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -168,7 +168,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 	static class TestingYarnResourceManager extends YarnResourceManager {
 		AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient;
-		NMClient mockNMClient;
+		NMClientAsync mockNMClient;
 
 		TestingYarnResourceManager(
 				RpcService rpcService,
@@ -185,7 +185,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				FatalErrorHandler fatalErrorHandler,
 				@Nullable String webInterfaceUrl,
 				AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient,
-				NMClient mockNMClient,
+				NMClientAsync mockNMClient,
 				JobManagerMetricGroup jobManagerMetricGroup) {
 			super(
 				rpcService,
@@ -223,7 +223,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		}
 
 		@Override
-		protected NMClient createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
+		protected NMClientAsync createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
 			return mockNMClient;
 		}
 
@@ -255,7 +255,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				ApplicationAttemptId.newInstance(ApplicationId.newInstance(1L, 0), 0), 1);
 		public String taskHost = "host1";
 
-		public NMClient mockNMClient = mock(NMClient.class);
+		public NMClientAsync mockNMClient = mock(NMClientAsync.class);
 		public AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient =
 				mock(AMRMClientAsync.class);
 		public JobManagerMetricGroup mockJMMetricGroup =
@@ -426,7 +426,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
 				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
-				verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
+				verify(mockNMClient).startContainerAsync(eq(testingContainer), any(ContainerLaunchContext.class));
 
 				// Remote task executor registers with YarnResourceManager.
 				TaskExecutorGateway mockTaskExecutorGateway = mock(TaskExecutorGateway.class);
@@ -473,7 +473,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 				unregisterAndReleaseFuture.get();
 
-				verify(mockNMClient).stopContainer(any(ContainerId.class), any(NodeId.class));
+				verify(mockNMClient).stopContainerAsync(any(ContainerId.class), any(NodeId.class));
 				verify(mockResourceManagerClient).releaseAssignedContainer(any(ContainerId.class));
 			});
 
@@ -525,7 +525,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
 				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 				verify(mockResourceManagerClient).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
-				verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
+				verify(mockNMClient).startContainerAsync(eq(testingContainer), any(ContainerLaunchContext.class));
 
 				// Callback from YARN when container is Completed, pending request can not be fulfilled by pending
 				// containers, need to request new container.
