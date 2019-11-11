@@ -25,7 +25,7 @@ import org.apache.flink.core.io.InputSplit
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceSca
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.StreamTableSource
 
@@ -88,7 +89,7 @@ class BatchExecTableSourceScan(
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
-    val inputTransform = getSourceTransformation(planner.getExecEnv)
+    val inputTransform = getSourceTransformation(config, planner.getExecEnv)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
@@ -143,6 +144,7 @@ class BatchExecTableSourceScan(
   }
 
   override def createInput[IN](
+      conf: TableConfig,
       env: StreamExecutionEnvironment,
       format: InputFormat[IN, _ <: InputSplit],
       t: TypeInformation[IN]): Transformation[IN] = {
@@ -151,6 +153,28 @@ class BatchExecTableSourceScan(
     // to read multiple partitions which are multiple paths.
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[IN](format, t)
-    env.addSource(func, tableSource.explainSource(), t).getTransformation
+    val transformation = env.addSource(func, tableSource.explainSource(), t).getTransformation
+    println(env.getParallelism)
+    println(transformation.getParallelism)
+
+    // only infer parallelism for InputFormatTableSource. InputFormat source is safe
+    // and important.
+    // We can not set the parallelism for StreamTableSource, Because DataStream could
+    // be a intermediate node, it is dangerous to change its parallelism.
+    inferParallelism(conf, transformation)
+    transformation
+  }
+
+  private def inferParallelism(tableConf: TableConfig, transformation: Transformation[_]): Unit = {
+    val infer = !TableConfigUtils.getInferMode(tableConf).equals(TableConfigUtils.InferMode.NONE)
+    if (infer) {
+      val rowCount = getEstimatedRowCount
+      val rowsPerPartition = TableConfigUtils.getInferRowCountPerPartition(tableConf)
+      val maxNum = TableConfigUtils.getSourceMaxParallelism(tableConf)
+      val parallelism = Math.min(maxNum, Math.max((rowCount / rowsPerPartition).toInt, 1))
+      LOG.info(s"Infer source parallelism: $infer, row count is $rowCount," +
+          s" final parallelism is $parallelism.")
+      transformation.setParallelism(parallelism)
+    }
   }
 }

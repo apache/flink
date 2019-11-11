@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
@@ -68,11 +69,14 @@ abstract class PhysicalTableSourceScan(
   }
 
   def createInput[IN](
+      conf: TableConfig,
       env: StreamExecutionEnvironment,
       format: InputFormat[IN, _ <: InputSplit],
       t: TypeInformation[IN]): Transformation[IN]
 
-  def getSourceTransformation(env: StreamExecutionEnvironment): Transformation[_] = {
+  def getSourceTransformation(
+      conf: TableConfig,
+      env: StreamExecutionEnvironment): Transformation[_] = {
     if (sourceTransform == null) {
       sourceTransform = tableSource match {
         case format: InputFormatTableSource[_] =>
@@ -81,6 +85,7 @@ abstract class PhysicalTableSourceScan(
           val typeInfo = fromDataTypeToTypeInfo(format.getProducedDataType)
               .asInstanceOf[TypeInformation[Any]]
           createInput(
+            conf,
             env,
             format.getInputFormat.asInstanceOf[InputFormat[Any, _ <: InputSplit]],
             typeInfo.asInstanceOf[TypeInformation[Any]])

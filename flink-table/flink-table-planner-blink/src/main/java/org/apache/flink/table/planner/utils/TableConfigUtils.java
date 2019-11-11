@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.plan.utils.OperatorType;
@@ -111,6 +112,46 @@ public class TableConfigUtils {
 	public static CalciteConfig getCalciteConfig(TableConfig tableConfig) {
 		return tableConfig.getPlannerConfig().unwrap(CalciteConfig.class).orElse(
 				CalciteConfig$.MODULE$.DEFAULT());
+	}
+
+	/**
+	 * Infer resource mode.
+	 */
+	public enum InferMode {
+		NONE, ONLY_SOURCE
+	}
+
+	/**
+	 * Gets the resource infer mode.
+	 */
+	public static InferMode getInferMode(TableConfig tableConf) {
+		String config = tableConf.getConfiguration().getString(
+				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_INFER_MODE);
+		try {
+			return InferMode.valueOf(config);
+		} catch (IllegalArgumentException ex) {
+			throw new IllegalArgumentException("Infer mode can only be set: NONE or ONLY_SOURCE.");
+		}
+	}
+
+	/**
+	 * Gets the config row count that one partition processes.
+	 * @param tableConf Configuration.
+	 * @return the config row count that one partition processes.
+	 */
+	public static long getInferRowCountPerPartition(TableConfig tableConf) {
+		return tableConf.getConfiguration().getLong(
+				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_INFER_ROWS_PER_PARTITION);
+	}
+
+	/**
+	 * Gets the config max num of source parallelism.
+	 * @param tableConf Configuration.
+	 * @return the config max num of source parallelism.
+	 */
+	public static int getSourceMaxParallelism(TableConfig tableConf) {
+		return tableConf.getConfiguration().getInteger(
+				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_INFER_SOURCE_PARALLELISM_MAX);
 	}
 
 	// Make sure that we cannot instantiate this class

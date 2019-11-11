@@ -88,6 +88,14 @@ public class ExecutionConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Resource Options
 	// ------------------------------------------------------------------------
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_INFER_MODE =
+		key("table.exec.resource.infer.mode")
+			.defaultValue("NONE")
+			.withDescription("Sets infer resource mode according to statics. Only NONE, or ONLY_SOURCE can be set.\n" +
+					"If set NONE, parallelism and memory of all node are set by config.\n" +
+					"If set ONLY_SOURCE, only source parallelism is inferred according to statics.\n");
+
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
 	public static final ConfigOption<Integer> TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM =
 		key("table.exec.resource.default-parallelism")
@@ -123,6 +131,19 @@ public class ExecutionConfigOptions {
 		key("table.exec.resource.sort.memory")
 			.defaultValue("128 mb")
 			.withDescription("Sets the managed buffer memory size for sort operator.");
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	public static final ConfigOption<Integer> TABLE_EXEC_RESOURCE_INFER_SOURCE_PARALLELISM_MAX =
+		key("table.exec.resource.infer.source.parallelism.max")
+			.defaultValue(1000)
+			.withDescription("Sets max infer parallelism for source operator.");
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	public static final ConfigOption<Long> TABLE_EXEC_RESOURCE_INFER_ROWS_PER_PARTITION =
+		key("table.exec.resource.infer.rows-per-partition")
+			.defaultValue(1000000L)
+			.withDescription("Sets how many rows one partition processes. We will infer parallelism according " +
+					"to input row count.");
 
 	// ------------------------------------------------------------------------
 	//  Agg Options

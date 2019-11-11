@@ -102,7 +102,7 @@ class StreamExecTableSourceScan(
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
-    val inputTransform = getSourceTransformation(planner.getExecEnv)
+    val inputTransform = getSourceTransformation(config, planner.getExecEnv)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
@@ -250,6 +250,7 @@ class StreamExecTableSourceScan(
   }
 
   override def createInput[IN](
+      conf: TableConfig,
       env: StreamExecutionEnvironment,
       format: InputFormat[IN, _ <: InputSplit],
       t: TypeInformation[IN]): Transformation[IN] = {

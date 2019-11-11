@@ -18,7 +18,9 @@
 package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -39,6 +41,8 @@ import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFact
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions._
+import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -52,11 +56,12 @@ import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, Tes
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{InputFormatTableSource, StreamTableSource, TableSource}
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.commons.lang3.SystemUtils
@@ -65,8 +70,6 @@ import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
 
 import _root_.java.util
-import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.ddl.CreateTableOperation
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -525,6 +528,26 @@ abstract class TableTestUtil(
   }
 
   /**
+    * Create a [[TestInputFormatTableSource]] with the given schema, table stats and unique keys,
+    * and registers this TableSource under given name into the TableEnvironment's catalog.
+    *
+    * @param name table name
+    * @param types field types
+    * @param fields field names
+    * @param statistic statistic of current table
+    * @return returns the registered [[Table]].
+    */
+  def addInputFormatTableSource(
+      name: String,
+      types: Array[TypeInformation[_]],
+      fields: Array[String],
+      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
+    val schema = new TableSchema(fields, types)
+    val tableSource = new TestInputFormatSource(schema)
+    addTableSource(name, tableSource, statistic)
+  }
+
+  /**
     * Register this TableSource under given name into the TableEnvironment's catalog.
     *
     * @param name table name
@@ -907,6 +930,24 @@ class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
 
   override def getDataStream(execEnv: environment.StreamExecutionEnvironment): DataStream[Row] = {
     execEnv.fromCollection(List[Row](), getReturnType)
+  }
+
+  override def getReturnType: TypeInformation[Row] = {
+    val logicalTypes = schema.getFieldTypes
+    new RowTypeInfo(logicalTypes, schema.getFieldNames)
+  }
+
+  override def getTableSchema: TableSchema = schema
+}
+
+/**
+  * Batch [[org.apache.flink.table.sources.InputFormatTableSource]] for testing.
+  */
+class TestInputFormatSource(schema: TableSchema)
+    extends InputFormatTableSource[Row] {
+
+  override def getInputFormat: InputFormat[Row, _] = {
+    new CollectionInputFormat[Row](Seq(), null)
   }
 
   override def getReturnType: TypeInformation[Row] = {
