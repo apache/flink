@@ -41,8 +41,12 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     case SqlTypeName.VARCHAR | SqlTypeName.VARBINARY =>
       Int.MaxValue
 
+    // by default we support timestamp with microseconds precision
+    case SqlTypeName.TIMESTAMP =>
+      6
+
     // we currently support only timestamps with milliseconds precision
-    case SqlTypeName.TIMESTAMP | SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+    case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
       3
 
     case _ =>

@@ -57,7 +57,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
   @Test
   def testFilteringOnRowtime(): Unit = {
     val sqlQuery =
-      "SELECT rowtime FROM MyTable1 WHERE rowtime > CAST('1990-12-02 12:11:11' AS TIMESTAMP)"
+      "SELECT rowtime FROM MyTable1 WHERE rowtime > CAST('1990-12-02 12:11:11' AS TIMESTAMP(3))"
     util.verifyPlan(sqlQuery)
   }
 
