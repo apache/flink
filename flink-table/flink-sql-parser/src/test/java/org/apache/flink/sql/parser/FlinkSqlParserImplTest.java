@@ -74,6 +74,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testShowCatalogs() {
+		check("show catalogs", "SHOW CATALOGS");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +

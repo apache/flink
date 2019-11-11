@@ -15,6 +15,19 @@
 // limitations under the License.
 -->
 
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowCatalogs SqlShowCatalogs() :
+{
+}
+{
+    <SHOW> <CATALOGS>
+    {
+        return new SqlShowCatalogs(getPos());
+    }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }
