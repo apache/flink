@@ -20,32 +20,54 @@ under the License.
 <project xmlns="http://maven.apache.org/POM/4.0.0"
 		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-
 	<parent>
-		<artifactId>flink-end-to-end-tests</artifactId>
+		<artifactId>flink-plugins-test</artifactId>
 		<groupId>org.apache.flink</groupId>
 		<version>1.9-SNAPSHOT</version>
 	</parent>
+	<modelVersion>4.0.0</modelVersion>
 
-	<packaging>pom</packaging>
+	<artifactId>another-dummy-fs</artifactId>
 
-	<artifactId>flink-plugins-test</artifactId>
-	<name>flink-plugins-test</name>
+	<packaging>jar</packaging>
 
-	<modules>
-		<module>dummy-fs</module>
-		<module>another-dummy-fs</module>
-	</modules>
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>
+
+			<!-- this is merely an intermediate build artifact and should not be -->
+			<!-- deployed to maven central                                       -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-deploy-plugin</artifactId>
 				<configuration>
 					<skip>true</skip>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<finalName>flink-another-dummy-fs</finalName>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
