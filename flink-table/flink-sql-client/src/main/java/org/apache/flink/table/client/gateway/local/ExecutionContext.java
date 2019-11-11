@@ -23,7 +23,6 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
@@ -488,7 +487,7 @@ public class ExecutionContext<ClusterID> {
 					flinkConfig,
 					parallelism);
 
-			ClientUtils.addJarFiles(jobGraph, dependencies);
+			jobGraph.addJars(dependencies);
 			jobGraph.setClasspaths(executionParameters.getClasspaths());
 			jobGraph.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 
