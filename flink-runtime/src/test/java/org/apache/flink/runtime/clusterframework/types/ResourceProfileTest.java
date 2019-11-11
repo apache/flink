@@ -39,7 +39,7 @@ import static org.junit.Assert.fail;
 public class ResourceProfileTest {
 
 	@Test
-	public void testMatchRequirement() throws Exception {
+	public void testMatchRequirement() {
 		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 0, 0, Collections.emptyMap());
 		ResourceProfile rp2 = new ResourceProfile(1.0, 200, 200, 200, 0, 0, Collections.emptyMap());
 		ResourceProfile rp3 = new ResourceProfile(2.0, 100, 100, 100, 0, 0, Collections.emptyMap());
@@ -64,12 +64,12 @@ public class ResourceProfileTest {
 
 		ResourceSpec rs1 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(2.2).
 				build();
 		ResourceSpec rs2 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(1.1).
 				build();
 
@@ -84,26 +84,26 @@ public class ResourceProfileTest {
 	}
 
 	@Test
-	public void testEquals() throws Exception {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
+	public void testEquals() {
+		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
 		assertEquals(ResourceProfile.fromResourceSpec(rs1, 0), ResourceProfile.fromResourceSpec(rs2, 0));
 
 		ResourceSpec rs3 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(2.2).
 				build();
 		ResourceSpec rs4 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(1.1).
 				build();
 		assertNotEquals(ResourceProfile.fromResourceSpec(rs3, 0), ResourceProfile.fromResourceSpec(rs4, 0));
 
 		ResourceSpec rs5 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(2.2).
 				build();
 		assertEquals(ResourceProfile.fromResourceSpec(rs3, 100), ResourceProfile.fromResourceSpec(rs5, 100));
@@ -127,14 +127,14 @@ public class ResourceProfileTest {
 	}
 
 	@Test
-	public void testCompareTo() throws Exception {
-		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
-		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
+	public void testCompareTo() {
+		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setTaskHeapMemoryMB(100).build();
 		assertEquals(0, ResourceProfile.fromResourceSpec(rs1, 0).compareTo(ResourceProfile.fromResourceSpec(rs2, 0)));
 
 		ResourceSpec rs3 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(2.2).
 				build();
 		assertEquals(-1, ResourceProfile.fromResourceSpec(rs1,  0).compareTo(ResourceProfile.fromResourceSpec(rs3, 0)));
@@ -142,7 +142,7 @@ public class ResourceProfileTest {
 
 		ResourceSpec rs4 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(1.1).
 				build();
 		assertEquals(1, ResourceProfile.fromResourceSpec(rs3, 0).compareTo(ResourceProfile.fromResourceSpec(rs4, 0)));
@@ -150,17 +150,17 @@ public class ResourceProfileTest {
 
 		ResourceSpec rs5 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(2.2).
 				build();
 		assertEquals(0, ResourceProfile.fromResourceSpec(rs3, 0).compareTo(ResourceProfile.fromResourceSpec(rs5, 0)));
 	}
 
 	@Test
-	public void testGet() throws Exception {
+	public void testGet() {
 		ResourceSpec rs = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
+				setTaskHeapMemoryMB(100).
 				setGPUResource(1.6).
 				build();
 		ResourceProfile rp = ResourceProfile.fromResourceSpec(rs, 50);
