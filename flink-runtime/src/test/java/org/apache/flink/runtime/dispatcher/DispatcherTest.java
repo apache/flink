@@ -311,7 +311,7 @@ public class DispatcherTest extends TestLogger {
 
 		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-		ResourceSpec resourceSpec = ResourceSpec.newBuilder().setCpuCores(2).build();
+		ResourceSpec resourceSpec = ResourceSpec.newBuilder().setCpuCores(2).setTaskHeapMemoryMB(0).build();
 
 		final JobVertex firstVertex = new JobVertex("firstVertex");
 		firstVertex.setInvokableClass(NoOpInvokable.class);
