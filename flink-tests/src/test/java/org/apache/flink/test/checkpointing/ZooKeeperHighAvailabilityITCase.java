@@ -428,7 +428,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 	}
 
 	/**
-	 * Reporter that exposes the {@code numberOfRestarts} metric.
+	 * Reporter that exposes the {@code numRestarts} metric.
 	 */
 	public static class RestartReporter implements MetricReporter {
 		static volatile Gauge<Long> numRestarts = null;
@@ -443,7 +443,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 		@Override
 		public void notifyOfAddedMetric(Metric metric, String name, MetricGroup metricGroup) {
-			if (name.equals(MetricNames.NUMBER_OF_RESTARTS)) {
+			if (name.equals(MetricNames.NUM_RESTARTS)) {
 				numRestarts = (Gauge<Long>) metric;
 			}
 		}
