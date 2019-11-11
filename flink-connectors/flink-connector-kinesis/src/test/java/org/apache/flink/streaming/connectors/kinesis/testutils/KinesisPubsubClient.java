@@ -15,26 +15,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.kinesis.test;
+package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.kinesis.shaded.com.amazonaws.AmazonClientException;
-import org.apache.flink.kinesis.shaded.com.amazonaws.auth.AWSCredentialsProvider;
-import org.apache.flink.kinesis.shaded.com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
-import org.apache.flink.kinesis.shaded.com.amazonaws.client.builder.AwsClientBuilder;
-import org.apache.flink.kinesis.shaded.com.amazonaws.services.kinesis.AmazonKinesis;
-import org.apache.flink.kinesis.shaded.com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
-import org.apache.flink.kinesis.shaded.com.amazonaws.services.kinesis.model.GetRecordsResult;
-import org.apache.flink.kinesis.shaded.com.amazonaws.services.kinesis.model.PutRecordRequest;
-import org.apache.flink.kinesis.shaded.com.amazonaws.services.kinesis.model.PutRecordResult;
-import org.apache.flink.kinesis.shaded.com.amazonaws.services.kinesis.model.Record;
-import org.apache.flink.kinesis.shaded.com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.kinesis.AmazonKinesis;
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
+import com.amazonaws.services.kinesis.model.GetRecordsResult;
+import com.amazonaws.services.kinesis.model.PutRecordRequest;
+import com.amazonaws.services.kinesis.model.PutRecordResult;
+import com.amazonaws.services.kinesis.model.Record;
+import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,18 +46,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-class KinesisPubsubClient implements KinesisExampleTest.PubsubClient {
+/**
+ * Simple client to publish and retrieve messages, using the AWS Kinesis SDK and the
+ * Flink Kinesis Connectos classes.
+ */
+public class KinesisPubsubClient {
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisPubsubClient.class);
 
 	private final AmazonKinesis kinesisClient;
 	private final Properties properties;
 
-	KinesisPubsubClient(Properties properties) {
+	public KinesisPubsubClient(Properties properties) {
 		this.kinesisClient = createClientWithCredentials(properties);
 		this.properties = properties;
 	}
 
-	@Override
 	public void createTopic(String stream, int shards, Properties props) throws Exception {
 		try {
 			kinesisClient.describeStream(stream);
@@ -83,7 +86,6 @@ class KinesisPubsubClient implements KinesisExampleTest.PubsubClient {
 		}
 	}
 
-	@Override
 	public void sendMessage(String topic, String msg) {
 		PutRecordRequest putRecordRequest = new PutRecordRequest();
 		putRecordRequest.setStreamName(topic);
@@ -93,7 +95,6 @@ class KinesisPubsubClient implements KinesisExampleTest.PubsubClient {
 		LOG.info("added record: {}", putRecordResult.getSequenceNumber());
 	}
 
-	@Override
 	public List<String> readAllMessages(String streamName) throws Exception {
 		KinesisProxyInterface kinesisProxy = KinesisProxy.create(properties);
 		Map<String, String> streamNamesWithLastSeenShardIds = new HashMap<>();

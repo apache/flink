@@ -169,6 +169,11 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<includes>
+								<include>**/org/apache/flink/streaming/connectors/kinesis/testutils/**</include>
+							</includes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
