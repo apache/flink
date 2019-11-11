@@ -79,6 +79,18 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testDescribeCatalog() {
+		check("describe catalog a", "DESCRIBE CATALOG `A`");
+	}
+
+	/**
+	 * Here we override the super method to avoid test error from `describe schema` supported in original calcite.
+	 */
+	@Override
+	public void testDescribeSchema() {
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +

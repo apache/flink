@@ -28,6 +28,19 @@ SqlShowCatalogs SqlShowCatalogs() :
     }
 }
 
+SqlDescribeCatalog SqlDescribeCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <DESCRIBE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlDescribeCatalog(pos, catalogName);
+    }
+
+}
 void TableColumn(TableCreationContext context) :
 {
 }
