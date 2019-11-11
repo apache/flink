@@ -493,11 +493,12 @@ public class TaskManagerServices {
 		int managedMemoryPerSlotMB = (int) bytesToMegabytes(managedMemorySize / numOfSlots);
 		return new ResourceProfile(
 			Double.MAX_VALUE,
-			Integer.MAX_VALUE,
-			Integer.MAX_VALUE,
-			Integer.MAX_VALUE,
-			Integer.MAX_VALUE,
-			managedMemoryPerSlotMB,
+			MemorySize.MAX_VALUE,
+			MemorySize.MAX_VALUE,
+			// TODO: before operators separate on-heap/off-heap managed memory, we use on-heap managed memory to denote total managed memory
+			MemorySize.parse(managedMemoryPerSlotMB + "m"),
+			MemorySize.MAX_VALUE,
+			MemorySize.MAX_VALUE,
 			Collections.emptyMap());
 	}
 
