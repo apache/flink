@@ -41,6 +41,20 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     }
 
 }
+
+SqlUseCatalog SqlUseCatalog() :
+{
+SqlIdentifier catalogName;
+SqlParserPos pos;
+}
+{
+<USE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlUseCatalog(pos, catalogName);
+    }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }

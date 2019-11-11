@@ -32,6 +32,7 @@
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
     "org.apache.flink.sql.parser.ddl.SqlTableOption",
     "org.apache.flink.sql.parser.ddl.SqlWatermark",
+    "org.apache.flink.sql.parser.ddl.SqlUseCatalog",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
@@ -58,7 +59,8 @@
     "OVERWRITE",
     "STRING",
     "BYTES",
-    "CATALOGS"
+    "CATALOGS",
+    "USE"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -351,6 +353,7 @@
     "UNDER"
     "UNNAMED"
     "USAGE"
+    "USE"
     "USER_DEFINED_TYPE_CATALOG"
     "USER_DEFINED_TYPE_CODE"
     "USER_DEFINED_TYPE_NAME"
@@ -379,7 +382,8 @@
   statementParserMethods: [
     "RichSqlInsert()",
     "SqlShowCatalogs()",
-    "SqlDescribeCatalog()"
+    "SqlDescribeCatalog()",
+    "SqlUseCatalog()"
   ]
 
   # List of methods for parsing custom literals.
