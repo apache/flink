@@ -98,6 +98,13 @@ under the License.
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<parameter>
+						<excludes combine.children="append">
+							<exclude>org.apache.flink.streaming.api.datastream.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
+						</excludes>
+					</parameter>
+				</configuration>
 			</plugin>
 
 			<!-- disable fork reuse for the streaming project, because of

@@ -252,6 +252,7 @@ under the License.
 							<!-- Ignore method which was created automatically by Scala for default value calculation.
 							Can be removed once https://github.com/siom79/japicmp/issues/176 will be fixed -->
 							<exclude>org.apache.flink.streaming.api.scala.DataStream#iterate\$default\$3()</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
