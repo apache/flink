@@ -408,12 +408,11 @@ public class ClassLoaderITCase extends TestLogger {
 			Collections.emptyList());
 
 		// default child first classloading
-		final PackagedProgram childFirstProgram = new PackagedProgram(
-				new File(CLASSLOADING_POLICY_JAR_PATH),
-				Lists.newArrayList(childResourceDir.toURI().toURL()),
-				new Configuration(),
-				new String[]{testResourceName, childResourceDirName}
-			);
+		final PackagedProgram childFirstProgram = PackagedProgram.newBuilder()
+			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
+			.setUserClassPaths(Lists.newArrayList(childResourceDir.toURI().toURL()))
+			.setArguments(new String[]{testResourceName, childResourceDirName})
+			.build();
 
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		Thread.currentThread().setContextClassLoader(childFirstProgram.getUserCodeClassLoader());
@@ -444,12 +443,13 @@ public class ClassLoaderITCase extends TestLogger {
 		// parent-first classloading
 		Configuration parentFirstConf = new Configuration();
 		parentFirstConf.setString("classloader.resolve-order", "parent-first");
-		final PackagedProgram parentFirstProgram = new PackagedProgram(
-			new File(CLASSLOADING_POLICY_JAR_PATH),
-			Lists.newArrayList(childResourceDir.toURI().toURL()),
-			parentFirstConf,
-			new String[]{testResourceName, "test-classes"}
-		);
+
+		final PackagedProgram parentFirstProgram = PackagedProgram.newBuilder()
+			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
+			.setUserClassPaths(Lists.newArrayList(childResourceDir.toURI().toURL()))
+			.setConfiguration(parentFirstConf)
+			.setArguments(new String[]{testResourceName, "test-classes"})
+			.build();
 
 		Thread.currentThread().setContextClassLoader(parentFirstProgram.getUserCodeClassLoader());
 		try {
