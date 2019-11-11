@@ -1280,8 +1280,8 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>numberOfRestarts</td>
-      <td>The total number of restarts since this job was submitted, including full restarts and fine grained restarts.</td>
+      <td>numRestarts</td>
+      <td>The total number of restarts since this job was submitted, including full restarts and fine-grained restarts.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
