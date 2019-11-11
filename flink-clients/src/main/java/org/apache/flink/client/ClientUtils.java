@@ -143,13 +143,11 @@ public enum ClientUtils {
 
 			LOG.info("Starting program (detached: {})", detached);
 
-			final List<URL> libraries = program.getAllLibraries();
-
 			final AtomicReference<JobExecutionResult> jobExecutionResult = new AtomicReference<>();
 
 			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
 				client,
-				libraries,
+				program.getAllLibraries(),
 				program.getClasspaths(),
 				program.getUserCodeClassLoader(),
 				parallelism,
