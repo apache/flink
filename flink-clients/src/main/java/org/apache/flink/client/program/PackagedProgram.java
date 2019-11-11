@@ -105,7 +105,8 @@ public class PackagedProgram {
 	 * @param jarFile             The jar file which contains the plan.
 	 * @param classpaths          Additional classpath URLs needed by the Program.
 	 * @param entryPointClassName Name of the class which generates the plan. Overrides the class defined
-	 *                            in the jar file manifest
+	 *                            in the jar file manifest.
+	 * @param configuration       Flink configuration which affects the classloading policy of the Program execution.
 	 * @param args                Optional. The arguments used to create the pact plan, depend on
 	 *                            implementation of the pact plan. See getDescription().
 	 * @throws ProgramInvocationException This invocation is thrown if the Program can't be properly loaded. Causes
