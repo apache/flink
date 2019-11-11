@@ -226,8 +226,19 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 	}
 
 	public Function getFunction(String databaseName, String functionName) throws MetaException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-		return hiveShim.getFunction(client, databaseName, functionName);
+		try {
+			// Hive may not throw NoSuchObjectException if function doesn't exist, instead it throws a MetaException
+			return client.getFunction(databaseName, functionName);
+		} catch (MetaException e) {
+			// need to check the cause and message of this MetaException to decide whether it should actually be a NoSuchObjectException
+			if (e.getCause() instanceof NoSuchObjectException) {
+				throw (NoSuchObjectException) e.getCause();
+			}
+			if (e.getMessage().startsWith(NoSuchObjectException.class.getSimpleName())) {
+				throw new NoSuchObjectException(e.getMessage());
+			}
+			throw e;
+		}
 	}
 
 	public void alter_table(String databaseName, String tableName, Table table)
