@@ -109,11 +109,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 	private TestingRpcService rpcService;
 
+	private String metricQueryServiceAddress;
+
 	@Before
 	public void setup() {
 		rpcService = new TestingRpcService();
 		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
+		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 	}
 
 	@After
@@ -132,7 +135,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 */
 	@Test(timeout = 10000L)
 	public void testTaskSubmission() throws Exception {
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -164,8 +166,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	public void testSubmitTaskFailure() throws Exception {
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor(
 			"test task",
 			eid,
@@ -193,7 +193,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	public void testTaskSubmissionAndCancelling() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final TaskDeploymentDescriptor tdd1 = createTestTaskDeploymentDescriptor("test task", eid1, BlockingNoOpInvokable.class);
 		final TaskDeploymentDescriptor tdd2 = createTestTaskDeploymentDescriptor("test task", eid2, BlockingNoOpInvokable.class);
@@ -240,7 +239,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	public void testGateChannelEdgeMismatch() throws Exception {
 		final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 		final ExecutionAttemptID eid2 = new ExecutionAttemptID();
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final TaskDeploymentDescriptor tdd1 =
 			createTestTaskDeploymentDescriptor("Sender", eid1, TestingAbstractInvokables.Sender.class);
@@ -295,8 +293,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task1FinishedFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task2FinishedFuture = new CompletableFuture<>();
-
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		TestingJobMasterGateway testingJobMasterGateway =
@@ -358,8 +354,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> task2RunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task1FailedFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> task2CanceledFuture = new CompletableFuture<>();
-
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		TestingJobMasterGateway testingJobMasterGateway =
@@ -429,8 +423,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
 
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(2)
@@ -465,8 +457,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
 		final ShuffleEnvironment<?, ?> shuffleEnvironment = mock(ShuffleEnvironment.class, Mockito.RETURNS_MOCKS);
-
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
@@ -519,8 +509,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
-
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
@@ -575,8 +563,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final Exception exception = new Exception("Failed schedule or update consumers");
 
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		TestingJobMasterGateway testingJobMasterGateway =
 			new TestingJobMasterGatewayBuilder()
@@ -630,8 +616,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> taskCanceledFuture = new CompletableFuture<>();
-
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)

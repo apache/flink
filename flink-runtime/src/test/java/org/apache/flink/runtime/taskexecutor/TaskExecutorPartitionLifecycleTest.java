@@ -108,6 +108,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	private static final MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
+	private String metricQueryServiceAddress;
+
 	private final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 	private final SettableLeaderRetrievalService jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
 	private final SettableLeaderRetrievalService resourceManagerLeaderRetriever = new SettableLeaderRetrievalService();
@@ -119,6 +121,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	@Before
 	public void setup() {
 		metricRegistry.startQueryService(RPC, new ResourceID("mqs"));
+		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
 	}
@@ -160,8 +163,6 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl();
 		final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = PartitionTestUtils.createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
 		final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
-
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker, metricQueryServiceAddress);
 
@@ -316,8 +317,6 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			.build();
 
 		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl();
-
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker, metricQueryServiceAddress);
 

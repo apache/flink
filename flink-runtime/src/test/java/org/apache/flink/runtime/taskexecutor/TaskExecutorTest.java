@@ -211,6 +211,8 @@ public class TaskExecutorTest extends TestLogger {
 
 	private NettyShuffleEnvironment nettyShuffleEnvironment;
 
+	private String metricQueryServiceAddress;
+
 	@Before
 	public void setup() throws IOException {
 		rpc = new TestingRpcService();
@@ -237,6 +239,7 @@ public class TaskExecutorTest extends TestLogger {
 		nettyShuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
 		metricRegistry.startQueryService(rpc, new ResourceID("mqs"));
+		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 	}
 
 	@After
@@ -356,8 +359,6 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		final TestingTaskExecutor taskManager = createTestingTaskExecutor(taskManagerServices, heartbeatServices, metricQueryServiceAddress);
 
 		try {
@@ -438,8 +439,6 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskSlotTable(taskSlotTable)
 			.setTaskStateManager(localStateStoresManager)
 			.build();
-
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices, heartbeatServices, metricQueryServiceAddress);
 
@@ -1204,8 +1203,6 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices, heartbeatServices, metricQueryServiceAddress);
 
 		try {
@@ -1335,7 +1332,6 @@ public class TaskExecutorTest extends TestLogger {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
 		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices, new HeartbeatServices(10L, 10L), metricQueryServiceAddress);
 
@@ -1711,8 +1707,6 @@ public class TaskExecutorTest extends TestLogger {
 		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
 
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		try (TaskSubmissionTestEnvironment env =
 			new Builder(jobId)
 				.setConfiguration(config)
@@ -1732,8 +1726,6 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Test(timeout = 10000L)
 	public void testTerminationOnFatalError() throws Throwable {
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		try (TaskSubmissionTestEnvironment env = new Builder(jobId).setMetricQueryServiceAddress(metricQueryServiceAddress).build()) {
 			String testExceptionMsg = "Test exception of fatal error.";
 
@@ -1928,8 +1920,6 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Nonnull
 	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		return createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES, metricQueryServiceAddress);
 	}
 
@@ -1948,8 +1938,6 @@ public class TaskExecutorTest extends TestLogger {
 	}
 
 	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) {
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		return createTestingTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES, metricQueryServiceAddress);
 	}
 
