@@ -69,7 +69,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -123,9 +122,9 @@ public class RegionFailoverITCase extends TestLogger {
 		this.schedulerType = checkNotNull(schedulerType);
 	}
 
-	@Parameterized.Parameters
-	public static Iterable<Object[]> testParameters() {
-		return Arrays.asList(new Object[][]{{SCHEDULER_TYPE_NG}, {SCHEDULER_TYPE_LEGACY}});
+	@Parameterized.Parameters(name = "scheduler = {0}")
+	public static Object[] testParameters() {
+		return new Object[]{SCHEDULER_TYPE_NG, SCHEDULER_TYPE_LEGACY};
 	}
 
 	@Before
