@@ -197,6 +197,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 
 		jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, this::getNumberOfRestarts);
+		jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, this::getNumberOfRestarts);
 	}
 
 	private ExecutionGraph createAndRestoreExecutionGraph(
