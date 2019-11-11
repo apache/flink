@@ -71,40 +71,36 @@ public class LogicalTypeDataTypeConverter {
 
 		@Override
 		protected LogicalType defaultMethod(LogicalType logicalType) {
-			LogicalType legacyType = null;
 			if (logicalType instanceof LegacyTypeInformationType) {
 				TypeInformation typeInfo = ((LegacyTypeInformationType) logicalType).getTypeInformation();
 				if (typeInfo.equals(BasicTypeInfo.BIG_DEC_TYPE_INFO)) {
 					// BigDecimal have infinity precision and scale, but we converted it into a limited
 					// Decimal(38, 18). If the user's BigDecimal is more precision than this, we will
 					// throw Exception to remind user to use GenericType in real data conversion.
-					legacyType = Decimal.DECIMAL_SYSTEM_DEFAULT;
+					return Decimal.DECIMAL_SYSTEM_DEFAULT;
 				} else if (typeInfo.equals(BinaryStringTypeInfo.INSTANCE)) {
-					legacyType = DataTypes.STRING().getLogicalType();
+					return DataTypes.STRING().getLogicalType();
 				} else if (typeInfo instanceof BasicArrayTypeInfo) {
-					legacyType = new ArrayType(
+					return new ArrayType(
 							fromTypeInfoToLogicalType(((BasicArrayTypeInfo) typeInfo).getComponentInfo()));
 				} else if (typeInfo instanceof CompositeType) {
 					CompositeType compositeType = (CompositeType) typeInfo;
-					legacyType = RowType.of(
+					return RowType.of(
 							Stream.iterate(0, x -> x + 1).limit(compositeType.getArity())
 									.map((Function<Integer, TypeInformation>) compositeType::getTypeAt)
 									.map(TypeInfoLogicalTypeConverter::fromTypeInfoToLogicalType)
 									.toArray(LogicalType[]::new),
-							compositeType.getFieldNames())
-						.copy(logicalType.isNullable());
+							compositeType.getFieldNames()
+					);
 				} else if (typeInfo instanceof DecimalTypeInfo) {
 					DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
-					legacyType = new DecimalType(decimalType.precision(), decimalType.scale());
+					return new DecimalType(decimalType.precision(), decimalType.scale());
 				} else if (typeInfo instanceof BigDecimalTypeInfo) {
 					BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
-					legacyType = new DecimalType(decimalType.precision(), decimalType.scale());
+					return new DecimalType(decimalType.precision(), decimalType.scale());
 				} else {
-					legacyType = new TypeInformationAnyType<>(typeInfo);
+					return new TypeInformationAnyType<>(typeInfo);
 				}
-			}
-			if (legacyType != null) {
-				return legacyType.copy(logicalType.isNullable());
 			} else {
 				return logicalType;
 			}
