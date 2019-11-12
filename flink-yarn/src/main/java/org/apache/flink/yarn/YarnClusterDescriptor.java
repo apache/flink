@@ -725,7 +725,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
+		// The files need to be shipped and added to classpath.
 		Set<File> systemShipFiles = new HashSet<>(shipFiles.size());
+		// The files only need to be shipped.
+		Set<File> shipOnlyFiles = new HashSet<>();
 		for (File file : shipFiles) {
 			systemShipFiles.add(file.getAbsoluteFile());
 		}
@@ -735,7 +738,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			systemShipFiles.add(new File(logConfigFilePath));
 		}
 
-		addEnvironmentFoldersToShipFiles(systemShipFiles);
+		addLibFoldersToShipFiles(systemShipFiles);
+
+		// Plugin files only need to be shipped and should not be added to classpath.
+		addPluginsFoldersToShipFiles(shipOnlyFiles);
 
 		// Set-up ApplicationSubmissionContext for the application
 
@@ -781,7 +787,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// ship list that enables reuse of resources for task manager containers
 		StringBuilder envShipFileList = new StringBuilder();
 
-		// upload and register ship files
+		// upload and register ship files, these files will be added to classpath.
 		List<String> systemClassPaths = uploadAndRegisterFiles(
 				systemShipFiles,
 				fs,
@@ -790,6 +796,16 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				paths,
 				localResources,
 				envShipFileList);
+
+		// upload and register ship-only files
+		uploadAndRegisterFiles(
+			shipOnlyFiles,
+			fs,
+			homeDir,
+			appId,
+			paths,
+			localResources,
+			envShipFileList);
 
 		final List<String> userClassPaths = uploadAndRegisterFiles(
 				userJarFiles,
@@ -1559,12 +1575,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 	}
 
-	void addEnvironmentFoldersToShipFiles(Collection<File> effectiveShipFiles) {
-		addLibFoldersToShipFiles(effectiveShipFiles);
-		addPluginsFoldersToShipFiles(effectiveShipFiles);
-	}
-
-	private void addLibFoldersToShipFiles(Collection<File> effectiveShipFiles) {
+	@VisibleForTesting
+	void addLibFoldersToShipFiles(Collection<File> effectiveShipFiles) {
 		// Add lib folder to the ship files if the environment variable is set.
 		// This is for convenience when running from the command-line.
 		// (for other files users explicitly set the ship files)
@@ -1583,7 +1595,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 	}
 
-	private void addPluginsFoldersToShipFiles(Collection<File> effectiveShipFiles) {
+	@VisibleForTesting
+	void addPluginsFoldersToShipFiles(Collection<File> effectiveShipFiles) {
 		final Optional<File> pluginsDir = PluginConfig.getPluginsDir();
 		pluginsDir.ifPresent(effectiveShipFiles::add);
 	}
