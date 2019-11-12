@@ -17,13 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 import org.apache.flink.table.planner.utils.TableTestUtil
-
-import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -47,19 +46,18 @@ class FlinkRelOptUtilTest {
     val result = tableEnv.sqlQuery(sqlQuery)
     val rel = TableTestUtil.toRelNode(result)
 
-    // Ignore the attributes because the data stream table name is random.
     val expected1 =
       """
-        |LogicalProject
-        |+- LogicalJoin
-        |   :- LogicalProject
-        |   :  +- LogicalFilter
-        |   :     +- LogicalTableScan
-        |   +- LogicalProject
-        |      +- LogicalFilter
-        |         +- LogicalTableScan
+        |LogicalProject(a=[$0], c=[$1], a0=[$2], c0=[$3])
+        |+- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+        |   :- LogicalProject(a=[$0], c=[$2])
+        |   :  +- LogicalFilter(condition=[>($1, 50)])
+        |   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+        |   +- LogicalProject(a=[*($0, 2)], c=[$2])
+        |      +- LogicalFilter(condition=[<($1, 50)])
+        |         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       """.stripMargin
-    assertEquals(expected1.trim, FlinkRelOptUtil.toString(rel, SqlExplainLevel.NO_ATTRIBUTES).trim)
+    assertEquals(expected1.trim, FlinkRelOptUtil.toString(rel).trim)
 
     val expected2 =
       """

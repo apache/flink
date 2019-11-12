@@ -38,6 +38,11 @@ import java.util.Map;
 @Internal
 public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 
+	// ScalaDataStreamQueryOperation represent a registered DataStream from `registerDataStream` method
+	// or an unregistered DataStream from `fromDataStream`. However the name under which the DataStream
+	// is registered is missing when converting a ScalaDataStreamQueryOperation to a RelNode.
+	// So using `qualifiedName` to keep the original name.
+	private List<String> qualifiedName;
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;
 	private final TableSchema tableSchema;
@@ -62,6 +67,14 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 	@Override
 	public TableSchema getTableSchema() {
 		return tableSchema;
+	}
+
+	public List<String> getQualifiedName() {
+		return qualifiedName;
+	}
+
+	public void setQualifiedName(List<String> qualifiedName) {
+		this.qualifiedName = qualifiedName;
 	}
 
 	@Override
