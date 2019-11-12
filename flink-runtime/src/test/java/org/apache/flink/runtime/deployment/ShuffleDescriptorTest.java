@@ -22,10 +22,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
@@ -166,12 +166,10 @@ public class ShuffleDescriptorTest extends TestLogger {
 			id.getProducerId(),
 			STUB_CONNECTION_ID.getAddress().getAddress(),
 			STUB_CONNECTION_ID.getAddress().getPort());
-		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
-			new IntermediateDataSetID(),
-			id.getPartitionId(),
-			ResultPartitionType.PIPELINED,
-			1,
-			0);
+		PartitionDescriptor partitionDescriptor = PartitionDescriptorBuilder
+			.newBuilder()
+			.setPartitionId(id.getPartitionId())
+			.build();
 		ShuffleDescriptor shuffleDescriptor =
 			NettyShuffleMaster.INSTANCE.registerPartitionWithProducer(
 				partitionDescriptor,
