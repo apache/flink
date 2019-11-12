@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
@@ -39,17 +38,23 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
+import org.apache.flink.table.planner.plan.stats.ValueInterval$;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.planner.utils.TestTableSource;
 import org.apache.flink.table.types.DataType;
 
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /**
  * Test for Catalog Statistics.
@@ -79,11 +84,7 @@ public class CatalogStatisticsTest {
 
 		alterTableStatistics(catalog);
 
-		Table table = tEnv.sqlQuery("select * from T1, T2 where T1.s3 = T2.s3");
-		String result = tEnv.explain(table);
-		// T1 is broadcast side
-		String expected = TableTestUtil.readFromResource("/explain/testGetStatsFromCatalogForConnectorCatalogTable.out");
-		assertEquals(expected, TableTestUtil.replaceStageId(result));
+		assertStatistics(tEnv);
 	}
 
 	@Test
@@ -111,37 +112,26 @@ public class CatalogStatisticsTest {
 				ObjectPath.fromString("default_database.T1"),
 				new CatalogTableImpl(tableSchema, properties, ""),
 				false);
-		catalog.createTable(
-				ObjectPath.fromString("default_database.T2"),
-				new CatalogTableImpl(tableSchema, properties, ""),
-				false);
 
 		alterTableStatistics(catalog);
 
-		Table table = tEnv.sqlQuery("select * from T1, T2 where T1.s3 = T2.s3");
-		String result = tEnv.explain(table);
-		// T1 is broadcast side
-		String expected = TableTestUtil.readFromResource("/explain/testGetStatsFromCatalogForCatalogTableImpl.out");
-		assertEquals(expected, TableTestUtil.replaceStageId(result));
+		assertStatistics(tEnv);
 	}
 
 	private void alterTableStatistics(Catalog catalog) throws TableNotExistException, TablePartitionedException {
 		catalog.alterTableStatistics(ObjectPath.fromString("default_database.T1"),
 				new CatalogTableStatistics(100, 10, 1000L, 2000L), true);
-		catalog.alterTableStatistics(ObjectPath.fromString("default_database.T2"),
-				new CatalogTableStatistics(100000000, 1000, 1000000000L, 2000000000L), true);
 		catalog.alterTableColumnStatistics(ObjectPath.fromString("default_database.T1"), createColumnStats(), true);
-		catalog.alterTableColumnStatistics(ObjectPath.fromString("default_database.T2"), createColumnStats(), true);
 	}
 
 	private CatalogColumnStatistics createColumnStats() {
 		CatalogColumnStatisticsDataBoolean booleanColStats = new CatalogColumnStatisticsDataBoolean(55L, 45L, 5L);
-		CatalogColumnStatisticsDataLong longColStats = new CatalogColumnStatisticsDataLong(-123L, 763322L, 23L, 79L);
+		CatalogColumnStatisticsDataLong longColStats = new CatalogColumnStatisticsDataLong(-123L, 763322L, 23L, 77L);
 		CatalogColumnStatisticsDataString stringColStats = new CatalogColumnStatisticsDataString(152L, 43.5D, 20L, 0L);
 		CatalogColumnStatisticsDataDate dateColStats =
-				new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 1321, 0L);
+				new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 100, 0L);
 		CatalogColumnStatisticsDataDouble doubleColStats =
-				new CatalogColumnStatisticsDataDouble(-123.35D, 7633.22D, 23L, 79L);
+				new CatalogColumnStatisticsDataDouble(-123.35D, 7633.22D, 73L, 27L);
 		Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(6);
 		colStatsMap.put("b1", booleanColStats);
 		colStatsMap.put("l2", longColStats);
@@ -149,6 +139,38 @@ public class CatalogStatisticsTest {
 		colStatsMap.put("d4", dateColStats);
 		colStatsMap.put("dd5", doubleColStats);
 		return new CatalogColumnStatistics(colStatsMap);
+	}
+
+	private void assertStatistics(TableEnvironment tEnv) {
+		RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
+		FlinkRelMetadataQuery mq = FlinkRelMetadataQuery.reuseOrCreate(t1.getCluster().getMetadataQuery());
+		assertEquals(100.0, mq.getRowCount(t1), 0.0);
+		assertEquals(Arrays.asList(1.0, 8.0, 43.5, 12.0, 8.0), mq.getAverageColumnSizes(t1));
+
+		// boolean type
+		assertEquals(2.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(0), null), 0.0);
+		assertEquals(5.0, mq.getColumnNullCount(t1, 0), 0.0);
+		assertNull(mq.getColumnInterval(t1, 0));
+
+		// long type
+		assertEquals(23.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(1), null), 0.0);
+		assertEquals(77.0, mq.getColumnNullCount(t1, 1), 0.0);
+		assertEquals(ValueInterval$.MODULE$.apply(-123L, 763322L, true, true), mq.getColumnInterval(t1, 1));
+
+		// string type
+		assertEquals(20.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(2), null), 0.0);
+		assertEquals(0.0, mq.getColumnNullCount(t1, 2), 0.0);
+		assertNull(mq.getColumnInterval(t1, 2));
+
+		// date type
+		assertEquals(100.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(3), null), 0.0);
+		assertEquals(0.0, mq.getColumnNullCount(t1, 3), 0.0);
+		assertNull(mq.getColumnInterval(t1, 3));
+
+		// double type
+		assertEquals(73.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(4), null), 0.0);
+		assertEquals(27.0, mq.getColumnNullCount(t1, 4), 0.0);
+		assertEquals(ValueInterval$.MODULE$.apply(-123.35, 7633.22, true, true), mq.getColumnInterval(t1, 4));
 	}
 
 }
