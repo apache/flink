@@ -86,9 +86,7 @@ The resolution order is:
 
 ## Ambiguous Function Reference
 
-In Flink 1.10, we also redefined its function resolution order to be:
-
-The new order is:
+The resolution order is:
 
 1. Temporary system function
 2. System function
