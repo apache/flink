@@ -32,6 +32,7 @@ import org.apache.hadoop.hive.metastore.Warehouse;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -111,4 +112,28 @@ public class HiveShimV310 extends HiveShimV235 {
 		}
 	}
 
+	@Override
+	public Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName) {
+		try {
+			Method method = getMetaStoreUtilsClass().getDeclaredMethod("getDefaultCatalog", Configuration.class);
+			String hiveDefaultCatalog = (String) method.invoke(null, conf);
+			Class requestClz = Class.forName("org.apache.hadoop.hive.metastore.api.NotNullConstraintsRequest");
+			Object request = requestClz.getDeclaredConstructor(String.class, String.class, String.class)
+					.newInstance(hiveDefaultCatalog, dbName, tableName);
+			method = client.getClass().getDeclaredMethod("getNotNullConstraints", requestClz);
+			List<?> constraints = (List<?>) method.invoke(client, request);
+			Class constraintClz = Class.forName("org.apache.hadoop.hive.metastore.api.SQLNotNullConstraint");
+			method = constraintClz.getDeclaredMethod("getColumn_name");
+			Method isRelyMethod = constraintClz.getDeclaredMethod("isRely_cstr");
+			Set<String> res = new HashSet<>();
+			for (Object constraint : constraints) {
+				if ((boolean) isRelyMethod.invoke(constraint)) {
+					res.add((String) method.invoke(constraint));
+				}
+			}
+			return res;
+		} catch (Exception e) {
+			throw new CatalogException("Failed to get NOT NULL constraints", e);
+		}
+	}
 }
