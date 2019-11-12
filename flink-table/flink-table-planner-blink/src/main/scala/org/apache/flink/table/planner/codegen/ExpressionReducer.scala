@@ -175,16 +175,11 @@ class ExpressionReducer(
           case SqlTypeName.TIMESTAMP =>
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
-              val dt = reducedValue.asInstanceOf[SqlTimestamp].toLocalDateTime
-              val timestampString =
-                new TimestampString(
-                  dt.getYear,
-                  dt.getMonthValue,
-                  dt.getDayOfMonth,
-                  dt.getHour,
-                  dt.getMinute,
-                  dt.getSecond)
-              timestampString.withNanos(dt.getNano)
+              val ts = reducedValue.asInstanceOf[SqlTimestamp]
+              val milliseconds = ts.getMillisecond
+              val nanoseconds = ts.toLocalDateTime.getNano
+              val timestampString = TimestampString.fromMillisSinceEpoch(milliseconds)
+              timestampString.withNanos(nanoseconds)
             } else {
               reducedValue
             }

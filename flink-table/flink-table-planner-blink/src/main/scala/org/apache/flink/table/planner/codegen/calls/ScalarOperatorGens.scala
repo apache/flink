@@ -2236,20 +2236,9 @@ object ScalarOperatorGens {
       case TIME_WITHOUT_TIME_ZONE =>
         s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
-        // casting TimestampType to VARCHAR, if precision <= 3, keep the string representation
-        // consistent with the original design. Otherwise, use SqlTimestamp.toString(), which
-        // follows one of the following ISO-8601 formats:
-        //   uuuu-MM-dd'T'HH:mm:ss.SSSSSS
-        //   uuuu-MM-dd'T'HH:mm:ss.SSSSSSSSS
-        // The format used will be the shortest that outputs the full value of
-        // the time where the omitted parts are implied to be zero.
-        val precision = fromType.asInstanceOf[TimestampType].getPrecision
-        if (precision <= 3) {
-          val longTerm = s"$operandTerm.getMillisecond()"
-          s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($longTerm, 3)"
-        } else {
-          s"$operandTerm.toString()"
-        }
+        // The interpreted string conforms to the definition of timestamp literal
+        // SQL 2011 Part 2 Section 6.13 General Rules 11) d)
+        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
         val zone = ctx.addReusableTimeZone()

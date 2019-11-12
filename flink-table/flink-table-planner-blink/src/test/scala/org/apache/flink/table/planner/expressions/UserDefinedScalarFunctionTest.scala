@@ -238,7 +238,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func10('f6),
       "Func10(f6)",
       "Func10(f6)",
-      "1990-10-14 12:10:10.000")
+      "1990-10-14 12:10:10")
   }
 
   @Test

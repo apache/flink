@@ -74,6 +74,67 @@ under the License.
 			<version>${janino.version}</version>
 		</dependency>
 
+		<!-- Use TimestampString to cover CAST TIMESTAMP to STRING -->
+		<dependency>
+			<groupId>org.apache.calcite</groupId>
+			<artifactId>calcite-core</artifactId>
+			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
+			<version>${calcite.version}</version>
+			<exclusions>
+				<!--
+				"mvn dependency:tree" as of Calcite 1.21:
+
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.21.0:compile
+				[INFO] |  +- commons-codec:commons-codec:jar:1.10:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.21.0:compile
+				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.9.6:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.9.6:compile
+				[INFO] |  +- com.google.guava:guava:jar:19.0:compile
+				[INFO] |  \- com.jayway.jsonpath:json-path:jar:2.4.0:compile
+
+				Dependencies that are not needed for how we use Calcite right now.
+				-->
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-metrics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.protobuf</groupId>
+					<artifactId>protobuf-java</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpcore</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-dbcp2</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.esri.geometry</groupId>
+					<artifactId>esri-geometry-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.dataformat</groupId>
+					<artifactId>jackson-dataformat-yaml</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.yahoo.datasketches</groupId>
+					<artifactId>sketches-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.hydromatic</groupId>
+					<artifactId>aggdesigner-algorithm</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.calcite.avatica</groupId>
 			<artifactId>avatica-core</artifactId>

@@ -17,8 +17,10 @@
 
 package org.apache.flink.table.runtime.functions;
 
+import org.apache.calcite.util.TimestampString;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -375,6 +377,19 @@ public class SqlDateTimeUtils {
 	public static String convertTz(String dateStr, String tzFrom, String tzTo) {
 		// use yyyy-MM-dd HH:mm:ss as default
 		return convertTz(dateStr, TIMESTAMP_FORMAT_STRING, tzFrom, tzTo);
+	}
+
+	public static String timestampToString(SqlTimestamp ts) {
+		LocalDateTime ldt = ts.toLocalDateTime();
+		TimestampString timestampString =
+			new TimestampString(
+				ldt.getYear(),
+				ldt.getMonthValue(),
+				ldt.getDayOfMonth(),
+				ldt.getHour(),
+				ldt.getMinute(),
+				ldt.getSecond()).withNanos(ldt.getNano());
+		return timestampString.toString();
 	}
 
 	public static String timestampToString(long ts, int precision) {
