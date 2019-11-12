@@ -27,7 +27,9 @@ import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
@@ -36,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -137,5 +140,30 @@ public enum ClientUtils {
 		finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
+	}
+
+	/**
+	 * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}. This will
+	 * throw an exception if a jar URL is not valid.
+	 */
+	public static void addJarFiles(JobGraph jobGraph, List<URL> jarFilesToAttach) {
+		for (URL jar : jarFilesToAttach) {
+			try {
+				jobGraph.addJar(new Path(jar.toURI()));
+			} catch (URISyntaxException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+	}
+
+	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent) {
+		URL[] urls = new URL[jars.size() + classpaths.size()];
+		for (int i = 0; i < jars.size(); i++) {
+			urls[i] = jars.get(i);
+		}
+		for (int i = 0; i < classpaths.size(); i++) {
+			urls[i + jars.size()] = classpaths.get(i);
+		}
+		return FlinkUserCodeClassLoaders.parentFirst(urls, parent);
 	}
 }

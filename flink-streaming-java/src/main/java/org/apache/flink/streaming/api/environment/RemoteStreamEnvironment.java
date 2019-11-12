@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.PlanExecutor;
@@ -107,6 +108,34 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            provided in the JAR files.
 	 */
 	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String... jarFiles) {
+		this(host, port, clientConfiguration, jarFiles, null);
+	}
+
+	/**
+	 * Creates a new RemoteStreamEnvironment that points to the master
+	 * (JobManager) described by the given host name and port.
+	 *
+	 * @param host
+	 *            The host name or address of the master (JobManager), where the
+	 *            program should be executed.
+	 * @param port
+	 *            The port of the master (JobManager), where the program should
+	 *            be executed.
+	 * @param clientConfiguration
+	 *            The configuration used to parametrize the client that connects to the
+	 *            remote cluster.
+	 * @param jarFiles
+	 *            The JAR files with code that needs to be shipped to the
+	 *            cluster. If the program uses user-defined functions,
+	 *            user-defined input formats, or any libraries, those must be
+	 *            provided in the JAR files.
+	 * @param globalClasspaths
+	 *            The paths of directories and JAR files that are added to each user code
+	 *            classloader on all nodes in the cluster. Note that the paths must specify a
+	 *            protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
+	 *            The protocol must be supported by the {@link java.net.URLClassLoader}.
+	 */
+	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths) {
 		this(host, port, clientConfiguration, jarFiles, null, null);
 	}
 
@@ -140,8 +169,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths, SavepointRestoreSettings savepointRestoreSettings) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
-					"The RemoteEnvironment cannot be used when submitting a program through a client, " +
-							"or running in a TestEnvironment context.");
+				"The RemoteEnvironment cannot be used when submitting a program through a client, " +
+					"or running in a TestEnvironment context.");
 		}
 
 		if (host == null) {
@@ -166,27 +195,65 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				throw new RuntimeException("Problem with jar file " + jarFile, e);
 			}
 		}
-
 		if (globalClasspaths == null) {
 			this.globalClasspaths = Collections.emptyList();
-		} else {
+		}
+		else {
 			this.globalClasspaths = Arrays.asList(globalClasspaths);
 		}
-
 		this.savepointRestoreSettings = savepointRestoreSettings;
 	}
 
-	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		transformations.clear();
+	/**
+	 * Executes the job remotely.
+	 *
+	 * <p>This method can be used independent of the {@link StreamExecutionEnvironment} type.
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 */
+	@PublicEvolving
+	public static JobExecutionResult executeRemotely(
+			StreamExecutionEnvironment streamExecutionEnvironment,
+			List<URL> jarFiles,
+			String host,
+			int port,
+			Configuration clientConfiguration,
+			List<URL> globalClasspaths,
+			String jobName,
+			SavepointRestoreSettings savepointRestoreSettings) throws ProgramInvocationException {
+		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph(jobName);
+		return executeRemotely(streamGraph,
+			streamExecutionEnvironment.getConfig(),
+			jarFiles,
+			host,
+			port,
+			clientConfiguration,
+			globalClasspaths,
+			savepointRestoreSettings);
+	}
+
+	/**
+	 * Execute the given stream graph remotely.
+	 *
+	 * <p>Method for internal use since it exposes stream graph and other implementation details that are subject to change.
+	 */
+	private static JobExecutionResult executeRemotely(
+			StreamGraph streamGraph,
+			ExecutionConfig executionConfig,
+			List<URL> jarFiles,
+			String host,
+			int port,
+			Configuration clientConfiguration,
+			List<URL> globalClasspaths,
+			SavepointRestoreSettings savepointRestoreSettings) throws ProgramInvocationException {
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Running remotely at {}:{}", host, port);
+		}
 
 		if (savepointRestoreSettings != null) {
 			streamGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 		}
 
 		try {
-			LOG.info("Running remotely at {}:{}", host, port);
-
 			final PlanExecutor executor = PlanExecutor.createRemoteExecutor(
 				host,
 				port,
@@ -202,9 +269,37 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		transformations.clear();
+		return executeRemotely(streamGraph, jarFiles);
+	}
+
+	/**
+	 * Executes the remote job.
+	 *
+	 * <p>Note: This method exposes stream graph internal in the public API, but cannot be removed for backward compatibility.
+	 * @param streamGraph
+	 *            Stream Graph to execute
+	 * @param jarFiles
+	 * 			  List of jar file URLs to ship to the cluster
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 */
+	@Deprecated
+	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+		return executeRemotely(streamGraph,
+			getConfig(),
+			jarFiles,
+			host,
+			port,
+			clientConfiguration,
+			globalClasspaths,
+			savepointRestoreSettings);
+	}
+
+	@Override
 	public String toString() {
 		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = "
-				+ (getParallelism() == -1 ? "default" : getParallelism()) + ")";
+			+ (getParallelism() == -1 ? "default" : getParallelism()) + ")";
 	}
 
 	/**

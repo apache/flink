@@ -108,10 +108,10 @@ public class RemoteExecutor extends PlanExecutor {
 				clientConfiguration,
 				getDefaultParallelism());
 
-		org.apache.flink.runtime.client.ClientUtils.addJarFiles(jobGraph, jarFiles);
+		ClientUtils.addJarFiles(jobGraph, jarFiles);
 		jobGraph.setClasspaths(globalClasspaths);
 
-		ClassLoader userCodeClassLoader = org.apache.flink.runtime.client.ClientUtils.buildUserCodeClassLoader(
+		ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 				jarFiles,
 				globalClasspaths,
 				getClass().getClassLoader());

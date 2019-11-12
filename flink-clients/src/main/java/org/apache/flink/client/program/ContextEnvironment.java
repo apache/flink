@@ -84,7 +84,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 				client.getFlinkConfiguration(),
 				getParallelism());
 
-		org.apache.flink.runtime.client.ClientUtils.addJarFiles(jobGraph, this.jarFilesToAttach);
+		ClientUtils.addJarFiles(jobGraph, this.jarFilesToAttach);
 		jobGraph.setClasspaths(this.classpathsToAttach);
 
 		if (detached) {

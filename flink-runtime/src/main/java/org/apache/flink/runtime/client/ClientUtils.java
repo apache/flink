@@ -23,14 +23,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -143,28 +140,4 @@ public enum ClientUtils {
 		jobGraph.writeUserArtifactEntriesToConfiguration();
 	}
 
-	/**
-	 * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}. This will
-	 * throw an exception if a jar URL is not valid.
-	 */
-	public static void addJarFiles(JobGraph jobGraph, List<URL> jarFilesToAttach) {
-		for (URL jar : jarFilesToAttach) {
-			try {
-				jobGraph.addJar(new Path(jar.toURI()));
-			} catch (URISyntaxException e) {
-				throw new RuntimeException("URL is invalid. This should not happen.", e);
-			}
-		}
-	}
-
-	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent) {
-		URL[] urls = new URL[jars.size() + classpaths.size()];
-		for (int i = 0; i < jars.size(); i++) {
-			urls[i] = jars.get(i);
-		}
-		for (int i = 0; i < classpaths.size(); i++) {
-			urls[i + jars.size()] = classpaths.get(i);
-		}
-		return FlinkUserCodeClassLoaders.parentFirst(urls, parent);
-	}
 }
