@@ -33,7 +33,9 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.operations.DataStreamQueryOperation;
 import org.apache.flink.table.planner.operations.RichTableSourceQueryOperation;
@@ -144,12 +146,15 @@ class DatabaseCalciteSchema extends FlinkSchema {
 
 	private Table convertQueryOperationView(ObjectPath tablePath, QueryOperationCatalogView table) {
 		QueryOperation operation = table.getQueryOperation();
+		List<String> qualifiedNames = Arrays.asList(catalogName, databaseName, tablePath.getObjectName());
 		if (operation instanceof DataStreamQueryOperation) {
-			List<String> qualifiedName = Arrays.asList(catalogName, databaseName, tablePath.getObjectName());
-			((DataStreamQueryOperation) operation).setQualifiedName(qualifiedName);
+			((DataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
+		} else if (operation instanceof JavaDataStreamQueryOperation) {
+			((JavaDataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
+		} else if (operation instanceof ScalaDataStreamQueryOperation) {
+			((ScalaDataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
 		} else if (operation instanceof RichTableSourceQueryOperation) {
-			List<String> qualifiedName = Arrays.asList(catalogName, databaseName, tablePath.getObjectName());
-			((RichTableSourceQueryOperation) operation).setQualifiedName(qualifiedName);
+			((RichTableSourceQueryOperation) operation).setQualifiedName(qualifiedNames);
 		}
 		return QueryOperationCatalogViewTable.createCalciteTable(table);
 	}
