@@ -150,7 +150,7 @@ public class ExecutionGraphNotEnoughResourceTest extends TestLogger {
 		final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutor);
 		slotPool.connectToResourceManager(resourceManagerGateway);
-		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
+		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
 		scheduler.start(mainThreadExecutor);
 
 		CompletableFuture.runAsync(() -> slotPool.registerTaskManager(taskManagerLocation.getResourceID()), mainThreadExecutor).join();

@@ -893,7 +893,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (newJobStatus.isGloballyTerminalState()) {
 			runAsync(() -> registeredTaskManagers.keySet()
-				.forEach(partitionTracker::stopTrackingAndReleasePartitionsFor));
+				.forEach(newJobStatus == JobStatus.FINISHED
+					? partitionTracker::stopTrackingAndReleaseOrPromotePartitionsFor
+					: partitionTracker::stopTrackingAndReleasePartitionsFor));
 
 			final ArchivedExecutionGraph archivedExecutionGraph = schedulerNG.requestJob();
 			scheduledExecutorService.execute(() -> jobCompletionActions.jobReachedGloballyTerminalState(archivedExecutionGraph));

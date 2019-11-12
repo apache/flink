@@ -28,10 +28,8 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
@@ -75,18 +73,6 @@ public interface HiveShim extends Serializable {
 	 * @throws TException         for any other generic exceptions caused by Thrift
 	 */
 	List<String> getViews(IMetaStoreClient client, String databaseName) throws UnknownDBException, TException;
-
-	/**
-	 * Gets a function from a database with the given HMS client.
-	 *
-	 * @param client       the Hive Metastore client
-	 * @param dbName       name of the database
-	 * @param functionName name of the function
-	 * @return the Function under the specified name
-	 * @throws NoSuchObjectException if the function doesn't exist
-	 * @throws TException            for any other generic exceptions caused by Thrift
-	 */
-	Function getFunction(IMetaStoreClient client, String dbName, String functionName) throws NoSuchObjectException, TException;
 
 	/**
 	 * Moves a particular file or directory to trash.

@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.taskexecutor.partition.PartitionTable;
 
 import javax.annotation.Nullable;
 
@@ -47,7 +46,7 @@ class TestingTaskExecutor extends TaskExecutor {
 			@Nullable String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler,
-			PartitionTable<JobID> partitionTable) {
+			TaskExecutorPartitionTracker partitionTracker) {
 		super(
 			rpcService,
 			taskManagerConfiguration,
@@ -58,7 +57,7 @@ class TestingTaskExecutor extends TaskExecutor {
 			metricQueryServiceAddress,
 			blobCacheService,
 			fatalErrorHandler,
-			partitionTable);
+			partitionTracker);
 	}
 
 	@Override

@@ -84,7 +84,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       relOptTable: FlinkRelOptTable): Unit = {
 
     val relBuilder = call.builder()
-    val functionCatalog = call.getPlanner.getContext.asInstanceOf[FlinkContext].getFunctionCatalog
+    val context = call.getPlanner.getContext.asInstanceOf[FlinkContext]
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
     val (predicates, unconvertedRexNodes) =
       RexNodeExtractor.extractConjunctiveConditions(
@@ -92,7 +92,8 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
         maxCnfNodeCount,
         filter.getInput.getRowType.getFieldNames,
         relBuilder.getRexBuilder,
-        functionCatalog,
+        context.getFunctionCatalog,
+        context.getCatalogManager,
         TimeZone.getTimeZone(scan.getCluster.getPlanner.getContext
             .asInstanceOf[FlinkContext].getTableConfig.getLocalTimeZone))
 

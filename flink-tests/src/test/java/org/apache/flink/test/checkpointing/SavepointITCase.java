@@ -195,7 +195,7 @@ public class SavepointITCase extends TestLogger {
 
 			StatefulCounter.getProgressLatch().await();
 
-			return client.cancelWithSavepoint(jobId, null);
+			return client.cancelWithSavepoint(jobId, null).get();
 		} finally {
 			cluster.after();
 			StatefulCounter.resetForTest(parallelism);
@@ -240,7 +240,7 @@ public class SavepointITCase extends TestLogger {
 			// Await some progress after restore
 			StatefulCounter.getProgressLatch().await();
 
-			client.cancel(jobId);
+			client.cancel(jobId).get();
 
 			FutureUtils.retrySuccessfulWithDelay(
 				() -> client.getJobStatus(jobId),
@@ -681,7 +681,7 @@ public class SavepointITCase extends TestLogger {
 			}
 			savepointPath = client.triggerSavepoint(jobGraph.getJobID(), null).get();
 
-			client.cancel(jobGraph.getJobID());
+			client.cancel(jobGraph.getJobID()).get();
 			while (!client.getJobStatus(jobGraph.getJobID()).get().isGloballyTerminalState()) {
 				Thread.sleep(100);
 			}
@@ -694,7 +694,7 @@ public class SavepointITCase extends TestLogger {
 				latch.await();
 			}
 
-			client.cancel(jobGraph.getJobID());
+			client.cancel(jobGraph.getJobID()).get();
 			while (!client.getJobStatus(jobGraph.getJobID()).get().isGloballyTerminalState()) {
 				Thread.sleep(100);
 			}

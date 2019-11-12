@@ -451,8 +451,19 @@ public class SlotPoolImpl implements SlotPool {
 
 	@Override
 	@Nonnull
-	public Collection<SlotInfo> getAvailableSlotsInformation() {
-		return availableSlots.listSlotInfo();
+	public Collection<SlotInfoWithUtilization> getAvailableSlotsInformation() {
+		final Map<ResourceID, Set<AllocatedSlot>> availableSlotsByTaskManager = availableSlots.getSlotsByTaskManager();
+		final Map<ResourceID, Set<AllocatedSlot>> allocatedSlotsSlotsByTaskManager = allocatedSlots.getSlotsByTaskManager();
+
+		return availableSlotsByTaskManager.entrySet().stream()
+			.flatMap(entry -> {
+				final int numberAllocatedSlots = allocatedSlotsSlotsByTaskManager.getOrDefault(entry.getKey(), Collections.emptySet()).size();
+				final int numberAvailableSlots = entry.getValue().size();
+				final double taskExecutorUtilization = (double) numberAllocatedSlots / (numberAllocatedSlots + numberAvailableSlots);
+
+				return entry.getValue().stream().map(slot -> SlotInfoWithUtilization.from(slot, taskExecutorUtilization));
+			})
+			.collect(Collectors.toList());
 	}
 
 	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
@@ -1145,6 +1156,10 @@ public class SlotPoolImpl implements SlotPool {
 		Collection<SlotInfo> listSlotInfo() {
 			return new ArrayList<>(allocatedSlotsById.values());
 		}
+
+		Map<ResourceID, Set<AllocatedSlot>> getSlotsByTaskManager() {
+			return Collections.unmodifiableMap(allocatedSlotsByTaskManager);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -1308,6 +1323,10 @@ public class SlotPoolImpl implements SlotPool {
 
 		Set<AllocatedSlot> getSlotsForTaskManager(ResourceID resourceId) {
 			return availableSlotsByTaskManager.getOrDefault(resourceId, Collections.emptySet());
+		}
+
+		Map<ResourceID, Set<AllocatedSlot>> getSlotsByTaskManager() {
+			return Collections.unmodifiableMap(availableSlotsByTaskManager);
 		}
 	}
 

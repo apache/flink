@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
@@ -88,8 +89,10 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 		if (isFunctionOfKind(call, AGGREGATE)) {
 			AggregateFunctionDefinition aggDef = (AggregateFunctionDefinition) def;
 			AggregateFunction aggFunc = aggDef.getAggregateFunction();
+			FunctionIdentifier identifier = call.getFunctionIdentifier()
+				.orElse(FunctionIdentifier.of(aggFunc.functionIdentifier()));
 			return new AggSqlFunction(
-				aggFunc.functionIdentifier(),
+				identifier,
 				aggFunc.toString(),
 				aggFunc,
 				fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),
@@ -100,8 +103,10 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 		} else {
 			TableAggregateFunctionDefinition aggDef = (TableAggregateFunctionDefinition) def;
 			TableAggregateFunction aggFunc = aggDef.getTableAggregateFunction();
+			FunctionIdentifier identifier = call.getFunctionIdentifier()
+				.orElse(FunctionIdentifier.of(aggFunc.functionIdentifier()));
 			return new AggSqlFunction(
-				aggFunc.functionIdentifier(),
+				identifier,
 				aggFunc.toString(),
 				aggFunc,
 				fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),

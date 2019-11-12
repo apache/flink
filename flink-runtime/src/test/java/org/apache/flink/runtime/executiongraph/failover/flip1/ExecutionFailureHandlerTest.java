@@ -87,6 +87,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		} catch (IllegalStateException ex) {
 			// expected
 		}
+		assertEquals(1, executionFailureHandler.getNumberOfRestarts());
 	}
 
 	/**
@@ -118,6 +119,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		} catch (IllegalStateException ex) {
 			// expected
 		}
+		assertEquals(0, executionFailureHandler.getNumberOfRestarts());
 	}
 
 	/**
@@ -146,6 +148,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		} catch (IllegalStateException ex) {
 			// expected
 		}
+		assertEquals(0, executionFailureHandler.getNumberOfRestarts());
 	}
 
 	/**

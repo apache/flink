@@ -193,7 +193,12 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
 		checkInit();
 
-		TaskSlot taskSlot = taskSlots.get(index);
+		TaskSlot taskSlot = allocationIDTaskSlotMap.get(allocationId);
+		if (taskSlot != null) {
+			LOG.info("Allocation ID {} is already allocated in {}.", allocationId, taskSlot);
+			return false;
+		}
+		taskSlot = taskSlots.get(index);
 
 		boolean result = taskSlot.allocate(jobId, allocationId);
 

@@ -22,7 +22,6 @@ import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.module.Module;
@@ -77,17 +76,24 @@ public class FunctionCatalogTest {
 
 	@Test
 	public void testPreciseFunctionReference() throws FunctionAlreadyExistException, DatabaseNotExistException {
-		ObjectIdentifier oi = ObjectIdentifier.of(testCatalogName, GenericInMemoryCatalog.DEFAULT_DB, TEST_FUNCTION_NAME);
+		ObjectIdentifier oi = ObjectIdentifier.of(
+			testCatalogName,
+			GenericInMemoryCatalog.DEFAULT_DB,
+			TEST_FUNCTION_NAME);
+		UnresolvedIdentifier identifier = UnresolvedIdentifier.of(
+			testCatalogName,
+			GenericInMemoryCatalog.DEFAULT_DB,
+			TEST_FUNCTION_NAME);
 
 		// test no function is found
-		assertFalse(functionCatalog.lookupFunction(FunctionIdentifier.of(oi)).isPresent());
+		assertFalse(functionCatalog.lookupFunction(identifier).isPresent());
 
 		// test catalog function is found
 		catalog.createFunction(
 			oi.toObjectPath(),
 			new CatalogFunctionImpl(TestFunction1.class.getName(), Collections.emptyMap()), false);
 
-		FunctionLookup.Result result = functionCatalog.lookupFunction(FunctionIdentifier.of(oi)).get();
+		FunctionLookup.Result result = functionCatalog.lookupFunction(identifier).get();
 
 		assertFalse(result.getFunctionIdentifier().getSimpleName().isPresent());
 		assertEquals(oi, result.getFunctionIdentifier().getIdentifier().get());
@@ -99,7 +105,7 @@ public class FunctionCatalogTest {
 			new TestFunction2()
 		);
 
-		result = functionCatalog.lookupFunction(FunctionIdentifier.of(oi)).get();
+		result = functionCatalog.lookupFunction(identifier).get();
 
 		assertFalse(result.getFunctionIdentifier().getSimpleName().isPresent());
 		assertEquals(oi, result.getFunctionIdentifier().getIdentifier().get());
@@ -114,14 +120,14 @@ public class FunctionCatalogTest {
 			TEST_FUNCTION_NAME);
 
 		// test no function is found
-		assertFalse(functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).isPresent());
+		assertFalse(functionCatalog.lookupFunction(UnresolvedIdentifier.of(TEST_FUNCTION_NAME)).isPresent());
 
 		// test catalog function is found
 		catalog.createFunction(
 			oi.toObjectPath(),
 			new CatalogFunctionImpl(TestFunction1.class.getName(), Collections.emptyMap()), false);
 
-		FunctionLookup.Result result = functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).get();
+		FunctionLookup.Result result = functionCatalog.lookupFunction(UnresolvedIdentifier.of(TEST_FUNCTION_NAME)).get();
 
 		assertFalse(result.getFunctionIdentifier().getSimpleName().isPresent());
 		assertEquals(oi, result.getFunctionIdentifier().getIdentifier().get());
@@ -133,7 +139,7 @@ public class FunctionCatalogTest {
 			new TestFunction2()
 		);
 
-		result = functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).get();
+		result = functionCatalog.lookupFunction(UnresolvedIdentifier.of(TEST_FUNCTION_NAME)).get();
 
 		assertFalse(result.getFunctionIdentifier().getSimpleName().isPresent());
 		assertEquals(oi, result.getFunctionIdentifier().getIdentifier().get());
@@ -142,7 +148,7 @@ public class FunctionCatalogTest {
 		// test system function is found
 		moduleManager.loadModule("test_module", new TestModule());
 
-		result = functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).get();
+		result = functionCatalog.lookupFunction(UnresolvedIdentifier.of(TEST_FUNCTION_NAME)).get();
 
 		assertEquals(TEST_FUNCTION_NAME, result.getFunctionIdentifier().getSimpleName().get());
 		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction3);
@@ -150,7 +156,7 @@ public class FunctionCatalogTest {
 		// test temp system function is found
 		functionCatalog.registerTempSystemScalarFunction(TEST_FUNCTION_NAME, new TestFunction4());
 
-		result = functionCatalog.lookupFunction(FunctionIdentifier.of(TEST_FUNCTION_NAME)).get();
+		result = functionCatalog.lookupFunction(UnresolvedIdentifier.of(TEST_FUNCTION_NAME)).get();
 
 		assertEquals(TEST_FUNCTION_NAME, result.getFunctionIdentifier().getSimpleName().get());
 		assertTrue(((ScalarFunctionDefinition) result.getFunctionDefinition()).getScalarFunction() instanceof TestFunction4);

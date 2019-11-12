@@ -284,7 +284,9 @@ public class CliFrontendParser {
 
 	private static Options getListOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(RUNNING_OPTION);
-		return options.addOption(SCHEDULED_OPTION);
+		options.addOption(ALL_OPTION);
+		options.addOption(SCHEDULED_OPTION);
+		return options;
 	}
 
 	private static Options getCancelOptionsWithoutDeprecatedOptions(Options options) {

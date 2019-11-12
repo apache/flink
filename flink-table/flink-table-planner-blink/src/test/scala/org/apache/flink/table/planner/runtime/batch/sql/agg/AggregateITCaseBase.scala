@@ -231,13 +231,11 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
       Types.STRING,
       Types.STRING,
       Types.STRING)
-    val nullables4 = Array(false, false, false, false)
     registerCollection(
       "src",
       data,
       type4,
-      "a, b, c, d",
-      nullables4)
+      "a, b, c, d")
 
     val sql =
       s"""

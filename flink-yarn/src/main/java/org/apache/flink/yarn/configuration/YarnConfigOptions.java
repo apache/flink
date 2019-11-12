@@ -208,12 +208,6 @@ public class YarnConfigOptions {
 
 	// ----------------------- YARN CLI OPTIONS ------------------------------------
 
-	public static final ConfigOption<String> APPLICATION_LOG_CONFIG_FILE =
-			key("yarn.log-config-file")
-				.stringType()
-				.noDefaultValue()
-				.withDescription("The location of the log config file, e.g. the path to your log4j.properties for log4j.");
-
 	public static final ConfigOption<List<String>> SHIP_DIRECTORIES =
 			key("yarn.ship-directories")
 				.stringType()

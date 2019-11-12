@@ -414,10 +414,12 @@ public class LocalBufferPoolTest extends TestLogger {
 
 		// request one buffer
 		final BufferBuilder bufferBuilder = checkNotNull(localBufferPool.requestBufferBuilderBlocking());
-		assertFalse(localBufferPool.isAvailable().isDone());
+		CompletableFuture<?> availableFuture = localBufferPool.isAvailable();
+		assertFalse(availableFuture.isDone());
 
 		// set the pool size
 		localBufferPool.setNumBuffers(2);
+		assertTrue(availableFuture.isDone());
 		assertTrue(localBufferPool.isAvailable().isDone());
 
 		// drain the global buffer pool
@@ -435,7 +437,7 @@ public class LocalBufferPoolTest extends TestLogger {
 
 		// reset the pool size
 		localBufferPool.setNumBuffers(1);
-		final CompletableFuture<?> availableFuture = localBufferPool.isAvailable();
+		availableFuture = localBufferPool.isAvailable();
 		assertFalse(availableFuture.isDone());
 
 		// recycle the requested buffer

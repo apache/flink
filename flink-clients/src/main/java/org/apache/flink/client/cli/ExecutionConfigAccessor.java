@@ -19,6 +19,8 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -63,19 +65,15 @@ public class ExecutionConfigAccessor {
 		configuration.setBoolean(DeploymentOptions.ATTACHED, !options.getDetachedMode());
 		configuration.setBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED, options.isShutdownOnAttachedExit());
 
-		parseClasspathURLsToConfig(options.getClasspaths(), configuration);
+		if (options.getClasspaths() != null) {
+			ConfigUtils.encodeStreamToConfig(configuration, PipelineOptions.CLASSPATHS, options.getClasspaths().stream(), URL::toString);
+		}
+
 		parseJarURLToConfig(options.getJarFilePath(), configuration);
 
 		SavepointRestoreSettings.toConfiguration(options.getSavepointRestoreSettings(), configuration);
 
 		return new ExecutionConfigAccessor(configuration);
-	}
-
-	private static void parseClasspathURLsToConfig(final List<URL> classpathURLs, final Configuration configuration) {
-		ExecutionConfigurationUtils.urlListToConfig(
-				classpathURLs,
-				configuration,
-				PipelineOptions.CLASSPATHS);
 	}
 
 	private static void parseJarURLToConfig(final String jarFile, final Configuration configuration) {
@@ -86,7 +84,7 @@ public class ExecutionConfigAccessor {
 		try {
 			final URL jarUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
 			final List<URL> jarUrlSingleton = Collections.singletonList(jarUrl);
-			ExecutionConfigurationUtils.urlListToConfig(jarUrlSingleton, configuration, PipelineOptions.JARS);
+			ConfigUtils.encodeStreamToConfig(configuration, PipelineOptions.JARS, jarUrlSingleton.stream(), URL::toString);
 		} catch (MalformedURLException e) {
 			throw new IllegalArgumentException("JAR file path invalid", e);
 		}
@@ -97,7 +95,7 @@ public class ExecutionConfigAccessor {
 	}
 
 	public String getJarFilePath() {
-		final List<URL> jarURL = ExecutionConfigurationUtils.urlListFromConfig(configuration, PipelineOptions.JARS);
+		final List<URL> jarURL =  decodeUrlList(configuration, PipelineOptions.JARS);
 		if (jarURL != null && !jarURL.isEmpty()) {
 			return jarURL.get(0).getPath();
 		}
@@ -105,7 +103,17 @@ public class ExecutionConfigAccessor {
 	}
 
 	public List<URL> getClasspaths() {
-		return ExecutionConfigurationUtils.urlListFromConfig(configuration, PipelineOptions.CLASSPATHS);
+		return decodeUrlList(configuration, PipelineOptions.CLASSPATHS);
+	}
+
+	private List<URL> decodeUrlList(final Configuration configuration, final ConfigOption<List<String>> configOption) {
+		return ConfigUtils.decodeListFromConfig(configuration, configOption, url -> {
+			try {
+				return new URL(url);
+			} catch (MalformedURLException e) {
+				throw new IllegalArgumentException("Invalid URL", e);
+			}
+		});
 	}
 
 	public int getParallelism() {

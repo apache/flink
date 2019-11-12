@@ -253,7 +253,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		while (System.nanoTime() < deadline);
 
 		// cancel the job & wait for the job to finish
-		client.cancel(Iterables.getOnlyElement(getRunningJobs(client)));
+		client.cancel(Iterables.getOnlyElement(getRunningJobs(client))).get();
 		runner.join();
 
 		final Throwable t = errorRef.get();
@@ -338,7 +338,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		while (System.nanoTime() < deadline);
 
 		// cancel the job & wait for the job to finish
-		client.cancel(Iterables.getOnlyElement(getRunningJobs(client)));
+		client.cancel(Iterables.getOnlyElement(getRunningJobs(client))).get();
 		runner.join();
 
 		final Throwable t = errorRef.get();
@@ -504,7 +504,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		// cancel the consume job after all extra records are written
-		client.cancel(consumeJobId);
+		client.cancel(consumeJobId).get();
 		consumeThread.join();
 
 		kafkaOffsetHandler.close();
@@ -1020,7 +1020,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		// cancel
-		client.cancel(jobId);
+		client.cancel(jobId).get();
 
 		// wait for the program to be done and validate that we failed with the right exception
 		runnerThread.join();
@@ -1090,7 +1090,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
 		}
 		// cancel
-		client.cancel(jobId);
+		client.cancel(jobId).get();
 
 		// wait for the program to be done and validate that we failed with the right exception
 		runnerThread.join();
@@ -1643,7 +1643,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			LOG.info("Found all JMX metrics. Cancelling job.");
 		} finally {
 			// cancel
-			client.cancel(jobId);
+			client.cancel(jobId).get();
 			// wait for the job to finish (it should due to the cancel command above)
 			jobThread.join();
 		}
@@ -2055,7 +2055,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			// did not finish in time, maybe the producer dropped one or more records and
 			// the validation did not reach the exit point
 			success = false;
-			client.cancel(jobId);
+			client.cancel(jobId).get();
 		}
 		else {
 			Throwable error = errorRef.get();

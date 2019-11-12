@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
@@ -33,6 +34,7 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
@@ -276,7 +278,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
 
 			TableSqlFunction sqlFunction = new TableSqlFunction(
-					tableFunction.functionIdentifier(),
+					FunctionIdentifier.of(tableFunction.functionIdentifier()),
 					tableFunction.toString(),
 					tableFunction,
 					resultType,
@@ -355,7 +357,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			}
 
 			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(
-					tableSource, !isBatch, statistic, null);
+					tableSource, !isBatch, statistic, ConnectorCatalogTable.source(tableSource, isBatch));
 			FlinkRelOptTable table = FlinkRelOptTable.create(
 				relBuilder.getRelOptSchema(),
 				tableSourceTable.getRowType(relBuilder.getTypeFactory()),

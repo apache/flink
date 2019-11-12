@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
@@ -67,7 +67,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void processInput(DefaultActionContext context) throws Exception {
+	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		StreamRecord<OUT> nextRecord = shouldWait ?
 			dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS) :
 			dataChannel.take();
@@ -79,7 +79,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 				}
 			}
 		} else {
-			context.allActionsCompleted();
+			controller.allActionsCompleted();
 		}
 	}
 

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.sources
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
@@ -135,22 +135,24 @@ object TableSourceUtil {
   }
 
   /**
-    * Returns the Calcite schema of a [[TableSource]].
+    * Returns schema of the selected fields of the given [[TableSource]].
     *
-    * @param tableSource The [[TableSource]] for which the Calcite schema is generated.
+    * @param tableSchema    The [[TableSchema]] to derive the names and data types.
+    *                       This table schema should include all the columns, say,
+    *                       computed columns should also be included.
+    * @param tableSource    The [[TableSource]] to derive time attributes.
     * @param selectedFields The indices of all selected fields. None, if all fields are selected.
     * @param streaming Flag to determine whether the schema of a stream or batch table is created.
-    * @param typeFactory The type factory to create the schema.
-    * @return The Calcite schema for the selected fields of the given [[TableSource]].
+    * @return The schema for the selected fields of the given [[TableSource]].
     */
-  def getRelDataType(
+  def getFieldNameType(
+      tableSchema: TableSchema,
       tableSource: TableSource[_],
       selectedFields: Option[Array[Int]],
-      streaming: Boolean,
-      typeFactory: FlinkTypeFactory): RelDataType = {
+      streaming: Boolean): (Seq[String], Seq[LogicalType]) = {
 
-    val fieldNames = tableSource.getTableSchema.getFieldNames
-    var fieldTypes = tableSource.getTableSchema.getFieldDataTypes
+    val fieldNames = tableSchema.getFieldNames
+    var fieldTypes = tableSchema.getFieldDataTypes
       .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
 
     if (streaming) {
@@ -173,17 +175,12 @@ object TableSourceUtil {
         fieldTypes = fieldTypes.patch(idx, Seq(proctimeType), 1)
       }
     }
-    val (selectedFieldNames, selectedFieldTypes) =
-      if (selectedFields.isDefined) {
-        // filter field names and types by selected fields
-        (
-          selectedFields.get.map(fieldNames(_)),
-          selectedFields.get.map(fieldTypes(_))
-        )
-      } else {
-        (fieldNames, fieldTypes)
-      }
-    typeFactory.buildRelNodeRowType(selectedFieldNames, selectedFieldTypes)
+    if (selectedFields.isDefined) {
+      // filter field names and types by selected fields
+      (selectedFields.get.map(fieldNames(_)), selectedFields.get.map(fieldTypes(_)))
+    } else {
+      (fieldNames, fieldTypes)
+    }
   }
 
   /**

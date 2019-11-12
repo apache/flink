@@ -59,13 +59,13 @@ object TestData {
   val type3WithTimestamp = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO,
     LOCAL_DATE_TIME)
 
-  val nullablesOfData1 = Array(false, false, false)
+  val nullablesOfData1 = Array(true, true, true)
 
-  val nullableOfSimpleData2 = Array(false, false)
+  val nullableOfSimpleData2 = Array(true, true)
 
-  val nullablesOfData2 = Array(false, false, false, false, false)
+  val nullablesOfData2 = Array(true, true, true, true, true)
 
-  val nullablesOfNullData2 = Array(true, false, false, false, false)
+  val nullablesOfNullData2 = Array(true, true, true, true, true)
 
   lazy val data1: Seq[Row] = Seq(
     row(2, "a", 6),
@@ -129,14 +129,14 @@ object TestData {
 
   val allNullablesOfNullData3 = Array(true, true, true)
 
-  val nullablesOfNullData3 = Array(true, false, false)
+  val nullablesOfNullData3 = Array(true, true, true)
 
   lazy val nullData5: Seq[Row] = data5 ++ Seq(
     row(null, 999L, 999, "NullTuple", 999L),
     row(null, 999L, 999, "NullTuple", 999L)
   )
 
-  val nullablesOfNullData5 = Array(true, false, false, false, false)
+  val nullablesOfNullData5 = Array(true, true, true, true, true)
 
   lazy val smallTupleData3: Seq[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
@@ -148,7 +148,7 @@ object TestData {
 
   lazy val smallData3: Seq[Row] = smallTupleData3.map(d => row(d.productIterator.toList: _*))
 
-  val nullablesOfSmallData3 = Array(false, false, false)
+  val nullablesOfSmallData3 = Array(true, true, true)
 
   lazy val smallTupleData5: Seq[(Int, Long, Int, String, Long)] = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
@@ -160,7 +160,7 @@ object TestData {
 
   lazy val smallData5: Seq[Row] = smallTupleData5.map(d => row(d.productIterator.toList: _*))
 
-  val nullablesOfSmallData5 = Array(false, false, false, false, false)
+  val nullablesOfSmallData5 = Array(true, true, true, true, true)
 
   lazy val buildInData: Seq[Row] = Seq(
     row(false, 1.toByte, 2, 3L, 2.56, "abcd", "f%g", localDate("2017-12-12"),
@@ -219,11 +219,11 @@ object TestData {
 
   lazy val data3: Seq[Row] = tupleData3.map(d => row(d.productIterator.toList: _*))
 
-  val nullablesOfData3 = Array(false, false, false)
+  val nullablesOfData3 = Array(true, true, true)
 
-  val nullablesOfData4 = Array(false, false, false)
+  val nullablesOfData4 = Array(true, true, true)
 
-  val nullablesOfNullData4 = Array(false, false, true)
+  val nullablesOfNullData4 = Array(true, true, true)
 
   lazy val genericData3: Seq[Row] = Seq(
     row(new JTuple2("1", 1), new JTuple2(1, 1), 1),
@@ -232,7 +232,7 @@ object TestData {
     row(new JTuple2("1", 1), new JTuple2(10, 1), 3)
   )
 
-  val nullablesOfData3WithTimestamp = Array(true, false, false, false)
+  val nullablesOfData3WithTimestamp = Array(true, true, true, true)
 
   lazy val data3WithTimestamp: Seq[Row] = Seq(
     row(2, 2L, "Hello", unixTimestampToLocalDateTime(2000L)),
@@ -288,7 +288,7 @@ object TestData {
 
   lazy val data5: Seq[Row] = tupleData5.map(d => row(d.productIterator.toList: _*))
 
-  val nullablesOfData5 = Array(false, false, false, false, false)
+  val nullablesOfData5 = Array(true, true, true, true, true)
 
   lazy val data6: Seq[Row] = Seq(
     row(1,   1.1, "a",    localDate("2017-04-08"), localTime("12:00:59"),
@@ -323,7 +323,7 @@ object TestData {
       localDateTime("1937-07-07 08:08:08.888"))
   )
 
-  val nullablesOfData6 = Array(false, false, false, false, false, false)
+  val nullablesOfData6 = Array(true, true, true, true, true, true)
 
   lazy val duplicateData5: Seq[Row] = Seq(
     row(1, 1L, 10, "Hallo", 1L),
@@ -343,7 +343,7 @@ object TestData {
     row(5, 15L, 14, "EFG", 2L)
   )
 
-  val nullablesOfDuplicateData5 = Array(false, false, false, false, false)
+  val nullablesOfDuplicateData5 = Array(true, true, true, true, true)
 
   lazy val numericData: Seq[Row] = Seq(
     row(1, 1L, 1.0f, 1.0d, JBigDecimal.valueOf(1)),
@@ -351,7 +351,7 @@ object TestData {
     row(3, 3L, 3.0f, 3.0d, JBigDecimal.valueOf(3))
   )
 
-  val nullablesOfNumericData = Array(false, false, false, false, false)
+  val nullablesOfNumericData = Array(true, true, true, true, true)
 
   // person test data
   lazy val personData: Seq[Row] = Seq(
@@ -368,7 +368,7 @@ object TestData {
     row(11, 20, "eva", 180, "f")
   )
 
-  val nullablesOfPersonData = Array(false, false, false, false, false)
+  val nullablesOfPersonData = Array(true, true, true, true, true)
   val personType = new RowTypeInfo(INT_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO,
     INT_TYPE_INFO, STRING_TYPE_INFO)
 
@@ -405,13 +405,13 @@ object TestData {
     row(4, 1.0)
   )
 
-  val nullablesOfData2_3 = Array(false, false)
+  val nullablesOfData2_3 = Array(true, true)
 
   lazy val intStringData: Seq[Row] = {
     (1 to 100).map(i => row(i, i.toString))
   }
 
-  val nullablesOfIntStringData = Array(false, false)
+  val nullablesOfIntStringData = Array(true, true)
 
   lazy val bigIntStringData: Seq[Row] = {
     (1 to 10000).map(i => row(i, i.toString))
@@ -426,14 +426,14 @@ object TestData {
         row(3, 2) :: Nil
   }
 
-  val nullablesOfIntIntData2 = Array(false, false)
+  val nullablesOfIntIntData2 = Array(true, true)
 
   lazy val intIntData3: Seq[Row] = {
     row(1, null) ::
         row(2, 2) :: Nil
   }
 
-  val nullablesOfIntIntData3 = Array(false, false)
+  val nullablesOfIntIntData3 = Array(true, true)
 
   lazy val upperCaseData: Seq[Row] = Seq(
     row(1, "A"),
@@ -443,7 +443,7 @@ object TestData {
     row(5, "E"),
     row(6, "F"))
 
-  val nullablesOfUpperCaseData = Array(false, false)
+  val nullablesOfUpperCaseData = Array(true, true)
 
   lazy val lowerCaseData: Seq[Row] = Seq(
     row(1, "a"),
@@ -451,7 +451,7 @@ object TestData {
     row(3, "c"),
     row(4, "d"))
 
-  val nullablesOfLowerCaseData = Array(false, false)
+  val nullablesOfLowerCaseData = Array(true, true)
 
   lazy val allNulls: Seq[Row] = Seq(
     row(null),
@@ -472,5 +472,5 @@ object TestData {
       STRING_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO,
       INT_TYPE_INFO, STRING_TYPE_INFO)
 
-  val nullablesOfProjectionTestData = Array(false, false, false, false, false, false, false, false)
+  val nullablesOfProjectionTestData = Array(true, true, true, true, true, true, true, true)
 }

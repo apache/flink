@@ -27,6 +27,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -48,7 +49,6 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
-import org.apache.flink.yarn.cli.YarnConfigUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
@@ -185,7 +185,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private Optional<List<File>> decodeDirsToShipToCluster(final Configuration configuration) {
 		checkNotNull(configuration);
 
-		final List<File> files = YarnConfigUtils.decodeListFromConfig(configuration, YarnConfigOptions.SHIP_DIRECTORIES, File::new);
+		final List<File> files = ConfigUtils.decodeListFromConfig(configuration, YarnConfigOptions.SHIP_DIRECTORIES, File::new);
 		return files.isEmpty() ? Optional.empty() : Optional.of(files);
 	}
 
@@ -730,7 +730,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			systemShipFiles.add(file.getAbsoluteFile());
 		}
 
-		final String logConfigFilePath = configuration.getString(YarnConfigOptions.APPLICATION_LOG_CONFIG_FILE);
+		final String logConfigFilePath = configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE);
 		if (logConfigFilePath != null) {
 			systemShipFiles.add(new File(logConfigFilePath));
 		}
@@ -950,10 +950,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					"");
 		}
 
+		final boolean hasLogback = logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOGBACK_NAME);
+		final boolean hasLog4j = logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOG4J_NAME);
+
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(
 				yarnClusterEntrypoint,
-				logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOGBACK_NAME),
-				logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOG4J_NAME),
+				hasLogback,
+				hasLog4j,
 				hasKrb5,
 				clusterSpecification.getMasterMemoryMB());
 

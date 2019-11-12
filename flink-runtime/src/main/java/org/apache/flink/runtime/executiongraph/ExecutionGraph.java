@@ -117,7 +117,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -268,7 +267,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
 
-	private final AtomicInteger verticesFinished;
+	private int verticesFinished;
 
 	/** Current status of the job execution. */
 	private volatile JobStatus state = JobStatus.CREATED;
@@ -480,8 +479,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		this.restartStrategy = restartStrategy;
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
-
-		this.verticesFinished = new AtomicInteger();
 
 		this.globalModVersion = 1L;
 
@@ -1381,7 +1378,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 */
 	void vertexFinished() {
 		assertRunningInJobMasterMainThread();
-		final int numFinished = verticesFinished.incrementAndGet();
+		final int numFinished = ++verticesFinished;
 		if (numFinished == numVerticesTotal) {
 			// done :-)
 
@@ -1412,7 +1409,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	void vertexUnFinished() {
 		assertRunningInJobMasterMainThread();
-		verticesFinished.getAndDecrement();
+		verticesFinished--;
 	}
 
 	/**

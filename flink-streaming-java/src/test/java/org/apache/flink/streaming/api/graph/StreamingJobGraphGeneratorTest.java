@@ -666,7 +666,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			.findFirst()
 			.get()
 			.setSlotSharingGroup("testSlotSharingGroup");
-		streamGraph.getExecutionConfig().enableAllVerticesInSameSlotSharingGroupByDefault();
+		streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(true);
 		final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
 		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -686,7 +686,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testSlotSharingOnAllVerticesInSameSlotSharingGroupByDefaultDisabled() {
 		final StreamGraph streamGraph = createStreamGraphForSlotSharingTest();
-		streamGraph.getExecutionConfig().disableAllVerticesInSameSlotSharingGroupByDefault();
+		streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(false);
 		final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
 		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();

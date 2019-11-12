@@ -22,7 +22,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
-import org.apache.flink.table.functions.UserFunctionsTypeHelper
+import org.apache.flink.table.functions.{FunctionIdentifier, UserFunctionsTypeHelper}
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
@@ -48,6 +48,7 @@ import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankTyp
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
+
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -59,7 +60,7 @@ import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, Logical
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.sql.SqlWindow
+import org.apache.calcite.sql.{SqlIdentifier, SqlWindow}
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, OR, PLUS}
@@ -67,9 +68,9 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.{DateString, ImmutableBitSet, ImmutableIntList, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
+
 import java.math.BigDecimal
 import java.util
-
 import org.apache.flink.table.module.ModuleManager
 
 import scala.collection.JavaConversions._
@@ -91,6 +92,7 @@ class FlinkRelMdHandlerTestBase {
     new PlannerContext(
       tableConfig,
       new FunctionCatalog(catalogManager, moduleManager),
+      catalogManager,
       CalciteSchema.from(rootSchema),
       util.Arrays.asList(
         ConventionTraitDef.INSTANCE,
@@ -723,7 +725,14 @@ class FlinkRelMdHandlerTestBase {
     val relDataType = builder.build()
 
     AggregateCall.create(
-      AggSqlFunction("top3", "top3", new Top3, resultDataType, accDataType, typeFactory, false),
+      AggSqlFunction(
+        FunctionIdentifier.of("top3"),
+        "top3",
+        new Top3,
+        resultDataType,
+        accDataType,
+        typeFactory,
+        false),
       false,
       false,
       false,

@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -630,15 +629,14 @@ public class StreamingJobGraphGenerator {
 
 	/**
 	 * Maps a vertex to its region slot sharing group.
-	 * If {@link ExecutionConfig#isAllVerticesInSameSlotSharingGroupByDefault()}
+	 * If {@link StreamGraph#isAllVerticesInSameSlotSharingGroupByDefault()}
 	 * returns true, all regions will be in the same slot sharing group.
 	 */
 	private Map<JobVertexID, SlotSharingGroup> buildVertexRegionSlotSharingGroups() {
 		final Map<JobVertexID, SlotSharingGroup> vertexRegionSlotSharingGroups = new HashMap<>();
 		final SlotSharingGroup defaultSlotSharingGroup = new SlotSharingGroup();
 
-		final boolean allRegionsInSameSlotSharingGroup = streamGraph.getExecutionConfig()
-			.isAllVerticesInSameSlotSharingGroupByDefault();
+		final boolean allRegionsInSameSlotSharingGroup = streamGraph.isAllVerticesInSameSlotSharingGroupByDefault();
 
 		final Set<LogicalPipelinedRegion> regions = new DefaultLogicalTopology(jobGraph).getLogicalPipelinedRegions();
 		for (LogicalPipelinedRegion region : regions) {

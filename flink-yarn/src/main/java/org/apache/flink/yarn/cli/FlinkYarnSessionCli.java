@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
@@ -26,6 +27,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -284,7 +286,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		checkNotNull(configuration);
 
 		if (cmd.hasOption(shipPath.getOpt())) {
-			YarnConfigUtils.encodeListToConfig(
+			ConfigUtils.encodeArrayToConfig(
 					configuration,
 					YarnConfigOptions.SHIP_DIRECTORIES,
 					cmd.getOptionValues(this.shipPath.getOpt()),
@@ -442,12 +444,21 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			configuration.setString(YarnConfigOptions.NODE_LABEL, nodeLabelValue);
 		}
 
-		discoverLogConfigFile().ifPresent(
-				file -> configuration.setString(YarnConfigOptions.APPLICATION_LOG_CONFIG_FILE, file.getPath())
-		);
+		setLogConfigFileInConfig(configuration, configurationDirectory);
 	}
 
-	private Optional<File> discoverLogConfigFile() {
+	@VisibleForTesting
+	public static Configuration setLogConfigFileInConfig(final Configuration configuration, final String configurationDirectory) {
+		if (configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE) != null) {
+			return configuration;
+		}
+
+		FlinkYarnSessionCli.discoverLogConfigFile(configurationDirectory).ifPresent(file ->
+				configuration.setString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, file.getPath()));
+		return configuration;
+	}
+
+	private static Optional<File> discoverLogConfigFile(final String configurationDirectory) {
 		Optional<File> logConfigFile = Optional.empty();
 
 		final File log4jFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME);

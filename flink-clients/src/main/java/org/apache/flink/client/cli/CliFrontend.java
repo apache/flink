@@ -536,7 +536,7 @@ public class CliFrontend {
 			clusterClient -> {
 				final String savepointPath;
 				try {
-					savepointPath = clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
+					savepointPath = clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory).get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
 				} catch (Exception e) {
 					throw new FlinkException("Could not stop with a savepoint job \"" + jobId + "\".", e);
 				}
@@ -597,7 +597,7 @@ public class CliFrontend {
 				clusterClient -> {
 					final String savepointPath;
 					try {
-						savepointPath = clusterClient.cancelWithSavepoint(jobId, targetDirectory);
+						savepointPath = clusterClient.cancelWithSavepoint(jobId, targetDirectory).get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
 					} catch (Exception e) {
 						throw new FlinkException("Could not cancel job " + jobId + '.', e);
 					}
@@ -619,7 +619,7 @@ public class CliFrontend {
 				commandLine,
 				clusterClient -> {
 					try {
-						clusterClient.cancel(jobId);
+						clusterClient.cancel(jobId).get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
 					} catch (Exception e) {
 						throw new FlinkException("Could not cancel job " + jobId + '.', e);
 					}
@@ -695,26 +695,22 @@ public class CliFrontend {
 	/**
 	 * Sends a SavepointTriggerMessage to the job manager.
 	 */
-	private String triggerSavepoint(ClusterClient<?> clusterClient, JobID jobId, String savepointDirectory) throws FlinkException {
+	private void triggerSavepoint(ClusterClient<?> clusterClient, JobID jobId, String savepointDirectory) throws FlinkException {
 		logAndSysout("Triggering savepoint for job " + jobId + '.');
+
 		CompletableFuture<String> savepointPathFuture = clusterClient.triggerSavepoint(jobId, savepointDirectory);
 
 		logAndSysout("Waiting for response...");
 
-		final String savepointPath;
-
 		try {
-			savepointPath = savepointPathFuture.get();
-		}
-		catch (Exception e) {
+			final String savepointPath = savepointPathFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+
+			logAndSysout("Savepoint completed. Path: " + savepointPath);
+			logAndSysout("You can resume your program from this savepoint with the run command.");
+		} catch (Exception e) {
 			Throwable cause = ExceptionUtils.stripExecutionException(e);
 			throw new FlinkException("Triggering a savepoint for the job " + jobId + " failed.", cause);
 		}
-
-		logAndSysout("Savepoint completed. Path: " + savepointPath);
-		logAndSysout("You can resume your program from this savepoint with the run command.");
-
-		return savepointPath;
 	}
 
 	/**
@@ -800,9 +796,12 @@ public class CliFrontend {
 			jarFile = getJarFile(jarFilePath);
 		}
 
-		PackagedProgram program = entryPointClass == null ?
-				new PackagedProgram(jarFile, classpaths, programArgs) :
-				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
+		PackagedProgram program = PackagedProgram.newBuilder()
+			.setJarFile(jarFile)
+			.setUserClassPaths(classpaths)
+			.setEntryPointClassName(entryPointClass)
+			.setArguments(programArgs)
+			.build();
 
 		program.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 

@@ -522,11 +522,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		closableYarnClient.init(yarnConfiguration);
 		closableYarnClient.start();
 
-		yarnClusterDescriptor = new YarnClusterDescriptor(
-			new Configuration(),
-			yarnConfiguration,
-			closableYarnClient,
-			false);
+		yarnClusterDescriptor = YarnTestUtils.createClusterDescriptorWithLogging(
+				temporaryFolder.getRoot().getAbsolutePath(),
+				new Configuration(),
+				yarnConfiguration,
+				closableYarnClient,
+				false);
 
 		yarnClusterDescriptor.close();
 
@@ -538,10 +539,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	}
 
 	private YarnClusterDescriptor createYarnClusterDescriptor(Configuration configuration) {
-		return new YarnClusterDescriptor(
-			configuration,
-			yarnConfiguration,
-			yarnClient,
-			true);
+		return YarnTestUtils.createClusterDescriptorWithLogging(
+				temporaryFolder.getRoot().getAbsolutePath(),
+				configuration,
+				yarnConfiguration,
+				yarnClient,
+				true);
 	}
 }

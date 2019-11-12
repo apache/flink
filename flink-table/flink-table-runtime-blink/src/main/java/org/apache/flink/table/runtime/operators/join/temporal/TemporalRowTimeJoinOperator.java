@@ -189,7 +189,7 @@ public class TemporalRowTimeJoinOperator
 
 		// if we have more state at any side, then update the timer, else clean it up.
 		if (stateCleaningEnabled) {
-			if (lastUnprocessedTime < Long.MAX_VALUE || rightState.iterator().hasNext()) {
+			if (lastUnprocessedTime < Long.MAX_VALUE || !rightState.isEmpty()) {
 				registerProcessingCleanupTimer();
 			} else {
 				cleanupLastTimer();

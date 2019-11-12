@@ -196,7 +196,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 			CompletableFuture<String> path = client.triggerSavepoint(result.getJobID(), dirPath);
 			return path.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 		} finally {
-			client.cancel(jobId);
+			client.cancel(jobId).get();
 		}
 	}
 

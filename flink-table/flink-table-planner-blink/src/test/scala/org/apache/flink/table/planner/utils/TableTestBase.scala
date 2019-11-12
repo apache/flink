@@ -33,7 +33,7 @@ import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => J
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.expressions.Expression
@@ -63,9 +63,10 @@ import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
-import _root_.java.util
 
+import _root_.java.util
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.operations.ddl.CreateTableOperation
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -140,6 +141,13 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val tableEnv = getTableEnv
     tableEnv.registerTableSink(sinkName, sink)
     tableEnv.insertInto(sinkName, table)
+  }
+
+  /**
+    * Creates a table with the given DDL SQL string.
+    */
+  def addTable(ddl: String): Unit = {
+    getTableEnv.sqlUpdate(ddl)
   }
 
   /**
@@ -1005,6 +1013,11 @@ class TestingTableEnvironment private(
         } else {
           buffer(modifyOperations)
         }
+      case createOperation: CreateTableOperation =>
+        catalogManager.createTable(
+          createOperation.getCatalogTable,
+          createOperation.getTableIdentifier,
+          createOperation.isIgnoreIfExists)
       case _ => throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of type INSERT.")
     }

@@ -69,6 +69,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
@@ -194,6 +195,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.failoverTopology = executionGraph.getFailoverTopology();
 
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
+
+		jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, this::getNumberOfRestarts);
+		jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, this::getNumberOfRestarts);
 	}
 
 	private ExecutionGraph createAndRestoreExecutionGraph(
@@ -372,6 +376,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return jobGraph;
 	}
 
+	protected abstract long getNumberOfRestarts();
+
 	// ------------------------------------------------------------------------
 	// SchedulerNG
 	// ------------------------------------------------------------------------
@@ -411,9 +417,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 	public CompletableFuture<Void> getTerminationFuture() {
 		return executionGraph.getTerminationFuture().thenApply(FunctionUtils.nullFn());
 	}
-
-	@Override
-	public abstract void handleGlobalFailure(final Throwable cause);
 
 	@Override
 	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {

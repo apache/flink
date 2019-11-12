@@ -152,6 +152,11 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	// ------------------------------------------------------------------------
 
 	@Override
+	protected long getNumberOfRestarts() {
+		return executionFailureHandler.getNumberOfRestarts();
+	}
+
+	@Override
 	protected void startSchedulingInternal() {
 		log.debug("Starting scheduling with scheduling strategy [{}]", schedulingStrategy.getClass().getName());
 		prepareExecutionGraphForNgScheduling();

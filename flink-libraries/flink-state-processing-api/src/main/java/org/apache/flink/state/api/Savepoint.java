@@ -47,7 +47,7 @@ public final class Savepoint {
 	 * Loads an existing savepoint. Useful if you want to query, modify, or extend
 	 * the state of an existing application.
 	 *
-	 * @param env The execution enviornment used to transform the savepoint.
+	 * @param env The execution environment used to transform the savepoint.
 	 * @param path The path to an existing savepoint on disk.
 	 * @param stateBackend The state backend of the savepoint.
 	 */
@@ -59,7 +59,7 @@ public final class Savepoint {
 			.stream()
 			.map(OperatorState::getMaxParallelism)
 			.max(Comparator.naturalOrder())
-			.orElseThrow(() -> new RuntimeException("Savepoint's must contain at least one operator"));
+			.orElseThrow(() -> new RuntimeException("Savepoint must contain at least one operator state."));
 
 		SavepointMetadata metadata = new SavepointMetadata(maxParallelism, savepoint.getMasterStates(), savepoint.getOperatorStates());
 		return new ExistingSavepoint(env, metadata, stateBackend);

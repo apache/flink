@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -68,11 +69,12 @@ public class YARNITCase extends YarnTestBase {
 			configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
 			final YarnClient yarnClient = getYarnClient();
 
-			try (final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
-				configuration,
-				getYarnConfiguration(),
-				yarnClient,
-				true)) {
+			try (final YarnClusterDescriptor yarnClusterDescriptor = org.apache.flink.yarn.YarnTestUtils.createClusterDescriptorWithLogging(
+					System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR),
+					configuration,
+					getYarnConfiguration(),
+					yarnClient,
+					true)) {
 
 				yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 				yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));

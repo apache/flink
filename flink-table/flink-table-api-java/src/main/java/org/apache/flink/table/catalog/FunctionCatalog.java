@@ -252,10 +252,9 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	private Set<String> getUserDefinedFunctionNames() {
-		Set<String> result = new HashSet<>();
 
 		// add temp system functions
-		result.addAll(tempSystemFunctions.keySet());
+		Set<String> result = new HashSet<>(tempSystemFunctions.keySet());
 
 		String currentCatalog = catalogManager.getCurrentCatalog();
 		String currentDatabase = catalogManager.getCurrentDatabase();
@@ -264,7 +263,7 @@ public class FunctionCatalog implements FunctionLookup {
 		result.addAll(tempCatalogFunctions.keySet().stream()
 			.filter(oi -> oi.getCatalogName().equals(currentCatalog)
 				&& oi.getDatabaseName().equals(currentDatabase))
-			.map(oi -> oi.getObjectName())
+			.map(ObjectIdentifier::getObjectName)
 			.collect(Collectors.toSet())
 		);
 
@@ -280,14 +279,13 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	@Override
-	public Optional<FunctionLookup.Result> lookupFunction(FunctionIdentifier identifier) {
-
+	public Optional<FunctionLookup.Result> lookupFunction(UnresolvedIdentifier identifier) {
 		// precise function reference
-		if (identifier.getIdentifier().isPresent()) {
-			return resolvePreciseFunctionReference(identifier.getIdentifier().get());
+		if (identifier.getDatabaseName().isPresent()) {
+			return resolvePreciseFunctionReference(catalogManager.qualifyIdentifier(identifier));
 		} else {
 			// ambiguous function reference
-			return resolveAmbiguousFunctionReference(identifier.getSimpleName().get());
+			return resolveAmbiguousFunctionReference(identifier.getObjectName());
 		}
 	}
 
@@ -295,8 +293,8 @@ public class FunctionCatalog implements FunctionLookup {
 		// resolve order:
 		// 1. Temporary functions
 		// 2. Catalog functions
-
-		FunctionDefinition potentialResult = tempCatalogFunctions.get(oi);
+		ObjectIdentifier normalizedIdentifier = FunctionIdentifier.normalizeObjectIdentifier(oi);
+		FunctionDefinition potentialResult = tempCatalogFunctions.get(normalizedIdentifier);
 
 		if (potentialResult != null) {
 			return Optional.of(
@@ -307,9 +305,10 @@ public class FunctionCatalog implements FunctionLookup {
 			);
 		}
 
-		Catalog catalog = catalogManager.getCatalog(oi.getCatalogName()).get();
+		Optional<Catalog> catalogOptional = catalogManager.getCatalog(oi.getCatalogName());
 
-		if (catalog != null) {
+		if (catalogOptional.isPresent()) {
+			Catalog catalog = catalogOptional.get();
 			try {
 				CatalogFunction catalogFunction = catalog.getFunction(
 					new ObjectPath(oi.getDatabaseName(), oi.getObjectName()));
@@ -339,21 +338,24 @@ public class FunctionCatalog implements FunctionLookup {
 		// 3. Temporary catalog functions
 		// 4. Catalog functions
 
-		if (tempSystemFunctions.containsKey(funcName)) {
+		String normalizedName = FunctionIdentifier.normalizeName(funcName);
+		if (tempSystemFunctions.containsKey(normalizedName)) {
 			return Optional.of(
-				new FunctionLookup.Result(FunctionIdentifier.of(funcName), tempSystemFunctions.get(funcName))
+				new FunctionLookup.Result(
+					FunctionIdentifier.of(funcName),
+					tempSystemFunctions.get(normalizedName))
 			);
 		}
 
-		Optional<FunctionDefinition> candidate = moduleManager.getFunctionDefinition(funcName);
-		if (candidate.isPresent()) {
-			return Optional.of(
-				new FunctionLookup.Result(FunctionIdentifier.of(funcName), candidate.get())
-			);
-		}
+		Optional<FunctionDefinition> candidate = moduleManager.getFunctionDefinition(normalizedName);
+		ObjectIdentifier oi = ObjectIdentifier.of(
+			catalogManager.getCurrentCatalog(),
+			catalogManager.getCurrentDatabase(),
+			funcName);
 
-		return resolvePreciseFunctionReference(
-			ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), funcName));
+		return candidate.map(fd ->
+			Optional.of(new Result(FunctionIdentifier.of(funcName), fd)
+		)).orElseGet(() -> resolvePreciseFunctionReference(oi));
 	}
 
 		@Override

@@ -26,6 +26,8 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryStringSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.junit.Test;
@@ -137,7 +139,7 @@ public class NestedRowTest {
 		gRow.setField(1, 5L);
 		gRow.setField(2, BinaryString.fromString("12345678"));
 		gRow.setField(3, null);
-		gRow.setField(4, new BinaryGeneric<>(new MyObj(15, 5), genericSerializer));
+		gRow.setField(4, new BinaryGeneric<>(new MyObj(15, 5)));
 
 		BaseRowSerializer serializer = new BaseRowSerializer(
 			new LogicalType[]{
@@ -150,9 +152,9 @@ public class NestedRowTest {
 			new TypeSerializer[]{
 				IntSerializer.INSTANCE,
 				LongSerializer.INSTANCE,
-				StringSerializer.INSTANCE,
-				StringSerializer.INSTANCE,
-				genericSerializer
+				BinaryStringSerializer.INSTANCE,
+				BinaryStringSerializer.INSTANCE,
+				new BinaryGenericSerializer<>(genericSerializer)
 			});
 		writer.writeRow(0, gRow, serializer);
 		writer.complete();

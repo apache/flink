@@ -249,6 +249,15 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public List<String> listModules(SessionContext session) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listModules()));
+	}
+
+	@Override
 	public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
 		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
 		final TableEnvironment tableEnv = context
@@ -429,7 +438,7 @@ public class LocalExecutor implements Executor {
 				// retrieve existing cluster
 				clusterClient = clusterDescriptor.retrieve(context.getClusterId());
 				try {
-					clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId)));
+					clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId))).get();
 				} catch (Throwable t) {
 					// the job might has finished earlier
 				}

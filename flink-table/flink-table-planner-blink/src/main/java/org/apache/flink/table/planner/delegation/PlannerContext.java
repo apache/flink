@@ -24,10 +24,12 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.calcite.CalciteParser;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
@@ -44,7 +46,6 @@ import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitDef;
@@ -75,20 +76,19 @@ public class PlannerContext {
 	private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final TableConfig tableConfig;
-	private final FunctionCatalog functionCatalog;
 	private final RelOptCluster cluster;
-	private final Context context;
+	private final FlinkContext context;
 	private final CalciteSchema rootSchema;
 	private final List<RelTraitDef> traitDefs;
 
 	public PlannerContext(
 			TableConfig tableConfig,
 			FunctionCatalog functionCatalog,
+			CatalogManager catalogManager,
 			CalciteSchema rootSchema,
 			List<RelTraitDef> traitDefs) {
 		this.tableConfig = tableConfig;
-		this.functionCatalog = functionCatalog;
-		this.context = new FlinkContextImpl(tableConfig, functionCatalog);
+		this.context = new FlinkContextImpl(tableConfig, functionCatalog, catalogManager);
 		this.rootSchema = rootSchema;
 		this.traitDefs = traitDefs;
 		// Make a framework config to initialize the RelOptCluster instance,
@@ -111,7 +111,7 @@ public class PlannerContext {
 			.costFactory(new FlinkCostFactory())
 			.typeSystem(typeSystem)
 			.sqlToRelConverterConfig(getSqlToRelConverterConfig(getCalciteConfig(tableConfig)))
-			.operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig), functionCatalog))
+			.operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig)))
 			// set the executor to evaluate constant expressions
 			.executor(new ExpressionReducer(tableConfig, false))
 			.context(context)
@@ -236,7 +236,7 @@ public class PlannerContext {
 		return JavaScalaConversionUtil.toJava(calciteConfig.getSqlToRelConverterConfig()).orElseGet(
 				() -> SqlToRelConverter.configBuilder()
 						.withTrimUnusedFields(false)
-						.withConvertTableAccess(false)
+						.withConvertTableAccess(true)
 						.withInSubQueryThreshold(Integer.MAX_VALUE)
 						.withExpand(false)
 						.build()
@@ -246,23 +246,25 @@ public class PlannerContext {
 	/**
 	 * Returns the operator table for this environment including a custom Calcite configuration.
 	 */
-	private SqlOperatorTable getSqlOperatorTable(CalciteConfig calciteConfig, FunctionCatalog functionCatalog) {
+	private SqlOperatorTable getSqlOperatorTable(CalciteConfig calciteConfig) {
 		return JavaScalaConversionUtil.toJava(calciteConfig.getSqlOperatorTable()).map(operatorTable -> {
 					if (calciteConfig.replacesSqlOperatorTable()) {
 						return operatorTable;
 					} else {
-						return ChainedSqlOperatorTable.of(getBuiltinSqlOperatorTable(functionCatalog), operatorTable);
+						return ChainedSqlOperatorTable.of(getBuiltinSqlOperatorTable(), operatorTable);
 					}
 				}
-		).orElseGet(() -> getBuiltinSqlOperatorTable(functionCatalog));
+		).orElseGet(this::getBuiltinSqlOperatorTable);
 	}
 
 	/**
 	 * Returns builtin the operator table and external the operator for this environment.
 	 */
-	private SqlOperatorTable getBuiltinSqlOperatorTable(FunctionCatalog functionCatalog) {
+	private SqlOperatorTable getBuiltinSqlOperatorTable() {
 		return ChainedSqlOperatorTable.of(
-				new FunctionCatalogOperatorTable(functionCatalog, typeFactory),
+				new FunctionCatalogOperatorTable(
+						context.getFunctionCatalog(),
+						typeFactory),
 				FlinkSqlOperatorTable.instance());
 	}
 

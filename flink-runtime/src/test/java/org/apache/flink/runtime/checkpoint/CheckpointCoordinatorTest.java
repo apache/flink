@@ -83,6 +83,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionJobVertex;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -2491,6 +2492,53 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		coordinator.shutdown(JobStatus.FAILING);
 	}
 
+	/**
+	 * Tests that do not trigger checkpoint when stop the coordinator after the eager pre-check.
+	 */
+	@Test
+	public void testTriggerCheckpointAfterCancel() throws Exception {
+		ExecutionVertex vertex1 = mockExecutionVertex(new ExecutionAttemptID());
+
+		// set up the coordinator
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
+			600000,
+			600000,
+			0,
+			Integer.MAX_VALUE,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		TestingCheckpointIDCounter idCounter = new TestingCheckpointIDCounter();
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			new JobID(),
+			chkConfig,
+			new ExecutionVertex[]{vertex1},
+			new ExecutionVertex[]{vertex1},
+			new ExecutionVertex[]{vertex1},
+			idCounter,
+			new StandaloneCompletedCheckpointStore(1),
+			new MemoryStateBackend(),
+			Executors.directExecutor(),
+			manuallyTriggeredScheduledExecutor,
+			SharedStateRegistry.DEFAULT_FACTORY,
+			failureManager);
+		idCounter.setOwner(coord);
+
+		try {
+			// start the coordinator
+			coord.startCheckpointScheduler();
+			try {
+				coord.triggerCheckpoint(System.currentTimeMillis(), CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION), null, true, false);
+				fail("should not trigger periodic checkpoint after stop the coordinator.");
+			} catch (CheckpointException e) {
+				assertEquals(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN, e.getCheckpointFailureReason());
+			}
+		} finally {
+			coord.shutdown(JobStatus.FINISHED);
+		}
+	}
+
 	private CheckpointCoordinator getCheckpointCoordinator(
 			final JobID jobId,
 			final ExecutionVertex vertex1,
@@ -2602,6 +2650,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				taskStateSnapshot);
 
 			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+		}
+	}
+
+	private static class TestingCheckpointIDCounter extends StandaloneCheckpointIDCounter {
+		private CheckpointCoordinator owner;
+
+		@Override
+		public long getAndIncrement() throws Exception {
+			checkNotNull(owner);
+			owner.stopCheckpointScheduler();
+			return super.getAndIncrement();
+		}
+
+		void setOwner(CheckpointCoordinator coordinator) {
+			this.owner = checkNotNull(coordinator);
 		}
 	}
 }
