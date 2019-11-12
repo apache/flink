@@ -27,10 +27,8 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
-import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -67,37 +65,13 @@ public class ExecutionConfigAccessor {
 
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, options.getClasspaths(), URL::toString);
 
-		parseJarURLToConfig(options.getJarFilePath(), configuration);
-
 		SavepointRestoreSettings.toConfiguration(options.getSavepointRestoreSettings(), configuration);
 
 		return new ExecutionConfigAccessor(configuration);
 	}
 
-	private static void parseJarURLToConfig(final String jarFile, final Configuration configuration) {
-		if (jarFile == null) {
-			return;
-		}
-
-		try {
-			final URL jarUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
-			final List<URL> jarUrlSingleton = Collections.singletonList(jarUrl);
-			ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, jarUrlSingleton, URL::toString);
-		} catch (MalformedURLException e) {
-			throw new IllegalArgumentException("JAR file path invalid", e);
-		}
-	}
-
 	public Configuration getConfiguration() {
 		return configuration;
-	}
-
-	public String getJarFilePath() {
-		final List<URL> jarURL =  decodeUrlList(configuration, PipelineOptions.JARS);
-		if (jarURL != null && !jarURL.isEmpty()) {
-			return jarURL.get(0).getPath();
-		}
-		return null;
 	}
 
 	public List<URL> getClasspaths() {
