@@ -19,7 +19,6 @@ limitations under the License.
   <TestCase name="testIntersect">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -29,7 +28,6 @@ LogicalIntersect(all=[false])
 +- LogicalProject(f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -42,13 +40,11 @@ HashAggregate(isMerge=[false], groupBy=[c], select=[c])
       +- Calc(select=[f])
          +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testIntersectAll">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -58,7 +54,6 @@ LogicalIntersect(all=[true])
 +- LogicalProject(f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -74,13 +69,11 @@ Calc(select=[c0 AS c])
                   +- Calc(select=[f, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
                      +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testIntersectLeftIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -91,19 +84,16 @@ LogicalIntersect(all=[false])
 +- LogicalProject(f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Values(type=[RecordType(VARCHAR(2147483647) c)], tuples=[[]], values=[c])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testIntersectRightIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -114,19 +104,16 @@ LogicalIntersect(all=[false])
    +- LogicalFilter(condition=[=(1, 0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Values(type=[RecordType(VARCHAR(2147483647) c)], tuples=[[]], values=[c])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testIntersectWithOuterProject">
     <Resource name="sql">
       <![CDATA[SELECT a FROM (SELECT a, b FROM T1 INTERSECT SELECT d, e FROM T2)]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -137,7 +124,6 @@ LogicalProject(a=[$0])
    +- LogicalProject(d=[$0], e=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -151,13 +137,11 @@ Calc(select=[a])
          +- Calc(select=[d, e])
             +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testMinus">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -167,7 +151,6 @@ LogicalMinus(all=[false])
 +- LogicalProject(f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -180,13 +163,11 @@ HashAggregate(isMerge=[false], groupBy=[c], select=[c])
       +- Calc(select=[f])
          +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testMinusAll">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -196,7 +177,6 @@ LogicalMinus(all=[true])
 +- LogicalProject(f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -212,13 +192,11 @@ Calc(select=[c0 AS c])
                   +- Calc(select=[f, -1:BIGINT AS vcol_marker])
                      +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testMinusLeftIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -229,19 +207,16 @@ LogicalMinus(all=[false])
 +- LogicalProject(f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Values(type=[RecordType(VARCHAR(2147483647) c)], tuples=[[]], values=[c])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testMinusRightIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -252,7 +227,6 @@ LogicalMinus(all=[false])
    +- LogicalFilter(condition=[=(1, 0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -262,13 +236,11 @@ HashAggregate(isMerge=[true], groupBy=[c], select=[c])
       +- Calc(select=[c])
          +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testMinusWithNestedTypes">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable EXCEPT SELECT * FROM MyTable]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -278,7 +250,6 @@ LogicalMinus(all=[false])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -288,13 +259,11 @@ HashAggregate(isMerge=[false], groupBy=[a, b, c], select=[a, b, c])
    :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Reused(reference_id=[1])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testUnionNullableTypes">
     <Resource name="sql">
       <![CDATA[SELECT a FROM A UNION ALL SELECT CASE WHEN c > 0 THEN b ELSE NULL END FROM A]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -304,7 +273,6 @@ LogicalUnion(all=[true])
 +- LogicalProject(EXPR$0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2))])
    +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -314,13 +282,11 @@ Union(all=[true], union=[a])
 +- Calc(select=[CASE(>(c, 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS EXPR$0])
    +- Reused(reference_id=[1])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testUnionAnyType">
     <Resource name="sql">
       <![CDATA[SELECT a FROM A UNION ALL SELECT b FROM A]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -330,7 +296,6 @@ LogicalUnion(all=[true])
 +- LogicalProject(b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -340,7 +305,6 @@ Union(all=[true], union=[a])
 +- Calc(select=[b])
    +- Reused(reference_id=[1])
 ]]>
-
     </Resource>
   </TestCase>
 </Root>
