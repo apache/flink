@@ -47,6 +47,8 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
+import org.apache.flink.table.planner.expressions.utils.Func1$;
+import org.apache.flink.table.planner.expressions.utils.Func8$;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 
@@ -390,22 +392,30 @@ public class SqlToOperationConverterTest {
 			"  b varchar, \n" +
 			"  c as a - 1, \n" +
 			"  d as b || '$$', \n" +
-			"  e as my_catalog.my_database.my_udf(a)\n" +
+			"  e as my_udf1(a)," +
+			"  f as `default`.my_udf2(a) + 1," +
+			"  g as builtin.`default`.my_udf3(a) || '##'\n" +
 			")\n" +
 			"  with (\n" +
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		functionCatalog.registerTempCatalogScalarFunction(
-			ObjectIdentifier.of("my_catalog", "my_database", "my_udf"),
+			ObjectIdentifier.of("builtin", "default", "my_udf1"),
 			Func0$.MODULE$);
+		functionCatalog.registerTempCatalogScalarFunction(
+			ObjectIdentifier.of("builtin", "default", "my_udf2"),
+			Func1$.MODULE$);
+		functionCatalog.registerTempCatalogScalarFunction(
+			ObjectIdentifier.of("builtin", "default", "my_udf3"),
+			Func8$.MODULE$);
 		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		Operation operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
 		assert operation instanceof CreateTableOperation;
 		CreateTableOperation op = (CreateTableOperation) operation;
 		CatalogTable catalogTable = op.getCatalogTable();
 		assertArrayEquals(
-			new String[] {"a", "b", "c", "d", "e"},
+			new String[] {"a", "b", "c", "d", "e", "f", "g"},
 			catalogTable.getSchema().getFieldNames());
 		assertArrayEquals(
 			new DataType[]{
@@ -413,15 +423,24 @@ public class SqlToOperationConverterTest {
 				DataTypes.STRING(),
 				DataTypes.INT(),
 				DataTypes.STRING(),
-				DataTypes.INT().notNull()},
+				DataTypes.INT().notNull(),
+				DataTypes.INT(),
+				DataTypes.STRING()},
 			catalogTable.getSchema().getFieldDataTypes());
 		String[] columnExpressions =
 			catalogTable.getSchema().getTableColumns().stream()
 				.filter(TableColumn::isGenerated)
 				.map(c -> c.getExpr().orElse(null))
 				.toArray(String[]::new);
+		String[] expected = new String[] {
+			"`a` - 1",
+			"`b` || '$$'",
+			"`builtin`.`default`.`my_udf1`(`a`)",
+			"`builtin`.`default`.`my_udf2`(`a`) + 1",
+			"`builtin`.`default`.`my_udf3`(`a`) || '##'"
+		};
 		assertArrayEquals(
-			new String[] {"`a` - 1", "`b` || '$$'", "`my_catalog`.`my_database`.`my_udf`(`a`)"},
+			expected,
 			columnExpressions);
 	}
 
