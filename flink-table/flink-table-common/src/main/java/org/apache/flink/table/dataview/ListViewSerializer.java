@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnap
 import org.apache.flink.api.common.typeutils.base.ListSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.table.api.dataview.DataViewAccessor;
 import org.apache.flink.table.api.dataview.ListView;
 
 import java.io.IOException;
@@ -71,7 +72,9 @@ public class ListViewSerializer<T>
 
 	@Override
 	public ListView<T> copy(ListView<T> from) {
-		return new ListView<>(null, listSerializer.copy(from.list));
+		return DataViewAccessor.createListView(
+			null,
+			listSerializer.copy(DataViewAccessor.getList(from)));
 	}
 
 	@Override
@@ -86,12 +89,12 @@ public class ListViewSerializer<T>
 
 	@Override
 	public void serialize(ListView<T> record, DataOutputView target) throws IOException {
-		listSerializer.serialize(record.list, target);
+		listSerializer.serialize(DataViewAccessor.getList(record), target);
 	}
 
 	@Override
 	public ListView<T> deserialize(DataInputView source) throws IOException {
-		return new ListView<>(null, listSerializer.deserialize(source));
+		return DataViewAccessor.createListView(null, listSerializer.deserialize(source));
 	}
 
 	@Override

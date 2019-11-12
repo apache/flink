@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.MapSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.table.api.dataview.DataViewAccessor;
 import org.apache.flink.table.api.dataview.MapView;
 
 import java.io.IOException;
@@ -73,7 +74,10 @@ public class MapViewSerializer<K, V>
 
 	@Override
 	public MapView<K, V> copy(MapView<K, V> from) {
-		return new MapView<>(null, null, mapSerializer.copy(from.map));
+		return DataViewAccessor.createMapView(
+			null,
+			null,
+			mapSerializer.copy(DataViewAccessor.getMap(from)));
 	}
 
 	@Override
@@ -88,12 +92,15 @@ public class MapViewSerializer<K, V>
 
 	@Override
 	public void serialize(MapView<K, V> record, DataOutputView target) throws IOException {
-		mapSerializer.serialize(record.map, target);
+		mapSerializer.serialize(DataViewAccessor.getMap(record), target);
 	}
 
 	@Override
 	public MapView<K, V> deserialize(DataInputView source) throws IOException {
-		return new MapView<>(null, null, mapSerializer.deserialize(source));
+		return DataViewAccessor.createMapView(
+			null,
+			null,
+			mapSerializer.deserialize(source));
 	}
 
 	@Override

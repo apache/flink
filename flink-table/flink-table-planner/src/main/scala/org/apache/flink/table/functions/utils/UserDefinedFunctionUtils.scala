@@ -30,12 +30,13 @@ import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.table.typeutils.FieldInfoUtils
-
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
+import org.apache.flink.table.api.dataview.DataViewAccessor.{getElementType, getKeyType, getValueType}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import java.lang.reflect.{Method, Modifier}
 import java.lang.{Integer => JInt, Long => JLong}
@@ -474,13 +475,18 @@ object UserDefinedFunctionUtils {
             case map: MapViewTypeInfo[_, _] =>
               val mapView = field.get(acc).asInstanceOf[MapView[_, _]]
               if (mapView != null) {
-                val keyTypeInfo = mapView.keyType
-                val valueTypeInfo = mapView.valueType
-                val newTypeInfo = if (keyTypeInfo != null && valueTypeInfo != null) {
-                  new MapViewTypeInfo(keyTypeInfo, valueTypeInfo)
-                } else {
-                  map
-                }
+                val newTypeInfo =
+                  if (mapView != null &&
+                      getKeyType(mapView).isPresent &&
+                      getValueType(mapView).isPresent) {
+                    // use explicit key value type if user has defined
+                    new MapViewTypeInfo(
+                      fromDataTypeToLegacyInfo(getKeyType(mapView).get()),
+                      fromDataTypeToLegacyInfo(getValueType(mapView).get())
+                    )
+                  } else {
+                    map
+                  }
 
                 // create map view specs with unique id (used as state name)
                 var spec = MapViewSpec(
@@ -499,9 +505,9 @@ object UserDefinedFunctionUtils {
             case list: ListViewTypeInfo[_] =>
               val listView = field.get(acc).asInstanceOf[ListView[_]]
               if (listView != null) {
-                val elementTypeInfo = listView.elementType
-                val newTypeInfo = if (elementTypeInfo != null) {
-                  new ListViewTypeInfo(elementTypeInfo)
+                val newTypeInfo = if (listView != null && getElementType(listView).isPresent) {
+                  // use explicit element type if user has defined
+                  new ListViewTypeInfo(fromDataTypeToLegacyInfo(getElementType(listView).get()))
                 } else {
                   list
                 }

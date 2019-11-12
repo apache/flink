@@ -22,10 +22,12 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
+import org.apache.flink.table.api.dataview.DataViewAccessor._
 import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
 import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
 import org.apache.flink.table.functions.UserDefinedAggregateFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LegacyTypeInformationType
@@ -156,9 +158,12 @@ object DataViewUtils {
         }
 
         val newTypeInfo =
-          if (mapView != null && mapView.keyType != null && mapView.valueType != null) {
+          if (mapView != null && getKeyType(mapView).isPresent && getValueType(mapView).isPresent) {
             // use explicit key value type if user has defined
-            new MapViewTypeInfo(mapView.keyType, mapView.valueType)
+            new MapViewTypeInfo(
+              fromDataTypeToTypeInfo(getKeyType(mapView).get()),
+              fromDataTypeToTypeInfo(getValueType(mapView).get())
+            )
           } else {
             map
           }
@@ -185,9 +190,9 @@ object DataViewUtils {
           case _ =>
             instance.asInstanceOf[ListView[_]]
         }
-        val newTypeInfo = if (listView != null && listView.elementType != null) {
+        val newTypeInfo = if (listView != null && getElementType(listView).isPresent) {
           // use explicit element type if user has defined
-          new ListViewTypeInfo(listView.elementType)
+          new ListViewTypeInfo(fromDataTypeToTypeInfo(getElementType(listView).get()))
         } else {
           list
         }

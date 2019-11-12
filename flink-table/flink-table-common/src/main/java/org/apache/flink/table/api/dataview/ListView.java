@@ -21,11 +21,18 @@ package org.apache.flink.table.api.dataview;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.dataview.ListViewTypeInfoFactory;
+import org.apache.flink.table.types.DataType;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link ListView} provides List functionality for accumulators used by user-defined aggregate
@@ -80,20 +87,37 @@ import java.util.Objects;
 public class ListView<T> implements DataView {
 	private static final long serialVersionUID = 5502298766901215388L;
 
-	public transient TypeInformation<?> elementType;
-	public final List<T> list;
+	@Nullable
+	protected transient DataType elementType;
+	protected final List<T> list;
 
+	/**
+	 * @deprecated This method will be removed in the future as it is only for internal usage.
+	 */
+	@Deprecated
 	public ListView(TypeInformation<?> elementType, List<T> list) {
-		this.elementType = elementType;
-		this.list = list;
+		this(fromLegacyInfoToDataType(elementType), list);
 	}
 
 	/**
 	 * Creates a list view for elements of the specified type.
 	 *
 	 * @param elementType The type of the list view elements.
+	 * @deprecated This method will be removed in future versions as it uses the old type system. It
+	 *             is recommended to use {@link #ListView(DataType)} ()} instead which uses the new type
+	 *             system based on {@link DataTypes}. See the website documentation for more information.
 	 */
+	@Deprecated
 	public ListView(TypeInformation<?> elementType) {
+		this(fromLegacyInfoToDataType(elementType), new ArrayList<>());
+	}
+
+	/**
+	 * Creates a list view for elements of the specified type.
+	 *
+	 * @param elementType The data type of the list view elements.
+	 */
+	public ListView(DataType elementType) {
 		this(elementType, new ArrayList<>());
 	}
 
@@ -101,7 +125,18 @@ public class ListView<T> implements DataView {
 	 * Creates a list view.
 	 */
 	public ListView() {
-		this(null);
+		this((DataType) null);
+	}
+
+	/**
+	 * Construct a ListView with a specified {@link List}. This is mainly used when deserialization
+	 * for performance purpose. This is protected access which is only for internal usage.
+	 * @param elementType The data type of the list view elements.
+	 * @param list the initial list
+	 */
+	protected ListView(DataType elementType, List<T> list) {
+		this.elementType = elementType;
+		this.list = checkNotNull(list);
 	}
 
 	/**

@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.utils;
 
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -168,7 +168,7 @@ public class JavaUserDefinedAggFunctions {
 		@Override
 		public CountDistinctAccum createAccumulator() {
 			CountDistinctAccum accum = new CountDistinctAccum();
-			accum.map = new MapView<>(Types.STRING, Types.INT);
+			accum.map = new MapView<>(DataTypes.STRING(), DataTypes.INT());
 			accum.count = 0L;
 			return accum;
 		}
@@ -292,7 +292,7 @@ public class JavaUserDefinedAggFunctions {
 		public MapView<String, Integer> map;
 		public MapView<String, Integer> map2; // for test not initialized
 		public long count;
-		private ListView<Long> list = new ListView<>(Types.LONG);
+		private ListView<Long> list = new ListView<>(DataTypes.BIGINT());
 
 		public ListView<Long> getList() {
 			return list;
@@ -312,7 +312,7 @@ public class JavaUserDefinedAggFunctions {
 		@Override
 		public DataViewTestAccum createAccumulator() {
 			DataViewTestAccum accum = new DataViewTestAccum();
-			accum.map = new MapView<>(Types.STRING, Types.INT);
+			accum.map = new MapView<>(DataTypes.STRING(), DataTypes.INT());
 			accum.count = 0L;
 			return accum;
 		}

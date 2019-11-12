@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.BinaryStringUtil;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
@@ -43,8 +43,10 @@ public final class ListAggWithRetractAggFunction
 	 * The initial accumulator for listagg with retraction aggregate function.
 	 */
 	public static class ListAggWithRetractAccumulator {
-		public ListView<BinaryString> list = new ListView<>(BinaryStringTypeInfo.INSTANCE);
-		public ListView<BinaryString> retractList = new ListView<>(BinaryStringTypeInfo.INSTANCE);
+		public ListView<BinaryString> list = new ListView<>(
+			DataTypes.STRING().bridgedTo(BinaryString.class));
+		public ListView<BinaryString> retractList = new ListView<>(
+			DataTypes.STRING().bridgedTo(BinaryString.class));
 
 		@VisibleForTesting
 		@Override

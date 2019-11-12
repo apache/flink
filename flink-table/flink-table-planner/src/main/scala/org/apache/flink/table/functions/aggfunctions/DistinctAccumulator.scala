@@ -21,8 +21,7 @@ package org.apache.flink.table.functions.aggfunctions
 import java.lang.{Long => JLong}
 import java.lang.{Iterable => JIterable}
 import java.util.{Map => JMap}
-
-import org.apache.flink.table.api.dataview.MapView
+import org.apache.flink.table.api.dataview.{DataViewAccessor, MapView}
 import org.apache.flink.types.Row
 
 /**
@@ -105,6 +104,6 @@ class DistinctAccumulator(var distinctValueMap: MapView[Row, JLong]) {
   }
 
   def elements(): JIterable[JMap.Entry[Row, JLong]] = {
-    distinctValueMap.map.entrySet()
+    DataViewAccessor.getMap(distinctValueMap).entrySet()
   }
 }

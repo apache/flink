@@ -21,10 +21,9 @@ package org.apache.flink.table.planner.utils
 import java.lang.{Integer => JInt, Iterable => JIterable}
 import java.sql.Timestamp
 import java.util
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{DataTypes, Types}
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.functions.TableAggregateFunction
@@ -141,7 +140,7 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
   @Override
   def createAccumulator(): Top3WithMapViewAccum = {
     val acc = new Top3WithMapViewAccum
-    acc.data = new MapView(Types.INT, Types.INT)
+    acc.data = new MapView(DataTypes.INT(), DataTypes.INT)
     acc.size = 0
     acc.smallest = Integer.MAX_VALUE
     acc
