@@ -36,6 +36,9 @@ import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.TimestampMaxWithRetractAggFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
+import org.junit.experimental.runners.Enclosed;
+import org.junit.runner.RunWith;
+
 import java.lang.reflect.Method;
 import java.sql.Date;
 import java.sql.Time;
@@ -46,22 +49,30 @@ import java.util.List;
 /**
  * Test case for built-in Max with retraction aggregate function.
  */
-public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
+@RunWith(Enclosed.class)
+public class MaxWithRetractAggFunctionTest {
 
-	@Override
-	protected Class<?> getAccClass() {
-		return MaxWithRetractAccumulator.class;
-	}
+	/**
+	 * The base test class for MaxWithRetractAggFunction.
+	 */
+	public abstract static class MaxWithRetractAggFunctionTestBase<T>
+			extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
 
-	@Override
-	protected Method getRetractFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+		@Override
+		protected Class<?> getAccClass() {
+			return MaxWithRetractAccumulator.class;
+		}
+
+		@Override
+		protected Method getRetractFunc() throws NoSuchMethodException {
+			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+		}
 	}
 
 	/**
 	 * Test MaxWithRetractAggFunction for number type.
 	 */
-	public abstract static class NumberMaxWithRetractAggFunctionTest<T> extends MaxWithRetractAggFunctionTest {
+	public abstract static class NumberMaxWithRetractAggFunctionTest<T> extends MaxWithRetractAggFunctionTestBase {
 		protected abstract T getMinValue();
 
 		protected abstract T getMaxValue();
@@ -268,7 +279,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	/**
 	 * Test for BooleanMaxWithRetractAggFunction.
 	 */
-	public static class BooleanMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Boolean> {
+	public static class BooleanMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Boolean> {
 
 		@Override
 		protected List<List<Boolean>> getInputValueSets() {
@@ -333,7 +344,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	/**
 	 * Test for DecimalMaxWithRetractAggFunction.
 	 */
-	public static class DecimalMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Decimal> {
+	public static class DecimalMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Decimal> {
 
 		private int precision = 20;
 		private int scale = 6;
@@ -384,7 +395,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	/**
 	 * Test for StringMaxWithRetractAggFunction.
 	 */
-	public static class StringMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<BinaryString> {
+	public static class StringMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<BinaryString> {
 
 		@Override
 		protected List<List<BinaryString>> getInputValueSets() {
@@ -433,7 +444,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	/**
 	 * Test for TimestampMaxWithRetractAggFunction.
 	 */
-	public static class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Timestamp> {
+	public static class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Timestamp> {
 
 		@Override
 		protected List<List<Timestamp>> getInputValueSets() {
@@ -477,7 +488,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	/**
 	 * Test for DateMaxWithRetractAggFunction.
 	 */
-	public static class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Date> {
+	public static class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Date> {
 
 		@Override
 		protected List<List<Date>> getInputValueSets() {
@@ -521,7 +532,7 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	/**
 	 * Test for TimeMaxWithRetractAggFunction.
 	 */
-	public static class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Time> {
+	public static class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Time> {
 
 		@Override
 		protected List<List<Time>> getInputValueSets() {

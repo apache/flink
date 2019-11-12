@@ -33,6 +33,9 @@ import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunctio
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.StringLastValueAggFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
+import org.junit.experimental.runners.Enclosed;
+import org.junit.runner.RunWith;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -40,13 +43,22 @@ import java.util.List;
  * Test case for built-in LastValue aggregate function.
  * This class tests `accumulate` method with order argument.
  */
-public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+@RunWith(Enclosed.class)
+public class LastValueAggFunctionWithOrderTest {
+
+	/**
+	 * The base test class for LastValueAggFunction with order.
+	 */
+	public abstract static class LastValueAggFunctionWithOrderTestBase<T>
+			extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+
+	}
 
 	/**
 	 * Test LastValueAggFunction for number type.
 	 */
-	public abstract static class NumberLastValueAggFunctionWithOrderTest<T>
-			extends LastValueAggFunctionWithOrderTest<T> {
+	public abstract static class NumberLastValueAggFunctionWithOrderTestBase<T>
+			extends LastValueAggFunctionWithOrderTestBase<T> {
 		protected abstract T getValue(String v);
 
 		@Override
@@ -119,7 +131,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for ByteLastValueAggFunction.
 	 */
 	public static class ByteLastValueAggFunctionWithOrderTest
-			extends NumberLastValueAggFunctionWithOrderTest<Byte> {
+			extends NumberLastValueAggFunctionWithOrderTestBase<Byte> {
 
 		@Override
 		protected Byte getValue(String v) {
@@ -136,7 +148,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for ShortLastValueAggFunction.
 	 */
 	public static class ShortLastValueAggFunctionWithOrderTest
-			extends NumberLastValueAggFunctionWithOrderTest<Short> {
+			extends NumberLastValueAggFunctionWithOrderTestBase<Short> {
 
 		@Override
 		protected Short getValue(String v) {
@@ -153,7 +165,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for IntLastValueAggFunction.
 	 */
 	public static class IntLastValueAggFunctionWithOrderTest
-			extends NumberLastValueAggFunctionWithOrderTest<Integer> {
+			extends NumberLastValueAggFunctionWithOrderTestBase<Integer> {
 
 		@Override
 		protected Integer getValue(String v) {
@@ -170,7 +182,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for LongLastValueAggFunction.
 	 */
 	public static class LongLastValueAggFunctionWithOrderTest
-			extends NumberLastValueAggFunctionWithOrderTest<Long> {
+			extends NumberLastValueAggFunctionWithOrderTestBase<Long> {
 
 		@Override
 		protected Long getValue(String v) {
@@ -187,7 +199,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for FloatLastValueAggFunction.
 	 */
 	public static class FloatLastValueAggFunctionWithOrderTest
-			extends NumberLastValueAggFunctionWithOrderTest<Float> {
+			extends NumberLastValueAggFunctionWithOrderTestBase<Float> {
 
 		@Override
 		protected Float getValue(String v) {
@@ -204,7 +216,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for DoubleLastValueAggFunction.
 	 */
 	public static class DoubleLastValueAggFunctionWithOrderTest
-			extends NumberLastValueAggFunctionWithOrderTest<Double> {
+			extends NumberLastValueAggFunctionWithOrderTestBase<Double> {
 
 		@Override
 		protected Double getValue(String v) {
@@ -221,7 +233,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for BooleanLastValueAggFunction.
 	 */
 	public static class BooleanLastValueAggFunctionWithOrderTest
-			extends LastValueAggFunctionWithOrderTest<Boolean> {
+			extends LastValueAggFunctionWithOrderTestBase<Boolean> {
 
 		@Override
 		protected List<List<Boolean>> getInputValueSets() {
@@ -311,7 +323,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for DecimalLastValueAggFunction.
 	 */
 	public static class DecimalLastValueAggFunctionWithOrderTest
-			extends LastValueAggFunctionWithOrderTest<Decimal> {
+			extends LastValueAggFunctionWithOrderTestBase<Decimal> {
 
 		private int precision = 20;
 		private int scale = 6;
@@ -391,7 +403,7 @@ public abstract class LastValueAggFunctionWithOrderTest<T> extends FirstLastValu
 	 * Test for StringLastValueAggFunction.
 	 */
 	public static class StringLastValueAggFunctionWithOrderTest
-			extends LastValueAggFunctionWithOrderTest<BinaryString> {
+			extends LastValueAggFunctionWithOrderTestBase<BinaryString> {
 
 		@Override
 		protected List<List<BinaryString>> getInputValueSets() {

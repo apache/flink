@@ -18,12 +18,19 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.dataformat.BinaryGeneric;
+import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.MaxWithRetractAccumulator;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.MinWithRetractAccumulator;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Test;
@@ -35,7 +42,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Base class for aggregate function test.
@@ -77,20 +87,20 @@ public abstract class AggFunctionTestBase<T, ACC> {
 			T expected = expectedResults.get(i);
 			ACC acc = accumulateValues(inputValues);
 			T result = aggregator.getValue(acc);
-			validateResult(expected, result);
+			validateResult(expected, result, aggregator.getAccumulatorType());
 
 			if (UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator)) {
 				retractValues(acc, inputValues);
 				ACC expectedAcc = aggregator.createAccumulator();
 				// The two accumulators should be exactly same
-				validateResult(expectedAcc, acc);
+				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
 			}
 		}
 	}
 
 	@Test
-	public void testAggregateWithMerge() throws NoSuchMethodException, InvocationTargetException,
-			IllegalAccessException {
+	public void testAggregateWithMerge()
+			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		AggregateFunction<T, ACC> aggregator = getAggregator();
 		if (UserDefinedFunctionUtils.ifMethodExistInFunction("merge", aggregator)) {
 			Method mergeFunc = aggregator.getClass().getMethod("merge", getAccClass(), Iterable.class);
@@ -115,14 +125,14 @@ public abstract class AggFunctionTestBase<T, ACC> {
 				mergeFunc.invoke(aggregator, (Object) acc, accumulators);
 
 				T result = aggregator.getValue(acc);
-				validateResult(expected, result);
+				validateResult(expected, result, aggregator.getResultType());
 
 				// 2. verify merge with accumulate & retract
 				if (UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator)) {
 					retractValues(acc, inputValues);
 					ACC expectedAcc = aggregator.createAccumulator();
 					// The two accumulators should be exactly same
-					validateResult(expectedAcc, acc);
+					validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
 				}
 			}
 
@@ -138,13 +148,14 @@ public abstract class AggFunctionTestBase<T, ACC> {
 				mergeFunc.invoke(aggregator, (Object) acc, accumulators);
 
 				T result = aggregator.getValue(acc);
-				validateResult(expected, result);
+				validateResult(expected, result, aggregator.getResultType());
 			}
 		}
 	}
 
 	@Test
-	public void testMergeReservedAccumulator() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+	public void testMergeReservedAccumulator()
+			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		AggregateFunction<T, ACC> aggregator = getAggregator();
 		boolean hasMerge = UserDefinedFunctionUtils.ifMethodExistInFunction("merge", aggregator);
 		boolean hasRetract = UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator);
@@ -180,7 +191,7 @@ public abstract class AggFunctionTestBase<T, ACC> {
 
 			// getValue
 			T result = aggregator.getValue(accWithSubset);
-			validateResult(expectedValue, result);
+			validateResult(expectedValue, result, aggregator.getResultType());
 		}
 	}
 
@@ -202,12 +213,12 @@ public abstract class AggFunctionTestBase<T, ACC> {
 				resetAccFunc.invoke(aggregator, (Object) acc);
 				ACC expectedAcc = aggregator.createAccumulator();
 				//The accumulator after reset should be exactly same as the new accumulator
-				validateResult(expectedAcc, acc);
+				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
 			}
 		}
 	}
 
-	protected <E> void validateResult(E expected, E result) {
+	protected <E> void validateResult(E expected, E result, TypeInformation<?> typeInfo) {
 		if (expected instanceof BigDecimal && result instanceof BigDecimal) {
 			// BigDecimal.equals() value and scale but we are only interested in value.
 			assertEquals(0, ((BigDecimal) expected).compareTo((BigDecimal) result));
@@ -224,6 +235,55 @@ public abstract class AggFunctionTestBase<T, ACC> {
 			assertEquals(e.max, r.max);
 			assertEquals(e.mapSize, r.mapSize);
 		} else {
+			// verify null
+			if (expected == null || result == null) {
+				assertTrue(expected == null && result == null);
+				return;
+			}
+
+			// verify class
+			assertEquals(expected.getClass(), result.getClass());
+
+			// verify BinaryGeneric
+			if (expected instanceof BinaryGeneric) {
+				TypeSerializer<?> serializer = typeInfo.createSerializer(new ExecutionConfig());
+				assertThat(
+						(BinaryGeneric) result,
+						equivalent((BinaryGeneric) expected, new BinaryGenericSerializer(serializer)));
+				return;
+			}
+
+			// verify GenericRow
+			if (expected instanceof GenericRow) {
+				GenericRow expectedRow = (GenericRow) expected;
+				GenericRow resultRow = (GenericRow) result;
+				assertEquals(expectedRow.getArity(), resultRow.getArity());
+				BaseRowTypeInfo baseRowTypeInfo = (BaseRowTypeInfo) typeInfo;
+
+				for (int i = 0; i < expectedRow.getArity(); ++i) {
+					Object expectedObj = expectedRow.getField(i);
+					Object resultObj = resultRow.getField(i);
+					if (expectedObj == null || resultObj == null) {
+						assertTrue(expectedObj == null && resultObj == null);
+						continue;
+					}
+
+					// verify element class
+					assertEquals(expectedObj.getClass(), resultObj.getClass());
+
+					if (expectedObj instanceof BinaryGeneric) {
+						TypeSerializer<?> serializer =
+								baseRowTypeInfo.getFieldTypes()[i].createSerializer(new ExecutionConfig());
+						assertThat(
+								(BinaryGeneric) resultObj,
+								equivalent((BinaryGeneric) expectedObj, new BinaryGenericSerializer(serializer)));
+					} else {
+						assertEquals(expectedObj, resultObj);
+					}
+				}
+				return;
+			}
+
 			assertEquals(expected, result);
 		}
 	}

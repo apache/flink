@@ -33,6 +33,9 @@ import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFuncti
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.StringFirstValueAggFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
+import org.junit.experimental.runners.Enclosed;
+import org.junit.runner.RunWith;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -40,18 +43,25 @@ import java.util.List;
  * Test case for built-in FirstValue aggregate function.
  * This class tests `accumulate` method without order argument.
  */
-public abstract class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase<T, GenericRow> {
+@RunWith(Enclosed.class)
+public class FirstValueAggFunctionWithoutOrderTest {
 
-	@Override
-	protected Class<?> getAccClass() {
-		return GenericRow.class;
+	/**
+	 * The base test class for FirstValueAggFunction without order.
+	 */
+	public abstract static class FirstValueAggFunctionWithoutOrderTestBase<T>
+			extends AggFunctionTestBase<T, GenericRow> {
+		@Override
+		protected Class<?> getAccClass() {
+			return GenericRow.class;
+		}
 	}
 
 	/**
 	 * Test FirstValueAggFunction for number type.
 	 */
 	public abstract static class NumberFirstValueAggFunctionWithoutOrderTest<T>
-			extends FirstValueAggFunctionWithoutOrderTest<T> {
+			extends FirstValueAggFunctionWithoutOrderTestBase<T> {
 		protected abstract T getValue(String v);
 
 		@Override
@@ -195,7 +205,7 @@ public abstract class FirstValueAggFunctionWithoutOrderTest<T> extends AggFuncti
 	 * Test for BooleanFirstValueAggFunction.
 	 */
 	public static class BooleanFirstValueAggFunctionWithoutOrderTest extends
-			FirstValueAggFunctionWithoutOrderTest<Boolean> {
+			FirstValueAggFunctionWithoutOrderTestBase<Boolean> {
 
 		@Override
 		protected List<List<Boolean>> getInputValueSets() {
@@ -251,7 +261,7 @@ public abstract class FirstValueAggFunctionWithoutOrderTest<T> extends AggFuncti
 	 * Test for DecimalFirstValueAggFunction.
 	 */
 	public static class DecimalFirstValueAggFunctionWithoutOrderTest extends
-			FirstValueAggFunctionWithoutOrderTest<Decimal> {
+			FirstValueAggFunctionWithoutOrderTestBase<Decimal> {
 
 		private int precision = 20;
 		private int scale = 6;
@@ -303,7 +313,7 @@ public abstract class FirstValueAggFunctionWithoutOrderTest<T> extends AggFuncti
 	 * Test for StringFirstValueAggFunction.
 	 */
 	public static class StringFirstValueAggFunctionWithoutOrderTest extends
-			FirstValueAggFunctionWithoutOrderTest<BinaryString> {
+			FirstValueAggFunctionWithoutOrderTestBase<BinaryString> {
 
 		@Override
 		protected List<List<BinaryString>> getInputValueSets() {
