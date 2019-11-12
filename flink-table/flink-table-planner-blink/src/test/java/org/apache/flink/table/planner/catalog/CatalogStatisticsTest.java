@@ -77,10 +77,6 @@ public class CatalogStatisticsTest {
 				ObjectPath.fromString("default_database.T1"),
 				ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
 				false);
-		catalog.createTable(
-				ObjectPath.fromString("default_database.T2"),
-				ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
-				false);
 
 		alterTableStatistics(catalog);
 
