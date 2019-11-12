@@ -67,13 +67,20 @@ for Apache Thrift:
 <dependency>
 	<groupId>com.twitter</groupId>
 	<artifactId>chill-thrift</artifactId>
-	<version>0.5.2</version>
+	<version>0.7.6</version>
+	<!-- exclusions for dependency conversion -->
+	<exclusions>
+		<exclusion>
+			<groupId>com.esotericsoftware.kryo</groupId>
+			<artifactId>kryo</artifactId>
+		</exclusion>
+	</exclusions>
 </dependency>
 <!-- libthrift is required by chill-thrift -->
 <dependency>
 	<groupId>org.apache.thrift</groupId>
 	<artifactId>libthrift</artifactId>
-	<version>0.6.1</version>
+	<version>0.11.0</version>
 	<exclusions>
 		<exclusion>
 			<groupId>javax.servlet</groupId>
@@ -95,13 +102,20 @@ For Google Protobuf you need the following Maven dependency:
 <dependency>
 	<groupId>com.twitter</groupId>
 	<artifactId>chill-protobuf</artifactId>
-	<version>0.5.2</version>
+	<version>0.7.6</version>
+	<!-- exclusions for dependency conversion -->
+	<exclusions>
+		<exclusion>
+			<groupId>com.esotericsoftware.kryo</groupId>
+			<artifactId>kryo</artifactId>
+		</exclusion>
+	</exclusions>
 </dependency>
 <!-- We need protobuf for chill-protobuf -->
 <dependency>
 	<groupId>com.google.protobuf</groupId>
 	<artifactId>protobuf-java</artifactId>
-	<version>2.5.0</version>
+	<version>3.7.0</version>
 </dependency>
 
 {% endhighlight %}

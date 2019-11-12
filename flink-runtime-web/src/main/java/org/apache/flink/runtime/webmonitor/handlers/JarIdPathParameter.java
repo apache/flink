@@ -48,4 +48,11 @@ public class JarIdPathParameter extends MessagePathParameter<String> {
 	protected String convertToString(final String value) {
 		return value;
 	}
+
+	@Override
+	public String getDescription() {
+		return "String value that identifies a jar. When uploading the jar a path is returned, where the filename " +
+			"is the ID. This value is equivalent to the `" + JarListInfo.JarFileInfo.JAR_FILE_FIELD_ID + "` field " +
+			"in the list of uploaded jars (" + JarListHeaders.URL + ").";
+	}
 }

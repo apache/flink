@@ -16,16 +16,24 @@
 # limitations under the License.
 ################################################################################
 
-# Set the FLINK_DOCKER_IMAGE_NAME environment variable to override the image name to use
+# Docker compose file for a Flink job cluster deployment.
+#
+# Parameters:
+# * FLINK_DOCKER_IMAGE_NAME - Image name to use for the deployment (default: flink-job:latest)
+# * FLINK_JOB - Name of the Flink job to execute (default: none)
+# * DEFAULT_PARALLELISM - Default parallelism with which to start the job (default: 1)
+# * FLINK_JOB_ARGUMENTS - Additional arguments which will be passed to the job cluster (default: none)
+# * SAVEPOINT_OPTIONS - Savepoint options to start the cluster with (default: none)
 
-version: "2.1"
+version: "2.2"
 services:
   job-cluster:
     image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
     ports:
       - "8081:8081"
-    command: job-cluster --job-classname ${FLINK_JOB} -Djobmanager.rpc.address=job-cluster ${FLINK_JOB_ARGUMENTS}
+    command: job-cluster --job-classname ${FLINK_JOB} -Djobmanager.rpc.address=job-cluster -Dparallelism.default=${DEFAULT_PARALLELISM:-1} ${SAVEPOINT_OPTIONS} ${FLINK_JOB_ARGUMENTS}
 
   taskmanager:
     image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
     command: task-manager -Djobmanager.rpc.address=job-cluster
+    scale: ${DEFAULT_PARALLELISM:-1}

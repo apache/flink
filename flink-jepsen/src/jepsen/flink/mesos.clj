@@ -22,13 +22,12 @@
              [util :as util :refer [meh]]]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
+            [jepsen.flink.utils :refer [create-supervised-service! stop-supervised-service!]]
             [jepsen.flink.zookeeper :refer [zookeeper-uri]]))
 
 ;;; Mesos
 
 (def master-count 1)
-(def master-pidfile "/var/run/mesos/master.pid")
-(def slave-pidfile "/var/run/mesos/slave.pid")
 (def master-dir "/var/lib/mesos/master")
 (def slave-dir "/var/lib/mesos/slave")
 (def log-dir "/var/log/mesos")
@@ -38,134 +37,162 @@
 
 ;;; Marathon
 
-(def marathon-bin "/usr/bin/marathon")
+(def marathon-install-dir "/opt/marathon")
+(def marathon-bin (str marathon-install-dir "/bin/marathon"))
 (def zk-marathon-namespace "marathon")
-(def marathon-pidfile "/var/run/mesos/marathon.pid")
 (def marathon-rest-port 8080)
-
-(defn install!
-  [test node mesos-version marathon-version]
-  (c/su
-    (debian/add-repo! :mesosphere
-                      "deb http://repos.mesosphere.com/debian jessie main"
-                      "keyserver.ubuntu.com"
-                      "E56151BF")
-    (debian/install {:mesos    mesos-version
-                     :marathon marathon-version})
-    (c/exec :mkdir :-p "/var/run/mesos")
-    (c/exec :mkdir :-p master-dir)
-    (c/exec :mkdir :-p slave-dir)))
 
 ;;; Mesos functions
 
+(defn mesos-master-cmd
+  "Returns the command to run the mesos master."
+  [test node]
+  (clojure.string/join " "
+                       ["env GLOG_v=1"
+                        master-bin
+                        (str "--hostname=" (name node))
+                        (str "--log_dir=" log-dir)
+                        (str "--offer_timeout=30secs")
+                        (str "--quorum=" (util/majority master-count))
+                        (str "--registry_fetch_timeout=120secs")
+                        (str "--registry_store_timeout=5secs")
+                        (str "--work_dir=" master-dir)
+                        (str "--zk=" (zookeeper-uri test zk-namespace))]))
+
+(defn mesos-slave-cmd
+  "Returns the command to run the mesos agent."
+  [test node]
+  (clojure.string/join " "
+                       ["env GLOG_v=1"
+                        slave-bin
+                        (str "--hostname=" (name node))
+                        (str "--log_dir=" log-dir)
+                        (str "--master=" (zookeeper-uri test zk-namespace))
+                        (str "--recovery_timeout=30secs")
+                        (str "--work_dir=" slave-dir)
+                        (str "--no-systemd_enable_support")
+                        (str "--resources='cpus:8'")]))
+
+(defn create-mesos-master-supervised-service!
+  [test node]
+  (create-supervised-service! "mesos-master"
+                              (mesos-master-cmd test node)))
+
+(defn create-mesos-slave-supervised-service!
+  [test node]
+  (create-supervised-service! "mesos-slave"
+                              (mesos-slave-cmd test node)))
+
+(defn master-node?
+  "Returns a truthy value if the node should run the mesos master."
+  [test node]
+  (some #{node} (take master-count (sort (:nodes test)))))
+
 (defn start-master!
   [test node]
-  (when (some #{node} (take master-count (sort (:nodes test))))
+  (when (master-node? test node)
     (info node "Starting mesos master")
     (c/su
-      (c/exec :start-stop-daemon
-              :--background
-              :--chdir master-dir
-              :--exec "/usr/bin/env"
-              :--make-pidfile
-              :--no-close
-              :--oknodo
-              :--pidfile master-pidfile
-              :--start
-              :--
-              "GLOG_v=1"
-              master-bin
-              (str "--hostname=" (name node))
-              (str "--log_dir=" log-dir)
-              (str "--offer_timeout=30secs")
-              (str "--quorum=" (util/majority master-count))
-              (str "--registry_fetch_timeout=120secs")
-              (str "--registry_store_timeout=5secs")
-              (str "--work_dir=" master-dir)
-              (str "--zk=" (zookeeper-uri test zk-namespace))
-              :>> (str log-dir "/master.stdout")
-              (c/lit "2>&1")))))
+      (create-mesos-master-supervised-service! test node))))
 
 (defn start-slave!
   [test node]
-  (when-not (some #{node} (take master-count (sort (:nodes test))))
+  (when-not (master-node? test node)
     (info node "Starting mesos slave")
     (c/su
-      (c/exec :start-stop-daemon :--start
-              :--background
-              :--chdir slave-dir
-              :--exec slave-bin
-              :--make-pidfile
-              :--no-close
-              :--pidfile slave-pidfile
-              :--oknodo
-              :--
-              (str "--hostname=" (name node))
-              (str "--log_dir=" log-dir)
-              (str "--master=" (zookeeper-uri test zk-namespace))
-              (str "--recovery_timeout=30secs")
-              (str "--work_dir=" slave-dir)
-              :>> (str log-dir "/slave.stdout")
-              (c/lit "2>&1")))))
+      (create-mesos-slave-supervised-service! test node))))
 
 (defn stop-master!
-  [node]
-  (info node "Stopping mesos master")
-  (meh (cu/grepkill! :mesos-master))
-  (meh (c/exec :rm :-rf master-pidfile))
-  (meh (c/exec :rm :-rf
-               (c/lit (str log-dir "/*"))
-               (c/lit (str master-dir "/*")))))
+  [test node]
+  (when (master-node? test node)
+    (info node "Stopping mesos master")
+    (stop-supervised-service! "mesos-master")
+    (meh (c/exec :rm :-rf
+                 (c/lit (str log-dir "/*"))
+                 (c/lit (str master-dir "/*"))))))
 
 (defn stop-slave!
-  [node]
-  (info node "Stopping mesos slave")
-  (meh (cu/grepkill! :mesos-slave))
-  (meh (c/exec :rm :-rf slave-pidfile))
-  (meh (c/exec :rm :-rf
-               (c/lit (str log-dir "/*"))
-               (c/lit (str slave-dir "/*")))))
+  [test node]
+  (when-not (master-node? test node)
+    (info node "Stopping mesos slave")
+    (stop-supervised-service! "mesos-slave")
+    (meh (c/exec :rm :-rf
+                 (c/lit (str log-dir "/*"))
+                 (c/lit (str slave-dir "/*"))))))
+
+(defn install-mesos!
+  [mesos-version]
+  (c/su
+    (debian/add-repo! :mesosphere
+                      "deb http://repos.mesosphere.com/debian stretch main"
+                      "keyserver.ubuntu.com"
+                      "E56151BF")
+    (debian/install {:mesos mesos-version})
+    (c/exec :mkdir :-p master-dir)
+    (c/exec :mkdir :-p slave-dir)))
 
 ;;; Marathon functions
 
+(defn install-marathon!
+  [marathon-dist-url]
+  (c/su
+    (cu/install-archive! marathon-dist-url marathon-install-dir)))
+
+(defn marathon-cmd
+  "Returns the command to run the marathon."
+  [test node]
+  (clojure.string/join " "
+                       [marathon-bin
+                        (str "--hostname " node)
+                        (str "--master " (zookeeper-uri test zk-namespace))
+                        (str "--zk " (zookeeper-uri test zk-marathon-namespace))
+                        (str ">> " log-dir "/marathon.out")]))
+
+(defn create-marathon-supervised-service!
+  [test node]
+  (create-supervised-service! "marathon"
+                              (marathon-cmd test node)))
+
+(defn marathon-node?
+  [test node]
+  (= node (first (sort (:nodes test)))))
+
 (defn start-marathon!
   [test node]
-  (when (= node (first (sort (:nodes test))))
+  (when (marathon-node? test node)
     (info "Start marathon")
     (c/su
-      (c/exec :start-stop-daemon :--start
-              :--background
-              :--exec marathon-bin
-              :--make-pidfile
-              :--no-close
-              :--pidfile marathon-pidfile
-              :--
-              (c/lit (str "--hostname " node))
-              (c/lit (str "--master " (zookeeper-uri test zk-namespace)))
-              (c/lit (str "--zk " (zookeeper-uri test zk-marathon-namespace)))
-              :>> (str log-dir "/marathon.stdout")
-              (c/lit "2>&1")))))
+      (create-marathon-supervised-service! test node))))
 
 (defn stop-marathon!
-  []
-  (cu/grepkill! "marathon"))
+  [test node]
+  (when (marathon-node? test node)
+    (stop-supervised-service! "marathon")))
 
 (defn marathon-base-url
   [test]
   (str "http://" (first (sort (:nodes test))) ":" marathon-rest-port))
 
+;;; Mesos & Marathon DB
+
+(defn install!
+  [mesos-version marathon-dist-url]
+  (c/su
+    (install-mesos! mesos-version)
+    (install-marathon! marathon-dist-url)))
+
 (defn db
-  [mesos-version marathon-version]
+  [mesos-version marathon-dist-url]
   (reify db/DB
     (setup! [this test node]
-      (install! test node mesos-version marathon-version)
+      (install! mesos-version marathon-dist-url)
       (start-master! test node)
       (start-slave! test node)
       (start-marathon! test node))
     (teardown! [this test node]
-      (stop-slave! node)
-      (stop-master! node)
-      (stop-marathon!))
+      (stop-slave! test node)
+      (stop-master! test node)
+      (stop-marathon! test node))
     db/LogFiles
     (log-files [_ test node]
       (if (cu/exists? log-dir) (cu/ls-full log-dir) []))))

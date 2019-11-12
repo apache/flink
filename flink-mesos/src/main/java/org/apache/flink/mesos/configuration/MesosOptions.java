@@ -19,6 +19,8 @@
 package org.apache.flink.mesos.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -26,26 +28,6 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  * The set of configuration options relating to mesos settings.
  */
 public class MesosOptions {
-
-	/**
-	 * The initial number of Mesos tasks to allocate.
-	 */
-	public static final ConfigOption<Integer> INITIAL_TASKS =
-		key("mesos.initial-tasks")
-			.defaultValue(0)
-			.withDescription("The initial workers to bring up when the master starts");
-
-	/**
-	 * The maximum number of failed Mesos tasks before entirely stopping
-	 * the Mesos session / job on Mesos.
-	 *
-	 * <p>By default, we take the number of initially requested tasks.
-	 */
-	public static final ConfigOption<Integer> MAX_FAILED_TASKS =
-		key("mesos.maximum-failed-tasks")
-			.defaultValue(-1)
-			.withDescription("The maximum number of failed workers before the cluster fails. May be set to -1 to disable" +
-				" this feature");
 
 	/**
 	 * The Mesos master URL.
@@ -63,9 +45,14 @@ public class MesosOptions {
 	public static final ConfigOption<String> MASTER_URL =
 		key("mesos.master")
 			.noDefaultValue()
-			.withDescription("The Mesos master URL. The value should be in one of the following forms:" +
-				" \"host:port\", \"zk://host1:port1,host2:port2,.../path\"," +
-				" \"zk://username:password@host1:port1,host2:port2,.../path\" or \"file:///path/to/file\"");
+			.withDescription(Description.builder()
+				.text("The Mesos master URL. The value should be in one of the following forms: ")
+				.list(
+					TextElement.text("host:port"),
+					TextElement.text("zk://host1:port1,host2:port2,.../path"),
+					TextElement.text("zk://username:password@host1:port1,host2:port2,.../path"),
+					TextElement.text("file:///path/to/file"))
+				.build());
 
 	/**
 	 * The failover timeout for the Mesos scheduler, after which running tasks are automatically shut down.
@@ -123,9 +110,38 @@ public class MesosOptions {
 	/**
 	 * Config parameter to configure which configuration keys will dynamically get a port assigned through Mesos.
 	 */
-	public static final ConfigOption<String> PORT_ASSIGNMENTS = key("mesos.resourcemanager.tasks.port-assignments")
-		.defaultValue("")
-		.withDescription("Comma-separated list of configuration keys which represent a configurable port." +
-			"All port keys will dynamically get a port assigned through Mesos.");
+	public static final ConfigOption<String> PORT_ASSIGNMENTS =
+		key("mesos.resourcemanager.tasks.port-assignments")
+		.noDefaultValue()
+		.withDescription(Description.builder()
+			.text("Comma-separated list of configuration keys which represent a configurable port. " +
+				"All port keys will dynamically get a port assigned through Mesos.")
+			.build());
 
+	/**
+	 * Config parameter to configure the amount of time to wait for unused expired Mesos
+	 * offers before they are declined.
+	 */
+	public static final ConfigOption<Long> UNUSED_OFFER_EXPIRATION =
+		key("mesos.resourcemanager.unused-offer-expiration")
+			.defaultValue(120000L)
+			.withDescription(
+				Description.builder()
+					.text("Amount of time to wait for unused expired offers before declining them. " +
+						"This ensures your scheduler will not hoard unuseful offers.")
+					.build());
+
+	/**
+	 * Config parameter to configure the amount of time refuse a particular offer for.
+	 * This ensures the same resource offer isn't resent immediately after declining.
+	 */
+	public static final ConfigOption<Long> DECLINED_OFFER_REFUSE_DURATION =
+		key("mesos.resourcemanager.declined-offer-refuse-duration")
+			.defaultValue(5000L)
+			.withDescription(
+				Description.builder()
+					.text("Amount of time to ask the Mesos master to not resend a " +
+						"declined resource offer again. This ensures a declined resource offer " +
+						"isn't resent immediately after being declined")
+					.build());
 }

@@ -23,8 +23,6 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -32,7 +30,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 /**
@@ -43,7 +40,7 @@ import java.io.IOException;
  * @param <V> The type of value that the state state stores.
  */
 class RocksDBValueState<K, N, V>
-	extends AbstractRocksDBState<K, N, V, ValueState<V>>
+	extends AbstractRocksDBState<K, N, V>
 	implements InternalValueState<K, N, V> {
 
 	/**
@@ -83,13 +80,14 @@ class RocksDBValueState<K, N, V>
 	@Override
 	public V value() {
 		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
+			byte[] valueBytes = backend.db.get(columnFamily,
+				serializeCurrentKeyWithGroupAndNamespace());
+
 			if (valueBytes == null) {
 				return getDefaultValue();
 			}
-			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
+			dataInputView.setBuffer(valueBytes);
+			return valueSerializer.deserialize(dataInputView);
 		} catch (IOException | RocksDBException e) {
 			throw new FlinkRuntimeException("Error while retrieving data from RocksDB.", e);
 		}
@@ -101,13 +99,11 @@ class RocksDBValueState<K, N, V>
 			clear();
 			return;
 		}
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+
 		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			keySerializationStream.reset();
-			valueSerializer.serialize(value, out);
-			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+			backend.db.put(columnFamily, writeOptions,
+				serializeCurrentKeyWithGroupAndNamespace(),
+				serializeValue(value));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
 		}

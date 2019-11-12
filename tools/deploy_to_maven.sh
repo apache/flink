@@ -84,12 +84,12 @@ echo "detected current version as: '$CURRENT_FLINK_VERSION'"
 #
 
 if [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then
-    MVN_SNAPSHOT_OPTS="-B -Pdocs-and-source -DskipTests -Drat.skip=true -Drat.ignoreErrors=true \
-        -DretryFailedDeploymentCount=10 --settings deploysettings.xml clean deploy"
+    MVN_SNAPSHOT_OPTS="-B -Pdocs-and-source -DskipTests -Drat.skip=true -Drat.ignoreErrors=true -Dcheckstyle.skip=true \
+        -DretryFailedDeploymentCount=10 clean deploy"
 
     # hadoop2 scala 2.11
     echo "deploy standard version (hadoop2) for scala 2.11"
-    mvn ${MVN_SNAPSHOT_OPTS} -Pscala-2.11
+    mvn ${MVN_SNAPSHOT_OPTS}
     deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop2"
 
     exit 0

@@ -20,18 +20,20 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AssumptionViolatedException;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.flink.runtime.io.network.netty.NettyConfig.TRANSPORT_TYPE;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 
 /**
@@ -39,6 +41,7 @@ import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
  * on linux. On other platforms it's basically a NO-OP. See
  * https://github.com/apache/flink-shaded/issues/30
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class NettyEpollITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyEpollITCase.class);
@@ -47,11 +50,10 @@ public class NettyEpollITCase extends TestLogger {
 
 	@Test
 	public void testNettyEpoll() throws Exception {
-		MiniClusterResource cluster = trySetUpCluster();
+		MiniClusterWithClientResource cluster = trySetUpCluster();
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(NUM_TASK_MANAGERS);
-			env.getConfig().disableSysoutLogging();
 
 			DataStream<Integer> input = env.fromElements(1, 2, 3, 4, 1, 2, 3, 42);
 			input.keyBy(new KeySelector<Integer, Integer>() {
@@ -70,11 +72,11 @@ public class NettyEpollITCase extends TestLogger {
 		}
 	}
 
-	private MiniClusterResource trySetUpCluster() throws Exception {
+	private MiniClusterWithClientResource trySetUpCluster() throws Exception {
 		try {
 			Configuration config = new Configuration();
-			config.setString(TRANSPORT_TYPE, "epoll");
-			MiniClusterResource cluster = new MiniClusterResource(
+			config.setString(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE, "epoll");
+			MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 				new MiniClusterResourceConfiguration.Builder()
 					.setConfiguration(config)
 					.setNumberTaskManagers(NUM_TASK_MANAGERS)

@@ -95,16 +95,12 @@ else
 fi
 
 setup_elasticsearch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.1.2.tar.gz"
-verify_elasticsearch_process_exist
+wait_elasticsearch_working
 
 function shutdownAndCleanup {
-
     shutdown_elasticsearch_cluster "$ES_INDEX"
-    # make sure to run regular cleanup as well
-    cleanup
 }
-trap shutdownAndCleanup INT
-trap shutdownAndCleanup EXIT
+on_exit shutdownAndCleanup
 
 TEST_PROGRAM_JAR=${TEST_DATA_DIR}/${ARTIFACT_ID}/target/${ARTIFACT_ID}-${ARTIFACT_VERSION}.jar
 
@@ -115,4 +111,4 @@ ${FLINK_DIR}/bin/flink run -c org.apache.flink.quickstart.Elasticsearch5SinkExam
   --index "${ES_INDEX}" \
   --type type
 
-verify_result 20 "${ES_INDEX}"
+verify_result_line_number 20 "${ES_INDEX}"

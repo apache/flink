@@ -111,5 +111,10 @@ public class HandlerRequestUtilsTest extends TestLogger {
 		public String convertValueToString(final Boolean value) {
 			return value.toString();
 		}
+
+		@Override
+		public String getDescription() {
+			return "boolean query parameter";
+		}
 	}
 }

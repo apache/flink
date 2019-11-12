@@ -22,6 +22,13 @@ source "$(dirname "$0")"/common_ha.sh
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
 
+function ha_cleanup() {
+  # kill the cluster and zookeeper
+  stop_watchdogs
+}
+
+on_exit ha_cleanup
+
 function run_ha_test() {
     local PARALLELISM=$1
     local BACKEND=$2
@@ -34,7 +41,13 @@ function run_ha_test() {
     CLEARED=0
 
     # start the cluster on HA mode
-    start_ha_cluster
+    create_ha_config
+    # change the pid dir to start log files always from 0, this is important for checks in the
+    # jm killing loop
+    set_config_key "env.pid.dir" "${TEST_DATA_DIR}"
+    set_config_key "env.java.opts" "-ea"
+    start_local_zk
+    start_cluster
 
     echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, and incremSnapshots=${INCREM}."
 
@@ -58,7 +71,7 @@ function run_ha_test() {
     wait_job_running ${JOB_ID}
 
     # start the watchdog that keeps the number of JMs stable
-    start_ha_jm_watchdog 1 "8081"
+    start_ha_jm_watchdog 1 "StandaloneSessionClusterEntrypoint" start_jm_cmd "8081"
 
     sleep 5
 
@@ -66,25 +79,19 @@ function run_ha_test() {
     start_ha_tm_watchdog ${JOB_ID} 1
 
     # let the job run for a while to take some checkpoints
-    sleep 20
+    wait_num_of_occurence_in_logs "Completed checkpoint [1-9]* for job ${JOB_ID}" 2 "standalonesession"
 
-    for (( c=0; c<${JM_KILLS}; c++ )); do
+    for (( c=1; c<=${JM_KILLS}; c++ )); do
         # kill the JM and wait for watchdog to
         # create a new one which will take over
-        kill_jm
+        kill_single 'StandaloneSessionClusterEntrypoint'
         # let the job start and take some checkpoints
-        sleep 60
+        wait_num_of_occurence_in_logs "Completed checkpoint [1-9]* for job ${JOB_ID}" 2 "standalonesession-${c}"
     done
 
     # verify checkpoints in the logs
     verify_logs ${JM_KILLS} true
-
-    # kill the cluster and zookeeper
-    stop_cluster_and_watchdog
 }
-
-trap stop_cluster_and_watchdog INT
-trap stop_cluster_and_watchdog EXIT
 
 STATE_BACKEND_TYPE=${1:-file}
 STATE_BACKEND_FILE_ASYNC=${2:-true}

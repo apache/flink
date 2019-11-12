@@ -75,7 +75,7 @@ import java.util.List;
  *   .build();
  *
  * tEnv.registerTableSource("orcTable", orcSrc);
- * Table res = tableEnv.sql("SELECT * FROM orcTable");
+ * Table res = tableEnv.sqlQuery("SELECT * FROM orcTable");
  * }
  * </pre>
  */
@@ -213,14 +213,15 @@ public class OrcTableSource
 
 	@Override
 	public String explainSource() {
-		return "OrcFile[path=" + path + ", schema=" + orcSchema + ", filter=" + predicateString() + "]";
+		return "OrcFile[path=" + path + ", schema=" + orcSchema + ", filter=" + predicateString()
+			+ ", selectedFields=" + Arrays.toString(selectedFields) + "]";
 	}
 
 	private String predicateString() {
-		if (predicates != null) {
-			return "AND(" + Arrays.toString(predicates) + ")";
-		} else {
+		if (predicates == null || predicates.length == 0) {
 			return "TRUE";
+		} else {
+			return "AND(" + Arrays.toString(predicates) + ")";
 		}
 	}
 

@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration.description;
 
+import java.util.EnumSet;
+
 /**
  * Allows providing multiple formatters for the description. E.g. Html formatter, Markdown formatter etc.
  */
@@ -49,7 +51,7 @@ public abstract class Formatter {
 				return formatter.finalizeFormatting();
 			}
 		).toArray(String[]::new);
-		formatText(state, escapeFormatPlaceholder(element.getFormat()), inlineElements);
+		formatText(state, escapeFormatPlaceholder(element.getFormat()), inlineElements, element.getStyles());
 	}
 
 	public void format(LineBreakElement element) {
@@ -76,7 +78,11 @@ public abstract class Formatter {
 
 	protected abstract void formatLineBreak(StringBuilder state);
 
-	protected abstract void formatText(StringBuilder state, String format, String[] elements);
+	protected abstract void formatText(
+		StringBuilder state,
+		String format,
+		String[] elements,
+		EnumSet<TextElement.TextStyle> styles);
 
 	protected abstract void formatList(StringBuilder state, String[] entries);
 

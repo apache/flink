@@ -21,113 +21,66 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.InputGateUtil;
+import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
-import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
-import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
+import java.util.Collection;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link StreamTask} for executing a {@link TwoInputStreamOperator}.
+ * A {@link StreamTask} for executing a {@link TwoInputStreamOperator} and supporting
+ * the {@link TwoInputStreamOperator} to select input for reading.
  */
 @Internal
-public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
+public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
-
-	private volatile boolean running = true;
-
-	private final WatermarkGauge input1WatermarkGauge;
-	private final WatermarkGauge input2WatermarkGauge;
-	private final MinWatermarkGauge minInputWatermarkGauge;
-
-	/**
-	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
-	 *
-	 * @param env The task environment for this task.
-	 */
 	public TwoInputStreamTask(Environment env) {
 		super(env);
-		input1WatermarkGauge = new WatermarkGauge();
-		input2WatermarkGauge = new WatermarkGauge();
-		minInputWatermarkGauge = new MinWatermarkGauge(input1WatermarkGauge, input2WatermarkGauge);
 	}
 
 	@Override
-	public void init() throws Exception {
-		StreamConfig configuration = getConfiguration();
-		ClassLoader userClassLoader = getUserCodeClassLoader();
+	protected void createInputProcessor(
+		Collection<InputGate> inputGates1,
+		Collection<InputGate> inputGates2,
+		TypeSerializer<IN1> inputDeserializer1,
+		TypeSerializer<IN2> inputDeserializer2) throws IOException {
 
-		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
-		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
+		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
+			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
 
-		int numberOfInputs = configuration.getNumberOfInputs();
+		InputGate unionedInputGate1 = InputGateUtil.createInputGate(inputGates1.toArray(new InputGate[0]));
+		InputGate unionedInputGate2 = InputGateUtil.createInputGate(inputGates2.toArray(new InputGate[0]));
 
-		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
-		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
+		// create a Input instance for each input
+		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
+			this,
+			getConfiguration().getCheckpointMode(),
+			getEnvironment().getIOManager(),
+			unionedInputGate1,
+			unionedInputGate2,
+			getEnvironment().getTaskManagerInfo().getConfiguration(),
+			getTaskNameWithSubtaskAndId());
+		checkState(checkpointedInputGates.length == 2);
 
-		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-
-		for (int i = 0; i < numberOfInputs; i++) {
-			int inputType = inEdges.get(i).getTypeNumber();
-			InputGate reader = getEnvironment().getInputGate(i);
-			switch (inputType) {
-				case 1:
-					inputList1.add(reader);
-					break;
-				case 2:
-					inputList2.add(reader);
-					break;
-				default:
-					throw new RuntimeException("Invalid input type number: " + inputType);
-			}
-		}
-
-		this.inputProcessor = new StreamTwoInputProcessor<>(
-				inputList1, inputList2,
-				inputDeserializer1, inputDeserializer2,
-				this,
-				configuration.getCheckpointMode(),
-				getCheckpointLock(),
-				getEnvironment().getIOManager(),
-				getEnvironment().getTaskManagerInfo().getConfiguration(),
-				getStreamStatusMaintainer(),
-				this.headOperator,
-				getEnvironment().getMetricGroup().getIOMetricGroup(),
-				input1WatermarkGauge,
-				input2WatermarkGauge);
-
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_2_WATERMARK, input2WatermarkGauge);
-		// wrap watermark gauge since registered metrics must be unique
-		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
-	}
-
-	@Override
-	protected void run() throws Exception {
-		// cache processor reference on the stack, to make the code more JIT friendly
-		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
-
-		while (running && inputProcessor.processInput()) {
-			// all the work happens in the "processInput" method
-		}
-	}
-
-	@Override
-	protected void cleanup() throws Exception {
-		if (inputProcessor != null) {
-			inputProcessor.cleanup();
-		}
-	}
-
-	@Override
-	protected void cancelTask() {
-		running = false;
+		inputProcessor = new StreamTwoInputProcessor<>(
+			checkpointedInputGates,
+			inputDeserializer1,
+			inputDeserializer2,
+			getCheckpointLock(),
+			getEnvironment().getIOManager(),
+			getStreamStatusMaintainer(),
+			headOperator,
+			twoInputSelectionHandler,
+			input1WatermarkGauge,
+			input2WatermarkGauge,
+			operatorChain,
+			setupNumRecordsInCounter(headOperator));
 	}
 }

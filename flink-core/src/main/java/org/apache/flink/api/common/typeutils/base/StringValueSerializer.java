@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
@@ -105,13 +107,20 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof StringValueSerializer;
+	public TypeSerializerSnapshot<StringValue> snapshotConfiguration() {
+		return new StringValueSerializerSnapshot();
 	}
 
-	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(StringSerializer.class.getCanonicalName());
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class StringValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<StringValue> {
+
+		public StringValueSerializerSnapshot() {
+			super(() -> INSTANCE);
+		}
 	}
 }

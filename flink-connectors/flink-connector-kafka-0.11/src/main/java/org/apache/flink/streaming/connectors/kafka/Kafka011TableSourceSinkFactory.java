@@ -49,7 +49,7 @@ public class Kafka011TableSourceSinkFactory extends KafkaTableSourceSinkFactoryB
 	}
 
 	@Override
-	protected KafkaTableSource createKafkaTableSource(
+	protected KafkaTableSourceBase createKafkaTableSource(
 			TableSchema schema,
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -73,7 +73,7 @@ public class Kafka011TableSourceSinkFactory extends KafkaTableSourceSinkFactoryB
 	}
 
 	@Override
-	protected KafkaTableSink createKafkaTableSink(
+	protected KafkaTableSinkBase createKafkaTableSink(
 			TableSchema schema,
 			String topic,
 			Properties properties,

@@ -1,7 +1,7 @@
 ---
 title: "Linking with Optional Modules"
 layout: redirect
-redirect: /start/dependencies.html
+redirect: /dev/projectsetup/dependencies.html
 permalink: /dev/linking.html
 ---
 <!--

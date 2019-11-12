@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -42,6 +43,7 @@ public class HighAvailabilityOptions {
 	 * Defines high-availability mode used for the cluster execution.
 	 * A value of "NONE" signals no highly available setup.
 	 * To enable high-availability, set this mode to "ZOOKEEPER".
+	 * Can also be set to FQN of HighAvailability factory class.
 	 */
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_HIGH_AVAILABILITY)
 	public static final ConfigOption<String> HA_MODE =
@@ -49,7 +51,7 @@ public class HighAvailabilityOptions {
 			.defaultValue("NONE")
 			.withDeprecatedKeys("recovery.mode")
 			.withDescription("Defines high-availability mode used for the cluster execution." +
-				" To enable high-availability, set this mode to \"ZOOKEEPER\".");
+				" To enable high-availability, set this mode to \"ZOOKEEPER\" or specify FQN of factory class.");
 
 	/**
 	 * The ID of the Flink cluster, used to separate multiple Flink clusters
@@ -72,7 +74,6 @@ public class HighAvailabilityOptions {
 			.withDeprecatedKeys("high-availability.zookeeper.storageDir", "recovery.zookeeper.storageDir")
 			.withDescription("File system path (URI) where Flink persists metadata in high-availability setups.");
 
-
 	// ------------------------------------------------------------------------
 	//  Recovery Options
 	// ------------------------------------------------------------------------
@@ -85,15 +86,6 @@ public class HighAvailabilityOptions {
 			.defaultValue("0")
 			.withDeprecatedKeys("recovery.jobmanager.port")
 			.withDescription("Optional port (range) used by the job manager in high-availability mode.");
-
-	/**
-	 * The time before a JobManager after a fail over recovers the current jobs.
-	 */
-	public static final ConfigOption<String> HA_JOB_DELAY =
-			key("high-availability.job.delay")
-			.noDefaultValue()
-			.withDeprecatedKeys("recovery.job.delay")
-			.withDescription("The time before a JobManager after a fail over recovers the current jobs.");
 
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Options
@@ -157,7 +149,9 @@ public class HighAvailabilityOptions {
 			key("high-availability.zookeeper.path.mesos-workers")
 			.defaultValue("/mesos-workers")
 			.withDeprecatedKeys("recovery.zookeeper.path.mesos-workers")
-			.withDescription("ZooKeeper root path (ZNode) for Mesos workers.");
+			.withDescription(Description.builder()
+				.text("The ZooKeeper root path for persisting the Mesos worker information.")
+				.build());
 
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Client Settings
@@ -197,6 +191,22 @@ public class HighAvailabilityOptions {
 			.withDescription("Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be" +
 				" set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use" +
 				" SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).");
+
+	// ------------------------------------------------------------------------
+	//  Deprecated options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * The time before a JobManager after a fail over recovers the current jobs.
+	 *
+	 * @deprecated Don't use this option anymore. It has no effect on Flink.
+	 */
+	@Deprecated
+	public static final ConfigOption<String> HA_JOB_DELAY =
+		key("high-availability.job.delay")
+			.noDefaultValue()
+			.withDeprecatedKeys("recovery.job.delay")
+			.withDescription("The time before a JobManager after a fail over recovers the current jobs.");
 
 	// ------------------------------------------------------------------------
 

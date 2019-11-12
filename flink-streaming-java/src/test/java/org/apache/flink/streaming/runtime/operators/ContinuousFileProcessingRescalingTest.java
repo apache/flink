@@ -47,6 +47,8 @@ import java.util.Queue;
  */
 public class ContinuousFileProcessingRescalingTest {
 
+	private final int maxParallelism = 10;
+
 	@Test
 	public void testReaderScalingDown() throws Exception {
 		// simulates the scenario of scaling down from 2 to 1 instances
@@ -87,13 +89,17 @@ public class ContinuousFileProcessingRescalingTest {
 		testHarness1.getOutput().clear();
 		testHarness2.getOutput().clear();
 
-		// 2) and take the snapshots from the previous instances and merge them
+		// 2) take the snapshots from the previous instances and merge them
 		// into a new one which will be then used to initialize a third instance
 		OperatorSubtaskState mergedState = AbstractStreamOperatorTestHarness.
 			repackageState(
 				testHarness2.snapshot(0, 0),
 				testHarness1.snapshot(0, 0)
 			);
+
+		// 3) and repartition to get the initialized state when scaling down.
+		OperatorSubtaskState initState =
+			AbstractStreamOperatorTestHarness.repartitionOperatorState(mergedState, maxParallelism, 2, 1, 0);
 
 		// create the third instance
 		final OneShotLatch wLatch = new OneShotLatch();
@@ -104,7 +110,7 @@ public class ContinuousFileProcessingRescalingTest {
 
 		// initialize the state of the new operator with the constructed by
 		// combining the partial states of the instances above.
-		testHarness.initializeState(mergedState);
+		testHarness.initializeState(initState);
 		testHarness.open();
 
 		// now restart the waiting operators
@@ -156,8 +162,15 @@ public class ContinuousFileProcessingRescalingTest {
 			triggerLatch1.await();
 		}
 
-		// this will be the state shared by the 2 new instances.
 		OperatorSubtaskState snapshot = testHarness1.snapshot(0, 0);
+
+		// this will be the init state for new instance-0
+		OperatorSubtaskState initState1 =
+			AbstractStreamOperatorTestHarness.repartitionOperatorState(snapshot, maxParallelism, 1, 2, 0);
+
+		// this will be the init state for new instance-1
+		OperatorSubtaskState initState2 =
+			AbstractStreamOperatorTestHarness.repartitionOperatorState(snapshot, maxParallelism, 1, 2, 1);
 
 		// 1) clear the output of instance so that we can compare it with one created by the new instances, and
 		// 2) let the operator process the rest of its state
@@ -173,7 +186,7 @@ public class ContinuousFileProcessingRescalingTest {
 
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness2 = getTestHarness(format2, 2, 0);
 		testHarness2.setup();
-		testHarness2.initializeState(snapshot);
+		testHarness2.initializeState(initState1);
 		testHarness2.open();
 
 		BlockingFileInputFormat format3 = new BlockingFileInputFormat(
@@ -181,7 +194,7 @@ public class ContinuousFileProcessingRescalingTest {
 
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness3 = getTestHarness(format3, 2, 1);
 		testHarness3.setup();
-		testHarness3.initializeState(snapshot);
+		testHarness3.initializeState(initState2);
 		testHarness3.open();
 
 		triggerLatch2.trigger();
@@ -225,7 +238,7 @@ public class ContinuousFileProcessingRescalingTest {
 		reader.setOutputType(TypeExtractor.getInputFormatTypes(format), new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness =
-			new OneInputStreamOperatorTestHarness<>(reader, 10, noOfTasks, taksIdx);
+			new OneInputStreamOperatorTestHarness<>(reader, maxParallelism, noOfTasks, taksIdx);
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		return testHarness;
 	}

@@ -17,38 +17,27 @@
 # limitations under the License.
 ################################################################################
 
+set -Eexuo pipefail
+
 source "$(dirname "$0")"/common.sh
 
 PARALLELISM="${1:-25}"
+TM_NUM=2
+let "SLOTS_PER_TM = (PARALLELISM + TM_NUM - 1) / TM_NUM"
 
 TEST=flink-high-parallelism-iterations-test
 TEST_PROGRAM_NAME=HighParallelismIterationsTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-backup_config
-
-set_conf "taskmanager.heap.mb" "52" # 52Mb x 100 TMs = 5Gb total heap
-
-set_conf "taskmanager.memory.size" "8" # 8Mb
-set_conf "taskmanager.network.memory.min" "8388608" # 8Mb
-set_conf "taskmanager.network.memory.max" "8388608" # 8Mb
-set_conf "taskmanager.memory.segment-size" "8192" # 8Kb
-
-set_conf "taskmanager.network.netty.server.numThreads" "1"
-set_conf "taskmanager.network.netty.client.numThreads" "1"
-
-set_conf "taskmanager.numberOfTaskSlots" "1"
+set_config_key "taskmanager.numberOfTaskSlots" "$SLOTS_PER_TM"
 
 print_mem_use
 start_cluster
 print_mem_use
 
-let TMNUM=$PARALLELISM-1
-echo "Start $TMNUM more task managers"
-for i in `seq 1 $TMNUM`; do
-    $FLINK_DIR/bin/taskmanager.sh start
-    print_mem_use
-done
+let "TM_NUM -= 1"
+start_taskmanagers ${TM_NUM}
+print_mem_use
 
 $FLINK_DIR/bin/flink run -p $PARALLELISM $TEST_PROGRAM_JAR
 print_mem_use

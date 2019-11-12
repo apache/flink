@@ -21,6 +21,8 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializable {
@@ -40,7 +42,7 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 
 	public ArchivedExecutionVertex(ExecutionVertex vertex) {
 		this.subTaskIndex = vertex.getParallelSubtaskIndex();
-		this.priorExecutions = vertex.getCopyOfPriorExecutionsList().map(ARCHIVER);
+		this.priorExecutions = vertex.getCopyOfPriorExecutionsList();
 		this.taskNameWithSubtask = vertex.getTaskNameWithSubtaskIndex();
 		this.currentExecution = vertex.getCurrentExecutionAttempt().archive();
 	}
@@ -93,6 +95,7 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 		return currentExecution.getAssignedResourceLocation();
 	}
 
+	@Nullable
 	@Override
 	public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
 		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
@@ -101,17 +104,4 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 			throw new IllegalArgumentException("attempt does not exist");
 		}
 	}
-
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
-	private static final EvictingBoundedList.Function<Execution, ArchivedExecution> ARCHIVER =
-			new EvictingBoundedList.Function<Execution, ArchivedExecution>() {
-
-		@Override
-		public ArchivedExecution apply(Execution value) {
-			return value.archive();
-		}
-	};
 }

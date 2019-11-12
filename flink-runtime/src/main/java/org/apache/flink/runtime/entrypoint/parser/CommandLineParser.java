@@ -55,8 +55,10 @@ public class CommandLineParser<T> {
 		return parserResultFactory.createResult(commandLine);
 	}
 
-	public void printHelp() {
+	public void printHelp(@Nonnull String cmdLineSyntax) {
 		final HelpFormatter helpFormatter = new HelpFormatter();
-		helpFormatter.printHelp("", parserResultFactory.getOptions());
+		helpFormatter.setLeftPadding(5);
+		helpFormatter.setWidth(80);
+		helpFormatter.printHelp(cmdLineSyntax, parserResultFactory.getOptions(), true);
 	}
 }

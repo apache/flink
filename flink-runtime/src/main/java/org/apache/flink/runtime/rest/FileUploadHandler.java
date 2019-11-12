@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.runtime.rest.handler.FileUploads;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
+import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
@@ -29,6 +30,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -36,6 +38,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DiskAttribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DiskFileUpload;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
@@ -82,7 +85,17 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 	public FileUploadHandler(final Path uploadDir) {
 		super(true);
+
+		// the clean up of temp files when jvm exits is handled by org.apache.flink.util.ShutdownHookUtil; thus,
+		// it's no need to register those files (post chunks and upload file chunks) to java.io.DeleteOnExitHook
+		// which may lead to memory leak.
+		DiskAttribute.deleteOnExitTemporaryFile = false;
+		DiskFileUpload.deleteOnExitTemporaryFile = false;
+
 		DiskFileUpload.baseDirectory = uploadDir.normalize().toAbsolutePath().toString();
+		// share the same directory with file upload for post chunks storage.
+		DiskAttribute.baseDirectory = DiskFileUpload.baseDirectory;
+
 		this.uploadDir = requireNonNull(uploadDir);
 	}
 
@@ -94,11 +107,16 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				LOG.trace("Received request. URL:{} Method:{}", httpRequest.getUri(), httpRequest.getMethod());
 				if (httpRequest.getMethod().equals(HttpMethod.POST)) {
 					if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
+						LOG.trace("Initializing multipart file upload.");
 						checkState(currentHttpPostRequestDecoder == null);
 						checkState(currentHttpRequest == null);
 						checkState(currentUploadDir == null);
 						currentHttpPostRequestDecoder = new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
 						currentHttpRequest = ReferenceCountUtil.retain(httpRequest);
+
+						// make sure that we still have a upload dir in case that it got deleted in the meanwhile
+						RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
+
 						currentUploadDir = Files.createDirectory(uploadDir.resolve(UUID.randomUUID().toString()));
 					} else {
 						ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
@@ -107,8 +125,9 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 					ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
 				}
 			} else if (msg instanceof HttpContent && currentHttpPostRequestDecoder != null) {
+				LOG.trace("Received http content.");
 				// make sure that we still have a upload dir in case that it got deleted in the meanwhile
-				RestServerEndpoint.createUploadDir(uploadDir, LOG);
+				RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
 
 				final HttpContent httpContent = (HttpContent) msg;
 				currentHttpPostRequestDecoder.offer(httpContent);
@@ -121,9 +140,11 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 						final Path dest = currentUploadDir.resolve(fileUpload.getFilename());
 						fileUpload.renameTo(dest.toFile());
+						LOG.trace("Upload of file {} complete.", fileUpload.getFilename());
 					} else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
 						final Attribute request = (Attribute) data;
 						// this could also be implemented by using the first found Attribute as the payload
+						LOG.trace("Upload of attribute {} complete.", request.getName());
 						if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
 							currentJsonPayload = request.get();
 						} else {
@@ -134,12 +155,18 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				}
 
 				if (httpContent instanceof LastHttpContent) {
+					LOG.trace("Finalizing multipart file upload.");
 					ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(currentUploadDir));
-					ctx.fireChannelRead(currentHttpRequest);
 					if (currentJsonPayload != null) {
+						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, currentJsonPayload.length);
+						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
+						ctx.fireChannelRead(currentHttpRequest);
 						ctx.fireChannelRead(httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
 					} else {
-						ctx.fireChannelRead(ReferenceCountUtil.retain(httpContent));
+						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
+						currentHttpRequest.headers().remove(HttpHeaders.Names.CONTENT_TYPE);
+						ctx.fireChannelRead(currentHttpRequest);
+						ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
 					}
 					reset();
 				}

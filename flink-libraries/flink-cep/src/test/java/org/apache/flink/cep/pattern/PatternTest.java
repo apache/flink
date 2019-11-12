@@ -21,7 +21,9 @@ package org.apache.flink.cep.pattern;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
-import org.apache.flink.cep.pattern.conditions.OrCondition;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.cep.pattern.conditions.RichAndCondition;
+import org.apache.flink.cep.pattern.conditions.RichOrCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.util.TestLogger;
@@ -33,6 +35,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for constructing {@link Pattern}.
@@ -102,7 +105,7 @@ public class PatternTest extends TestLogger {
 
 		assertNotNull(pattern.getCondition());
 		assertNotNull(previous.getCondition());
-		assertNull(previous2.getCondition());
+		assertNotNull(previous2.getCondition());
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "next");
@@ -187,12 +190,25 @@ public class PatternTest extends TestLogger {
 		assertNull(previous2.getPrevious());
 
 		assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier().getConsumingStrategy());
-		assertFalse(previous.getCondition() instanceof OrCondition);
-		assertTrue(previous2.getCondition() instanceof OrCondition);
+		assertFalse(previous.getCondition() instanceof RichOrCondition);
+		assertTrue(previous2.getCondition() instanceof RichOrCondition);
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "or");
 		assertEquals(previous2.getName(), "start");
+	}
+
+	@Test
+	public void testRichCondition() {
+		Pattern<Event, Event> pattern =
+			Pattern.<Event>begin("start")
+				.where(mock(IterativeCondition.class))
+				.where(mock(IterativeCondition.class))
+			.followedBy("end")
+				.where(mock(IterativeCondition.class))
+				.or(mock(IterativeCondition.class));
+		assertTrue(pattern.getCondition() instanceof RichOrCondition);
+		assertTrue(pattern.getPrevious().getCondition() instanceof RichAndCondition);
 	}
 
 	@Test(expected = IllegalArgumentException.class)

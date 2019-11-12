@@ -18,25 +18,57 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.entrypoint.EntrypointClusterConfiguration;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Properties;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Configuration for the {@link StandaloneJobClusterEntryPoint}.
  */
 final class StandaloneJobClusterConfiguration extends EntrypointClusterConfiguration {
+
 	@Nonnull
+	private final SavepointRestoreSettings savepointRestoreSettings;
+
+	@Nullable
+	private final JobID jobId;
+
+	@Nullable
 	private final String jobClassName;
 
-	public StandaloneJobClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, int restPort, @Nonnull String jobClassName) {
-		super(configDir, dynamicProperties, args, restPort);
+	StandaloneJobClusterConfiguration(
+			@Nonnull String configDir,
+			@Nonnull Properties dynamicProperties,
+			@Nonnull String[] args,
+			@Nullable String hostname,
+			int restPort,
+			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
+			@Nullable JobID jobId,
+			@Nullable String jobClassName) {
+		super(configDir, dynamicProperties, args, hostname, restPort);
+		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
+		this.jobId = jobId;
 		this.jobClassName = jobClassName;
 	}
 
 	@Nonnull
+	SavepointRestoreSettings getSavepointRestoreSettings() {
+		return savepointRestoreSettings;
+	}
+
+	@Nullable
+	JobID getJobId() {
+		return jobId;
+	}
+
+	@Nullable
 	String getJobClassName() {
 		return jobClassName;
 	}

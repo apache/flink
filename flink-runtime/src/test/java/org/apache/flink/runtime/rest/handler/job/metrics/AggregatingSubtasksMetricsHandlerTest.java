@@ -37,7 +37,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -80,9 +79,8 @@ public class AggregatingSubtasksMetricsHandlerTest extends AggregatingMetricsHan
 	}
 
 	@Override
-	protected AggregatingSubtasksMetricsHandler getHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher<?> fetcher) {
+	protected AggregatingSubtasksMetricsHandler getHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher fetcher) {
 		return new AggregatingSubtasksMetricsHandler(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

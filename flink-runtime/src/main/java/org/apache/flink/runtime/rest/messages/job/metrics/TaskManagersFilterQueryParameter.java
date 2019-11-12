@@ -39,4 +39,9 @@ public class TaskManagersFilterQueryParameter extends MessageQueryParameter<Reso
 	public String convertValueToString(ResourceID value) {
 		return value.getResourceIdString();
 	}
+
+	@Override
+	public String getDescription() {
+		return "Comma-separated list of 32-character hexadecimal strings to select specific task managers.";
+	}
 }

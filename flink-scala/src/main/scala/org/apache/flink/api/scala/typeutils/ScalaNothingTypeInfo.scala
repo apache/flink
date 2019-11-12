@@ -32,7 +32,7 @@ class ScalaNothingTypeInfo extends TypeInformation[Nothing] {
   @PublicEvolving
   override def getArity: Int = 0
   @PublicEvolving
-  override def getTotalFields: Int = 0
+  override def getTotalFields: Int = 1
   @PublicEvolving
   override def getTypeClass: Class[Nothing] = classOf[Nothing]
   @PublicEvolving

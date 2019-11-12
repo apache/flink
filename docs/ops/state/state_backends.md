@@ -116,9 +116,12 @@ The RocksDBStateBackend is encouraged for:
 Note that the amount of state that you can keep is only limited by the amount of disk space available.
 This allows keeping very large state, compared to the FsStateBackend that keeps state in memory.
 This also means, however, that the maximum throughput that can be achieved will be lower with
-this state backend.
+this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
+on-heap representation as the heap-based backends are doing.
 
 RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here](large_state_tuning.html)). 
+
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
 
 ## Configuring a State Backend
 
@@ -143,13 +146,23 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </div>
 </div>
 
+If you want to use the `RocksDBStateBackend`, then you have to add the following dependency to your Flink project.
+
+{% highlight xml %}
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
+    <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+
 
 ### Setting Default State Backend
 
 A default state backend can be configured in the `flink-conf.yaml`, using the configuration key `state.backend`.
 
 Possible values for the config entry are *jobmanager* (MemoryStateBackend), *filesystem* (FsStateBackend), *rocksdb* (RocksDBStateBackend), or the fully qualified class
-name of the class that implements the state backend factory [FsStateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/filesystem/FsStateBackendFactory.java),
+name of the class that implements the state backend factory [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java),
 such as `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory` for RocksDBStateBackend.
 
 The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.
@@ -167,5 +180,9 @@ state.backend: filesystem
 
 state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 {% endhighlight %}
+
+#### RocksDB State Backend Config Options
+
+{% include generated/rocks_db_configuration.html %}
 
 {% top %}

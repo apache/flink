@@ -45,7 +45,7 @@ class TtlMapStateVerifier extends AbstractTtlStateVerifier<
 	}
 
 	TtlMapStateVerifier() {
-		super(new MapStateDescriptor<>("TtlMapStateVerifier", StringSerializer.INSTANCE, StringSerializer.INSTANCE));
+		super(new MapStateDescriptor<>(TtlMapStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE, StringSerializer.INSTANCE));
 	}
 
 	@Override
@@ -87,7 +87,7 @@ class TtlMapStateVerifier extends AbstractTtlStateVerifier<
 			.collect(Collectors.groupingBy(u -> u.getValue().f0))
 			.entrySet().stream()
 			.map(e -> e.getValue().get(e.getValue().size() - 1))
-			.filter(u -> !expired(u.getTimestampAfterUpdate(), currentTimestamp))
+			.filter(u -> !expired(u.getTimestamp(), currentTimestamp))
 			.map(ValueWithTs::getValue)
 			.collect(Collectors.toMap(u -> u.f0, u -> u.f1));
 	}

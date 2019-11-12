@@ -24,10 +24,12 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TraversableSerializer
 import org.junit.Assert._
-import org.junit.{Assert, Ignore, Test}
+import org.junit.{Assert, Test}
 
-import scala.collection.immutable.{BitSet, LinearSeq, SortedSet}
-import scala.collection.{SortedMap, mutable}
+import scala.collection.immutable.{BitSet, LinearSeq}
+import scala.collection.mutable
+import scala.ref.WeakReference
+import scala.reflect.internal.util.ScalaClassLoader.URLClassLoader
 
 class TraversableSerializerTest {
 
@@ -97,6 +99,55 @@ class TraversableSerializerTest {
     runTests(testData)
   }
 
+  @Test
+  def sameClassLoaderAndCodeShouldProvideEqualKeys(): Unit = {
+    val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
+
+    val keyA = TraversableSerializer.Key(classLoaderA, "code")
+    val keyB = TraversableSerializer.Key(classLoaderA, "code")
+
+    assertEquals(keyA, keyB)
+  }
+
+  @Test
+  def differentClassLoadersProvideNonEqualKeys(): Unit = {
+    val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
+    val classLoaderB = new URLClassLoader(Seq.empty[java.net.URL], null)
+    
+    val keyA = TraversableSerializer.Key(classLoaderA, "code")
+    val keyB = TraversableSerializer.Key(classLoaderB, "code")
+    
+    assertNotEquals(keyA, keyB)
+  }
+
+  @Test
+  def expiredReferenceShouldProduceNonEqualKeys(): Unit = {
+    val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
+
+    val keyA = TraversableSerializer.Key(classLoaderA, "code")
+    val keyB = keyA.copy(classLoaderRef = WeakReference(null)) 
+
+    assertNotEquals(keyA, keyB)
+  }
+
+  @Test
+  def bootStrapClassLoaderShouldProduceTheSameKeys(): Unit = {
+    val keyA = TraversableSerializer.Key(null, "a")
+    val keyB = TraversableSerializer.Key(null, "a")
+
+    assertEquals(keyA, keyB)
+  }
+
+  @Test
+  def differentCanBuildFromCodeShouldProduceDifferentKeys(): Unit = {
+    val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
+
+    val keyA = TraversableSerializer.Key(classLoaderA, "a")
+    val keyB = TraversableSerializer.Key(classLoaderA, "b")
+
+    assertNotEquals(keyA, keyB)
+  }
+  
   private final def runTests[T : TypeInformation](instances: Array[T]) {
     try {
       val typeInfo = implicitly[TypeInformation[T]]
@@ -177,22 +228,5 @@ class TraversableSerializerTestInstance[T](
     }
   }
 
-  override protected def deepEquals(message: String, should: T, is: T) {
-    should match {
-      case trav: TraversableOnce[_] =>
-        val isTrav = is.asInstanceOf[TraversableOnce[_]]
-        assertEquals(message, trav.size, isTrav.size)
-        val it = trav.toIterator
-        val isIt = isTrav.toIterator
-        while (it.hasNext) {
-          val should = it.next()
-          val is = isIt.next()
-          assertEquals(message, should, is)
-        }
-
-      case _ =>
-        super.deepEquals(message, should, is)
-    }
-  }
 }
 

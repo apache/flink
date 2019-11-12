@@ -18,10 +18,12 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -92,7 +94,9 @@ public final class Lockable<T> {
 	}
 
 	/** Serializer for {@link Lockable}. */
-	public static class LockableTypeSerializer<E> extends TypeSerializer<Lockable<E>> {
+	public static class LockableTypeSerializer<E> extends TypeSerializer<Lockable<E>>
+			implements LegacySerializerSnapshotTransformer<Lockable<E>> {
+
 		private static final long serialVersionUID = 3298801058463337340L;
 		private final TypeSerializer<E> elementSerializer;
 
@@ -106,8 +110,10 @@ public final class Lockable<T> {
 		}
 
 		@Override
-		public TypeSerializer<Lockable<E>> duplicate() {
-			return new LockableTypeSerializer<>(elementSerializer);
+		public LockableTypeSerializer<E> duplicate() {
+			TypeSerializer<E> elementSerializerCopy = elementSerializer.duplicate();
+			return elementSerializerCopy == elementSerializer ?
+				this : new LockableTypeSerializer<>(elementSerializerCopy);
 		}
 
 		@Override
@@ -117,7 +123,7 @@ public final class Lockable<T> {
 
 		@Override
 		public Lockable<E> copy(Lockable<E> from) {
-			return new Lockable<E>(elementSerializer.copy(from.element), from.refCounter);
+			return new Lockable<>(elementSerializer.copy(from.element), from.refCounter);
 		}
 
 		@Override
@@ -176,25 +182,40 @@ public final class Lockable<T> {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(LockableTypeSerializer.class);
+		public TypeSerializerSnapshot<Lockable<E>> snapshotConfiguration() {
+			return new LockableTypeSerializerSnapshot<>(this);
+		}
+
+		@VisibleForTesting
+		TypeSerializer<E> getElementSerializer() {
+			return elementSerializer;
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return elementSerializer.snapshotConfiguration();
-		}
-
-		@Override
-		public CompatibilityResult<Lockable<E>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			CompatibilityResult<E> inputComaptibilityResult = elementSerializer.ensureCompatibility(configSnapshot);
-			if (inputComaptibilityResult.isRequiresMigration()) {
-				return CompatibilityResult.requiresMigration(new LockableTypeSerializer<>(
-					new TypeDeserializerAdapter<>(inputComaptibilityResult.getConvertDeserializer()))
-				);
-			} else {
-				return CompatibilityResult.compatible();
+		@SuppressWarnings("unchecked")
+		public <U> TypeSerializerSnapshot<Lockable<E>> transformLegacySerializerSnapshot(TypeSerializerSnapshot<U> legacySnapshot) {
+			if (legacySnapshot instanceof LockableTypeSerializerSnapshot) {
+				return (TypeSerializerSnapshot<Lockable<E>>) legacySnapshot;
 			}
+
+			// In Flink 1.6, this serializer was directly returning the elementSerializer's snapshot
+			// instead of wrapping it in a LockableTypeSerializer(Config)Snapshot.
+			// This caused state information to be written as <LockableTypeSerializer, SomeArbitrarySerializerSnapshot>,
+			// Therefore we need to preform the following transformation:
+			// 	1. set the prior serializer on the legacySnapshot to be the elementSerializer
+			// 	2. return a LockableTypeSerializerSnapshot that has the legacySnapshot as a nested snapshot.
+			if (legacySnapshot instanceof TypeSerializerConfigSnapshot) {
+				setElementSerializerAsPriorSerializer(legacySnapshot, this.elementSerializer);
+			}
+			LockableTypeSerializerSnapshot<E> lockableSnapshot = new LockableTypeSerializerSnapshot<>();
+			CompositeTypeSerializerUtil.setNestedSerializersSnapshots(lockableSnapshot, legacySnapshot);
+			return lockableSnapshot;
+		}
+
+		@SuppressWarnings("unchecked")
+		private static <U, E> void setElementSerializerAsPriorSerializer(TypeSerializerSnapshot<U> legacySnapshot, TypeSerializer<E> elementSerializer) {
+			TypeSerializerConfigSnapshot<E> elementLegacySnapshot = (TypeSerializerConfigSnapshot<E>) legacySnapshot;
+			elementLegacySnapshot.setPriorSerializer(elementSerializer);
 		}
 	}
 }

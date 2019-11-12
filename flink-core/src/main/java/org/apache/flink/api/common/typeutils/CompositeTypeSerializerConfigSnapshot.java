@@ -38,9 +38,9 @@ import java.util.List;
  * is required.
  */
 @Internal
-public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 
-	private List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nestedSerializersAndConfigs;
+	private List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public CompositeTypeSerializerConfigSnapshot() {}
@@ -50,11 +50,9 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 
 		this.nestedSerializersAndConfigs = new ArrayList<>(nestedSerializers.length);
 		for (TypeSerializer<?> nestedSerializer : nestedSerializers) {
-			TypeSerializerConfigSnapshot configSnapshot = nestedSerializer.snapshotConfiguration();
+			TypeSerializerSnapshot<?> configSnapshot = nestedSerializer.snapshotConfiguration();
 			this.nestedSerializersAndConfigs.add(
-				new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-					nestedSerializer.duplicate(),
-					Preconditions.checkNotNull(configSnapshot)));
+				new Tuple2<>(nestedSerializer.duplicate(), Preconditions.checkNotNull(configSnapshot)));
 		}
 	}
 
@@ -71,12 +69,19 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader());
 	}
 
-	public List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getNestedSerializersAndConfigs() {
+	public List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> getNestedSerializersAndConfigs() {
 		return nestedSerializersAndConfigs;
 	}
 
-	public Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> getSingleNestedSerializerAndConfig() {
+	public Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> getSingleNestedSerializerAndConfig() {
 		return nestedSerializersAndConfigs.get(0);
+	}
+
+	public TypeSerializerSnapshot<?>[] getNestedSerializerSnapshots() {
+		return nestedSerializersAndConfigs
+			.stream()
+			.map(nestedSerializerAndConfig -> nestedSerializerAndConfig.f1)
+			.toArray(TypeSerializerSnapshot[]::new);
 	}
 
 	@Override

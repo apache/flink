@@ -31,6 +31,8 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
@@ -43,6 +45,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -268,9 +271,11 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		Configuration taskConf = getTaskConfiguration();
 		this.config = new TaskConfig(taskConf);
 
+		final Pair<OperatorID, InputFormat<OT, InputSplit>> operatorIdAndInputFormat;
+		InputOutputFormatContainer formatContainer = new InputOutputFormatContainer(config, userCodeClassLoader);
 		try {
-			this.format = config.<InputFormat<OT, InputSplit>>getStubWrapper(userCodeClassLoader)
-					.getUserCodeObject(InputFormat.class, userCodeClassLoader);
+			operatorIdAndInputFormat = formatContainer.getUniqueInputFormat();
+			this.format = operatorIdAndInputFormat.getValue();
 
 			// check if the class is a subclass, if the check is required
 			if (!InputFormat.class.isAssignableFrom(this.format.getClass())) {
@@ -288,7 +293,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code
 		try {
 			thread.setContextClassLoader(userCodeClassLoader);
-			this.format.configure(this.config.getStubParameters());
+			this.format.configure(formatContainer.getParameters(operatorIdAndInputFormat.getKey()));
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
@@ -402,6 +407,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
-				getEnvironment().getMetricGroup().addOperator(sourceName));
+				getEnvironment().getMetricGroup().getOrAddOperator(sourceName));
 	}
 }

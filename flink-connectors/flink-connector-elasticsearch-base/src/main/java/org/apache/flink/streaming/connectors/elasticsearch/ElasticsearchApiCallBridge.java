@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * An {@link ElasticsearchApiCallBridge} is used to bridge incompatible Elasticsearch Java API calls across different versions.
@@ -78,6 +79,19 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 	void configureBulkProcessorBackoff(
 		BulkProcessor.Builder builder,
 		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy);
+
+	/**
+	 * Creates a {@link RequestIndexer} that is able to work with {@link BulkProcessor} binary compatible.
+	 */
+	default RequestIndexer createBulkProcessorIndexer(
+			BulkProcessor bulkProcessor,
+			boolean flushOnCheckpoint,
+			AtomicLong numPendingRequestsRef) {
+		return new PreElasticsearch6BulkProcessorIndexer(
+			bulkProcessor,
+			flushOnCheckpoint,
+			numPendingRequestsRef);
+	}
 
 	/**
 	 * Perform any necessary state cleanup.

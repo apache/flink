@@ -55,7 +55,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -63,18 +62,17 @@ import java.util.concurrent.Executor;
  * runtime and metrics of all its subtasks aggregated by TaskManager.
  */
 public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<JobVertexTaskManagersInfo, JobVertexMessageParameters> implements JsonArchivist {
-	private MetricFetcher<?> metricFetcher;
+	private MetricFetcher metricFetcher;
 
 	public JobVertexTaskManagersHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+			MetricFetcher metricFetcher) {
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
 
@@ -107,14 +105,17 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 		return archive;
 	}
 
-	private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher<?> metricFetcher) {
+	private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher metricFetcher) {
 		// Build a map that groups tasks by TaskManager
+		Map<String, String> taskManagerId2Host = new HashMap<>();
 		Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-			String taskManager = location == null ? "(unassigned)" : location.getHostname() + ':' + location.dataPort();
+			String taskManagerHost = location == null ? "(unassigned)" : location.getHostname() + ':' + location.dataPort();
+			String taskmanagerId = location == null ? "(unassigned)" : location.getResourceID().toString();
+			taskManagerId2Host.put(taskmanagerId, taskManagerHost);
 			List<AccessExecutionVertex> vertices = taskManagerVertices.computeIfAbsent(
-				taskManager,
+				taskmanagerId,
 				ignored -> new ArrayList<>(4));
 			vertices.add(vertex);
 		}
@@ -123,7 +124,8 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 
 		List<JobVertexTaskManagersInfo.TaskManagersInfo> taskManagersInfoList = new ArrayList<>(4);
 		for (Map.Entry<String, List<AccessExecutionVertex>> entry : taskManagerVertices.entrySet()) {
-			String host = entry.getKey();
+			String taskmanagerId = entry.getKey();
+			String host = taskManagerId2Host.get(taskmanagerId);
 			List<AccessExecutionVertex> taskVertices = entry.getValue();
 
 			int[] tasksPerState = new int[ExecutionState.values().length];
@@ -175,8 +177,8 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				taskVertices.size());
 
 			final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-				counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
-				counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
+				counts.getNumBytesIn(),
+				counts.isNumBytesInComplete(),
 				counts.getNumBytesOut(),
 				counts.isNumBytesOutComplete(),
 				counts.getNumRecordsIn(),
@@ -195,7 +197,8 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				endTime,
 				duration,
 				jobVertexMetrics,
-				statusCounts));
+				statusCounts,
+				taskmanagerId));
 		}
 
 		return new JobVertexTaskManagersInfo(jobVertex.getJobVertexId(), jobVertex.getName(), now, taskManagersInfoList);

@@ -1,0 +1,123 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-card [nzBordered]="false" [nzTitle]="'Uploaded Jars'" [nzLoading]="isLoading" [nzExtra]="extraTemplate">
+  <ng-container *ngIf="!isYarn">
+    <nz-table
+      [nzSize]="'small'"
+      [nzData]="listOfJar"
+      [nzFrontPagination]="false"
+      [nzShowPagination]="false"
+      class="no-border">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Upload Time</th>
+          <th>Entry Class</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let jar of listOfJar; trackBy:trackJarBy;">
+          <tr (click)="expandJar(jar)" class="clickable">
+            <td>{{jar.name}}</td>
+            <td>{{jar.uploaded | date:'yyyy-MM-dd, HH:mm:ss'}}</td>
+            <td>
+              <div *ngFor="let entries of jar.entry">
+                {{entries.name}}
+              </div>
+              <div *ngIf="jar.entry.length===0">
+                -
+              </div>
+            </td>
+            <td class="delete-jar">
+              <a nz-popconfirm (click)="$event.stopPropagation();" (nzOnConfirm)="deleteJar(jar)" nzTitle="Are you sure delete this jar?">Delete</a>
+            </td>
+          </tr>
+          <tr [nzExpand]="expandedMap.get(jar.id)">
+            <td colspan="4">
+              <form nz-form [nzLayout]="'inline'" [formGroup]="validateForm">
+                <nz-form-item>
+                  <nz-form-control>
+                    <nz-input-group [nzPrefix]="apiTemplate">
+                      <input formControlName="entryClass" nz-input placeholder="Entry Class">
+                    </nz-input-group>
+                    <ng-template #apiTemplate><i nz-icon type="deployment-unit" theme="outline"></i></ng-template>
+                  </nz-form-control>
+                </nz-form-item>
+                <nz-form-item>
+                  <nz-form-control>
+                    <nz-input-group [nzPrefix]="loginTemplate">
+                      <input formControlName="parallelism" nz-input placeholder="Parallelism">
+                    </nz-input-group>
+                    <ng-template #loginTemplate><i nz-icon type="login"></i></ng-template>
+                  </nz-form-control>
+                </nz-form-item>
+                <nz-form-item>
+                  <nz-form-control>
+                    <nz-input-group [nzPrefix]="settingTemplate">
+                      <input formControlName="programArgs" nz-input placeholder="Program Arguments">
+                    </nz-input-group>
+                    <ng-template #settingTemplate><i nz-icon type="setting"></i></ng-template>
+                  </nz-form-control>
+                </nz-form-item>
+                <nz-form-item>
+                  <nz-form-control>
+                    <nz-input-group [nzPrefix]="folderTemplate">
+                      <input formControlName="savepointPath" nz-input placeholder="Savepoint Path">
+                    </nz-input-group>
+                    <ng-template #folderTemplate><i nz-icon type="folder"></i></ng-template>
+                  </nz-form-control>
+                </nz-form-item>
+                <nz-form-item>
+                  <nz-form-control>
+                    <label nz-checkbox formControlName="allowNonRestoredState">Allow Non Restored State</label>
+                  </nz-form-control>
+                </nz-form-item>
+                <nz-form-item>
+                  <nz-form-control>
+                    <button nz-button (click)="showPlan(jar)">Show Plan</button>
+                    <button nz-button nzType="primary" (click)="submitJob(jar)">Submit</button>
+                  </nz-form-control>
+                </nz-form-item>
+              </form>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </nz-table>
+  </ng-container>
+  <ng-container *ngIf="!noAccess && isYarn">
+    <span *ngIf="!address">Yarn's AM proxy doesn't allow file uploads. Please wait while we fetch an alternate url for you to use</span>
+    <span *ngIf="address">Yarn's AM proxy doesn't allow file uploads. You can visit&nbsp;<a [attr.href]="address+'/#/submit'">here</a>&nbsp;to access this functionality.</span>
+  </ng-container>
+</nz-card>
+<ng-template #extraTemplate>
+  <div class="extra" *ngIf="!noAccess && !isYarn">
+    <ng-container *ngIf="!isUploading">
+      <input flinkFileRead type="file" class="input-file" id="upload-file" (fileRead)="uploadJar($event)">
+      <label for="upload-file" class="upload ant-btn-primary ant-btn ant-btn-sm">
+        <span><i nz-icon type="plus"></i>Add New</span>
+      </label>
+    </ng-container>
+    <nz-progress *ngIf="isUploading" [nzPercent]="progress" nzSize="small" [nzShowInfo]="false"></nz-progress>
+  </div>
+</ng-template>
+<nz-drawer [nzHeight]="'100%'" [nzVisible]="planVisible" [nzPlacement]="'bottom'" [nzTitle]="'Plan Visualization'" (nzOnClose)="hidePlan()">
+  <flink-dagre></flink-dagre>
+</nz-drawer>

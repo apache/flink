@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -29,8 +30,8 @@ public final class KeyGroupRangeAssignment {
 	 */
 	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
 
-	/** The (inclusive) upper bound for max parallelism */
-	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
+	/** The (inclusive) upper bound for max parallelism. */
+	public static final int UPPER_BOUND_MAX_PARALLELISM = Transformation.UPPER_BOUND_MAX_PARALLELISM;
 
 	private KeyGroupRangeAssignment() {
 		throw new AssertionError();
@@ -45,6 +46,7 @@ public final class KeyGroupRangeAssignment {
 	 * @return the index of the parallel operator to which the given key should be routed.
 	 */
 	public static int assignKeyToParallelOperator(Object key, int maxParallelism, int parallelism) {
+		Preconditions.checkNotNull(key, "Assigned key must not be null!");
 		return computeOperatorIndexForKeyGroup(maxParallelism, parallelism, assignToKeyGroup(key, maxParallelism));
 	}
 
@@ -56,6 +58,7 @@ public final class KeyGroupRangeAssignment {
 	 * @return the key-group to which the given key is assigned
 	 */
 	public static int assignToKeyGroup(Object key, int maxParallelism) {
+		Preconditions.checkNotNull(key, "Assigned key must not be null!");
 		return computeKeyGroupForKeyHash(key.hashCode(), maxParallelism);
 	}
 
@@ -74,7 +77,7 @@ public final class KeyGroupRangeAssignment {
 	 * Computes the range of key-groups that are assigned to a given operator under the given parallelism and maximum
 	 * parallelism.
 	 *
-	 * IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this method. If we ever want
+	 * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this method. If we ever want
 	 * to go beyond this boundary, this method must perform arithmetic on long values.
 	 *
 	 * @param maxParallelism Maximal parallelism that the job was initially created with.
@@ -102,7 +105,7 @@ public final class KeyGroupRangeAssignment {
 	 * Computes the index of the operator to which a key-group belongs under the given parallelism and maximum
 	 * parallelism.
 	 *
-	 * IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this method. If we ever want
+	 * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this method. If we ever want
 	 * to go beyond this boundary, this method must perform arithmetic on long values.
 	 *
 	 * @param maxParallelism Maximal parallelism that the job was initially created with.

@@ -17,8 +17,10 @@
 # limitations under the License.
 ################################################################################
 
+set -Eeuo pipefail
+
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/kafka-common.sh
+source "$(dirname "$0")"/kafka-common.sh 0.10.2.0 3.2.0 3.2
 
 function verify_output {
   local expected=$(printf $1)
@@ -33,17 +35,11 @@ function verify_output {
 }
 
 function test_cleanup {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
-  stop_kafka_cluster
   stop_confluent_schema_registry
+  stop_kafka_cluster
 }
 
-trap test_cleanup INT
-trap test_cleanup EXIT
+on_exit test_cleanup
 
 setup_kafka_dist
 setup_confluent_dist

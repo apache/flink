@@ -35,6 +35,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringDecoder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
@@ -51,6 +54,8 @@ import static java.util.Objects.requireNonNull;
 public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
 	private static final String ROUTER_HANDLER_NAME = RouterHandler.class.getName() + "_ROUTER_HANDLER";
 	private static final String ROUTED_HANDLER_NAME = RouterHandler.class.getName() + "_ROUTED_HANDLER";
+
+	private static final Logger LOG = LoggerFactory.getLogger(RouterHandler.class);
 
 	private final Map<String, String> responseHeaders;
 	private final Router router;
@@ -106,6 +111,7 @@ public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
 	}
 
 	private void respondNotFound(ChannelHandlerContext channelHandlerContext, HttpRequest request) {
+		LOG.trace("Request could not be routed to any handler. Uri:{} Method:{}", request.getUri(), request.getMethod());
 		HandlerUtils.sendErrorResponse(
 			channelHandlerContext,
 			request,

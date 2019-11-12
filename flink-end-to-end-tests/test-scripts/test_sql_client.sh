@@ -17,8 +17,22 @@
 # limitations under the License.
 ################################################################################
 
+set -Eeuo pipefail
+
+PLANNER="${1:-old}"
+
+KAFKA_VERSION="2.2.0"
+CONFLUENT_VERSION="5.0.0"
+CONFLUENT_MAJOR_VERSION="5.0"
+KAFKA_SQL_VERSION="universal"
+
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/kafka-common.sh
+source "$(dirname "$0")"/kafka_sql_common.sh \
+  $KAFKA_VERSION \
+  $CONFLUENT_VERSION \
+  $CONFLUENT_MAJOR_VERSION \
+  $KAFKA_SQL_VERSION
+source "$(dirname "$0")"/elasticsearch-common.sh
 
 SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar
 SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/sql-jars
@@ -33,7 +47,7 @@ mkdir -p $EXTRACTED_JAR
 
 for SQL_JAR in $SQL_JARS_DIR/*.jar; do
   echo "Checking SQL JAR: $SQL_JAR"
-  unzip $SQL_JAR -d $EXTRACTED_JAR > /dev/null
+  (cd $EXTRACTED_JAR && jar xf $SQL_JAR)
 
   # check for proper shading
   for EXTRACTED_FILE in $(find $EXTRACTED_JAR -type f); do
@@ -57,22 +71,19 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
   rm -r $EXTRACTED_JAR/*
 done
 
+rm -r $EXTRACTED_JAR
+
 ################################################################################
-# Run a SQL statement
+# Prepare connectors
 ################################################################################
 
-echo "Testing SQL statement..."
+ELASTICSEARCH_INDEX='my_users'
 
 function sql_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   stop_kafka_cluster
+  shutdown_elasticsearch_cluster "$ELASTICSEARCH_INDEX"
 }
-trap sql_cleanup INT
-trap sql_cleanup EXIT
+on_exit sql_cleanup
 
 # prepare Kafka
 echo "Preparing Kafka..."
@@ -81,208 +92,186 @@ setup_kafka_dist
 
 start_kafka_cluster
 
-create_kafka_topic 1 1 test-json
+create_kafka_json_source test-json
 create_kafka_topic 1 1 test-avro
 
-# put JSON data into Kafka
-echo "Sending messages to Kafka..."
+# prepare Elasticsearch
+echo "Preparing Elasticsearch..."
 
-send_messages_to_kafka '{"timestamp": "2018-03-12 08:00:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' test-json
-# duplicate
-send_messages_to_kafka '{"timestamp": "2018-03-12 08:10:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' test-json
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:00:00", "user": "Bob", "event": { "type": "WARNING", "message": "This is another warning."}}' test-json
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:10:00", "user": "Alice", "event": { "type": "INFO", "message": "This is a info."}}' test-json
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:20:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' test-json
-# duplicate
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' test-json
-# filtered in results
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' test-json
-# pending in results
-send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' test-json
+ELASTICSEARCH_VERSION=6
+DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
 
-# prepare Flink
+setup_elasticsearch $DOWNLOAD_URL
+wait_elasticsearch_working
+
+################################################################################
+# Prepare Flink
+################################################################################
+
 echo "Preparing Flink..."
 
 start_cluster
-start_taskmanagers 1
+start_taskmanagers 2
+
+################################################################################
+# Run SQL statements
+################################################################################
+
+echo "Testing SQL statements..."
+
+JSON_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "json" )
+KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
+ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch6" )
 
 # create session environment file
 RESULT=$TEST_DATA_DIR/result
 SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
 
-cat > $SQL_CONF << EOF
+cat >> $SQL_CONF << EOF
 tables:
-  - name: JsonSourceTable
-    type: source
-    update-mode: append
+EOF
+
+get_kafka_json_source_schema test-json JsonSourceTable >> $SQL_CONF
+
+cat >> $SQL_CONF << EOF
+  - name: ElasticsearchUpsertSinkTable
+    type: sink-table
+    update-mode: upsert
     schema:
-      - name: rowtime
-        type: TIMESTAMP
-        rowtime:
-          timestamps:
-            type: from-field
-            from: timestamp
-          watermarks:
-            type: periodic-bounded
-            delay: 2000
-      - name: user
+      - name: user_id
+        type: INT
+      - name: user_name
         type: VARCHAR
-      - name: event
-        type: ROW(type VARCHAR, message VARCHAR)
+      - name: user_count
+        type: BIGINT
     connector:
-      type: kafka
-      version: "0.10"
-      topic: test-json
-      startup-mode: earliest-offset
-      properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+      type: elasticsearch
+      version: 6
+      hosts:
+        - hostname: "localhost"
+          port: 9200
+          protocol: "http"
+      index: "$ELASTICSEARCH_INDEX"
+      document-type: "user"
+      bulk-flush:
+        max-actions: 1
     format:
       type: json
-      json-schema: >
-        {
-          "type": "object",
-          "properties": {
-            "timestamp": {
-              "type": "string"
-            },
-            "user": {
-              "type": ["string", "null"]
-            },
-            "event": {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string"
-                },
-                "message": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-  - name: AvroBothTable
-    type: both
+      derive-schema: true
+  - name: ElasticsearchAppendSinkTable
+    type: sink-table
     update-mode: append
     schema:
-      - name: event_timestamp
+      - name: user_id
+        type: INT
+      - name: user_name
         type: VARCHAR
-      - name: user
-        type: VARCHAR
-      - name: message
-        type: VARCHAR
-      - name: duplicate_count
+      - name: user_count
         type: BIGINT
     connector:
-      type: kafka
-      version: "0.10"
-      topic: test-avro
-      startup-mode: earliest-offset
-      properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+      type: elasticsearch
+      version: 6
+      hosts:
+        - hostname: "localhost"
+          port: 9200
+          protocol: "http"
+      index: "$ELASTICSEARCH_INDEX"
+      document-type: "user"
+      bulk-flush:
+        max-actions: 1
     format:
-      type: avro
-      avro-schema: >
-        {
-          "namespace": "org.apache.flink.table.tests",
-          "type": "record",
-          "name": "NormalizedEvent",
-            "fields": [
-              {"name": "event_timestamp", "type": "string"},
-              {"name": "user", "type": ["string", "null"]},
-              {"name": "message", "type": "string"},
-              {"name": "duplicate_count", "type": "long"}
-            ]
-        }
-  - name: CsvSinkTable
-    type: sink
-    update-mode: append
-    schema:
-      - name: event_timestamp
-        type: VARCHAR
-      - name: user
-        type: VARCHAR
-      - name: message
-        type: VARCHAR
-      - name: duplicate_count
-        type: BIGINT
-    connector:
-      type: filesystem
-      path: $RESULT
-    format:
-      type: csv
-      fields:
-        - name: event_timestamp
-          type: VARCHAR
-        - name: user
-          type: VARCHAR
-        - name: message
-          type: VARCHAR
-        - name: duplicate_count
-          type: BIGINT
+      type: json
+      derive-schema: true
 
 functions:
   - name: RegReplace
     from: class
     class: org.apache.flink.table.toolbox.StringRegexReplaceFunction
+
+execution:
+  planner: "$PLANNER"
 EOF
 
 # submit SQL statements
 
-read -r -d '' SQL_STATEMENT_1 << EOF
-INSERT INTO AvroBothTable
-  SELECT
-    CAST(TUMBLE_START(rowtime, INTERVAL '1' HOUR) AS VARCHAR) AS event_timestamp,
-    user,
-    RegReplace(event.message, ' is ', ' was ') AS message,
-    COUNT(*) AS duplicate_count
-  FROM JsonSourceTable
-  WHERE user IS NOT NULL
-  GROUP BY
-    user,
-    event.message,
-    TUMBLE(rowtime, INTERVAL '1' HOUR)
+echo "Executing SQL: Values -> Elasticsearch (upsert)"
+
+SQL_STATEMENT_3=$(cat << EOF
+INSERT INTO ElasticsearchUpsertSinkTable
+  SELECT user_id, user_name, COUNT(*) AS user_count
+  FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), (42, 'Kim'), (42, 'Kim'), (1, 'Bob'))
+    AS UserCountTable(user_id, user_name)
+  GROUP BY user_id, user_name
 EOF
+)
 
-echo "Executing SQL: Kafka JSON -> Kafka Avro"
-echo "$SQL_STATEMENT_1"
-
-$FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --library $SQL_JARS_DIR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_1"
+  --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
 
-read -r -d '' SQL_STATEMENT_2 << EOF
-INSERT INTO CsvSinkTable
+wait_job_terminal_state "$JOB_ID" "FINISHED"
+
+verify_result_hash "SQL Client Elasticsearch Upsert" "$ELASTICSEARCH_INDEX" 3 "21a76360e2a40f442816d940e7071ccf"
+
+echo "Executing SQL: Values -> Elasticsearch (append, no key)"
+
+SQL_STATEMENT_4=$(cat << EOF
+INSERT INTO ElasticsearchAppendSinkTable
   SELECT *
-  FROM AvroBothTable
+  FROM (
+    VALUES
+      (1, 'Bob', CAST(0 AS BIGINT)),
+      (22, 'Tom', CAST(0 AS BIGINT)),
+      (42, 'Kim', CAST(0 AS BIGINT)),
+      (42, 'Kim', CAST(0 AS BIGINT)),
+      (42, 'Kim', CAST(0 AS BIGINT)),
+      (1, 'Bob', CAST(0 AS BIGINT)))
+    AS UserCountTable(user_id, user_name, user_count)
 EOF
+)
 
-echo "Executing SQL: Kafka Avro -> Filesystem CSV"
-echo "$SQL_STATEMENT_2"
-
-$FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+  --jar $KAFKA_SQL_JAR \
+  --jar $JSON_SQL_JAR \
+  --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_2"
+  --update "$SQL_STATEMENT_4" | grep "Job ID:" | sed 's/.* //g')
 
-echo "Waiting for CSV results..."
-for i in {1..10}; do
-  if [ -e $RESULT ]; then
-    CSV_LINE_COUNT=`cat $RESULT | wc -l`
-    if [ $((CSV_LINE_COUNT)) -eq 4 ]; then
-      break
-    fi
-  fi
-  sleep 5
-done
+wait_job_terminal_state "$JOB_ID" "FINISHED"
 
-check_result_hash "SQLClient" $RESULT "dca08a82cc09f6b19950291dbbef16bb"
+# 3 upsert results and 6 append results
+verify_result_line_number 9 "$ELASTICSEARCH_INDEX"
+
+echo "Executing SQL: Match recognize -> Elasticsearch"
+
+SQL_STATEMENT_5=$(cat << EOF
+INSERT INTO ElasticsearchAppendSinkTable
+  SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count
+  FROM (
+    SELECT user, rowtime
+    FROM JsonSourceTable
+    WHERE user IS NOT NULL)
+  MATCH_RECOGNIZE (
+    ORDER BY rowtime
+    MEASURES
+        user as userName
+    PATTERN (A)
+    DEFINE
+        A as user = 'Alice'
+  ) T
+EOF
+)
+
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+  --jar $KAFKA_SQL_JAR \
+  --jar $JSON_SQL_JAR \
+  --jar $ELASTICSEARCH_SQL_JAR \
+  --jar $SQL_TOOLBOX_JAR \
+  --environment $SQL_CONF \
+  --update "$SQL_STATEMENT_5" | grep "Job ID:" | sed 's/.* //g')
+
+# 3 upsert results and 6 append results and 3 match_recognize results
+verify_result_line_number 12 "$ELASTICSEARCH_INDEX"

@@ -86,7 +86,7 @@ class CoGroupJoinITCase extends AbstractTestBase {
           "F:" + first.mkString("") + " S:" + second.mkString("")
       }
       .addSink(new SinkFunction[String]() {
-        def invoke(value: String) {
+        override def invoke(value: String) {
           CoGroupJoinITCase.testResults += value
         }
       })
@@ -154,7 +154,7 @@ class CoGroupJoinITCase extends AbstractTestBase {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .apply( (l, r) => l.toString + ":" + r.toString)
       .addSink(new SinkFunction[String]() {
-        def invoke(value: String) {
+        override def invoke(value: String) {
           CoGroupJoinITCase.testResults += value
         }
       })
@@ -216,10 +216,10 @@ class CoGroupJoinITCase extends AbstractTestBase {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .apply( (l, r) => l.toString + ":" + r.toString)
       .addSink(new SinkFunction[String]() {
-      def invoke(value: String) {
-        CoGroupJoinITCase.testResults += value
-      }
-    })
+        override def invoke(value: String) {
+          CoGroupJoinITCase.testResults += value
+        }
+      })
 
     env.execute("Self-Join Test")
 

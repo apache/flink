@@ -19,12 +19,14 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The factory that instantiates the environment to be used when running jobs that are
@@ -45,13 +47,21 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private final boolean isDetached;
 
-	private ExecutionEnvironment lastEnvCreated;
+	private final SavepointRestoreSettings savepointSettings;
 
-	private SavepointRestoreSettings savepointSettings;
+	private final AtomicReference<JobExecutionResult> jobExecutionResult;
 
-	public ContextEnvironmentFactory(ClusterClient<?> client, List<URL> jarFilesToAttach,
-			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
-			boolean isDetached, SavepointRestoreSettings savepointSettings) {
+	private boolean alreadyCalled;
+
+	public ContextEnvironmentFactory(
+		ClusterClient<?> client,
+		List<URL> jarFilesToAttach,
+		List<URL> classpathsToAttach,
+		ClassLoader userCodeClassLoader,
+		int defaultParallelism,
+		boolean isDetached,
+		SavepointRestoreSettings savepointSettings,
+		AtomicReference<JobExecutionResult> jobExecutionResult) {
 		this.client = client;
 		this.jarFilesToAttach = jarFilesToAttach;
 		this.classpathsToAttach = classpathsToAttach;
@@ -59,24 +69,32 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		this.defaultParallelism = defaultParallelism;
 		this.isDetached = isDetached;
 		this.savepointSettings = savepointSettings;
+		this.alreadyCalled = false;
+		this.jobExecutionResult = jobExecutionResult;
 	}
 
 	@Override
 	public ExecutionEnvironment createExecutionEnvironment() {
-		if (isDetached && lastEnvCreated != null) {
-			throw new InvalidProgramException("Multiple environments cannot be created in detached mode");
-		}
+		verifyCreateIsCalledOnceWhenInDetachedMode();
 
-		lastEnvCreated = isDetached
-			? new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings)
-			: new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
+		final ContextEnvironment environment = new ContextEnvironment(
+			client,
+			jarFilesToAttach,
+			classpathsToAttach,
+			userCodeClassLoader,
+			savepointSettings,
+			isDetached,
+			jobExecutionResult);
 		if (defaultParallelism > 0) {
-			lastEnvCreated.setParallelism(defaultParallelism);
+			environment.setParallelism(defaultParallelism);
 		}
-		return lastEnvCreated;
+		return environment;
 	}
 
-	public ExecutionEnvironment getLastEnvCreated() {
-		return lastEnvCreated;
+	private void verifyCreateIsCalledOnceWhenInDetachedMode() {
+		if (isDetached && alreadyCalled) {
+			throw new InvalidProgramException("Multiple environments cannot be created in detached mode");
+		}
+		alreadyCalled = true;
 	}
 }

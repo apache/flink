@@ -49,7 +49,9 @@ public class JobCheckpointingSettingsTest {
 				112,
 				12,
 				CheckpointRetentionPolicy.RETAIN_ON_FAILURE,
-				false),
+				false,
+				false,
+				0),
 			new SerializedValue<>(new MemoryStateBackend()));
 
 		JobCheckpointingSettings copy = CommonTestUtils.createCopySerializable(settings);

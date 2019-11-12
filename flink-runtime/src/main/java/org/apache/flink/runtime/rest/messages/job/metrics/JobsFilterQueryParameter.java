@@ -45,4 +45,9 @@ public class JobsFilterQueryParameter extends MessageQueryParameter<JobID> {
 	public String convertValueToString(JobID value) {
 		return value.toString();
 	}
+
+	@Override
+	public String getDescription() {
+		return "Comma-separated list of 32-character hexadecimal strings to select specific jobs.";
+	}
 }

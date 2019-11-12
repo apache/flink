@@ -59,11 +59,12 @@ Usage:
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, Boolean.toString(true));
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
 
-		sink.setWriter(new AvroSinkWriter<Long, Long>(properties));
+		sink.setWriter(new AvroKeyValueSinkWriter<Long, Long>(properties));
 		sink.setBatchSize(1024 * 1024 * 64); // this is 64 MB,
 }
 </pre>
 */
+@Deprecated
 public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>> implements Writer<Tuple2<K, V>>, InputTypeConfigurable {
 	private static final long serialVersionUID = 1L;
 	public static final String CONF_OUTPUT_KEY_SCHEMA = "avro.schema.output.key";

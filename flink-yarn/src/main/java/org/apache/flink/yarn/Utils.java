@@ -45,12 +45,14 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -61,6 +63,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 
@@ -79,6 +82,12 @@ public final class Utils {
 
 	/** Yarn site xml file name populated in YARN container for secure IT run. */
 	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
+
+	/** Number of total retries to fetch the remote resources after uploaded in case of FileNotFoundException. */
+	public static final int REMOTE_RESOURCES_FETCH_NUM_RETRY = 3;
+
+	/** Time to wait in milliseconds between each remote resources fetch in case of FileNotFoundException. */
+	public static final int REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI = 100;
 
 	/**
 	 * See documentation.
@@ -161,15 +170,40 @@ public final class Utils {
 
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
-		// Note: If we used registerLocalResource(FileSystem, Path) here, we would access the remote
+		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
 		//       file once again which has problems with eventually consistent read-after-write file
-		//       systems. Instead, we decide to preserve the modification time at the remote
-		//       location because this and the size of the resource will be checked by YARN based on
-		//       the values we provide to #registerLocalResource() below.
-		fs.setTimes(dst, localFile.lastModified(), -1);
-		// now create the resource instance
-		LocalResource resource = registerLocalResource(dst, localFile.length(), localFile.lastModified());
+		//       systems. Instead, we decide to wait until the remote file be available.
 
+		FileStatus[] fss = null;
+		int iter = 1;
+		while (iter <= REMOTE_RESOURCES_FETCH_NUM_RETRY + 1) {
+			try {
+				fss = fs.listStatus(dst);
+				break;
+			} catch (FileNotFoundException e) {
+				LOG.debug("Got FileNotFoundException while fetching uploaded remote resources at retry num {}", iter);
+				try {
+					LOG.debug("Sleeping for {}ms", REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
+					TimeUnit.MILLISECONDS.sleep(REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
+				} catch (InterruptedException ie) {
+					LOG.warn("Failed to sleep for {}ms at retry num {} while fetching uploaded remote resources",
+						REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI, iter, ie);
+				}
+				iter++;
+			}
+		}
+
+		final long dstModificationTime;
+		if (fss != null && fss.length >  0) {
+			dstModificationTime = fss[0].getModificationTime();
+			LOG.debug("Got modification time {} from remote path {}", dstModificationTime, dst);
+		} else {
+			dstModificationTime = localFile.lastModified();
+			LOG.debug("Failed to fetch remote modification time from {}, using local timestamp {}", dst, dstModificationTime);
+		}
+
+		// now create the resource instance
+		LocalResource resource = registerLocalResource(dst, localFile.length(), dstModificationTime);
 		return Tuple2.of(dst, resource);
 	}
 
@@ -332,7 +366,7 @@ public final class Utils {
 	 * Method to extract environment variables from the flinkConfiguration based on the given prefix String.
 	 *
 	 * @param envPrefix Prefix for the environment variables key
-	 * @param flinkConfiguration The Flink config to get the environment variable defintion from
+	 * @param flinkConfiguration The Flink config to get the environment variable definition from
 	 */
 	public static Map<String, String> getEnvironmentVariables(String envPrefix, org.apache.flink.configuration.Configuration flinkConfiguration) {
 		Map<String, String> result  = new HashMap<>();
@@ -432,25 +466,28 @@ public final class Utils {
 		LocalResource yarnConfResource = null;
 		LocalResource krb5ConfResource = null;
 		boolean hasKrb5 = false;
-		if (remoteYarnConfPath != null && remoteKrb5Path != null) {
+		if (remoteYarnConfPath != null) {
 			log.info("TM:Adding remoteYarnConfPath {} to the container local resource bucket", remoteYarnConfPath);
 			Path yarnConfPath = new Path(remoteYarnConfPath);
 			FileSystem fs = yarnConfPath.getFileSystem(yarnConfig);
 			yarnConfResource = registerLocalResource(fs, yarnConfPath);
+		}
 
+		if (remoteKrb5Path != null) {
 			log.info("TM:Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
 			Path krb5ConfPath = new Path(remoteKrb5Path);
-			fs = krb5ConfPath.getFileSystem(yarnConfig);
+			FileSystem fs = krb5ConfPath.getFileSystem(yarnConfig);
 			krb5ConfResource = registerLocalResource(fs, krb5ConfPath);
-
 			hasKrb5 = true;
 		}
 
 		// register Flink Jar with remote HDFS
+		final String flinkJarPath;
 		final LocalResource flinkJar;
 		{
 			Path remoteJarPath = new Path(remoteFlinkJarPath);
 			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
+			flinkJarPath = remoteJarPath.getName();
 			flinkJar = registerLocalResource(fs, remoteJarPath);
 		}
 
@@ -486,15 +523,17 @@ public final class Utils {
 		}
 
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
-		taskManagerLocalResources.put("flink.jar", flinkJar);
+
+		taskManagerLocalResources.put(flinkJarPath, flinkJar);
 		taskManagerLocalResources.put("flink-conf.yaml", flinkConf);
 
 		//To support Yarn Secure Integration Test Scenario
-		if (yarnConfResource != null && krb5ConfResource != null) {
+		if (yarnConfResource != null) {
 			taskManagerLocalResources.put(YARN_SITE_FILE_NAME, yarnConfResource);
+		}
+		if (krb5ConfResource != null) {
 			taskManagerLocalResources.put(KRB5_FILE_NAME, krb5ConfResource);
 		}
-
 		if (keytabResource != null) {
 			taskManagerLocalResources.put(KEYTAB_FILE_NAME, keytabResource);
 		}
@@ -565,7 +604,17 @@ public final class Utils {
 						new File(fileLocation),
 						HadoopUtils.getHadoopConfiguration(flinkConfig));
 
-				cred.writeTokenStorageToStream(dob);
+				// Filter out AMRMToken before setting the tokens to the TaskManager container context.
+				Credentials taskManagerCred = new Credentials();
+				Collection<Token<? extends TokenIdentifier>> userTokens = cred.getAllTokens();
+				for (Token<? extends TokenIdentifier> token : userTokens) {
+					if (!token.getKind().equals(AMRMTokenIdentifier.KIND_NAME)) {
+						final Text id = new Text(token.getIdentifier());
+						taskManagerCred.addToken(id, token);
+					}
+				}
+
+				taskManagerCred.writeTokenStorageToStream(dob);
 				ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 				ctx.setTokens(securityTokens);
 			} catch (Throwable t) {

@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.util.ArrayUtils;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -115,12 +117,7 @@ public class CoreOptions {
 		if (append.isEmpty()) {
 			return basePatterns;
 		} else {
-			String[] appendPatterns = append.split(";");
-
-			String[] joinedPatterns = new String[basePatterns.length + appendPatterns.length];
-			System.arraycopy(basePatterns, 0, joinedPatterns, 0, basePatterns.length);
-			System.arraycopy(appendPatterns, 0, joinedPatterns, basePatterns.length, appendPatterns.length);
-			return joinedPatterns;
+			return ArrayUtils.concat(basePatterns, append.split(";"));
 		}
 	}
 
@@ -130,15 +127,23 @@ public class CoreOptions {
 
 	public static final ConfigOption<String> FLINK_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts")
-		.defaultValue("");
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of all Flink processes with.").build());
 
 	public static final ConfigOption<String> FLINK_JM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.jobmanager")
-		.defaultValue("");
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of the JobManager with.").build());
 
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
-		.defaultValue("");
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of the TaskManager with.").build());
+
+	public static final ConfigOption<String> FLINK_HS_JVM_OPTIONS = ConfigOptions
+		.key("env.java.opts.historyserver")
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of the HistoryServer with.").build());
 
 	/**
 	 * This options is here only for documentation generation, it is only
@@ -207,7 +212,8 @@ public class CoreOptions {
 	public static final ConfigOption<String> TMP_DIRS =
 		key("io.tmp.dirs")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
-			.withDeprecatedKeys("taskmanager.tmp.dirs");
+			.withDeprecatedKeys("taskmanager.tmp.dirs")
+			.withDescription("Directories for temporary files, separated by\",\", \"|\", or the system's java.io.File.pathSeparator.");
 
 	// ------------------------------------------------------------------------
 	//  program
@@ -216,7 +222,8 @@ public class CoreOptions {
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM = ConfigOptions
 		.key("parallelism.default")
-		.defaultValue(1);
+		.defaultValue(1)
+		.withDescription("Default parallelism for jobs.");
 
 	// ------------------------------------------------------------------------
 	//  file systems
@@ -229,7 +236,7 @@ public class CoreOptions {
 			.key("fs.default-scheme")
 			.noDefaultValue()
 			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
-				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
+				" May contain an authority, e.g. host:port in case of an HDFS NameNode.");
 
 	/**
 	 * Specifies whether file output writers should overwrite existing files by default.
@@ -295,26 +302,4 @@ public class CoreOptions {
 	public static ConfigOption<Long> fileSystemConnectionLimitStreamInactivityTimeout(String scheme) {
 		return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout").defaultValue(0L);
 	}
-
-	// ------------------------------------------------------------------------
-	//  Distributed architecture
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Constant value for the new execution mode.
-	 */
-	public static final String NEW_MODE = "new";
-
-	/**
-	 * Constant value for the old execution mode.
-	 */
-	public static final String LEGACY_MODE = "legacy";
-
-	/**
-	 * Switch to select the execution mode. Possible values are {@link CoreOptions#NEW_MODE}
-	 * and {@link CoreOptions#LEGACY_MODE}.
-	 */
-	public static final ConfigOption<String> MODE = key("mode")
-		.defaultValue(NEW_MODE)
-		.withDescription("Switch to select the execution mode. Possible values are 'new' and 'legacy'.");
 }

@@ -79,14 +79,13 @@ final class BulkPartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID> {
 		@Override
 		public PartFileWriter<IN, BucketID> resumeFrom(
 				final BucketID bucketId,
-				final RecoverableWriter fileSystemWriter,
+				final RecoverableFsDataOutputStream stream,
 				final RecoverableWriter.ResumeRecoverable resumable,
 				final long creationTime) throws IOException {
 
-			Preconditions.checkNotNull(fileSystemWriter);
+			Preconditions.checkNotNull(stream);
 			Preconditions.checkNotNull(resumable);
 
-			final RecoverableFsDataOutputStream stream = fileSystemWriter.recover(resumable);
 			final BulkWriter<IN> writer = writerFactory.create(stream);
 			return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
 		}
@@ -94,14 +93,13 @@ final class BulkPartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID> {
 		@Override
 		public PartFileWriter<IN, BucketID> openNew(
 				final BucketID bucketId,
-				final RecoverableWriter fileSystemWriter,
+				final RecoverableFsDataOutputStream stream,
 				final Path path,
 				final long creationTime) throws IOException {
 
-			Preconditions.checkNotNull(fileSystemWriter);
+			Preconditions.checkNotNull(stream);
 			Preconditions.checkNotNull(path);
 
-			final RecoverableFsDataOutputStream stream = fileSystemWriter.open(path);
 			final BulkWriter<IN> writer = writerFactory.create(stream);
 			return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
 		}

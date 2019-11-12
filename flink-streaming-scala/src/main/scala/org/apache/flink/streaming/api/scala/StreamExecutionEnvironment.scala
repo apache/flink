@@ -241,7 +241,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * In contrast, the [[org.apache.flink.runtime.state.filesystem.FsStateBackend]]
    * stores checkpoints of the state (also maintained as heap objects) in files.
-   * When using a replicated file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee
+   * When using a replicated file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee
    * that state is not lost upon failures of individual nodes and that streaming program can be
    * executed highly available and strongly consistent.
    */
@@ -615,7 +615,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     
     val cleanFun = scalaClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    asScalaStream(javaEnv.addSource(cleanFun).returns(typeInfo))
+    asScalaStream(javaEnv.addSource(cleanFun, typeInfo))
   }
 
   /**
@@ -683,7 +683,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   private[flink] def scalaClean[F <: AnyRef](f: F): F = {
     if (getConfig.isClosureCleanerEnabled) {
-      ClosureCleaner.clean(f, true)
+      ClosureCleaner.clean(f, true, getConfig.getClosureCleanerLevel)
     } else {
       ClosureCleaner.ensureSerializable(f)
     }

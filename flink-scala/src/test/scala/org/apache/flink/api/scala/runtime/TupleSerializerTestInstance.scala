@@ -17,19 +17,57 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import java.lang.{Boolean => JBoolean}
+import java.util.function.BiFunction
+
+import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
+import org.apache.flink.testutils.DeeplyEqualsChecker
+import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
 import org.junit.Assert._
-import org.apache.flink.api.common.typeutils.SerializerTestInstance
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.junit.Assert
 import org.junit.Test
 
+
+object TupleSerializerTestInstance {
+  val isProduct: BiFunction[AnyRef, AnyRef, JBoolean] =
+    new BiFunction[AnyRef, AnyRef, JBoolean] {
+      override def apply(o1: scala.AnyRef, o2: scala.AnyRef): JBoolean =
+        o1.isInstanceOf[Product] && o2.isInstanceOf[Product]
+    }
+
+  val compareProduct: CustomEqualityChecker =
+    new CustomEqualityChecker {
+      override def check(
+          o1: AnyRef,
+          o2: AnyRef,
+          checker: DeeplyEqualsChecker): Boolean = {
+        val p1 = o1.asInstanceOf[Product].productIterator
+        val p2 = o2.asInstanceOf[Product].productIterator
+
+        while (p1.hasNext && p2.hasNext) {
+          val l = p1.next
+          val r = p2.next
+          if (!checker.deepEquals(l, r)) {
+            return false
+          }
+        }
+        !p1.hasNext && !p2.hasNext
+      }
+    }
+}
 
 class TupleSerializerTestInstance[T <: Product] (
     serializer: TypeSerializer[T],
     typeClass: Class[T],
     length: Int,
     testData: Array[T])
-  extends SerializerTestInstance[T](serializer, typeClass, length, testData: _*) {
+  extends SerializerTestInstance[T](
+    new DeeplyEqualsChecker()
+      .withCustomCheck(TupleSerializerTestInstance.isProduct,
+        TupleSerializerTestInstance.compareProduct),
+    serializer,
+    typeClass,
+    length,
+    testData: _*) {
 
   @Test
   override def testInstantiate(): Unit = {
@@ -48,41 +86,6 @@ class TupleSerializerTestInstance[T <: Product] (
         System.err.println(e.getMessage)
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
-      }
-    }
-  }
-
-  protected override def deepEquals(message: String, shouldTuple: T, isTuple: T) {
-    Assert.assertEquals(shouldTuple.productArity, isTuple.productArity)
-    for (i <- 0 until shouldTuple.productArity) {
-      val should = shouldTuple.productElement(i)
-      val is = isTuple.productElement(i)
-      if (should.getClass.isArray) {
-        should match {
-          case booleans: Array[Boolean] =>
-            Assert.assertTrue(message, booleans.sameElements(is.asInstanceOf[Array[Boolean]]))
-          case bytes: Array[Byte] =>
-            assertArrayEquals(message, bytes, is.asInstanceOf[Array[Byte]])
-          case shorts: Array[Short] =>
-            assertArrayEquals(message, shorts, is.asInstanceOf[Array[Short]])
-          case ints: Array[Int] =>
-            assertArrayEquals(message, ints, is.asInstanceOf[Array[Int]])
-          case longs: Array[Long] =>
-            assertArrayEquals(message, longs, is.asInstanceOf[Array[Long]])
-          case floats: Array[Float] =>
-            assertArrayEquals(message, floats, is.asInstanceOf[Array[Float]], 0.0f)
-          case doubles: Array[Double] =>
-            assertArrayEquals(message, doubles, is.asInstanceOf[Array[Double]], 0.0)
-          case chars: Array[Char] =>
-            assertArrayEquals(message, chars, is.asInstanceOf[Array[Char]])
-          case _ =>
-            assertArrayEquals(
-              message,
-              should.asInstanceOf[Array[AnyRef]],
-              is.asInstanceOf[Array[AnyRef]])
-        }
-      } else {
-        assertEquals(message, should, is)
       }
     }
   }

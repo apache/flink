@@ -20,7 +20,7 @@ package org.apache.flink.cep.nfa.aftermatch;
 
 import org.apache.flink.cep.nfa.ComputationState;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -38,32 +38,41 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	private static final long serialVersionUID = -4048930333619068531L;
 
 	/**
-	 * Discards every partial match that contains event of the match preceding the first of *PatternName*.
+	 * Discards every partial match that started before the first event of emitted match mapped to *PatternName*.
 	 *
 	 * @param patternName the pattern name to skip to
 	 * @return the created AfterMatchSkipStrategy
 	 */
-	public static AfterMatchSkipStrategy skipToFirst(String patternName) {
-		return new SkipToFirstStrategy(patternName);
+	public static SkipToFirstStrategy skipToFirst(String patternName) {
+		return new SkipToFirstStrategy(patternName, false);
 	}
 
 	/**
-	 * Discards every partial match that contains event of the match preceding the last of *PatternName*.
+	 * Discards every partial match that started before the last event of emitted match mapped to *PatternName*.
 	 *
 	 * @param patternName the pattern name to skip to
 	 * @return the created AfterMatchSkipStrategy
 	 */
-	public static AfterMatchSkipStrategy skipToLast(String patternName) {
-		return new SkipToLastStrategy(patternName);
+	public static SkipToLastStrategy skipToLast(String patternName) {
+		return new SkipToLastStrategy(patternName, false);
 	}
 
 	/**
-	 * Discards every partial match that contains event of the match.
+	 * Discards every partial match that started before emitted match ended.
 	 *
 	 * @return the created AfterMatchSkipStrategy
 	 */
-	public static AfterMatchSkipStrategy skipPastLastEvent() {
+	public static SkipPastLastStrategy skipPastLastEvent() {
 		return SkipPastLastStrategy.INSTANCE;
+	}
+
+	/**
+	 * Discards every partial match that started with the same event, emitted match was started.
+	 *
+	 * @return the created AfterMatchSkipStrategy
+	 */
+	public static AfterMatchSkipStrategy skipToNext() {
+		return SkipToNextStrategy.INSTANCE;
 	}
 
 	/**
@@ -71,7 +80,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 *
 	 * @return the created AfterMatchSkipStrategy
 	 */
-	public static AfterMatchSkipStrategy noSkip() {
+	public static NoSkipStrategy noSkip() {
 		return NoSkipStrategy.INSTANCE;
 	}
 
@@ -87,13 +96,13 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 *
 	 * @param matchesToPrune current partial matches
 	 * @param matchedResult  already completed matches
-	 * @param sharedBuffer   corresponding shared buffer
+	 * @param sharedBufferAccessor   accessor to corresponding shared buffer
 	 * @throws Exception thrown if could not access the state
 	 */
 	public void prune(
 			Collection<ComputationState> matchesToPrune,
 			Collection<Map<String, List<EventId>>> matchedResult,
-			SharedBuffer<?> sharedBuffer) throws Exception {
+			SharedBufferAccessor<?> sharedBufferAccessor) throws Exception {
 
 		EventId pruningId = getPruningId(matchedResult);
 		if (pruningId != null) {
@@ -101,7 +110,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 			for (ComputationState computationState : matchesToPrune) {
 				if (computationState.getStartEventID() != null &&
 					shouldPrune(computationState.getStartEventID(), pruningId)) {
-					sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
+					sharedBufferAccessor.releaseNode(computationState.getPreviousBufferEntry());
 					discardStates.add(computationState);
 				}
 			}
@@ -143,6 +152,22 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 		}
 
 		if (o1.compareTo(o2) >= 0) {
+			return o1;
+		} else {
+			return o2;
+		}
+	}
+
+	static EventId min(EventId o1, EventId o2) {
+		if (o2 == null) {
+			return o1;
+		}
+
+		if (o1 == null) {
+			return o2;
+		}
+
+		if (o1.compareTo(o2) <= 0) {
 			return o1;
 		} else {
 			return o2;

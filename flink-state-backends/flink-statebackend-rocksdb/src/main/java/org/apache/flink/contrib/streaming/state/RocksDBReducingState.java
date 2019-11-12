@@ -25,15 +25,12 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.rocksdb.ColumnFamilyHandle;
 
-import java.io.IOException;
 import java.util.Collection;
 
 /**
@@ -44,7 +41,7 @@ import java.util.Collection;
  * @param <V> The type of value that the state state stores.
  */
 class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBAppendingState<K, N, V, V, V, ReducingState<V>>
+	extends AbstractRocksDBAppendingState<K, N, V, V, V>
 	implements InternalReducingState<K, N, V> {
 
 	/** User-specified reduce function. */
@@ -87,7 +84,7 @@ class RocksDBReducingState<K, N, V>
 	}
 
 	@Override
-	public V get() throws IOException {
+	public V get() {
 		return getInternal();
 	}
 
@@ -100,14 +97,10 @@ class RocksDBReducingState<K, N, V>
 	}
 
 	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+	public void mergeNamespaces(N target, Collection<N> sources) {
 		if (sources == null || sources.isEmpty()) {
 			return;
 		}
-
-		// cache key and namespace
-		final K key = backend.getCurrentKey();
-		final int keyGroup = backend.getCurrentKeyGroupIndex();
 
 		try {
 			V current = null;
@@ -115,18 +108,14 @@ class RocksDBReducingState<K, N, V>
 			// merge the sources to the target
 			for (N source : sources) {
 				if (source != null) {
-
-					writeKeyWithGroupAndNamespace(
-							keyGroup, key, source,
-							keySerializationStream, keySerializationDataOutputView);
-
-					final byte[] sourceKey = keySerializationStream.toByteArray();
+					setCurrentNamespace(source);
+					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
-						V value = valueSerializer.deserialize(
-								new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+						dataInputView.setBuffer(valueBytes);
+						V value = valueSerializer.deserialize(dataInputView);
 
 						if (current != null) {
 							current = reduceFunction.reduce(current, value);
@@ -141,27 +130,24 @@ class RocksDBReducingState<K, N, V>
 			// if something came out of merging the sources, merge it or write it to the target
 			if (current != null) {
 				// create the target full-binary-key
-				writeKeyWithGroupAndNamespace(
-						keyGroup, key, target,
-						keySerializationStream, keySerializationDataOutputView);
-
-				final byte[] targetKey = keySerializationStream.toByteArray();
+				setCurrentNamespace(target);
+				final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
 				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
 				if (targetValueBytes != null) {
+					dataInputView.setBuffer(targetValueBytes);
 					// target also had a value, merge
-					V value = valueSerializer.deserialize(
-							new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(targetValueBytes)));
+					V value = valueSerializer.deserialize(dataInputView);
 
 					current = reduceFunction.reduce(current, value);
 				}
 
 				// serialize the resulting value
-				keySerializationStream.reset();
-				valueSerializer.serialize(current, keySerializationDataOutputView);
+				dataOutputView.clear();
+				valueSerializer.serialize(current, dataOutputView);
 
 				// write the resulting value
-				backend.db.put(columnFamily, writeOptions, targetKey, keySerializationStream.toByteArray());
+				backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
 			}
 		}
 		catch (Exception e) {

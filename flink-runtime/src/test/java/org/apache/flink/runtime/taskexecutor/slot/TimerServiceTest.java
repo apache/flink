@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.mockito.internal.util.reflection.Whitebox;
 
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;

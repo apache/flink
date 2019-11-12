@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.legacy.JobCancellationHandler;
-
 /**
- * Termination mode for the {@link JobCancellationHandler}.
+ * Termination mode query parameter.
  */
 public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
@@ -41,11 +39,21 @@ public class TerminationModeQueryParameter extends MessageQueryParameter<Termina
 		return value.name().toLowerCase();
 	}
 
+	@Override
+	public String getDescription() {
+		return "String value that specifies the termination mode. The only supported value is: \"" +
+			TerminationMode.CANCEL.name().toLowerCase() + "\".";
+	}
+
 	/**
-	 * Supported termination modes.
+	 * Termination mode.
 	 */
 	public enum TerminationMode {
 		CANCEL,
+
+		/**
+		 * @deprecated Please use the "stop" command instead.
+		 */
 		STOP
 	}
 }

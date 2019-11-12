@@ -19,9 +19,11 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.typeutils.TypeStringUtils;
+import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Map;
 
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
@@ -91,11 +93,11 @@ public class Json extends FormatDescriptor {
 	}
 
 	/**
-	 * Derives the format schema from the table's schema described using {@link Schema}.
+	 * Derives the format schema from the table's schema described.
 	 *
 	 * <p>This allows for defining schema information only once.
 	 *
-	 * <p>The names, types, and field order of the format are determined by the table's
+	 * <p>The names, types, and fields' order of the format are determined by the table's
 	 * schema. Time attributes are ignored if their origin is not a field. A "from" definition
 	 * is interpreted as a field renaming in the format.
 	 */
@@ -106,13 +108,12 @@ public class Json extends FormatDescriptor {
 		return this;
 	}
 
-	/**
-	 * Internal method for format properties conversion.
-	 */
 	@Override
-	public void addFormatProperties(DescriptorProperties properties) {
+	protected Map<String, String> toFormatProperties() {
+		final DescriptorProperties properties = new DescriptorProperties();
+
 		if (deriveSchema != null) {
-			properties.putBoolean(FORMAT_DERIVE_SCHEMA(), deriveSchema);
+			properties.putBoolean(FORMAT_DERIVE_SCHEMA, deriveSchema);
 		}
 
 		if (jsonSchema != null) {
@@ -126,5 +127,7 @@ public class Json extends FormatDescriptor {
 		if (failOnMissingField != null) {
 			properties.putBoolean(FORMAT_FAIL_ON_MISSING_FIELD, failOnMissingField);
 		}
+
+		return properties.asMap();
 	}
 }

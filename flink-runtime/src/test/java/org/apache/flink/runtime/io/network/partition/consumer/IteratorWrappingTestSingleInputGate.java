@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -33,9 +34,13 @@ import org.apache.flink.util.MutableObjectIterator;
 import java.io.IOException;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 
+/**
+ * Input gate helper for unit tests.
+ *
+ * @param <T> type of the value to handle
+ */
 public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> extends TestSingleInputGate {
 
 	private final TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
@@ -70,15 +75,15 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 			@Override
 			public Optional<BufferAndAvailability> getBufferAvailability() throws IOException {
 				if (hasData) {
-					serializer.clear();
+					serializer.serializeRecord(reuse);
 					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
-					serializer.continueWritingWithNextBufferBuilder(bufferBuilder);
-					serializer.addRecord(reuse);
+					BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+					serializer.copyToBufferBuilder(bufferBuilder);
 
 					hasData = inputIterator.next(reuse) != null;
 
 					// Call getCurrentBuffer to ensure size is set
-					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), true, 0));
+					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), true, 0));
 				} else {
 					inputChannel.setReleased();
 

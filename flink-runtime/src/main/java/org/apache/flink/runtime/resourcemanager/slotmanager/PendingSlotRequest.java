@@ -25,10 +25,14 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Class representing a pending slot request in the {@link SlotManager}.
+ */
 public class PendingSlotRequest {
 
 	private final SlotRequest slotRequest;
@@ -36,11 +40,16 @@ public class PendingSlotRequest {
 	@Nullable
 	private CompletableFuture<Acknowledge> requestFuture;
 
+	@Nullable
+	private PendingTaskManagerSlot pendingTaskManagerSlot;
+
 	/** Timestamp when this pending slot request has been created. */
 	private final long creationTimestamp;
 
 	public PendingSlotRequest(SlotRequest slotRequest) {
 		this.slotRequest = Preconditions.checkNotNull(slotRequest);
+		this.requestFuture = null;
+		this.pendingTaskManagerSlot = null;
 		creationTimestamp = System.currentTimeMillis();
 	}
 
@@ -77,5 +86,19 @@ public class PendingSlotRequest {
 	@Nullable
 	public CompletableFuture<Acknowledge> getRequestFuture() {
 		return requestFuture;
+	}
+
+	@Nullable
+	public PendingTaskManagerSlot getAssignedPendingTaskManagerSlot() {
+		return pendingTaskManagerSlot;
+	}
+
+	public void assignPendingTaskManagerSlot(@Nonnull PendingTaskManagerSlot pendingTaskManagerSlotToAssign) {
+		Preconditions.checkState(pendingTaskManagerSlot == null);
+		this.pendingTaskManagerSlot = pendingTaskManagerSlotToAssign;
+	}
+
+	public void unassignPendingTaskManagerSlot() {
+		this.pendingTaskManagerSlot = null;
 	}
 }

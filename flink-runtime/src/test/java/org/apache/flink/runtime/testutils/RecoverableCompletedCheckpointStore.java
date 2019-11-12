@@ -75,11 +75,6 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 	}
 
 	@Override
-	public CompletedCheckpoint getLatestCheckpoint() throws Exception {
-		return checkpoints.isEmpty() ? null : checkpoints.getLast();
-	}
-
-	@Override
 	public void shutdown(JobStatus jobStatus) throws Exception {
 		if (jobStatus.isGloballyTerminalState()) {
 			checkpoints.clear();

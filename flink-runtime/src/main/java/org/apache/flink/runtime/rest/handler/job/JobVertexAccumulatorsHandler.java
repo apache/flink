@@ -34,7 +34,6 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -43,7 +42,6 @@ import java.util.concurrent.Executor;
 public class JobVertexAccumulatorsHandler extends AbstractJobVertexHandler<JobVertexAccumulatorsInfo, JobVertexMessageParameters> {
 
 	public JobVertexAccumulatorsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -51,7 +49,6 @@ public class JobVertexAccumulatorsHandler extends AbstractJobVertexHandler<JobVe
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

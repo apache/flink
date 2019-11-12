@@ -20,36 +20,24 @@ package org.apache.flink.mesos.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager;
-import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
+import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerFactory;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.mesos.util.MesosUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-
-import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -70,20 +58,12 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 				.addOption(BootstrapTools.newDynamicPropertiesOption());
 	}
 
-	private final Configuration dynamicProperties;
-
 	private MesosConfiguration mesosConfig;
 
 	private MesosServices mesosServices;
 
-	private MesosTaskManagerParameters taskManagerParameters;
-
-	private ContainerSpecification taskManagerContainerSpec;
-
-	public MesosSessionClusterEntrypoint(Configuration config, Configuration dynamicProperties) {
+	public MesosSessionClusterEntrypoint(Configuration config) {
 		super(config);
-
-		this.dynamicProperties = Preconditions.checkNotNull(dynamicProperties);
 	}
 
 	@Override
@@ -93,50 +73,10 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 		final String hostname = config.getString(JobManagerOptions.ADDRESS);
 
 		// Mesos configuration
-		mesosConfig = MesosEntrypointUtils.createMesosSchedulerConfiguration(config, hostname);
+		mesosConfig = MesosUtils.createMesosSchedulerConfiguration(config, hostname);
 
 		// services
 		mesosServices = MesosServicesUtils.createMesosServices(config, hostname);
-
-		// TM configuration
-		taskManagerParameters = MesosEntrypointUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosEntrypointUtils.createContainerSpec(config, dynamicProperties);
-	}
-
-	@Override
-	protected ResourceManager<?> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl) throws Exception {
-		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
-		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
-			rmServicesConfiguration,
-			highAvailabilityServices,
-			rpcService.getScheduledExecutor());
-
-		return new MesosResourceManager(
-			rpcService,
-			ResourceManager.RESOURCE_MANAGER_NAME,
-			resourceId,
-			highAvailabilityServices,
-			heartbeatServices,
-			rmRuntimeServices.getSlotManager(),
-			metricRegistry,
-			rmRuntimeServices.getJobLeaderIdService(),
-			clusterInformation,
-			fatalErrorHandler,
-			configuration,
-			mesosServices,
-			mesosConfig,
-			taskManagerParameters,
-			taskManagerContainerSpec
-			);
 	}
 
 	@Override
@@ -150,6 +90,14 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 					mesosServices.close(cleanupHaData);
 				}
 			});
+	}
+
+	@Override
+	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
+			new MesosResourceManagerFactory(
+				mesosServices,
+				mesosConfig));
 	}
 
 	public static void main(String[] args) {
@@ -171,11 +119,11 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 		}
 
 		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-		Configuration configuration = MesosEntrypointUtils.loadConfiguration(dynamicProperties, LOG);
+		Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
 
-		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration, dynamicProperties);
+		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration);
 
-		clusterEntrypoint.startCluster();
+		ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
 	}
 
 }

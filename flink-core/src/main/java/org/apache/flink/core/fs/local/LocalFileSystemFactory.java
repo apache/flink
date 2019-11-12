@@ -19,7 +19,6 @@
 package org.apache.flink.core.fs.local;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 
@@ -34,11 +33,6 @@ public class LocalFileSystemFactory implements FileSystemFactory {
 	@Override
 	public String getScheme() {
 		return LocalFileSystem.getLocalFsURI().getScheme();
-	}
-
-	@Override
-	public void configure(Configuration config) {
-		// the local file system takes no configuration, so nothing to do here
 	}
 
 	@Override

@@ -59,6 +59,51 @@ public final class Documentation {
 		int position() default Integer.MAX_VALUE;
 	}
 
+	/**
+	 * Annotation used on table config options for adding meta data labels.
+	 *
+	 * <p>The {@link TableOption#execMode()} argument indicates the execution mode the config works for
+	 * (batch, streaming or both).
+	 */
+	@Target(ElementType.FIELD)
+	@Retention(RetentionPolicy.RUNTIME)
+	@Internal
+	public @interface TableOption {
+		ExecMode execMode();
+	}
+
+	/**
+	 * The execution mode the config works for.
+	 */
+	public enum ExecMode {
+
+		BATCH("Batch"), STREAMING("Streaming"), BATCH_STREAMING("Batch and Streaming");
+
+		private final String name;
+
+		ExecMode(String name) {
+			this.name = name;
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
+	}
+
+	/**
+	 * Annotation used on config option fields to exclude the config option from documentation.
+	 */
+	@Target(ElementType.FIELD)
+	@Retention(RetentionPolicy.RUNTIME)
+	@Internal
+	public @interface ExcludeFromDocumentation {
+		/**
+		 * The optional reason why the config option is excluded from documentation.
+		 */
+		String value() default "";
+	}
+
 	private Documentation(){
 	}
 }

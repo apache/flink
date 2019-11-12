@@ -79,6 +79,17 @@ public class Description {
 		}
 
 		/**
+		 * Block of description add.
+		 *
+		 * @param block block of description to add
+		 * @return block of description
+		 */
+		public DescriptionBuilder add(BlockElement block) {
+			blocks.add(block);
+			return this;
+		}
+
+		/**
 		 * Creates a line break in the description.
 		 */
 		public DescriptionBuilder linebreak() {

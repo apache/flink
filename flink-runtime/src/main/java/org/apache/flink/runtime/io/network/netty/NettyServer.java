@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -32,16 +32,14 @@ import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollServerSocketCh
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLEngine;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -68,7 +66,15 @@ class NettyServer {
 		localAddress = null;
 	}
 
-	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
+	int init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
+		return init(
+			nettyBufferPool,
+			sslHandlerFactory -> new ServerChannelInitializer(protocol, sslHandlerFactory));
+	}
+
+	int init(
+			NettyBufferPool nettyBufferPool,
+			Function<SSLHandlerFactory, ServerChannelInitializer> channelInitializer) throws IOException {
 		checkState(bootstrap == null, "Netty server has already been initialized.");
 
 		final long start = System.nanoTime();
@@ -136,9 +142,9 @@ class NettyServer {
 		}
 
 		// SSL related configuration
-		final SSLEngineFactory sslEngineFactory;
+		final SSLHandlerFactory sslHandlerFactory;
 		try {
-			sslEngineFactory = config.createServerSSLEngineFactory();
+			sslHandlerFactory = config.createServerSSLEngineFactory();
 		} catch (Exception e) {
 			throw new IOException("Failed to initialize SSL Context for the Netty Server", e);
 		}
@@ -147,17 +153,7 @@ class NettyServer {
 		// Child channel pipeline for accepted connections
 		// --------------------------------------------------------------------
 
-		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
-			@Override
-			public void initChannel(SocketChannel channel) throws Exception {
-				if (sslEngineFactory != null) {
-					SSLEngine sslEngine = sslEngineFactory.createSSLEngine();
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
-				}
-
-				channel.pipeline().addLast(protocol.getServerChannelHandlers());
-			}
-		});
+		bootstrap.childHandler(channelInitializer.apply(sslHandlerFactory));
 
 		// --------------------------------------------------------------------
 		// Start Server
@@ -169,6 +165,8 @@ class NettyServer {
 
 		final long duration = (System.nanoTime() - start) / 1_000_000;
 		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", duration, localAddress);
+
+		return localAddress.getPort();
 	}
 
 	NettyConfig getConfig() {
@@ -177,10 +175,6 @@ class NettyServer {
 
 	ServerBootstrap getBootstrap() {
 		return bootstrap;
-	}
-
-	public InetSocketAddress getLocalAddress() {
-		return localAddress;
 	}
 
 	void shutdown() {
@@ -220,5 +214,27 @@ class NettyServer {
 
 	public static ThreadFactory getNamedThreadFactory(String name) {
 		return THREAD_FACTORY_BUILDER.setNameFormat(name + " Thread %d").build();
+	}
+
+	@VisibleForTesting
+	static class ServerChannelInitializer extends ChannelInitializer<SocketChannel> {
+		private final NettyProtocol protocol;
+		private final SSLHandlerFactory sslHandlerFactory;
+
+		public ServerChannelInitializer(
+			NettyProtocol protocol, SSLHandlerFactory sslHandlerFactory) {
+			this.protocol = protocol;
+			this.sslHandlerFactory = sslHandlerFactory;
+		}
+
+		@Override
+		public void initChannel(SocketChannel channel) throws Exception {
+			if (sslHandlerFactory != null) {
+				channel.pipeline().addLast("ssl",
+					sslHandlerFactory.createNettySSLHandler(channel.alloc()));
+			}
+
+			channel.pipeline().addLast(protocol.getServerChannelHandlers());
+		}
 	}
 }

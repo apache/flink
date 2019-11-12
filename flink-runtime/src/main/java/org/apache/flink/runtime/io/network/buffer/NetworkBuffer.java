@@ -93,7 +93,7 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 
 	/**
 	 * Creates a new buffer instance backed by the given <tt>memorySegment</tt> with <tt>0</tt> for
-	 * the <tt>readerIndex</tt> and <tt>writerIndex</tt>.
+	 * the <tt>readerIndex</tt> and <tt>size</tt> as <tt>writerIndex</tt>.
 	 *
 	 * @param memorySegment
 	 * 		backing memory segment (defines {@link #maxCapacity})
@@ -288,11 +288,6 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	@Override
 	public void setReaderIndex(int readerIndex) throws IndexOutOfBoundsException {
 		readerIndex(readerIndex);
-	}
-
-	@Override
-	public int getSizeUnsafe() {
-		return writerIndex();
 	}
 
 	@Override

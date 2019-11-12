@@ -78,6 +78,16 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 	}
 
 	@Override
+	public boolean requiresCleanupOfRecoverableState() {
+		return false;
+	}
+
+	@Override
+	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public Committer recoverForCommit(CommitRecoverable recoverable) throws IOException {
 		if (recoverable instanceof HadoopFsRecoverable) {
 			return new HadoopRecoverableFsDataOutputStream.HadoopFsCommitter(fs, (HadoopFsRecoverable) recoverable);

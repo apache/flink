@@ -93,7 +93,7 @@ public class DescriptionHtmlTest {
 		String formattedDescription = new HtmlFormatter().format(description);
 
 		assertEquals(
-			"This is first line.<br/>This is second line.",
+			"This is first line.<br />This is second line.",
 			formattedDescription);
 	}
 

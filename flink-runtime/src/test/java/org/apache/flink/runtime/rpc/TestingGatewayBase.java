@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Utility base class for testing gateways
+ * Utility base class for testing gateways.
  */
 public abstract class TestingGatewayBase implements RpcGateway {
 
@@ -81,7 +81,7 @@ public abstract class TestingGatewayBase implements RpcGateway {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private static final class FutureTimeout implements Runnable {
 
 		private final CompletableFuture<?> promise;

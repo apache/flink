@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.datastream.{CoGroupedStreams => JavaCoGroupedStreams}
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
+import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
@@ -112,7 +113,7 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
           throw new UnsupportedOperationException(
             "You first need to specify KeySelectors for both inputs using where() and equalTo().")
         }
-        new WithWindow[W](clean(assigner), null, null)
+        new WithWindow[W](clean(assigner), null, null, null)
       }
 
       /**
@@ -125,7 +126,8 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
       class WithWindow[W <: Window](
           windowAssigner: WindowAssigner[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], W],
           trigger: Trigger[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W],
-          evictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W]) {
+          evictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W],
+          val allowedLateness: Time) {
 
         /**
          * Sets the [[Trigger]] that should be used to trigger window emission.
@@ -133,7 +135,7 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
         @PublicEvolving
         def trigger(newTrigger: Trigger[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
             : WithWindow[W] = {
-          new WithWindow[W](windowAssigner, newTrigger, evictor)
+          new WithWindow[W](windowAssigner, newTrigger, evictor, allowedLateness)
         }
 
         /**
@@ -147,7 +149,16 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
         def evictor(
             newEvictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
             : WithWindow[W] = {
-          new WithWindow[W](windowAssigner, trigger, newEvictor)
+          new WithWindow[W](windowAssigner, trigger, newEvictor, allowedLateness)
+        }
+
+        /**
+          * Sets the time by which elements are allowed to be late.
+          * Delegates to [[WindowedStream#allowedLateness(Time)]]
+          */
+        @PublicEvolving
+        def allowedLateness(newLateness: Time): WithWindow[W] = {
+          new WithWindow[W](windowAssigner, trigger, evictor, newLateness)
         }
 
         /**
@@ -202,6 +213,7 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
             .window(windowAssigner)
             .trigger(trigger)
             .evictor(evictor)
+            .allowedLateness(allowedLateness)
             .apply(clean(function), implicitly[TypeInformation[T]]))
         }
       }

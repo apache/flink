@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.ListState;
@@ -31,6 +32,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
@@ -44,6 +46,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
@@ -78,6 +81,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A custom assigner implementation can be set via {@link #setShardAssigner(KinesisShardAssigner)} to optimize the
  * hash function or use static overrides to limit skew.
  *
+ * <p>In order for the consumer to emit watermarks, a timestamp assigner needs to be set via {@link
+ * #setPeriodicWatermarkAssigner(AssignerWithPeriodicWatermarks)} and the auto watermark emit
+ * interval configured via {@link
+ * org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)}.
+ *
+ * <p>Watermarks can only advance when all shards of a subtask continuously deliver records. To
+ * avoid an inactive or closed shard to block the watermark progress, the idle timeout should be
+ * configured via configuration property {@link
+ * ConsumerConfigConstants#SHARD_IDLE_INTERVAL_MILLIS}. By default, shards won't be considered
+ * idle and watermark calculation will wait for newer records to arrive from all shards.
+ *
+ * <p>Note that re-sharding of the Kinesis stream while an application (that relies on
+ * the Kinesis records for watermarking) is running can lead to incorrect late events.
+ * This depends on how shards are assigned to subtasks and applies regardless of whether watermarks
+ * are generated in the source or a downstream operator.
+ *
  * @param <T> the type of data emitted
  */
 @PublicEvolving
@@ -107,6 +126,9 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	 * The function that determines which subtask a shard should be assigned to.
 	 */
 	private KinesisShardAssigner shardAssigner = KinesisDataFetcher.DEFAULT_SHARD_ASSIGNER;
+
+	private AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
+	private WatermarkTracker watermarkTracker;
 
 	// ------------------------------------------------------------------------
 	//  Runtime state
@@ -213,11 +235,40 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 	/**
 	 * Provide a custom assigner to influence how shards are distributed over subtasks.
-	 * @param shardAssigner
+	 * @param shardAssigner shard assigner
 	 */
 	public void setShardAssigner(KinesisShardAssigner shardAssigner) {
 		this.shardAssigner = checkNotNull(shardAssigner, "function can not be null");
-		ClosureCleaner.clean(shardAssigner, true);
+		ClosureCleaner.clean(shardAssigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+	}
+
+	public AssignerWithPeriodicWatermarks<T> getPeriodicWatermarkAssigner() {
+		return periodicWatermarkAssigner;
+	}
+
+	/**
+	 * Set the assigner that will extract the timestamp from {@link T} and calculate the
+	 * watermark.
+	 * @param periodicWatermarkAssigner periodic watermark assigner
+	 */
+	public void setPeriodicWatermarkAssigner(
+		AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner) {
+		this.periodicWatermarkAssigner = periodicWatermarkAssigner;
+		ClosureCleaner.clean(this.periodicWatermarkAssigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+	}
+
+	public WatermarkTracker getWatermarkTracker() {
+		return this.watermarkTracker;
+	}
+
+	/**
+	 * Set the global watermark tracker. When set, it will be used by the fetcher
+	 * to align the shard consumers by event time.
+	 * @param watermarkTracker
+	 */
+	public void setWatermarkTracker(WatermarkTracker watermarkTracker) {
+		this.watermarkTracker = watermarkTracker;
+		ClosureCleaner.clean(this.watermarkTracker, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
 
 	// ------------------------------------------------------------------------
@@ -414,7 +465,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			Properties configProps,
 			KinesisDeserializationSchema<T> deserializationSchema) {
 
-		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema, shardAssigner);
+		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema, shardAssigner, periodicWatermarkAssigner, watermarkTracker);
 	}
 
 	@VisibleForTesting

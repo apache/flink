@@ -18,37 +18,117 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint.ExecutionMode;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import java.util.Optional;
+
+import static org.apache.flink.container.entrypoint.StandaloneJobClusterEntryPoint.ZERO_JOB_ID;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsNot.not;
 
 /**
  * Tests for the {@link StandaloneJobClusterEntryPoint}.
  */
 public class StandaloneJobClusterEntryPointTest extends TestLogger {
 
+	/**
+	 * Tests that the default {@link ExecutionMode} is {@link ExecutionMode#DETACHED}.
+	 */
 	@Test
-	public void testJobGraphRetrieval() throws FlinkException {
-		final Configuration configuration = new Configuration();
-		final int parallelism = 42;
-		configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
-		final StandaloneJobClusterEntryPoint standaloneJobClusterEntryPoint = new StandaloneJobClusterEntryPoint(
-			configuration,
-			TestJob.class.getCanonicalName(),
-			new String[] {"--arg", "suffix"});
+	public void testDefaultExecutionModeIsDetached() {
+		Configuration configuration = new Configuration();
 
-		final JobGraph jobGraph = standaloneJobClusterEntryPoint.retrieveJobGraph(configuration);
+		StandaloneJobClusterEntryPoint.setDefaultExecutionModeIfNotConfigured(configuration);
 
-		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
-		assertThat(jobGraph.getMaximumParallelism(), is(parallelism));
+		assertThat(getExecutionMode(configuration), equalTo(ExecutionMode.DETACHED));
 	}
 
+	/**
+	 * Tests that {@link ExecutionMode} is not overwritten if provided.
+	 */
+	@Test
+	public void testDontOverwriteExecutionMode() {
+		Configuration configuration = new Configuration();
+		setExecutionMode(configuration, ExecutionMode.NORMAL);
+
+		StandaloneJobClusterEntryPoint.setDefaultExecutionModeIfNotConfigured(configuration);
+
+		// Don't overwrite provided configuration
+		assertThat(getExecutionMode(configuration), equalTo(ExecutionMode.NORMAL));
+	}
+
+	@Test
+	public void configuredJobIDTakesPrecedenceWithHA() {
+		Optional<JobID> jobID = Optional.of(JobID.generate());
+
+		Configuration globalConfiguration = new Configuration();
+		enableHighAvailability(globalConfiguration);
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobID,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(jobID.get()));
+	}
+
+	@Test
+	public void configuredJobIDTakesPrecedenceWithoutHA() {
+		Optional<JobID> jobID = Optional.of(JobID.generate());
+
+		Configuration globalConfiguration = new Configuration();
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobID,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(jobID.get()));
+	}
+
+	@Test
+	public void jobIDdefaultsToZeroWithHA() {
+		Optional<JobID> jobID = Optional.empty();
+
+		Configuration globalConfiguration = new Configuration();
+		enableHighAvailability(globalConfiguration);
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobID,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(ZERO_JOB_ID));
+	}
+
+	@Test
+	public void jobIDdefaultsToRandomJobIDWithoutHA() {
+		Optional<JobID> jobID = Optional.empty();
+
+		Configuration globalConfiguration = new Configuration();
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobID,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(not(ZERO_JOB_ID)));
+	}
+
+	private static void setExecutionMode(Configuration configuration, ExecutionMode executionMode) {
+		configuration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
+	}
+
+	private static ExecutionMode getExecutionMode(Configuration configuration) {
+		return ExecutionMode.valueOf(configuration.getString(ClusterEntrypoint.EXECUTION_MODE));
+	}
+
+	private static void enableHighAvailability(final Configuration configuration) {
+		configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+	}
 }

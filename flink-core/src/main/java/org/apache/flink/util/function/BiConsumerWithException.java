@@ -30,7 +30,7 @@ import java.util.function.BiConsumer;
  * @param <E> type of the thrown exception
  */
 @FunctionalInterface
-public interface BiConsumerWithException<T, U, E extends Throwable> extends BiConsumer<T, U> {
+public interface BiConsumerWithException<T, U, E extends Throwable> {
 
 	/**
 	 * Performs this operation on the given arguments.
@@ -39,14 +39,23 @@ public interface BiConsumerWithException<T, U, E extends Throwable> extends BiCo
 	 * @param u the second input argument
 	 * @throws E in case of an error
 	 */
-	void acceptWithException(T t, U u) throws E;
+	void accept(T t, U u) throws E;
 
-	@Override
-	default void accept(T t, U u) {
-		try {
-			acceptWithException(t, u);
-		} catch (Throwable e) {
-			ExceptionUtils.rethrow(e);
-		}
+	/**
+	 * Convert a {@link BiConsumerWithException} into a {@link BiConsumer}.
+	 *
+	 * @param biConsumerWithException BiConsumer with exception to convert into a {@link BiConsumer}.
+	 * @param <A> first input type
+	 * @param <B> second input type
+	 * @return {@link BiConsumer} which rethrows all checked exceptions as unchecked.
+	 */
+	static <A, B> BiConsumer<A, B> unchecked(BiConsumerWithException<A, B, ?> biConsumerWithException) {
+		return (A a, B b) -> {
+			try {
+				biConsumerWithException.accept(a, b);
+			} catch (Throwable t) {
+				ExceptionUtils.rethrow(t);
+			}
+		};
 	}
 }

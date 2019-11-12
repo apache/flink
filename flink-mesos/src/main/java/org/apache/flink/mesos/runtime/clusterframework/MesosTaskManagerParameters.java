@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.description.Description;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.Preconditions;
 
@@ -58,6 +59,11 @@ public class MesosTaskManagerParameters {
 		.defaultValue(1024)
 		.withDescription("Memory to assign to the Mesos workers in MB.");
 
+	public static final ConfigOption<Integer> MESOS_RM_TASKS_DISK_MB =
+		key("mesos.resourcemanager.tasks.disk")
+		.defaultValue(0)
+		.withDescription(Description.builder().text("Disk space to assign to the Mesos workers in MB.").build());
+
 	public static final ConfigOption<Double> MESOS_RM_TASKS_CPUS =
 		key("mesos.resourcemanager.tasks.cpus")
 		.defaultValue(0.0)
@@ -65,7 +71,8 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_GPUS =
 		key("mesos.resourcemanager.tasks.gpus")
-		.defaultValue(0);
+		.defaultValue(0)
+		.withDescription(Description.builder().text("GPUs to assign to the Mesos workers.").build());
 
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_TYPE =
 		key("mesos.resourcemanager.tasks.container.type")
@@ -79,7 +86,12 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<String> MESOS_TM_HOSTNAME =
 		key("mesos.resourcemanager.tasks.hostname")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription(Description.builder()
+			.text("Optional value to define the TaskManager’s hostname. " +
+				"The pattern _TASK_ is replaced by the actual id of the Mesos task. " +
+				"This can be used to configure the TaskManager to use Mesos DNS (e.g. _TASK_.flink-service.mesos) for name lookups.")
+			.build());
 
 	public static final ConfigOption<String> MESOS_TM_CMD =
 		key("mesos.resourcemanager.tasks.taskmanager-cmd")
@@ -87,7 +99,10 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<String> MESOS_TM_BOOTSTRAP_CMD =
 		key("mesos.resourcemanager.tasks.bootstrap-cmd")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription(Description.builder()
+			.text("A command which is executed before the TaskManager is started.")
+			.build());
 
 	public static final ConfigOption<String> MESOS_TM_URIS =
 		key("mesos.resourcemanager.tasks.uris")
@@ -116,7 +131,11 @@ public class MesosTaskManagerParameters {
 	public static final ConfigOption<String> MESOS_CONSTRAINTS_HARD_HOSTATTR =
 		key("mesos.constraints.hard.hostattribute")
 		.noDefaultValue()
-		.withDescription("Constraints for task placement on mesos.");
+		.withDescription(Description.builder()
+			.text("Constraints for task placement on Mesos based on agent attributes. " +
+				"Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target mesos agents. " +
+				"Example: az:eu-west-1a,series:t2")
+			.build());
 
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
@@ -130,6 +149,8 @@ public class MesosTaskManagerParameters {
 	private final double cpus;
 
 	private final int gpus;
+
+	private final int disk;
 
 	private final ContainerType containerType;
 
@@ -156,6 +177,7 @@ public class MesosTaskManagerParameters {
 	public MesosTaskManagerParameters(
 			double cpus,
 			int gpus,
+			int disk,
 			ContainerType containerType,
 			Option<String> containerImageName,
 			ContaineredTaskManagerParameters containeredParameters,
@@ -170,6 +192,7 @@ public class MesosTaskManagerParameters {
 
 		this.cpus = cpus;
 		this.gpus = gpus;
+		this.disk = disk;
 		this.containerType = Preconditions.checkNotNull(containerType);
 		this.containerImageName = Preconditions.checkNotNull(containerImageName);
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
@@ -195,6 +218,13 @@ public class MesosTaskManagerParameters {
 	 */
 	public int gpus() {
 		return gpus;
+	}
+
+	/**
+	 * Get the disk space in MB to use for the TaskManager Process.
+	 */
+	public int disk() {
+		return disk;
 	}
 
 	/**
@@ -321,6 +351,8 @@ public class MesosTaskManagerParameters {
 				" cannot be negative");
 		}
 
+		int disk = flinkConfig.getInteger(MESOS_RM_TASKS_DISK_MB);
+
 		// parse the containerization parameters
 		String imageName = flinkConfig.getString(MESOS_RM_CONTAINER_IMAGE_NAME);
 
@@ -365,6 +397,7 @@ public class MesosTaskManagerParameters {
 		return new MesosTaskManagerParameters(
 			cpus,
 			gpus,
+			disk,
 			containerType,
 			Option.apply(imageName),
 			containeredParameters,

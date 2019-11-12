@@ -30,6 +30,6 @@ public class LocalTaskManagerLocation extends TaskManagerLocation {
 	private static final long serialVersionUID = 2396142513336559461L;
 
 	public LocalTaskManagerLocation() {
-		super(ResourceID.generate(), InetAddress.getLoopbackAddress(), -1);
+		super(ResourceID.generate(), InetAddress.getLoopbackAddress(), 42);
 	}
 }

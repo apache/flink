@@ -18,11 +18,18 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -39,7 +46,6 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -64,15 +70,18 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 	@Test
 	public void testReinterpretAsKeyedStream() throws Exception {
 
-		final int numEventsPerInstance = 100;
 		final int maxParallelism = 8;
+		final int numEventsPerInstance = 100;
 		final int parallelism = 3;
-		final int numUniqueKeys = 12;
+		final int numTotalEvents = numEventsPerInstance * parallelism;
+		final int numUniqueKeys = 100;
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setMaxParallelism(maxParallelism);
 		env.setParallelism(parallelism);
+		env.enableCheckpointing(100);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
 
 		final List<File> partitionFiles = new ArrayList<>(parallelism);
 		for (int i = 0; i < parallelism; ++i) {
@@ -93,7 +102,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 			.timeWindow(Time.seconds(1)) // test that also timers and aggregated state work as expected
 			.reduce((ReduceFunction<Tuple2<Integer, Integer>>) (value1, value2) ->
 				new Tuple2<>(value1.f0, value1.f1 + value2.f1))
-			.addSink(new ValidatingSink(numEventsPerInstance * parallelism)).setParallelism(1);
+			.addSink(new ValidatingSink(numTotalEvents)).setParallelism(1);
 
 		env.execute();
 	}
@@ -101,10 +110,10 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 	private static class RandomTupleSource implements ParallelSourceFunction<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 
-		private int numKeys;
+		private final int numKeys;
 		private int remainingEvents;
 
-		public RandomTupleSource(int numEvents, int numKeys) {
+		RandomTupleSource(int numEvents, int numKeys) {
 			this.numKeys = numKeys;
 			this.remainingEvents = numEvents;
 		}
@@ -112,8 +121,11 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		@Override
 		public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
 			Random random = new Random(42);
-			while (--remainingEvents >= 0) {
-				out.collect(new Tuple2<>(random.nextInt(numKeys), 1));
+			while (remainingEvents > 0) {
+				synchronized (out.getCheckpointLock()) {
+					out.collect(new Tuple2<>(random.nextInt(numKeys), 1));
+					--remainingEvents;
+				}
 			}
 		}
 
@@ -130,7 +142,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		private final List<File> allPartitions;
 		private DataOutputStream dos;
 
-		public ToPartitionFileSink(List<File> allPartitions) {
+		ToPartitionFileSink(List<File> allPartitions) {
 			this.allPartitions = allPartitions;
 		}
 
@@ -156,24 +168,41 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		}
 	}
 
-	private static class FromPartitionFileSource extends RichParallelSourceFunction<Tuple2<Integer, Integer>> {
+	private static class FromPartitionFileSource extends RichParallelSourceFunction<Tuple2<Integer, Integer>>
+	implements CheckpointedFunction, CheckpointListener {
 		private static final long serialVersionUID = 1L;
 
-		private List<File> allPartitions;
+		private final List<File> allPartitions;
 		private DataInputStream din;
 		private volatile boolean running;
 
-		public FromPartitionFileSource(List<File> allPartitons) {
-			this.allPartitions = allPartitons;
+		private long fileLength;
+		private long waitForFailurePos;
+		private long position;
+		private transient ListState<Long> positionState;
+		private transient boolean isRestored;
+
+		private transient volatile boolean canFail;
+
+		FromPartitionFileSource(List<File> allPartitions) {
+			this.allPartitions = allPartitions;
 		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+			File partitionFile = allPartitions.get(subtaskIdx);
+			fileLength = partitionFile.length();
+			waitForFailurePos = fileLength * 3 / 4;
 			din = new DataInputStream(
 				new BufferedInputStream(
-					new FileInputStream(allPartitions.get(subtaskIdx))));
+					new FileInputStream(partitionFile)));
+
+			long toSkip = position;
+			while (toSkip > 0L) {
+				toSkip -= din.skip(toSkip);
+			}
 		}
 
 		@Override
@@ -184,28 +213,77 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
 		@Override
 		public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
-			this.running = true;
-			try {
-				while (running) {
+
+			running = true;
+
+			while (running && hasMoreDataToRead()) {
+
+				synchronized (out.getCheckpointLock()) {
 					Integer key = din.readInt();
 					Integer val = din.readInt();
 					out.collect(new Tuple2<>(key, val));
+
+					position += 2 * Integer.BYTES;
 				}
-			} catch (EOFException ignore) {
+
+				if (shouldWaitForCompletedCheckpointAndFailNow()) {
+					while (!canFail) {
+						// wait for a checkpoint to complete
+						Thread.sleep(10L);
+					}
+					throw new Exception("Artificial failure.");
+				}
 			}
+		}
+
+		private boolean shouldWaitForCompletedCheckpointAndFailNow() {
+			return !isRestored && position > waitForFailurePos;
+		}
+
+		private boolean hasMoreDataToRead() {
+			return position < fileLength;
 		}
 
 		@Override
 		public void cancel() {
 			this.running = false;
 		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) {
+			canFail = !isRestored;
+		}
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			positionState.clear();
+			positionState.add(position);
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			canFail = false;
+			position = 0L;
+			isRestored = context.isRestored();
+			positionState = context.getOperatorStateStore().getListState(
+				new ListStateDescriptor<>("posState", Long.class));
+
+			if (isRestored) {
+				for (long value : positionState.get()) {
+					position += value;
+				}
+			}
+		}
 	}
 
-	private static class ValidatingSink extends RichSinkFunction<Tuple2<Integer, Integer>> {
+	private static class ValidatingSink extends RichSinkFunction<Tuple2<Integer, Integer>>
+		implements CheckpointedFunction {
 
 		private static final long serialVersionUID = 1L;
 		private final int expectedSum;
 		private int runningSum = 0;
+
+		private transient ListState<Integer> sumState;
 
 		private ValidatingSink(int expectedSum) {
 			this.expectedSum = expectedSum;
@@ -226,6 +304,24 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		public void close() throws Exception {
 			Assert.assertEquals(expectedSum, runningSum);
 			super.close();
+		}
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			sumState.clear();
+			sumState.add(runningSum);
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			sumState = context.getOperatorStateStore().getListState(
+				new ListStateDescriptor<>("sumState", Integer.class));
+
+			if (context.isRestored()) {
+				for (int value : sumState.get()) {
+					runningSum += value;
+				}
+			}
 		}
 	}
 }

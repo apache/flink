@@ -18,18 +18,19 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * This class wraps list state with TTL logic.
@@ -41,43 +42,49 @@ import java.util.stream.StreamSupport;
 class TtlListState<K, N, T> extends
 	AbstractTtlState<K, N, List<T>, List<TtlValue<T>>, InternalListState<K, N, TtlValue<T>>>
 	implements InternalListState<K, N, T> {
-	TtlListState(
-		InternalListState<K, N, TtlValue<T>> originalState,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider,
-		TypeSerializer<List<T>> valueSerializer) {
-		super(originalState, config, timeProvider, valueSerializer);
+
+	TtlListState(TtlStateContext<InternalListState<K, N, TtlValue<T>>, List<T>> ttlStateContext) {
+		super(ttlStateContext);
 	}
 
 	@Override
 	public void update(List<T> values) throws Exception {
+		accessCallback.run();
 		updateInternal(values);
 	}
 
 	@Override
 	public void addAll(List<T> values) throws Exception {
+		accessCallback.run();
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 		original.addAll(withTs(values));
 	}
 
 	@Override
 	public Iterable<T> get() throws Exception {
+		accessCallback.run();
 		Iterable<TtlValue<T>> ttlValue = original.get();
 		ttlValue = ttlValue == null ? Collections.emptyList() : ttlValue;
 		if (updateTsOnRead) {
 			List<TtlValue<T>> collected = collect(ttlValue);
 			ttlValue = collected;
+			// the underlying state in backend is iterated in updateTs anyways
+			// to avoid reiterating backend in IteratorWithCleanup
+			// it is collected and iterated next time in memory
 			updateTs(collected);
 		}
 		final Iterable<TtlValue<T>> finalResult = ttlValue;
 		return () -> new IteratorWithCleanup(finalResult.iterator());
 	}
 
-	private void updateTs(List<TtlValue<T>> ttlValue) throws Exception {
-		List<TtlValue<T>> unexpiredWithUpdatedTs = ttlValue.stream()
-			.filter(v -> !expired(v))
-			.map(this::rewrapWithNewTs)
-			.collect(Collectors.toList());
+	private void updateTs(List<TtlValue<T>> ttlValues) throws Exception {
+		List<TtlValue<T>> unexpiredWithUpdatedTs = new ArrayList<>(ttlValues.size());
+		long currentTimestamp = timeProvider.currentTimestamp();
+		for (TtlValue<T> ttlValue : ttlValues) {
+			if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
+				unexpiredWithUpdatedTs.add(TtlUtils.wrapWithTs(ttlValue.getUserValue(), currentTimestamp));
+			}
+		}
 		if (!unexpiredWithUpdatedTs.isEmpty()) {
 			original.update(unexpiredWithUpdatedTs);
 		}
@@ -85,8 +92,29 @@ class TtlListState<K, N, T> extends
 
 	@Override
 	public void add(T value) throws Exception {
+		accessCallback.run();
 		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 		original.add(wrapWithTs(value));
+	}
+
+	@Nullable
+	@Override
+	public List<TtlValue<T>> getUnexpiredOrNull(@Nonnull List<TtlValue<T>> ttlValues) {
+		long currentTimestamp = timeProvider.currentTimestamp();
+		List<TtlValue<T>> unexpired = new ArrayList<>(ttlValues.size());
+		TypeSerializer<TtlValue<T>> elementSerializer =
+			((ListSerializer<TtlValue<T>>) original.getValueSerializer()).getElementSerializer();
+		for (TtlValue<T> ttlValue : ttlValues) {
+			if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
+				// we have to do the defensive copy to update the value
+				unexpired.add(elementSerializer.copy(ttlValue));
+			}
+		}
+		if (!unexpired.isEmpty()) {
+			return unexpired;
+		} else {
+			return ttlValues.size() == unexpired.size() ? ttlValues : unexpired;
+		}
 	}
 
 	@Override
@@ -105,18 +133,31 @@ class TtlListState<K, N, T> extends
 	}
 
 	private <E> List<E> collect(Iterable<E> iterable) {
-		return iterable instanceof List ? (List<E>) iterable :
-			StreamSupport.stream(iterable.spliterator(), false).collect(Collectors.toList());
+		if (iterable instanceof List) {
+			return (List<E>) iterable;
+		} else {
+			List<E> list = new ArrayList<>();
+			for (E element : iterable) {
+				list.add(element);
+			}
+			return list;
+		}
 	}
 
 	@Override
 	public void updateInternal(List<T> valueToStore) throws Exception {
 		Preconditions.checkNotNull(valueToStore, "List of values to update cannot be null.");
-		original.updateInternal(withTs(valueToStore));
+		original.update(withTs(valueToStore));
 	}
 
 	private List<TtlValue<T>> withTs(List<T> values) {
-		return values.stream().map(this::wrapWithTs).collect(Collectors.toList());
+		long currentTimestamp = timeProvider.currentTimestamp();
+		List<TtlValue<T>> withTs = new ArrayList<>(values.size());
+		for (T value : values) {
+			Preconditions.checkNotNull(value, "You cannot have null element in a ListState.");
+			withTs.add(TtlUtils.wrapWithTs(value, currentTimestamp));
+		}
+		return withTs;
 	}
 
 	private class IteratorWithCleanup implements Iterator<T> {

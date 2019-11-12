@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
@@ -46,7 +45,7 @@ import java.util.Properties;
  * Twitter. This is not a parallel source because the Twitter API only allows
  * two concurrent connections.
  */
-public class TwitterSource extends RichSourceFunction<String> implements StoppableFunction {
+public class TwitterSource extends RichSourceFunction<String> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwitterSource.class);
 
@@ -180,12 +179,6 @@ public class TwitterSource extends RichSourceFunction<String> implements Stoppab
 	@Override
 	public void cancel() {
 		LOG.info("Cancelling Twitter source");
-		close();
-	}
-
-	@Override
-	public void stop() {
-		LOG.info("Stopping Twitter source");
 		close();
 	}
 

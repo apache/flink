@@ -43,6 +43,7 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -56,8 +57,12 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,7 +71,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
+import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,6 +81,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -84,19 +92,26 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * IT cases for {@link RestClient} and {@link RestServerEndpoint}.
@@ -120,6 +135,9 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private final Configuration config;
 	private SSLContext defaultSSLContext;
+	private SSLSocketFactory defaultSSLSocketFactory;
+
+	private TestHandler testHandler;
 
 	public RestServerEndpointITCase(final Configuration config) {
 		this.config = requireNonNull(config);
@@ -129,13 +147,8 @@ public class RestServerEndpointITCase extends TestLogger {
 	public static Collection<Object[]> data() {
 		final Configuration config = getBaseConfig();
 
-		final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-		final String truststorePath = new File(classLoader
-			.getResource("local127.truststore")
-			.getFile()).getAbsolutePath();
-		final String keystorePath = new File(classLoader
-			.getResource("local127.keystore")
-			.getFile()).getAbsolutePath();
+		final String truststorePath = getTestResource("local127.truststore").getAbsolutePath();
+		final String keystorePath = getTestResource("local127.keystore").getAbsolutePath();
 
 		final Configuration sslConfig = new Configuration(config);
 		sslConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
@@ -145,15 +158,21 @@ public class RestServerEndpointITCase extends TestLogger {
 		sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
 		sslConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
 
+		final Configuration sslRestAuthConfig = new Configuration(sslConfig);
+		sslRestAuthConfig.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+
 		return Arrays.asList(new Object[][]{
-			{config}, {sslConfig}
+			{config}, {sslConfig}, {sslRestAuthConfig}
 		});
 	}
 
 	private static Configuration getBaseConfig() {
+		final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
+
 		final Configuration config = new Configuration();
-		config.setInteger(RestOptions.PORT, 0);
-		config.setString(RestOptions.ADDRESS, "localhost");
+		config.setString(RestOptions.BIND_PORT, "0");
+		config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
+		config.setString(RestOptions.ADDRESS, loopbackAddress);
 		config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 		config.setInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 		return config;
@@ -164,40 +183,52 @@ public class RestServerEndpointITCase extends TestLogger {
 		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
 
 		defaultSSLContext = SSLContext.getDefault();
-		final SSLContext sslClientContext = SSLUtils.createRestClientSSLContext(config);
+		defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
+		final SSLContext sslClientContext = SSLUtils.createRestSSLContext(config, true);
 		if (sslClientContext != null) {
 			SSLContext.setDefault(sslClientContext);
+			HttpsURLConnection.setDefaultSSLSocketFactory(sslClientContext.getSocketFactory());
 		}
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
-		final String restAddress = "http://localhost:1234";
 		RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
-		when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
 
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
-		TestHandler testHandler = new TestHandler(
-			CompletableFuture.completedFuture(restAddress),
+		testHandler = new TestHandler(
+			mockGatewayRetriever,
+			RpcUtils.INF_TIMEOUT);
+
+		TestVersionHandler testVersionHandler = new TestVersionHandler(
+			mockGatewayRetriever,
+			RpcUtils.INF_TIMEOUT);
+
+		TestVersionSelectionHandler1 testVersionSelectionHandler1 = new TestVersionSelectionHandler1(
+			mockGatewayRetriever,
+			RpcUtils.INF_TIMEOUT);
+
+		TestVersionSelectionHandler2 testVersionSelectionHandler2 = new TestVersionSelectionHandler2(
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
 		testUploadHandler = new TestUploadHandler(
-			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
 		final StaticFileServerHandler<RestfulGateway> staticFileServerHandler = new StaticFileServerHandler<>(
 			mockGatewayRetriever,
-			CompletableFuture.completedFuture(restAddress),
 			RpcUtils.INF_TIMEOUT,
 			temporaryFolder.getRoot());
 
 		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
 			Tuple2.of(new TestHeaders(), testHandler),
 			Tuple2.of(TestUploadHeaders.INSTANCE, testUploadHandler),
+			Tuple2.of(testVersionHandler.getMessageHeaders(), testVersionHandler),
+			Tuple2.of(testVersionSelectionHandler1.getMessageHeaders(), testVersionSelectionHandler1),
+			Tuple2.of(testVersionSelectionHandler2.getMessageHeaders(), testVersionSelectionHandler2),
 			Tuple2.of(WebContentHandlerSpecification.getInstance(), staticFileServerHandler));
 
 		serverEndpoint = new TestRestServerEndpoint(serverConfig, handlers);
@@ -211,6 +242,7 @@ public class RestServerEndpointITCase extends TestLogger {
 	public void teardown() throws Exception {
 		if (defaultSSLContext != null) {
 			SSLContext.setDefault(defaultSSLContext);
+			HttpsURLConnection.setDefaultSSLSocketFactory(defaultSSLSocketFactory);
 		}
 
 		if (restClient != null) {
@@ -219,7 +251,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		if (serverEndpoint != null) {
-			serverEndpoint.close();
+			serverEndpoint.closeAsync().get(timeout.getSize(), timeout.getUnit());
 			serverEndpoint = null;
 		}
 	}
@@ -230,37 +262,25 @@ public class RestServerEndpointITCase extends TestLogger {
 	 */
 	@Test
 	public void testRequestInterleaving() throws Exception {
-
-		TestParameters parameters = new TestParameters();
-		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
-		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+		final HandlerBlocker handlerBlocker = new HandlerBlocker(timeout);
+		testHandler.handlerBody = id -> {
+			if (id == 1) {
+				handlerBlocker.arriveAndBlock();
+			}
+			return CompletableFuture.completedFuture(new TestResponse(id));
+		};
 
 		// send first request and wait until the handler blocks
-		CompletableFuture<TestResponse> response1;
-
-		synchronized (TestHandler.LOCK) {
-			response1 = restClient.sendRequest(
-				serverAddress.getHostName(),
-				serverAddress.getPort(),
-				new TestHeaders(),
-				parameters,
-				new TestRequest(1));
-			TestHandler.LOCK.wait();
-		}
+		final CompletableFuture<TestResponse> response1 = sendRequestToTestHandler(new TestRequest(1));
+		handlerBlocker.awaitRequestToArrive();
 
 		// send second request and verify response
-		CompletableFuture<TestResponse> response2 = restClient.sendRequest(
-			serverAddress.getHostName(),
-			serverAddress.getPort(),
-			new TestHeaders(),
-			parameters,
-			new TestRequest(2));
+		final CompletableFuture<TestResponse> response2 = sendRequestToTestHandler(new TestRequest(2));
 		assertEquals(2, response2.get().id);
 
 		// wake up blocked handler
-		synchronized (TestHandler.LOCK) {
-			TestHandler.LOCK.notifyAll();
-		}
+		handlerBlocker.unblockRequest();
+
 		// verify response to first request
 		assertEquals(1, response1.get().id);
 	}
@@ -301,41 +321,34 @@ public class RestServerEndpointITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests that requests and responses larger than {@link #TEST_REST_MAX_CONTENT_LENGTH}
-	 * are rejected by the server and client, respectively.
+	 * Tests that requests larger than {@link #TEST_REST_MAX_CONTENT_LENGTH} are rejected.
 	 */
 	@Test
-	public void testMaxContentLengthLimit() throws Exception {
-		final TestParameters parameters = new TestParameters();
-		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
-		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
-
-		CompletableFuture<TestResponse> response;
-		response = restClient.sendRequest(
-			serverAddress.getHostName(),
-			serverAddress.getPort(),
-			new TestHeaders(),
-			parameters,
-			new TestRequest(2, createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)));
+	public void testShouldRespectMaxContentLengthLimitForRequests() throws Exception {
+		testHandler.handlerBody = id -> {
+			throw new AssertionError("Request should not arrive at server.");
+		};
 
 		try {
-			response.get();
+			sendRequestToTestHandler(new TestRequest(2, createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH))).get();
 			fail("Expected exception not thrown");
 		} catch (final ExecutionException e) {
 			final Throwable throwable = ExceptionUtils.stripExecutionException(e);
 			assertThat(throwable, instanceOf(RestClientException.class));
 			assertThat(throwable.getMessage(), containsString("Try to raise"));
 		}
+	}
 
-		response = restClient.sendRequest(
-			serverAddress.getHostName(),
-			serverAddress.getPort(),
-			new TestHeaders(),
-			parameters,
-			new TestRequest(TestHandler.LARGE_RESPONSE_BODY_ID));
+	/**
+	 * Tests that responses larger than {@link #TEST_REST_MAX_CONTENT_LENGTH} are rejected.
+	 */
+	@Test
+	public void testShouldRespectMaxContentLengthLimitForResponses() throws Exception {
+		testHandler.handlerBody = id -> CompletableFuture.completedFuture(
+			new TestResponse(id, createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)));
 
 		try {
-			response.get();
+			sendRequestToTestHandler(new TestRequest(1)).get();
 			fail("Expected exception not thrown");
 		} catch (final ExecutionException e) {
 			final Throwable throwable = ExceptionUtils.stripExecutionException(e);
@@ -415,6 +428,174 @@ public class RestServerEndpointITCase extends TestLogger {
 		assertEquals("foobar", fileContents.trim());
 	}
 
+	@Test
+	public void testVersioning() throws Exception {
+		CompletableFuture<EmptyResponseBody> unspecifiedVersionResponse = restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			TestVersionHeaders.INSTANCE,
+			EmptyMessageParameters.getInstance(),
+			EmptyRequestBody.getInstance(),
+			Collections.emptyList()
+		);
+
+		unspecifiedVersionResponse.get(5, TimeUnit.SECONDS);
+
+		CompletableFuture<EmptyResponseBody> specifiedVersionResponse = restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			TestVersionHeaders.INSTANCE,
+			EmptyMessageParameters.getInstance(),
+			EmptyRequestBody.getInstance(),
+			Collections.emptyList(),
+			RestAPIVersion.V1
+		);
+
+		specifiedVersionResponse.get(5, TimeUnit.SECONDS);
+	}
+
+	@Test
+	public void testVersionSelection() throws Exception {
+		CompletableFuture<EmptyResponseBody> version1Response = restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			TestVersionSelectionHeaders1.INSTANCE,
+			EmptyMessageParameters.getInstance(),
+			EmptyRequestBody.getInstance(),
+			Collections.emptyList(),
+			RestAPIVersion.V0
+		);
+
+		try {
+			version1Response.get(5, TimeUnit.SECONDS);
+			fail();
+		} catch (ExecutionException ee) {
+			RestClientException rce = (RestClientException) ee.getCause();
+			assertEquals(HttpResponseStatus.OK, rce.getHttpResponseStatus());
+		}
+
+		CompletableFuture<EmptyResponseBody> version2Response = restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			TestVersionSelectionHeaders2.INSTANCE,
+			EmptyMessageParameters.getInstance(),
+			EmptyRequestBody.getInstance(),
+			Collections.emptyList(),
+			RestAPIVersion.V1
+		);
+
+		try {
+			version2Response.get(5, TimeUnit.SECONDS);
+			fail();
+		} catch (ExecutionException ee) {
+			RestClientException rce = (RestClientException) ee.getCause();
+			assertEquals(HttpResponseStatus.ACCEPTED, rce.getHttpResponseStatus());
+		}
+	}
+
+	@Test
+	public void testDefaultVersionRouting() throws Exception {
+		Assume.assumeFalse(
+			"Ignoring SSL-enabled test to keep OkHttp usage simple.",
+			config.getBoolean(SecurityOptions.SSL_REST_ENABLED));
+
+		OkHttpClient client = new OkHttpClient();
+
+		final Request request = new Request.Builder()
+			.url(serverEndpoint.getRestBaseUrl() + TestVersionSelectionHeaders2.INSTANCE.getTargetRestEndpointURL())
+			.build();
+
+		try (final Response response = client.newCall(request).execute()) {
+			assertEquals(HttpResponseStatus.ACCEPTED.code(), response.code());
+		}
+	}
+
+	@Test
+	public void testNonSslRedirectForEnabledSsl() throws Exception {
+		Assume.assumeTrue(config.getBoolean(SecurityOptions.SSL_REST_ENABLED));
+		OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).build();
+		String httpsUrl = serverEndpoint.getRestBaseUrl() + "/path";
+		String httpUrl = httpsUrl.replace("https://", "http://");
+		Request request = new Request.Builder().url(httpUrl).build();
+		try (final Response response = client.newCall(request).execute()) {
+			assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.code());
+			assertThat(response.headers().names(), hasItems("Location"));
+			assertEquals(httpsUrl, response.header("Location"));
+		}
+	}
+
+	/**
+	 * Tests that after calling {@link RestServerEndpoint#closeAsync()}, the handlers are closed
+	 * first, and we wait for in-flight requests to finish. As long as not all handlers are closed,
+	 * HTTP requests should be served.
+	 */
+	@Test
+	public void testShouldWaitForHandlersWhenClosing() throws Exception {
+		testHandler.closeFuture = new CompletableFuture<>();
+		final HandlerBlocker handlerBlocker = new HandlerBlocker(timeout);
+		testHandler.handlerBody = id -> {
+			// Intentionally schedule the work on a different thread. This is to simulate
+			// handlers where the CompletableFuture is finished by the RPC framework.
+			return CompletableFuture.supplyAsync(() -> {
+				handlerBlocker.arriveAndBlock();
+				return new TestResponse(id);
+			});
+		};
+
+		// Initiate closing RestServerEndpoint but the test handler should block.
+		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
+		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+
+		final CompletableFuture<TestResponse> request = sendRequestToTestHandler(new TestRequest(1));
+		handlerBlocker.awaitRequestToArrive();
+
+		// Allow handler to close but there is still one in-flight request which should prevent
+		// the RestServerEndpoint from closing.
+		testHandler.closeFuture.complete(null);
+		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+
+		// Finish the in-flight request.
+		handlerBlocker.unblockRequest();
+
+		request.get(timeout.getSize(), timeout.getUnit());
+		closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
+	}
+
+	@Test
+	public void testRestServerBindPort() throws Exception {
+		final int portRangeStart = 52300;
+		final int portRangeEnd = 52400;
+		final Configuration config = new Configuration();
+		config.setString(RestOptions.ADDRESS, "localhost");
+		config.setString(RestOptions.BIND_PORT, portRangeStart + "-" + portRangeEnd);
+
+		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+
+		try (RestServerEndpoint serverEndpoint1 = new TestRestServerEndpoint(serverConfig, Collections.emptyList());
+			RestServerEndpoint serverEndpoint2 = new TestRestServerEndpoint(serverConfig, Collections.emptyList())) {
+
+			serverEndpoint1.start();
+			serverEndpoint2.start();
+
+			assertNotEquals(serverEndpoint1.getServerAddress().getPort(), serverEndpoint2.getServerAddress().getPort());
+
+			assertThat(serverEndpoint1.getServerAddress().getPort(), is(greaterThanOrEqualTo(portRangeStart)));
+			assertThat(serverEndpoint1.getServerAddress().getPort(), is(lessThanOrEqualTo(portRangeEnd)));
+
+			assertThat(serverEndpoint2.getServerAddress().getPort(), is(greaterThanOrEqualTo(portRangeStart)));
+			assertThat(serverEndpoint2.getServerAddress().getPort(), is(lessThanOrEqualTo(portRangeEnd)));
+		}
+	}
+
+	private static File getTestResource(final String fileName) {
+		final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+		final URL resource = classLoader.getResource(fileName);
+		if (resource == null) {
+			throw new IllegalArgumentException(String.format("Test resource %s does not exist", fileName));
+		}
+		return new File(resource.getFile());
+	}
+
 	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {
 		final HttpURLConnection connection =
 			(HttpURLConnection) new URL(serverEndpoint.getRestBaseUrl() + "/upload").openConnection();
@@ -435,7 +616,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		return sb.toString();
 	}
 
-	private static class TestRestServerEndpoint extends RestServerEndpoint {
+	static class TestRestServerEndpoint extends RestServerEndpoint {
 
 		private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 
@@ -447,7 +628,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
+		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
 			return handlers;
 		}
 
@@ -457,16 +638,12 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {
 
-		private static final Object LOCK = new Object();
+		private CompletableFuture<Void> closeFuture = CompletableFuture.completedFuture(null);
 
-		private static final int LARGE_RESPONSE_BODY_ID = 3;
+		private Function<Integer, CompletableFuture<TestResponse>> handlerBody;
 
-		TestHandler(
-				CompletableFuture<String> localAddressFuture,
-				GatewayRetriever<RestfulGateway> leaderRetriever,
-				Time timeout) {
+		TestHandler(GatewayRetriever<RestfulGateway> leaderRetriever, Time timeout) {
 			super(
-				localAddressFuture,
 				leaderRetriever,
 				timeout,
 				Collections.emptyMap(),
@@ -474,29 +651,93 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest, TestParameters> request, RestfulGateway gateway) throws RestHandlerException {
+		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest, TestParameters> request, RestfulGateway gateway) {
 			assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
 			assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
 
 			final int id = request.getRequestBody().id;
-			if (id == 1) {
-				synchronized (LOCK) {
-					try {
-						LOCK.notifyAll();
-						LOCK.wait();
-					} catch (InterruptedException ignored) {
-					}
-				}
-			} else if (id == LARGE_RESPONSE_BODY_ID) {
-				return CompletableFuture.completedFuture(new TestResponse(
-					id,
-					createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)));
-			}
-			return CompletableFuture.completedFuture(new TestResponse(id));
+			return handlerBody.apply(id);
+		}
+
+		@Override
+		public CompletableFuture<Void> closeHandlerAsync() {
+			return closeFuture;
 		}
 	}
 
-	private static class TestRestClient extends RestClient {
+	private CompletableFuture<TestResponse> sendRequestToTestHandler(final TestRequest testRequest) {
+		try {
+			return restClient.sendRequest(
+				serverAddress.getHostName(),
+				serverAddress.getPort(),
+				new TestHeaders(),
+				createTestParameters(),
+				testRequest);
+		} catch (final IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private static TestParameters createTestParameters() {
+		final TestParameters parameters = new TestParameters();
+		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
+		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+		return parameters;
+	}
+
+	/**
+	 * This is a helper class for tests that require to have fine-grained control over HTTP
+	 * requests so that they are not dispatched immediately.
+	 */
+	private static class HandlerBlocker {
+
+		private final Time timeout;
+
+		private final CountDownLatch requestArrivedLatch = new CountDownLatch(1);
+
+		private final CountDownLatch finishRequestLatch = new CountDownLatch(1);
+
+		private HandlerBlocker(final Time timeout) {
+			this.timeout = checkNotNull(timeout);
+		}
+
+		/**
+		 * Waits until {@link #arriveAndBlock()} is called.
+		 */
+		public void awaitRequestToArrive() {
+			try {
+				assertTrue(requestArrivedLatch.await(timeout.getSize(), timeout.getUnit()));
+			} catch (final InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+
+		/**
+		 * Signals that the request arrived. This method blocks until {@link #unblockRequest()} is
+		 * called.
+		 */
+		public void arriveAndBlock() {
+			markRequestArrived();
+			try {
+				assertTrue(finishRequestLatch.await(timeout.getSize(), timeout.getUnit()));
+			} catch (final InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+
+		/**
+		 * @see #arriveAndBlock()
+		 */
+		public void unblockRequest() {
+			finishRequestLatch.countDown();
+		}
+
+		private void markRequestArrived() {
+			requestArrivedLatch.countDown();
+		}
+	}
+
+	static class TestRestClient extends RestClient {
 
 		TestRestClient(RestClientConfiguration configuration) {
 			super(configuration, TestingUtils.defaultExecutor());
@@ -616,6 +857,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		protected String convertToString(JobID value) {
 			return value.toString();
 		}
+
+		@Override
+		public String getDescription() {
+			return "correct JobID parameter";
+		}
 	}
 
 	static class FaultyJobIDPathParameter extends MessagePathParameter<JobID> {
@@ -633,6 +879,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		protected String convertToString(JobID value) {
 			return "foobar";
 		}
+
+		@Override
+		public String getDescription() {
+			return "faulty JobID parameter";
+		}
 	}
 
 	static class JobIDQueryParameter extends MessageQueryParameter<JobID> {
@@ -649,6 +900,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		public String convertValueToString(JobID value) {
 			return value.toString();
 		}
+
+		@Override
+		public String getDescription() {
+			return "query JobID parameter";
+		}
 	}
 
 	private static class TestUploadHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
@@ -656,10 +912,9 @@ public class RestServerEndpointITCase extends TestLogger {
 		private volatile byte[] lastUploadedFileContents;
 
 		private TestUploadHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout) {
-			super(localRestAddress, leaderRetriever, timeout, Collections.emptyMap(), TestUploadHeaders.INSTANCE);
+			super(leaderRetriever, timeout, Collections.emptyMap(), TestUploadHeaders.INSTANCE);
 		}
 
 		@Override
@@ -679,6 +934,148 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		public byte[] getLastUploadedFileContents() {
 			return lastUploadedFileContents;
+		}
+	}
+
+	static class TestVersionHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+		TestVersionHandler(
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			final Time timeout) {
+			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionHeaders.INSTANCE);
+		}
+
+		@Override
+		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
+			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
+		}
+	}
+
+	enum TestVersionHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+		INSTANCE;
+
+		@Override
+		public Class<EmptyRequestBody> getRequestClass() {
+			return EmptyRequestBody.class;
+		}
+
+		@Override
+		public HttpMethodWrapper getHttpMethod() {
+			return HttpMethodWrapper.GET;
+		}
+
+		@Override
+		public String getTargetRestEndpointURL() {
+			return "/test/versioning";
+		}
+
+		@Override
+		public Class<EmptyResponseBody> getResponseClass() {
+			return EmptyResponseBody.class;
+		}
+
+		@Override
+		public HttpResponseStatus getResponseStatusCode() {
+			return HttpResponseStatus.OK;
+		}
+
+		@Override
+		public String getDescription() {
+			return null;
+		}
+
+		@Override
+		public EmptyMessageParameters getUnresolvedMessageParameters() {
+			return EmptyMessageParameters.getInstance();
+		}
+
+		@Override
+		public Collection<RestAPIVersion> getSupportedAPIVersions() {
+			return Collections.singleton(RestAPIVersion.V1);
+		}
+	}
+
+	private interface TestVersionSelectionHeadersBase extends MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+		@Override
+		default Class<EmptyRequestBody> getRequestClass() {
+			return EmptyRequestBody.class;
+		}
+
+		@Override
+		default HttpMethodWrapper getHttpMethod() {
+			return HttpMethodWrapper.GET;
+		}
+
+		@Override
+		default String getTargetRestEndpointURL() {
+			return "/test/select-version";
+		}
+
+		@Override
+		default Class<EmptyResponseBody> getResponseClass() {
+			return EmptyResponseBody.class;
+		}
+
+		@Override
+		default HttpResponseStatus getResponseStatusCode() {
+			return HttpResponseStatus.OK;
+		}
+
+		@Override
+		default String getDescription() {
+			return null;
+		}
+
+		@Override
+		default EmptyMessageParameters getUnresolvedMessageParameters() {
+			return EmptyMessageParameters.getInstance();
+		}
+	}
+
+	private enum TestVersionSelectionHeaders1 implements TestVersionSelectionHeadersBase {
+		INSTANCE;
+
+		@Override
+		public Collection<RestAPIVersion> getSupportedAPIVersions() {
+			return Collections.singleton(RestAPIVersion.V0);
+		}
+	}
+
+	private enum TestVersionSelectionHeaders2 implements TestVersionSelectionHeadersBase {
+		INSTANCE;
+
+		@Override
+		public Collection<RestAPIVersion> getSupportedAPIVersions() {
+			return Collections.singleton(RestAPIVersion.V1);
+		}
+	}
+
+	private static class TestVersionSelectionHandler1 extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+		private TestVersionSelectionHandler1(
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			final Time timeout) {
+			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders1.INSTANCE);
+		}
+
+		@Override
+		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
+			throw new RestHandlerException("test failure 1", HttpResponseStatus.OK);
+		}
+	}
+
+	private static class TestVersionSelectionHandler2 extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+		private TestVersionSelectionHandler2(
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			final Time timeout) {
+			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders2.INSTANCE);
+		}
+
+		@Override
+		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
+			throw new RestHandlerException("test failure 2", HttpResponseStatus.ACCEPTED);
 		}
 	}
 

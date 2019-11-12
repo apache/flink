@@ -18,21 +18,27 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -40,7 +46,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link ConjunctFuture} and {@link FutureUtils.WaitingConjunctFuture}.
+ * Tests for the {@link ConjunctFuture} and its sub classes.
  */
 @RunWith(Parameterized.class)
 public class ConjunctFutureTest extends TestLogger {
@@ -194,22 +200,32 @@ public class ConjunctFutureTest extends TestLogger {
 
 	/**
 	 * Tests that the conjunct future returns upon completion the collection of all future values
+	 * in the same order in which the futures were inserted.
 	 */
 	@Test
-	public void testConjunctFutureValue() throws ExecutionException, InterruptedException {
-		java.util.concurrent.CompletableFuture<Integer> future1 = java.util.concurrent.CompletableFuture.completedFuture(1);
-		java.util.concurrent.CompletableFuture<Long> future2 = java.util.concurrent.CompletableFuture.completedFuture(2L);
-		java.util.concurrent.CompletableFuture<Double> future3 = new java.util.concurrent.CompletableFuture<>();
+	public void testConjunctFutureValue() throws Exception {
+		final int numberFutures = 10;
 
-		ConjunctFuture<Collection<Number>> result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3));
+		final List<CompletableFuture<Integer>> futures = new ArrayList<>(numberFutures);
+		for (int i = 0; i < numberFutures; i++) {
+			futures.add(new CompletableFuture<>());
+		}
 
-		assertFalse(result.isDone());
+		ConjunctFuture<Collection<Number>> result = FutureUtils.combineAll(futures);
 
-		future3.complete(.1);
+		final List<Tuple2<Integer, CompletableFuture<Integer>>> shuffledFutures = IntStream.range(0, futures.size())
+			.mapToObj(index -> Tuple2.of(index, futures.get(index)))
+			.collect(Collectors.toList());
+		Collections.shuffle(shuffledFutures);
 
-		assertTrue(result.isDone());
+		for (Tuple2<Integer, CompletableFuture<Integer>> shuffledFuture : shuffledFutures) {
+			assertThat(result.isDone(), is(false));
+			shuffledFuture.f1.complete(shuffledFuture.f0);
+		}
 
-		assertThat(result.get(), IsIterableContainingInAnyOrder.<Number>containsInAnyOrder(1, 2L, .1));
+		assertThat(result.isDone(), is(true));
+
+		assertThat(result.get(), is(equalTo(IntStream.range(0, numberFutures).boxed().collect(Collectors.toList()))));
 	}
 
 	@Test

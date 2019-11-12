@@ -21,12 +21,13 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -47,7 +48,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.mockExecutionVertex;
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -141,7 +142,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		// initialize the hooks
 		cc.restoreLatestCheckpointedState(
-			Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+			Collections.emptySet(),
 			false,
 			false);
 		verify(hook1, times(1)).reset();
@@ -187,14 +188,20 @@ public class CheckpointCoordinatorMasterHooksTest {
 		final JobID jid = new JobID();
 		final ExecutionAttemptID execId = new ExecutionAttemptID();
 		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
-		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+		final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
+			new ManuallyTriggeredScheduledExecutor();
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(
+			jid, manuallyTriggeredScheduledExecutor, ackVertex);
 
 		cc.addMasterHook(statefulHook1);
 		cc.addMasterHook(statelessHook);
 		cc.addMasterHook(statefulHook2);
 
 		// trigger a checkpoint
-		assertTrue(cc.triggerCheckpoint(System.currentTimeMillis(), false));
+		final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+			cc.triggerCheckpoint(System.currentTimeMillis(), false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
+		assertFalse(checkpointFuture.isCompletedExceptionally());
 		assertEquals(1, cc.getNumberOfPendingCheckpoints());
 
 		verify(statefulHook1, times(1)).triggerCheckpoint(anyLong(), anyLong(), any(Executor.class));
@@ -202,11 +209,11 @@ public class CheckpointCoordinatorMasterHooksTest {
 		verify(statelessHook, times(1)).triggerCheckpoint(anyLong(), anyLong(), any(Executor.class));
 
 		final long checkpointId = cc.getPendingCheckpoints().values().iterator().next().getCheckpointId();
-		cc.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, execId, checkpointId));
+		cc.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, execId, checkpointId), "Unknown location");
 		assertEquals(0, cc.getNumberOfPendingCheckpoints());
 
 		assertEquals(1, cc.getNumberOfRetainedSuccessfulCheckpoints());
-		final CompletedCheckpoint chk = cc.getCheckpointStore().getLatestCheckpoint();
+		final CompletedCheckpoint chk = cc.getCheckpointStore().getLatestCheckpoint(false);
 
 		final Collection<MasterState> masterStates = chk.getMasterHookStates();
 		assertEquals(2, masterStates.size());
@@ -275,7 +282,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		cc.getCheckpointStore().addCheckpoint(checkpoint);
 		cc.restoreLatestCheckpointedState(
-				Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+				Collections.emptySet(),
 				true,
 				false);
 
@@ -330,7 +337,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 		// since we have unmatched state, this should fail
 		try {
 			cc.restoreLatestCheckpointedState(
-					Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+					Collections.emptySet(),
 					true,
 					false);
 			fail("exception expected");
@@ -339,7 +346,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		// permitting unmatched state should succeed
 		cc.restoreLatestCheckpointedState(
-				Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
+				Collections.emptySet(),
 				true,
 				true);
 
@@ -352,7 +359,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This test makes sure that the checkpoint is already registered by the time
+	 * This test makes sure that the checkpoint is already registered by the time.
 	 * that the hooks are called
 	 */
 	@Test
@@ -363,7 +370,10 @@ public class CheckpointCoordinatorMasterHooksTest {
 		final JobID jid = new JobID();
 		final ExecutionAttemptID execId = new ExecutionAttemptID();
 		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
-		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+		final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
+			new ManuallyTriggeredScheduledExecutor();
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(
+			jid, manuallyTriggeredScheduledExecutor, ackVertex);
 
 		final MasterTriggerRestoreHook<Void> hook = mockGeneric(MasterTriggerRestoreHook.class);
 		when(hook.getIdentifier()).thenReturn(id);
@@ -384,7 +394,10 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(hook);
 
 		// trigger a checkpoint
-		assertTrue(cc.triggerCheckpoint(System.currentTimeMillis(), false));
+		final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+			cc.triggerCheckpoint(System.currentTimeMillis(), false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
+		assertFalse(checkpointFuture.isCompletedExceptionally());
 	}
 
 
@@ -420,14 +433,30 @@ public class CheckpointCoordinatorMasterHooksTest {
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	private static CheckpointCoordinator instantiateCheckpointCoordinator(JobID jid, ExecutionVertex... ackVertices) {
+	private CheckpointCoordinator instantiateCheckpointCoordinator(
+		JobID jid,
+		ExecutionVertex... ackVertices) {
+
+		return instantiateCheckpointCoordinator(jid, new ManuallyTriggeredScheduledExecutor(), ackVertices);
+	}
+
+	private CheckpointCoordinator instantiateCheckpointCoordinator(
+		JobID jid,
+		ScheduledExecutor testingScheduledExecutor,
+		ExecutionVertex... ackVertices) {
+
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
+			10000000L,
+			600000L,
+			0L,
+			1,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
 		return new CheckpointCoordinator(
 				jid,
-				10000000L,
-				600000L,
-				0L,
-				1,
-				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				chkConfig,
 				new ExecutionVertex[0],
 				ackVertices,
 				new ExecutionVertex[0],
@@ -435,7 +464,11 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				testingScheduledExecutor,
+				SharedStateRegistry.DEFAULT_FACTORY,
+				new CheckpointFailureManager(
+					0,
+					NoOpFailJobCall.INSTANCE));
 	}
 
 	private static <T> T mockGeneric(Class<?> clazz) {
@@ -446,7 +479,10 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 	// ------------------------------------------------------------------------
 
-	private static final class StringSerializer implements SimpleVersionedSerializer<String> {
+	/**
+	 * A test implementation of {@link SimpleVersionedSerializer} for String type.
+	 */
+	public static final class StringSerializer implements SimpleVersionedSerializer<String> {
 
 		static final int VERSION = 77;
 

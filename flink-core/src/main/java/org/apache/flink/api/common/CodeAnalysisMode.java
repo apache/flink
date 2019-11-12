@@ -32,8 +32,11 @@ import org.apache.flink.annotation.PublicEvolving;
  *  - Warnings if a Function returns null
  *  - Warnings if a tuple access uses a wrong index
  *  - Information about the number of object creations (for manual optimization)
+ *
+ * @deprecated The code analysis code has been removed and this enum has no effect.
  */
 @PublicEvolving
+@Deprecated
 public enum CodeAnalysisMode {
 
 	/**

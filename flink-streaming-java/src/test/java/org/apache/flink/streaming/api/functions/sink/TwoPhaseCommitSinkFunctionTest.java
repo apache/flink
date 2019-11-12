@@ -47,6 +47,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.assertEquals;
@@ -167,7 +168,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 			harness.snapshot(2, 5);
 			fail("something should fail");
 		} catch (Exception ex) {
-			if (!(ex.getCause() instanceof ContentDump.NotWritableException)) {
+			if (!findSerializedThrowable(ex, ContentDump.NotWritableException.class, ClassLoader.getSystemClassLoader()).isPresent()) {
 				throw ex;
 			}
 			// ignore
@@ -195,10 +196,14 @@ public class TwoPhaseCommitSinkFunctionTest {
 		final OperatorSubtaskState snapshot = harness.snapshot(0, 1);
 		harness.notifyOfCompletedCheckpoint(1);
 
+		throwException.set(true);
+
+		closeTestHarness();
+		setUpTestHarness();
+
 		final long transactionTimeout = 1000;
 		sinkFunction.setTransactionTimeout(transactionTimeout);
 		sinkFunction.ignoreFailuresAfterTransactionTimeout();
-		throwException.set(true);
 
 		try {
 			harness.initializeState(snapshot);
@@ -251,10 +256,19 @@ public class TwoPhaseCommitSinkFunctionTest {
 		final OperatorSubtaskState snapshot = harness.snapshot(0, 1);
 		final long elapsedTime = (long) ((double) transactionTimeout * warningRatio + 2);
 		clock.setEpochMilli(elapsedTime);
+
+		closeTestHarness();
+		setUpTestHarness();
+		sinkFunction.setTransactionTimeout(transactionTimeout);
+		sinkFunction.enableTransactionTimeoutWarnings(warningRatio);
+
 		harness.initializeState(snapshot);
+		harness.open();
 
 		final List<String> logMessages =
 			loggingEvents.stream().map(LoggingEvent::getRenderedMessage).collect(Collectors.toList());
+
+		closeTestHarness();
 
 		assertThat(
 			logMessages,
