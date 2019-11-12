@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -32,6 +33,7 @@ import org.apache.hadoop.hive.metastore.Warehouse;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -111,4 +113,30 @@ public class HiveShimV310 extends HiveShimV235 {
 		}
 	}
 
+	@Override
+	public Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName) {
+		try {
+			// HMS catalog (https://issues.apache.org/jira/browse/HIVE-18685) is an on-going feature and we currently
+			// just get the default catalog.
+			String hiveDefaultCatalog = (String) HiveReflectionUtils.invokeMethod(getMetaStoreUtilsClass(), null,
+					"getDefaultCatalog", new Class[]{Configuration.class}, new Object[]{conf});
+			Class requestClz = Class.forName("org.apache.hadoop.hive.metastore.api.NotNullConstraintsRequest");
+			Object request = requestClz.getDeclaredConstructor(String.class, String.class, String.class)
+					.newInstance(hiveDefaultCatalog, dbName, tableName);
+			List<?> constraints = (List<?>) HiveReflectionUtils.invokeMethod(client.getClass(), client,
+					"getNotNullConstraints", new Class[]{requestClz}, new Object[]{request});
+			Class constraintClz = Class.forName("org.apache.hadoop.hive.metastore.api.SQLNotNullConstraint");
+			Method colNameMethod = constraintClz.getDeclaredMethod("getColumn_name");
+			Method isRelyMethod = constraintClz.getDeclaredMethod("isRely_cstr");
+			Set<String> res = new HashSet<>();
+			for (Object constraint : constraints) {
+				if ((boolean) isRelyMethod.invoke(constraint)) {
+					res.add((String) colNameMethod.invoke(constraint));
+				}
+			}
+			return res;
+		} catch (Exception e) {
+			throw new CatalogException("Failed to get NOT NULL constraints", e);
+		}
+	}
 }
