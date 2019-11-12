@@ -154,8 +154,6 @@ class BatchExecTableSourceScan(
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[IN](format, t)
     val transformation = env.addSource(func, tableSource.explainSource(), t).getTransformation
-    println(env.getParallelism)
-    println(transformation.getParallelism)
 
     // only infer parallelism for InputFormatTableSource. InputFormat source is safe
     // and important.
