@@ -696,7 +696,6 @@ LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c,
    +- LogicalProject(c=[$2], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
-
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
