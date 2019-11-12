@@ -408,12 +408,12 @@ object GenerateUtils {
           val m = JInteger.valueOf(v.substring(14, 16))
           val s = JInteger.valueOf(v.substring(17, 19))
           val ms = getMillisInSecond(timestampString)
-          val d = SqlDateTimeUtils.ymdToJulian(year, month, day)
+          val d = SqlDateTimeUtils.ymdToUnixDate(year, month, day)
           d * 86400000L + h * 3600000L + m * 60000L + s * 1000L + ms.toLong
         }
 
         val fieldTerm = newName("timestamp")
-        val millis = literalValue.asInstanceOf[TimestampString].getMillisSinceEpoch
+        val millis = getMillisSinceEpoch(literalValue.asInstanceOf[TimestampString])
         val nanoOfMillis = getNanoOfMillisSinceEpoch(
           literalValue.asInstanceOf[TimestampString])
         val fieldTimestamp =

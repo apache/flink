@@ -1021,12 +1021,12 @@ public class SqlDateTimeUtils {
 		return ymdToUnixDate(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
 	}
 
-	private static int ymdToUnixDate(int year, int month, int day) {
+	public static int ymdToUnixDate(int year, int month, int day) {
 		final int julian = ymdToJulian(year, month, day);
 		return julian - EPOCH_JULIAN;
 	}
 
-	public static int ymdToJulian(int year, int month, int day) {
+	private static int ymdToJulian(int year, int month, int day) {
 		int a = (14 - month) / 12;
 		int y = year + 4800 - a;
 		int m = month + 12 * a - 3;
