@@ -32,7 +32,7 @@ import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTE
 import static org.apache.flink.runtime.state.heap.space.SpaceConstants.NO_SPACE;
 
 /**
- * An implementation of {@link Allocator} which is not thread safety.
+ * An implementation of {@link Allocator} which is not thread safe.
  */
 public class SpaceAllocator implements Allocator {
 
@@ -50,7 +50,7 @@ public class SpaceAllocator implements Allocator {
 	private final List<Chunk> totalSpaceForNormal = new ArrayList<>();
 
 	/**
-	 * List of chunks used to allocate space for data bigger than bucket size.
+	 * List of chunks used to allocate space for data bigger than or equal to bucket size.
 	 */
 	private final List<Chunk> totalSpaceForHuge = new ArrayList<>();
 

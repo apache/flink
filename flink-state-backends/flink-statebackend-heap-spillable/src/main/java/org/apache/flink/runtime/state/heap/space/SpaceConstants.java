@@ -23,6 +23,9 @@ package org.apache.flink.runtime.state.heap.space;
  */
 public class SpaceConstants {
 
+	private SpaceConstants() {
+	}
+
 	/** This indicates there is no space left. */
 	static final int NO_SPACE = -1;
 

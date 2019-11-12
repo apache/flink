@@ -28,7 +28,7 @@ import static org.apache.flink.runtime.state.heap.space.SpaceConstants.BUCKET_SI
 public class DefaultChunkImpl extends AbstractChunk {
 
 	/**
-	 * The backed byte buffer.
+	 * The backed memory segment.
 	 */
 	private final MemorySegment memorySegment;
 

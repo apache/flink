@@ -44,8 +44,8 @@ public class PowerTwoBucketAllocatorTest {
 		int bucketSize = 1024 * 1024;
 		PowerTwoBucketAllocator bucketAllocator = new PowerTwoBucketAllocator(chunkSize, bucketSize);
 
-		PowerTwoBucketAllocator.Bucket[] allBuckets = bucketAllocator.getAllBuckets();
-		PowerTwoBucketAllocator.BlockAllocator[] blockAllocators = bucketAllocator.getBlockAllocators();
+		Bucket[] allBuckets = bucketAllocator.getAllBuckets();
+		BlockAllocator[] blockAllocators = bucketAllocator.getBlockAllocators();
 
 		Assert.assertEquals(1024, allBuckets.length);
 		Assert.assertEquals(16, blockAllocators.length);
@@ -54,7 +54,7 @@ public class PowerTwoBucketAllocatorTest {
 		for (int i = 0; i < blockAllocators.length; i++) {
 			Assert.assertEquals(i, blockAllocators[i].getBlockAllocatorIndex());
 			for (Object object : blockAllocators[i].getAppliedBuckets().keySet()) {
-				PowerTwoBucketAllocator.Bucket bucket = (PowerTwoBucketAllocator.Bucket) object;
+				Bucket bucket = (Bucket) object;
 				Assert.assertEquals(i, bucket.getBlockAllocatorIndex());
 				Assert.assertTrue(bucket.isFree());
 				Assert.assertTrue(!bucket.isUninitiated());
@@ -71,7 +71,7 @@ public class PowerTwoBucketAllocatorTest {
 	}
 
 	/**
-	 * Tests that {@link PowerTwoBucketAllocator.Bucket} works well.
+	 * Tests that {@link Bucket} works well.
 	 */
 	@Test
 	public void testBucket() {
@@ -86,7 +86,7 @@ public class PowerTwoBucketAllocatorTest {
 	}
 
 	private void doTestBucket(int baseOffset, int bucketSize) {
-		PowerTwoBucketAllocator.Bucket bucket = new PowerTwoBucketAllocator.Bucket(baseOffset, bucketSize);
+		Bucket bucket = new Bucket(baseOffset, bucketSize);
 
 		// test bucket is uninitiated
 		Assert.assertTrue(bucket.isUninitiated());
@@ -175,14 +175,14 @@ public class PowerTwoBucketAllocatorTest {
 	}
 
 	/**
-	 * Tests that {@link PowerTwoBucketAllocator.BlockAllocator} works well.
+	 * Tests that {@link BlockAllocator} works well.
 	 */
 	@Test
 	public void testBlockAllocator() {
 		PowerTwoBucketAllocator bucketAllocator = new PowerTwoBucketAllocator(1024, 128);
 
-		PowerTwoBucketAllocator.Bucket[] allBuckets = bucketAllocator.getAllBuckets();
-		PowerTwoBucketAllocator.BlockAllocator[] blockAllocators = bucketAllocator.getBlockAllocators();
+		Bucket[] allBuckets = bucketAllocator.getAllBuckets();
+		BlockAllocator[] blockAllocators = bucketAllocator.getBlockAllocators();
 
 		Assert.assertEquals(8, allBuckets.length);
 		Assert.assertEquals(3, blockAllocators.length);
@@ -202,8 +202,8 @@ public class PowerTwoBucketAllocatorTest {
 			int blockSize = 1 << (i + 5);
 			int blockNum = 128 / blockSize;
 			for (Object object : blockAllocators[i].getAppliedBuckets().keySet()) {
-				Assert.assertEquals(blockSize, ((PowerTwoBucketAllocator.Bucket) object).getBlockSize());
-				Assert.assertEquals(blockNum, ((PowerTwoBucketAllocator.Bucket) object).getFreeBlockNum());
+				Assert.assertEquals(blockSize, ((Bucket) object).getBlockSize());
+				Assert.assertEquals(blockNum, ((Bucket) object).getFreeBlockNum());
 			}
 
 			Assert.assertEquals(0, getUsedBlocks(blockAllocators[i]));
@@ -258,7 +258,7 @@ public class PowerTwoBucketAllocatorTest {
 		Assert.assertEquals(128, getUsedBytes(blockAllocators[2]));
 
 		Assert.assertEquals(0,
-			((PowerTwoBucketAllocator.Bucket) blockAllocators[2].getAppliedBuckets().get(0)).getBaseOffset());
+			((Bucket) blockAllocators[2].getAppliedBuckets().get(0)).getBaseOffset());
 
 		Assert.assertEquals(0, blockAllocators[2].getFreeBuckets().size());
 		Assert.assertEquals(7, bucketAllocator.getFreeBucketsQueue().size());
@@ -319,8 +319,8 @@ public class PowerTwoBucketAllocatorTest {
 	public void testNormal() {
 		PowerTwoBucketAllocator bucketAllocator = new PowerTwoBucketAllocator(128, 64);
 
-		PowerTwoBucketAllocator.Bucket[] allBuckets = bucketAllocator.getAllBuckets();
-		PowerTwoBucketAllocator.BlockAllocator[] blockAllocators = bucketAllocator.getBlockAllocators();
+		Bucket[] allBuckets = bucketAllocator.getAllBuckets();
+		BlockAllocator[] blockAllocators = bucketAllocator.getBlockAllocators();
 
 		Assert.assertEquals(2, allBuckets.length);
 		Assert.assertEquals(2, blockAllocators.length);
@@ -415,8 +415,8 @@ public class PowerTwoBucketAllocatorTest {
 	public void testConcurrentAllocateAndFree() throws InterruptedException {
 		PowerTwoBucketAllocator power = new PowerTwoBucketAllocator(1024 * 1024, 128);
 
-		PowerTwoBucketAllocator.Bucket[] allBuckets = power.getAllBuckets();
-		PowerTwoBucketAllocator.BlockAllocator[] bucketSizeInfo = power.getBlockAllocators();
+		Bucket[] allBuckets = power.getAllBuckets();
+		BlockAllocator[] bucketSizeInfo = power.getBlockAllocators();
 
 		Assert.assertEquals(8192, allBuckets.length);
 		Assert.assertEquals(3, bucketSizeInfo.length);
@@ -454,33 +454,33 @@ public class PowerTwoBucketAllocatorTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	private int getFreeBlocks(PowerTwoBucketAllocator.BlockAllocator blockAllocator) {
+	private int getFreeBlocks(BlockAllocator blockAllocator) {
 		int sum = 0;
 		for (Object obj : blockAllocator.getAppliedBuckets().keySet()) {
-			sum += ((PowerTwoBucketAllocator.Bucket) obj).getFreeBlockNum();
+			sum += ((Bucket) obj).getFreeBlockNum();
 		}
 		return sum;
 	}
 
 	@SuppressWarnings("unchecked")
-	private int getUsedBlocks(PowerTwoBucketAllocator.BlockAllocator blockAllocator) {
+	private int getUsedBlocks(BlockAllocator blockAllocator) {
 		int sum = 0;
 		for (Object obj : blockAllocator.getAppliedBuckets().keySet()) {
-			sum += ((PowerTwoBucketAllocator.Bucket) obj).getUsedBlockNum();
+			sum += ((Bucket) obj).getUsedBlockNum();
 		}
 		return sum;
 	}
 
 	@SuppressWarnings("unchecked")
-	private int getUsedBytes(PowerTwoBucketAllocator.BlockAllocator blockAllocator) {
+	private int getUsedBytes(BlockAllocator blockAllocator) {
 		int sum = 0;
 		for (Object obj : blockAllocator.getAppliedBuckets().keySet()) {
-			sum += ((PowerTwoBucketAllocator.Bucket) obj).getUsedBytes();
+			sum += ((Bucket) obj).getUsedBytes();
 		}
 		return sum;
 	}
 
-	private int getBlockSize(PowerTwoBucketAllocator.BlockAllocator blockAllocator) {
+	private int getBlockSize(BlockAllocator blockAllocator) {
 		return getBlockSizeFromBlockAllocatorIndex(blockAllocator.getBlockAllocatorIndex());
 	}
 }
