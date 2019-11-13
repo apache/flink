@@ -27,13 +27,16 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,9 +62,13 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 
 	private static final long requestTimeout = 10000;
 	private static final double backPressureRatio = 0.5;
+	private static final String requestTimeoutMessage = "Request timeout.";
 
 	private static ScheduledExecutorService executorService;
 	private BackPressureRequestCoordinator coordinator;
+
+	@Rule
+	public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
 
 	@BeforeClass
 	public static void setUp() throws Exception {
@@ -83,12 +90,16 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 	@After
 	public void shutdownCoordinator() throws Exception {
 		if (coordinator != null) {
+			// verify no more pending request
+			assertEquals(0, coordinator.getNumberOfPendingRequests());
 			coordinator.shutDown();
 		}
 	}
 
-	/** Tests simple request of task back pressure stats. */
-	@Test(timeout = 10000L)
+	/**
+	 * Tests request of task back pressure stats and verifies the response.
+	 */
+	@Test
 	public void testSuccessfulBackPressureRequest() throws Exception {
 		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.RUNNING, CompletionType.SUCCESSFULLY);
 
@@ -102,12 +113,11 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 			ExecutionAttemptID executionId = executionVertex.getCurrentExecutionAttempt().getAttemptId();
 			assertEquals(backPressureRatio, backPressureRatios.get(executionId), 0.0);
 		}
-
-		// verify no more pending request
-		assertEquals(0, coordinator.getNumberOfPendingRequests());
 	}
 
-	/** Tests back pressure request of non-running tasks fails the future. */
+	/**
+	 * Tests back pressure request of non-running tasks fails the future.
+	 */
 	@Test
 	public void testRequestNotRunningTasks() throws Exception {
 		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.DEPLOYING, CompletionType.SUCCESSFULLY);
@@ -122,8 +132,10 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 		}
 	}
 
-	/** Tests failed request to execution fails the future. */
-	@Test(timeout = 10000L)
+	/**
+	 * Tests failed request to execution fails the future.
+	 */
+	@Test
 	public void testBackPressureRequestWithException() throws Exception {
 		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.RUNNING, CompletionType.EXCEPTIONALLY);
 
@@ -136,29 +148,29 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 		}
 	}
 
-	/** Tests that request timeout if not finished in time. */
-	@Test(timeout = 10000L)
+	/**
+	 * Tests that request timeout if not finished in time.
+	 */
+	@Test
 	public void testBackPressureRequestTimeout() throws Exception {
-		long requestTimeout = 1000;
-		coordinator = new BackPressureRequestCoordinator(executorService, requestTimeout);
+		long requestTimeout = 100;
 		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.RUNNING, CompletionType.TIMEOUT, requestTimeout);
-
-		CompletableFuture<BackPressureStats> requestFuture = coordinator.triggerBackPressureRequest(vertices);
-
-		// wait until finish
-		while (!requestFuture.isDone()) {
-			Thread.sleep(100);
-		}
+		BackPressureRequestCoordinator coordinator = new BackPressureRequestCoordinator(executorService, requestTimeout);
 
 		try {
+			CompletableFuture<BackPressureStats> requestFuture = coordinator.triggerBackPressureRequest(vertices);
 			requestFuture.get();
 			fail("Exception expected.");
 		} catch (ExecutionException e) {
-			assertTrue(e.getCause().getCause().getMessage().toLowerCase().contains("timeout"));
+			assertTrue(ExceptionUtils.findThrowableWithMessage(e, requestTimeoutMessage).isPresent());
+		} finally {
+			coordinator.shutDown();
 		}
 	}
 
-	/** Tests shutdown fails all pending requests and future request triggers. */
+	/**
+	 * Tests shutdown fails all pending requests and future request triggers.
+	 */
 	@Test
 	public void testShutDown() throws Exception {
 		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.RUNNING, CompletionType.NEVER_COMPLETE);
@@ -222,7 +234,7 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 	}
 
 	/**
-	 * Completion type of the request future.
+	 * Completion types of the request future.
 	 */
 	private enum CompletionType {
 		SUCCESSFULLY,
@@ -238,7 +250,7 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 
 		private final Execution execution;
 
-		public TestingExecutionVertex(
+		TestingExecutionVertex(
 				ExecutionJobVertex jobVertex,
 				int subTaskIndex,
 				IntermediateResult[] producedDataSets,
@@ -262,9 +274,9 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 				Runnable::run,
 				this,
 				0,
-				1L,
-				System.currentTimeMillis(),
-				Time.seconds(10),
+				initialGlobalModVersion,
+				createTimestamp,
+				timeout,
 				state,
 				completionType,
 				requestTimeout);
@@ -286,7 +298,7 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 		private final CompletionType completionType;
 		private final long requestTimeout;
 
-		public TestingExecution(
+		TestingExecution(
 				Executor executor,
 				ExecutionVertex vertex,
 				int attemptNumber,
@@ -314,7 +326,7 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 					break;
 				case TIMEOUT:
 					executorService.schedule(
-						() -> responseFuture.completeExceptionally(new TimeoutException("Request timeout.")),
+						() -> responseFuture.completeExceptionally(new TimeoutException(requestTimeoutMessage)),
 						requestTimeout,
 						TimeUnit.MILLISECONDS);
 					break;

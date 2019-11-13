@@ -22,11 +22,10 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.concurrent.Executors;
@@ -40,20 +39,20 @@ import static org.junit.Assert.fail;
  */
 public class BackPressureSampleServiceTest extends TestLogger {
 
-	private ScheduledExecutorService scheduledExecutorService;
+	private static ScheduledExecutorService scheduledExecutorService;
 
-	private BackPressureSampleService backPressureSampleService;
+	private static BackPressureSampleService backPressureSampleService;
 
-	@Before
-	public void setUp() throws Exception {
+	@BeforeClass
+	public static void setUp() throws Exception {
 		scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 		final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 
-		backPressureSampleService = new BackPressureSampleService( 10, Time.milliseconds(10), scheduledExecutor);
+		backPressureSampleService = new BackPressureSampleService(10, Time.milliseconds(10), scheduledExecutor);
 	}
 
-	@After
-	public void tearDown() throws Exception {
+	@AfterClass
+	public static void tearDown() throws Exception {
 		if (scheduledExecutorService != null) {
 			scheduledExecutorService.shutdown();
 		}
@@ -86,8 +85,6 @@ public class BackPressureSampleServiceTest extends TestLogger {
 	 * Task that is always running.
 	 */
 	private static class TestTask implements BackPressureSampleableTask {
-
-		private final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 
 		protected volatile long counter = 0;
 
@@ -122,6 +119,5 @@ public class BackPressureSampleServiceTest extends TestLogger {
 		public boolean isRunning() {
 			return false;
 		}
-
 	}
 }

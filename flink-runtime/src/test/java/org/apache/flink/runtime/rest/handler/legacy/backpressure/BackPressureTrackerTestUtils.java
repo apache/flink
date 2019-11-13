@@ -46,15 +46,19 @@ import java.util.concurrent.CompletableFuture;
  */
 public class BackPressureTrackerTestUtils {
 
-	public static ExecutionJobVertex createExecutionJobVertex() throws Exception {
-		return new ExecutionJobVertex(
-			createExecutionGraph(),
-			new JobVertex("TestingJobVertex", new JobVertexID()),
-			4,
-			JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue(),
-			Time.milliseconds(10000),
-			1L,
-			System.currentTimeMillis());
+	public static ExecutionJobVertex createExecutionJobVertex() {
+		try {
+			return new ExecutionJobVertex(
+				createExecutionGraph(),
+				new JobVertex("TestingJobVertex", new JobVertexID()),
+				4,
+				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue(),
+				Time.milliseconds(10000),
+				1L,
+				System.currentTimeMillis());
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to create ExecutionJobVertex.");
+		}
 	}
 
 	public static ExecutionGraph createExecutionGraph() throws IOException {

@@ -83,6 +83,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
+import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.newBuilder;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.instanceOf;
@@ -605,8 +606,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 */
 	@Test(timeout = 20000L)
 	public void testRequestTaskBackPressure() throws Exception {
-		final NettyShuffleDescriptor shuffleDescriptor = createRemoteWithIdAndLocation(
-			new IntermediateResultPartitionID(), ResourceID.generate());
+		final NettyShuffleDescriptor shuffleDescriptor = newBuilder().buildLocal();
 		final TaskDeploymentDescriptor tdd = createSender(shuffleDescriptor, OutputBlockedInvokable.class);
 		final ExecutionAttemptID executionAttemptID = tdd.getExecutionAttemptId();
 
@@ -614,8 +614,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> taskCanceledFuture = new CompletableFuture<>();
 
 		final Configuration configuration = new Configuration();
-		configuration.set(WebOptions.BACKPRESSURE_NUM_SAMPLES, 10);
-		configuration.set(WebOptions.BACKPRESSURE_DELAY, 200);
+		configuration.set(WebOptions.BACKPRESSURE_NUM_SAMPLES, 40);
+		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
 
 		try (final TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.Builder(jobId)
 					.setSlotSize(1)

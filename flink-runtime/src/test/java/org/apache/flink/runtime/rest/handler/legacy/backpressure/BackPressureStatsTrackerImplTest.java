@@ -23,17 +23,19 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -41,142 +43,109 @@ import static org.junit.Assert.assertTrue;
  */
 public class BackPressureStatsTrackerImplTest extends TestLogger {
 
+	private static final int requestId = 0;
+	private static final double backPressureRatio = 0.1;
+	private static final ExecutionJobVertex executionJobVertex = BackPressureTrackerTestUtils.createExecutionJobVertex();
+	private static final ExecutionVertex[] taskVertices = executionJobVertex.getTaskVertices();
+	private static final BackPressureStats backPressureStats = createBackPressureStats(requestId, 1, backPressureRatio);
+
+	@Rule
+	public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
+
 	@Test
 	public void testGetOperatorBackPressureStats() throws Exception {
-		final ExecutionJobVertex executionJobVertex = BackPressureTrackerTestUtils.createExecutionJobVertex();
-		final ExecutionVertex[] taskVertices = executionJobVertex.getTaskVertices();
-
-		final int requestId = 0;
-		final long startTime = System.currentTimeMillis();
-		final long endTime = startTime + 1;
-		final double backPressureRatio = 0.1;
-
-		final BackPressureStats backPressureStats = createBackPressureStats(
-			taskVertices, requestId, startTime, endTime, backPressureRatio);
-		final BackPressureStatsTracker tracker = createBackPressureTracker(600000, 10000, backPressureStats);
-
-		// trigger back pressure stats request
-		tracker.getOperatorBackPressureStats(executionJobVertex);
-
-		Optional<OperatorBackPressureStats> optionalStats = tracker.getOperatorBackPressureStats(executionJobVertex);
-		assertTrue(optionalStats.isPresent());
-		OperatorBackPressureStats stats = optionalStats.get();
-
-		checkOperatorBackPressureStats(taskVertices, requestId, endTime, backPressureRatio, stats);
+		doInitialRequestAndVerifyTheResult(createBackPressureTracker(60000, 60000, backPressureStats));
 	}
 
 	@Test
-	public void testOperatorBackPressureStatsUpdate() throws Exception {
-		final ExecutionJobVertex jobVertex = BackPressureTrackerTestUtils.createExecutionJobVertex();
-		final int backPressureStatsRefreshInterval = 2000;
-		final long waitingTime = backPressureStatsRefreshInterval + 500;
-
-		final int requestId1 = 0;
-		final long startTime1 = System.currentTimeMillis();
-		final long endTime1 = startTime1 + 1;
-		final double backPressureRatio1 = 0.1;
-
-		final int requestId2 = 1;
-		final long startTime2 = System.currentTimeMillis() + waitingTime;
-		final long endTime2 = startTime2 + 1;
+	public void testCachedStatsNotUpdatedWithinRefreshInterval() throws Exception {
 		final double backPressureRatio2 = 0.2;
+		final BackPressureStats backPressureStats2 = createBackPressureStats(1, 60000, backPressureRatio2);
 
-		final BackPressureStats backPressureStats1 = createBackPressureStats(
-			jobVertex.getTaskVertices(), requestId1, startTime1, endTime1, backPressureRatio1);
-		final BackPressureStats backPressureStats2 = createBackPressureStats(
-			jobVertex.getTaskVertices(), requestId2, startTime2, endTime2, backPressureRatio2);
+		final BackPressureStatsTracker tracker = createBackPressureTracker(60000, 60000, backPressureStats, backPressureStats2);
+		doInitialRequestAndVerifyTheResult(tracker);
+		// verify that no new back pressure request is triggered
+		checkOperatorBackPressureStats(tracker.getOperatorBackPressureStats(executionJobVertex));
+	}
+
+	@Test
+	public void testCachedStatsUpdatedAfterRefreshInterval() throws Exception {
+		final int backPressureStatsRefreshInterval = 100;
+		final long waitingTime = backPressureStatsRefreshInterval + 100;
+		final double backPressureRatio2 = 0.2;
+		final BackPressureStats backPressureStats2 = createBackPressureStats(1, 60000, backPressureRatio2);
+
 		final BackPressureStatsTracker tracker = createBackPressureTracker(
-			600000, backPressureStatsRefreshInterval, backPressureStats1, backPressureStats2);
-
-		// trigger back pressure stats request
-		assertFalse(tracker.getOperatorBackPressureStats(jobVertex).isPresent());
-
-		Optional<OperatorBackPressureStats> optionalStats = tracker.getOperatorBackPressureStats(jobVertex);
-		assertTrue(optionalStats.isPresent());
-		OperatorBackPressureStats stats = optionalStats.get();
-
-		final int requestId = stats.getRequestId();
-		checkOperatorBackPressureStats(jobVertex.getTaskVertices(), requestId1, endTime1, backPressureRatio1, stats);
-
-		// should not trigger new back pressure stats request
-		assertTrue(tracker.getOperatorBackPressureStats(jobVertex).isPresent());
-		assertEquals(requestId, tracker.getOperatorBackPressureStats(jobVertex).get().getRequestId());
+			60000, backPressureStatsRefreshInterval, backPressureStats, backPressureStats2);
+		doInitialRequestAndVerifyTheResult(tracker);
 
 		// ensure that we are ready for next request
 		Thread.sleep(waitingTime);
 
-		// trigger next back pressure stats request
-		assertTrue(tracker.getOperatorBackPressureStats(jobVertex).isPresent());
-		OperatorBackPressureStats newStats = tracker.getOperatorBackPressureStats(jobVertex).get();
-		assertNotEquals(requestId, newStats.getRequestId());
-
-		checkOperatorBackPressureStats(jobVertex.getTaskVertices(), requestId2, endTime2, backPressureRatio2, newStats);
+		// trigger next back pressure stats request and verify the result
+		assertTrue(tracker.getOperatorBackPressureStats(executionJobVertex).isPresent());
+		checkOperatorBackPressureStats(backPressureRatio2, backPressureStats2, tracker.getOperatorBackPressureStats(executionJobVertex));
 	}
 
 	@Test
-	public void testGetOperatorBackPressureStatsAfterShutDown() throws Exception {
-		final ExecutionJobVertex jobVertex = BackPressureTrackerTestUtils.createExecutionJobVertex();
+	public void testShutDown() throws Exception {
+		final BackPressureStatsTracker tracker = createBackPressureTracker(60000, 60000, backPressureStats);
+		doInitialRequestAndVerifyTheResult(tracker);
 
-		final int requestId = 0;
-		final long startTime = System.currentTimeMillis();
-		final long endTime = startTime + 1;
-		final double backPressureRatio = 0.1;
-
-		final BackPressureStats backPressureStats = createBackPressureStats(
-			jobVertex.getTaskVertices(), requestId, startTime, endTime, backPressureRatio);
-		final BackPressureStatsTracker tracker = createBackPressureTracker(600000, 10000, backPressureStats);
-
+		// shutdown directly
 		tracker.shutDown();
 
-		// trigger back pressure stats request
-		tracker.getOperatorBackPressureStats(jobVertex);
-
-		assertFalse(tracker.getOperatorBackPressureStats(jobVertex).isPresent());
+		// verify that the previous cached result is invalid and trigger another request
+		assertFalse(tracker.getOperatorBackPressureStats(executionJobVertex).isPresent());
+		// verify no response after shutdown
+		assertFalse(tracker.getOperatorBackPressureStats(executionJobVertex).isPresent());
 	}
 
 	@Test
-	public void testStatsCleanup() throws Exception {
-		final ExecutionJobVertex jobVertex = BackPressureTrackerTestUtils.createExecutionJobVertex();
-		final int cleanUpInterval = 2000;
-		final long waitingTime = cleanUpInterval + 500;
-
-		final int requestId = 0;
-		final long startTime = System.currentTimeMillis();
-		final long endTime = startTime + 1;
-		final double backPressureRatio = 0.1;
-
-		final BackPressureStats backPressureStats = createBackPressureStats(
-			jobVertex.getTaskVertices(), requestId, startTime, endTime, backPressureRatio);
-		final BackPressureStatsTracker tracker = createBackPressureTracker(2000, 10000, backPressureStats);
-
-		// trigger back pressure stats request
-		tracker.getOperatorBackPressureStats(jobVertex);
-
-		Optional<OperatorBackPressureStats> optionalStats = tracker.getOperatorBackPressureStats(jobVertex);
-		assertTrue(optionalStats.isPresent());
-		OperatorBackPressureStats stats = optionalStats.get();
-
-		checkOperatorBackPressureStats(jobVertex.getTaskVertices(), requestId, endTime, backPressureRatio, stats);
+	public void testCachedStatsNotCleanedWithinCleanupInterval() throws Exception {
+		final BackPressureStatsTracker tracker = createBackPressureTracker(60000, 60000, backPressureStats);
+		doInitialRequestAndVerifyTheResult(tracker);
 
 		tracker.cleanUpOperatorStatsCache();
-		assertTrue(tracker.getOperatorBackPressureStats(jobVertex).isPresent());
+		// the back pressure stats should be still there
+		checkOperatorBackPressureStats(tracker.getOperatorBackPressureStats(executionJobVertex));
+	}
+
+	@Test
+	public void testCachedStatsCleanedAfterCleanupInterval() throws Exception {
+		final int cleanUpInterval = 100;
+		final long waitingTime = cleanUpInterval + 100;
+
+		final BackPressureStatsTracker tracker = createBackPressureTracker(cleanUpInterval, 60000, backPressureStats);
+		doInitialRequestAndVerifyTheResult(tracker);
 
 		// wait until we are ready to cleanup
 		Thread.sleep(waitingTime);
 
+		// cleanup the cached back pressure stats
 		tracker.cleanUpOperatorStatsCache();
-		assertFalse(tracker.getOperatorBackPressureStats(jobVertex).isPresent());
+		assertFalse(tracker.getOperatorBackPressureStats(executionJobVertex).isPresent());
+	}
+
+	private void doInitialRequestAndVerifyTheResult(BackPressureStatsTracker tracker) {
+		// trigger back pressure stats request
+		assertFalse(tracker.getOperatorBackPressureStats(executionJobVertex).isPresent());
+		//  verify the result
+		checkOperatorBackPressureStats(tracker.getOperatorBackPressureStats(executionJobVertex));
+	}
+
+	private void checkOperatorBackPressureStats(Optional<OperatorBackPressureStats> optionalStats) {
+		checkOperatorBackPressureStats(backPressureRatio, backPressureStats, optionalStats);
 	}
 
 	private void checkOperatorBackPressureStats(
-			ExecutionVertex[] taskVertices,
-			int requestId,
-			long endTime,
 			double backPressureRatio,
-			OperatorBackPressureStats stats) {
-
-		assertEquals(requestId, stats.getRequestId());
-		assertEquals(endTime, stats.getEndTimestamp());
+			BackPressureStats backPressureStats,
+			Optional<OperatorBackPressureStats> optionalStats) {
+		assertTrue(optionalStats.isPresent());
+		OperatorBackPressureStats stats = optionalStats.get();
+		assertEquals(backPressureStats.getRequestId(), stats.getRequestId());
+		assertEquals(backPressureStats.getEndTime(), stats.getEndTimestamp());
 		assertEquals(taskVertices.length, stats.getNumberOfSubTasks());
 		for (int i = 0; i < stats.getNumberOfSubTasks(); i++) {
 			assertEquals(backPressureRatio, stats.getBackPressureRatio(i), 0.0);
@@ -196,12 +165,12 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 				backPressureStatsRefreshInterval);
 	}
 
-	private BackPressureStats createBackPressureStats(
-			ExecutionVertex[] taskVertices,
+	private static BackPressureStats createBackPressureStats(
 			int requestId,
-			long startTime,
-			long endTime,
+			long timeGap,
 			double backPressureRatio) {
+		long startTime = System.currentTimeMillis();
+		long endTime = startTime + timeGap;
 
 		final Map<ExecutionAttemptID, Double> backPressureRatiosByTask = new HashMap<>();
 		for (ExecutionVertex vertex : taskVertices) {

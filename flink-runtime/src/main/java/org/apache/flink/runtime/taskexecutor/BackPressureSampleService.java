@@ -65,7 +65,8 @@ public class BackPressureSampleService {
 	 */
 	public CompletableFuture<Double> sampleTaskBackPressure(BackPressureSampleableTask task) {
 		if (!task.isRunning()) {
-			throw new IllegalStateException("Cannot sample task. Because it is not running.");
+			throw new IllegalStateException(
+				String.format("Cannot sample task. Because the sampled task %s is not running.", task));
 		}
 
 		return sampleTaskBackPressure(

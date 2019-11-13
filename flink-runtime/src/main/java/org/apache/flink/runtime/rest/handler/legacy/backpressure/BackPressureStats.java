@@ -25,6 +25,7 @@ import javax.annotation.Nonnegative;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -51,6 +52,8 @@ public class BackPressureStats {
 			@Nonnegative long startTime,
 			@Nonnegative long endTime,
 			Map<ExecutionAttemptID, Double> backPressureRatios) {
+		checkArgument(endTime >= startTime, "End time must not before start time.");
+
 		this.requestId = requestId;
 		this.startTime = startTime;
 		this.endTime = endTime;

@@ -96,9 +96,8 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 			BackPressureRequestCoordinator coordinator,
 			int cleanUpInterval,
 			int refreshInterval) {
-
-		checkArgument(refreshInterval >= 0,
-			"The back pressure stats refresh interval must be greater than or equal to 0.");
+		checkArgument(cleanUpInterval >= 0, "The cleanup interval must be non-negative.");
+		checkArgument(refreshInterval >= 0, "The back pressure stats refresh interval must be non-negative.");
 
 		this.coordinator = checkNotNull(coordinator);
 		this.backPressureStatsRefreshInterval = refreshInterval;
@@ -197,7 +196,7 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 		}
 
 		@Override
-		public Void apply(BackPressureStats taskBackPressureStats, Throwable throwable) {
+		public Void apply(BackPressureStats backPressureStats, Throwable throwable) {
 			synchronized (lock) {
 				try {
 					if (shutDown) {
@@ -208,11 +207,11 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 					JobStatus jobState = vertex.getGraph().getState();
 					if (jobState.isGloballyTerminalState()) {
 						LOG.debug("Ignoring stats, because job is in state " + jobState + ".");
-					} else if (taskBackPressureStats != null) {
-						OperatorBackPressureStats stats = createOperatorBackPressureStats(taskBackPressureStats);
+					} else if (backPressureStats != null) {
+						OperatorBackPressureStats stats = createOperatorBackPressureStats(backPressureStats);
 						operatorStatsCache.put(vertex, stats);
 					} else {
-						LOG.debug("Failed to gather task back pressure stats.", throwable);
+						LOG.debug("Failed to gather back pressure stats.", throwable);
 					}
 				} catch (Throwable t) {
 					LOG.error("Error during stats completion.", t);
@@ -225,11 +224,7 @@ public class BackPressureStatsTrackerImpl implements BackPressureStatsTracker {
 		}
 
 		/**
-		 * Creates operator back pressure stats from task back pressure stats.
-		 *
-		 * @param stats Task back pressure stats.
-		 *
-		 * @return Operator back pressure stats
+		 * Creates {@link OperatorBackPressureStats} from {@link BackPressureStats}.
 		 */
 		private OperatorBackPressureStats createOperatorBackPressureStats(BackPressureStats stats) {
 			Map<ExecutionAttemptID, Double> backPressureRatiosByTask = stats.getBackPressureRatios();
