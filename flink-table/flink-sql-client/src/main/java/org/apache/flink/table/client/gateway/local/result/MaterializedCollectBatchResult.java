@@ -35,6 +35,12 @@ import org.apache.flink.util.AbstractID;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Collects results using accumulators and returns them as table snapshots.
@@ -45,23 +51,26 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	private final String accumulatorName;
 	private final CollectBatchTableSink tableSink;
 	private final Object resultLock;
-	private final Thread retrievalThread;
+	private final ClassLoader classLoader;
 
-	private ProgramDeployer<C> deployer;
 	private int pageSize;
 	private int pageCount;
-	private SqlExecutionException executionException;
+	private AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
 	private List<Row> resultTable;
 
 	private volatile boolean snapshotted = false;
 
-	public MaterializedCollectBatchResult(TableSchema tableSchema, RowTypeInfo outputType, ExecutionConfig config) {
+	public MaterializedCollectBatchResult(
+			TableSchema tableSchema,
+			RowTypeInfo outputType,
+			ExecutionConfig config,
+			ClassLoader classLoader) {
 		this.outputType = outputType;
 
 		accumulatorName = new AbstractID().toString();
 		tableSink = new CollectBatchTableSink(accumulatorName, outputType.createSerializer(config), tableSchema);
 		resultLock = new Object();
-		retrievalThread = new ResultRetrievalThread();
+		this.classLoader = checkNotNull(classLoader);
 
 		pageCount = 0;
 	}
@@ -77,9 +86,44 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	}
 
 	@Override
-	public void startRetrieval(ProgramDeployer<C> deployer) {
-		this.deployer = deployer;
-		retrievalThread.start();
+	public void startRetrieval(ProgramDeployer deployer) {
+		// we have to check for exceptions in two places here because job submission can fail
+		// at different stages. For batch file sources, the job manager will check if the file
+		// exists and job submission will already fail at that early stage, meaning we will not
+		// get a job client. For streaming file sources, this check only happens when the job
+		// was already successfully submitted.
+		deployer
+				.deploy()
+				.thenCompose(jobClient -> {
+
+					CompletableFuture<JobExecutionResult> result = jobClient.getJobExecutionResult(
+							classLoader);
+
+					return result.handle((unusedJobResult, jobException) -> {
+						if (jobException != null) {
+							executionException.compareAndSet(
+									null,
+									new SqlExecutionException(
+											"Error while submitting job.",
+											jobException));
+						}
+						try {
+							jobClient.close();
+						} catch (Exception e) {
+							throw new CompletionException("Error while closing JobClient.", e);
+						}
+						return unusedJobResult;
+					});
+				})
+				.thenAccept(new ResultRetrievalHandler())
+				.whenComplete((unused, throwable) -> {
+					if (throwable != null) {
+						executionException.compareAndSet(null,
+								new SqlExecutionException(
+										"Error while submitting job.",
+										throwable));
+					}
+				});
 	}
 
 	@Override
@@ -88,9 +132,7 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	}
 
 	@Override
-	public void close() {
-		retrievalThread.interrupt();
-	}
+	public void close() {}
 
 	@Override
 	public List<Row> retrievePage(int page) {
@@ -105,13 +147,15 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	@Override
 	public TypedResult<Integer> snapshot(int pageSize) {
 		synchronized (resultLock) {
-			// wait for a result
-			if (retrievalThread.isAlive() && null == resultTable) {
-				return TypedResult.empty();
-			}
 			// the job finished with an exception
-			else if (executionException != null) {
-				throw executionException;
+			SqlExecutionException e = executionException.get();
+			if (e != null) {
+				throw e;
+			}
+
+			// wait for a result
+			if (null == resultTable) {
+				return TypedResult.empty();
 			}
 			// we return a payload result the first time and EoS for the rest of times as if the results
 			// are retrieved dynamically
@@ -128,14 +172,12 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	// --------------------------------------------------------------------------------------------
 
-	private class ResultRetrievalThread extends Thread {
+	private class ResultRetrievalHandler implements Consumer<JobExecutionResult> {
 
 		@Override
-		public void run() {
+		public void accept(JobExecutionResult jobExecutionResult) {
 			try {
-				deployer.run();
-				final JobExecutionResult result = deployer.fetchExecutionResult();
-				final ArrayList<byte[]> accResult = result.getAccumulatorResult(accumulatorName);
+				final ArrayList<byte[]> accResult = jobExecutionResult.getAccumulatorResult(accumulatorName);
 				if (accResult == null) {
 					throw new SqlExecutionException("The accumulator could not retrieve the result.");
 				}
@@ -145,9 +187,7 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 					MaterializedCollectBatchResult.this.resultTable = resultTable;
 				}
 			} catch (ClassNotFoundException | IOException e) {
-				executionException = new SqlExecutionException("Serialization error while deserializing collected data.", e);
-			} catch (SqlExecutionException e) {
-				executionException = e;
+				throw new SqlExecutionException("Serialization error while deserializing collected data.", e);
 			}
 		}
 	}

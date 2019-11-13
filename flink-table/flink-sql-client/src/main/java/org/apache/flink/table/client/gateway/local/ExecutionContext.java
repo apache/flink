@@ -22,11 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.FlinkPipelineTranslationUtil;
-import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.client.cli.ExecutionConfigAccessor;
-import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
@@ -34,7 +30,6 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.BatchQueryConfig;
@@ -91,6 +86,8 @@ import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -102,6 +99,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -115,14 +114,14 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class ExecutionContext<ClusterID> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionContext.class);
+
 	private final Environment environment;
 	private final SessionContext originalSessionContext;
 	private final ClassLoader classLoader;
 
 	private final Configuration flinkConfig;
-	private final Configuration executorConfig;
 	private final ClusterClientFactory<ClusterID> clusterClientFactory;
-	private final ExecutionConfigAccessor executionParameters;
 	private final ClusterID clusterId;
 	private final ClusterSpecification clusterSpec;
 
@@ -156,18 +155,26 @@ public class ExecutionContext<ClusterID> {
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
 
-		// convert deployment options into command line options that describe a cluster
-		final ClusterClientServiceLoader serviceLoader = checkNotNull(clusterClientServiceLoader);
-		final CommandLine commandLine = createCommandLine(environment.getDeployment(), commandLineOptions);
-		final CustomCommandLine activeCommandLine = findActiveCommandLine(availableCommandLines, commandLine);
+		LOG.debug("Deployment descriptor: {}", environment.getDeployment());
+		final CommandLine commandLine = createCommandLine(
+				environment.getDeployment(),
+				commandLineOptions);
 
-		executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
-		clusterClientFactory = serviceLoader.getClusterClientFactory(executorConfig);
+		flinkConfig.addAll(createExecutionConfig(
+				commandLine,
+				commandLineOptions,
+				availableCommandLines));
+
+		final ClusterClientServiceLoader serviceLoader = checkNotNull(clusterClientServiceLoader);
+		clusterClientFactory = serviceLoader.getClusterClientFactory(flinkConfig);
 		checkState(clusterClientFactory != null);
 
-		executionParameters = createExecutionParameterProvider(commandLine, dependencies);
-		clusterId = clusterClientFactory.getClusterId(executorConfig);
-		clusterSpec = clusterClientFactory.getClusterSpecification(executorConfig);
+		clusterId = clusterClientFactory.getClusterId(flinkConfig);
+		clusterSpec = clusterClientFactory.getClusterSpecification(flinkConfig);
+	}
+
+	public Configuration getFlinkConfig() {
+		return flinkConfig;
 	}
 
 	/**
@@ -197,7 +204,7 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	public ClusterDescriptor<ClusterID> createClusterDescriptor() {
-		return clusterClientFactory.createClusterDescriptor(executorConfig);
+		return clusterClientFactory.createClusterDescriptor(flinkConfig);
 	}
 
 	public Map<String, Catalog> getCatalogs() {
@@ -245,28 +252,20 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	public JobGraph createJobGraph(String name) {
-		final Pipeline pipeline = createPipeline(name);
-
-		int parallelism;
-		if (execEnv != null) {
-			parallelism = execEnv.getParallelism();
-		} else if (streamExecEnv != null) {
-			parallelism = streamExecEnv.getParallelism();
+	public Pipeline createPipeline(String name, Configuration flinkConfig) {
+		if (streamExecEnv != null) {
+			// special case for Blink planner to apply batch optimizations
+			// note: it also modifies the ExecutionConfig!
+			if (executor instanceof ExecutorBase) {
+				return ((ExecutorBase) executor).getStreamGraph(name);
+			}
+			return streamExecEnv.getStreamGraph(name);
 		} else {
-			throw new RuntimeException("No execution environment defined.");
+			final int parallelism = execEnv.getParallelism();
+			return execEnv.createProgramPlan(name);
 		}
-		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
-				pipeline,
-				flinkConfig,
-				parallelism);
-
-		jobGraph.addJars(executionParameters.getJars());
-		jobGraph.setClasspaths(executionParameters.getClasspaths());
-		jobGraph.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
-
-		return jobGraph;
 	}
+
 
 	/** Returns a builder for this {@link ExecutionContext}. */
 	public static Builder builder(
@@ -285,6 +284,36 @@ public class ExecutionContext<ClusterID> {
 	// Non-public methods
 	//------------------------------------------------------------------------------------------------------------------
 
+	private static Configuration createExecutionConfig(
+			CommandLine commandLine,
+			Options commandLineOptions,
+			List<CustomCommandLine> availableCommandLines) throws FlinkException {
+
+		LOG.debug("Available commandline options: {}", commandLineOptions);
+		List<String> options = Stream
+				.of(commandLine.getOptions())
+				.map(o -> o.getOpt() + "=" + o.getValue())
+				.collect(Collectors.toList());
+		LOG.debug(
+				"Instantiated commandline args: {}, options: {}",
+				commandLine.getArgList(),
+				options);
+
+		final CustomCommandLine activeCommandLine = findActiveCommandLine(
+				availableCommandLines,
+				commandLine);
+		LOG.debug(
+				"Available commandlines: {}, active commandline: {}",
+				availableCommandLines,
+				activeCommandLine);
+
+		Configuration executionConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(
+				commandLine);
+
+		LOG.info("Executor config: {}", executionConfig);
+		return executionConfig;
+	}
+
 	private static CommandLine createCommandLine(DeploymentEntry deployment, Options commandLineOptions) {
 		try {
 			return deployment.getCommandLine(commandLineOptions);
@@ -300,15 +329,6 @@ public class ExecutionContext<ClusterID> {
 			}
 		}
 		throw new SqlExecutionException("Could not find a matching deployment.");
-	}
-
-	private static ExecutionConfigAccessor createExecutionParameterProvider(CommandLine commandLine, List<URL> jobJars) {
-		try {
-			final ProgramOptions programOptions = new ProgramOptions(commandLine);
-			return ExecutionConfigAccessor.fromProgramOptions(programOptions, jobJars);
-		} catch (CliArgsException e) {
-			throw new SqlExecutionException("Invalid deployment run options.", e);
-		}
 	}
 
 	private Module createModule(Map<String, String> moduleProperties, ClassLoader classLoader) {
