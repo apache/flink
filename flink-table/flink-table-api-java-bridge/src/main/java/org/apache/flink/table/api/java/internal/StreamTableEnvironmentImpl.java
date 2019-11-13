@@ -40,6 +40,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -56,6 +57,7 @@ import org.apache.flink.table.functions.UserFunctionsTypeHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
@@ -225,6 +227,21 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Override
 	public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
 		createTemporaryView(path, fromDataStream(dataStream, fields));
+	}
+
+	@Override
+	protected QueryOperation qualifyQueryOperation(ObjectIdentifier identifier, QueryOperation queryOperation) {
+		if (queryOperation instanceof JavaDataStreamQueryOperation) {
+			JavaDataStreamQueryOperation<?> operation = (JavaDataStreamQueryOperation) queryOperation;
+			return new JavaDataStreamQueryOperation<>(
+				identifier,
+				operation.getDataStream(),
+				operation.getFieldIndices(),
+				operation.getTableSchema()
+			);
+		} else {
+			return queryOperation;
+		}
 	}
 
 	@Override

@@ -33,12 +33,7 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
-import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
-import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
 import org.apache.flink.table.plan.stats.TableStats;
-import org.apache.flink.table.planner.operations.DataStreamQueryOperation;
-import org.apache.flink.table.planner.operations.RichTableSourceQueryOperation;
 import org.apache.flink.table.planner.plan.schema.TableSinkTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
@@ -54,9 +49,7 @@ import org.apache.calcite.schema.Table;
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -107,7 +100,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			CatalogBaseTable table,
 			@Nullable TableFactory tableFactory) {
 		if (table instanceof QueryOperationCatalogView) {
-			return convertQueryOperationView(tablePath, (QueryOperationCatalogView) table);
+			return convertQueryOperationView((QueryOperationCatalogView) table);
 		} else if (table instanceof ConnectorCatalogTable) {
 			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
 			if ((connectorTable).getTableSource().isPresent()) {
@@ -129,7 +122,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			ObjectPath tablePath,
 			CatalogBaseTable table) {
 		if (table instanceof QueryOperationCatalogView) {
-			return convertQueryOperationView(tablePath, (QueryOperationCatalogView) table);
+			return convertQueryOperationView((QueryOperationCatalogView) table);
 		} else if (table instanceof ConnectorCatalogTable) {
 			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
 			if ((connectorTable).getTableSource().isPresent()) {
@@ -144,18 +137,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		}
 	}
 
-	private Table convertQueryOperationView(ObjectPath tablePath, QueryOperationCatalogView table) {
-		QueryOperation operation = table.getQueryOperation();
-		List<String> qualifiedNames = Arrays.asList(catalogName, databaseName, tablePath.getObjectName());
-		if (operation instanceof DataStreamQueryOperation) {
-			((DataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
-		} else if (operation instanceof JavaDataStreamQueryOperation) {
-			((JavaDataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
-		} else if (operation instanceof ScalaDataStreamQueryOperation) {
-			((ScalaDataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
-		} else if (operation instanceof RichTableSourceQueryOperation) {
-			((RichTableSourceQueryOperation) operation).setQualifiedName(qualifiedNames);
-		}
+	private Table convertQueryOperationView(QueryOperationCatalogView table) {
 		return QueryOperationCatalogViewTable.createCalciteTable(table);
 	}
 

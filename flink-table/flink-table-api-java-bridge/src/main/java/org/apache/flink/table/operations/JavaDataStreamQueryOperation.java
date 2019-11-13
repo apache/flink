@@ -21,11 +21,16 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Describes a relational operation that reads from a {@link DataStream}.
@@ -38,11 +43,14 @@ import java.util.Map;
 @Internal
 public class JavaDataStreamQueryOperation<E> implements QueryOperation {
 
-	// JavaDataStreamQueryOperation represent a registered DataStream from `registerDataStream` method
-	// or a unregistered DataStream from `fromDataStream`. However the name under which the DataStream
-	// is registered is missing when converting a JavaDataStreamQueryOperation to a RelNode.
-	// So using `qualifiedName` to keep the original name.
-	private List<String> qualifiedName;
+	/**
+	 * The table identifier registered under the environment. The identifier might be null when
+	 * the it is from {@link StreamTableEnvironment#fromDataStream(DataStream, String)}. But the
+	 * identifier should be not null if is from {@link StreamTableEnvironment#createTemporaryView(String, DataStream)}
+	 * with a registered name.
+	 */
+	@Nullable
+	private final ObjectIdentifier identifier;
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;
 	private final TableSchema tableSchema;
@@ -51,6 +59,15 @@ public class JavaDataStreamQueryOperation<E> implements QueryOperation {
 			DataStream<E> dataStream,
 			int[] fieldIndices,
 			TableSchema tableSchema) {
+		this(null, dataStream, fieldIndices, tableSchema);
+	}
+
+	public JavaDataStreamQueryOperation(
+			ObjectIdentifier identifier,
+			DataStream<E> dataStream,
+			int[] fieldIndices,
+			TableSchema tableSchema) {
+		this.identifier = identifier;
 		this.dataStream = dataStream;
 		this.tableSchema = tableSchema;
 		this.fieldIndices = fieldIndices;
@@ -60,12 +77,8 @@ public class JavaDataStreamQueryOperation<E> implements QueryOperation {
 		return dataStream;
 	}
 
-	public List<String> getQualifiedName() {
-		return qualifiedName;
-	}
-
-	public void setQualifiedName(List<String> qualifiedName) {
-		this.qualifiedName = qualifiedName;
+	public Optional<ObjectIdentifier> getIdentifier() {
+		return Optional.ofNullable(identifier);
 	}
 
 	public int[] getFieldIndices() {
@@ -80,7 +93,11 @@ public class JavaDataStreamQueryOperation<E> implements QueryOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("id", dataStream.getId());
+		if (identifier != null) {
+			args.put("id", identifier.asSummaryString());
+		} else {
+			args.put("id", dataStream.getId());
+		}
 		args.put("fields", tableSchema.getFieldNames());
 
 		return OperationUtils.formatWithChildren(
