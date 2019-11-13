@@ -147,7 +147,7 @@ public enum ClientUtils {
 
 			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
 				client,
-				program.getAllLibraries(),
+				program.getJobJarAndDependencies(),
 				program.getClasspaths(),
 				program.getUserCodeClassLoader(),
 				parallelism,

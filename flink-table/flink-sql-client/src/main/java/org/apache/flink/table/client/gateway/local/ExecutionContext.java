@@ -113,7 +113,6 @@ public class ExecutionContext<ClusterID> {
 
 	private final SessionContext sessionContext;
 	private final Environment mergedEnv;
-	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
 	private final Map<String, Module> modules;
 	private final Map<String, Catalog> catalogs;
@@ -136,7 +135,6 @@ public class ExecutionContext<ClusterID> {
 			Configuration flinkConfig, ClusterClientServiceLoader clusterClientServiceLoader, Options commandLineOptions, List<CustomCommandLine> availableCommandLines) throws FlinkException {
 		this.sessionContext = sessionContext.copy(); // create internal copy because session context is mutable
 		this.mergedEnv = Environment.merge(defaultEnvironment, sessionContext.getEnvironment());
-		this.dependencies = dependencies;
 		this.flinkConfig = flinkConfig;
 
 		// create class loader
@@ -184,7 +182,7 @@ public class ExecutionContext<ClusterID> {
 		clusterClientFactory = serviceLoader.getClusterClientFactory(executorConfig);
 		checkState(clusterClientFactory != null);
 
-		executionParameters = createExecutionParameterProvider(commandLine);
+		executionParameters = createExecutionParameterProvider(commandLine, dependencies);
 		clusterId = clusterClientFactory.getClusterId(executorConfig);
 		clusterSpec = clusterClientFactory.getClusterSpecification(executorConfig);
 	}
@@ -262,10 +260,10 @@ public class ExecutionContext<ClusterID> {
 		throw new SqlExecutionException("Could not find a matching deployment.");
 	}
 
-	private static ExecutionConfigAccessor createExecutionParameterProvider(CommandLine commandLine) {
+	private static ExecutionConfigAccessor createExecutionParameterProvider(CommandLine commandLine, List<URL> jobJars) {
 		try {
 			final ProgramOptions programOptions = new ProgramOptions(commandLine);
-			return ExecutionConfigAccessor.fromProgramOptions(programOptions);
+			return ExecutionConfigAccessor.fromProgramOptions(programOptions, jobJars);
 		} catch (CliArgsException e) {
 			throw new SqlExecutionException("Invalid deployment run options.", e);
 		}
@@ -487,7 +485,7 @@ public class ExecutionContext<ClusterID> {
 					flinkConfig,
 					parallelism);
 
-			jobGraph.addJars(dependencies);
+			jobGraph.addJars(executionParameters.getJars());
 			jobGraph.setClasspaths(executionParameters.getClasspaths());
 			jobGraph.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 

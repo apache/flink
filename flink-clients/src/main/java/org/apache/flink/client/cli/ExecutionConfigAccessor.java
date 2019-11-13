@@ -55,15 +55,18 @@ public class ExecutionConfigAccessor {
 	/**
 	 * Creates an {@link ExecutionConfigAccessor} based on the provided {@link ProgramOptions} as provided by the user through the CLI.
 	 */
-	public static ExecutionConfigAccessor fromProgramOptions(final ProgramOptions options) {
+	public static ExecutionConfigAccessor fromProgramOptions(final ProgramOptions options, final List<URL> jobJars) {
 		checkNotNull(options);
+		checkNotNull(jobJars);
 
 		final Configuration configuration = new Configuration();
+
 		configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, options.getParallelism());
 		configuration.setBoolean(DeploymentOptions.ATTACHED, !options.getDetachedMode());
 		configuration.setBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED, options.isShutdownOnAttachedExit());
 
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, options.getClasspaths(), URL::toString);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, jobJars, URL::toString);
 
 		SavepointRestoreSettings.toConfiguration(options.getSavepointRestoreSettings(), configuration);
 
@@ -72,6 +75,10 @@ public class ExecutionConfigAccessor {
 
 	public Configuration getConfiguration() {
 		return configuration;
+	}
+
+	public List<URL> getJars() {
+		return decodeUrlList(configuration, PipelineOptions.JARS);
 	}
 
 	public List<URL> getClasspaths() {
