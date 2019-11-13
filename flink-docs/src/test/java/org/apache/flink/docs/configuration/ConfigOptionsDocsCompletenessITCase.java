@@ -38,6 +38,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -48,6 +49,7 @@ import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCA
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.processConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stringifyDefault;
+import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.typeToHtml;
 
 /**
  * This test verifies that all {@link ConfigOption ConfigOptions} in the configured
@@ -180,12 +182,18 @@ public class ConfigOptionsDocsCompletenessITCase {
 				// Use split to exclude document key tag.
 				String key = tableRow.child(0).text().split(" ")[0];
 				String defaultValue = tableRow.child(1).text();
-				String description = tableRow.child(2)
+				String typeValue = tableRow.child(2).text();
+				String description = tableRow.child(3)
 					.childNodes()
 					.stream()
 					.map(Object::toString)
 					.collect(Collectors.joining());
-				return new DocumentedOption(key, defaultValue, description, file.getName(file.getNameCount() - 1));
+				return new DocumentedOption(
+					key,
+					defaultValue,
+					typeValue,
+					description,
+					file.getName(file.getNameCount() - 1));
 			})
 			.collect(Collectors.toList());
 	}
@@ -200,8 +208,11 @@ public class ConfigOptionsDocsCompletenessITCase {
 					if (predicate.test(option)) {
 						String key = option.option.key();
 						String defaultValue = stringifyDefault(option);
+						String typeValue = typeToHtml(option);
 						String description = htmlFormatter.format(option.option.description());
-						ExistingOption duplicate = existingOptions.put(key, new ExistingOption(key, defaultValue, description, optionsClass));
+						ExistingOption duplicate = existingOptions.put(
+							key,
+							new ExistingOption(key, defaultValue, typeValue, description, optionsClass));
 						if (duplicate != null) {
 							// multiple documented options have the same key
 							// we fail here outright as this is not a documentation-completeness problem
@@ -223,8 +234,13 @@ public class ConfigOptionsDocsCompletenessITCase {
 
 		private final Class<?> containingClass;
 
-		private ExistingOption(String key, String defaultValue, String description, Class<?> containingClass) {
-			super(key, defaultValue, description);
+		private ExistingOption(
+				String key,
+				String defaultValue,
+				String typeValue,
+				String description,
+				Class<?> containingClass) {
+			super(key, defaultValue, typeValue, description);
 			this.containingClass = containingClass;
 		}
 	}
@@ -233,8 +249,13 @@ public class ConfigOptionsDocsCompletenessITCase {
 
 		private final Path containingFile;
 
-		private DocumentedOption(String key, String defaultValue, String description, Path containingFile) {
-			super(key, defaultValue, description);
+		private DocumentedOption(
+				String key,
+				String defaultValue,
+				String typeValue,
+				String description,
+				Path containingFile) {
+			super(key, defaultValue, typeValue, description);
 			this.containingFile = containingFile;
 		}
 	}
@@ -242,35 +263,44 @@ public class ConfigOptionsDocsCompletenessITCase {
 	private abstract static class Option {
 		protected final String key;
 		protected final String defaultValue;
+		protected final String typeValue;
 		protected final String description;
 
-		private Option(String key, String defaultValue, String description) {
+		private Option(String key, String defaultValue, String typeValue, String description) {
 			this.key = key;
 			this.defaultValue = defaultValue;
+			this.typeValue = typeValue;
 			this.description = description;
 		}
 
 		@Override
-		public int hashCode() {
-			return key.hashCode() + defaultValue.hashCode() + description.hashCode();
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			Option option = (Option) o;
+			return Objects.equals(key, option.key) &&
+				Objects.equals(defaultValue, option.defaultValue) &&
+				Objects.equals(typeValue, option.typeValue) &&
+				Objects.equals(description, option.description);
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			if (!(obj instanceof Option)) {
-				return false;
-			}
-
-			Option other = (Option) obj;
-
-			return this.key.equals(other.key)
-				&& this.defaultValue.equals(other.defaultValue)
-				&& this.description.equals(other.description);
+		public int hashCode() {
+			return Objects.hash(key, defaultValue, typeValue, description);
 		}
 
 		@Override
 		public String toString() {
-			return "Option(key=" + key + ", default=" + defaultValue + ", description=" + description + ')';
+			return "Option{" +
+				"key='" + key + '\'' +
+				", defaultValue='" + defaultValue + '\'' +
+				", typeValue='" + typeValue + '\'' +
+				", description='" + description + '\'' +
+				'}';
 		}
 	}
 }
