@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.planner.plan.utils.SortUtil
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.{getMillisSinceEpoch, getNanoOfMillisSinceEpoch, unixTimestampToLocalDateTime}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
@@ -35,12 +35,8 @@ import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
 import java.math.{BigDecimal => JBigDecimal}
-import java.lang.{Integer => JInteger}
-
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 
 import scala.collection.mutable
-import scala.math.pow
 
 /**
   * Utilities to generate code for general purpose.
@@ -374,9 +370,9 @@ object GenerateUtils {
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val fieldTerm = newName("timestamp")
-        val timestampString = literalValue.asInstanceOf[TimestampString]
-        val millis = SqlDateTimeUtils.getMillisSinceEpoch(timestampString.toString)
-        val nanoOfMillis = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(timestampString.toString)
+        val timestampString = literalValue.asInstanceOf[TimestampString].toString
+        val millis = getMillisSinceEpoch(timestampString)
+        val nanoOfMillis = getNanoOfMillisSinceEpoch(timestampString)
         val fieldTimestamp =
           s"""
              |$SQL_TIMESTAMP $fieldTerm =
