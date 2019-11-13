@@ -19,21 +19,18 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.InputDependencyConstraint;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -191,28 +188,19 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 	private static ExecutionGraph createExecutionGraph(
 			List<JobVertex> orderedVertices,
 			InputDependencyConstraint inputDependencyConstraint) throws Exception {
-
-		final JobID jobId = new JobID();
-		final String jobName = "Test Job Sample Name";
-		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, 20);
-
 		for (JobVertex vertex : orderedVertices) {
 			vertex.setInputDependencyConstraint(inputDependencyConstraint);
 		}
 
-		ExecutionGraph eg = new ExecutionGraph(
-			new DummyJobInformation(
-				jobId,
-				jobName),
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			AkkaUtils.getDefaultTimeout(),
-			TestRestartStrategy.directExecuting(),
-			new RestartAllStrategy.Factory(),
-			slotProvider);
-		eg.attachJobGraph(orderedVertices);
+		final JobGraph jobGraph = new JobGraph(orderedVertices.toArray(new JobVertex[0]));
+		final SlotProvider slotProvider = new SimpleSlotProvider(jobGraph.getJobID(), 20);
 
-		return eg;
+		return TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
+			.setRestartStrategy(TestRestartStrategy.directExecuting())
+			.setSlotProvider(slotProvider)
+			.build();
 	}
 
 	private void waitUntilJobRestarted(ExecutionGraph eg) throws Exception {

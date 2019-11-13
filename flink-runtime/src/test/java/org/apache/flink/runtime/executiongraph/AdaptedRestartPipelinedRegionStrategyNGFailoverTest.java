@@ -390,7 +390,9 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 			NettyShuffleMaster.INSTANCE,
 			ignored -> Optional.empty());
 
-		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobGraph)
+		final ExecutionGraph eg = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
 			.setRestartStrategy(restartStrategy)
 			.setFailoverStrategyFactory(TestAdaptedRestartPipelinedRegionStrategyNG::new)
 			.setPartitionTracker(partitionTracker)

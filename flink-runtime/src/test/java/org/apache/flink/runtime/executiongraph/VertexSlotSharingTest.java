@@ -18,26 +18,23 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.junit.Assert.*;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class VertexSlotSharingTest {
 
@@ -79,23 +76,14 @@ public class VertexSlotSharingTest {
 			v4.setSlotSharingGroup(jg2);
 			v5.setSlotSharingGroup(jg2);
 			
-			List<JobVertex> vertices = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
-			
-			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				new JobID(),
-				"test job",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				new NoRestartStrategy(),
-				new TestingSlotProvider(ignored -> new CompletableFuture<>()));
+			List<JobVertex> vertices = new ArrayList<>(Arrays.asList(v1, v2, v3, v4, v5));
+
+			ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder().build();
 			eg.attachJobGraph(vertices);
 			
 			// verify that the vertices are all in the same slot sharing group
-			SlotSharingGroup group1 = null;
-			SlotSharingGroup group2 = null;
+			SlotSharingGroup group1;
+			SlotSharingGroup group2;
 			
 			// verify that v1 tasks have no slot sharing group
 			assertNull(eg.getJobVertex(v1.getID()).getSlotSharingGroup());
