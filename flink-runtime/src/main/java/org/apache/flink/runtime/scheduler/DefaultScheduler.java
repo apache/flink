@@ -139,9 +139,14 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		this.executionVertexOperations = checkNotNull(executionVertexOperations);
 		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 
+		final FailoverStrategy failoverStrategy = failoverStrategyFactory.create(
+			getFailoverTopology(),
+			getResultPartitionAvailabilityChecker());
+		log.info("Using failover strategy {} for {} ({}).", failoverStrategy, jobGraph.getName(), jobGraph.getJobID());
+
 		this.executionFailureHandler = new ExecutionFailureHandler(
 			getFailoverTopology(),
-			failoverStrategyFactory.create(getFailoverTopology(), getResultPartitionAvailabilityChecker()),
+			failoverStrategy,
 			restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology(), getJobGraph());
 		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getInputsLocationsRetriever());

@@ -25,9 +25,9 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -101,7 +101,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			shuffleMaster,
 			partitionTracker,
 			schedulingStrategyFactory,
-			new RestartPipelinedRegionStrategy.Factory(),
+			FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
 			restartBackoffTimeStrategy,
 			new DefaultExecutionVertexOperations(),
 			new ExecutionVertexVersioner(),
