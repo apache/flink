@@ -46,11 +46,6 @@ import java.util.Map;
 @Internal
 public class DataStreamQueryOperation<E> implements QueryOperation {
 
-	// DataStreamQueryOperation represent a registered DataStream from `registerDataStream` method
-	// or a unregistered DataStream from `fromDataStream`. However the name under which the DataStream is registered
-	// is missing when converting a DataStreamQueryOperation to a RelNode.
-	// so using `qualifiedName` to keep the original name.
-	// TODO This is a temporary solution.
 	private ObjectIdentifier identifier;
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;

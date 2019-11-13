@@ -39,10 +39,6 @@ import java.util.Map;
 @Internal
 public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 
-	// ScalaDataStreamQueryOperation represent a registered DataStream from `registerDataStream` method
-	// or an unregistered DataStream from `fromDataStream`. However the name under which the DataStream
-	// is registered is missing when converting a ScalaDataStreamQueryOperation to a RelNode.
-	// So using `identifier` to keep the original name.
 	private ObjectIdentifier identifier;
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;
