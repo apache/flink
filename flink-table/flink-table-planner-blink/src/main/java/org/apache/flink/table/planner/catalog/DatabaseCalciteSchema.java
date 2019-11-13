@@ -146,15 +146,15 @@ class DatabaseCalciteSchema extends FlinkSchema {
 
 	private Table convertQueryOperationView(ObjectPath tablePath, QueryOperationCatalogView table) {
 		QueryOperation operation = table.getQueryOperation();
-		List<String> qualifiedNames = Arrays.asList(catalogName, databaseName, tablePath.getObjectName());
+		ObjectIdentifier identifier = ObjectIdentifier.of(catalogName, databaseName, tablePath.getObjectName());
 		if (operation instanceof DataStreamQueryOperation) {
-			((DataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
+			((DataStreamQueryOperation) operation).setIdentifier(identifier);
 		} else if (operation instanceof JavaDataStreamQueryOperation) {
-			((JavaDataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
+			((JavaDataStreamQueryOperation) operation).setIdentifier(identifier);
 		} else if (operation instanceof ScalaDataStreamQueryOperation) {
-			((ScalaDataStreamQueryOperation) operation).setQualifiedName(qualifiedNames);
+			((ScalaDataStreamQueryOperation) operation).setIdentifier(identifier);
 		} else if (operation instanceof RichTableSourceQueryOperation) {
-			((RichTableSourceQueryOperation) operation).setQualifiedName(qualifiedNames);
+			((RichTableSourceQueryOperation) operation).setIdentifier(identifier);
 		}
 		return QueryOperationCatalogViewTable.createCalciteTable(table);
 	}

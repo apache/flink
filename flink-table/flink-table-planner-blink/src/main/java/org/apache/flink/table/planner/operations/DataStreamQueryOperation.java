@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
@@ -50,7 +51,7 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 	// is missing when converting a DataStreamQueryOperation to a RelNode.
 	// so using `qualifiedName` to keep the original name.
 	// TODO This is a temporary solution.
-	private List<String> qualifiedName;
+	private ObjectIdentifier identifier;
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;
 	private final TableSchema tableSchema;
@@ -102,7 +103,11 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("id", dataStream.getId());
+		if (identifier != null) {
+			args.put("id", identifier.asSummaryString());
+		} else {
+			args.put("id", dataStream.getId());
+		}
 		args.put("fields", tableSchema.getFieldNames());
 
 		return OperationUtils.formatWithChildren("DataStream", args, getChildren(), Operation::asSummaryString);
@@ -118,12 +123,12 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 		return visitor.visit(this);
 	}
 
-	public List<String> getQualifiedName() {
-		return qualifiedName;
+	public ObjectIdentifier getIdentifier() {
+		return identifier;
 	}
 
-	public void setQualifiedName(List<String> qualifiedName) {
-		this.qualifiedName = qualifiedName;
+	public void setIdentifier(ObjectIdentifier identifier) {
+		this.identifier = identifier;
 	}
 
 	public boolean[] getFieldNullables() {
