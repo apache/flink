@@ -140,7 +140,7 @@ public class PackagedProgram {
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
-		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
+		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getJobJarAndDependencies(), classpaths, getClass().getClassLoader());
 
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
@@ -227,7 +227,7 @@ public class PackagedProgram {
 	/**
 	 * Returns all provided libraries needed to run the program.
 	 */
-	public List<URL> getAllLibraries() {
+	public List<URL> getJobJarAndDependencies() {
 		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
 
 		if (jarFile != null) {

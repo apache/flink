@@ -211,7 +211,8 @@ public class CliFrontend {
 		final CustomCommandLine customCommandLine = getActiveCustomCommandLine(commandLine);
 		final Configuration executorConfig = customCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
 
-		final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromProgramOptions(programOptions);
+		final List<URL> jobJars = program.getJobJarAndDependencies();
+		final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromProgramOptions(programOptions, jobJars);
 		final Configuration executionConfig = executionParameters.getConfiguration();
 
 		try {
