@@ -30,31 +30,38 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 /**
  * Serializer for BaseRow.
  */
 public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 
-	private BinaryRowSerializer binarySerializer;
+	private static final String PROJECTION_CLASS =
+			"org.apache.flink.table.planner.codegen.ProjectionCodeGenerator";
+	private static final String PROJECTION_METHOD = "generateProjection";
+
+	private final BinaryRowSerializer binarySerializer;
 	private final LogicalType[] types;
 	private final TypeSerializer[] fieldSerializers;
 
-	private transient BinaryRow reuseRow;
-	private transient BinaryRowWriter reuseWriter;
+	private transient Projection<BaseRow, BinaryRow> projection;
 
 	public BaseRowSerializer(ExecutionConfig config, RowType rowType) {
 		this(rowType.getChildren().toArray(new LogicalType[0]),
@@ -73,6 +80,36 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 		this.types = types;
 		this.fieldSerializers = fieldSerializers;
 		this.binarySerializer = new BinaryRowSerializer(types.length);
+	}
+
+	/**
+	 * The reason for using reflection is that runtime module cannot rely on Scala, while CodeGen
+	 * relies heavily on Scala. So at present, CodeGen is in the planner, and the runtime module
+	 * can only obtain CodeGen through reflection.
+	 */
+	private Projection<BaseRow, BinaryRow> generateProjection() {
+		try {
+			@SuppressWarnings("JavaReflectionMemberAccess")
+			Method method = Class.forName(PROJECTION_CLASS).getMethod(
+					PROJECTION_METHOD, String.class, RowType.class, int[].class);
+			GeneratedProjection genProjection = (GeneratedProjection) method.invoke(
+					null,
+					"BaseRowSerializerProjection",
+					RowType.of(types),
+					IntStream.range(0, types.length).toArray());
+			//noinspection unchecked
+			return genProjection.newInstance(Thread.currentThread().getContextClassLoader());
+		} catch (ClassNotFoundException | NoSuchMethodException |
+				IllegalAccessException | InvocationTargetException e) {
+			throw new TableException("Generate Projection failed.", e);
+		}
+	}
+
+	private Projection<BaseRow, BinaryRow> getProjection() {
+		if (projection == null) {
+			projection = generateProjection();
+		}
+		return projection;
 	}
 
 	@Override
@@ -175,21 +212,7 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 		if (row instanceof BinaryRow) {
 			return (BinaryRow) row;
 		}
-		if (reuseRow == null) {
-			reuseRow = new BinaryRow(types.length);
-			reuseWriter = new BinaryRowWriter(reuseRow);
-		}
-		reuseWriter.reset();
-		reuseWriter.writeHeader(row.getHeader());
-		for (int i = 0; i < types.length; i++) {
-			if (row.isNullAt(i)) {
-				reuseWriter.setNullAt(i);
-			} else {
-				BinaryWriter.write(reuseWriter, i, TypeGetterSetters.get(row, i, types[i]), types[i], fieldSerializers[i]);
-			}
-		}
-		reuseWriter.complete();
-		return reuseRow;
+		return getProjection().apply(row);
 	}
 
 	@Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.codegen
 
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
@@ -211,4 +212,18 @@ object ProjectionCodeGenerator {
       inputMapping: Array[Int]): GeneratedProjection =
     generateProjection(
       ctx, name, inputType, outputType, inputMapping, inputTerm = DEFAULT_INPUT1_TERM)
+
+  /**
+    * For java reflection invoke.
+    */
+  def generateProjection(
+      name: String,
+      inputType: RowType,
+      inputMapping: Array[Int]): GeneratedProjection = {
+    val ctx = CodeGeneratorContext.apply(new TableConfig)
+    val outputType = RowType.of(
+      inputMapping.map(inputType.getChildren.get),
+      inputMapping.map(inputType.getFieldNames.get))
+    generateProjection(ctx, name, inputType, outputType, inputMapping)
+  }
 }
