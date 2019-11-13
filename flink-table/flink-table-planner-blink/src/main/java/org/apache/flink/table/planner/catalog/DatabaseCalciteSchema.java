@@ -54,9 +54,7 @@ import org.apache.calcite.schema.Table;
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
