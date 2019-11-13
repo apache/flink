@@ -170,5 +170,15 @@ The workaround is to add:
 
 in the compiler configuration of the `pom.xml` file of the module causing the error. For example, if the error appears in the `flink-yarn` module, the above code should be added under the `<configuration>` tag of `scala-maven-plugin`. See [this issue](https://issues.apache.org/jira/browse/FLINK-2003) for more information.
 
+## Jackson
+
+Multiple Flink components use [Jackson](https://github.com/FasterXML/jackson). Older versions of jackson (<`2.10.1`) are subject to a variety of security vulnerabilities.
+
+Flink 1.8.3+ offers an opt-in profile (`use-jackson-2.10.1`) for building Flink against Jackson `2.10.1`; including `jackson-annotations`, `jackson-core` and `jackson-databind`.
+
+Usage: `mvn package -Puse-jackson-2.10.1`
+
+When you build a maven application against this Flink version it is recommended to bump the `maven-shade-plugin` version to at least `3.1.1` to prevent packaging errors.
+
 {% top %}
 
