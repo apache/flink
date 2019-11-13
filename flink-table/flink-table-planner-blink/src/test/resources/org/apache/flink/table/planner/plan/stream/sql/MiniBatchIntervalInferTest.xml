@@ -289,10 +289,10 @@ Sink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a, b])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.T1], fields=[id1, rowtime, text])
