@@ -502,9 +502,7 @@ public class ExecutionContext<ClusterID> {
 				return streamExecEnv.getStreamGraph(name);
 			} else {
 				final int parallelism = execEnv.getParallelism();
-				final Plan unoptimizedPlan = execEnv.createProgramPlan();
-				unoptimizedPlan.setJobName(name);
-				return unoptimizedPlan;
+				return execEnv.createProgramPlan(name);
 			}
 		}
 
