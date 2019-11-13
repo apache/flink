@@ -175,9 +175,14 @@ public class NettyShuffleEnvironmentOptions {
 
 	public static final ConfigOption<Integer> NUM_ARENAS =
 		key("taskmanager.network.netty.num-arenas")
-			.defaultValue(-1)
+			.intType()
+			.defaultValue(1)
 			.withDeprecatedKeys("taskmanager.net.num-arenas")
-			.withDescription("The number of Netty arenas.");
+			.withDescription(
+				"The number of Netty arenas. Netty based shuffle implementation takes part of the configured " +
+					"task manager shuffle memory for the arenas. Each arena is accounted for as 6 chunks of 16Mb (96Mb). " +
+					"This number of arenas might have to be increased if the network is congested by many connections " +
+					"between task managers, e.g. because of high back pressure.");
 
 	public static final ConfigOption<Integer> NUM_THREADS_SERVER =
 		key("taskmanager.network.netty.server.numThreads")

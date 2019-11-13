@@ -22,9 +22,9 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.netty.num-arenas</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
+            <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
-            <td>The number of Netty arenas.</td>
+            <td>The number of Netty arenas. Netty based shuffle implementation takes part of the configured task manager shuffle memory for the arenas. Each arena is accounted for as 6 chunks of 16Mb (96Mb). This number of arenas might have to be increased if the network is congested by many connections between task managers, e.g. because of high back pressure.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.netty.sendReceiveBufferSize</h5></td>

@@ -41,26 +41,29 @@ import static org.junit.Assert.assertEquals;
 public class NettyConnectionManagerTest {
 
 	/**
-	 * Tests that the number of arenas and number of threads of the client and
+	 * Tests that the number of arenas is correctly configured and number of threads of the client and
 	 * server are set to the same number, that is the number of configured
 	 * task slots.
 	 */
 	@Test
 	public void testMatchingNumberOfArenasAndThreadsAsDefault() throws Exception {
-		// Expected number of arenas and threads
 		int numberOfSlots = 2;
+		int numberOfArenas = 3;
+
+		Configuration configuration = new Configuration();
+		configuration.setInteger(NettyShuffleEnvironmentOptions.NUM_ARENAS, numberOfArenas);
 
 		NettyConfig config = new NettyConfig(
 				InetAddress.getLocalHost(),
 				NetUtils.getAvailablePort(),
 				1024,
 				numberOfSlots,
-				new Configuration());
+			configuration);
 
 		NettyConnectionManager connectionManager = createNettyConnectionManager(config);
 		connectionManager.start();
 
-		assertEquals(numberOfSlots, connectionManager.getBufferPool().getNumberOfArenas());
+		assertEquals(numberOfArenas, connectionManager.getBufferPool().getNumberOfArenas());
 
 		{
 			// Client event loop group

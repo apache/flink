@@ -23,6 +23,8 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
+import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import java.util.HashMap;
@@ -385,7 +387,8 @@ public class TaskExecutorResourceUtils {
 		@SuppressWarnings("deprecation")
 		final long numOfBuffers = config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
 		final long pageSize =  ConfigurationParserUtils.getPageSize(config);
-		return new MemorySize(numOfBuffers * pageSize);
+		final long numberOfArenas = NettyConfig.getNumberOfArenas(config);
+		return new MemorySize(numOfBuffers * pageSize + numberOfArenas * NettyBufferPool.ARENA_SIZE);
 	}
 
 	private static RangeFraction getShuffleMemoryRangeFraction(final Configuration config) {

@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.PooledByteBufAllocator;
@@ -66,6 +69,12 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 	 * @see #PAGE_SIZE
 	 */
 	private static final int MAX_ORDER = 11;
+
+	private static final long ARENA_CHUCK_SIZE = PAGE_SIZE << MAX_ORDER;
+
+	private static final long EXPECTED_MAX_NUMBER_OF_ARENA_CHUNKS = 6;
+
+	public static final long ARENA_SIZE = EXPECTED_MAX_NUMBER_OF_ARENA_CHUNKS * ARENA_CHUCK_SIZE;
 
 	/**
 	 * Creates Netty's buffer pool with the specified number of direct arenas.
@@ -249,5 +258,23 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 	@Override
 	public CompositeByteBuf compositeHeapBuffer(int maxNumComponents) {
 		throw new UnsupportedOperationException("Heap buffer");
+	}
+
+	@Override
+	protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
+		//noinspection ErrorNotRethrown
+		try {
+			return super.newDirectBuffer(initialCapacity, maxCapacity);
+		} catch (OutOfMemoryError e) {
+			//noinspection ThrowInsideCatchBlockWhichIgnoresCaughtException
+			throw new OutOfMemoryError(
+				"Failed to allocate direct memory from netty arenas. " +
+					"It can happen if the network is congested by many connections between task managers, " +
+					"e.g. because of high back pressure. Try to increase the number of arenas " +
+					"by changing the configuration option " + NettyShuffleEnvironmentOptions.NUM_ARENAS.key() +
+					". Otherwise check other direct memory usages which can exceed the JVM direct memory limit. " +
+					"Other options to consider are " + TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key() + " and " +
+					TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key() + ". Cause: " + e.getMessage());
+		}
 	}
 }
