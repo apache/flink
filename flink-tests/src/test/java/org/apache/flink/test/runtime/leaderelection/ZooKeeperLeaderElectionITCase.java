@@ -128,7 +128,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 			}
 
 			final DispatcherGateway leaderDispatcherGateway = getNextLeadingDispatcherGateway(miniCluster, previousLeaderAddress, timeout);
-
+			CommonTestUtils.waitUntilCondition(() -> leaderDispatcherGateway.requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT).get() == JobStatus.RUNNING, timeout, 50L);
 			CompletableFuture<JobResult> jobResultFuture = leaderDispatcherGateway.requestJobResult(jobGraph.getJobID(), RPC_TIMEOUT);
 			BlockingOperator.unblock();
 
