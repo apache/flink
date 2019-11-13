@@ -100,7 +100,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			new MesosResourceManagerFactory(
 				mesosServices,
 				schedulerConfiguration),
-			FileJobGraphRetriever.createFrom(configuration));
+			FileJobGraphRetriever.createFrom(configuration, null));
 	}
 
 	public static void main(String[] args) {

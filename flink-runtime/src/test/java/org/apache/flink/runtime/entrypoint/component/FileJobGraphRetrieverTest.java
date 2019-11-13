@@ -20,11 +20,11 @@ package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.function.FunctionUtils;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -39,7 +39,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -60,7 +60,7 @@ public class FileJobGraphRetrieverTest {
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private static final Configuration configuration = new Configuration();
+	private static UnmodifiableConfiguration configuration;
 
 	private static Path jarFileInJobGraph;
 
@@ -74,14 +74,15 @@ public class FileJobGraphRetrieverTest {
 		final JobVertex target = new JobVertex("target");
 		final JobGraph jobGraph = new JobGraph(new JobID(), "test", source, target);
 
-		jobGraph.setClasspaths(Arrays.asList(jarFileInJobGraph.toUri().toURL()));
+		jobGraph.setClasspaths(Collections.singletonList(jarFileInJobGraph.toUri().toURL()));
 
 		try (ObjectOutputStream objectOutputStream =
 				new ObjectOutputStream(Files.newOutputStream(jobGraphPath, CREATE))) {
 			objectOutputStream.writeObject(jobGraph);
 		}
-
-		configuration.setString(JOB_GRAPH_FILE_PATH.key(), jobGraphPath.toString());
+		final Configuration cfg = new Configuration();
+		cfg.setString(JOB_GRAPH_FILE_PATH.key(), jobGraphPath.toString());
+		configuration = new UnmodifiableConfiguration(cfg);
 	}
 
 	@Test
@@ -89,14 +90,11 @@ public class FileJobGraphRetrieverTest {
 		final File usrLibDir = temporaryFolder.newFolder("job");
 		final File jarFileInUsrLibDir = Files.createFile(usrLibDir.toPath().resolve("jar_file_in_job_dir.jar")).toFile();
 		final Path workingDirectory = FileUtils.getCurrentWorkingDirectory();
-
+		final Path relativeJarFileInUsrLibDirPath = FileUtils.relativizePath(workingDirectory, jarFileInUsrLibDir.toPath());
 		final List<URL> expectedURLs = new ArrayList<>();
+
 		expectedURLs.add(jarFileInJobGraph.toUri().toURL());
-		Arrays.asList(jarFileInUsrLibDir).stream()
-			.map(File::toPath)
-			.map(path -> FileUtils.relativizePath(workingDirectory, path))
-			.map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
-			.forEach(expectedURLs::add);
+		expectedURLs.add(FileUtils.toURL(relativeJarFileInUsrLibDirPath));
 
 		final FileJobGraphRetriever fileJobGraphRetriever = FileJobGraphRetriever.createFrom(configuration, usrLibDir);
 		final JobGraph jobGraphFromFile = fileJobGraphRetriever.retrieveJobGraph(configuration);
@@ -107,7 +105,7 @@ public class FileJobGraphRetrieverTest {
 	@Test
 	public void testRetrieveJobGraphWithoutUsrLibDir() throws IOException, FlinkException {
 		final FileJobGraphRetriever fileJobGraphRetriever = FileJobGraphRetriever.createFrom(configuration, null);
-		final List<URL> expectedUrls = Arrays.asList(jarFileInJobGraph.toUri().toURL());
+		final List<URL> expectedUrls = Collections.singletonList(jarFileInJobGraph.toUri().toURL());
 		final JobGraph jobGraph = fileJobGraphRetriever.retrieveJobGraph(configuration);
 
 		assertThat(jobGraph.getClasspaths(), containsInAnyOrder(expectedUrls.toArray()));
