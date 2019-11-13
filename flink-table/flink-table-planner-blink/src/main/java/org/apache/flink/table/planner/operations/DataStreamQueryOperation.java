@@ -46,7 +46,7 @@ import java.util.Map;
 @Internal
 public class DataStreamQueryOperation<E> implements QueryOperation {
 
-	private ObjectIdentifier identifier;
+	private final ObjectIdentifier identifier;
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;
 	private final TableSchema tableSchema;
@@ -57,6 +57,7 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 	private final FlinkStatistic statistic;
 
 	public DataStreamQueryOperation(
+			ObjectIdentifier identifier,
 			DataStream<E> dataStream,
 			int[] fieldIndices,
 			TableSchema tableSchema,
@@ -64,6 +65,7 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 			boolean producesUpdates,
 			boolean isAccRetract,
 			FlinkStatistic statistic) {
+		this.identifier = identifier;
 		this.dataStream = dataStream;
 		this.tableSchema = tableSchema;
 		this.fieldNullables = fieldNullables;
@@ -71,15 +73,6 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 		this.producesUpdates = producesUpdates;
 		this.isAccRetract = isAccRetract;
 		this.statistic = statistic;
-	}
-
-	public DataStreamQueryOperation(
-			DataStream<E> dataStream,
-			int[] fieldIndices,
-			TableSchema tableSchema,
-			boolean[] fieldNullables,
-			FlinkStatistic statistic) {
-		this(dataStream, fieldIndices, tableSchema, fieldNullables, false, false, statistic);
 	}
 
 	public DataStream<E> getDataStream() {
@@ -120,10 +113,6 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 
 	public ObjectIdentifier getIdentifier() {
 		return identifier;
-	}
-
-	public void setIdentifier(ObjectIdentifier identifier) {
-		this.identifier = identifier;
 	}
 
 	public boolean[] getFieldNullables() {

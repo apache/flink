@@ -23,10 +23,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Describes a relational operation that reads from a {@link DataStream}.
@@ -39,7 +42,14 @@ import java.util.Map;
 @Internal
 public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 
-	private ObjectIdentifier identifier;
+	/**
+	 * The table identifier registered under the environment. The identifier might be null when
+	 * the it is from {@code StreamTableEnvironment#fromDataStream(DataStream)}. But the identifier
+	 * should be not null if is from {@code StreamTableEnvironment#registerDataStream(String, DataStream)}
+	 * with a registered name.
+	 */
+	@Nullable
+	private final ObjectIdentifier identifier;
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;
 	private final TableSchema tableSchema;
@@ -48,6 +58,15 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 			DataStream<E> dataStream,
 			int[] fieldIndices,
 			TableSchema tableSchema) {
+		this(null, dataStream, fieldIndices, tableSchema);
+	}
+
+	public ScalaDataStreamQueryOperation(
+			ObjectIdentifier identifier,
+			DataStream<E> dataStream,
+			int[] fieldIndices,
+			TableSchema tableSchema) {
+		this.identifier = identifier;
 		this.dataStream = dataStream;
 		this.tableSchema = tableSchema;
 		this.fieldIndices = fieldIndices;
@@ -66,12 +85,8 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 		return tableSchema;
 	}
 
-	public ObjectIdentifier getIdentifier() {
-		return identifier;
-	}
-
-	public void setIdentifier(ObjectIdentifier identifier) {
-		this.identifier = identifier;
+	public Optional<ObjectIdentifier> getIdentifier() {
+		return Optional.ofNullable(identifier);
 	}
 
 	@Override

@@ -41,15 +41,17 @@ import java.util.Map;
 @Internal
 public class RichTableSourceQueryOperation<T> extends TableSourceQueryOperation<T> {
 	private final FlinkStatistic statistic;
-	private ObjectIdentifier identifier;
+	private final ObjectIdentifier identifier;
 
 	public RichTableSourceQueryOperation(
+			ObjectIdentifier identifier,
 			TableSource<T> tableSource,
 			FlinkStatistic statistic) {
 		super(tableSource, false);
 		Preconditions.checkArgument(tableSource instanceof StreamTableSource,
 				"Blink planner should always use StreamTableSource.");
 		this.statistic = statistic;
+		this.identifier = identifier;
 	}
 
 	@Override
@@ -65,10 +67,6 @@ public class RichTableSourceQueryOperation<T> extends TableSourceQueryOperation<
 
 	public ObjectIdentifier getIdentifier() {
 		return identifier;
-	}
-
-	public void setIdentifier(ObjectIdentifier identifier) {
-		this.identifier = identifier;
 	}
 
 	public FlinkStatistic getStatistic() {

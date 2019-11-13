@@ -97,6 +97,7 @@ import org.apache.calcite.tools.RelBuilder.GroupKey;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -407,7 +408,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				DataStream<?> dataStream,
 				int[] fieldIndices,
 				TableSchema tableSchema,
-				ObjectIdentifier identifier) {
+				Optional<ObjectIdentifier> identifier) {
 			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
 				dataStream,
 				false,
@@ -418,11 +419,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				scala.Option.empty());
 
 			List<String> names;
-			if (identifier != null) {
+			if (identifier.isPresent()) {
 				names = Arrays.asList(
-					identifier.getCatalogName(),
-					identifier.getDatabaseName(),
-					identifier.getObjectName());
+					identifier.get().getCatalogName(),
+					identifier.get().getDatabaseName(),
+					identifier.get().getObjectName());
 			} else {
 				String refId = String.format("Unregistered_DataStream_%s", dataStream.getId());
 				names = Collections.singletonList(refId);

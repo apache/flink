@@ -33,12 +33,7 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
-import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
-import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
 import org.apache.flink.table.plan.stats.TableStats;
-import org.apache.flink.table.planner.operations.DataStreamQueryOperation;
-import org.apache.flink.table.planner.operations.RichTableSourceQueryOperation;
 import org.apache.flink.table.planner.plan.schema.TableSinkTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
@@ -106,7 +101,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			@Nullable TableFactory tableFactory) {
 		// TODO supports GenericCatalogView
 		if (table instanceof QueryOperationCatalogView) {
-			return convertQueryOperationView(tablePath, (QueryOperationCatalogView) table);
+			return convertQueryOperationView((QueryOperationCatalogView) table);
 		} else if (table instanceof ConnectorCatalogTable) {
 			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
 			if ((connectorTable).getTableSource().isPresent()) {
@@ -127,7 +122,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			CatalogBaseTable table) {
 		// TODO supports GenericCatalogView
 		if (table instanceof QueryOperationCatalogView) {
-			return convertQueryOperationView(tablePath, (QueryOperationCatalogView) table);
+			return convertQueryOperationView((QueryOperationCatalogView) table);
 		} else if (table instanceof ConnectorCatalogTable) {
 			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
 			if ((connectorTable).getTableSource().isPresent()) {
@@ -142,18 +137,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		}
 	}
 
-	private Table convertQueryOperationView(ObjectPath tablePath, QueryOperationCatalogView table) {
-		QueryOperation operation = table.getQueryOperation();
-		ObjectIdentifier identifier = ObjectIdentifier.of(catalogName, databaseName, tablePath.getObjectName());
-		if (operation instanceof DataStreamQueryOperation) {
-			((DataStreamQueryOperation) operation).setIdentifier(identifier);
-		} else if (operation instanceof JavaDataStreamQueryOperation) {
-			((JavaDataStreamQueryOperation) operation).setIdentifier(identifier);
-		} else if (operation instanceof ScalaDataStreamQueryOperation) {
-			((ScalaDataStreamQueryOperation) operation).setIdentifier(identifier);
-		} else if (operation instanceof RichTableSourceQueryOperation) {
-			((RichTableSourceQueryOperation) operation).setIdentifier(identifier);
-		}
+	private Table convertQueryOperationView(QueryOperationCatalogView table) {
 		return QueryOperationCatalogViewTable.createCalciteTable(table);
 	}
 

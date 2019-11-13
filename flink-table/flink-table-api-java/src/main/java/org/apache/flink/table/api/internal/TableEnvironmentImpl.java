@@ -239,9 +239,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				"Only table API objects that belong to this TableEnvironment can be registered.");
 		}
 
-		CatalogBaseTable tableTable = new QueryOperationCatalogView(view.getQueryOperation());
-
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
+		QueryOperation queryOperation = qualifyQueryOperation(tableIdentifier, view.getQueryOperation());
+		CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
+
 		catalogManager.createTemporaryTable(tableTable, tableIdentifier, false);
 	}
 
@@ -509,6 +510,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		translate(bufferedModifyOperations);
 		bufferedModifyOperations.clear();
 		return execEnv.execute(jobName);
+	}
+
+	/**
+	 * Subclasses can override this method to transform the given QueryOperation to a new one with
+	 * the qualified object identifier. This is needed for some QueryOperations, e.g. JavaDataStreamQueryOperation,
+	 * which doesn't know the registered identifier when created ({@code fromDataStream(DataStream)}.
+	 * But the identifier is required when converting this QueryOperation to RelNode.
+	 */
+	protected QueryOperation qualifyQueryOperation(ObjectIdentifier identifier, QueryOperation queryOperation) {
+		return queryOperation;
 	}
 
 	/**
