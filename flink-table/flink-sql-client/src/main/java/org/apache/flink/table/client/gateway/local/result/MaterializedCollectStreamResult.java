@@ -97,8 +97,9 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 			InetAddress gatewayAddress,
 			int gatewayPort,
 			int maxRowCount,
-			int overcommitThreshold) {
-		super(outputType, tableSchema, config, gatewayAddress, gatewayPort);
+			int overcommitThreshold,
+			ClassLoader classLoader) {
+		super(outputType, tableSchema, config, gatewayAddress, gatewayPort, classLoader);
 
 		if (maxRowCount <= 0) {
 			this.maxRowCount = Integer.MAX_VALUE;
@@ -124,7 +125,8 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 			ExecutionConfig config,
 			InetAddress gatewayAddress,
 			int gatewayPort,
-			int maxRowCount) {
+			int maxRowCount,
+			ClassLoader classLoader) {
 
 		this(
 			outputType,
@@ -133,7 +135,8 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 			gatewayAddress,
 			gatewayPort,
 			maxRowCount,
-			computeMaterializedTableOvercommit(maxRowCount));
+			computeMaterializedTableOvercommit(maxRowCount),
+			classLoader);
 	}
 
 	@Override
@@ -150,7 +153,7 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 		synchronized (resultLock) {
 			// retrieval thread is dead and there are no results anymore
 			// or program failed
-			if ((!isRetrieving() && isLastSnapshot) || executionException != null) {
+			if ((!isRetrieving() && isLastSnapshot) || executionException.get() != null) {
 				return handleMissingResult();
 			}
 			// this snapshot is the last result that can be delivered
