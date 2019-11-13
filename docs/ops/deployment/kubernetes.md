@@ -145,12 +145,16 @@ data:
 
 `jobmanager-deployment.yaml`
 {% highlight yaml %}
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flink-jobmanager
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: jobmanager
   template:
     metadata:
       labels:
@@ -183,6 +187,8 @@ spec:
         volumeMounts:
         - name: flink-config-volume
           mountPath: /opt/flink/conf
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
       volumes:
       - name: flink-config-volume
         configMap:
@@ -196,12 +202,16 @@ spec:
 
 `taskmanager-deployment.yaml`
 {% highlight yaml %}
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flink-taskmanager
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
   template:
     metadata:
       labels:
@@ -230,6 +240,8 @@ spec:
         volumeMounts:
         - name: flink-config-volume
           mountPath: /opt/flink/conf/
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
       volumes:
       - name: flink-config-volume
         configMap:

@@ -45,7 +45,7 @@ public class SimpleSlotContext implements SlotContext {
 			TaskManagerLocation taskManagerLocation,
 			int physicalSlotNumber,
 			TaskManagerGateway taskManagerGateway) {
-		this(allocationId, taskManagerLocation, physicalSlotNumber, taskManagerGateway, ResourceProfile.UNKNOWN);
+		this(allocationId, taskManagerLocation, physicalSlotNumber, taskManagerGateway, ResourceProfile.ANY);
 	}
 
 	public SimpleSlotContext(

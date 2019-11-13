@@ -38,7 +38,7 @@ You do not need to modify your existing Hive Metastore or change the data placem
 * This will be replaced by the TOC
 {:toc}
 
-## Supported Hive Version's
+## Supported Hive Versions
 
 Flink supports Hive `2.3.4` and `1.2.1` and relies on Hive's compatibility guarantee's for other minor versions.
 
@@ -50,7 +50,7 @@ HiveCatalog instance via Table API.
 
 Users are welcome to try out different versions with this workaround. Since only `2.3.4` and `1.2.1` have been tested, there might be unexpected issues. We will test and support more versions in future releases.
 
-### Depedencies 
+### Dependencies
 
 To integrate with Hive, users need the following dependencies in their project.
 

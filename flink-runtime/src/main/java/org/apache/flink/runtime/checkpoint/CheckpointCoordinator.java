@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -573,6 +572,7 @@ public class CheckpointCoordinator {
 			checkpointID,
 			timestamp,
 			ackTasks,
+			masterHooks.keySet(),
 			props,
 			checkpointStorageLocation,
 			executor);
@@ -621,12 +621,14 @@ public class CheckpointCoordinator {
 					cancellerHandle.cancel(false);
 				}
 
-				// trigger the master hooks for the checkpoint
-				final List<MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
-						checkpointID, timestamp, executor, Time.milliseconds(checkpointTimeout));
-				for (MasterState s : masterStates) {
-					checkpoint.addMasterState(s);
+				// TODO, asynchronously snapshots master hook without waiting here
+				for (MasterTriggerRestoreHook<?> masterHook : masterHooks.values()) {
+					final MasterState masterState =
+						MasterHooks.triggerHook(masterHook, checkpointID, timestamp, executor)
+							.get(checkpointTimeout, TimeUnit.MILLISECONDS);
+					checkpoint.acknowledgeMasterState(masterHook.getIdentifier(), masterState);
 				}
+				Preconditions.checkState(checkpoint.areMasterStatesFullyAcknowledged());
 			}
 			// end of lock scope
 
@@ -776,7 +778,7 @@ public class CheckpointCoordinator {
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {} at {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob(), taskManagerLocationInfo);
 
-						if (checkpoint.isFullyAcknowledged()) {
+						if (checkpoint.areTasksFullyAcknowledged()) {
 							completePendingCheckpoint(checkpoint);
 						}
 						break;

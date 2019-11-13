@@ -58,8 +58,10 @@ public class HiveModuleTest {
 			assertEquals(243, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
 		} else if (hiveVersion.equals(HIVE_VERSION_V2_1_1) || hiveVersion.equals(HIVE_VERSION_V2_2_0)) {
 			assertEquals(253, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
-		} else if (hiveVersion.equals(HIVE_VERSION_V2_3_4) || hiveVersion.equals(HIVE_VERSION_V3_1_1)) {
+		} else if (hiveVersion.equals(HIVE_VERSION_V2_3_4)) {
 			assertEquals(287, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+		} else if (hiveVersion.equals(HIVE_VERSION_V3_1_1)) {
+			assertEquals(306, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
 		}
 	}
 

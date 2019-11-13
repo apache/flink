@@ -60,7 +60,7 @@ import java.util.concurrent.TimeUnit;
  * connection between {@link MetricGroup MetricGroups} and {@link MetricReporter MetricReporters}.
  */
 public class MetricRegistryImpl implements MetricRegistry {
-	static final Logger LOG = LoggerFactory.getLogger(MetricRegistryImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryImpl.class);
 
 	private final Object lock = new Object();
 

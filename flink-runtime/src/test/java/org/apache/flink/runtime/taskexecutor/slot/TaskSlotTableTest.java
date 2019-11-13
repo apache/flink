@@ -54,7 +54,7 @@ public class TaskSlotTableTest extends TestLogger {
 	 */
 	@Test
 	public void testTryMarkSlotActive() throws SlotNotFoundException {
-		final TaskSlotTable taskSlotTable = createTaskSlotTable(Collections.nCopies(3, ResourceProfile.UNKNOWN));
+		final TaskSlotTable taskSlotTable = createTaskSlotTable(Collections.nCopies(3, ResourceProfile.ANY));
 
 		try {
 			taskSlotTable.start(new TestingSlotActionsBuilder().build());

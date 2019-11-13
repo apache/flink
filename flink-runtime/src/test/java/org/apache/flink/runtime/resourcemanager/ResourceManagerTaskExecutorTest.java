@@ -254,7 +254,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
 			// on success, send slot report for taskmanager registration
-			final SlotReport slotReport = new SlotReport(new SlotStatus(new SlotID(taskExecutorResourceID, 0), ResourceProfile.UNKNOWN));
+			final SlotReport slotReport = new SlotReport(new SlotStatus(new SlotID(taskExecutorResourceID, 0), ResourceProfile.ANY));
 			rmGateway.sendSlotReport(taskExecutorResourceID,
 				((TaskExecutorRegistrationSuccess) response).getRegistrationId(), slotReport, TIMEOUT).get();
 
@@ -301,7 +301,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 	private Collection<SlotStatus> createSlots(int numberSlots) {
 		return IntStream.range(0, numberSlots)
 			.mapToObj(index ->
-				new SlotStatus(new SlotID(taskExecutorResourceID, index), ResourceProfile.UNKNOWN))
+				new SlotStatus(new SlotID(taskExecutorResourceID, index), ResourceProfile.ANY))
 			.collect(Collectors.toList());
 	}
 
