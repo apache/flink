@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.legacy.backpressure;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertexTest;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.util.TestLogger;
 
@@ -45,39 +46,45 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 
 	private static final int requestId = 0;
 	private static final double backPressureRatio = 0.1;
-	private static final ExecutionJobVertex executionJobVertex = BackPressureTrackerTestUtils.createExecutionJobVertex();
+	private static final ExecutionJobVertex executionJobVertex = createExecutionJobVertex();
 	private static final ExecutionVertex[] taskVertices = executionJobVertex.getTaskVertices();
 	private static final BackPressureStats backPressureStats = createBackPressureStats(requestId, 1, backPressureRatio);
+	private static final int cleanUpInterval = 60000;
+	private static final int backPressureStatsRefreshInterval = 60000;
+	private static final long timeGap = 60000;
 
 	@Rule
 	public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
 
 	@Test
 	public void testGetOperatorBackPressureStats() throws Exception {
-		doInitialRequestAndVerifyTheResult(createBackPressureTracker(60000, 60000, backPressureStats));
+		doInitialRequestAndVerifyResult(createBackPressureTracker());
 	}
 
 	@Test
 	public void testCachedStatsNotUpdatedWithinRefreshInterval() throws Exception {
 		final double backPressureRatio2 = 0.2;
-		final BackPressureStats backPressureStats2 = createBackPressureStats(1, 60000, backPressureRatio2);
+		final int requestId2 = 1;
+		final BackPressureStats backPressureStats2 = createBackPressureStats(requestId2, timeGap, backPressureRatio2);
 
-		final BackPressureStatsTracker tracker = createBackPressureTracker(60000, 60000, backPressureStats, backPressureStats2);
-		doInitialRequestAndVerifyTheResult(tracker);
+		final BackPressureStatsTracker tracker = createBackPressureTracker(
+			cleanUpInterval, backPressureStatsRefreshInterval, backPressureStats, backPressureStats2);
+		doInitialRequestAndVerifyResult(tracker);
 		// verify that no new back pressure request is triggered
 		checkOperatorBackPressureStats(tracker.getOperatorBackPressureStats(executionJobVertex));
 	}
 
 	@Test
 	public void testCachedStatsUpdatedAfterRefreshInterval() throws Exception {
-		final int backPressureStatsRefreshInterval = 100;
-		final long waitingTime = backPressureStatsRefreshInterval + 100;
+		final int backPressureStatsRefreshInterval2 = 10;
+		final long waitingTime = backPressureStatsRefreshInterval2 + 10;
 		final double backPressureRatio2 = 0.2;
-		final BackPressureStats backPressureStats2 = createBackPressureStats(1, 60000, backPressureRatio2);
+		final int requestId2 = 1;
+		final BackPressureStats backPressureStats2 = createBackPressureStats(requestId2, timeGap, backPressureRatio2);
 
 		final BackPressureStatsTracker tracker = createBackPressureTracker(
-			60000, backPressureStatsRefreshInterval, backPressureStats, backPressureStats2);
-		doInitialRequestAndVerifyTheResult(tracker);
+			cleanUpInterval, backPressureStatsRefreshInterval2, backPressureStats, backPressureStats2);
+		doInitialRequestAndVerifyResult(tracker);
 
 		// ensure that we are ready for next request
 		Thread.sleep(waitingTime);
@@ -89,8 +96,8 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 
 	@Test
 	public void testShutDown() throws Exception {
-		final BackPressureStatsTracker tracker = createBackPressureTracker(60000, 60000, backPressureStats);
-		doInitialRequestAndVerifyTheResult(tracker);
+		final BackPressureStatsTracker tracker = createBackPressureTracker();
+		doInitialRequestAndVerifyResult(tracker);
 
 		// shutdown directly
 		tracker.shutDown();
@@ -103,8 +110,8 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 
 	@Test
 	public void testCachedStatsNotCleanedWithinCleanupInterval() throws Exception {
-		final BackPressureStatsTracker tracker = createBackPressureTracker(60000, 60000, backPressureStats);
-		doInitialRequestAndVerifyTheResult(tracker);
+		final BackPressureStatsTracker tracker = createBackPressureTracker();
+		doInitialRequestAndVerifyResult(tracker);
 
 		tracker.cleanUpOperatorStatsCache();
 		// the back pressure stats should be still there
@@ -113,11 +120,12 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 
 	@Test
 	public void testCachedStatsCleanedAfterCleanupInterval() throws Exception {
-		final int cleanUpInterval = 100;
-		final long waitingTime = cleanUpInterval + 100;
+		final int cleanUpInterval2 = 10;
+		final long waitingTime = cleanUpInterval2 + 10;
 
-		final BackPressureStatsTracker tracker = createBackPressureTracker(cleanUpInterval, 60000, backPressureStats);
-		doInitialRequestAndVerifyTheResult(tracker);
+		final BackPressureStatsTracker tracker = createBackPressureTracker(
+			cleanUpInterval2, backPressureStatsRefreshInterval, backPressureStats);
+		doInitialRequestAndVerifyResult(tracker);
 
 		// wait until we are ready to cleanup
 		Thread.sleep(waitingTime);
@@ -127,7 +135,7 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 		assertFalse(tracker.getOperatorBackPressureStats(executionJobVertex).isPresent());
 	}
 
-	private void doInitialRequestAndVerifyTheResult(BackPressureStatsTracker tracker) {
+	private void doInitialRequestAndVerifyResult(BackPressureStatsTracker tracker) {
 		// trigger back pressure stats request
 		assertFalse(tracker.getOperatorBackPressureStats(executionJobVertex).isPresent());
 		//  verify the result
@@ -144,12 +152,18 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 			Optional<OperatorBackPressureStats> optionalStats) {
 		assertTrue(optionalStats.isPresent());
 		OperatorBackPressureStats stats = optionalStats.get();
+
 		assertEquals(backPressureStats.getRequestId(), stats.getRequestId());
 		assertEquals(backPressureStats.getEndTime(), stats.getEndTimestamp());
 		assertEquals(taskVertices.length, stats.getNumberOfSubTasks());
+
 		for (int i = 0; i < stats.getNumberOfSubTasks(); i++) {
 			assertEquals(backPressureRatio, stats.getBackPressureRatio(i), 0.0);
 		}
+	}
+
+	private BackPressureStatsTracker createBackPressureTracker() {
+		return createBackPressureTracker(cleanUpInterval, backPressureStatsRefreshInterval, backPressureStats);
 	}
 
 	private BackPressureStatsTracker createBackPressureTracker(
@@ -160,9 +174,9 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 		final BackPressureRequestCoordinator coordinator =
 			new TestingBackPressureRequestCoordinator(Runnable::run, 10000, stats);
 		return new BackPressureStatsTrackerImpl(
-				coordinator,
-				cleanUpInterval,
-				backPressureStatsRefreshInterval);
+			coordinator,
+			cleanUpInterval,
+			backPressureStatsRefreshInterval);
 	}
 
 	private static BackPressureStats createBackPressureStats(
@@ -180,18 +194,26 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
 		return new BackPressureStats(requestId, startTime, endTime, backPressureRatiosByTask);
 	}
 
+	private static ExecutionJobVertex createExecutionJobVertex() {
+		try {
+			return ExecutionJobVertexTest.createExecutionJobVertex(4, 4);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to create ExecutionJobVertex.");
+		}
+	}
+
 	/**
 	 * A {@link BackPressureRequestCoordinator} which returns the pre-generated back pressure stats directly.
 	 */
-	public static class TestingBackPressureRequestCoordinator extends BackPressureRequestCoordinator {
+	private static class TestingBackPressureRequestCoordinator extends BackPressureRequestCoordinator {
 
 		private final BackPressureStats[] backPressureStats;
 		private int counter = 0;
 
-		public TestingBackPressureRequestCoordinator(
-			Executor executor,
-			long requestTimeout,
-			BackPressureStats... backPressureStats) {
+		TestingBackPressureRequestCoordinator(
+				Executor executor,
+				long requestTimeout,
+				BackPressureStats... backPressureStats) {
 			super(executor, requestTimeout);
 			this.backPressureStats = backPressureStats;
 		}

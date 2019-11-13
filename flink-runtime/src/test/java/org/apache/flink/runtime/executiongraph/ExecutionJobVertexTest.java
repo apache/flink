@@ -18,17 +18,24 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.SerializedValue;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 public class ExecutionJobVertexTest {
 
@@ -122,10 +129,9 @@ public class ExecutionJobVertexTest {
 
 	//------------------------------------------------------------------------------------------------------
 
-	private static ExecutionJobVertex createExecutionJobVertex(
+	public static ExecutionJobVertex createExecutionJobVertex(
 			int parallelism,
-			int preconfiguredMaxParallelism) throws JobException {
-
+			int preconfiguredMaxParallelism) throws IOException, JobException {
 		JobVertex jobVertex = new JobVertex("testVertex");
 		jobVertex.setInvokableClass(AbstractInvokable.class);
 		jobVertex.setParallelism(parallelism);
@@ -134,11 +140,24 @@ public class ExecutionJobVertexTest {
 			jobVertex.setMaxParallelism(preconfiguredMaxParallelism);
 		}
 
-		ExecutionGraph executionGraphMock = mock(ExecutionGraph.class);
-		when(executionGraphMock.getFutureExecutor()).thenReturn(Executors.directExecutor());
+		ExecutionGraph executionGraph = createExecutionGraph();
 		ExecutionJobVertex executionJobVertex =
-				new ExecutionJobVertex(executionGraphMock, jobVertex, 1, Time.seconds(10));
-
+			new ExecutionJobVertex(executionGraph, jobVertex, 1, Time.seconds(10));
 		return executionJobVertex;
+	}
+
+	private static ExecutionGraph createExecutionGraph() throws IOException {
+		final ExecutionGraph executionGraph = new ExecutionGraph(
+			new DirectScheduledExecutorService(),
+			TestingUtils.defaultExecutor(),
+			new JobID(),
+			"testExecutionGraph",
+			new Configuration(),
+			new SerializedValue<>(new ExecutionConfig()),
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy(),
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
+		executionGraph.transitionToRunning();
+		return executionGraph;
 	}
 }

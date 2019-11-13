@@ -24,6 +24,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertexTest;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
@@ -221,13 +222,11 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 			CompletionType completionType,
 			long requestTimeout) throws Exception {
 		return new TestingExecutionVertex(
-			BackPressureTrackerTestUtils.createExecutionJobVertex(),
+			ExecutionJobVertexTest.createExecutionJobVertex(4, 4),
 			subTaskIndex,
-			new IntermediateResult[0],
 			Time.seconds(10),
 			1L,
 			System.currentTimeMillis(),
-			JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue(),
 			state,
 			completionType,
 			requestTimeout);
@@ -253,11 +252,9 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 		TestingExecutionVertex(
 				ExecutionJobVertex jobVertex,
 				int subTaskIndex,
-				IntermediateResult[] producedDataSets,
 				Time timeout,
 				long initialGlobalModVersion,
 				long createTimestamp,
-				int maxPriorExecutionHistoryLength,
 				ExecutionState state,
 				CompletionType completionType,
 				long requestTimeout) {
@@ -265,11 +262,11 @@ public class BackPressureRequestCoordinatorTest extends TestLogger {
 			super(
 				jobVertex,
 				subTaskIndex,
-				producedDataSets,
+				new IntermediateResult[0],
 				timeout,
 				initialGlobalModVersion,
 				createTimestamp,
-				maxPriorExecutionHistoryLength);
+				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue());
 			execution = new TestingExecution(
 				Runnable::run,
 				this,
