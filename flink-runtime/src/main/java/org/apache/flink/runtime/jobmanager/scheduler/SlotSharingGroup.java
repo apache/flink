@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
-
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
  * A slot sharing units defines which different task (from different job vertices) can be
@@ -31,14 +31,15 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
  * defined by a co-location hint.
  */
 public class SlotSharingGroup implements java.io.Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
-	private final Set<JobVertexID> ids = new TreeSet<JobVertexID>();
+	private final Set<JobVertexID> ids = new TreeSet<>();
+
 	private final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
-	
+
 	public SlotSharingGroup() {}
-	
+
 	public SlotSharingGroup(JobVertexID ... sharedVertices) {
 		for (JobVertexID id : sharedVertices) {
 			this.ids.add(id);
@@ -46,15 +47,15 @@ public class SlotSharingGroup implements java.io.Serializable {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public void addVertexToGroup(JobVertexID id) {
 		this.ids.add(id);
 	}
-	
+
 	public void removeVertexFromGroup(JobVertexID id) {
 		this.ids.remove(id);
 	}
-	
+
 	public Set<JobVertexID> getJobVertexIds() {
 		return Collections.unmodifiableSet(ids);
 	}
@@ -62,11 +63,11 @@ public class SlotSharingGroup implements java.io.Serializable {
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "SlotSharingGroup " + this.ids.toString();
