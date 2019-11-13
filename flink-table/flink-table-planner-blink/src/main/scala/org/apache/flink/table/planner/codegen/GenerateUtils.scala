@@ -373,49 +373,10 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        def getNanoOfMillisSinceEpoch(timestampString: TimestampString): Int = {
-          val v = timestampString.toString()
-          val length = v.length
-          val nanoOfSeconds = length match {
-            case 19 | 20 => 0
-            case _ =>
-              JInteger.valueOf(v.substring(20)) * pow(10, 9 - (length - 20)).intValue()
-          }
-          nanoOfSeconds % 1000000
-        }
-
-        // TODO: we copied the logical of TimestampString::getMillisSinceEpoch since the copied
-        //  DateTimeUtils.ymdToJulian is wrong.
-        //  SEE CALCITE-1884
-        def getMillisInSecond(timestampString: TimestampString): Int = {
-          val v = timestampString.toString()
-          val length = v.length
-          val milliOfSeconds = length match {
-            case 19 => 0
-            case 21 => JInteger.valueOf(v.substring(20)).intValue() * 100
-            case 22 => JInteger.valueOf(v.substring(20)).intValue() * 10
-            case 20 | 23 | _ => JInteger.valueOf(v.substring(20, 23)).intValue()
-          }
-          milliOfSeconds
-        }
-
-        def getMillisSinceEpoch(timestampString: TimestampString): Long = {
-          val v = timestampString.toString()
-          val year = JInteger.valueOf(v.substring(0, 4))
-          val month = JInteger.valueOf(v.substring(5, 7))
-          val day = JInteger.valueOf(v.substring(8, 10))
-          val h = JInteger.valueOf(v.substring(11, 13))
-          val m = JInteger.valueOf(v.substring(14, 16))
-          val s = JInteger.valueOf(v.substring(17, 19))
-          val ms = getMillisInSecond(timestampString)
-          val d = SqlDateTimeUtils.ymdToUnixDate(year, month, day)
-          d * 86400000L + h * 3600000L + m * 60000L + s * 1000L + ms.toLong
-        }
-
         val fieldTerm = newName("timestamp")
-        val millis = getMillisSinceEpoch(literalValue.asInstanceOf[TimestampString])
-        val nanoOfMillis = getNanoOfMillisSinceEpoch(
-          literalValue.asInstanceOf[TimestampString])
+        val timestampString = literalValue.asInstanceOf[TimestampString]
+        val millis = SqlDateTimeUtils.getMillisSinceEpoch(timestampString.toString)
+        val nanoOfMillis = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(timestampString.toString)
         val fieldTimestamp =
           s"""
              |$SQL_TIMESTAMP $fieldTerm =

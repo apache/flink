@@ -17,7 +17,6 @@
 
 package org.apache.flink.table.runtime.functions;
 
-import org.apache.calcite.util.TimestampString;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
@@ -29,6 +28,7 @@ import org.apache.flink.table.utils.ThreadLocalCache;
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
+import org.apache.calcite.util.TimestampString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1021,7 +1021,7 @@ public class SqlDateTimeUtils {
 		return ymdToUnixDate(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
 	}
 
-	public static int ymdToUnixDate(int year, int month, int day) {
+	private static int ymdToUnixDate(int year, int month, int day) {
 		final int julian = ymdToJulian(year, month, day);
 		return julian - EPOCH_JULIAN;
 	}
@@ -1312,4 +1312,47 @@ public class SqlDateTimeUtils {
 		return r;
 	}
 
+	// TODO: we copied the logical of TimestampString::getMillisSinceEpoch since the copied
+	//  DateTimeUtils.ymdToJulian is wrong.
+	//  SEE CALCITE-1884
+	public static long getMillisSinceEpoch(final String v) {
+		final int year = Integer.valueOf(v.substring(0, 4));
+		final int month = Integer.valueOf(v.substring(5, 7));
+		final int day = Integer.valueOf(v.substring(8, 10));
+		final int h = Integer.valueOf(v.substring(11, 13));
+		final int m = Integer.valueOf(v.substring(14, 16));
+		final int s = Integer.valueOf(v.substring(17, 19));
+		final int ms = getMillisInSecond(v);
+		final int d = ymdToUnixDate(year, month, day);
+		return d * DateTimeUtils.MILLIS_PER_DAY
+			+ h * DateTimeUtils.MILLIS_PER_HOUR
+			+ m * DateTimeUtils.MILLIS_PER_MINUTE
+			+ s * DateTimeUtils.MILLIS_PER_SECOND
+			+ ms;
+	}
+
+	private static int getMillisInSecond(String v) {
+		switch (v.length()) {
+			case 19: // "1999-12-31 12:34:56"
+				return 0;
+			case 21: // "1999-12-31 12:34:56.7"
+				return Integer.valueOf(v.substring(20)) * 100;
+			case 22: // "1999-12-31 12:34:56.78"
+				return Integer.valueOf(v.substring(20)) * 10;
+			case 23: // "1999-12-31 12:34:56.789"
+			default:  // "1999-12-31 12:34:56.789123456"
+				return Integer.valueOf(v.substring(20, 23));
+		}
+	}
+
+	public static int getNanoOfMillisSinceEpoch(final String v) {
+		switch (v.length()) {
+			case 19:
+			case 20:
+				return 0;
+			default:
+				return (Integer.valueOf(v.substring(20)) *
+					(int) Math.pow(10, 9 - (v.length() - 20))) % 1000000;
+		}
+	}
 }

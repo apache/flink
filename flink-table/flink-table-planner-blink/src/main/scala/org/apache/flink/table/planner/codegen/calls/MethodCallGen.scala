@@ -40,6 +40,7 @@ class MethodCallGen(method: Method) extends CallGenerator {
               s"$term.toString()"
             } else if ((clazz == classOf[Long] || clazz == classOf[java.lang.Long]) &&
                 operands(i).resultType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
+              // convert the SqlTimestamp parameter to long if the method parameter accept long
               s"$term.getMillisecond()"
             } else {
               term
@@ -66,6 +67,8 @@ class MethodCallGen(method: Method) extends CallGenerator {
         } else if ((method.getReturnType == classOf[Long]
             || method.getReturnType == classOf[java.lang.Long]) &&
             returnType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
+          // convert long to SqlTimestamp if the return type is SqlTimestamp and the method
+          // returns long
           s"$SQL_TIMESTAMP.fromEpochMillis($call)"
         } else {
           call

@@ -196,7 +196,8 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 		assertIndexIsValid(pos);
 
 		if (SqlTimestamp.isCompact(precision)) {
-			return SqlTimestamp.fromEpochMillis(segments[0].getLong(getElementOffset(pos, 8)));
+			return SqlTimestamp.fromEpochMillis(
+				SegmentsUtil.getLong(segments, getElementOffset(pos, 8)));
 		}
 
 		int fieldOffset = getElementOffset(pos, 8);

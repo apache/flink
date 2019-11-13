@@ -148,7 +148,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 					datetime = valueLiteral.getValueAs(Timestamp.class)
 						.orElseThrow(() -> new TableException("Invalid literal.")).toLocalDateTime();
 				} else {
-					throw new TableException("Invalid literal.");
+					throw new TableException(String.format("Invalid literal of %s.", clazz.getCanonicalName()));
 				}
 				return relBuilder.getRexBuilder().makeTimestampLiteral(
 					new TimestampString(

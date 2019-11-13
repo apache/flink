@@ -35,7 +35,7 @@ import java.text.SimpleDateFormat
 import java.time.{Instant, ZoneId}
 import java.util.{Locale, TimeZone}
 
-class TemporalTypesTest extends ExpressionTestBase {
+class DateTimeTypesTest extends ExpressionTestBase {
 
   @Test
   def testTimePointLiterals(): Unit = {

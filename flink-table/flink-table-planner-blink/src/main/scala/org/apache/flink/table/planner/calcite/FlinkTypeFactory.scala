@@ -425,9 +425,9 @@ object FlinkTypeFactory {
         new TimeType()
       case TIMESTAMP =>
         val precision = relDataType.getPrecision
-        if (precision > 9 || precision < 0) {
+        if (precision > TimestampType.MAX_PRECISION || precision < TimestampType.MIN_PRECISION) {
           throw new TableException(
-            s"TIMESTAMP precision is not supported: ${precision}")
+            s"TIMESTAMP precision is not supported: $precision")
         }
         new TimestampType(precision)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>

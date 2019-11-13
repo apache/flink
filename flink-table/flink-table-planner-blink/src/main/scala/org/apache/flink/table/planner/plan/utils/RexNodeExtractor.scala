@@ -27,7 +27,7 @@ import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.utils.Logging
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.{getMillisSinceEpoch, getNanoOfMillisSinceEpoch, unixTimestampToLocalDateTime}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
@@ -36,7 +36,7 @@ import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
-import org.apache.calcite.util.Util
+import org.apache.calcite.util.{TimestampString, Util}
 
 import java.util
 import java.util.{TimeZone, List => JList}
@@ -338,8 +338,12 @@ class RexNodeToExpressionConverter(
         LocalTimeConverter.INSTANCE.toExternal(v)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        val v = literal.getValueAs(classOf[java.lang.Long])
-        LocalDateTimeConverter.INSTANCE.toExternal(SqlTimestamp.fromEpochMillis(v))
+        val timestampString = literal.getValueAs(classOf[TimestampString])
+        val millis = getMillisSinceEpoch(timestampString.toString)
+        val nanoOfMillis = getNanoOfMillisSinceEpoch(timestampString.toString)
+
+        LocalDateTimeConverter.INSTANCE.toExternal(
+          SqlTimestamp.fromEpochMillis(millis, nanoOfMillis))
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val v = literal.getValueAs(classOf[java.lang.Long])
