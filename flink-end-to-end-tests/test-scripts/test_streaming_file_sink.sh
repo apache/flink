@@ -31,6 +31,8 @@ set_conf_ssl "mutual" "OPENSSL" "${OPENSSL_LINKAGE}"
 set_config_key "metrics.fetcher.update-interval" "2000"
 # this test relies on global failovers
 set_config_key "jobmanager.execution.failover-strategy" "full"
+set_config_key "heartbeat.interval" "2000"
+set_config_key "heartbeat.timeout" "10000"
 
 OUT=temp/test_streaming_file_sink-$(uuidgen)
 OUTPUT_PATH="$TEST_DATA_DIR/$OUT"
@@ -161,16 +163,6 @@ echo "Starting TM"
 "$FLINK_DIR/bin/taskmanager.sh" start
 
 wait_for_restart_to_complete 0 ${JOB_ID}
-
-echo "Killing 2 TMs"
-kill_random_taskmanager
-kill_random_taskmanager
-
-echo "Starting 2 TMs"
-"$FLINK_DIR/bin/taskmanager.sh" start
-"$FLINK_DIR/bin/taskmanager.sh" start
-
-wait_for_restart_to_complete 1 ${JOB_ID}
 
 echo "Waiting until all values have been produced"
 wait_for_complete_result 60000 900

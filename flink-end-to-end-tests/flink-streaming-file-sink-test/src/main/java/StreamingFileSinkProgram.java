@@ -58,7 +58,7 @@ public enum StreamingFileSinkProgram {
 
 		env.setParallelism(4);
 		env.enableCheckpointing(5000L);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, Time.of(10L, TimeUnit.SECONDS)));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, Time.of(10L, TimeUnit.SECONDS)));
 
 		final StreamingFileSink<Tuple2<Integer, Integer>> sink = StreamingFileSink
 			.forRowFormat(new Path(outputPath), (Encoder<Tuple2<Integer, Integer>>) (element, stream) -> {
