@@ -69,6 +69,8 @@ public class ConfigOptionsDocGenerator {
 	};
 
 	static final Set<String> EXCLUSIONS = new HashSet<>(Arrays.asList(
+		"org.apache.flink.configuration.ReadableConfig",
+		"org.apache.flink.configuration.WritableConfig",
 		"org.apache.flink.configuration.ConfigOptions",
 		"org.apache.flink.contrib.streaming.state.PredefinedOptions"));
 
