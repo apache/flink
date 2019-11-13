@@ -65,9 +65,7 @@ public class ExecutionConfigAccessor {
 		configuration.setBoolean(DeploymentOptions.ATTACHED, !options.getDetachedMode());
 		configuration.setBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED, options.isShutdownOnAttachedExit());
 
-		if (options.getClasspaths() != null) {
-			ConfigUtils.encodeStreamToConfig(configuration, PipelineOptions.CLASSPATHS, options.getClasspaths().stream(), URL::toString);
-		}
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, options.getClasspaths(), URL::toString);
 
 		parseJarURLToConfig(options.getJarFilePath(), configuration);
 
@@ -84,7 +82,7 @@ public class ExecutionConfigAccessor {
 		try {
 			final URL jarUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
 			final List<URL> jarUrlSingleton = Collections.singletonList(jarUrl);
-			ConfigUtils.encodeStreamToConfig(configuration, PipelineOptions.JARS, jarUrlSingleton.stream(), URL::toString);
+			ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, jarUrlSingleton, URL::toString);
 		} catch (MalformedURLException e) {
 			throw new IllegalArgumentException("JAR file path invalid", e);
 		}
