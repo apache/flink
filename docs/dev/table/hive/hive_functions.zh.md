@@ -201,3 +201,6 @@ modules:
 {% endhighlight %}
 </div>
 </div>
+
+* NOTE that some Hive built-in functions in older versions have [thread safety issues](https://issues.apache.org/jira/browse/HIVE-16183).
+We recommend users patch their own Hive to fix them.
