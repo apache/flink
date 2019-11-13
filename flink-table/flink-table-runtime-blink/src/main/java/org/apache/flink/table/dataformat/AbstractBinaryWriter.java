@@ -187,19 +187,18 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 			assert 0 == value.getNanoOfMillisecond();
 			writeLong(pos, value.getMillisecond());
 		} else {
-			ensureCapacity(12);
+			// store the nanoOfMillisecond in fixed-length part as offset and nanoOfMillisecond
+			ensureCapacity(8);
 
 			// zero-out the bytes
 			segment.putLong(cursor, 0L);
-			segment.putInt(cursor + 8, 0);
 
 			if (value == null) {
 				setNullBit(pos);
 				setOffsetAndSize(pos, cursor, 0);
 			} else {
 				segment.putLong(cursor, value.getMillisecond());
-				segment.putInt(cursor + 8, value.getNanoOfMillisecond());
-				setOffsetAndSize(pos, cursor, 12);
+				setOffsetAndSize(pos, cursor, value.getNanoOfMillisecond());
 			}
 
 			cursor += 12;

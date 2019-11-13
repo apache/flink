@@ -201,10 +201,10 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 		}
 
 		int fieldOffset = getElementOffset(pos, 8);
-		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
-		final int subOffset = (int) (offsetAndSize >> 32);
+		final long offsetAndNanoOfMilli = SegmentsUtil.getLong(segments, fieldOffset);
+		final int nanoOfMillisecond = (int) offsetAndNanoOfMilli;
+		final int subOffset = (int) (offsetAndNanoOfMilli >> 32);
 		final long millisecond = SegmentsUtil.getLong(segments, offset + subOffset);
-		final int nanoOfMillisecond = SegmentsUtil.getInt(segments, offset + subOffset + 8);
 		return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
 	}
 
@@ -391,16 +391,15 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 
 			// zero-out the bytes
 			SegmentsUtil.setLong(segments, offset + cursor, 0L);
-			SegmentsUtil.setInt(segments, offset + cursor + 8, 0);
 
 			if (value == null) {
 				setNullAt(pos);
 				SegmentsUtil.setLong(segments, fieldOffset, ((long) cursor) << 32);
 			} else {
-				// write millisecond and nanoOfMillisecond to the variable length portion.
+				// write millisecond to the variable length portion.
 				SegmentsUtil.setLong(segments, offset + cursor, value.getMillisecond());
-				SegmentsUtil.setInt(segments, offset + cursor + 8, value.getNanoOfMillisecond());
-				setLong(pos, ((long) cursor << 32) | 12L);
+				// write nanoOfMillisecond to the fixed-length portion.
+				setLong(pos, ((long) cursor << 32) | (long) value.getNanoOfMillisecond());
 			}
 		}
 	}
