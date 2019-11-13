@@ -31,8 +31,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -52,6 +56,7 @@ import org.junit.experimental.categories.Category;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.net.URL;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -92,6 +97,15 @@ public class ClientTest extends TestLogger {
 		config.setString(AkkaOptions.ASK_TIMEOUT, AkkaOptions.ASK_TIMEOUT.defaultValue());
 	}
 
+	private Configuration fromPackagedProgram(final PackagedProgram program, final int parallelism, final boolean detached) {
+		final Configuration configuration = new Configuration();
+		configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+		configuration.set(DeploymentOptions.ATTACHED, !detached);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, program.getClasspaths(), URL::toString);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
+		return configuration;
+	}
+
 	/**
 	 * Tests that invalid detached mode programs fail.
 	 */
@@ -100,7 +114,8 @@ public class ClientTest extends TestLogger {
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 		try {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestExecuteTwice.class.getName()).build();
-			ClientUtils.executeProgram(clusterClient, prg, 1, true);
+			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+			ClientUtils.executeProgram(configuration, clusterClient, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -110,7 +125,8 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestEager.class.getName()).build();
-			ClientUtils.executeProgram(clusterClient, prg, 1, true);
+			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+			ClientUtils.executeProgram(configuration, clusterClient, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -120,7 +136,8 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetRuntime.class.getName()).build();
-			ClientUtils.executeProgram(clusterClient, prg, 1, true);
+			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+			ClientUtils.executeProgram(configuration, clusterClient, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -130,7 +147,8 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAccumulator.class.getName()).build();
-			ClientUtils.executeProgram(clusterClient, prg, 1, true);
+			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+			ClientUtils.executeProgram(configuration, clusterClient, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -140,7 +158,8 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAllAccumulator.class.getName()).build();
-			ClientUtils.executeProgram(clusterClient, prg, 1, true);
+			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+			ClientUtils.executeProgram(configuration, clusterClient, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -184,7 +203,8 @@ public class ClientTest extends TestLogger {
 
 		try {
 			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-			ClientUtils.executeProgram(client, packagedProgramMock, 1, true);
+			final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
+			ClientUtils.executeProgram(configuration, client, packagedProgramMock);
 			fail("Creating the local execution environment should not be possible");
 		}
 		catch (InvalidProgramException e) {
