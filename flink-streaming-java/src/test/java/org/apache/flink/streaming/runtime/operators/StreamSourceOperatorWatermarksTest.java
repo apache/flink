@@ -161,13 +161,13 @@ public class StreamSourceOperatorWatermarksTest {
 			processingTimeService.setCurrentTime(i);
 		}
 
-		assertTrue(output.size() == 9);
+		assertEquals(9, output.size());
 
 		long nextWatermark = 0;
 		for (StreamElement el : output) {
 			nextWatermark += watermarkInterval;
 			Watermark wm = (Watermark) el;
-			assertTrue(wm.getTimestamp() == nextWatermark);
+			assertEquals(wm.getTimestamp(), nextWatermark);
 		}
 	}
 
