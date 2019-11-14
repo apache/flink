@@ -26,6 +26,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -47,6 +48,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +56,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -490,6 +493,20 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			}
 
 			assertTrue(effectiveShipFiles.isEmpty());
+		}
+	}
+
+	@Test
+	public void testDisableSystemClassPathIncludeUserJarAndWithIllegalShipDirectoryName() throws IOException {
+		final Configuration configuration = new Configuration();
+		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED.toString());
+
+		final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration);
+		try {
+			yarnClusterDescriptor.addShipFiles(Collections.singletonList(temporaryFolder.newFolder(ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR)));
+			fail();
+		} catch (IllegalArgumentException exception) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(exception, "This is an illegal ship directory :").isPresent());
 		}
 	}
 

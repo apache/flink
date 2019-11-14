@@ -25,6 +25,8 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.junit.Test;
 
+import java.io.IOException;
+
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -34,14 +36,14 @@ import static org.junit.Assert.fail;
 public class YarnJobClusterEntrypointTest {
 
 	@Test
-	public void testCreateDispatcherResourceManagerComponentFactoryFailIfUsrLibDirDoesNotExist(){
+	public void testCreateDispatcherResourceManagerComponentFactoryFailIfUsrLibDirDoesNotExist() throws IOException {
 		final Configuration configuration = new Configuration();
 		configuration.setString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED.toString());
 		final YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(configuration, FileUtils.getCurrentWorkingDirectory().toString());
 		try {
 			yarnJobClusterEntrypoint.createDispatcherResourceManagerComponentFactory(configuration);
 			fail();
-		} catch (Throwable exception) {
+		} catch (IllegalStateException exception) {
 			assertTrue(ExceptionUtils.findThrowableWithMessage(exception, "the usrlib directory does not exist.").isPresent());
 		}
 	}

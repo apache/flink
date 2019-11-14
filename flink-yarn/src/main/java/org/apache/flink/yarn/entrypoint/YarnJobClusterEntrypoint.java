@@ -35,6 +35,7 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -68,13 +69,14 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
 		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
 			.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		final Optional<File> userLibDir = tryFindUserLibDirectory();
 		checkState(
-			userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || tryFindUserLibDirectory().isPresent(),
-			String.format("The %s is set to %s. But the usrlib directory does not exist.",
+			userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || userLibDir.isPresent(),
+			"The %s is set to %s. But the usrlib directory does not exist.",
 				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
-				YarnConfigOptions.UserJarInclusion.DISABLED));
+				YarnConfigOptions.UserJarInclusion.DISABLED);
 		final File usrLibDir =
-			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? tryFindUserLibDirectory().orElse(null) : null;
+			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir.get() : null;
 
 		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
 			YarnResourceManagerFactory.getInstance(),

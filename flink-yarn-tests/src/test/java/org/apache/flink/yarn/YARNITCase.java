@@ -22,13 +22,11 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
@@ -50,7 +48,6 @@ import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_IN
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -73,27 +70,16 @@ public class YARNITCase extends YarnTestBase {
 
 	@Test
 	public void testPerJobModeWithEnableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST, false));
+		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST));
 	}
 
 	@Test
 	public void testPerJobModeWithDisableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED, false));
+		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED));
 	}
 
-	@Test
-	public void testPerJobModeWithDisableSystemClassPathIncludeUserJarAndWithIllegalShipDirectoryName() {
-		try {
-			runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED, true));
-			fail();
-		} catch (Exception e) {
-			assertTrue(ExceptionUtils.findThrowableWithMessage(e, "This is an illegal ship directory :").isPresent());
-		}
-	}
+	private void deployPerjob(YarnConfigOptions.UserJarInclusion userJarInclusion) throws Exception {
 
-	private void deployPerjob(
-		YarnConfigOptions.UserJarInclusion userJarInclusion,
-		boolean shipIllegalShipDirectory) throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
 		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
@@ -109,10 +95,6 @@ public class YARNITCase extends YarnTestBase {
 			yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
-			if (shipIllegalShipDirectory) {
-				yarnClusterDescriptor.addShipFiles(Arrays.asList(
-					temporaryFolder.newFolder(ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR)));
-			}
 
 			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 				.setMasterMemoryMB(768)
