@@ -801,15 +801,9 @@ public class ExecutionEnvironment {
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
-		final int execParallelism = getParallelism();
-		if (execParallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
-			return;
+		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
 		}
-
-		// if parallelism is set in the ExecutorConfig, then
-		// that value takes precedence over any other value.
-
-		configuration.set(CoreOptions.DEFAULT_PARALLELISM, execParallelism);
 	}
 
 	/**
