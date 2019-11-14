@@ -61,25 +61,6 @@ public class ConfigurationUtils {
 	}
 
 	/**
-	 * Get task manager's heap memory. This method will check the new key
-	 * {@link TaskManagerOptions#TASK_MANAGER_HEAP_MEMORY} and
-	 * the old key {@link TaskManagerOptions#TASK_MANAGER_HEAP_MEMORY_MB} for backwards compatibility.
-	 *
-	 * @param configuration the configuration object
-	 * @return the memory size of task manager's heap memory.
-	 */
-	public static MemorySize getTaskManagerHeapMemory(Configuration configuration) {
-		if (configuration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.key())) {
-			return MemorySize.parse(configuration.getString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY));
-		} else if (configuration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB.key())) {
-			return MemorySize.parse(configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB) + "m");
-		} else {
-			//use default value
-			return MemorySize.parse(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.defaultValue());
-		}
-	}
-
-	/**
 	 * @return extracted {@link MetricOptions#SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL} or {@code Optional.empty()} if
 	 * {@link MetricOptions#SYSTEM_RESOURCE_METRICS} are disabled.
 	 */
