@@ -96,6 +96,58 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testShowDataBases() {
+		check("show databases", "SHOW DATABASES");
+	}
+
+	@Test
+	public void testUseDataBase() {
+		check("use default_db", "USE `DEFAULT_DB`");
+		check("use defaultCatalog.default_db", "USE `DEFAULTCATALOG`.`DEFAULT_DB`");
+	}
+
+	@Test
+	public void testCreateDatabase() {
+		check("create database db1", "CREATE DATABASE `DB1`");
+		check("create database if not exists db1", "CREATE DATABASE IF NOT EXISTS `DB1`");
+		check("create database catalog1.db1", "CREATE DATABASE `CATALOG1`.`DB1`");
+		check("create database db1 comment 'test create database'",
+			"CREATE DATABASE `DB1`\n" +
+			"COMMENT 'test create database'");
+		check("create database db1 comment 'test create database'" +
+			"with ( 'key1' = 'value1', 'key2.a' = 'value2.a')",
+			"CREATE DATABASE `DB1`\n" +
+			"COMMENT 'test create database' WITH (\n" +
+			"  'key1' = 'value1',\n" +
+			"  'key2.a' = 'value2.a'\n" +
+			")");
+	}
+
+	@Test
+	public void testDropDatabase() {
+		check("drop database db1", "DROP DATABASE `DB1` RESTRICT");
+		check("drop database catalog1.db1", "DROP DATABASE `CATALOG1`.`DB1` RESTRICT");
+		check("drop database db1 RESTRICT", "DROP DATABASE `DB1` RESTRICT");
+		check("drop database db1 CASCADE", "DROP DATABASE `DB1` CASCADE");
+	}
+
+	@Test
+	public void testAlterDatabase() {
+		check("alter database db1 set ('key1' = 'value1','key2.a' = 'value2.a')",
+			"ALTER DATABASE `DB1` SET (\n" +
+			"  'key1' = 'value1',\n" +
+			"  'key2.a' = 'value2.a'\n" +
+			")");
+	}
+
+	@Test
+	public void testDescribeDatabase() {
+		check("describe database db1", "DESCRIBE DATABASE `DB1`");
+		check("describe database catlog1.db1", "DESCRIBE DATABASE `CATLOG1`.`DB1`");
+		check("describe database extended db1", "DESCRIBE DATABASE EXTENDED `DB1`");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +

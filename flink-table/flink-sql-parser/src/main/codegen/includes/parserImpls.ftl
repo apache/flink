@@ -44,15 +44,137 @@ SqlDescribeCatalog SqlDescribeCatalog() :
 
 SqlUseCatalog SqlUseCatalog() :
 {
-SqlIdentifier catalogName;
-SqlParserPos pos;
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
 }
 {
-<USE> <CATALOG> { pos = getPos();}
+    <USE> <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlUseCatalog(pos, catalogName);
     }
+}
+
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowDatabases SqlShowDatabases() :
+{
+}
+{
+    <SHOW> <DATABASES>
+    {
+        return new SqlShowDatabases(getPos());
+    }
+}
+
+SqlUseDatabase SqlUseDatabase() :
+{
+    SqlIdentifier databaseName;
+    SqlParserPos pos;
+}
+{
+    <USE> { pos = getPos();}
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlUseDatabase(pos, databaseName);
+    }
+}
+
+/**
+* Parses a create database statement.
+* CREATE DATABASE database_name [COMMENT database_comment] [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateDatabase(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier databaseName;
+    SqlCharStringLiteral comment = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
+}
+{
+    <DATABASE> { startPos = getPos(); }
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+    databaseName = CompoundIdentifier()
+    [ <COMMENT> <QUOTED_STRING>
+        {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+
+    { return new SqlCreateDatabase(startPos.plus(getPos()),
+                    databaseName,
+                    propertyList,
+                    comment,
+                    ifNotExists); }
+
+}
+
+SqlAlterDatabase SqlAlterDatabase() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier databaseName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <ALTER> <DATABASE> { startPos = getPos(); }
+    databaseName = CompoundIdentifier()
+    <SET>
+    propertyList = TableProperties()
+    {
+        return new SqlAlterDatabase(startPos.plus(getPos()),
+                    databaseName,
+                    propertyList);
+    }
+}
+
+SqlDrop SqlDropDatabase(Span s, boolean replace) :
+{
+    SqlIdentifier databaseName = null;
+    boolean ifExists = false;
+    boolean isRestrict = true;
+}
+{
+    <DATABASE>
+
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+
+    databaseName = CompoundIdentifier()
+    [
+                <RESTRICT> { isRestrict = true; }
+        |
+                <CASCADE>  { isRestrict = false; }
+    ]
+
+    {
+         return new SqlDropDatabase(s.pos(), databaseName, ifExists, isRestrict);
+    }
+}
+
+SqlDescribeDatabase SqlDescribeDatabase() :
+{
+    SqlIdentifier databaseName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    <DESCRIBE> <DATABASE> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlDescribeDatabase(pos, databaseName, isExtended);
+    }
+
 }
 
 void TableColumn(TableCreationContext context) :
