@@ -31,7 +31,7 @@ public class ClassLoadingPolicyProgram {
 
 	public static void main(String[] args) throws Exception {
 		if (args.length < 2) {
-			throw new IllegalArgumentException("Missing parameters");
+			throw new IllegalArgumentException("Missing parameters. Expected: <resourceName> <expectedResourceDir>");
 		}
 		String resourceName = args[0];
 		String expectedResourceDir = args[1];
