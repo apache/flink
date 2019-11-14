@@ -56,7 +56,10 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
@@ -82,10 +85,12 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.TaskSubmissionTestEnvironment.Builder;
 import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskManagerException;
+import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -442,10 +447,10 @@ public class TaskExecutorTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the correct slot report is sent as part of the heartbeat response.
+	 * Tests that the correct partition/slot report is sent as part of the heartbeat response.
 	 */
 	@Test
-	public void testHeartbeatSlotReporting() throws Exception {
+	public void testHeartbeatReporting() throws Exception {
 		final String rmAddress = "rm";
 		final UUID rmLeaderId = UUID.randomUUID();
 
@@ -470,8 +475,8 @@ public class TaskExecutorTest extends TestLogger {
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		});
 
-		final CompletableFuture<SlotReport> heartbeatSlotReportFuture = new CompletableFuture<>();
-		rmGateway.setTaskExecutorHeartbeatConsumer((resourceID, heartbeatPayload) -> heartbeatSlotReportFuture.complete(heartbeatPayload.getSlotReport()));
+		final CompletableFuture<TaskExecutorHeartbeatPayload> heartbeatPayloadCompletableFuture = new CompletableFuture<>();
+		rmGateway.setTaskExecutorHeartbeatConsumer((resourceID, heartbeatPayload) -> heartbeatPayloadCompletableFuture.complete(heartbeatPayload));
 
 		rpc.registerGateway(rmAddress, rmGateway);
 
@@ -498,7 +503,9 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
+		final TaskExecutorPartitionTracker partitionTracker = createPartitionTrackerWithFixedPartitionReport(taskManagerServices.getShuffleEnvironment());
+
+		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES, metricQueryServiceAddress, partitionTracker);
 
 		try {
 			taskManager.start();
@@ -516,13 +523,33 @@ public class TaskExecutorTest extends TestLogger {
 			taskExecutorGateway.heartbeatFromResourceManager(rmResourceId);
 
 			// wait for heartbeat response
-			SlotReport actualSlotReport = heartbeatSlotReportFuture.get();
+			SlotReport actualSlotReport = heartbeatPayloadCompletableFuture.get().getSlotReport();
 
 			// the new slot report should be reported
 			assertEquals(slotReport2, actualSlotReport);
+
+			ClusterPartitionReport actualClusterPartitionReport = heartbeatPayloadCompletableFuture.get().getClusterPartitionReport();
+			assertEquals(partitionTracker.createClusterPartitionReport(), actualClusterPartitionReport);
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
+	}
+
+	private static TaskExecutorPartitionTracker createPartitionTrackerWithFixedPartitionReport(ShuffleEnvironment<?, ?> shuffleEnvironment) {
+		final ClusterPartitionReport.ClusterPartitionReportEntry clusterPartitionReportEntry =
+			new ClusterPartitionReport.ClusterPartitionReportEntry(
+				new IntermediateDataSetID(),
+				Collections.singleton(new ResultPartitionID()),
+				4);
+
+		final ClusterPartitionReport clusterPartitionReport = new ClusterPartitionReport(Collections.singletonList(clusterPartitionReportEntry));
+
+		return new TaskExecutorPartitionTrackerImpl(shuffleEnvironment) {
+			@Override
+			public ClusterPartitionReport createClusterPartitionReport() {
+				return clusterPartitionReport;
+			}
+		};
 	}
 
 	@Test
@@ -1873,6 +1900,10 @@ public class TaskExecutorTest extends TestLogger {
 	}
 
 	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices, String metricQueryServiceAddress) {
+		return createTaskExecutor(taskManagerServices, heartbeatServices, metricQueryServiceAddress, new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+	}
+
+	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices, String metricQueryServiceAddress, TaskExecutorPartitionTracker taskExecutorPartitionTracker) {
 		return new TaskExecutor(
 			rpc,
 			TaskManagerConfiguration.fromConfiguration(configuration),
@@ -1883,7 +1914,7 @@ public class TaskExecutorTest extends TestLogger {
 			metricQueryServiceAddress,
 			dummyBlobCacheService,
 			testingFatalErrorHandler,
-			new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
+			taskExecutorPartitionTracker,
 			TaskManagerRunner.createBackPressureSampleService(configuration, rpc.getScheduledExecutor()));
 	}
 

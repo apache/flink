@@ -1841,7 +1841,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		@Override
 		public TaskExecutorHeartbeatPayload retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
-			return new TaskExecutorHeartbeatPayload(taskSlotTable.createSlotReport(getResourceID()));
+			return new TaskExecutorHeartbeatPayload(taskSlotTable.createSlotReport(getResourceID()), partitionTracker.createClusterPartitionReport());
 		}
 	}
 
