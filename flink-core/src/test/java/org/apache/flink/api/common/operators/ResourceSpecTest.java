@@ -35,22 +35,6 @@ import static org.junit.Assert.assertTrue;
 public class ResourceSpecTest extends TestLogger {
 
 	@Test
-	public void testIsValid() throws Exception {
-		ResourceSpec rs = ResourceSpec.newBuilder(1.0, 100).build();
-		assertTrue(rs.isValid());
-
-		rs = ResourceSpec.newBuilder(1.0, 100).
-				setGPUResource(1).
-				build();
-		assertTrue(rs.isValid());
-
-		rs = ResourceSpec.newBuilder(1.0, 100).
-				setGPUResource(-1).
-				build();
-		assertFalse(rs.isValid());
-	}
-
-	@Test
 	public void testLessThanOrEqual() throws Exception {
 		ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
 		ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();

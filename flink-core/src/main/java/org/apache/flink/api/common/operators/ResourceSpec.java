@@ -193,26 +193,6 @@ public final class ResourceSpec implements Serializable {
 	}
 
 	/**
-	 * Check whether all the field values are valid.
-	 *
-	 * @return True if all the values are equal or greater than 0, otherwise false.
-	 */
-	public boolean isValid() {
-		if (this.equals(UNKNOWN)) {
-			return true;
-		}
-		if (this.cpuCores < 0) {
-			return false;
-		}
-		for (Resource resource : extendedResources.values()) {
-			if (resource.getValue() < 0) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	/**
 	 * Checks the current resource less than or equal with the other resource by comparing
 	 * all the fields in the resource.
 	 *
