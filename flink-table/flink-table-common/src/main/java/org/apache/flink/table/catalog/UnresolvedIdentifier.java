@@ -34,15 +34,15 @@ import java.util.stream.Stream;
 
 /**
  * Identifier of an object, such as table, view, function or type in a catalog. This identifier
- * cannot be used directly to access an object in a {@link CatalogManager}, but has to be first
+ * cannot be used directly to access an object in a catalog manager, but has to be first
  * fully resolved into {@link ObjectIdentifier}.
  */
 @Internal
-public class UnresolvedIdentifier {
+public final class UnresolvedIdentifier {
 
-	private final String catalogName;
+	private final @Nullable String catalogName;
 
-	private final String databaseName;
+	private final @Nullable String databaseName;
 
 	private final String objectName;
 
@@ -52,7 +52,7 @@ public class UnresolvedIdentifier {
 	 * identifier with catalog, database and object name).
 	 *
 	 * @param path array of identifier segments
-	 * @return an identifier that must be resolved before accessing an object from a {@link CatalogManager}
+	 * @return an identifier that must be resolved before accessing an object from a catalog manager
 	 */
 	public static UnresolvedIdentifier of(String... path) {
 		if (path == null) {
@@ -95,6 +95,16 @@ public class UnresolvedIdentifier {
 		return objectName;
 	}
 
+	/**
+	 * Returns a string that summarizes this instance for printing to a console or log.
+	 */
+	public String asSummaryString() {
+		return Stream.of(catalogName, databaseName, objectName)
+			.filter(Objects::nonNull)
+			.map(EncodingUtils::escapeIdentifier)
+			.collect(Collectors.joining("."));
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -104,8 +114,8 @@ public class UnresolvedIdentifier {
 			return false;
 		}
 		UnresolvedIdentifier that = (UnresolvedIdentifier) o;
-		return catalogName.equals(that.catalogName) &&
-			databaseName.equals(that.databaseName) &&
+		return Objects.equals(catalogName, that.catalogName) &&
+			Objects.equals(databaseName, that.databaseName) &&
 			objectName.equals(that.objectName);
 	}
 
@@ -116,12 +126,6 @@ public class UnresolvedIdentifier {
 
 	@Override
 	public String toString() {
-		return Stream.of(
-			catalogName,
-			databaseName,
-			objectName
-		).filter(Objects::nonNull)
-			.map(EncodingUtils::escapeIdentifier)
-			.collect(Collectors.joining("."));
+		return asSummaryString();
 	}
 }

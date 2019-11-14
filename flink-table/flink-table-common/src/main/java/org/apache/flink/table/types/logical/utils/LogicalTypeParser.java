@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -557,10 +558,18 @@ public final class LogicalTypeParser {
 				nextToken(TokenType.IDENTIFIER);
 				parts.add(tokenAsString());
 			}
-			return new UnresolvedUserDefinedType(
-				lastPart(parts, 2),
-				lastPart(parts, 1),
-				lastPart(parts, 0));
+			final String catPart = lastPart(parts, 2);
+			final String dbPart = lastPart(parts, 1);
+			final String objPart = lastPart(parts, 0);
+			final UnresolvedIdentifier identifier;
+			if (catPart != null) {
+				identifier = UnresolvedIdentifier.of(catPart, dbPart, objPart);
+			} else if (dbPart != null) {
+				identifier = UnresolvedIdentifier.of(dbPart, objPart);
+			} else {
+				identifier = UnresolvedIdentifier.of(objPart);
+			}
+			return new UnresolvedUserDefinedType(identifier);
 		}
 
 		private @Nullable String lastPart(List<String> parts, int inversePos) {

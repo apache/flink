@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.types.logical.AnyType;
@@ -615,9 +616,11 @@ public class LogicalTypesTest {
 	@Test
 	public void testUnresolvedUserDefinedType() {
 		final UnresolvedUserDefinedType unresolvedType =
-			new UnresolvedUserDefinedType("catalog", "database", "Type");
+			new UnresolvedUserDefinedType(UnresolvedIdentifier.of("catalog", "database", "Type"));
 
-		testEquality(unresolvedType, new UnresolvedUserDefinedType("different", "database", "Type"));
+		testEquality(
+			unresolvedType,
+			new UnresolvedUserDefinedType(UnresolvedIdentifier.of("different", "database", "Type")));
 
 		testStringSummary(unresolvedType, "`catalog`.`database`.`Type`");
 	}
