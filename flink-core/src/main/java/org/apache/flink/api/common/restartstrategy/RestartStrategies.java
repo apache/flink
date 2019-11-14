@@ -95,6 +95,11 @@ public class RestartStrategies {
 		 * @return Description of the restart strategy
 		 */
 		public abstract String getDescription();
+
+		@Override
+		public String toString() {
+			return getDescription();
+		}
 	}
 
 	/**
