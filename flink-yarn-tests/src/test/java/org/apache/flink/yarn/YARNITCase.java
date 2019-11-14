@@ -50,6 +50,7 @@ import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_IN
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -86,7 +87,7 @@ public class YARNITCase extends YarnTestBase {
 			runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED, true));
 			fail();
 		} catch (Exception e) {
-			ExceptionUtils.findThrowableWithMessage(e, "This is an illegal ship directory :");
+			assertTrue(ExceptionUtils.findThrowableWithMessage(e, "This is an illegal ship directory :").isPresent());
 		}
 	}
 

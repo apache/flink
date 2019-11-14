@@ -47,8 +47,6 @@ import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetrieve
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-
-
 /**
  * Tests for the {@link FileJobGraphRetriever}.
  */
@@ -60,7 +58,7 @@ public class FileJobGraphRetrieverTest {
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private static UnmodifiableConfiguration configuration;
+	private static Configuration configuration;
 
 	private static Path jarFileInJobGraph;
 

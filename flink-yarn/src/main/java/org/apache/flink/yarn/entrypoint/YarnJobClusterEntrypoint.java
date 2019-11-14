@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Entry point for Yarn per-job clusters.
@@ -67,8 +68,14 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
 		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
 			.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		checkState(
+			userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || tryFindUserLibDirectory().isPresent(),
+			String.format("The %s is set to %s. But the usrlib directory does not exist.",
+				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
+				YarnConfigOptions.UserJarInclusion.DISABLED));
 		final File usrLibDir =
-			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? tryFindUserLibDirectory().get() : null;
+			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? tryFindUserLibDirectory().orElse(null) : null;
+
 		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
 			YarnResourceManagerFactory.getInstance(),
 			FileJobGraphRetriever.createFrom(configuration, usrLibDir));
