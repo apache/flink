@@ -88,7 +88,6 @@ SqlParserPos pos;
 SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 {
     SqlParserPos startPos;
-    SqlParserPos pos;
     SqlIdentifier databaseName;
     SqlCharStringLiteral comment = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
@@ -115,6 +114,24 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
                     comment,
                     ifNotExists); }
 
+}
+
+SqlAlterDatabase SqlAlterDatabase() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier databaseName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <ALTER> <DATABASE> { startPos = getPos(); }
+    databaseName = CompoundIdentifier()
+    <SET>
+    propertyList = TableProperties()
+    {
+        return new SqlAlterDatabase(startPos.plus(getPos()),
+                    databaseName,
+                    propertyList);
+    }
 }
 
 SqlDrop SqlDropDatabase(Span s, boolean replace) :

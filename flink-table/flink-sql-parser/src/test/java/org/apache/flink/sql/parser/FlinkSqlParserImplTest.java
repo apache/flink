@@ -132,6 +132,15 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testAlterDatabase() {
+		check("alter database db1 set ('key1' = 'value1','key2.a' = 'value2.a')",
+			"ALTER DATABASE `DB1` SET (\n" +
+			"  'key1' = 'value1',\n" +
+			"  'key2.a' = 'value2.a'\n" +
+			")");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +
