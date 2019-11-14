@@ -115,8 +115,7 @@ public class ProgramDeployer<C> implements Runnable {
 			ClassLoader classLoader) throws Exception {
 		ClusterClient<T> clusterClient = null;
 		try {
-			// deploy job cluster with job attached
-			clusterClient = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, false);
+			clusterClient = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, !awaitJobResult);
 			// save information about the new cluster
 			result.setClusterInformation(clusterClient.getClusterId(), clusterClient.getWebInterfaceURL());
 			// get result
