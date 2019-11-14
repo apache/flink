@@ -471,7 +471,7 @@ public class TaskExecutorTest extends TestLogger {
 		});
 
 		final CompletableFuture<SlotReport> heartbeatSlotReportFuture = new CompletableFuture<>();
-		rmGateway.setTaskExecutorHeartbeatConsumer((resourceID, slotReport) -> heartbeatSlotReportFuture.complete(slotReport));
+		rmGateway.setTaskExecutorHeartbeatConsumer((resourceID, heartbeatPayload) -> heartbeatSlotReportFuture.complete(heartbeatPayload.getSlotReport()));
 
 		rpc.registerGateway(rmAddress, rmGateway);
 
@@ -1780,9 +1780,9 @@ public class TaskExecutorTest extends TestLogger {
 		final OneShotLatch terminateSlotReportVerification = new OneShotLatch();
 		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
 		// Assertions for this test
-		testingResourceManagerGateway.setTaskExecutorHeartbeatConsumer((ignored, slotReport) -> {
+		testingResourceManagerGateway.setTaskExecutorHeartbeatConsumer((ignored, heartbeatPayload) -> {
 			try {
-				final ArrayList<SlotStatus> slots = Lists.newArrayList(slotReport);
+				final ArrayList<SlotStatus> slots = Lists.newArrayList(heartbeatPayload.getSlotReport());
 				assertThat(slots, hasSize(1));
 				final SlotStatus slotStatus = slots.get(0);
 
