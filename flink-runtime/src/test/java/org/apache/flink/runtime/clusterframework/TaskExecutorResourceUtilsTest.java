@@ -300,21 +300,6 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testConfigManagedMemoryLegacyFraction() {
-		final float fraction = 0.5f;
-
-		@SuppressWarnings("deprecation")
-		final ConfigOption<Float> legacyOption = TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION;
-
-		Configuration conf = new Configuration();
-		conf.setFloat(legacyOption, fraction);
-
-		// managed memory fraction is only used when managed memory size is not explicitly configured
-		validateInConfigurationsWithoutExplicitManagedMem(conf, taskExecutorResourceSpec ->
-			assertThat(taskExecutorResourceSpec.getManagedMemorySize(), is(taskExecutorResourceSpec.getTotalFlinkMemorySize().multiply(fraction))));
-	}
-
-	@Test
 	public void testConfigOffHeapManagedMemorySize() {
 		final MemorySize offHeapSize = MemorySize.parse("20m");
 
