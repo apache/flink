@@ -22,39 +22,38 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
- * Response to the TriggerStackTraceSample message.
+ * Response to the task back pressure request rpc call.
  */
-public class StackTraceSampleResponse implements Serializable {
+public class TaskBackPressureResponse implements Serializable {
 
 	private static final long serialVersionUID = -4786454630050578031L;
 
-	private final int sampleId;
+	private final int requestId;
 
 	private final ExecutionAttemptID executionAttemptID;
 
-	private final List<StackTraceElement[]> samples;
+	private final double backPressureRatio;
 
-	public StackTraceSampleResponse(
-			int sampleId,
+	public TaskBackPressureResponse(
+			int requestId,
 			ExecutionAttemptID executionAttemptID,
-			List<StackTraceElement[]> samples) {
-		this.sampleId = sampleId;
+			double backPressureRatio) {
+		this.requestId = requestId;
 		this.executionAttemptID = Preconditions.checkNotNull(executionAttemptID);
-		this.samples = Preconditions.checkNotNull(samples);
+		this.backPressureRatio = backPressureRatio;
 	}
 
-	public int getSampleId() {
-		return sampleId;
+	public int getRequestId() {
+		return requestId;
 	}
 
 	public ExecutionAttemptID getExecutionAttemptID() {
 		return executionAttemptID;
 	}
 
-	public List<StackTraceElement[]> getSamples() {
-		return samples;
+	public double getBackPressureRatio() {
+		return backPressureRatio;
 	}
 }
