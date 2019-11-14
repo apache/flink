@@ -175,19 +175,6 @@ public class TaskManagerOptions {
 			.withDescription("Size of memory buffers used by the network stack and the memory manager.");
 
 	/**
-	 * Amount of memory to be allocated by the task manager's memory manager. If not
-	 * set, a relative fraction will be allocated, as defined by {@link #MANAGED_MEMORY_FRACTION}.
-	 */
-	@Deprecated
-	public static final ConfigOption<String> LEGACY_MANAGED_MEMORY_SIZE =
-			key("taskmanager.memory.size")
-			.defaultValue("0")
-			.withDescription("The amount of memory (in megabytes) that the task manager reserves on-heap or off-heap" +
-				" (depending on taskmanager.memory.off-heap) for sorting, hash tables, and caching of intermediate" +
-				" results. If unspecified, the memory manager will take a fixed ratio with respect to the size of" +
-				" the task manager JVM as specified by taskmanager.memory.fraction.");
-
-	/**
 	 * Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager
 	 * as well as the network buffers.
 	 **/
@@ -284,7 +271,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<String> MANAGED_MEMORY_SIZE =
 		key("taskmanager.memory.managed.size")
 			.noDefaultValue()
-			.withDeprecatedKeys(LEGACY_MANAGED_MEMORY_SIZE.key())
+			.withDeprecatedKeys("taskmanager.memory.size")
 			.withDescription("Managed Memory size for TaskExecutors. This is the size of memory managed by the memory"
 				+ " manager, including both On-Heap Managed Memory and Off-Heap Managed Memory, reserved for sorting,"
 				+ " hash tables, caching of intermediate results and state backends. Memory consumers can either"

@@ -90,7 +90,7 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 		}
 
 		final Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "16m");
+		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 
 		MiniClusterResource flink = new MiniClusterResource(new MiniClusterResourceConfiguration.Builder()

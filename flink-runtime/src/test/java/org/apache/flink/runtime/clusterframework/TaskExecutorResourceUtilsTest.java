@@ -267,7 +267,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		final MemorySize managedMemSize = MemorySize.parse("100m");
 
 		@SuppressWarnings("deprecation")
-		final ConfigOption<String> legacyOption = TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE;
+		final ConfigOption<String> legacyOption = TaskManagerOptions.MANAGED_MEMORY_SIZE;
 
 		Configuration conf = new Configuration();
 		conf.setString(legacyOption, managedMemSize.getMebiBytes() + "m");

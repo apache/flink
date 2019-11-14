@@ -122,7 +122,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		Configuration cfg = createFlinkConfiguration();
 
 		// something invalid
-		cfg.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "-42m");
+		cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "-42m");
 		try {
 
 			startTaskManager(

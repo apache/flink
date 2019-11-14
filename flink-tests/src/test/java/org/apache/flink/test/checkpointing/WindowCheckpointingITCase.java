@@ -83,7 +83,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "48m");
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
 		return config;
 	}
 

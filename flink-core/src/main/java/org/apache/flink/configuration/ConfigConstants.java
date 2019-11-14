@@ -248,16 +248,6 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
 
 	/**
-	 * The config parameter defining the amount of memory to be allocated by the task manager's
-	 * memory manager (in megabytes). If not set, a relative fraction will be allocated, as defined
-	 * by {@link TaskManagerOptions#MANAGED_MEMORY_FRACTION}.
-	 *
-	 * @deprecated Use {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE} instead
-	 */
-	@Deprecated
-	public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
-
-	/**
 	 * The config parameter defining the memory allocation method (JVM heap or off-heap).
 	 *
 	 * @deprecated Use {@link TaskManagerOptions#MEMORY_OFF_HEAP} instead

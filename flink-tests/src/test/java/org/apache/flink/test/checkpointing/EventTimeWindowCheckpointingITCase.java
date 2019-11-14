@@ -211,7 +211,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		final File haDir = temporaryFolder.newFolder();
 
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "48m");
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
 		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
 
 		if (zkServer != null) {
