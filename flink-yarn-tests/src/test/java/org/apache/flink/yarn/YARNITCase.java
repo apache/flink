@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -39,15 +41,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -60,7 +67,7 @@ public class YARNITCase extends YarnTestBase {
 	private final int sleepIntervalInMS = 100;
 
 	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder(new File("/tmp"));
 
 	@BeforeClass
 	public static void setup() {
@@ -70,19 +77,34 @@ public class YARNITCase extends YarnTestBase {
 
 	@Test
 	public void testPerJobModeWithEnableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST));
+		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST, null));
 	}
 
 	@Test
 	public void testPerJobModeWithDisableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED));
+		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED, null));
 	}
 
-	private void deployPerjob(YarnConfigOptions.UserJarInclusion userJarInclusion) throws Exception {
+	@Test
+	public void testPreUploadedFlinkPath() throws Exception {
+		// Prepare a pre-uploaded flink binary, it should be publicly accessible. So put it under /tmp folder.
+		File tmpFlinkReleaseBinary = temporaryFolder.newFolder();
+
+		FileUtils.copyDirectory(flinkLibFolder.getParentFile(), tmpFlinkReleaseBinary);
+
+		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST, tmpFlinkReleaseBinary));
+	}
+
+	private void deployPerjob(
+		YarnConfigOptions.UserJarInclusion userJarInclusion, @Nullable File preUploadedFlinkBinary) throws Exception {
 
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
 		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
+
+		if (preUploadedFlinkBinary != null) {
+			configuration.setString(YarnConfigOptions.PRE_UPLOADED_FLINK_PATH, preUploadedFlinkBinary.toURI().toString());
+		}
 
 		final YarnClient yarnClient = getYarnClient();
 
@@ -93,8 +115,8 @@ public class YARNITCase extends YarnTestBase {
 			true)) {
 
 			yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
+			yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkLibFolder));
+			yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkShadedHadoopDir));
 
 			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 				.setMasterMemoryMB(768)
@@ -129,8 +151,22 @@ public class YARNITCase extends YarnTestBase {
 				assertThat(jobResult, is(notNullValue()));
 				assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
 
+				checkStagingDirectory(preUploadedFlinkBinary == null, applicationId);
+
 				waitApplicationFinishedElseKillIt(applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor);
 			}
+		}
+	}
+
+	private void checkStagingDirectory(boolean shouldExist, ApplicationId appId) throws IOException {
+		final FileSystem fs = FileSystem.get(YARN_CONFIGURATION);
+		final Path stagingDirectory = new Path(fs.getHomeDirectory(), ".flink/" + appId.toString());
+		if (shouldExist) {
+			assertTrue("The lib directory should be uploaded to staging directory.",
+				fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())));
+		} else {
+			assertFalse("The pre-uploaded flink is set, so the lib directory should not be uploaded to " +
+				"staging directory.", fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())));
 		}
 	}
 

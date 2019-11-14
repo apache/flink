@@ -23,8 +23,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
@@ -52,6 +54,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -222,6 +226,20 @@ public class UtilsTest extends TestLogger {
 		}
 		assertTrue(hasHdfsDelegationToken);
 		assertFalse(hasAmRmToken);
+	}
+
+	@Test
+	public void testGetPreUploadedFlinkFiles() {
+		File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
+		Preconditions.checkNotNull(dir);
+		File flinkHomeDir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
+		Map<String, FileStatus> preUploadedFiles = Utils.getPreUploadedFlinkFiles(
+			flinkHomeDir.toURI().toString(),
+			new YarnConfiguration());
+		String[] libJars = new File(flinkHomeDir, "lib").list();
+		Preconditions.checkNotNull(libJars);
+		Set<String> relativePaths = Arrays.stream(libJars).map(e -> "lib/" + e).collect(Collectors.toSet());
+		assertTrue(preUploadedFiles.keySet().containsAll(relativePaths));
 	}
 
 	//

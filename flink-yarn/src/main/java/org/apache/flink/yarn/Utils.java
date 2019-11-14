@@ -25,12 +25,15 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.security.TokenCache;
@@ -51,6 +54,8 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -130,6 +135,33 @@ public final class Utils {
 	}
 
 	/**
+	 * Setup and register a pre-uploaded resource according to the file status.
+	 *
+	 * @param localSrcPath
+	 * 		path to the local file
+	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
+	 * @param preUploadedFileStatus
+	 *    the corresponding pre-uploaded file status of localSrcPath
+	 *
+	 * @return Path to remote file (usually hdfs)
+	 */
+	static Tuple2<Path, LocalResource> setupPreUploadedResource(
+		Path localSrcPath,
+		FileStatus preUploadedFileStatus) {
+
+		Preconditions.checkNotNull(preUploadedFileStatus);
+
+		Path dst = preUploadedFileStatus.getPath();
+		LocalResource resource = registerLocalResource(
+			dst,
+			preUploadedFileStatus.getLen(),
+			preUploadedFileStatus.getModificationTime(),
+			LocalResourceVisibility.PUBLIC);
+		LOG.debug("Using pre-uploaded file {} to register local resource, the corresponding local file is {}", dst, localSrcPath);
+		return Tuple2.of(dst, resource);
+	}
+
+	/**
 	 * Copy a local file to a remote file system.
 	 *
 	 * @param fs
@@ -204,7 +236,11 @@ public final class Utils {
 		}
 
 		// now create the resource instance
-		LocalResource resource = registerLocalResource(dst, localFile.length(), dstModificationTime);
+		LocalResource resource = registerLocalResource(
+			dst,
+			localFile.length(),
+			dstModificationTime,
+			LocalResourceVisibility.APPLICATION);
 		return Tuple2.of(dst, resource);
 	}
 
@@ -237,31 +273,68 @@ public final class Utils {
 	 * @param remoteRsrcPath	remote location of the resource
 	 * @param resourceSize		size of the resource
 	 * @param resourceModificationTime last modification time of the resource
+	 * @param visibility Resources with application visibility could only be used by the specific application.
+	 *                   Public visibility will make the resources could be shared by different applications.
 	 *
 	 * @return YARN resource
 	 */
 	private static LocalResource registerLocalResource(
 			Path remoteRsrcPath,
 			long resourceSize,
-			long resourceModificationTime) {
+			long resourceModificationTime,
+			LocalResourceVisibility visibility) {
 		LocalResource localResource = Records.newRecord(LocalResource.class);
 		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
 		localResource.setSize(resourceSize);
 		localResource.setTimestamp(resourceModificationTime);
 		localResource.setType(LocalResourceType.FILE);
-		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
+		localResource.setVisibility(visibility);
 		return localResource;
 	}
 
+	/**
+	 * Creates a YARN resource for the remote object at the given location.
+	 * @param fs remote filesystem
+	 * @param remoteRsrcPath resource resource path to be registered
+	 * @return YARN resource
+	 */
 	private static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
-		LocalResource localResource = Records.newRecord(LocalResource.class);
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
-		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
-		localResource.setSize(jarStat.getLen());
-		localResource.setTimestamp(jarStat.getModificationTime());
-		localResource.setType(LocalResourceType.FILE);
-		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
-		return localResource;
+		return registerLocalResource(
+			remoteRsrcPath,
+			jarStat.getLen(),
+			jarStat.getModificationTime(),
+			LocalResourceVisibility.APPLICATION);
+	}
+
+	/**
+	 * Creates a YARN resource with resource description. The resource description may contains multiple parts.
+	 * For example, RemotePath;[resourceSize;resourceModificationTime;LocalResourceVisibility]
+	 * @param resourceDesStr resource info string
+	 * @param yarnConfig yarn configuration
+	 * @return local resource tuple, f0 is filename, f1 is local resource.
+	 */
+	private static Tuple2<String, LocalResource> registerLocalResource(
+		String resourceDesStr,
+		Configuration yarnConfig) throws IOException {
+
+		LocalResource localResource;
+		String[] resourceDesc = resourceDesStr.split(";");
+		Path remoteJarPath = new Path(resourceDesc[0]);
+		if (resourceDesc.length == 4) {
+			long resourceSize = Long.parseLong(resourceDesc[1]);
+			long resourceModificationTime = Long.parseLong(resourceDesc[2]);
+			LocalResourceVisibility resourceVisibility = LocalResourceVisibility.valueOf(resourceDesc[3]);
+			localResource = registerLocalResource(
+				remoteJarPath,
+				resourceSize,
+				resourceModificationTime,
+				resourceVisibility);
+		} else {
+			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
+			localResource = registerLocalResource(fs, remoteJarPath);
+		}
+		return new Tuple2<>(remoteJarPath.getName(), localResource);
 	}
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
@@ -483,18 +556,11 @@ public final class Utils {
 		}
 
 		// register Flink Jar with remote HDFS
-		final String flinkJarPath;
-		final LocalResource flinkJar;
-		{
-			Path remoteJarPath = new Path(remoteFlinkJarPath);
-			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
-			flinkJarPath = remoteJarPath.getName();
-			flinkJar = registerLocalResource(fs, remoteJarPath);
-		}
+		final Tuple2<String, LocalResource> flinkJarResource = registerLocalResource(remoteFlinkJarPath, yarnConfig);
 
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
 
-		taskManagerLocalResources.put(flinkJarPath, flinkJar);
+		taskManagerLocalResources.put(flinkJarResource.f0, flinkJarResource.f1);
 
 		//To support Yarn Secure Integration Test Scenario
 		if (yarnConfResource != null) {
@@ -508,13 +574,12 @@ public final class Utils {
 		}
 
 		// prepare additional files to be shipped
-		for (String pathStr : shipListString.split(",")) {
-			if (!pathStr.isEmpty()) {
-				String[] keyAndPath = pathStr.split("=");
-				require(keyAndPath.length == 2, "Invalid entry in ship file list: %s", pathStr);
-				Path path = new Path(keyAndPath[1]);
-				LocalResource resource = registerLocalResource(path.getFileSystem(yarnConfig), path);
-				taskManagerLocalResources.put(keyAndPath[0], resource);
+		for (String shipResourceDescStr : shipListString.split(",")) {
+			if (!shipResourceDescStr.isEmpty()) {
+				String[] keyAndResourceDesc = shipResourceDescStr.split("=");
+				require(keyAndResourceDesc.length == 2, "Invalid entry in ship file list: %s", keyAndResourceDesc);
+				Tuple2<String, LocalResource> localResource = registerLocalResource(keyAndResourceDesc[1], yarnConfig);
+				taskManagerLocalResources.put(keyAndResourceDesc[0], localResource.f1);
 			}
 		}
 
@@ -594,6 +659,30 @@ public final class Utils {
 		}
 
 		return ctx;
+	}
+
+	static Map<String, FileStatus> getPreUploadedFlinkFiles(
+		@Nullable String flinkSharedBinary,
+		Configuration yarnConfiguration) {
+		Map<String, FileStatus> flinkShareFiles = new HashMap<>();
+		if (flinkSharedBinary != null) {
+			try {
+				FileSystem fileSystem = FileSystem.get(yarnConfiguration);
+				Path flinkSharedPath = new Path(flinkSharedBinary);
+				if (fileSystem.exists(flinkSharedPath)) {
+					RemoteIterator<LocatedFileStatus> iterable = fileSystem.listFiles(flinkSharedPath, true);
+					while (iterable.hasNext()) {
+						LocatedFileStatus locatedFileStatus = iterable.next();
+						String relative = flinkSharedPath.toUri().relativize(locatedFileStatus.getPath().toUri()).getPath();
+						flinkShareFiles.put(relative, locatedFileStatus);
+						LOG.debug("Found pre-uploaded file {} under {}", relative, flinkSharedPath);
+					}
+				}
+			} catch (IOException e) {
+				LOG.warn("Error to get the ");
+			}
+		}
+		return flinkShareFiles;
 	}
 
 	/**

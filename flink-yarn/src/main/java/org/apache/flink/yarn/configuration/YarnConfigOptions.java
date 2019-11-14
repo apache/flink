@@ -253,6 +253,13 @@ public class YarnConfigOptions {
 				.noDefaultValue()
 				.withDescription("Specify YARN node label for the YARN application.");
 
+	public static final ConfigOption<String> PRE_UPLOADED_FLINK_PATH =
+		key("yarn.pre-uploaded.flink.path")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Specify the pre-uploaded path of flink. It will be used to accelerate the job submission" +
+				" and taskmanger launch.");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */
