@@ -44,11 +44,11 @@ SqlDescribeCatalog SqlDescribeCatalog() :
 
 SqlUseCatalog SqlUseCatalog() :
 {
-SqlIdentifier catalogName;
-SqlParserPos pos;
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
 }
 {
-<USE> <CATALOG> { pos = getPos();}
+    <USE> <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlUseCatalog(pos, catalogName);
@@ -70,8 +70,8 @@ SqlShowDatabases SqlShowDatabases() :
 
 SqlUseDatabase SqlUseDatabase() :
 {
-SqlIdentifier databaseName;
-SqlParserPos pos;
+    SqlIdentifier databaseName;
+    SqlParserPos pos;
 }
 {
     <USE> { pos = getPos();}
