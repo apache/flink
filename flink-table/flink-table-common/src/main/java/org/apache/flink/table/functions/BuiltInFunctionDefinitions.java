@@ -251,6 +251,14 @@ public final class BuiltInFunctionDefinitions {
 			.kind(SCALAR)
 			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();
+	// we need LOWERCASE here to maintain compatibility for the string-based expression DSL
+	// which exposes LOWER as lowerCase()
+	public static final BuiltInFunctionDefinition LOWERCASE =
+			new BuiltInFunctionDefinition.Builder()
+					.name("lowerCase")
+					.kind(SCALAR)
+					.outputTypeStrategy(TypeStrategies.MISSING)
+					.build();
 	public static final BuiltInFunctionDefinition SIMILAR =
 		new BuiltInFunctionDefinition.Builder()
 			.name("similar")
@@ -281,6 +289,14 @@ public final class BuiltInFunctionDefinitions {
 			.kind(SCALAR)
 			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();
+	// we need UPPERCASE here to maintain compatibility for the string-based expression DSL
+	// which exposes UPPER as upperCase()
+	public static final BuiltInFunctionDefinition UPPERCASE =
+			new BuiltInFunctionDefinition.Builder()
+					.name("upperCase")
+					.kind(SCALAR)
+					.outputTypeStrategy(TypeStrategies.MISSING)
+					.build();
 	public static final BuiltInFunctionDefinition POSITION =
 		new BuiltInFunctionDefinition.Builder()
 			.name("position")
