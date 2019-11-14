@@ -215,8 +215,7 @@ public final class ResourceSpec implements Serializable {
 		if (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0 && cmp5 <= 0) {
 			for (Resource resource : extendedResources.values()) {
 				if (!other.extendedResources.containsKey(resource.getName()) ||
-					other.extendedResources.get(resource.getName()).getResourceAggregateType() != resource.getResourceAggregateType() ||
-						other.extendedResources.get(resource.getName()).getValue() < resource.getValue()) {
+					other.extendedResources.get(resource.getName()).getValue() < resource.getValue()) {
 					return false;
 				}
 			}

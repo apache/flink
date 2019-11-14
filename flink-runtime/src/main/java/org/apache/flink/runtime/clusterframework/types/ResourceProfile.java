@@ -301,8 +301,7 @@ public class ResourceProfile implements Serializable {
 			shuffleMemory.getBytes() >= required.shuffleMemory.getBytes()) {
 			for (Map.Entry<String, Resource> resource : required.extendedResources.entrySet()) {
 				if (!extendedResources.containsKey(resource.getKey()) ||
-						!extendedResources.get(resource.getKey()).getResourceAggregateType().equals(resource.getValue().getResourceAggregateType()) ||
-						extendedResources.get(resource.getKey()).getValue() < resource.getValue().getValue()) {
+					extendedResources.get(resource.getKey()).getValue() < resource.getValue().getValue()) {
 					return false;
 				}
 			}
