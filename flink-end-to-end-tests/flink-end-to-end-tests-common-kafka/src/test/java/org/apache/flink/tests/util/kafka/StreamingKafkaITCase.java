@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -72,7 +71,7 @@ public class StreamingKafkaITCase extends TestLogger {
 	public final FlinkResource flink = FlinkResource.get();
 
 	public StreamingKafkaITCase(final String kafkaExampleJarPattern, final String kafkaVersion) {
-		this.kafkaExampleJar = TestUtils.getResourceJar(Paths.get("target/dependencies"), kafkaExampleJarPattern);
+		this.kafkaExampleJar = TestUtils.getResourceJar(kafkaExampleJarPattern);
 		this.kafka = KafkaResource.get(kafkaVersion);
 	}
 
