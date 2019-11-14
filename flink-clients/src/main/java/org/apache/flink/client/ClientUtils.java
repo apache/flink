@@ -30,7 +30,6 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -160,7 +159,7 @@ public enum ClientUtils {
 		final boolean detached = executionConfigAccessor.getDetachedMode();
 
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-		final ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(jobJars, classpaths, contextClassLoader);
+		final ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(jobJars, classpaths, contextClassLoader, configuration);
 
 		try {
 			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
