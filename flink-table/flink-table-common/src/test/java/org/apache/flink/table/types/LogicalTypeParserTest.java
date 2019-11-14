@@ -21,6 +21,7 @@ package org.apache.flink.table.types;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -397,26 +398,26 @@ public class LogicalTypeParserTest {
 
 			TestSpec
 				.forString("cat.db.MyType")
-				.expectType(new UnresolvedUserDefinedType("cat", "db", "MyType")),
+				.expectType(new UnresolvedUserDefinedType(UnresolvedIdentifier.of("cat", "db", "MyType"))),
 
 			TestSpec
 				.forString("`db`.`MyType`")
-				.expectType(new UnresolvedUserDefinedType(null, "db", "MyType")),
+				.expectType(new UnresolvedUserDefinedType(UnresolvedIdentifier.of("db", "MyType"))),
 
 			TestSpec
 				.forString("MyType")
-				.expectType(new UnresolvedUserDefinedType(null, null, "MyType")),
+				.expectType(new UnresolvedUserDefinedType(UnresolvedIdentifier.of("MyType"))),
 
 			TestSpec
 				.forString("ARRAY<MyType>")
-				.expectType(new ArrayType(new UnresolvedUserDefinedType(null, null, "MyType"))),
+				.expectType(new ArrayType(new UnresolvedUserDefinedType(UnresolvedIdentifier.of("MyType")))),
 
 			TestSpec
 				.forString("ROW<f0 MyType, f1 `c`.`d`.`t`>")
 				.expectType(
 					RowType.of(
-						new UnresolvedUserDefinedType(null, null, "MyType"),
-						new UnresolvedUserDefinedType("c", "d", "t"))
+						new UnresolvedUserDefinedType(UnresolvedIdentifier.of("MyType")),
+						new UnresolvedUserDefinedType(UnresolvedIdentifier.of("c", "d", "t")))
 				),
 
 			// error message testing
