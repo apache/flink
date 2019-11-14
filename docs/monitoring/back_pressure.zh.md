@@ -36,12 +36,14 @@ Flink Web 界面提供了一个选项卡来监控正在运行 Job 的反压行�
 `Sink` 正在向上游的 `Source` 算子产生反压。
 
 
-## 采样Task
+## 反压采样
 
-通过不断对每个 Task 采样来进行反压监控。JobManager 会触发对 Task `Task.isBackPressured()` 的重复调用。
+通过不断对每个 Task 的反压状态采样来进行反压监控。JobManager 会触发对 Task `Task.isBackPressured()` 的重复调用。
 
 <img src="{{ site.baseurl }}/fig/back_pressure_sampling.png" class="img-responsive">
 <!-- https://docs.google.com/drawings/d/1O5Az3Qq4fgvnISXuSf-MqBlsLDpPolNB7EQG7A3dcTk/edit?usp=sharing -->
+
+Task 是否反压是基于输出 Buffer 的可用性判断的，如果一个用于数据输出的 Buffer 都没有了，则表明 Task 被反压了。
 
 默认情况下，JobManager 会触发 100 次采样，每次间隔 50ms 来确定反压。
 你在 Web 界面看到的比率表示在获得的样本中有多少表明 Task 正在被反压，例如: `0.01` 表示 100 个样本中只有 1 个反压了。
@@ -67,7 +69,7 @@ Flink Web 界面提供了一个选项卡来监控正在运行 Job 的反压行�
 
 ### 采样进行中
 
-这意味着 JobManager 对正在运行的 Task 触发了 back pressure 采样。默认情况下，大约需要 5 秒完成采样。
+这意味着 JobManager 对正在运行的 Task 触发了反压采样。默认情况下，大约需要 5 秒完成采样。
 
 注意，点击该行，可触发该算子所有 SubTask 的采样。
 

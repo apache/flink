@@ -34,20 +34,22 @@ If you see a **back pressure warning** (e.g. `High`) for a task, this means that
 Take a simple `Source -> Sink` job as an example. If you see a warning for `Source`, this means that `Sink` is consuming data slower than `Source` is producing. `Sink` is back pressuring the upstream operator `Source`.
 
 
-## Sampling Tasks
+## Sampling Back Pressure
 
-Back pressure monitoring works by repeatedly taking samples of your running tasks. The JobManager triggers repeated calls to `Task.isBackPressured()` for the tasks of your job.
+Back pressure monitoring works by repeatedly taking back pressure samples of your running tasks. The JobManager triggers repeated calls to `Task.isBackPressured()` for the tasks of your job.
 
 <img src="{{ site.baseurl }}/fig/back_pressure_sampling.png" class="img-responsive">
 <!-- https://docs.google.com/drawings/d/1O5Az3Qq4fgvnISXuSf-MqBlsLDpPolNB7EQG7A3dcTk/edit?usp=sharing -->
 
-By default, the job manager triggers 100 samples every 50ms for each task in order to determine back pressure. The ratio you see in the web interface tells you how many of these sample were indicating back pressure, e.g. `0.01` indicates that only 1 in 100 was back pressured.
+Internally, back pressure is judged based on the availability of output buffers. If there is no available buffer (at least one) for output, then it indicates that there is back pressure for the task.
+
+By default, the job manager triggers 100 samples every 50ms for each task in order to determine back pressure. The ratio you see in the web interface tells you how many of these samples were indicating back pressure, e.g. `0.01` indicates that only 1 in 100 was back pressured.
 
 - **OK**: 0 <= Ratio <= 0.10
 - **LOW**: 0.10 < Ratio <= 0.5
 - **HIGH**: 0.5 < Ratio <= 1
 
-In order to not overload the task managers with samples, the web interface refreshes samples only after 60 seconds.
+In order to not overload the task managers with back pressure samples, the web interface refreshes samples only after 60 seconds.
 
 ## Configuration
 
@@ -64,7 +66,7 @@ You can find the *Back Pressure* tab next to the job overview.
 
 ### Sampling In Progress
 
-This means that the JobManager triggered a sample of the running tasks. With the default configuration, this takes about 5 seconds to complete.
+This means that the JobManager triggered a back pressure sample of the running tasks. With the default configuration, this takes about 5 seconds to complete.
 
 Note that clicking the row, you trigger the sample for all subtasks of this operator.
 
