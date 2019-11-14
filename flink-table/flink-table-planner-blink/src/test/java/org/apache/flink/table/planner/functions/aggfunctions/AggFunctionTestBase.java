@@ -45,7 +45,6 @@ import java.util.List;
 import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Base class for aggregate function test.
@@ -234,57 +233,25 @@ public abstract class AggFunctionTestBase<T, ACC> {
 			MaxWithRetractAccumulator r = (MaxWithRetractAccumulator) result;
 			assertEquals(e.max, r.max);
 			assertEquals(e.mapSize, r.mapSize);
+		} else if (expected instanceof BinaryGeneric && result instanceof BinaryGeneric) {
+			TypeSerializer<?> serializer = typeInfo.createSerializer(new ExecutionConfig());
+			assertThat(
+					(BinaryGeneric) result,
+					equivalent((BinaryGeneric) expected, new BinaryGenericSerializer(serializer)));
+		} else if (expected instanceof GenericRow && result instanceof GenericRow) {
+			validateGenericRow((GenericRow) expected, (GenericRow) result, (BaseRowTypeInfo) typeInfo);
 		} else {
-			// verify null
-			if (expected == null || result == null) {
-				assertTrue(expected == null && result == null);
-				return;
-			}
-
-			// verify class
-			assertEquals(expected.getClass(), result.getClass());
-
-			// verify BinaryGeneric
-			if (expected instanceof BinaryGeneric) {
-				TypeSerializer<?> serializer = typeInfo.createSerializer(new ExecutionConfig());
-				assertThat(
-						(BinaryGeneric) result,
-						equivalent((BinaryGeneric) expected, new BinaryGenericSerializer(serializer)));
-				return;
-			}
-
-			// verify GenericRow
-			if (expected instanceof GenericRow) {
-				GenericRow expectedRow = (GenericRow) expected;
-				GenericRow resultRow = (GenericRow) result;
-				assertEquals(expectedRow.getArity(), resultRow.getArity());
-				BaseRowTypeInfo baseRowTypeInfo = (BaseRowTypeInfo) typeInfo;
-
-				for (int i = 0; i < expectedRow.getArity(); ++i) {
-					Object expectedObj = expectedRow.getField(i);
-					Object resultObj = resultRow.getField(i);
-					if (expectedObj == null || resultObj == null) {
-						assertTrue(expectedObj == null && resultObj == null);
-						continue;
-					}
-
-					// verify element class
-					assertEquals(expectedObj.getClass(), resultObj.getClass());
-
-					if (expectedObj instanceof BinaryGeneric) {
-						TypeSerializer<?> serializer =
-								baseRowTypeInfo.getFieldTypes()[i].createSerializer(new ExecutionConfig());
-						assertThat(
-								(BinaryGeneric) resultObj,
-								equivalent((BinaryGeneric) expectedObj, new BinaryGenericSerializer(serializer)));
-					} else {
-						assertEquals(expectedObj, resultObj);
-					}
-				}
-				return;
-			}
-
 			assertEquals(expected, result);
+		}
+	}
+
+	private void validateGenericRow(GenericRow expected, GenericRow result, BaseRowTypeInfo typeInfo) {
+		assertEquals(expected.getArity(), result.getArity());
+
+		for (int i = 0; i < expected.getArity(); ++i) {
+			Object expectedObj = expected.getField(i);
+			Object resultObj = result.getField(i);
+			validateResult(expectedObj, resultObj, typeInfo.getTypeAt(i));
 		}
 	}
 
