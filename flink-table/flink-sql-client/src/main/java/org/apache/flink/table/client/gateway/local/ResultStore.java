@@ -63,7 +63,7 @@ public class ResultStore {
 
 		if (env.getExecution().inStreamingMode()) {
 			// determine gateway address (and port if possible)
-			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
+			InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
 			final int gatewayPort = getGatewayPort(env.getDeployment());
 
 			if (env.getExecution().isChangelogMode()) {

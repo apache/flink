@@ -36,7 +36,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -137,14 +136,16 @@ public class LocalExecutorITCase extends TestLogger {
 	public void testValidateSession() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
-		executor.validateSession(session);
+		executor.validateSession(sessionId);
 
-		session.addView(ViewEntry.create("AdditionalView1", "SELECT 1"));
-		session.addView(ViewEntry.create("AdditionalView2", "SELECT * FROM AdditionalView1"));
-		executor.validateSession(session);
+		executor.addView(sessionId, "AdditionalView1", "SELECT 1");
+		executor.addView(sessionId, "AdditionalView2", "SELECT * FROM AdditionalView1");
+		executor.validateSession(sessionId);
 
-		List<String> actualTables = executor.listTables(session);
+		List<String> actualTables = executor.listTables(sessionId);
 		List<String> expectedTables = Arrays.asList(
 			"AdditionalView1",
 			"AdditionalView2",
@@ -155,18 +156,18 @@ public class LocalExecutorITCase extends TestLogger {
 			"TestView2");
 		assertEquals(expectedTables, actualTables);
 
-		session.removeView("AdditionalView1");
+		executor.removeView(sessionId, "AdditionalView1");
 		try {
-			executor.validateSession(session);
+			executor.validateSession(sessionId);
 			fail();
 		} catch (SqlExecutionException e) {
 			// AdditionalView2 needs AdditionalView1
 		}
 
-		session.removeView("AdditionalView2");
-		executor.validateSession(session);
+		executor.removeView(sessionId, "AdditionalView2");
+		executor.validateSession(sessionId);
 
-		actualTables = executor.listTables(session);
+		actualTables = executor.listTables(sessionId);
 		expectedTables = Arrays.asList(
 			"TableNumber1",
 			"TableNumber2",
@@ -174,39 +175,51 @@ public class LocalExecutorITCase extends TestLogger {
 			"TestView1",
 			"TestView2");
 		assertEquals(expectedTables, actualTables);
+
+		executor.closeSession(sessionId);
 	}
 
 	@Test
 	public void testListCatalogs() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
-		final List<String> actualCatalogs = executor.listCatalogs(session);
+		final List<String> actualCatalogs = executor.listCatalogs(sessionId);
 
 		final List<String> expectedCatalogs = Arrays.asList(
 			"catalog1",
 			"default_catalog",
 			"simple-catalog");
 		assertEquals(expectedCatalogs, actualCatalogs);
+
+		executor.closeSession(sessionId);
 	}
 
 	@Test
 	public void testListDatabases() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
-		final List<String> actualDatabases = executor.listDatabases(session);
+		final List<String> actualDatabases = executor.listDatabases(sessionId);
 
 		final List<String> expectedDatabases = Collections.singletonList("default_database");
 		assertEquals(expectedDatabases, actualDatabases);
+
+		executor.closeSession(sessionId);
 	}
 
 	@Test
 	public void testListTables() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
-		final List<String> actualTables = executor.listTables(session);
+		final List<String> actualTables = executor.listTables(sessionId);
 
 		final List<String> expectedTables = Arrays.asList(
 			"TableNumber1",
@@ -215,32 +228,38 @@ public class LocalExecutorITCase extends TestLogger {
 			"TestView1",
 			"TestView2");
 		assertEquals(expectedTables, actualTables);
+		executor.closeSession(sessionId);
 	}
 
 	@Test
 	public void testListUserDefinedFunctions() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
-		final List<String> actualTables = executor.listUserDefinedFunctions(session);
+		final List<String> actualTables = executor.listUserDefinedFunctions(sessionId);
 
 		final List<String> expectedTables = Arrays.asList("aggregateudf", "tableudf", "scalarudf");
 		assertEquals(expectedTables, actualTables);
+
+		executor.closeSession(sessionId);
 	}
 
 	@Test
 	public void testGetSessionProperties() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
-
 		session.setSessionProperty("execution.result-mode", "changelog");
 
-		executor.getSessionProperties(session);
+		// Open the session and get the sessionId.
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		// modify defaults
-		session.setSessionProperty("execution.result-mode", "table");
+		executor.setSessionProperty(sessionId, "execution.result-mode", "table");
 
-		final Map<String, String> actualProperties = executor.getSessionProperties(session);
+		final Map<String, String> actualProperties = executor.getSessionProperties(sessionId);
 
 		final Map<String, String> expectedProperties = new HashMap<>();
 		expectedProperties.put("execution.planner", planner);
@@ -261,38 +280,46 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedProperties.put("deployment.response-timeout", "5000");
 
 		assertEquals(expectedProperties, actualProperties);
+
+		executor.closeSession(sessionId);
 	}
 
 	@Test
 	public void testTableSchema() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
-		final TableSchema actualTableSchema = executor.getTableSchema(session, "TableNumber2");
+		final TableSchema actualTableSchema = executor.getTableSchema(sessionId, "TableNumber2");
 
 		final TableSchema expectedTableSchema = new TableSchema(
-			new String[] {"IntegerField2", "StringField2"},
-			new TypeInformation[] {Types.INT, Types.STRING});
+			new String[]{"IntegerField2", "StringField2"},
+			new TypeInformation[]{Types.INT, Types.STRING});
 
 		assertEquals(expectedTableSchema, actualTableSchema);
+		executor.closeSession(sessionId);
 	}
 
 	@Test
 	public void testCompleteStatement() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		final List<String> expectedTableHints = Arrays.asList(
 			"default_catalog.default_database.TableNumber1",
 			"default_catalog.default_database.TableNumber2",
 			"default_catalog.default_database.TableSourceSink");
-		assertEquals(expectedTableHints, executor.completeStatement(session, "SELECT * FROM Ta", 16));
+		assertEquals(expectedTableHints, executor.completeStatement(sessionId, "SELECT * FROM Ta", 16));
 
 		final List<String> expectedClause = Collections.singletonList("WHERE");
-		assertEquals(expectedClause, executor.completeStatement(session, "SELECT * FROM TableNumber2 WH", 29));
+		assertEquals(expectedClause, executor.completeStatement(sessionId, "SELECT * FROM TableNumber2 WH", 29));
 
 		final List<String> expectedField = Arrays.asList("IntegerField1");
-		assertEquals(expectedField, executor.completeStatement(session, "SELECT * FROM TableNumber1 WHERE Inte", 37));
+		assertEquals(expectedField, executor.completeStatement(sessionId, "SELECT * FROM TableNumber1 WHERE Inte", 37));
+		executor.closeSession(sessionId);
 	}
 
 	@Test(timeout = 30_000L)
@@ -309,17 +336,19 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		try {
 			// start job and retrieval
 			final ResultDescriptor desc = executor.executeQuery(
-				session,
+				sessionId,
 				"SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
 
 			assertFalse(desc.isMaterialized());
 
 			final List<String> actualResults =
-					retrieveChangelogResult(executor, session, desc.getResultId());
+				retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
 			expectedResults.add("(true,47,Hello World)");
@@ -331,7 +360,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
-			executor.stop(session);
+			executor.closeSession(sessionId);
 		}
 	}
 
@@ -396,13 +425,15 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		try {
-			final ResultDescriptor desc = executor.executeQuery(session, "SELECT * FROM TestView1");
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
 
 			assertTrue(desc.isMaterialized());
 
-			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
+			final List<String> actualResults = retrieveTableResult(executor, sessionId, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
 			expectedResults.add("47");
@@ -414,7 +445,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
-			executor.stop(session);
+			executor.closeSession(sessionId);
 		}
 	}
 
@@ -433,11 +464,13 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		try {
 			// Case 1: Registered sink
 			final ProgramTargetDescriptor targetDescriptor = executor.executeUpdate(
-				session,
+				sessionId,
 				"INSERT INTO TableSourceSink SELECT IntegerField1 = 42, StringField1 FROM TableNumber1");
 
 			// wait for job completion and verify result
@@ -459,14 +492,14 @@ public class LocalExecutorITCase extends TestLogger {
 			}
 
 			// Case 2: Temporary sink
-			session.setCurrentCatalog("simple-catalog");
-			session.setCurrentDatabase("default_database");
+			executor.useCatalog(sessionId, "simple-catalog");
+			executor.useDatabase(sessionId, "default_database");
 			// all queries are pipelined to an in-memory sink, check it is properly registered
-			final ResultDescriptor otherCatalogDesc = executor.executeQuery(session, "SELECT * FROM `test-table`");
+			final ResultDescriptor otherCatalogDesc = executor.executeQuery(sessionId, "SELECT * FROM `test-table`");
 
 			final List<String> otherCatalogResults = retrieveTableResult(
 				executor,
-				session,
+				sessionId,
 				otherCatalogDesc.getResultId());
 
 			TestBaseUtils.compareResultCollections(
@@ -474,7 +507,7 @@ public class LocalExecutorITCase extends TestLogger {
 				otherCatalogResults,
 				Comparator.naturalOrder());
 		} finally {
-			executor.stop(session);
+			executor.closeSession(sessionId);
 		}
 	}
 
@@ -496,24 +529,26 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final Executor executor = createModifiedExecutor(CATALOGS_ENVIRONMENT_FILE, clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		try {
-			assertEquals(Arrays.asList("mydatabase"), executor.listDatabases(session));
+			assertEquals(Arrays.asList("mydatabase"), executor.listDatabases(sessionId));
 
-			executor.useCatalog(session, "hivecatalog");
+			executor.useCatalog(sessionId, "hivecatalog");
 
 			assertEquals(
 				Arrays.asList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, HiveCatalog.DEFAULT_DB),
-				executor.listDatabases(session));
+				executor.listDatabases(sessionId));
 
 			assertEquals(Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES),
-					executor.listTables(session));
+				executor.listTables(sessionId));
 
-			executor.useDatabase(session, DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
+			executor.useDatabase(sessionId, DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
 
-			assertEquals(Arrays.asList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE), executor.listTables(session));
+			assertEquals(Arrays.asList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE), executor.listTables(sessionId));
 		} finally {
-			executor.stop(session);
+			executor.closeSession(sessionId);
 		}
 	}
 
@@ -521,18 +556,23 @@ public class LocalExecutorITCase extends TestLogger {
 	public void testUseNonExistingDatabase() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		exception.expect(SqlExecutionException.class);
-		executor.useDatabase(session, "nonexistingdb");
+		executor.useDatabase(sessionId, "nonexistingdb");
 	}
 
 	@Test
 	public void testUseNonExistingCatalog() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		exception.expect(SqlExecutionException.class);
-		executor.useCatalog(session, "nonexistingcatalog");
+		executor.useCatalog(sessionId, "nonexistingcatalog");
+		executor.closeSession(sessionId);
 	}
 
 	@Test
@@ -554,15 +594,19 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final Executor executor = createModifiedExecutor(CATALOGS_ENVIRONMENT_FILE, clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
-		executor.useCatalog(session, "hivecatalog");
-		String resultID = executor.executeQuery(session,
-				"select * from " + DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES).getResultId();
-		retrieveTableResult(executor, session, resultID);
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		executor.useCatalog(sessionId, "hivecatalog");
+		String resultID = executor.executeQuery(sessionId,
+			"select * from " + DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES).getResultId();
+		retrieveTableResult(executor, sessionId, resultID);
 
 		// make sure legacy types still work
-		executor.useCatalog(session, "default_catalog");
-		resultID = executor.executeQuery(session, "select * from TableNumber3").getResultId();
-		retrieveTableResult(executor, session, resultID);
+		executor.useCatalog(sessionId, "default_catalog");
+		resultID = executor.executeQuery(sessionId, "select * from TableNumber3").getResultId();
+		retrieveTableResult(executor, sessionId, resultID);
+		executor.closeSession(sessionId);
 	}
 
 	private void executeStreamQueryTable(
@@ -572,18 +616,20 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
 
 		try {
 			// start job and retrieval
-			final ResultDescriptor desc = executor.executeQuery(session, query);
+			final ResultDescriptor desc = executor.executeQuery(sessionId, query);
 
 			assertTrue(desc.isMaterialized());
 
-			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
+			final List<String> actualResults = retrieveTableResult(executor, sessionId, desc.getResultId());
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
-			executor.stop(session);
+			executor.closeSession(sessionId);
 		}
 	}
 
@@ -635,13 +681,13 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private List<String> retrieveTableResult(
 			Executor executor,
-			SessionContext session,
+			String sessionId,
 			String resultID) throws InterruptedException {
 
 		final List<String> actualResults = new ArrayList<>();
 		while (true) {
 			Thread.sleep(50); // slow the processing down
-			final TypedResult<Integer> result = executor.snapshotResult(session, resultID, 2);
+			final TypedResult<Integer> result = executor.snapshotResult(sessionId, resultID, 2);
 			if (result.getType() == TypedResult.ResultType.PAYLOAD) {
 				actualResults.clear();
 				IntStream.rangeClosed(1, result.getPayload()).forEach((page) -> {
@@ -659,14 +705,14 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private List<String> retrieveChangelogResult(
 			Executor executor,
-			SessionContext session,
+			String sessionId,
 			String resultID) throws InterruptedException {
 
 		final List<String> actualResults = new ArrayList<>();
 		while (true) {
 			Thread.sleep(50); // slow the processing down
 			final TypedResult<List<Tuple2<Boolean, Row>>> result =
-					executor.retrieveResultChanges(session, resultID);
+				executor.retrieveResultChanges(sessionId, resultID);
 			if (result.getType() == TypedResult.ResultType.PAYLOAD) {
 				for (Tuple2<Boolean, Row> change : result.getPayload()) {
 					actualResults.add(change.toString());

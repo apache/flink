@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class SessionContext {
 
-	private final String name;
+	private final String sessionId;
 
 	private final Environment defaultEnvironment;
 
@@ -45,8 +45,8 @@ public class SessionContext {
 
 	private final Map<String, ViewEntry> views;
 
-	public SessionContext(String name, Environment defaultEnvironment) {
-		this.name = name;
+	public SessionContext(String sessionId, Environment defaultEnvironment) {
+		this.sessionId = sessionId;
 		this.defaultEnvironment = defaultEnvironment;
 		this.sessionProperties = new HashMap<>();
 		// the order of how views are registered matters because
@@ -74,8 +74,8 @@ public class SessionContext {
 		return Collections.unmodifiableMap(views);
 	}
 
-	public String getName() {
-		return name;
+	public String getSessionId() {
+		return this.sessionId;
 	}
 
 	public Optional<String> getCurrentCatalog() {
@@ -106,7 +106,7 @@ public class SessionContext {
 	}
 
 	public SessionContext copy() {
-		final SessionContext session = new SessionContext(name, defaultEnvironment);
+		final SessionContext session = new SessionContext(sessionId, defaultEnvironment);
 		session.sessionProperties.putAll(sessionProperties);
 		session.views.putAll(views);
 		return session;
@@ -121,7 +121,7 @@ public class SessionContext {
 			return false;
 		}
 		SessionContext context = (SessionContext) o;
-		return Objects.equals(name, context.name) &&
+		return Objects.equals(sessionId, context.sessionId) &&
 			Objects.equals(defaultEnvironment, context.defaultEnvironment) &&
 			Objects.equals(sessionProperties, context.sessionProperties) &&
 			Objects.equals(views, context.views);
@@ -130,7 +130,7 @@ public class SessionContext {
 	@Override
 	public int hashCode() {
 		return Objects.hash(
-			name,
+			sessionId,
 			defaultEnvironment,
 			sessionProperties,
 			views);

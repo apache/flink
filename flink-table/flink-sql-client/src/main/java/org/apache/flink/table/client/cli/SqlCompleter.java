@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 
 import org.jline.reader.Candidate;
@@ -41,12 +40,12 @@ public class SqlCompleter implements Completer {
 
 	public static final String[] COMMAND_HINTS = getCommandHints();
 
-	private SessionContext context;
+	private String sessionId;
 
 	private Executor executor;
 
-	public SqlCompleter(SessionContext context, Executor executor) {
-		this.context = context;
+	public SqlCompleter(String sessionId, Executor executor) {
+		this.sessionId = sessionId;
 		this.executor = executor;
 	}
 
@@ -68,7 +67,7 @@ public class SqlCompleter implements Completer {
 
 		// fallback to Table API hinting
 		try {
-			executor.completeStatement(context, statement, line.cursor())
+			executor.completeStatement(sessionId, statement, line.cursor())
 				.forEach(hint -> candidates.add(createCandidate(hint)));
 		} catch (SqlExecutionException e) {
 			LOG.debug("Could not complete statement at " + line.cursor() + ":" + statement, e);
