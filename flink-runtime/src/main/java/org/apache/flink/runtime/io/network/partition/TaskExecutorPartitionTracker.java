@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 
 import java.util.Collection;
 
@@ -53,4 +54,9 @@ public interface TaskExecutorPartitionTracker extends PartitionTracker<JobID, Ta
 	 * Releases and stops tracking all partitions.
 	 */
 	void stopTrackingAndReleaseAllClusterPartitions();
+
+	/**
+	 * Creates a {@link ClusterPartitionReport}, describing which cluster partitions are currently available.
+	 */
+	ClusterPartitionReport createClusterPartitionReport();
 }
