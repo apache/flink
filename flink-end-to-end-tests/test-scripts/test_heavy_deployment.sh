@@ -28,7 +28,7 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 set_config_key "akka.ask.timeout" "60 s"
 set_config_key "web.timeout" "60000"
 
-set_config_key "taskmanager.heap.size" "1024m" # 1024Mb x 5TMs = 5Gb total heap
+set_config_key "taskmanager.memory.total-process.size" "1024m" # 1024Mb x 5TMs = 5Gb total heap
 
 set_config_key "taskmanager.memory.size" "8" # 8Mb
 set_config_key "taskmanager.network.memory.min" "128mb"

@@ -304,7 +304,7 @@
     "-Djobmanager.heap.size=2048m"
     "-Djobmanager.rpc.port=6123"
     "-Dmesos.resourcemanager.tasks.mem=2048"
-    "-Dtaskmanager.heap.size=2048m"
+    "-Dtaskmanager.memory.total-process.size=2048m"
     "-Dmesos.resourcemanager.tasks.cpus=1"
     "-Drest.bind-address=$(hostname -f)"))
 
