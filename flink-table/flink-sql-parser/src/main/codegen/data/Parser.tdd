@@ -34,6 +34,7 @@
     "org.apache.flink.sql.parser.ddl.SqlWatermark",
     "org.apache.flink.sql.parser.ddl.SqlUseCatalog",
     "org.apache.flink.sql.parser.ddl.SqlUseDatabase",
+    "org.apache.flink.sql.parser.ddl.SqlCreateDatabase",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
@@ -424,7 +425,8 @@
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
     "SqlCreateTable",
-    "SqlCreateView"
+    "SqlCreateView",
+    "SqlCreateDatabase"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.

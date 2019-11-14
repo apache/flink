@@ -81,6 +81,42 @@ SqlParserPos pos;
     }
 }
 
+/**
+* Parses a create database statement.
+* CREATE DATABASE database_name [COMMENT database_comment] [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateDatabase(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlParserPos pos;
+    SqlIdentifier databaseName;
+    SqlCharStringLiteral comment = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
+}
+{
+    <DATABASE> { startPos = getPos(); }
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+    databaseName = CompoundIdentifier()
+    [ <COMMENT> <QUOTED_STRING>
+        {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+
+    { return new SqlCreateDatabase(startPos.plus(getPos()),
+                    databaseName,
+                    propertyList,
+                    comment,
+                    ifNotExists); }
+
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }

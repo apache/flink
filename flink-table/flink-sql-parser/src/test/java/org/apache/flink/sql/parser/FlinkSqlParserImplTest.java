@@ -107,6 +107,23 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateDatabase() {
+		check("create database db1", "CREATE DATABASE `DB1`");
+		check("create database if not exists db1", "CREATE DATABASE IF NOT EXISTS `DB1`");
+		check("create database catalog1.db1", "CREATE DATABASE `CATALOG1`.`DB1`");
+		check("create database db1 comment 'test create database'",
+			"CREATE DATABASE `DB1`\n" +
+			"COMMENT 'test create database'");
+		check("create database db1 comment 'test create database'" +
+			"with ( 'key1' = 'value1', 'key2.a' = 'value2.a')",
+			"CREATE DATABASE `DB1`\n" +
+			"COMMENT 'test create database' WITH (\n" +
+			"  'key1' = 'value1',\n" +
+			"  'key2.a' = 'value2.a'\n" +
+			")");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +
