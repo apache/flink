@@ -50,22 +50,22 @@ public final class ColumnStats {
 	private final Integer maxLen;
 
 	/**
-	 * max value of column values.
+	 * max value of column values, null for none-comparable type.
 	 */
-	private final Number max;
+	private final Comparable<?> max;
 
 	/**
-	 * min value of column values.
+	 * min value of column values, null for none-comparable type.
 	 */
-	private final Number min;
+	private final Comparable<?> min;
 
 	public ColumnStats(
 		Long ndv,
 		Long nullCount,
 		Double avgLen,
 		Integer maxLen,
-		Number max,
-		Number min) {
+		Comparable<?> max,
+		Comparable<?> min) {
 		this.ndv = ndv;
 		this.nullCount = nullCount;
 		this.avgLen = avgLen;
@@ -90,11 +90,11 @@ public final class ColumnStats {
 		return maxLen;
 	}
 
-	public Number getMaxValue() {
+	public Comparable<?> getMaxValue() {
 		return max;
 	}
 
-	public Number getMinValue() {
+	public Comparable<?> getMinValue() {
 		return min;
 	}
 

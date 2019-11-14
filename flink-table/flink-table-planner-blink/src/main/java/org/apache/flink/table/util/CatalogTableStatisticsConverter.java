@@ -31,6 +31,9 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
 
+import org.apache.calcite.avatica.util.DateTimeUtils;
+
+import java.sql.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -73,8 +76,8 @@ public class CatalogTableStatisticsConverter {
 		Long nullCount = columnStatisticsData.getNullCount();
 		Double avgLen = null;
 		Integer maxLen = null;
-		Number max = null;
-		Number min = null;
+		Comparable<?> max = null;
+		Comparable<?> min = null;
 		if (columnStatisticsData instanceof CatalogColumnStatisticsDataBoolean) {
 			CatalogColumnStatisticsDataBoolean booleanData = (CatalogColumnStatisticsDataBoolean) columnStatisticsData;
 			avgLen = 1.0;
@@ -111,6 +114,12 @@ public class CatalogTableStatisticsConverter {
 		} else if (columnStatisticsData instanceof CatalogColumnStatisticsDataDate) {
 			CatalogColumnStatisticsDataDate dateData = (CatalogColumnStatisticsDataDate) columnStatisticsData;
 			ndv = dateData.getNdv();
+			if (dateData.getMax() != null) {
+				max = Date.valueOf(DateTimeUtils.unixDateToString((int) dateData.getMax().getDaysSinceEpoch()));
+			}
+			if (dateData.getMin() != null) {
+				min = Date.valueOf(DateTimeUtils.unixDateToString((int) dateData.getMin().getDaysSinceEpoch()));
+			}
 		} else {
 			throw new TableException("Unsupported CatalogColumnStatisticsDataBase: " +
 					columnStatisticsData.getClass().getCanonicalName());

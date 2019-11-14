@@ -170,8 +170,8 @@ class AggCallSelectivityEstimatorTest {
       nullCount: Option[JLong] = None,
       avgLen: Option[JDouble] = None,
       maxLen: Option[Integer] = None,
-      min: Option[Number] = None,
-      max: Option[Number] = None): ColumnStats = new ColumnStats(
+      min: Option[Comparable[_]] = None,
+      max: Option[Comparable[_]] = None): ColumnStats = new ColumnStats(
     ndv.getOrElse(null.asInstanceOf[JLong]),
     nullCount.getOrElse(null.asInstanceOf[JLong]),
     avgLen.getOrElse(null.asInstanceOf[JDouble]),
