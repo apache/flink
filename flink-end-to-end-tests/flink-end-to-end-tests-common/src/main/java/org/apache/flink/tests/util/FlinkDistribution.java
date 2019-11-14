@@ -32,7 +32,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -126,7 +125,7 @@ public final class FlinkDistribution implements ExternalResource {
 			LOG.info("Backing up logs to {}/{}.", logBackupDir, id);
 			try {
 				Files.createDirectories(logBackupDir);
-				FileUtils.copyDirectory(log.toFile(), logBackupDir.resolve(id.toString()).toFile());
+				TestUtils.copyDirectory(log, logBackupDir.resolve(id.toString()));
 			} catch (IOException e) {
 				LOG.warn("An error occurred while backing up logs.", e);
 			}
