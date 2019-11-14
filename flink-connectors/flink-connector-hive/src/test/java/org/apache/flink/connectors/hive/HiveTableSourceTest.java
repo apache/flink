@@ -181,9 +181,12 @@ public class HiveTableSourceTest {
 		String abstractSyntaxTree = explain[1];
 		String optimizedLogicalPlan = explain[2];
 		String physicalExecutionPlan = explain[3];
-		assertTrue(abstractSyntaxTree.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2"));
-		assertTrue(optimizedLogicalPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
-		assertTrue(physicalExecutionPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
+		assertTrue(abstractSyntaxTree, abstractSyntaxTree.contains(
+				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2"));
+		assertTrue(optimizedLogicalPlan, optimizedLogicalPlan.contains(
+				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
+		assertTrue(physicalExecutionPlan, physicalExecutionPlan.contains(
+				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
 		// second check execute results
 		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
 		assertEquals(2, rows.size());
@@ -212,8 +215,8 @@ public class HiveTableSourceTest {
 			String physicalPlan = explain[3];
 			String expectedExplain =
 					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: 2, ProjectedFields: [2, 1]";
-			assertTrue(logicalPlan.contains(expectedExplain));
-			assertTrue(physicalPlan.contains(expectedExplain));
+			assertTrue(logicalPlan, logicalPlan.contains(expectedExplain));
+			assertTrue(physicalPlan, physicalPlan.contains(expectedExplain));
 
 			List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
 			assertEquals(2, rows.size());
