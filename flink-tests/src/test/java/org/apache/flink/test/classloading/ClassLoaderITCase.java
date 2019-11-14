@@ -411,7 +411,7 @@ public class ClassLoaderITCase extends TestLogger {
 		final PackagedProgram childFirstProgram = PackagedProgram.newBuilder()
 			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
 			.setUserClassPaths(Lists.newArrayList(childResourceDir.toURI().toURL()))
-			.setArguments(new String[]{testResourceName, childResourceDirName})
+			.setArguments(testResourceName, childResourceDirName)
 			.build();
 
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
