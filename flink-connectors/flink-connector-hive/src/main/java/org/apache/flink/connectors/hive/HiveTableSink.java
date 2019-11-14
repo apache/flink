@@ -117,7 +117,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 				hiveTablePartition = new HiveTablePartition(sd, new LinkedHashMap<>(staticPartitionSpec));
 			} else {
 				sd.setLocation(toStagingDir(sdLocation, jobConf));
-				hiveTablePartition = new HiveTablePartition(sd, null);
+				hiveTablePartition = new HiveTablePartition(sd);
 			}
 			return new HiveTableOutputFormat(
 				jobConf,

@@ -18,30 +18,19 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopInputSplit;
+import org.apache.flink.configuration.ConfigOption;
 
-import org.apache.hadoop.mapred.InputSplit;
-import org.apache.hadoop.mapred.JobConf;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * An wrapper class that wraps info needed for a hadoop input split.
- * Right now, it contains info about the partition of the split.
+ * This class holds configuration constants used by hive connector.
  */
-public class HiveTableInputSplit extends HadoopInputSplit {
-	private final HiveTablePartition hiveTablePartition;
+public class HiveOptions {
 
-	public HiveTableInputSplit(
-			int splitNumber,
-			InputSplit hInputSplit,
-			JobConf jobconf,
-			HiveTablePartition hiveTablePartition) {
-		super(splitNumber, hInputSplit, jobconf);
-		this.hiveTablePartition = checkNotNull(hiveTablePartition, "hiveTablePartition can not be null");
-	}
-
-	public HiveTablePartition getHiveTablePartition() {
-		return hiveTablePartition;
-	}
+	public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER =
+			key("table.exec.hive.fallback-mapred-reader")
+					.defaultValue(false)
+					.withDescription(
+							"If it is false, using flink native vectorized reader to read orc files; " +
+									"If it is true, using hadoop mapred record reader to read orc files.");
 }

@@ -95,9 +95,9 @@ public class TableEnvHiveConnectorTest {
 		FileSystem fs = defaultPartPath.getFileSystem(hiveConf);
 		assertTrue(fs.exists(defaultPartPath));
 
-		TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select * from db1.part order by x");
+		TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select y, x from db1.part order by x");
 		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect(flinkTable)).asJava();
-		assertEquals(Arrays.toString(new String[]{"1,1", "2,null"}), rows.toString());
+		assertEquals(Arrays.toString(new String[]{"1,1", "null,2"}), rows.toString());
 
 		hiveShell.execute("drop database db1 cascade");
 	}

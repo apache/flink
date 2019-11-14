@@ -91,7 +91,7 @@ import static org.reflections.ReflectionUtils.withAnnotation;
  */
 public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 	private static final Logger LOGGER = LoggerFactory.getLogger(FlinkStandaloneHiveRunner.class);
-	private static final Duration HMS_START_TIMEOUT = Duration.ofSeconds(30);
+	private static final Duration HMS_START_TIMEOUT = Duration.ofSeconds(90);
 	private Future<Void> hmsWatcher;
 	private int hmsPort;
 	private HiveShellContainer container;

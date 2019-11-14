@@ -19,21 +19,20 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -41,8 +40,6 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Date;
 import java.util.ArrayList;
@@ -54,9 +51,7 @@ import java.util.Map;
 /**
  * A TableSource implementation to read data from Hive tables.
  */
-public class HiveTableSource extends InputFormatTableSource<Row> implements PartitionableTableSource, ProjectableTableSource<Row> {
-
-	private static Logger logger = LoggerFactory.getLogger(HiveTableSource.class);
+public class HiveTableSource extends InputFormatTableSource<BaseRow> implements PartitionableTableSource, ProjectableTableSource<BaseRow> {
 
 	private final JobConf jobConf;
 	private final ObjectPath tablePath;
@@ -100,11 +95,12 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 	}
 
 	@Override
-	public InputFormat getInputFormat() {
+	public InputFormat<BaseRow, ?> getInputFormat() {
 		if (!initAllPartitions) {
 			initAllPartitions();
 		}
-		return new HiveTableInputFormat(jobConf, catalogTable, allHivePartitions, projectedFields);
+		return new HiveTableInputFormat(
+				jobConf, catalogTable, allHivePartitions, projectedFields, hiveVersion);
 	}
 
 	@Override
@@ -114,23 +110,19 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 
 	@Override
 	public DataType getProducedDataType() {
-		TableSchema originSchema = getTableSchema();
+		TableSchema fullSchema = getTableSchema();
+		DataType type;
 		if (projectedFields == null) {
-			return originSchema.toRowDataType();
+			type = fullSchema.toRowDataType();
+		} else {
+			String[] fullNames = fullSchema.getFieldNames();
+			DataType[] fullTypes = fullSchema.getFieldDataTypes();
+			type = TableSchema.builder().fields(
+					Arrays.stream(projectedFields).mapToObj(i -> fullNames[i]).toArray(String[]::new),
+					Arrays.stream(projectedFields).mapToObj(i -> fullTypes[i]).toArray(DataType[]::new))
+					.build().toRowDataType();
 		}
-		String[] names = new String[projectedFields.length];
-		DataType[] types = new DataType[projectedFields.length];
-		for (int i = 0; i < projectedFields.length; i++) {
-			names[i] = originSchema.getFieldName(projectedFields[i]).get();
-			types[i] = originSchema.getFieldDataType(projectedFields[i]).get();
-		}
-		return TableSchema.builder().fields(names, types).build().toRowDataType();
-	}
-
-	@Override
-	public TypeInformation<Row> getReturnType() {
-		TableSchema tableSchema = catalogTable.getSchema();
-		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
+		return type.bridgedTo(BaseRow.class);
 	}
 
 	@Override
@@ -142,7 +134,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 	}
 
 	@Override
-	public TableSource applyPartitionPruning(List<Map<String, String>> remainingPartitions) {
+	public TableSource<BaseRow> applyPartitionPruning(List<Map<String, String>> remainingPartitions) {
 		if (catalogTable.getPartitionKeys() == null || catalogTable.getPartitionKeys().size() == 0) {
 			return this;
 		} else {
@@ -197,7 +189,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 					partitionSpec2HiveTablePartition.put(partitionSpec, hiveTablePartition);
 				}
 			} else {
-				allHivePartitions.add(new HiveTablePartition(client.getTable(dbName, tableName).getSd(), null));
+				allHivePartitions.add(new HiveTablePartition(client.getTable(dbName, tableName).getSd()));
 			}
 		} catch (TException e) {
 			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
@@ -246,7 +238,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 	}
 
 	@Override
-	public TableSource<Row> projectFields(int[] fields) {
+	public TableSource<BaseRow> projectFields(int[] fields) {
 		return new HiveTableSource(jobConf, tablePath, catalogTable, allHivePartitions, hiveVersion,
 				partitionList, initAllPartitions, partitionPruned, fields);
 	}
