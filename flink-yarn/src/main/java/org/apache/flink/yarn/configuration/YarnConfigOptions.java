@@ -215,6 +215,14 @@ public class YarnConfigOptions {
 				.noDefaultValue()
 				.withDescription("A semicolon-separated list of directories to be shipped to the YARN cluster.");
 
+	public static final ConfigOption<List<String>> SHARED_LIBRARIES =
+			key("yarn.shared-libraries")
+				.stringType()
+				.asList()
+				.noDefaultValue()
+				.withDescription("specify the path to use public visibility feature of " +
+					"YARN NodeManager localizing resources.");
+
 	public static final ConfigOption<String> FLINK_DIST_JAR =
 			key("yarn.flink-dist-jar")
 				.stringType()

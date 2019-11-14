@@ -239,7 +239,7 @@ public final class Utils {
 	 *
 	 * @return YARN resource
 	 */
-	private static LocalResource registerLocalResource(
+	static LocalResource registerLocalResource(
 			Path remoteRsrcPath,
 			long resourceSize,
 			long resourceModificationTime) {
@@ -252,14 +252,18 @@ public final class Utils {
 		return localResource;
 	}
 
-	private static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
+	static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
+		return registerLocalResource(fs, remoteRsrcPath, LocalResourceVisibility.APPLICATION);
+	}
+
+	static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath, LocalResourceVisibility localResourceVisibility) throws IOException {
 		LocalResource localResource = Records.newRecord(LocalResource.class);
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
 		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
 		localResource.setSize(jarStat.getLen());
 		localResource.setTimestamp(jarStat.getModificationTime());
 		localResource.setType(LocalResourceType.FILE);
-		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
+		localResource.setVisibility(localResourceVisibility);
 		return localResource;
 	}
 

@@ -123,6 +123,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	// --- or ---
 	private final Option queue;
 	private final Option shipPath;
+	private final Option sharedLibs;
 	private final Option flinkJar;
 	private final Option jmMemory;
 	private final Option tmMemory;
@@ -194,6 +195,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		applicationId = new Option(shortPrefix + "id", longPrefix + "applicationId", true, "Attach to running YARN session");
 		queue = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
 		shipPath = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
+		sharedLibs = new Option(shortPrefix + "sl", longPrefix + "sharedLibs", true, "Upload a copy of flink libs beforehand and specify the path to use public visibility feature of YARN NodeManager localizing resources.");
 		flinkJar = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
 		jmMemory = new Option(shortPrefix + "jm", longPrefix + "jobManagerMemory", true, "Memory for JobManager Container with optional unit (default: MB)");
 		tmMemory = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true, "Memory per TaskManager Container with optional unit (default: MB)");
@@ -218,6 +220,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		allOptions.addOption(queue);
 		allOptions.addOption(query);
 		allOptions.addOption(shipPath);
+		allOptions.addOption(sharedLibs);
 		allOptions.addOption(slots);
 		allOptions.addOption(dynamicproperties);
 		allOptions.addOption(DETACHED_OPTION);
@@ -298,6 +301,20 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 						LOG.warn("Ship directory {} is not a directory. Ignoring it.", shipDir.getAbsolutePath());
 						return null;
 					});
+		}
+	}
+
+	private void encodeSharedLibs(Configuration configuration, CommandLine cmd) {
+		checkNotNull(cmd);
+		checkNotNull(configuration);
+
+		if (cmd.hasOption(sharedLibs.getOpt())) {
+			ConfigUtils.encodeArrayToConfig(
+				configuration,
+				YarnConfigOptions.SHARED_LIBRARIES,
+				cmd.getOptionValues(sharedLibs.getOpt()),
+				libPath -> libPath
+			);
 		}
 	}
 
@@ -409,6 +426,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		}
 
 		encodeDirsToShipToCluster(configuration, commandLine);
+		encodeSharedLibs(configuration, commandLine);
 
 		if (commandLine.hasOption(queue.getOpt())) {
 			final String queueName = commandLine.getOptionValue(queue.getOpt());

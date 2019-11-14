@@ -55,7 +55,9 @@ import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -67,6 +69,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Priority;
@@ -135,6 +138,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	/** Lazily initialized list of files to ship. */
 	private final List<File> shipFiles = new LinkedList<>();
 
+	private final List<Path> sharedLibs = new LinkedList<>();
+
 	private final String yarnQueue;
 
 	private Path flinkJarPath;
@@ -170,6 +175,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		getLocalFlinkDistPath(flinkConfiguration).ifPresent(this::setLocalJarPath);
 		decodeDirsToShipToCluster(flinkConfiguration).ifPresent(this::addShipFiles);
+		decodeSharedLibs(flinkConfiguration).ifPresent(this::addSharedLibs);
 
 		this.detached = !flinkConfiguration.getBoolean(DeploymentOptions.ATTACHED);
 		this.yarnQueue = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_QUEUE);
@@ -187,6 +193,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		final List<File> files = ConfigUtils.decodeListFromConfig(configuration, YarnConfigOptions.SHIP_DIRECTORIES, File::new);
 		return files.isEmpty() ? Optional.empty() : Optional.of(files);
+	}
+
+	private Optional<List<Path>> decodeSharedLibs(final Configuration configuration) {
+		checkNotNull(configuration);
+
+		final List<Path> sharedLibs = ConfigUtils.decodeListFromConfig(configuration, YarnConfigOptions.SHARED_LIBRARIES, Path::new);
+		return sharedLibs.isEmpty() ? Optional.empty() : Optional.of(sharedLibs);
 	}
 
 	private Optional<Path> getLocalFlinkDistPath(final Configuration configuration) {
@@ -261,6 +274,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 */
 	public void addShipFiles(List<File> shipFiles) {
 		this.shipFiles.addAll(shipFiles);
+	}
+
+	public void addSharedLibs(List<Path> sharedLibs) {
+		this.sharedLibs.addAll(sharedLibs);
 	}
 
 	public String getDynamicPropertiesEncoded() {
@@ -781,8 +798,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// ship list that enables reuse of resources for task manager containers
 		StringBuilder envShipFileList = new StringBuilder();
 
-		// upload and register ship files
-		List<String> systemClassPaths = uploadAndRegisterFiles(
+		final List<String> systemClassPaths = uploadAndRegisterFiles(
 				systemShipFiles,
 				fs,
 				homeDir,
@@ -799,6 +815,15 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				paths,
 				localResources,
 				envShipFileList);
+
+		final List<String> sharedLibPaths = registerSharedLibs(
+			sharedLibs,
+			fs,
+			paths,
+			localResources,
+			envShipFileList);
+
+		userClassPaths.addAll(sharedLibPaths);
 
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.ORDER) {
 			systemClassPaths.addAll(userClassPaths);
@@ -1235,6 +1260,47 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		resources.stream().sorted().forEach(classPaths::add);
 		archives.stream().sorted().forEach(classPaths::add);
 		return classPaths;
+	}
+
+	private List<String> registerSharedLibs(
+			Collection<Path> sharedLibs,
+			FileSystem fs,
+			List<Path> remotePaths,
+			Map<String, LocalResource> localResources,
+			StringBuilder envShipFileList) throws IOException {
+		List<String> classPaths = new ArrayList<>();
+
+		for (Path sharedLibPath : sharedLibs) {
+			if (fs.isFile(sharedLibPath)) {
+				String classpath = setupSharedLib(sharedLibPath, fs, remotePaths, localResources, envShipFileList);
+				classPaths.add(classpath);
+			} else { // directory
+				RemoteIterator<LocatedFileStatus> i = fs.listFiles(sharedLibPath, true);
+				while (i.hasNext()) {
+					LocatedFileStatus fileStatus = i.next();
+					if (fileStatus.isFile()) {
+						String classpath = setupSharedLib(fileStatus.getPath(), fs, remotePaths, localResources, envShipFileList);
+						classPaths.add(classpath);
+					}
+				}
+			}
+		}
+
+		return classPaths;
+	}
+
+	private String setupSharedLib(
+			Path sharedLibPath,
+			FileSystem fs,
+			List<Path> remotePaths,
+			Map<String, LocalResource> localResources,
+			StringBuilder envShipFileList) throws IOException {
+		LocalResource localResource = Utils.registerLocalResource(fs, sharedLibPath, LocalResourceVisibility.PUBLIC);
+		remotePaths.add(sharedLibPath);
+		localResources.put(sharedLibPath.getName(), localResource);
+		envShipFileList.append(sharedLibPath.getName()).append("=").append(sharedLibPath).append(",");
+
+		return sharedLibPath.getName();
 	}
 
 	/**
