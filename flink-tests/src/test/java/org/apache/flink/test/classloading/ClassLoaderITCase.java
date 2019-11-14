@@ -395,7 +395,7 @@ public class ClassLoaderITCase extends TestLogger {
 		String childResourceDirName = "child0";
 		String testResourceName = "test-resource";
 		File childResourceDir = FOLDER.newFolder(childResourceDirName);
-		File childResource = new File(childResourceDir.getAbsolutePath() + File.separator + testResourceName);
+		File childResource = new File(childResourceDir, testResourceName);
 		assertTrue(childResource.createNewFile());
 
 		TestStreamEnvironment.setAsContext(
@@ -404,10 +404,14 @@ public class ClassLoaderITCase extends TestLogger {
 			Collections.singleton(new Path(CLASSLOADING_POLICY_JAR_PATH)),
 			Collections.emptyList());
 
-		// default child first classloading
+		// child-first classloading
+		Configuration childFirstConf = new Configuration();
+		childFirstConf.setString("classloader.resolve-order", "child-first");
+
 		final PackagedProgram childFirstProgram = PackagedProgram.newBuilder()
 			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
 			.setUserClassPaths(Collections.singletonList(childResourceDir.toURI().toURL()))
+			.setConfiguration(childFirstConf)
 			.setArguments(testResourceName, childResourceDirName)
 			.build();
 
@@ -427,7 +431,7 @@ public class ClassLoaderITCase extends TestLogger {
 		String childResourceDirName = "child1";
 		String testResourceName = "test-resource";
 		File childResourceDir = FOLDER.newFolder(childResourceDirName);
-		File childResource = new File(childResourceDir.getAbsolutePath() + File.separator + testResourceName);
+		File childResource = new File(childResourceDir, testResourceName);
 		assertTrue(childResource.createNewFile());
 
 		TestStreamEnvironment.setAsContext(
@@ -435,7 +439,6 @@ public class ClassLoaderITCase extends TestLogger {
 			parallelism,
 			Collections.singleton(new Path(CLASSLOADING_POLICY_JAR_PATH)),
 			Collections.emptyList());
-		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 
 		// parent-first classloading
 		Configuration parentFirstConf = new Configuration();
@@ -448,6 +451,7 @@ public class ClassLoaderITCase extends TestLogger {
 			.setArguments(testResourceName, "test-classes")
 			.build();
 
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		Thread.currentThread().setContextClassLoader(parentFirstProgram.getUserCodeClassLoader());
 		try {
 			parentFirstProgram.invokeInteractiveModeForExecution();
