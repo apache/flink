@@ -1244,10 +1244,11 @@ public class DataStream<T> {
 			String operatorName,
 			TypeInformation<R> outTypeInfo,
 			OneInputStreamOperatorFactory<T, R> operatorFactory) {
+
 		return doTransform(operatorName, outTypeInfo, operatorFactory);
 	}
 
-	private <R> SingleOutputStreamOperator<R> doTransform(
+	protected <R> SingleOutputStreamOperator<R> doTransform(
 			String operatorName,
 			TypeInformation<R> outTypeInfo,
 			StreamOperatorFactory<R> operatorFactory) {
