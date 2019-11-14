@@ -49,12 +49,12 @@ public class ConfigurationUtils {
 	 */
 	public static MemorySize getJobManagerHeapMemory(Configuration configuration) {
 		if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key())) {
-			return MemorySize.parse(configuration.getString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY));
+			return configuration.get(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
 		} else if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB.key())) {
-			return MemorySize.parse(configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB) + "m");
+			return configuration.get(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB);
 		} else {
 			//use default value
-			return MemorySize.parse(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue());
+			return JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue();
 		}
 	}
 
