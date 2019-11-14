@@ -6,9 +6,9 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.fasterxml.jackson.core:jackson-annotations:2.7.0
-- com.fasterxml.jackson.core:jackson-core:2.7.8
-- com.fasterxml.jackson.core:jackson-databind:2.7.8
+- com.fasterxml.jackson.core:jackson-annotations:2.10.1
+- com.fasterxml.jackson.core:jackson-core:2.10.1
+- com.fasterxml.jackson.core:jackson-databind:2.10.1
 - com.google.guava:guava:11.0.2
 - com.microsoft.azure:azure-keyvault-core:0.8.0
 - com.microsoft.azure:azure-storage:5.4.0
