@@ -281,29 +281,7 @@ case $TEST in
             printf "Running java end-to-end tests\n"
             printf "==============================================================================\n"
 
-            # Start watching $MVN_OUT
-            watchdog &
-            echo "STARTED watchdog (${WD_PID})."
-
-            WD_PID=$!
-
-            echo "RUNNING '${MVN_E2E}'."
-
-            # Run $MVN_E2E and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
-            # allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
-            # the exit code. This is important for Travis' build life-cycle (success/failure).
-            ( $MVN_E2E & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
-
-            EXIT_CODE=$(<$MVN_EXIT)
-
-            echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
-
-            # Make sure to kill the watchdog in any case after $MVN_TEST has completed
-            echo "Trying to KILL watchdog (${WD_PID})."
-            ( kill $WD_PID 2>&1 ) > /dev/null
-
-            rm $MVN_PID
-            rm $MVN_EXIT
+            run_with_watchdog "$MVN_E2E"
 
             EXIT_CODE=$?
         else

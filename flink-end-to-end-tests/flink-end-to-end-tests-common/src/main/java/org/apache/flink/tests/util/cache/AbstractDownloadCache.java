@@ -41,7 +41,7 @@ import java.util.stream.Stream;
  */
 abstract class AbstractDownloadCache implements DownloadCache {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractDownloadCache.class);
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	private final Path tmpDir;
 	private final Path downloadsDir;
@@ -69,7 +69,7 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 				if (matcher.matches()) {
 					if (exceedsTimeToLive(matcher)) {
-						LOG.info("Invalidating cache entry {}.", regenerateOriginalFileName(matcher));
+						log.info("Invalidating cache entry {}.", regenerateOriginalFileName(matcher));
 						Files.delete(cacheFile);
 					}
 				}
@@ -97,12 +97,12 @@ abstract class AbstractDownloadCache implements DownloadCache {
 
 		final Path cacheFile;
 		if (cachedFile.isPresent()) {
-			LOG.info("Using cached version of {}.", url);
+			log.info("Using cached version of {}.", url);
 			cacheFile = cachedFile.get();
 		} else {
 			final Path scopedDownloadDir = downloadsDir.resolve(String.valueOf(url.hashCode()));
 			Files.createDirectories(scopedDownloadDir);
-			LOG.info("Downloading {}.", url);
+			log.info("Downloading {}.", url);
 			AutoClosableProcess
 				.create(
 					CommandLineWrapper.wget(url)
