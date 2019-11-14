@@ -20,7 +20,6 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -79,46 +78,6 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	// ------------------------------------------------------------------------
 	//  Factory
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Calculates cutoff memory size used by container, it will throw an {@link IllegalArgumentException}
-	 * if the config is invalid or return the cutoff value if valid.
-	 *
-	 * @param config The Flink configuration.
-	 * @param containerMemoryMB The size of the complete container, in megabytes.
-	 *
-	 * @return cutoff memory size used by container.
-	 */
-	public static long calculateCutoffMB(Configuration config, long containerMemoryMB) {
-		Preconditions.checkArgument(containerMemoryMB > 0);
-
-		// (1) check cutoff ratio
-		final float memoryCutoffRatio = config.getFloat(
-			ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
-
-		if (memoryCutoffRatio >= 1 || memoryCutoffRatio <= 0) {
-			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key() + "' must be between 0 and 1. Value given="
-				+ memoryCutoffRatio);
-		}
-
-		// (2) check min cutoff value
-		final int minCutoff = config.getInteger(
-			ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
-
-		if (minCutoff >= containerMemoryMB) {
-			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key() + "'='" + minCutoff
-				+ "' is larger than the total container memory " + containerMemoryMB);
-		}
-
-		// (3) check between heap and off-heap
-		long cutoff = (long) (containerMemoryMB * memoryCutoffRatio);
-		if (cutoff < minCutoff) {
-			cutoff = minCutoff;
-		}
-		return cutoff;
-	}
 
 	/**
 	 * Computes the parameters to be used to start a TaskManager Java process.
