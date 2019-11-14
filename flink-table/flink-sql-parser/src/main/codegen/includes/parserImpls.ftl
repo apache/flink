@@ -161,6 +161,22 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
     }
 }
 
+SqlDescribeDatabase SqlDescribeDatabase() :
+{
+    SqlIdentifier databaseName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    <DESCRIBE> <DATABASE> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlDescribeDatabase(pos, databaseName, isExtended);
+    }
+
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }

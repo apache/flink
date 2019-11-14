@@ -42,6 +42,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
     "org.apache.flink.sql.parser.dql.SqlDescribeCatalog",
     "org.apache.flink.sql.parser.dql.SqlShowDatabases",
+    "org.apache.flink.sql.parser.dql.SqlDescribeDatabase",
     "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
@@ -66,7 +67,8 @@
     "BYTES",
     "CATALOGS",
     "USE",
-    "DATABASES"
+    "DATABASES",
+    "EXTENDED"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -152,6 +154,7 @@
     "EXCEPTION"
     "EXCLUDE"
     "EXCLUDING"
+    "EXTENDED"
     "FINAL"
     "FIRST"
     "FOLLOWING"
@@ -393,7 +396,8 @@
     "SqlUseCatalog()",
     "SqlShowDatabases()",
     "SqlUseDatabase()",
-    "SqlAlterDatabase()"
+    "SqlAlterDatabase()",
+    "SqlDescribeDatabase()"
   ]
 
   # List of methods for parsing custom literals.

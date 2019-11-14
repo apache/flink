@@ -141,6 +141,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testDescribeDatabase() {
+		check("describe database db1", "DESCRIBE DATABASE `DB1`");
+		check("describe database catlog1.db1", "DESCRIBE DATABASE `CATLOG1`.`DB1`");
+		check("describe database extended db1", "DESCRIBE DATABASE EXTENDED `DB1`");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +
