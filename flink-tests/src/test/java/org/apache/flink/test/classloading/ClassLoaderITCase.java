@@ -448,7 +448,7 @@ public class ClassLoaderITCase extends TestLogger {
 			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
 			.setUserClassPaths(Collections.singletonList(childResourceDir.toURI().toURL()))
 			.setConfiguration(parentFirstConf)
-			.setArguments(new String[]{testResourceName, "test-classes"})
+			.setArguments(testResourceName, "test-classes")
 			.build();
 
 		Thread.currentThread().setContextClassLoader(parentFirstProgram.getUserCodeClassLoader());
