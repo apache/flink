@@ -148,6 +148,6 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 	}
 
 	private static boolean isValidPort(int port) {
-		return 0 < port && port <= 65535;
+		return 0 <= port && port <= 65535;
 	}
 }

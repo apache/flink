@@ -120,7 +120,7 @@ public class QueryableStateClient {
 	 * @param remotePort the port of the proxy to connect to.
 	 */
 	public QueryableStateClient(final InetAddress remoteAddress, final int remotePort) {
-		Preconditions.checkArgument(remotePort >= 0 && remotePort <= 65536,
+		Preconditions.checkArgument(remotePort >= 0 && remotePort <= 65535,
 				"Remote Port " + remotePort + " is out of valid port range (0-65536).");
 
 		this.remoteAddress = new InetSocketAddress(remoteAddress, remotePort);

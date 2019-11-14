@@ -229,7 +229,7 @@ public class RestClient implements AutoCloseableAsync {
 			Collection<FileUpload> fileUploads,
 			RestAPIVersion apiVersion) throws IOException {
 		Preconditions.checkNotNull(targetAddress);
-		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
+		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range [0, 65536).");
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(messageParameters);
