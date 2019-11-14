@@ -117,6 +117,33 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 
 }
 
+SqlDrop SqlDropDatabase(Span s, boolean replace) :
+{
+    SqlIdentifier databaseName = null;
+    boolean ifExists = false;
+    boolean isRestrict = true;
+}
+{
+    <DATABASE>
+
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+
+    databaseName = CompoundIdentifier()
+    [
+                <RESTRICT> { isRestrict = true; }
+        |
+                <CASCADE>  { isRestrict = false; }
+    ]
+
+    {
+         return new SqlDropDatabase(s.pos(), databaseName, ifExists, isRestrict);
+    }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }

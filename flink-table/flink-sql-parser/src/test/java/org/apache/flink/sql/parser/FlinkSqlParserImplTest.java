@@ -124,6 +124,14 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testDropDatabase() {
+		check("drop database db1", "DROP DATABASE `DB1` RESTRICT");
+		check("drop database catalog1.db1", "DROP DATABASE `CATALOG1`.`DB1` RESTRICT");
+		check("drop database db1 RESTRICT", "DROP DATABASE `DB1` RESTRICT");
+		check("drop database db1 CASCADE", "DROP DATABASE `DB1` CASCADE");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +
