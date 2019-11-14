@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.resources;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.operators.ResourceSpec;
 
 /**
  * The GPU resource.
@@ -29,8 +28,10 @@ public class GPUResource extends Resource {
 
 	private static final long serialVersionUID = -2276080061777135142L;
 
+	public static final String NAME = "GPU";
+
 	public GPUResource(double value) {
-		super(ResourceSpec.GPU_NAME, value);
+		super(NAME, value);
 	}
 
 	@Override

@@ -64,8 +64,6 @@ public final class ResourceSpec implements Serializable {
 	 */
 	public static final ResourceSpec DEFAULT = UNKNOWN;
 
-	public static final String GPU_NAME = "GPU";
-
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */
 	private final double cpuCores;
 
@@ -172,7 +170,7 @@ public final class ResourceSpec implements Serializable {
 
 	public double getGPUResource() {
 		throwUnsupportedOperationExceptionIfUnknown();
-		Resource gpuResource = extendedResources.get(GPU_NAME);
+		Resource gpuResource = extendedResources.get(GPUResource.NAME);
 		if (gpuResource != null) {
 			return gpuResource.getValue();
 		}
