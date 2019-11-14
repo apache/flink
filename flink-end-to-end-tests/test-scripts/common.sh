@@ -154,7 +154,7 @@ function create_ha_config() {
     jobmanager.rpc.address: localhost
     jobmanager.rpc.port: 6123
     jobmanager.heap.size: 1024m
-    taskmanager.heap.size: 1024m
+    taskmanager.memory.total-process.size: 1024m
     taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
     #==============================================================================

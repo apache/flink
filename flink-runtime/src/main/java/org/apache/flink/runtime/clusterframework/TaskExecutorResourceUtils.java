@@ -506,11 +506,11 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static boolean isTotalProcessMemorySizeExplicitlyConfigured(final Configuration config) {
-		// backward compatible with the deprecated config options TASK_MANAGER_HEAP_MEMORY and TASK_MANAGER_HEAP_MEMORY_MB
+		// backward compatible with the deprecated config options TASK_MANAGER_HEAP_MEMORY_MB
 		// only when they are explicitly configured by the user
 		@SuppressWarnings("deprecation")
 		final boolean legacyConfigured =
-			config.contains(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB) || config.contains(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
+			config.contains(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
 		final boolean configuredWithEnv = System.getenv("FLINK_TM_HEAP") != null;
 		return config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY) || legacyConfigured || configuredWithEnv;
 	}

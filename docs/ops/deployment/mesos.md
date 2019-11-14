@@ -219,7 +219,7 @@ For example:
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
         -Dmesos.resourcemanager.tasks.mem=4096 \
-        -Dtaskmanager.heap.size=3500m \
+        -Dtaskmanager.memory.total-process.size=3500m \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 
@@ -237,7 +237,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.memory.total-process.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }
