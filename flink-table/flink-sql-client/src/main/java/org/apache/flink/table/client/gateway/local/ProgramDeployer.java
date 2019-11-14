@@ -73,7 +73,7 @@ public class ProgramDeployer<C> implements Runnable {
 		LOG.info("Submitting job {} for query {}`", jobGraph.getJobID(), jobName);
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Submitting job {} with the following environment: \n{}",
-					jobGraph.getJobID(), context.getMergedEnvironment());
+				jobGraph.getJobID(), context.getMergedEnvironment());
 		}
 		deployJob(context, jobGraph, result);
 	}
@@ -96,7 +96,7 @@ public class ProgramDeployer<C> implements Runnable {
 				}
 				// reuse existing cluster
 				else {
-					deployJobOnExistingCluster(context.getClusterId(), clusterDescriptor, jobGraph, result);
+					deployJobOnExistingCluster(context.getClusterId(), clusterDescriptor, jobGraph, result, context.getClassLoader());
 				}
 			} catch (Exception e) {
 				throw new SqlExecutionException("Could not retrieve or create a cluster.", e);
@@ -113,27 +113,17 @@ public class ProgramDeployer<C> implements Runnable {
 			JobGraph jobGraph,
 			Result<T> result,
 			ClassLoader classLoader) throws Exception {
-		ClusterClient<T> clusterClient = null;
-		try {
-			clusterClient = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, !awaitJobResult);
+		try (ClusterClient<T> client = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, !awaitJobResult)) {
 			// save information about the new cluster
-			result.setClusterInformation(clusterClient.getClusterId(), clusterClient.getWebInterfaceURL());
+			result.setClusterInformation(client.getClusterId(), client.getWebInterfaceURL());
 			// get result
 			if (awaitJobResult) {
-				// we need to hard cast for now
-				final JobExecutionResult jobResult = clusterClient
-						.requestJobResult(jobGraph.getJobID())
-						.get()
-						.toJobExecutionResult(context.getClassLoader()); // throws exception if job fails
+				// throws exception if job fails
+				final JobExecutionResult jobResult = client
+					.requestJobResult(jobGraph.getJobID())
+					.get()
+					.toJobExecutionResult(classLoader);
 				executionResultBucket.add(jobResult);
-			}
-		} finally {
-			try {
-				if (clusterClient != null) {
-					clusterClient.close();
-				}
-			} catch (Exception e) {
-				// ignore
 			}
 		}
 	}
@@ -142,36 +132,21 @@ public class ProgramDeployer<C> implements Runnable {
 			T clusterId,
 			ClusterDescriptor<T> clusterDescriptor,
 			JobGraph jobGraph,
-			Result<T> result) throws Exception {
-		ClusterClient<T> clusterClient = null;
-		try {
-			// retrieve existing cluster
-			clusterClient = clusterDescriptor.retrieve(clusterId);
-			String webInterfaceUrl;
-			// retrieving the web interface URL might fail on legacy pre-FLIP-6 code paths
-			// TODO remove this once we drop support for legacy deployment code
-			try {
-				webInterfaceUrl = clusterClient.getWebInterfaceURL();
-			} catch (Exception e) {
-				webInterfaceUrl = "N/A";
-			}
+			Result<T> result,
+			ClassLoader classLoader) throws Exception {
+		try (ClusterClient<T> client = clusterDescriptor.retrieve(clusterId)) {
 			// save the cluster information
-			result.setClusterInformation(clusterClient.getClusterId(), webInterfaceUrl);
+			result.setClusterInformation(client.getClusterId(), client.getWebInterfaceURL());
 			// submit job (and get result)
 			if (awaitJobResult) {
 				// throws exception if job fails
-				final JobExecutionResult jobResult = ClientUtils.submitJobAndWaitForResult(clusterClient, jobGraph, context.getClassLoader());
+				final JobExecutionResult jobResult = ClientUtils.submitJobAndWaitForResult(
+					client,
+					jobGraph,
+					classLoader);
 				executionResultBucket.add(jobResult);
 			} else {
-				ClientUtils.submitJob(clusterClient, jobGraph);
-			}
-		} finally {
-			try {
-				if (clusterClient != null) {
-					clusterClient.close();
-				}
-			} catch (Exception e) {
-				// ignore
+				ClientUtils.submitJob(client, jobGraph);
 			}
 		}
 	}
