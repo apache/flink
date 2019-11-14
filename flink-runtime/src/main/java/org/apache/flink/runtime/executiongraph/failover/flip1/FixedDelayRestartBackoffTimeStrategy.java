@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.util.TimeUtils;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -84,16 +83,7 @@ public class FixedDelayRestartBackoffTimeStrategy implements RestartBackoffTimeS
 
 	public static FixedDelayRestartBackoffTimeStrategyFactory createFactory(final Configuration configuration) {
 		int maxAttempts = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
-		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY);
-
-		long delay;
-		try {
-			delay = TimeUtils.parseDuration(delayString).toMillis();
-		} catch (IllegalArgumentException ex) {
-			throw new IllegalArgumentException("Invalid config value for " +
-				RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key() + ": " + delayString +
-				". Value must be a valid duration (such as '100 milli' or '10 s')", ex);
-		}
+		long delay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY).toMillis();
 
 		return new FixedDelayRestartBackoffTimeStrategyFactory(maxAttempts, delay);
 	}

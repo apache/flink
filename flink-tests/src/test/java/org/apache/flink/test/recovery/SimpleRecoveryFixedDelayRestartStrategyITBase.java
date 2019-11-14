@@ -45,7 +45,7 @@ public class SimpleRecoveryFixedDelayRestartStrategyITBase extends SimpleRecover
 		Configuration config = new Configuration();
 		config.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 		config.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
-		config.setString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, "100 ms");
+		config.setString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key(), "100 ms");
 
 		return config;
 	}

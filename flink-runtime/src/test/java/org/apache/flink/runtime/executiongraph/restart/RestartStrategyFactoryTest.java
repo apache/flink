@@ -61,7 +61,7 @@ public class RestartStrategyFactoryTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 		configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, attempts);
-		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, delayBetweenRestartAttempts.getSeconds() + "s");
+		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key(), delayBetweenRestartAttempts.getSeconds() + "s");
 
 		final RestartStrategyFactory restartStrategyFactory = RestartStrategyFactory.createRestartStrategyFactory(configuration);
 

@@ -1053,7 +1053,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testRequestNextInputSplitWithGlobalFailover() throws Exception {
 		configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
-		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
+		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key(), "0 s");
 
 		final Function<List<List<InputSplit>>, Collection<InputSplit>> expectAllRemainingInputSplits = this::flattenCollection;
 
