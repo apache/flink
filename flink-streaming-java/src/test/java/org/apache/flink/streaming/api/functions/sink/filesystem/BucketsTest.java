@@ -318,7 +318,7 @@ public class BucketsTest {
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				DefaultRollingPolicy.builder().build(),
 				2,
-				new PartFileConfig()
+				PartFileConfig.builder().build()
 		);
 
 		buckets.onElement(
@@ -377,7 +377,7 @@ public class BucketsTest {
 				basePath,
 				rollingPolicy,
 				subtaskIdx,
-				new PartFileConfig());
+				PartFileConfig.builder().build());
 	}
 
 	private static Buckets<String, String> createBuckets(
@@ -408,7 +408,7 @@ public class BucketsTest {
 				subtaskIdx,
 				bucketState,
 				partCounterState,
-				new PartFileConfig());
+				PartFileConfig.builder().build());
 	}
 
 	private static Buckets<String, String> restoreBuckets(

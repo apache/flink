@@ -140,8 +140,7 @@ public class TestUtils {
 				bucketer,
 				writer,
 				bucketFactory,
-				PartFileConfig.DEFAULT_PART_PREFIX,
-				PartFileConfig.DEFAULT_PART_SUFFIX);
+				PartFileConfig.builder().build());
 	}
 
 	static OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createTestSinkWithBulkEncoder(
@@ -152,16 +151,14 @@ public class TestUtils {
 			final BucketAssigner<Tuple2<String, Integer>, String> bucketer,
 			final BulkWriter.Factory<Tuple2<String, Integer>> writer,
 			final BucketFactory<Tuple2<String, Integer>, String> bucketFactory,
-			final String partFilePrefix,
-			final String partFileSuffix) throws Exception {
+			final PartFileConfig partFileConfig) throws Exception {
 
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink
 			.forBulkFormat(new Path(outDir.toURI()), writer)
 			.withBucketAssigner(bucketer)
 			.withBucketCheckInterval(bucketCheckInterval)
 			.withBucketFactory(bucketFactory)
-			.withPartFilePrefix(partFilePrefix)
-			.withPartFileSuffix(partFileSuffix)
+			.withPartFileConfig(partFileConfig)
 			.build();
 
 		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
