@@ -34,6 +34,11 @@ under the License.
 	<artifactId>flink-end-to-end-tests</artifactId>
 	<name>flink-end-to-end-tests</name>
 
+	<properties>
+		<includeE2E>org.apache.flink.tests.util.categories.Dummy</includeE2E>
+		<excludeE2E></excludeE2E>
+	</properties>
+
 	<modules>
 		<module>flink-cli-test</module>
 		<module>flink-parent-child-classloading-test-program</module>
@@ -88,8 +93,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<executions>
-					<!-- Do not execute any tests by default.
-						E2E tests should specify an additional execution within a profile. -->
 					<execution>
 						<id>default-test</id>
 						<phase>none</phase>
@@ -97,6 +100,27 @@ under the License.
 					<execution>
 						<id>integration-tests</id>
 						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>end-to-end-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/*ITCase.*</include>
+							</includes>
+							<!-- Disable all tests by default.
+                                Uses a separate property to make it configurable from the command-line. -->
+							<groups>${includeE2E}</groups>
+							<excludedGroups>${excludeE2E}</excludedGroups>
+							<!-- E2E tests must not access flink-dist concurrently. -->
+							<forkCount>1</forkCount>
+							<systemPropertyVariables>
+								<moduleDir>${project.basedir}</moduleDir>
+							</systemPropertyVariables>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

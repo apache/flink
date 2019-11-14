@@ -27,6 +27,7 @@ cache:
   - $HOME/maven_cache
   # keep in sync with tools/travis/docs.sh
   - $HOME/gem_cache
+  - $HOME/flink_download_cache
 
 # do not cache our own artifacts
 before_cache:
@@ -41,6 +42,8 @@ git:
 
 env:
   global:
+    - cache-dir: $HOME/flink_download_cache
+    - cache-btl: 30
     # Global variable to avoid hanging travis builds when downloading cache archives.
     - MALLOC_ARENA_MAX=2
     - DOCKER_COMPOSE_VERSION=1.22.0
@@ -273,99 +276,99 @@ jobs:
     # E2E profiles - Hadoop 2.8
     - if: type = cron
       stage: test
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - hadoop 2.8
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha - hadoop 2.8
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky - hadoop 2.8
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints - hadoop 2.8
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
       script: ./tools/travis/nightly.sh split_container.sh
       name: e2e - container - hadoop 2.8
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - hadoop 2.8
       # E2E profiles - Scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
       script: ./tools/travis/nightly.sh split_container.sh
       name: e2e - container - scala 2.12
     - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12"
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - scala 2.12
       # E2E profiles - Hadoop-free
     - if: type = cron
-      env: PROFILE="-De2e-metrics"
+      env: PROFILE="-De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc_hadoopfree.sh
       name: e2e - misc
     - if: type = cron
-      env: PROFILE=""
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha
     - if: type = cron
-      env: PROFILE=""
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky
     - if: type = cron
-      env: PROFILE=""
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints
     - if: type = cron
-      env: PROFILE=""
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
       script: ./tools/travis/nightly.sh split_container.sh
       name: e2e - container
     - if: type = cron
-      env: PROFILE=""
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy
     # E2E profiles - Java 11
     - if: type = cron
       stage: test
       jdk: "openjdk11"
-      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics"
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - jdk11
     - if: type = cron
-      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha - jdk11
     - if: type = cron
-      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky - jdk 11
     - if: type = cron
-      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints - jdk 11
     - if: type = cron
-      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3"
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - jdk 11
