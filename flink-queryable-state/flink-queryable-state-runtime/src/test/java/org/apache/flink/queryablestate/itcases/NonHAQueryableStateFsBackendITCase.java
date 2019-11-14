@@ -80,7 +80,7 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
 		config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "4m");
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);

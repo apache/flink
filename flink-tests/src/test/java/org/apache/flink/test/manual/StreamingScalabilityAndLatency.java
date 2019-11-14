@@ -54,7 +54,7 @@ public class StreamingScalabilityAndLatency {
 
 		try {
 			Configuration config = new Configuration();
-			config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "80m");
+			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
 			config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 20000);
 
 			config.setInteger("taskmanager.net.server.numThreads", 1);
