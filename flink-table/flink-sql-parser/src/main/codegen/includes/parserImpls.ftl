@@ -55,6 +55,19 @@ SqlParserPos pos;
     }
 }
 
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowDatabases SqlShowDatabases() :
+{
+}
+{
+    <SHOW> <DATABASES>
+    {
+        return new SqlShowDatabases(getPos());
+    }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }

@@ -37,6 +37,7 @@
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
     "org.apache.flink.sql.parser.dql.SqlDescribeCatalog",
+    "org.apache.flink.sql.parser.dql.SqlShowDatabases",
     "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
@@ -60,7 +61,8 @@
     "STRING",
     "BYTES",
     "CATALOGS",
-    "USE"
+    "USE",
+    "DATABASES"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -118,6 +120,7 @@
     "CURSOR_NAME"
     "DATA"
     "DATABASE"
+    "DATABASES"
     "DATETIME_INTERVAL_CODE"
     "DATETIME_INTERVAL_PRECISION"
     "DECADE"
@@ -383,7 +386,8 @@
     "RichSqlInsert()",
     "SqlShowCatalogs()",
     "SqlDescribeCatalog()",
-    "SqlUseCatalog()"
+    "SqlUseCatalog()",
+    "SqlShowDatabases()"
   ]
 
   # List of methods for parsing custom literals.
