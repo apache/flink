@@ -41,7 +41,7 @@ import java.util.stream.Stream;
  */
 abstract class AbstractDownloadCache implements DownloadCache {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private final Path tmpDir;
 	private final Path downloadsDir;
