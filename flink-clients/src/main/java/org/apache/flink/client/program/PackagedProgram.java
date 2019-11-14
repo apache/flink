@@ -112,8 +112,12 @@ public class PackagedProgram {
 	 * @throws ProgramInvocationException This invocation is thrown if the Program can't be properly loaded. Causes
 	 *                                    may be a missing / wrong class or manifest files.
 	 */
-	private PackagedProgram(@Nullable File jarFile, List<URL> classpaths, @Nullable String entryPointClassName,
-							Configuration configuration, String... args) throws ProgramInvocationException {
+	private PackagedProgram(
+			@Nullable File jarFile,
+			List<URL> classpaths,
+			@Nullable String entryPointClassName,
+			Configuration configuration,
+			String... args) throws ProgramInvocationException {
 		checkNotNull(classpaths);
 		checkNotNull(args);
 		checkArgument(jarFile != null || entryPointClassName != null, "Either the jarFile or the entryPointClassName needs to be non-null.");
@@ -143,8 +147,11 @@ public class PackagedProgram {
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
-		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getJobJarAndDependencies(), classpaths,
-			getClass().getClassLoader(), configuration);
+		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
+			getJobJarAndDependencies(),
+			classpaths,
+			getClass().getClassLoader(),
+			configuration);
 
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
