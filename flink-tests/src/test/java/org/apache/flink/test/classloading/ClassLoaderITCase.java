@@ -40,9 +40,6 @@ import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-import org.apache.flink.shaded.guava18.com.google.common.io.Files;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -399,7 +396,7 @@ public class ClassLoaderITCase extends TestLogger {
 		String testResourceName = "test-resource";
 		File childResourceDir = FOLDER.newFolder(childResourceDirName);
 		File childResource = new File(childResourceDir.getAbsolutePath() + File.separator + testResourceName);
-		Files.touch(childResource);
+		assertTrue(childResource.createNewFile());
 
 		TestStreamEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -410,7 +407,7 @@ public class ClassLoaderITCase extends TestLogger {
 		// default child first classloading
 		final PackagedProgram childFirstProgram = PackagedProgram.newBuilder()
 			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
-			.setUserClassPaths(Lists.newArrayList(childResourceDir.toURI().toURL()))
+			.setUserClassPaths(Collections.singletonList(childResourceDir.toURI().toURL()))
 			.setArguments(testResourceName, childResourceDirName)
 			.build();
 
@@ -431,7 +428,7 @@ public class ClassLoaderITCase extends TestLogger {
 		String testResourceName = "test-resource";
 		File childResourceDir = FOLDER.newFolder(childResourceDirName);
 		File childResource = new File(childResourceDir.getAbsolutePath() + File.separator + testResourceName);
-		Files.touch(childResource);
+		assertTrue(childResource.createNewFile());
 
 		TestStreamEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
