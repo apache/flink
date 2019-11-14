@@ -68,6 +68,19 @@ SqlShowDatabases SqlShowDatabases() :
     }
 }
 
+SqlUseDatabase SqlUseDatabase() :
+{
+SqlIdentifier databaseName;
+SqlParserPos pos;
+}
+{
+    <USE> { pos = getPos();}
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlUseDatabase(pos, databaseName);
+    }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }

@@ -101,6 +101,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testUseDataBase() {
+		check("use default_db", "USE `DEFAULT_DB`");
+		check("use defaultCatalog.default_db", "USE `DEFAULTCATALOG`.`DEFAULT_DB`");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +

@@ -33,6 +33,7 @@
     "org.apache.flink.sql.parser.ddl.SqlTableOption",
     "org.apache.flink.sql.parser.ddl.SqlWatermark",
     "org.apache.flink.sql.parser.ddl.SqlUseCatalog",
+    "org.apache.flink.sql.parser.ddl.SqlUseDatabase",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
@@ -387,7 +388,8 @@
     "SqlShowCatalogs()",
     "SqlDescribeCatalog()",
     "SqlUseCatalog()",
-    "SqlShowDatabases()"
+    "SqlShowDatabases()",
+    "SqlUseDatabase()"
   ]
 
   # List of methods for parsing custom literals.
