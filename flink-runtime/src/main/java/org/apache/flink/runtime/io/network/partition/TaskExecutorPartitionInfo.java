@@ -22,6 +22,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -32,9 +33,13 @@ public final class TaskExecutorPartitionInfo {
 	private final ResultPartitionID resultPartitionId;
 	private final IntermediateDataSetID intermediateDataSetId;
 
-	public TaskExecutorPartitionInfo(ResultPartitionID resultPartitionId, IntermediateDataSetID intermediateDataSetId) {
+	private final int numberOfPartitions;
+
+	public TaskExecutorPartitionInfo(ResultPartitionID resultPartitionId, IntermediateDataSetID intermediateDataSetId, int numberOfPartitions) {
 		this.resultPartitionId = checkNotNull(resultPartitionId);
 		this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
+		checkArgument(numberOfPartitions > 0);
+		this.numberOfPartitions = numberOfPartitions;
 	}
 
 	public IntermediateDataSetID getIntermediateDataSetId() {
@@ -43,6 +48,10 @@ public final class TaskExecutorPartitionInfo {
 
 	public ResultPartitionID getResultPartitionId() {
 		return resultPartitionId;
+	}
+
+	public int getNumberOfPartitions() {
+		return numberOfPartitions;
 	}
 
 	@Override
@@ -67,6 +76,7 @@ public final class TaskExecutorPartitionInfo {
 	public static TaskExecutorPartitionInfo from(ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor) {
 		return new TaskExecutorPartitionInfo(
 			resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID(),
-			resultPartitionDeploymentDescriptor.getResultId());
+			resultPartitionDeploymentDescriptor.getResultId(),
+			resultPartitionDeploymentDescriptor.getTotalNumberOfPartitions());
 	}
 }
