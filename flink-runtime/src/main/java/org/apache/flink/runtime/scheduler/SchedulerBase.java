@@ -140,8 +140,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private final BlobWriter blobWriter;
 
-	private final Time slotRequestTimeout;
+	private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
+	private final Time slotRequestTimeout;
 
 	private ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 		"SchedulerBase is not initialized with proper main thread executor. " +
@@ -188,6 +189,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		log.info("Using restart strategy {} for {} ({}).", this.restartStrategy, jobGraph.getName(), jobGraph.getJobID());
 
 		this.blobWriter = checkNotNull(blobWriter);
+		this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
 		this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
 
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
@@ -195,9 +197,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.failoverTopology = executionGraph.getFailoverTopology();
 
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
-
-		jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, this::getNumberOfRestarts);
-		jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, this::getNumberOfRestarts);
 	}
 
 	private ExecutionGraph createAndRestoreExecutionGraph(
@@ -396,7 +395,13 @@ public abstract class SchedulerBase implements SchedulerNG {
 	@Override
 	public final void startScheduling() {
 		mainThreadExecutor.assertRunningInMainThread();
+		registerJobMetrics();
 		startSchedulingInternal();
+	}
+
+	private void registerJobMetrics() {
+		jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, this::getNumberOfRestarts);
+		jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, this::getNumberOfRestarts);
 	}
 
 	protected abstract void startSchedulingInternal();
