@@ -190,4 +190,49 @@ public class ResourceSpecTest extends TestLogger {
 
 		assertSame(ResourceSpec.UNKNOWN, copiedSpec);
 	}
+
+	@Test
+	public void testSubtract() {
+		final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100)
+			.setGPUResource(1.1)
+			.build();
+		final ResourceSpec rs2 = ResourceSpec.newBuilder(0.2, 100)
+			.setGPUResource(0.5)
+			.build();
+
+		final ResourceSpec subtracted = rs1.subtract(rs2);
+		assertEquals(new CPUResource(0.8), subtracted.getCpuCores());
+		assertEquals(0, subtracted.getTaskHeapMemory().getMebiBytes());
+		assertEquals(new GPUResource(0.6), subtracted.getGPUResource());
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSubtractOtherHasLargerResources() {
+		final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+		final ResourceSpec rs2 = ResourceSpec.newBuilder(0.2, 200).build();
+
+		rs1.subtract(rs2);
+	}
+
+	@Test
+	public void testSubtractThisUnknown() {
+		final ResourceSpec rs1 = ResourceSpec.UNKNOWN;
+		final ResourceSpec rs2 = ResourceSpec.newBuilder(0.2, 100)
+			.setGPUResource(0.5)
+			.build();
+
+		final ResourceSpec subtracted = rs1.subtract(rs2);
+		assertEquals(ResourceSpec.UNKNOWN, subtracted);
+	}
+
+	@Test
+	public void testSubtractOtherUnknown() {
+		final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100)
+			.setGPUResource(1.1)
+			.build();
+		final ResourceSpec rs2 = ResourceSpec.UNKNOWN;
+
+		final ResourceSpec subtracted = rs1.subtract(rs2);
+		assertEquals(ResourceSpec.UNKNOWN, subtracted);
+	}
 }
