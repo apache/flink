@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor}
 import org.apache.flink.table.sources.PartitionableTableSource
@@ -60,7 +60,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
-    val table: FlinkRelOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val table: FlinkPreparingTableBase = scan.getTable.asInstanceOf[FlinkPreparingTableBase]
 
     val tableSourceTable = table.unwrap(classOf[TableSourceTable[_]])
 
@@ -113,7 +113,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
         + "explainSource() API to explain the pushdown applied!")
     }
 
-    val statistic = tableSourceTable.statistic
+    val statistic = tableSourceTable.getStatistic
     val newStatistic = if (remainingPartitions.size() == allPartitions.size()) {
       // Keep all Statistics if no predicates can be pushed down
       statistic
@@ -124,13 +124,15 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
       FlinkStatistic.builder().statistic(statistic).tableStats(null).build()
     }
     val newTableSourceTable = new TableSourceTable(
+      table.getRelOptSchema,
+      table.getQualifiedName,
+      table.getRowType,
       newTableSource,
       tableSourceTable.isStreamingMode,
       newStatistic,
       tableSourceTable.catalogTable)
-    val newRelOptTable = table.copy(newTableSourceTable, table.getRowType)
 
-    val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newRelOptTable)
+    val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newTableSourceTable)
     // check whether framework still need to do a filter
     if (nonPartitionPredicate.isAlwaysTrue) {
       call.transformTo(newScan)

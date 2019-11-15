@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.sources
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException, WatermarkSpec}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils.isAssignable
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.sources.{DefinedFieldMapping, DefinedProctimeAttribute, DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
@@ -137,22 +138,25 @@ object TableSourceUtil {
   /**
     * Returns schema of the selected fields of the given [[TableSource]].
     *
-    * @param tableSchema    The [[TableSchema]] to derive the names and data types.
-    *                       This table schema should include all the columns, say,
-    *                       computed columns should also be included.
-    * @param tableSource    The [[TableSource]] to derive time attributes.
-    * @param selectedFields The indices of all selected fields. None, if all fields are selected.
-    * @param streaming Flag to determine whether the schema of a stream or batch table is created.
-    * @return The schema for the selected fields of the given [[TableSource]].
+    * @param typeFactory    Type factory to create the type
+    * @param fieldNameArray Field names to build the row type
+    * @param fieldDataTypeArray Field data types to build the row type
+    * @param tableSource    The [[TableSource]] to derive time attributes
+    * @param selectedFields The indices of all selected fields. None, if all fields are selected
+    * @param streaming      Flag to determine whether the schema of
+    *                       a stream or batch table is created
+    * @return The schema for the selected fields of the given [[TableSource]]
     */
-  def getFieldNameType(
-      tableSchema: TableSchema,
+  def getSourceRowType(
+      typeFactory: FlinkTypeFactory,
+      fieldNameArray: Array[String],
+      fieldDataTypeArray: Array[DataType],
       tableSource: TableSource[_],
       selectedFields: Option[Array[Int]],
-      streaming: Boolean): (Seq[String], Seq[LogicalType]) = {
+      streaming: Boolean): RelDataType = {
 
-    val fieldNames = tableSchema.getFieldNames
-    var fieldTypes = tableSchema.getFieldDataTypes
+    var fieldNames = fieldNameArray
+    var fieldTypes = fieldDataTypeArray
       .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
 
     if (streaming) {
@@ -177,9 +181,92 @@ object TableSourceUtil {
     }
     if (selectedFields.isDefined) {
       // filter field names and types by selected fields
-      (selectedFields.get.map(fieldNames(_)), selectedFields.get.map(fieldTypes(_)))
+      fieldNames = selectedFields.get.map(fieldNames(_))
+      fieldTypes = selectedFields.get.map(fieldTypes(_))
+    }
+    typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
+  }
+
+  /**
+    * Returns schema of the selected fields of the given [[TableSource]].
+    *
+    * @param typeFactory Type factory to create the type
+    * @param fieldNameArray Field names to build the row type
+    * @param fieldDataTypeArray Field data types to build the row type
+    * @param watermarkSpec Watermark specifications defined through DDL
+    * @param selectedFields The indices of all selected fields. None, if all fields are selected
+    * @param streaming Flag to determine whether the schema of a stream or batch table is created
+    * @return The row type for the selected fields of the given [[TableSource]], this type would
+    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
+    */
+  def getSourceRowType(
+      typeFactory: FlinkTypeFactory,
+      fieldNameArray: Array[String],
+      fieldDataTypeArray: Array[DataType],
+      watermarkSpec: WatermarkSpec,
+      selectedFields: Option[Array[Int]],
+      streaming: Boolean): RelDataType = {
+
+    var fieldNames = fieldNameArray
+    var fieldTypes = fieldDataTypeArray
+      .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
+
+    // patch rowtime field according to WatermarkSpec
+    fieldTypes = if (streaming) {
+      // TODO: [FLINK-14473] we only support top-level rowtime attribute right now
+      val rowtime = watermarkSpec.getRowtimeAttribute
+      if (rowtime.contains(".")) {
+        throw new ValidationException(
+          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
+      }
+      val idx = fieldNames.indexOf(rowtime)
+      val originalType = fieldTypes(idx).asInstanceOf[TimestampType]
+      val rowtimeType = new TimestampType(
+        originalType.isNullable,
+        TimestampKind.ROWTIME,
+        originalType.getPrecision)
+      fieldTypes.patch(idx, Seq(rowtimeType), 1)
     } else {
-      (fieldNames, fieldTypes)
+      fieldTypes
+    }
+    if (selectedFields.isDefined) {
+      // filter field names and types by selected fields
+      fieldNames = selectedFields.get.map(fieldNames(_))
+      fieldTypes = selectedFields.get.map(fieldTypes(_))
+    }
+    typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
+  }
+
+  /**
+    * Returns schema of the selected fields of the given [[TableSource]].
+    *
+    * <p> The watermark strategy specifications should either come from the [[TableSchema]]
+    * or [[TableSource]].
+    *
+    * @param typeFactory Type factory to create the type
+    * @param tableSchema Table schema to derive table field names and data types
+    * @param tableSource Table source to derive watermark strategies
+    * @param selectedFields The indices of all selected fields. None, if all fields are selected
+    * @param streaming Flag to determine whether the schema of a stream or batch table is created
+    * @return The row type for the selected fields of the given [[TableSource]], this type would
+    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
+    */
+  def getSourceRowType(
+    typeFactory: FlinkTypeFactory,
+    tableSchema: TableSchema,
+    tableSource: TableSource[_],
+    selectedFields: Option[Array[Int]],
+    streaming: Boolean): RelDataType = {
+
+    val fieldNames = tableSchema.getFieldNames
+    val fieldTypes = tableSchema.getFieldDataTypes
+
+    if (tableSchema.getWatermarkSpecs.nonEmpty) {
+      getSourceRowType(typeFactory, fieldNames, fieldTypes, tableSchema.getWatermarkSpecs.head,
+        selectedFields, streaming)
+    } else {
+      getSourceRowType(typeFactory, fieldNames, fieldTypes, tableSource,
+        selectedFields, streaming)
     }
   }
 

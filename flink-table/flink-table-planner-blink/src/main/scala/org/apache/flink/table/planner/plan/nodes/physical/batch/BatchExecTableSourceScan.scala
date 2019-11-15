@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
@@ -53,7 +53,7 @@ import scala.collection.JavaConversions._
 class BatchExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkRelOptTable)
+    relOptTable: FlinkPreparingTableBase)
   extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
   with BatchPhysicalRel
   with BatchExecNode[BaseRow]{

@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
@@ -43,6 +43,7 @@ import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, P
 import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
 import org.apache.flink.types.Row
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -62,7 +63,7 @@ import scala.collection.JavaConversions._
 class StreamExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkRelOptTable)
+    relOptTable: FlinkPreparingTableBase)
   extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
@@ -158,7 +159,7 @@ class StreamExecTableSourceScan(
 
     val withWatermarks = if (tableSourceTable.watermarkSpec.isDefined) {
       // generate watermarks for rowtime indicator from WatermarkSpec
-      val rowType = tableSourceTable.getRowType(planner.getTypeFactory)
+      val rowType = tableSourceTable.getRowType
       val converter = planner.createFlinkPlanner.createSqlExprToRexConverter(rowType)
       applyWatermarkByWatermarkSpec(
         config,

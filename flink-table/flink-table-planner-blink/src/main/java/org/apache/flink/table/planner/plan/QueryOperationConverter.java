@@ -73,10 +73,11 @@ import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable;
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable;
+import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -88,6 +89,7 @@ import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.tools.RelBuilder;
@@ -364,26 +366,23 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				names = Collections.singletonList(refId);
 			}
 
+			RelDataType rowType = TableSourceUtil.getSourceRowType(relBuilder.getTypeFactory(),
+				tableSourceOperation.getTableSchema(),
+				tableSource,
+				scala.Option.empty(),
+				!isBatch);
 			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(
-					tableSource, !isBatch, statistic, ConnectorCatalogTable.source(tableSource, isBatch));
-			FlinkRelOptTable table = FlinkRelOptTable.create(
 				relBuilder.getRelOptSchema(),
-				tableSourceTable.getRowType(relBuilder.getTypeFactory()),
 				names,
-				tableSourceTable);
-			return LogicalTableScan.create(relBuilder.getCluster(), table);
+				rowType,
+				tableSource,
+				!isBatch,
+				statistic,
+				ConnectorCatalogTable.source(tableSource, isBatch));
+			return LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable);
 		}
 
 		private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> operation) {
-			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
-					operation.getDataStream(),
-					operation.isProducesUpdates(),
-					operation.isAccRetract(),
-					operation.getFieldIndices(),
-					operation.getTableSchema().getFieldNames(),
-					operation.getStatistic(),
-					scala.Option.apply(operation.getFieldNullables()));
-
 			List<String> names;
 			ObjectIdentifier identifier = operation.getIdentifier();
 			if (identifier != null) {
@@ -396,28 +395,31 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				names = Collections.singletonList(refId);
 			}
 
-			FlinkRelOptTable table = FlinkRelOptTable.create(
-					relBuilder.getRelOptSchema(),
-					dataStreamTable.getRowType(relBuilder.getTypeFactory()),
-					names,
-					dataStreamTable);
-			return LogicalTableScan.create(relBuilder.getCluster(), table);
+			final RelDataType rowType = DataStreamTable$.MODULE$
+				.getRowType(relBuilder.getTypeFactory(),
+					operation.getDataStream(),
+					operation.getTableSchema().getFieldNames(),
+					operation.getFieldIndices(),
+					scala.Option.apply(operation.getFieldNullables()));
+			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
+				relBuilder.getRelOptSchema(),
+				names,
+				rowType,
+				operation.getDataStream(),
+				operation.isProducesUpdates(),
+				operation.isAccRetract(),
+				operation.getFieldIndices(),
+				operation.getTableSchema().getFieldNames(),
+				operation.getStatistic(),
+				scala.Option.apply(operation.getFieldNullables()));
+			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable);
 		}
 
 		private RelNode convertToDataStreamScan(
-				DataStream<?> dataStream,
+			    DataStream<?> dataStream,
 				int[] fieldIndices,
 				TableSchema tableSchema,
 				Optional<ObjectIdentifier> identifier) {
-			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
-				dataStream,
-				false,
-				false,
-				fieldIndices,
-				tableSchema.getFieldNames(),
-				FlinkStatistic.UNKNOWN(),
-				scala.Option.empty());
-
 			List<String> names;
 			if (identifier.isPresent()) {
 				names = Arrays.asList(
@@ -428,12 +430,24 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				String refId = String.format("Unregistered_DataStream_%s", dataStream.getId());
 				names = Collections.singletonList(refId);
 			}
-			FlinkRelOptTable table = FlinkRelOptTable.create(
+            final RelDataType rowType = DataStreamTable$.MODULE$
+				.getRowType(relBuilder.getTypeFactory(),
+					dataStream,
+					tableSchema.getFieldNames(),
+					fieldIndices,
+					scala.Option.empty());
+			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
 				relBuilder.getRelOptSchema(),
-				dataStreamTable.getRowType(relBuilder.getTypeFactory()),
 				names,
-				dataStreamTable);
-			return LogicalTableScan.create(relBuilder.getCluster(), table);
+				rowType,
+				dataStream,
+				false,
+				false,
+				fieldIndices,
+				tableSchema.getFieldNames(),
+				FlinkStatistic.UNKNOWN(),
+				scala.Option.empty());
+			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable);
 		}
 
 		private List<RexNode> convertToRexNodes(List<ResolvedExpression> expressions) {

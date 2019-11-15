@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.sources._
 import org.apache.flink.util.CollectionUtil
+
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableScan}
 import org.apache.calcite.rel.rules.ProjectRemoveRule
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.sources.TableSourceUtil
 
 /**
   * Planner rule that pushes a [[LogicalProject]] into a [[LogicalTableScan]]
@@ -64,7 +67,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       return
     }
 
-    val relOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val relOptTable = scan.getTable.asInstanceOf[FlinkPreparingTableBase]
     val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
     val oldTableSource = tableSourceTable.tableSource
     val (newTableSource, isProjectSuccess) = oldTableSource match {
@@ -94,16 +97,26 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     }
 
     // project push down does not change the statistic, we can reuse origin statistic
+    val flinkTypeFactory = tableSourceTable
+      .getRelOptSchema
+      .getTypeFactory
+      .asInstanceOf[FlinkTypeFactory]
+    val newSourceRowType = TableSourceUtil.getSourceRowType(flinkTypeFactory,
+      oldTableSource.getTableSchema,
+      oldTableSource,
+      Option(usedFields),
+      tableSourceTable.isStreamingMode)
     val newTableSourceTable = new TableSourceTable(
+      tableSourceTable.getRelOptSchema,
+      tableSourceTable.getNames,
+      newSourceRowType,
       newTableSource,
       tableSourceTable.isStreamingMode,
-      tableSourceTable.statistic,
+      tableSourceTable.getStatistic,
       Option(usedFields),
       tableSourceTable.catalogTable)
     // row type is changed after project push down
-    val newRowType = newTableSourceTable.getRowType(scan.getCluster.getTypeFactory)
-    val newRelOptTable = relOptTable.copy(newTableSourceTable, newRowType)
-    val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newRelOptTable)
+    val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newTableSourceTable)
 
     // rewrite input field in projections
     val newProjects = RexNodeRewriter.rewriteWithNewFieldInput(project.getProjects, usedFields)
