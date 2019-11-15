@@ -36,9 +36,9 @@ Have a look at the [common concepts and API](common.html) page for details how t
 Define a TableSource
 --------------------
 
-A `TableSource` is a generic interface that gives Table API and SQL queries access to data stored in an external system. It provides the schema of the table and the records that are mapped to rows with the table's schema. Depending on whether the `TableSource` is used in a streaming or batch query, the records are produced as a `DataSet` or `DataStream`.
+A `TableSource` is a generic interface that gives Table API and SQL queries access to data stored in an external system. It provides the schema of the table and the records that are mapped to rows with the table's schema. Depending on whether the `TableSource` is used in a streaming or batch query, the records are produced as a `DataSet` or `DataStream`. 
 
-If a `TableSource` is used in a streaming query it must implement the `StreamTableSource` interface, if it is used in a batch query it must implement the `BatchTableSource` interface. A `TableSource` can also implement both interfaces and be used in streaming and batch queries.
+If a `TableSource` is used in a streaming query it must implement the `StreamTableSource` interface, if it is used in a batch query it must implement the `BatchTableSource` interface. A `TableSource` can also implement both interfaces and be used in streaming and batch queries. 
 
 `StreamTableSource` and `BatchTableSource` extend the base interface `TableSource` that defines the following methods:
 
@@ -77,7 +77,7 @@ TableSource[T] {
 
 * `explainSource()`: Returns a String that describes the `TableSource`. This method is optional and used for display purposes only.
 
-The `TableSource` interface separates the logical table schema from the physical type of the returned `DataStream` or `DataSet`. As a consequence, all fields of the table schema (`getTableSchema()`) must be mapped to a field with corresponding type of the physical return type (`getReturnType()`). By default, this mapping is done based on field names. For example, a `TableSource` that defines a table schema with two fields `[name: String, size: Integer]` requires a `TypeInformation` with at least two fields called `name` and `size` of type `String` and `Integer`, respectively. This could be a `PojoTypeInfo` or a `RowTypeInfo` that have two fields named `name` and `size` with matching types.
+The `TableSource` interface separates the logical table schema from the physical type of the returned `DataStream` or `DataSet`. As a consequence, all fields of the table schema (`getTableSchema()`) must be mapped to a field with corresponding type of the physical return type (`getReturnType()`). By default, this mapping is done based on field names. For example, a `TableSource` that defines a table schema with two fields `[name: String, size: Integer]` requires a `TypeInformation` with at least two fields called `name` and `size` of type `String` and `Integer`, respectively. This could be a `PojoTypeInfo` or a `RowTypeInfo` that have two fields named `name` and `size` with matching types. 
 
 However, some types, such as Tuple or CaseClass types, do support custom field names. If a `TableSource` returns a `DataStream` or `DataSet` of a type with fixed field names, it can implement the `DefinedFieldMapping` interface to map field names from the table schema to field names of the physical return type.
 
@@ -111,7 +111,7 @@ BatchTableSource[T] extends TableSource[T] {
 
 ### Defining a StreamTableSource
 
-The `StreamTableSource` interface extends the `TableSource` interface and defines one additional method:
+The `StreamTableSource` interface extends the `TableSource` interface and defines one additional method: 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -175,9 +175,9 @@ DefinedProctimeAttribute {
 
 [Rowtime attributes](streaming/time_attributes.html#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
 
-A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying
+A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying 
 
-* the name of the field,
+* the name of the field, 
 * a `TimestampExtractor` that computes the actual value for the attribute (usually from one or more other fields), and
 * a `WatermarkStrategy` that specifies how watermarks are generated for the the rowtime attribute.
 
@@ -263,7 +263,7 @@ ProjectableTableSource[T] {
 
 * `projectFields(fields)`: Returns a *copy* of the `TableSource` with adjusted physical return type. The `fields` parameter provides the indexes of the fields that must be provided by the `TableSource`. The indexes relate to the `TypeInformation` of the physical return type, *not* to the logical table schema. The copied `TableSource` must adjust its return type and the returned `DataStream` or `DataSet`. The `TableSchema` of the copied `TableSource` must not be changed, i.e, it must be the same as the original `TableSource`. If the `TableSource` implements the `DefinedFieldMapping` interface, the field mapping must be adjusted to the new return type.
 
-<span class="label label-danger">Attention</span> In order for Flink to distinguish a projection push-down table source from its original form, `explainSource` method must be override to include information regarding the projected fields.
+<span class="label label-danger">Attention</span> In order for Flink to distinguish a projection push-down table source from its original form, `explainSource` method must be override to include information regarding the projected fields.   
 
 The `ProjectableTableSource` adds support to project flat fields. If the `TableSource` defines a table with nested schema, it can implement the `NestedFieldsProjectableTableSource` to extend the projection to nested fields. The `NestedFieldsProjectableTableSource` is defined as follows:
 
@@ -287,7 +287,7 @@ NestedFieldsProjectableTableSource[T] {
 </div>
 </div>
 
-* `projectNestedField(fields, nestedFields)`: Returns a *copy* of the `TableSource` with adjusted physical return type. Fields of the physical return type may be removed or reordered but their type must not be changed. The contract of this method is essentially the same as for the `ProjectableTableSource.projectFields()` method. In addition, the `nestedFields` parameter contains for each field index in the `fields` list, a list of paths to all nested fields that are accessed by the query. All other nested fields do not need to be read, parsed, and set in the records that are produced by the `TableSource`.
+* `projectNestedField(fields, nestedFields)`: Returns a *copy* of the `TableSource` with adjusted physical return type. Fields of the physical return type may be removed or reordered but their type must not be changed. The contract of this method is essentially the same as for the `ProjectableTableSource.projectFields()` method. In addition, the `nestedFields` parameter contains for each field index in the `fields` list, a list of paths to all nested fields that are accessed by the query. All other nested fields do not need to be read, parsed, and set in the records that are produced by the `TableSource`. 
 
 <span class="label label-danger">Attention</span> the types of the projected fields must not be changed but unused fields may be set to null or to a default value.
 
@@ -323,7 +323,7 @@ FilterableTableSource[T] {
 </div>
 </div>
 
-* `applyPredicate(predicates)`: Returns a *copy* of the `TableSource` with added predicates. The `predicates` parameter is a mutable list of conjunctive predicates that are "offered" to the `TableSource`. The `TableSource` accepts to evaluate a predicate by removing it from the list. Predicates that are left in the list will be evaluated by a subsequent filter operator.
+* `applyPredicate(predicates)`: Returns a *copy* of the `TableSource` with added predicates. The `predicates` parameter is a mutable list of conjunctive predicates that are "offered" to the `TableSource`. The `TableSource` accepts to evaluate a predicate by removing it from the list. Predicates that are left in the list will be evaluated by a subsequent filter operator. 
 * `isFilterPushedDown()`: Returns true if the `applyPredicate()` method was called before. Hence, `isFilterPushedDown()` must return true for all `TableSource` instances returned from a `applyPredicate()` call.
 
 <span class="label label-danger">Attention</span> In order for Flink to distinguish a filter push-down table source from its original form, `explainSource` method must be override to include information regarding the push-down filters.
@@ -775,8 +775,9 @@ StreamTableEnvironment tableEnv = // ...
 
 tableEnv
   .connect(new MySystemConnector(true))
+  .withSchema(...)
   .inAppendMode()
-  .registerTableSource("MySystemTable");
+  .createTemporaryTable("MySystemTable");
 {% endhighlight %}
 </div>
 
@@ -786,8 +787,9 @@ val tableEnv: StreamTableEnvironment = // ...
 
 tableEnv
   .connect(new MySystemConnector(isDebug = true))
+  .withSchema(...)
   .inAppendMode()
-  .registerTableSource("MySystemTable")
+  .createTemporaryTable("MySystemTable")
 {% endhighlight %}
 </div>
 </div>

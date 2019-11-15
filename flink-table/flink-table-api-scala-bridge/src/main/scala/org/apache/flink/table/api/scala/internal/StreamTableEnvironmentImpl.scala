@@ -29,20 +29,20 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserFunctionsTypeHelper}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{OutputConversionModifyOperation, ScalaDataStreamQueryOperation}
+import org.apache.flink.table.operations.{OutputConversionModifyOperation, QueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
+
 import java.util
 import java.util.{Collections, List => JList, Map => JMap}
-
 
 import _root_.scala.collection.JavaConverters._
 
@@ -246,6 +246,20 @@ class StreamTableEnvironmentImpl (
       dataStream.javaStream,
       typeInfoSchema.getIndices,
       typeInfoSchema.toTableSchema)
+  }
+
+  override protected def qualifyQueryOperation(
+    identifier: ObjectIdentifier,
+    queryOperation: QueryOperation): QueryOperation = queryOperation match {
+    case qo: ScalaDataStreamQueryOperation[Any] =>
+      new ScalaDataStreamQueryOperation[Any](
+        identifier,
+        qo.getDataStream,
+        qo.getFieldIndices,
+        qo.getTableSchema
+      )
+    case _ =>
+      queryOperation
   }
 
   override def sqlUpdate(stmt: String, config: StreamQueryConfig): Unit = {

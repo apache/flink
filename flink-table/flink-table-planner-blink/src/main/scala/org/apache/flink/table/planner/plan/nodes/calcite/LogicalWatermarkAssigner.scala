@@ -37,7 +37,8 @@ final class LogicalWatermarkAssigner(
   extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkDelay) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traits, inputs.get(0), rowtimeFieldIndex, watermarkDelay)
+    new LogicalWatermarkAssigner(
+      cluster, traitSet, inputs.get(0), rowtimeFieldIndex, watermarkDelay)
   }
 }
 

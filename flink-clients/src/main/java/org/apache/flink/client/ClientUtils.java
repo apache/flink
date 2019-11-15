@@ -20,6 +20,7 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.ContextEnvironmentFactory;
@@ -27,10 +28,11 @@ import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -55,20 +57,6 @@ public enum ClientUtils {
 	;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
-
-	/**
-	 * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}. This will
-	 * throw an exception if a jar URL is not valid.
-	 */
-	public static void addJarFiles(JobGraph jobGraph, List<URL> jarFilesToAttach) {
-		for (URL jar : jarFilesToAttach) {
-			try {
-				jobGraph.addJar(new Path(jar.toURI()));
-			} catch (URISyntaxException e) {
-				throw new RuntimeException("URL is invalid. This should not happen.", e);
-			}
-		}
-	}
 
 	public static void checkJarFile(URL jar) throws IOException {
 		File jarFile;
@@ -148,28 +136,36 @@ public enum ClientUtils {
 	}
 
 	public static JobSubmissionResult executeProgram(
+			Configuration configuration,
 			ClusterClient<?> client,
-			PackagedProgram program,
-			int parallelism,
-			boolean detached) throws ProgramMissingJobException, ProgramInvocationException {
+			PackagedProgram program) throws ProgramMissingJobException, ProgramInvocationException {
+
+		final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
+
+		final List<URL> jobJars = executionConfigAccessor.getJars();
+		final List<URL> classpaths = executionConfigAccessor.getClasspaths();
+		final SavepointRestoreSettings savepointSettings = executionConfigAccessor.getSavepointRestoreSettings();
+		final int parallelism = executionConfigAccessor.getParallelism();
+		final boolean detached = executionConfigAccessor.getDetachedMode();
+
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		final ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(jobJars, classpaths, contextClassLoader);
+
 		try {
-			Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());
+			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 
 			LOG.info("Starting program (detached: {})", detached);
-
-			final List<URL> libraries = program.getAllLibraries();
 
 			final AtomicReference<JobExecutionResult> jobExecutionResult = new AtomicReference<>();
 
 			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
 				client,
-				libraries,
-				program.getClasspaths(),
-				program.getUserCodeClassLoader(),
+				jobJars,
+				classpaths,
+				userCodeClassLoader,
 				parallelism,
 				detached,
-				program.getSavepointSettings(),
+				savepointSettings,
 				jobExecutionResult);
 			ContextEnvironment.setAsContext(factory);
 

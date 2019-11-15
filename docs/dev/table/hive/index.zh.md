@@ -38,19 +38,42 @@ You do not need to modify your existing Hive Metastore or change the data placem
 * This will be replaced by the TOC
 {:toc}
 
-## Supported Hive Version's
+## Supported Hive Versions
 
-Flink supports Hive `2.3.4` and `1.2.1` and relies on Hive's compatibility guarantee's for other minor versions.
+Flink supports the following Hive versions.
 
-If you use a different minor Hive version such as `1.2.2` or `2.3.1`, it should also be ok to 
-choose the closest version `1.2.1` (for `1.2.2`) or `2.3.4` (for `2.3.1`) to workaround. For 
-example, you want to use Flink to integrate `2.3.1` hive version in sql client, just set the 
-hive-version to `2.3.4` in YAML config. Similarly pass the version string when creating 
-HiveCatalog instance via Table API.
+- 1.0
+    - 1.0.0
+    - 1.0.1
+- 1.1
+    - 1.1.0
+    - 1.1.1
+- 1.2
+    - 1.2.0
+    - 1.2.1
+    - 1.2.2
+- 2.0
+    - 2.0.0
+    - 2.0.1
+- 2.1
+    - 2.1.0
+    - 2.1.1
+- 2.2
+    - 2.2.0
+- 2.3
+    - 2.3.0
+    - 2.3.1
+    - 2.3.2
+    - 2.3.3
+    - 2.3.4
+    - 2.3.5
+    - 2.3.6
+- 3.1
+    - 3.1.0
+    - 3.1.1
+    - 3.1.2
 
-Users are welcome to try out different versions with this workaround. Since only `2.3.4` and `1.2.1` have been tested, there might be unexpected issues. We will test and support more versions in future releases.
-
-### Depedencies 
+### Dependencies
 
 To integrate with Hive, users need the following dependencies in their project.
 

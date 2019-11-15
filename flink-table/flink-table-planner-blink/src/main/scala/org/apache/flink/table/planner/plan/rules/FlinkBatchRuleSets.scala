@@ -257,6 +257,7 @@ object FlinkBatchRuleSets {
 
     // join rules
     FlinkJoinPushExpressionsRule.INSTANCE,
+    SimplifyJoinConditionRule.INSTANCE,
 
     // remove union with only a single child
     UnionEliminatorRule.INSTANCE,

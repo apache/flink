@@ -91,4 +91,15 @@ public class HiveReflectionUtils {
 		}
 	}
 
+	public static Object invokeMethod(Class clz, Object obj, String methodName, Class[] argClz, Object[] args)
+			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+		Method method;
+		try {
+			method = clz.getDeclaredMethod(methodName, argClz);
+		} catch (NoSuchMethodException e) {
+			method = clz.getMethod(methodName, argClz);
+		}
+		return method.invoke(obj, args);
+	}
+
 }

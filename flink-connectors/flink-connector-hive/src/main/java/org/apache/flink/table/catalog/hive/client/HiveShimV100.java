@@ -76,6 +76,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -332,5 +333,11 @@ public class HiveShimV100 implements HiveShim {
 		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
 		// prior to Hive 1.2.0
 		throw new UnsupportedOperationException("Getting built in functions are not supported until Hive 1.2.0");
+	}
+
+	@Override
+	public Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName) {
+		// NOT NULL constraints not supported until 3.0.0 -- HIVE-16575
+		return Collections.emptySet();
 	}
 }

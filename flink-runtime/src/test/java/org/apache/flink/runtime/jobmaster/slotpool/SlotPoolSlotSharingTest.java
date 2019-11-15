@@ -89,7 +89,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 			new SlotOffer(
 				allocationId,
 				0,
-				ResourceProfile.UNKNOWN));
+				ResourceProfile.ANY));
 
 		assertTrue(booleanCompletableFuture);
 
@@ -200,7 +200,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 			new SlotOffer(
 				allocationId1,
 				0,
-				ResourceProfile.UNKNOWN));
+				ResourceProfile.ANY));
 
 		assertTrue(offerFuture);
 
@@ -296,7 +296,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 			new SlotOffer(
 				allocationId1,
 				0,
-				ResourceProfile.UNKNOWN));
+				ResourceProfile.ANY));
 
 		boolean offerFuture2 = slotPool.offerSlot(
 			taskManagerLocation,
@@ -304,7 +304,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 			new SlotOffer(
 				allocationId2,
 				0,
-				ResourceProfile.UNKNOWN));
+				ResourceProfile.ANY));
 
 		assertTrue(offerFuture1);
 		assertTrue(offerFuture2);

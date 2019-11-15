@@ -99,6 +99,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
@@ -525,8 +526,9 @@ public class HiveCatalog extends AbstractCatalog {
 			// get schema from deserializer
 			fields = hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
 		}
+		Set<String> notNullColumns = client.getNotNullColumns(hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
 		TableSchema tableSchema =
-			HiveTableUtil.createTableSchema(fields, hiveTable.getPartitionKeys());
+			HiveTableUtil.createTableSchema(fields, hiveTable.getPartitionKeys(), notNullColumns);
 
 		// Partition keys
 		List<String> partitionKeys = new ArrayList<>();

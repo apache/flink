@@ -46,7 +46,13 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.Executor;
+import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -100,7 +106,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see org.apache.flink.streaming.api.environment.RemoteStreamEnvironment
  */
 @Public
-public abstract class StreamExecutionEnvironment {
+public class StreamExecutionEnvironment {
 
 	/** The default name to use for a streaming job if no other name has been specified. */
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
@@ -144,10 +150,30 @@ public abstract class StreamExecutionEnvironment {
 
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
+	private final ExecutorServiceLoader executorServiceLoader;
+
+	private final Configuration configuration;
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
+
+	public StreamExecutionEnvironment() {
+		this(new Configuration());
+	}
+
+	public StreamExecutionEnvironment(final Configuration executorConfiguration) {
+		this(new DefaultExecutorServiceLoader(), executorConfiguration);
+	}
+
+	public StreamExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration executorConfiguration) {
+		this.executorServiceLoader = checkNotNull(executorServiceLoader);
+		this.configuration = checkNotNull(executorConfiguration);
+	}
+
+	protected Configuration getConfiguration() {
+		return this.configuration;
+	}
 
 	/**
 	 * Gets the config object.
@@ -1515,7 +1541,31 @@ public abstract class StreamExecutionEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	@Internal
-	public abstract JobExecutionResult execute(StreamGraph streamGraph) throws Exception;
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		if (configuration.get(DeploymentOptions.TARGET) == null) {
+			throw new RuntimeException("No execution.target specified in your configuration file.");
+		}
+
+		consolidateParallelismDefinitionsInConfiguration();
+
+		final ExecutorFactory executorFactory =
+				executorServiceLoader.getExecutorFactory(configuration);
+
+		final Executor executor = executorFactory.getExecutor(configuration);
+		return executor.execute(streamGraph, configuration);
+	}
+
+	private void consolidateParallelismDefinitionsInConfiguration() {
+		final int execParallelism = getParallelism();
+		if (execParallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
+			return;
+		}
+
+		// if parallelism is set in the ExecutorConfig, then
+		// that value takes precedence over any other value.
+
+		configuration.set(CoreOptions.DEFAULT_PARALLELISM, execParallelism);
+	}
 
 	/**
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.

@@ -52,7 +52,7 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -120,11 +120,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
-
-	private static final AtomicReferenceFieldUpdater<Execution, LogicalSlot> ASSIGNED_SLOT_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
-		Execution.class,
-		LogicalSlot.class,
-		"assignedResource");
 
 	private static final Logger LOG = ExecutionGraph.LOG;
 
@@ -304,7 +299,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		// only allow to set the assigned resource in state SCHEDULED or CREATED
 		// note: we also accept resource assignment when being in state CREATED for testing purposes
 		if (state == SCHEDULED || state == CREATED) {
-			if (ASSIGNED_SLOT_UPDATER.compareAndSet(this, null, logicalSlot)) {
+			if (assignedResource == null) {
+				assignedResource = logicalSlot;
 				if (logicalSlot.tryAssignPayload(this)) {
 					// check for concurrent modification (e.g. cancelling call)
 					if ((state == SCHEDULED || state == CREATED) && !taskManagerLocationFuture.isDone()) {
@@ -313,11 +309,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						return true;
 					} else {
 						// free assigned resource and return false
-						ASSIGNED_SLOT_UPDATER.set(this, null);
+						assignedResource = null;
 						return false;
 					}
 				} else {
-					ASSIGNED_SLOT_UPDATER.set(this, null);
+					assignedResource = null;
 					return false;
 				}
 			} else {
@@ -925,34 +921,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	/**
-	 * Request a stack trace sample from the task of this execution.
+	 * Request the back pressure ratio from the task of this execution.
 	 *
-	 * @param sampleId of the stack trace sample
-	 * @param numSamples the sample should contain
-	 * @param delayBetweenSamples to wait
-	 * @param maxStackTraceDepth of the samples
-	 * @param timeout until the request times out
-	 * @return Future stack trace sample response
+	 * @param requestId id of the request.
+	 * @param timeout the request times out.
+	 * @return A future of the task back pressure result.
 	 */
-	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
-			int sampleId,
-			int numSamples,
-			Time delayBetweenSamples,
-			int maxStackTraceDepth,
-			Time timeout) {
+	public CompletableFuture<TaskBackPressureResponse> requestBackPressure(int requestId, Time timeout) {
 
 		final LogicalSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			return taskManagerGateway.requestStackTraceSample(
-				attemptId,
-				sampleId,
-				numSamples,
-				delayBetweenSamples,
-				maxStackTraceDepth,
-				timeout);
+			return taskManagerGateway.requestTaskBackPressure(attemptId, requestId, timeout);
 		} else {
 			return FutureUtils.completedExceptionally(new Exception("The execution has no slot assigned."));
 		}

@@ -46,13 +46,13 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Random;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.client.program.PackagedProgramUtils.isPython;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -140,7 +140,7 @@ public class PackagedProgram {
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
-		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
+		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getJobJarAndDependencies(), classpaths, getClass().getClassLoader());
 
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
@@ -227,7 +227,7 @@ public class PackagedProgram {
 	/**
 	 * Returns all provided libraries needed to run the program.
 	 */
-	public List<URL> getAllLibraries() {
+	public List<URL> getJobJarAndDependencies() {
 		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
 
 		if (jarFile != null) {
@@ -427,100 +427,80 @@ public class PackagedProgram {
 	 * @throws ProgramInvocationException Thrown, if the extraction process failed.
 	 */
 	public static List<File> extractContainedLibraries(URL jarFile) throws ProgramInvocationException {
+		try (final JarFile jar = new JarFile(new File(jarFile.toURI()))) {
 
-		Random rnd = new Random();
-
-		JarFile jar = null;
-		try {
-			jar = new JarFile(new File(jarFile.toURI()));
-			final List<JarEntry> containedJarFileEntries = new ArrayList<JarEntry>();
-
-			Enumeration<JarEntry> entries = jar.entries();
-			while (entries.hasMoreElements()) {
-				JarEntry entry = entries.nextElement();
-				String name = entry.getName();
-
-				if (name.length() > 8 && name.startsWith("lib/") && name.endsWith(".jar")) {
-					containedJarFileEntries.add(entry);
-				}
-			}
-
+			final List<JarEntry> containedJarFileEntries = getContainedJarEntries(jar);
 			if (containedJarFileEntries.isEmpty()) {
 				return Collections.emptyList();
-			} else {
-				// go over all contained jar files
-				final List<File> extractedTempLibraries = new ArrayList<File>(containedJarFileEntries.size());
+			}
+
+			final List<File> extractedTempLibraries = new ArrayList<>(containedJarFileEntries.size());
+			boolean incomplete = true;
+
+			try {
+				final Random rnd = new Random();
 				final byte[] buffer = new byte[4096];
 
-				boolean incomplete = true;
-
-				try {
-					for (int i = 0; i < containedJarFileEntries.size(); i++) {
-						final JarEntry entry = containedJarFileEntries.get(i);
-						String name = entry.getName();
-						// '/' as in case of zip, jar
-						// java.util.zip.ZipEntry#isDirectory always looks only for '/' not for File.separator
-						name = name.replace('/', '_');
-
-						File tempFile;
-						try {
-							tempFile = File.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name);
-							tempFile.deleteOnExit();
-						} catch (IOException e) {
-							throw new ProgramInvocationException(
-								"An I/O error occurred while creating temporary file to extract nested library '" +
-									entry.getName() + "'.", e);
-						}
-
-						extractedTempLibraries.add(tempFile);
-
-						// copy the temp file contents to a temporary File
-						OutputStream out = null;
-						InputStream in = null;
-						try {
-
-							out = new FileOutputStream(tempFile);
-							in = new BufferedInputStream(jar.getInputStream(entry));
-
-							int numRead = 0;
-							while ((numRead = in.read(buffer)) != -1) {
-								out.write(buffer, 0, numRead);
-							}
-						} catch (IOException e) {
-							throw new ProgramInvocationException("An I/O error occurred while extracting nested library '"
-								+ entry.getName() + "' to temporary file '" + tempFile.getAbsolutePath() + "'.");
-						} finally {
-							if (out != null) {
-								out.close();
-							}
-							if (in != null) {
-								in.close();
-							}
-						}
-					}
-
-					incomplete = false;
-				} finally {
-					if (incomplete) {
-						deleteExtractedLibraries(extractedTempLibraries);
-					}
+				for (final JarEntry entry : containedJarFileEntries) {
+					// '/' as in case of zip, jar
+					// java.util.zip.ZipEntry#isDirectory always looks only for '/' not for File.separator
+					final String name = entry.getName().replace('/', '_');
+					final File tempFile = copyLibToTempFile(name, rnd, jar, entry, buffer);
+					extractedTempLibraries.add(tempFile);
 				}
 
-				return extractedTempLibraries;
+				incomplete = false;
+			} finally {
+				if (incomplete) {
+					deleteExtractedLibraries(extractedTempLibraries);
+				}
 			}
+
+			return extractedTempLibraries;
 		} catch (Throwable t) {
 			throw new ProgramInvocationException("Unknown I/O error while extracting contained jar files.", t);
-		} finally {
-			if (jar != null) {
-				try {
-					jar.close();
-				} catch (Throwable t) {
-				}
-			}
 		}
 	}
 
-	public static void deleteExtractedLibraries(List<File> tempLibraries) {
+	private static File copyLibToTempFile(String name, Random rnd, JarFile jar, JarEntry input, byte[] buffer) throws ProgramInvocationException {
+		final File output = createTempFile(rnd, input, name);
+		try (
+				final OutputStream out = new FileOutputStream(output);
+				final InputStream in = new BufferedInputStream(jar.getInputStream(input))
+		) {
+			int numRead = 0;
+			while ((numRead = in.read(buffer)) != -1) {
+				out.write(buffer, 0, numRead);
+			}
+			return output;
+		} catch (IOException e) {
+			throw new ProgramInvocationException("An I/O error occurred while extracting nested library '"
+					+ input.getName() + "' to temporary file '" + output.getAbsolutePath() + "'.");
+		}
+	}
+
+	private static File createTempFile(Random rnd, JarEntry entry, String name) throws ProgramInvocationException {
+		try {
+			final File tempFile = File.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name);
+			tempFile.deleteOnExit();
+			return tempFile;
+		} catch (IOException e) {
+			throw new ProgramInvocationException(
+					"An I/O error occurred while creating temporary file to extract nested library '" +
+							entry.getName() + "'.", e);
+		}
+	}
+
+	private static List<JarEntry> getContainedJarEntries(JarFile jar) {
+		return jar.stream()
+				.filter(jarEntry -> {
+					final String name = jarEntry.getName();
+					return name.length() > 8 && name.startsWith("lib/") && name.endsWith(".jar");
+				})
+				.collect(Collectors.toList());
+	}
+
+	private static void deleteExtractedLibraries(List<File> tempLibraries) {
 		for (File f : tempLibraries) {
 			f.delete();
 		}

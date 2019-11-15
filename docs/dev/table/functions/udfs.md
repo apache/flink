@@ -1,6 +1,6 @@
 ---
-title: "自定义函数"
-nav-parent_id: tableapi
+title: "User-defined Functions"
+nav-parent_id: table_functions
 nav-pos: 50
 ---
 <!--

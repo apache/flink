@@ -36,7 +36,7 @@ public class MemorySizeTest {
 
 	@Test
 	public void testUnitConversion() {
-		final MemorySize zero = new MemorySize(0);
+		final MemorySize zero = MemorySize.ZERO;
 		assertEquals(0, zero.getBytes());
 		assertEquals(0, zero.getKibiBytes());
 		assertEquals(0, zero.getMebiBytes());

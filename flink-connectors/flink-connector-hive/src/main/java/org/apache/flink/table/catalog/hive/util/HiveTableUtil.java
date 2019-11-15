@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.apache.flink.table.catalog.hive.HiveCatalogConfig.DEFAULT_LIST_COLUMN_TYPES_SEPARATOR;
 
@@ -48,7 +49,8 @@ public class HiveTableUtil {
 	/**
 	 * Create a Flink's TableSchema from Hive table's columns and partition keys.
 	 */
-	public static TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys) {
+	public static TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys,
+			Set<String> notNullColumns) {
 		List<FieldSchema> allCols = new ArrayList<>(cols);
 		allCols.addAll(partitionKeys);
 
@@ -60,6 +62,9 @@ public class HiveTableUtil {
 
 			colNames[i] = fs.getName();
 			colTypes[i] = HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(fs.getType()));
+			if (notNullColumns.contains(colNames[i])) {
+				colTypes[i] = colTypes[i].notNull();
+			}
 		}
 
 		return TableSchema.builder()

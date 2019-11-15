@@ -33,7 +33,7 @@ import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => J
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.expressions.Expression
@@ -539,7 +539,14 @@ abstract class TableTestUtil(
     // TODO RichTableSourceQueryOperation should be deleted and use registerTableSource method
     //  instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
-    val operation = new RichTableSourceQueryOperation(tableSource, statistic)
+    val identifier = ObjectIdentifier.of(
+      testingTableEnv.getCurrentCatalog,
+      testingTableEnv.getCurrentDatabase,
+      name)
+    val operation = new RichTableSourceQueryOperation(
+      identifier,
+      tableSource,
+      statistic)
     val table = testingTableEnv.createTable(operation)
     testingTableEnv.registerTable(name, table)
     testingTableEnv.scan(name)
@@ -1131,6 +1138,7 @@ object TableTestUtil {
 
     val fieldCnt = typeInfoSchema.getFieldTypes.length
     val dataStreamQueryOperation = new DataStreamQueryOperation(
+      ObjectIdentifier.of(tEnv.getCurrentCatalog, tEnv.getCurrentDatabase, name),
       dataStream,
       typeInfoSchema.getIndices,
       typeInfoSchema.toTableSchema,

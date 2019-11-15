@@ -433,13 +433,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
       toRow(1, "2"),
       toRow(2, "3000")
     )
-    val expected = List(
-      toRow(1, 2),
-      toRow(1, 2),
-      toRow(2, 3),
-      toRow(2, 3),
-      toRow(3, 4)
-    )
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -468,12 +461,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
       """.stripMargin
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     expectedEx.expect(classOf[ValidationException])
     expectedEx.expectMessage("Field types of query result and registered TableSink "
       + "`default_catalog`.`default_database`.`t2` do not match.")
-    tableEnv.sqlUpdate(query)
     execJob("testJob")
-    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
   @Test

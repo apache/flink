@@ -32,8 +32,17 @@
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
     "org.apache.flink.sql.parser.ddl.SqlTableOption",
     "org.apache.flink.sql.parser.ddl.SqlWatermark",
+    "org.apache.flink.sql.parser.ddl.SqlUseCatalog",
+    "org.apache.flink.sql.parser.ddl.SqlUseDatabase",
+    "org.apache.flink.sql.parser.ddl.SqlCreateDatabase",
+    "org.apache.flink.sql.parser.ddl.SqlDropDatabase",
+    "org.apache.flink.sql.parser.ddl.SqlAlterDatabase",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
+    "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
+    "org.apache.flink.sql.parser.dql.SqlDescribeCatalog",
+    "org.apache.flink.sql.parser.dql.SqlShowDatabases",
+    "org.apache.flink.sql.parser.dql.SqlDescribeDatabase",
     "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
@@ -55,7 +64,11 @@
     "WATERMARK",
     "OVERWRITE",
     "STRING",
-    "BYTES"
+    "BYTES",
+    "CATALOGS",
+    "USE",
+    "DATABASES",
+    "EXTENDED"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -81,6 +94,7 @@
     "C"
     "CASCADE"
     "CATALOG"
+    "CATALOGS"
     "CATALOG_NAME"
     "CENTURY"
     "CHAIN"
@@ -112,6 +126,7 @@
     "CURSOR_NAME"
     "DATA"
     "DATABASE"
+    "DATABASES"
     "DATETIME_INTERVAL_CODE"
     "DATETIME_INTERVAL_PRECISION"
     "DECADE"
@@ -139,6 +154,7 @@
     "EXCEPTION"
     "EXCLUDE"
     "EXCLUDING"
+    "EXTENDED"
     "FINAL"
     "FIRST"
     "FOLLOWING"
@@ -347,6 +363,7 @@
     "UNDER"
     "UNNAMED"
     "USAGE"
+    "USE"
     "USER_DEFINED_TYPE_CATALOG"
     "USER_DEFINED_TYPE_CODE"
     "USER_DEFINED_TYPE_NAME"
@@ -373,7 +390,14 @@
   # Return type of method implementation should be 'SqlNode'.
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
-    "RichSqlInsert()"
+    "RichSqlInsert()",
+    "SqlShowCatalogs()",
+    "SqlDescribeCatalog()",
+    "SqlUseCatalog()",
+    "SqlShowDatabases()",
+    "SqlUseDatabase()",
+    "SqlAlterDatabase()",
+    "SqlDescribeDatabase()"
   ]
 
   # List of methods for parsing custom literals.
@@ -408,14 +432,16 @@
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
     "SqlCreateTable",
-    "SqlCreateView"
+    "SqlCreateView",
+    "SqlCreateDatabase"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
     "SqlDropTable",
-    "SqlDropView"
+    "SqlDropView",
+    "SqlDropDatabase"
   ]
 
   # Binary operators tokens

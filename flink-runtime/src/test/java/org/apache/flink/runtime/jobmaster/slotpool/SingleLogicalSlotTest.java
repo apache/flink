@@ -86,7 +86,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 			new LocalTaskManagerLocation(),
 			0,
 			new SimpleAckingTaskManagerGateway(),
-			ResourceProfile.UNKNOWN);
+			ResourceProfile.ANY);
 	}
 
 	@Test

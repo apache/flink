@@ -16,22 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.core.execution;
+
+import org.apache.flink.configuration.Configuration;
 
 /**
- * The command line parameters passed to the TaskManager.
+ * An interface to be implemented by the entity responsible for finding the correct {@link Executor} to
+ * execute a given {@link org.apache.flink.api.dag.Pipeline}.
  */
-public class TaskManagerCliOptions {
+public interface ExecutorServiceLoader {
 
-	private String configDir;
-	
-	// ------------------------------------------------------------------------
-
-	public String getConfigDir() {
-		return configDir;
-	}
-
-	public void setConfigDir(String configDir) {
-		this.configDir = configDir;
-	}
+	/**
+	 * Loads the {@link ExecutorFactory} which is compatible with the provided configuration.
+	 * There can be at most one compatible factory among the available ones, otherwise an exception
+	 * will be thrown.
+	 *
+	 * @return a compatible {@link ExecutorFactory}.
+	 * @throws Exception if there is more than one compatible factories, or something went wrong when
+	 * 			loading the registered factories.
+	 */
+	ExecutorFactory getExecutorFactory(Configuration configuration) throws Exception;
 }

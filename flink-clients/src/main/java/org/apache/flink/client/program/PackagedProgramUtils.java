@@ -20,7 +20,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.CompilerException;
@@ -64,7 +63,7 @@ public class PackagedProgramUtils {
 		if (jobID != null) {
 			jobGraph.setJobID(jobID);
 		}
-		ClientUtils.addJarFiles(jobGraph, packagedProgram.getAllLibraries());
+		jobGraph.addJars(packagedProgram.getJobJarAndDependencies());
 		jobGraph.setClasspaths(packagedProgram.getClasspaths());
 		jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
 

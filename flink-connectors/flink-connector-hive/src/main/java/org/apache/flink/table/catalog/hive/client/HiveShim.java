@@ -198,4 +198,9 @@ public interface HiveShim extends Serializable {
 	 * Get a Hive built-in function by name.
 	 */
 	Optional<FunctionInfo> getBuiltInFunctionInfo(String name);
+
+	/**
+	 * Get the set of columns that have NOT NULL constraints.
+	 */
+	Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName);
 }

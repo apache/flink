@@ -94,8 +94,10 @@ import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -318,13 +320,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				return convertToDataStreamScan(
 					dataStreamQueryOperation.getDataStream(),
 					dataStreamQueryOperation.getFieldIndices(),
-					dataStreamQueryOperation.getTableSchema());
+					dataStreamQueryOperation.getTableSchema(),
+					dataStreamQueryOperation.getIdentifier());
 			} else if (other instanceof ScalaDataStreamQueryOperation) {
 				ScalaDataStreamQueryOperation dataStreamQueryOperation = (ScalaDataStreamQueryOperation<?>) other;
 				return convertToDataStreamScan(
 					dataStreamQueryOperation.getDataStream(),
 					dataStreamQueryOperation.getFieldIndices(),
-					dataStreamQueryOperation.getTableSchema());
+					dataStreamQueryOperation.getTableSchema(),
+					dataStreamQueryOperation.getIdentifier());
 			}
 
 			throw new TableException("Unknown table operation: " + other);
@@ -345,9 +349,13 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			FlinkStatistic statistic;
 			List<String> names;
 			if (tableSourceOperation instanceof RichTableSourceQueryOperation &&
-				((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName() != null) {
+				((RichTableSourceQueryOperation<U>) tableSourceOperation).getIdentifier() != null) {
+				ObjectIdentifier identifier = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getIdentifier();
 				statistic = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getStatistic();
-				names = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName();
+				names = Arrays.asList(
+					identifier.getCatalogName(),
+					identifier.getDatabaseName(),
+					identifier.getObjectName());
 			} else {
 				statistic = FlinkStatistic.UNKNOWN();
 				// TableSourceScan requires a unique name of a Table for computing a digest.
@@ -377,8 +385,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					scala.Option.apply(operation.getFieldNullables()));
 
 			List<String> names;
-			if (operation.getQualifiedName() != null) {
-				names = operation.getQualifiedName();
+			ObjectIdentifier identifier = operation.getIdentifier();
+			if (identifier != null) {
+				names = Arrays.asList(
+					identifier.getCatalogName(),
+					identifier.getDatabaseName(),
+					identifier.getObjectName());
 			} else {
 				String refId = String.format("Unregistered_DataStream_%s", operation.getDataStream().getId());
 				names = Collections.singletonList(refId);
@@ -392,7 +404,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			return LogicalTableScan.create(relBuilder.getCluster(), table);
 		}
 
-		private RelNode convertToDataStreamScan(DataStream<?> dataStream, int[] fieldIndices, TableSchema tableSchema) {
+		private RelNode convertToDataStreamScan(
+				DataStream<?> dataStream,
+				int[] fieldIndices,
+				TableSchema tableSchema,
+				Optional<ObjectIdentifier> identifier) {
 			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
 				dataStream,
 				false,
@@ -402,11 +418,20 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				FlinkStatistic.UNKNOWN(),
 				scala.Option.empty());
 
-			String refId = String.format("Unregistered_DataStream_%s", dataStream.getId());
+			List<String> names;
+			if (identifier.isPresent()) {
+				names = Arrays.asList(
+					identifier.get().getCatalogName(),
+					identifier.get().getDatabaseName(),
+					identifier.get().getObjectName());
+			} else {
+				String refId = String.format("Unregistered_DataStream_%s", dataStream.getId());
+				names = Collections.singletonList(refId);
+			}
 			FlinkRelOptTable table = FlinkRelOptTable.create(
 				relBuilder.getRelOptSchema(),
 				dataStreamTable.getRowType(relBuilder.getTypeFactory()),
-				Collections.singletonList(refId),
+				names,
 				dataStreamTable);
 			return LogicalTableScan.create(relBuilder.getCluster(), table);
 		}

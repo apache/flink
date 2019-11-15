@@ -923,10 +923,9 @@ public class TaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testReturnsEmptyStackTraceIfTaskNotStarted() throws Exception {
+	public void testNoBackPressureIfTaskNotStarted() throws Exception {
 		final Task task = createTaskBuilder().build();
-		final StackTraceElement[] actualStackTrace = task.getStackTraceOfExecutingThread();
-		assertEquals(0, actualStackTrace.length);
+		assertFalse(task.isBackPressured());
 	}
 
 	// ------------------------------------------------------------------------
