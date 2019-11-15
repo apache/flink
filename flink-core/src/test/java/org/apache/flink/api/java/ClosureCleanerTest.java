@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
+package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple1;
 
 import org.junit.Assert;
