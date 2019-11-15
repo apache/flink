@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A slot sharing units defines which different task (from different job vertices) can be
@@ -38,14 +41,20 @@ public class SlotSharingGroup implements java.io.Serializable {
 
 	private final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
 
+	/** Represents resources of all tasks in the group. Default to be zero.
+	 * Any task with UNKNOWN resources will turn it to be UNKNOWN. */
+	private ResourceSpec resourceSpec = ResourceSpec.newBuilder(0.0, 0).build();
+
 	// --------------------------------------------------------------------------------------------
 
-	public void addVertexToGroup(JobVertexID id) {
-		this.ids.add(id);
+	public void addVertexToGroup(final JobVertexID id, final ResourceSpec resource) {
+		ids.add(checkNotNull(id));
+		resourceSpec = resourceSpec.merge(checkNotNull(resource));
 	}
 
-	public void removeVertexFromGroup(JobVertexID id) {
-		this.ids.remove(id);
+	public void removeVertexFromGroup(final JobVertexID id, final ResourceSpec resource) {
+		ids.remove(checkNotNull(id));
+		resourceSpec = resourceSpec.subtract(checkNotNull(resource));
 	}
 
 	public Set<JobVertexID> getJobVertexIds() {
@@ -54,6 +63,10 @@ public class SlotSharingGroup implements java.io.Serializable {
 
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
+	}
+
+	public ResourceSpec getResourceSpec() {
+		return resourceSpec;
 	}
 
 	// ------------------------------------------------------------------------

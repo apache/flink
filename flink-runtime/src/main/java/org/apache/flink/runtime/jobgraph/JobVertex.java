@@ -367,12 +367,12 @@ public class JobVertex implements java.io.Serializable {
 	 */
 	public void setSlotSharingGroup(SlotSharingGroup grp) {
 		if (this.slotSharingGroup != null) {
-			this.slotSharingGroup.removeVertexFromGroup(id);
+			this.slotSharingGroup.removeVertexFromGroup(this.getID(), this.getMinResources());
 		}
 
 		this.slotSharingGroup = grp;
 		if (grp != null) {
-			grp.addVertexToGroup(id);
+			grp.addVertexToGroup(this.getID(), this.getMinResources());
 		}
 	}
 
