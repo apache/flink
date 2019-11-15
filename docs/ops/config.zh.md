@@ -192,6 +192,7 @@ The configuration keys in this section are independent of the used resource mana
 ### Pipeline
 
 {% include generated/pipeline_configuration.html %}
+{% include generated/stream_pipeline_configuration.html %}
 
 ### Checkpointing
 

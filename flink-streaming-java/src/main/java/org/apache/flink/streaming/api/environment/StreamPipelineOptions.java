@@ -27,7 +27,7 @@ import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 
 /**
- * The {@link ConfigOption} configuration options for job execution. Those are stream specific options.
+ * The {@link ConfigOption configuration options} for job execution. Those are stream specific options.
  * See also {@link org.apache.flink.configuration.PipelineOptions}.
  */
 @PublicEvolving

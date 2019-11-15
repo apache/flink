@@ -28,8 +28,10 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * A very naive adapter between {@link ReadableConfig} and {@link Configuration}.
+ * A simple adapter between {@link ReadableConfig} and {@link Configuration}.
  * It is used to bridge some of the old public interfaces that work with {@link Configuration} even though they
  * should actually work with {@link ReadableConfig}.
  */
@@ -38,7 +40,7 @@ public class ReadableConfigToConfigurationAdapter extends Configuration {
 	private final ReadableConfig backingConfig;
 
 	public ReadableConfigToConfigurationAdapter(ReadableConfig backingConfig) {
-		this.backingConfig = backingConfig;
+		this.backingConfig = checkNotNull(backingConfig);
 	}
 
 	@Override
