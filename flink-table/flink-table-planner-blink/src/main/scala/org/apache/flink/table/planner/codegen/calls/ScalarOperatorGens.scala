@@ -2169,7 +2169,7 @@ object ScalarOperatorGens {
         s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
-           |${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIMESTAMP.method)}($operandTerm.toString())
+           |${qualifyMethod(BuiltInMethod.STRING_TO_TIMESTAMP.method)}($operandTerm.toString())
            |""".stripMargin
       case _ => throw new UnsupportedOperationException
     }
