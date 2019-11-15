@@ -33,4 +33,16 @@ public class HiveOptions {
 					.withDescription(
 							"If it is false, using flink native vectorized reader to read orc files; " +
 									"If it is true, using hadoop mapred record reader to read orc files.");
+
+	public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM =
+			key("table.exec.hive.infer-source-parallelism")
+					.defaultValue(true)
+					.withDescription(
+							"If is false, parallelism of source are set by config.\n" +
+							"If is true, source parallelism is inferred according to splits number.\n");
+
+	public static final ConfigOption<Integer> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX =
+			key("table.exec.hive.infer-source-parallelism.max")
+					.defaultValue(1000)
+					.withDescription("Sets max infer parallelism for source operator.");
 }
