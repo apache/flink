@@ -17,22 +17,22 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.function.TriFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +71,14 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	/** The savepoint restore settings for job execution. */
 	private final SavepointRestoreSettings savepointRestoreSettings;
+
+	private TriFunction<String, Integer, Configuration, PlanExecutor> planExecutorFactory = PlanExecutor::createRemoteExecutor;
+
+	@Internal
+	@VisibleForTesting
+	void setPlanExecutorFactory(TriFunction<String, Integer, Configuration, PlanExecutor> planExecutorFactory) {
+		this.planExecutorFactory = planExecutorFactory;
+	}
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -225,31 +233,31 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		SavepointRestoreSettings savepointRestoreSettings
 	) throws ProgramInvocationException {
 		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph(jobName);
-		return executeRemotely(streamGraph,
-			streamExecutionEnvironment.getConfig(),
+		return executeRemotely(
+			streamGraph,
 			jarFiles,
 			host,
 			port,
 			clientConfiguration,
 			globalClasspaths,
-			savepointRestoreSettings);
+			savepointRestoreSettings,
+			PlanExecutor::createRemoteExecutor);
 	}
 
 	/**
 	 * Execute the given stream graph remotely.
 	 *
 	 * <p>Method for internal use since it exposes stream graph and other implementation details that are subject to change.
-	 * @throws ProgramInvocationException
 	 */
-	private static JobExecutionResult executeRemotely(StreamGraph streamGraph,
-		ExecutionConfig executionConfig,
-		List<URL> jarFiles,
-		String host,
-		int port,
-		Configuration clientConfiguration,
-		List<URL> globalClasspaths,
-		SavepointRestoreSettings savepointRestoreSettings
-	) throws ProgramInvocationException {
+	private static JobExecutionResult executeRemotely(
+			StreamGraph streamGraph,
+			List<URL> jarFiles,
+			String host,
+			int port,
+			Configuration clientConfiguration,
+			List<URL> globalClasspaths,
+			SavepointRestoreSettings savepointRestoreSettings,
+			TriFunction<String, Integer, Configuration, PlanExecutor> planExecutorFactory) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -262,39 +270,18 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		configuration.setInteger(RestOptions.PORT, port);
 
-		final ClusterClient<?> client;
-		try {
-			client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
-		}
-		catch (Exception e) {
-			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(), e);
-		}
-
 		if (savepointRestoreSettings != null) {
 			streamGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 		}
 
 		try {
-			final PlanExecutor executor = PlanExecutor.createRemoteExecutor(
-					host,
-					port,
-					clientConfiguration);
-
+			final PlanExecutor executor = planExecutorFactory.apply(host, port, clientConfiguration);
 			return executor.executePlan(streamGraph, jarFiles, globalClasspaths).getJobExecutionResult();
-		}
-		catch (ProgramInvocationException e) {
+		} catch (ProgramInvocationException e) {
 			throw e;
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
 			throw new ProgramInvocationException("The program execution failed" + term, e);
-		}
-		finally {
-			try {
-				client.close();
-			} catch (Exception e) {
-				LOG.warn("Could not properly shut down the cluster client.", e);
-			}
 		}
 	}
 
@@ -316,14 +303,15 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@Deprecated
 	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
-		return executeRemotely(streamGraph,
-			getConfig(),
+		return executeRemotely(
+			streamGraph,
 			jarFiles,
 			host,
 			port,
 			clientConfiguration,
 			globalClasspaths,
-			savepointRestoreSettings);
+			savepointRestoreSettings,
+			planExecutorFactory);
 	}
 
 	@Override

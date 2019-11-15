@@ -20,36 +20,24 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.RemoteExecutor;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.concurrent.CompletableFuture;
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link RemoteStreamEnvironment}.
  */
-@RunWith(PowerMockRunner.class)
-// TODO: I don't like that I have to do this
-@PrepareForTest({RemoteStreamEnvironment.class, RemoteExecutor.class})
 public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 
 	/**
@@ -57,59 +45,59 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testPortForwarding() throws Exception {
+		final String host = "fakeHost";
+		final int port = 99;
+		final Configuration conf = new Configuration();
 
-		String host = "fakeHost";
-		int port = 99;
-		JobID jobID = new JobID();
-		JobResult jobResult = (new JobResult.Builder())
-			.jobId(jobID)
-			.netRuntime(0)
-			.applicationStatus(ApplicationStatus.SUCCEEDED)
-			.build();
+		final RemoteStreamEnvironment env = (RemoteStreamEnvironment) StreamExecutionEnvironment.createRemoteEnvironment(
+			host,
+			port,
+			conf);
 
-		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
-		when(mockedClient.submitJob(any())).thenReturn(CompletableFuture.completedFuture(new JobSubmissionResult(jobID)));
-		when(mockedClient.requestJobResult(any())).thenReturn(CompletableFuture.completedFuture(jobResult));
+		final JobID jobID = new JobID();
 
-		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenAnswer((invocation) -> {
-				Object[] args = invocation.getArguments();
-				Configuration config = (Configuration) args[0];
+		env.setPlanExecutorFactory((_host, _port, _conf) -> {
+			assertThat(_host, is(host));
+			assertThat(_port, is(port));
+			assertThat(_conf, is(conf));
+			return new RemoteExecutor(_host, _port, _conf) {
+				@Override
+				public JobExecutionResult executePlan(Pipeline plan, List<URL> jarFiles, List<URL> classpathList) {
+					return new JobExecutionResult(jobID, 0, Collections.emptyMap());
+				}
+			};
+		});
 
-				Assert.assertEquals(host, config.getString(RestOptions.ADDRESS));
-				Assert.assertEquals(port, config.getInteger(RestOptions.PORT));
-				return mockedClient;
-			}
-		);
-
-		final Configuration clientConfiguration = new Configuration();
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-			host, port, clientConfiguration);
 		env.fromElements(1).map(x -> x * 2);
-		JobExecutionResult actualResult = env.execute("fakeJobName");
-		Assert.assertEquals(jobID, actualResult.getJobID());
+		JobExecutionResult actualResult = env.execute();
+		assertThat(actualResult.getJobID(), is(jobID));
 	}
 
 	@Test
 	public void testRemoteExecutionWithSavepoint() throws Exception {
-		SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.forPath("fakePath");
-		RemoteStreamEnvironment env = new RemoteStreamEnvironment("fakeHost", 1,
-			null, new String[]{}, null, restoreSettings);
+		final String host = "fakeHost";
+		final int port = 99;
+		final Configuration conf = new Configuration();
+		final SavepointRestoreSettings settings = SavepointRestoreSettings.forPath("fakePath");
+
+		final RemoteStreamEnvironment env = new RemoteStreamEnvironment(host, port, conf, new String[0], new URL[0], settings);
+
+		final JobID jobID = new JobID();
+
+		env.setPlanExecutorFactory((_host, _port, _conf) -> {
+			assertThat(_host, is(host));
+			assertThat(_port, is(port));
+			assertThat(_conf, is(conf));
+			return new RemoteExecutor(_host, _port, _conf) {
+				@Override
+				public JobExecutionResult executePlan(Pipeline plan, List<URL> jarFiles, List<URL> classpathList) {
+					return new JobExecutionResult(jobID, 0, Collections.emptyMap());
+				}
+			};
+		});
+
 		env.fromElements(1).map(x -> x * 2);
-
-		JobID jobID = new JobID();
-		JobResult jobResult = (new JobResult.Builder())
-			.jobId(jobID)
-			.netRuntime(0)
-			.applicationStatus(ApplicationStatus.SUCCEEDED)
-			.build();
-
-		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
-
-		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenReturn(mockedClient);
-		when(mockedClient.submitJob(any())).thenReturn(CompletableFuture.completedFuture(new JobSubmissionResult(jobID)));
-		when(mockedClient.requestJobResult(eq(jobID))).thenReturn(CompletableFuture.completedFuture(jobResult));
-
-		JobExecutionResult actualResult = env.execute("fakeJobName");
-		Assert.assertEquals(jobID, actualResult.getJobID());
+		JobExecutionResult actualResult = env.execute();
+		assertThat(actualResult.getJobID(), is(jobID));
 	}
 }
