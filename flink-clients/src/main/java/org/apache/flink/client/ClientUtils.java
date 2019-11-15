@@ -158,9 +158,9 @@ public enum ClientUtils {
 		final int parallelism = executionConfigAccessor.getParallelism();
 		final boolean detached = executionConfigAccessor.getDetachedMode();
 
-		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-		final ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(jobJars, classpaths, contextClassLoader, configuration);
+		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
 
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		try {
 			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 
