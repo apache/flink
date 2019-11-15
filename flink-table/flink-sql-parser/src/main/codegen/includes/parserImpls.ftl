@@ -290,6 +290,17 @@ SqlShowFunctions SqlShowFunctions() :
     [database = CompoundIdentifier()]
     {
         return new SqlShowFunctions(pos, database);
+
+/**
+* Parse a "Show Tables" metadata query command.
+*/
+SqlShowTables SqlShowTables() :
+{
+}
+{
+    <SHOW> <TABLES>
+    {
+        return new SqlShowTables(getPos());
     }
 }
 

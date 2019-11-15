@@ -47,6 +47,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowDatabases",
     "org.apache.flink.sql.parser.dql.SqlShowFunctions",
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase",
+    "org.apache.flink.sql.parser.dql.SqlShowTables",
     "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
@@ -75,6 +76,7 @@
     "FUNCTIONS",
     "EXTENDED",
     "SCALA"
+    "TABLES"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -348,6 +350,7 @@
     "STYLE"
     "SUBCLASS_ORIGIN"
     "SUBSTITUTE"
+    "TABLES"
     "TABLE_NAME"
     "TEMPORARY"
     "TIES"
@@ -406,7 +409,8 @@
     "SqlAlterDatabase()",
     "SqlDescribeDatabase()",
     "SqlAlterFunction()",
-    "SqlShowFunctions()"
+    "SqlShowFunctions()",
+    "SqlShowTables()"
   ]
 
   # List of methods for parsing custom literals.
