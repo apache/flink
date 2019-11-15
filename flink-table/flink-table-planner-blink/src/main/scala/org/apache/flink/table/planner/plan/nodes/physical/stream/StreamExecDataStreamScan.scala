@@ -63,7 +63,7 @@ class StreamExecDataStreamScan(
 
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
-  def isAccRetract: Boolean = getTable.unwrap(classOf[DataStreamTable[Any]]).isAccRetract
+  def isAccRetract: Boolean = dataStreamTable.isAccRetract
 
   override def producesUpdates: Boolean = dataStreamTable.producesUpdates
 

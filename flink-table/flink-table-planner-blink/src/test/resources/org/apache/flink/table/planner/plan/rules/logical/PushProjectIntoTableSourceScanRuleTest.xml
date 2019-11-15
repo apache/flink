@@ -19,18 +19,41 @@ limitations under the License.
   <TestCase name="testCannotProject">
     <Resource name="sql">
       <![CDATA[SELECT a, c, b + 1 FROM MyTable]]>
+
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
+
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotProjectWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c, d, b + 1 FROM VirtualTable]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
+]]>
+
     </Resource>
   </TestCase>
   <TestCase name="testNestedProject">
@@ -43,39 +66,27 @@ SELECT id,
     deepNested.nested2.num AS nestedNum
 FROM T
       ]]>
+
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.*, nested.*, name.*)]]])
 ]]>
+
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.nested2.num, deepNested.nested2.flag, deepNested.nested1.name, nested.value)]]])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSimpleProject">
-    <Resource name="sql">
-      <![CDATA[SELECT a, c FROM MyTable]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, c)]]])
-]]>
+
     </Resource>
   </TestCase>
   <TestCase name="testProjectWithoutInputRef">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(1) FROM MyTable]]>
+
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
@@ -83,6 +94,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
+
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
@@ -90,23 +102,86 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: )]]])
 ]]>
+
     </Resource>
   </TestCase>
   <TestCase name="testProjectWithUdf">
     <Resource name="sql">
       <![CDATA[SELECT a, TRIM(c) FROM MyTable]]>
+
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
+
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, c)]]])
 ]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithUdfWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT a, my_udf(d) FROM VirtualTable]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a)]]])
+]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleProjectWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT a, d FROM VirtualTable]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], d=[+($0, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], d=[+($0, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a)]]])
+]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, c)]]])
+]]>
+
     </Resource>
   </TestCase>
 </Root>

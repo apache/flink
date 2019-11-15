@@ -19,40 +19,40 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
 import org.apache.flink.table.api.{TableException, WatermarkSpec}
-import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
+
+import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
+
+import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 /**
-  * Abstract class which define the interfaces required to convert a [[TableSource]] to
-  * a Calcite Table
+  * A [[FlinkPreparingTableBase]] implementation which defines the context variables
+  * required to translate the Calcite [[RelOptTable]] to the Flink specific
+  * relational expression with [[TableSource]].
   *
-  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table.
-  * @param isStreamingMode A flag that tells if the current table is in stream mode.
-  * @param statistic The table statistics.
+  * <p>It also defines the [[copy]] method used for push down rules.
+  *
+  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table
+  * @param isStreamingMode A flag that tells if the current table is in stream mode
+  * @param catalogTable Catalog table where this table source table comes from
   */
 class TableSourceTable[T](
+    relOptSchema: RelOptSchema,
+    names: JList[String],
+    rowType: RelDataType,
+    statistic: FlinkStatistic,
     val tableSource: TableSource[T],
     val isStreamingMode: Boolean,
-    val statistic: FlinkStatistic,
-    val selectedFields: Option[Array[Int]],
     val catalogTable: CatalogTable)
-  extends FlinkTable {
-
-  def this(
-      tableSource: TableSource[T],
-      isStreamingMode: Boolean,
-      statistic: FlinkStatistic,
-      catalogTable: CatalogTable) {
-    this(tableSource, isStreamingMode, statistic, None, catalogTable)
-  }
+  extends FlinkPreparingTableBase(relOptSchema, rowType, names, statistic) {
 
   Preconditions.checkNotNull(tableSource)
   Preconditions.checkNotNull(statistic)
@@ -70,60 +70,37 @@ class TableSourceTable[T](
           " via DefinedRowtimeAttributes interface.")
   }
 
-  // TODO implements this
-  // TableSourceUtil.validateTableSource(tableSource)
+  override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
 
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    val factory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    val (fieldNames, fieldTypes) = TableSourceUtil.getFieldNameType(
-      catalogTable.getSchema,
-      tableSource,
-      selectedFields,
-      streaming = isStreamingMode)
-    // patch rowtime field according to WatermarkSpec
-    val patchedTypes = if (isStreamingMode && watermarkSpec.isDefined) {
-      // TODO: [FLINK-14473] we only support top-level rowtime attribute right now
-      val rowtime = watermarkSpec.get.getRowtimeAttribute
-      if (rowtime.contains(".")) {
-        throw new TableException(
-          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-      }
-      val idx = fieldNames.indexOf(rowtime)
-      val originalType = fieldTypes(idx).asInstanceOf[TimestampType]
-      val rowtimeType = new TimestampType(
-        originalType.isNullable,
-        TimestampKind.ROWTIME,
-        originalType.getPrecision)
-      fieldTypes.patch(idx, Seq(rowtimeType), 1)
-    } else {
-      fieldTypes
-    }
-    factory.buildRelNodeRowType(fieldNames, patchedTypes)
+  /**
+    * Creates a copy of this table, changing table source and statistic.
+    *
+    * @param tableSource tableSource to replace
+    * @param statistic New FlinkStatistic to replace
+    * @return New TableSourceTable instance with specified table source and [[FlinkStatistic]]
+    */
+  def copy(tableSource: TableSource[_], statistic: FlinkStatistic): TableSourceTable[T] = {
+    new TableSourceTable[T](relOptSchema, names, rowType, statistic,
+      tableSource.asInstanceOf[TableSource[T]], isStreamingMode, catalogTable)
   }
 
   /**
-    * Creates a copy of this table, changing statistic.
+    * Creates a copy of this table, changing table source and rowType based on
+    * selected fields.
     *
-    * @param statistic A new FlinkStatistic.
-    * @return Copy of this table, substituting statistic.
+    * @param tableSource tableSource to replace
+    * @param selectedFields Selected indices of the table source output fields
+    * @return New TableSourceTable instance with specified table source
+    *         and selected fields
     */
-  override def copy(statistic: FlinkStatistic): TableSourceTable[T] = {
-    new TableSourceTable(tableSource, isStreamingMode, statistic, catalogTable)
-  }
-
-  /**
-    * Returns statistics of current table.
-    */
-  override def getStatistic: FlinkStatistic = statistic
-
-  /**
-    * Replaces table source with the given one, and create a new table source table.
-    *
-    * @param tableSource tableSource to replace.
-    * @return new TableSourceTable
-    */
-  def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T] = {
-    new TableSourceTable[T](
-      tableSource, isStreamingMode, statistic, catalogTable)
+  def copy(tableSource: TableSource[_], selectedFields: Array[Int]): TableSourceTable[T] = {
+    val newRowType = relOptSchema
+      .getTypeFactory
+      .createStructType(rowType
+        .getFieldList
+        .filter(f => selectedFields.contains(f.getIndex))
+        .toList)
+    new TableSourceTable[T](relOptSchema, names, newRowType, statistic,
+      tableSource.asInstanceOf[TableSource[T]], isStreamingMode, catalogTable)
   }
 }

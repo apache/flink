@@ -92,12 +92,11 @@ class AggCallSelectivityEstimatorTest {
     when(cluster, "getPlanner").thenReturn(planner)
     when(planner, "getContext").thenReturn(context)
     when(tableScan, "getRowType").thenReturn(relDataType)
-    val innerTable = mock(classOf[TableSourceTable[_]])
-    val flinkTable = mock(classOf[FlinkRelOptTable])
-    when(flinkTable, "unwrap", classOf[FlinkTable]).thenReturn(innerTable)
-    when(flinkTable, "getFlinkStatistic").thenReturn(statistic)
-    when(flinkTable, "getRowType").thenReturn(relDataType)
-    when(tableScan, "getTable").thenReturn(flinkTable)
+    val sourceTable = mock(classOf[TableSourceTable[_]])
+    when(sourceTable, "unwrap", classOf[TableSourceTable[_]]).thenReturn(sourceTable)
+    when(sourceTable, "getStatistic").thenReturn(statistic)
+    when(sourceTable, "getRowType").thenReturn(relDataType)
+    when(tableScan, "getTable").thenReturn(sourceTable)
     val rowCount: JDouble = if (statistic != null && statistic.getRowCount != null) {
       statistic.getRowCount
     } else {

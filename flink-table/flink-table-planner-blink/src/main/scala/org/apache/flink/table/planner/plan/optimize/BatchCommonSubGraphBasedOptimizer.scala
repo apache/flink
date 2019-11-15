@@ -29,6 +29,8 @@ import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
 
+import java.util.Collections
+
 /**
   * A [[CommonSubGraphBasedOptimizer]] for Batch.
   */
@@ -57,7 +59,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
       case _: BatchExecSink[_] => // ignore
       case _ =>
         val name = createUniqueIntermediateRelTableName
-        val intermediateRelTable =  new IntermediateRelTable(optimizedTree)
+        val intermediateRelTable =  new IntermediateRelTable(Collections.singletonList(name),
+          optimizedTree)
         val newTableScan = wrapIntermediateRelTableToTableScan(intermediateRelTable, name)
         block.setNewOutputNode(newTableScan)
         block.setOutputTableName(name)

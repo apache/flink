@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.sources
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException, WatermarkSpec}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils.isAssignable
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.sources.{DefinedFieldMapping, DefinedProctimeAttribute, DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
@@ -56,40 +57,25 @@ object TableSourceUtil {
     * mapped to a field of the input type.
     *
     * @param tableSource The table source for which the table schema is mapped to the input type.
-    * @param isStreamTable True if the mapping is computed for a streaming table, false otherwise.
-    * @param selectedFields The indexes of the table schema fields for which a mapping is
-    *                       computed. If None, a mapping for all fields is computed.
+    * @param rowType Table source table row type
+    * @param isStreamTable If this table source is in streaming mode
     * @return An index mapping from input type to table schema.
     */
   def computeIndexMapping(
       tableSource: TableSource[_],
-      isStreamTable: Boolean,
-      selectedFields: Option[Array[Int]]): Array[Int] = {
-
-    val tableSchema = tableSource.getTableSchema
-
-    // get names of selected fields
-    val tableFieldNames =  if (selectedFields.isDefined) {
-      val names = tableSchema.getFieldNames
-      selectedFields.get.map(names(_))
-    } else {
-      tableSchema.getFieldNames
-    }
-
-    // get types of selected fields
-    val tableFieldTypes = if (selectedFields.isDefined) {
-      val types = tableSchema.getFieldDataTypes
-      selectedFields.get.map(types(_))
-    } else {
-      tableSchema.getFieldDataTypes
-    }
+      rowType: RelDataType,
+      isStreamTable: Boolean): Array[Int] = {
 
     // get rowtime and proctime attributes
     val rowtimeAttributes = getRowtimeAttributes(tableSource)
     val proctimeAttributes = getProctimeAttribute(tableSource)
-
     // compute mapping of selected fields and time attributes
-    val mapping: Array[Int] = tableFieldTypes.map(_.getLogicalType).zip(tableFieldNames).map {
+    val names = rowType.getFieldNames.toArray
+    val fieldTypes = rowType
+      .getFieldList
+      .map(f => FlinkTypeFactory.toLogicalType(f.getType))
+      .toArray
+    val mapping: Array[Int] = fieldTypes.zip(names).map {
       case (_: TimestampType, name: String)
         if proctimeAttributes.contains(name) =>
         if (isStreamTable) {
@@ -104,7 +90,7 @@ object TableSourceUtil {
         } else {
           TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER
         }
-      case (t: LogicalType, name) =>
+      case (t: LogicalType, name: String) =>
         // check if field is registered as time indicator
         if (proctimeAttributes.contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
@@ -114,7 +100,6 @@ object TableSourceUtil {
           throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
             s"Rowtime attributes must be of TimestampType.")
         }
-
         val (physicalName, idx, tpe) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
         if (!isAssignable(fromTypeInfoToLogicalType(tpe), t)) {
@@ -137,22 +122,23 @@ object TableSourceUtil {
   /**
     * Returns schema of the selected fields of the given [[TableSource]].
     *
-    * @param tableSchema    The [[TableSchema]] to derive the names and data types.
-    *                       This table schema should include all the columns, say,
-    *                       computed columns should also be included.
-    * @param tableSource    The [[TableSource]] to derive time attributes.
-    * @param selectedFields The indices of all selected fields. None, if all fields are selected.
-    * @param streaming Flag to determine whether the schema of a stream or batch table is created.
-    * @return The schema for the selected fields of the given [[TableSource]].
+    * @param typeFactory    Type factory to create the type
+    * @param fieldNameArray Field names to build the row type
+    * @param fieldDataTypeArray Field data types to build the row type
+    * @param tableSource    The [[TableSource]] to derive time attributes
+    * @param streaming      Flag to determine whether the schema of
+    *                       a stream or batch table is created
+    * @return The schema for the selected fields of the given [[TableSource]]
     */
-  def getFieldNameType(
-      tableSchema: TableSchema,
+  def getSourceRowType(
+      typeFactory: FlinkTypeFactory,
+      fieldNameArray: Array[String],
+      fieldDataTypeArray: Array[DataType],
       tableSource: TableSource[_],
-      selectedFields: Option[Array[Int]],
-      streaming: Boolean): (Seq[String], Seq[LogicalType]) = {
+      streaming: Boolean): RelDataType = {
 
-    val fieldNames = tableSchema.getFieldNames
-    var fieldTypes = tableSchema.getFieldDataTypes
+    val fieldNames = fieldNameArray
+    var fieldTypes = fieldDataTypeArray
       .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
 
     if (streaming) {
@@ -175,11 +161,83 @@ object TableSourceUtil {
         fieldTypes = fieldTypes.patch(idx, Seq(proctimeType), 1)
       }
     }
-    if (selectedFields.isDefined) {
-      // filter field names and types by selected fields
-      (selectedFields.get.map(fieldNames(_)), selectedFields.get.map(fieldTypes(_)))
+    typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
+  }
+
+  /**
+    * Returns schema of the selected fields of the given [[TableSource]].
+    *
+    * @param typeFactory Type factory to create the type
+    * @param fieldNameArray Field names to build the row type
+    * @param fieldDataTypeArray Field data types to build the row type
+    * @param watermarkSpec Watermark specifications defined through DDL
+    * @param streaming Flag to determine whether the schema of a stream or batch table is created
+    * @return The row type for the selected fields of the given [[TableSource]], this type would
+    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
+    */
+  def getSourceRowType(
+      typeFactory: FlinkTypeFactory,
+      fieldNameArray: Array[String],
+      fieldDataTypeArray: Array[DataType],
+      watermarkSpec: WatermarkSpec,
+      streaming: Boolean): RelDataType = {
+
+    val fieldNames = fieldNameArray
+    var fieldTypes = fieldDataTypeArray
+      .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
+
+    // patch rowtime field according to WatermarkSpec
+    fieldTypes = if (streaming) {
+      // TODO: [FLINK-14473] we only support top-level rowtime attribute right now
+      val rowtime = watermarkSpec.getRowtimeAttribute
+      if (rowtime.contains(".")) {
+        throw new ValidationException(
+          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
+      }
+      val idx = fieldNames.indexOf(rowtime)
+      val originalType = fieldTypes(idx).asInstanceOf[TimestampType]
+      val rowtimeType = new TimestampType(
+        originalType.isNullable,
+        TimestampKind.ROWTIME,
+        originalType.getPrecision)
+      fieldTypes.patch(idx, Seq(rowtimeType), 1)
     } else {
-      (fieldNames, fieldTypes)
+      fieldTypes
+    }
+    typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
+  }
+
+  /**
+    * Returns schema of the selected fields of the given [[TableSource]].
+    *
+    * <p> The watermark strategy specifications should either come from the [[TableSchema]]
+    * or [[TableSource]].
+    *
+    * @param typeFactory Type factory to create the type
+    * @param tableSchema Table schema to derive table field names and data types
+    * @param tableSource Table source to derive watermark strategies
+    * @param streaming Flag to determine whether the schema of a stream or batch table is created
+    * @return The row type for the selected fields of the given [[TableSource]], this type would
+    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
+    */
+  def getSourceRowType(
+      typeFactory: FlinkTypeFactory,
+      tableSchema: TableSchema,
+      tableSource: Option[TableSource[_]],
+      streaming: Boolean): RelDataType = {
+
+    val fieldNames = tableSchema.getFieldNames
+    val fieldDataTypes = tableSchema.getFieldDataTypes
+
+    if (tableSchema.getWatermarkSpecs.nonEmpty) {
+      getSourceRowType(typeFactory, fieldNames, fieldDataTypes, tableSchema.getWatermarkSpecs.head,
+        streaming)
+    } else if (tableSource.isDefined) {
+      getSourceRowType(typeFactory, fieldNames, fieldDataTypes, tableSource.get,
+        streaming)
+    } else {
+      val fieldTypes = fieldDataTypes.map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
+      typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
     }
   }
 
@@ -188,13 +246,12 @@ object TableSourceUtil {
     *
     * @param tableSource The [[TableSource]] for which the [[RowtimeAttributeDescriptor]] is
     *                    returned.
-    * @param selectedFields The fields which are selected from the [[TableSource]].
-    *                       If None, all fields are selected.
+    * @param rowType The table source table row type
     * @return The [[RowtimeAttributeDescriptor]] of the [[TableSource]].
     */
   def getRowtimeAttributeDescriptor(
       tableSource: TableSource[_],
-      selectedFields: Option[Array[Int]]): Option[RowtimeAttributeDescriptor] = {
+      rowType: RelDataType): Option[RowtimeAttributeDescriptor] = {
 
     tableSource match {
       case r: DefinedRowtimeAttributes =>
@@ -205,20 +262,13 @@ object TableSourceUtil {
           throw new ValidationException("Table with has more than a single rowtime attribute..")
         } else {
           // exactly one rowtime attribute descriptor
-          if (selectedFields.isEmpty) {
-            // all fields are selected.
-            Some(descriptors.get(0))
+          val descriptor = descriptors.get(0)
+          if (rowType.getFieldNames.contains(descriptor.getAttributeName)) {
+            Some(descriptor)
           } else {
-            val descriptor = descriptors.get(0)
-            // look up index of row time attribute in schema
-            val fieldIdx = tableSource.getTableSchema.getFieldNames.indexOf(
-              descriptor.getAttributeName)
-            // is field among selected fields?
-            if (selectedFields.get.contains(fieldIdx)) {
-              Some(descriptor)
-            } else {
-              None
-            }
+            // If the row type fields does not contain the attribute name
+            // (i.e. filtered out by the push down rules), returns None.
+            None
           }
         }
       case _ => None
@@ -229,15 +279,14 @@ object TableSourceUtil {
     * Obtains the [[RexNode]] expression to extract the rowtime timestamp for a [[TableSource]].
     *
     * @param tableSource The [[TableSource]] for which the expression is extracted.
-    * @param selectedFields The selected fields of the [[TableSource]].
-    *                       If None, all fields are selected.
+    * @param rowType The table source table row type
     * @param cluster The [[RelOptCluster]] of the current optimization process.
     * @param relBuilder The [[RelBuilder]] to build the [[RexNode]].
     * @return The [[RexNode]] expression to extract the timestamp of the table source.
     */
   def getRowtimeExtractionExpression(
       tableSource: TableSource[_],
-      selectedFields: Option[Array[Int]],
+      rowType: RelDataType,
       cluster: RelOptCluster,
       relBuilder: RelBuilder): Option[RexNode] = {
 
@@ -263,7 +312,7 @@ object TableSourceUtil {
         ImmutableList.of().asInstanceOf[ImmutableList[ImmutableList[RexLiteral]]])
     }
 
-    val rowtimeDesc = getRowtimeAttributeDescriptor(tableSource, selectedFields)
+    val rowtimeDesc = getRowtimeAttributeDescriptor(tableSource, rowType)
     rowtimeDesc.map { r =>
       val tsExtractor = r.getTimestampExtractor
 
