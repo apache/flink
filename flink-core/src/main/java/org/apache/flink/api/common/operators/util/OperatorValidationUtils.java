@@ -68,8 +68,7 @@ public class OperatorValidationUtils {
 	public static void validateMinAndPreferredResources(ResourceSpec minResources, ResourceSpec preferredResources) {
 		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
 		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
-		Preconditions.checkArgument((minResources == ResourceSpec.UNKNOWN && preferredResources == ResourceSpec.UNKNOWN) ||
-				(minResources != ResourceSpec.UNKNOWN && preferredResources != ResourceSpec.UNKNOWN && minResources.lessThanOrEqual(preferredResources)),
+		Preconditions.checkArgument(minResources.lessThanOrEqual(preferredResources),
 			"The resources must be either both UNKNOWN or both not UNKNOWN. If not UNKNOWN,"
 				+ " the preferred resources must be greater than or equal to the min resources.");
 	}

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.resources.GPUResource;
 import org.apache.flink.api.common.resources.Resource;
 import org.apache.flink.configuration.MemorySize;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
@@ -199,10 +198,15 @@ public final class ResourceSpec implements Serializable {
 	 * @param other The resource to compare
 	 * @return True if current resource is less than or equal with the other resource, otherwise return false.
 	 */
-	public boolean lessThanOrEqual(@Nonnull ResourceSpec other) {
-		if (this.equals(UNKNOWN) || other.equals(UNKNOWN)) {
-			throw new IllegalArgumentException("UNKNOWN ResourceSpecs cannot be numerically compared.");
+	public boolean lessThanOrEqual(final ResourceSpec other) {
+		checkNotNull(other, "Cannot compare with null resources");
+
+		if (this.equals(UNKNOWN) && other.equals(UNKNOWN)) {
+			return true;
+		} else if (this.equals(UNKNOWN) || other.equals(UNKNOWN)) {
+			throw new IllegalArgumentException("Cannot compare specified resources with UNKNOWN resources.");
 		}
+
 		int cmp1 = Double.compare(this.cpuCores, other.cpuCores);
 		int cmp2 = this.taskHeapMemory.compareTo(other.taskHeapMemory);
 		int cmp3 = this.taskOffHeapMemory.compareTo(other.taskOffHeapMemory);
