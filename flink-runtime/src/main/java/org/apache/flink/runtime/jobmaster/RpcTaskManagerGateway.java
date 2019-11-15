@@ -26,11 +26,14 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.Collections;
 import java.util.Set;
@@ -105,5 +108,13 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 			allocationId,
 			cause,
 			timeout);
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+		ExecutionAttemptID task,
+		OperatorID operator,
+		SerializedValue<OperatorEvent> evt) {
+		return taskExecutorGateway.sendOperatorEventToTask(task, operator, evt);
 	}
 }

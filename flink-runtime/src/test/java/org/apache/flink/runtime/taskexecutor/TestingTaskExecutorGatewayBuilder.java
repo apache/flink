@@ -27,11 +27,15 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
+import org.apache.flink.util.function.TriFunction;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -55,6 +59,7 @@ public class TestingTaskExecutorGatewayBuilder {
 	private static final Consumer<Exception> NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER = ignored -> {};
 	private static final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> NOOP_CANCEL_TASK_FUNCTION = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private static final TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> NOOP_RELEASE_PARTITIONS_CONSUMER = (ignoredA, ignoredB, ignoredC) -> {};
+	private static final TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> DEFAULT_OPERATOR_EVENT_HANDLER = (a, b, c) -> CompletableFuture.completedFuture(Acknowledge.get());
 
 	private String address = "foobar:1234";
 	private String hostname = "foobar";
@@ -68,6 +73,7 @@ public class TestingTaskExecutorGatewayBuilder {
 	private Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction = NOOP_CANCEL_TASK_FUNCTION;
 	private Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier = () -> CompletableFuture.completedFuture(true);
 	private TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer = NOOP_RELEASE_PARTITIONS_CONSUMER;
+	private TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler = DEFAULT_OPERATOR_EVENT_HANDLER;
 
 	public TestingTaskExecutorGatewayBuilder setAddress(String address) {
 		this.address = address;
@@ -129,6 +135,11 @@ public class TestingTaskExecutorGatewayBuilder {
 		return this;
 	}
 
+	public TestingTaskExecutorGatewayBuilder setOperatorEventHandler(TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler) {
+		this.operatorEventHandler = operatorEventHandler;
+		return this;
+	}
+
 	public TestingTaskExecutorGateway createTestingTaskExecutorGateway() {
 		return new TestingTaskExecutorGateway(
 			address,
@@ -142,6 +153,7 @@ public class TestingTaskExecutorGatewayBuilder {
 			disconnectResourceManagerConsumer,
 			cancelTaskFunction,
 			canBeReleasedSupplier,
-			releaseOrPromotePartitionsConsumer);
+			releaseOrPromotePartitionsConsumer,
+			operatorEventHandler);
 	}
 }
