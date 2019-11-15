@@ -450,12 +450,14 @@ object FunctionGenerator {
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE)))
 
+  // TODO: fixme if CALCITE-3199 fixed
+  //  https://issues.apache.org/jira/browse/CALCITE-3199
   addSqlFunction(
     CEIL,
     Seq(DATE, ANY),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
-      Some(BuiltInMethod.UNIX_DATE_CEIL.method)))
+      Some(BuiltInMethods.UNIX_DATE_CEIL)))
 
   addSqlFunction(
     CEIL,
