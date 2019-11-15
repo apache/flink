@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
@@ -45,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -72,6 +75,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -88,6 +92,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -497,6 +502,46 @@ public class DefaultSchedulerTest extends TestLogger {
 		assertThat(deployedExecutionVertices, contains(executionVertexId, executionVertexId));
 	}
 
+	@Test
+	public void testInputConstraintALLPerf() throws Exception {
+		final int parallelism = 1000;
+		final JobVertex v1 = createVertexWithAllInputConstraints("vertex1", parallelism);
+		final JobVertex v2 = createVertexWithAllInputConstraints("vertex2", parallelism);
+		final JobVertex v3 = createVertexWithAllInputConstraints("vertex3", parallelism);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+		v2.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+		final JobGraph jobGraph = new JobGraph(v1, v2, v3);
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+		final AccessExecutionJobVertex ejv1 = scheduler.requestJob().getAllVertices().get(v1.getID());
+
+		for (int i = 0; i < parallelism - 1; i++) {
+			finishSubtask(scheduler, ejv1, i);
+		}
+
+		final long startTime = System.nanoTime();
+		finishSubtask(scheduler, ejv1, parallelism - 1);
+
+		final Duration duration = Duration.ofNanos(System.nanoTime() - startTime);
+		final Duration timeout = Duration.ofSeconds(5);
+
+		assertThat(duration, lessThan(timeout));
+	}
+
+	private static JobVertex createVertexWithAllInputConstraints(String name, int parallelism) {
+		final JobVertex v = new JobVertex(name);
+		v.setParallelism(parallelism);
+		v.setInvokableClass(AbstractInvokable.class);
+		v.setInputDependencyConstraint(InputDependencyConstraint.ALL);
+		return v;
+	}
+
+	private static void finishSubtask(DefaultScheduler scheduler, AccessExecutionJobVertex vertex, int subtask) {
+		final ExecutionAttemptID attemptId = vertex.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
+		scheduler.updateTaskExecutionState(
+			new TaskExecutionState(scheduler.getJobGraph().getJobID(), attemptId, ExecutionState.FINISHED));
+	}
+
 	private void acknowledgePendingCheckpoint(final SchedulerBase scheduler, final long checkpointId) throws Exception {
 		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
 
@@ -634,5 +679,4 @@ public class DefaultSchedulerTest extends TestLogger {
 		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		scheduler.startScheduling();
 	}
-
 }
