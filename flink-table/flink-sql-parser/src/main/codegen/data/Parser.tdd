@@ -40,6 +40,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction",
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction",
     "org.apache.flink.sql.parser.ddl.SqlDropFunction",
+    "org.apache.flink.sql.parser.ddl.SqlAlterTable",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
@@ -76,8 +77,13 @@
     "DATABASES",
     "FUNCTIONS",
     "EXTENDED",
+<<<<<<< HEAD
     "SCALA"
     "TABLES"
+=======
+    "TABLES",
+    "RENAME"
+>>>>>>> add alter table support in parser
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -259,6 +265,7 @@
     "QUARTER"
     "READ"
     "RELATIVE"
+    "RENAME"
     "REPEATABLE"
     "REPLACE"
     "RESPECT"
@@ -412,7 +419,8 @@
     "SqlAlterFunction()",
     "SqlShowFunctions()",
     "SqlShowTables()",
-    "SqlRichDescribeTable()"
+    "SqlRichDescribeTable()",
+    "SqlAlterTable()"
   ]
 
   # List of methods for parsing custom literals.

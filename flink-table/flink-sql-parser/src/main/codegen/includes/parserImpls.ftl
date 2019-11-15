@@ -317,7 +317,33 @@ SqlRichDescribeTable SqlRichDescribeTable() :
     {
         return new SqlRichDescribeTable(pos, tableName, isExtended);
     }
+}
 
+SqlAlterTable SqlAlterTable() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier tableName;
+    SqlIdentifier newTableName = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    boolean isRename = true;
+}
+{
+    <ALTER> <TABLE> { startPos = getPos(); }
+    tableName = CompoundIdentifier()
+    (
+        <RENAME> <TO> { isRename = true; }
+        newTableName = SimpleIdentifier()
+    |
+        <SET>   { isRename = false; }
+        propertyList = TableProperties()
+    )
+    {
+        return new SqlAlterTable(startPos.plus(getPos()),
+            tableName,
+            newTableName,
+            propertyList,
+            isRename);
+    }
 }
 
 void TableColumn(TableCreationContext context) :
