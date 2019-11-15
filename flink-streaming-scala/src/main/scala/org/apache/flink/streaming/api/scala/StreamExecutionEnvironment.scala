@@ -696,10 +696,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * may be local files (which will be distributed via BlobServer), or files in a distributed file
     * system. The runtime will copy the files temporarily to a local cache, if needed.
     *
-    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
-    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
-    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
-    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    * The [[org.apache.flink.api.common.functions.RuntimeContext]] can be obtained inside UDFs
+    * via [[org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()]] and
+    * provides access [[org.apache.flink.api.common.cache.DistributedCache]] via
+    * [[org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()]].
     *
     * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or
     *                 "hdfs://host:port/and/path")
@@ -715,10 +715,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * may be local files (which will be distributed via BlobServer), or files in a distributed file
     * system. The runtime will copy the files temporarily to a local cache, if needed.
     *
-    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
-    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
-    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
-    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    * The [[org.apache.flink.api.common.functions.RuntimeContext]] can be obtained inside UDFs
+    * via [[org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()]] and
+    * provides access [[org.apache.flink.api.common.cache.DistributedCache]] via
+    * [[org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()]].
     *
     * @param filePath   The path of the file, as a URI (e.g. "file:///some/path" or
     *                   "hdfs://host:port/and/path")
