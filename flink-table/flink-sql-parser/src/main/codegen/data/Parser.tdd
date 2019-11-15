@@ -48,6 +48,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowFunctions",
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase",
     "org.apache.flink.sql.parser.dql.SqlShowTables",
+    "org.apache.flink.sql.parser.dql.SqlRichDescribeTable",
     "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
@@ -410,7 +411,8 @@
     "SqlDescribeDatabase()",
     "SqlAlterFunction()",
     "SqlShowFunctions()",
-    "SqlShowTables()"
+    "SqlShowTables()",
+    "SqlRichDescribeTable()"
   ]
 
   # List of methods for parsing custom literals.
