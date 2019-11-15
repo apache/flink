@@ -346,7 +346,7 @@ class SelectivityEstimatorTest {
       createInputRef(time_idx),
       createTimeLiteral("13:00:00"))
 
-    // ["10:00:00", "12:00:00"] does not contains "13:00:00"
+    // ["10:00:00", "12:00:00"] does not contain "13:00:00"
     assertEquals(Some(0.0), estimator.evaluate(predicate2))
   }
 
@@ -373,7 +373,7 @@ class SelectivityEstimatorTest {
       createInputRef(timestamp_idx),
       createTimeStampLiteral(3000L))
 
-    // ["2017-10-01 10:00:00", "2018-10-01 10:00:00"] does not contains "2018-10-01 10:00:01"
+    // ["2017-10-01 10:00:00", "2018-10-01 10:00:00"] does not contain "2018-10-01 10:00:01"
     assertEquals(Some(0.0), estimator.evaluate(predicate2))
   }
 
