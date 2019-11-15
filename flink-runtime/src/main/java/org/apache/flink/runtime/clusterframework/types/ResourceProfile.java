@@ -492,7 +492,7 @@ public class ResourceProfile implements Serializable {
 		Map<String, Resource> copiedExtendedResources = new HashMap<>(resourceSpec.getExtendedResources());
 
 		return new ResourceProfile(
-			resourceSpec.getCpuCores(),
+			resourceSpec.getCpuCores().getValue().doubleValue(),
 			resourceSpec.getTaskHeapMemory(),
 			resourceSpec.getTaskOffHeapMemory(),
 			resourceSpec.getOnHeapManagedMemory(),
