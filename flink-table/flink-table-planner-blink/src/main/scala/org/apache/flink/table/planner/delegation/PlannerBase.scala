@@ -144,7 +144,7 @@ abstract class PlannerBase(
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
-    translateToPlan(execNodes)
+    translateToPlan(execNodes, this)
   }
 
   protected def overrideEnvParallelism(): Unit = {
@@ -248,9 +248,12 @@ abstract class PlannerBase(
     * Translates a [[ExecNode]] DAG into a [[Transformation]] DAG.
     *
     * @param execNodes The node DAG to translate.
+    * @param planner The planner to do the translation.
     * @return The [[Transformation]] DAG that corresponds to the node DAG.
     */
-  protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
+  protected def translateToPlan(
+      execNodes: util.List[ExecNode[_, _]],
+      planner: PlannerBase): util.List[Transformation[_]]
 
   private def getTableSink(objectIdentifier: ObjectIdentifier)
     : Option[(CatalogTable, TableSink[_])] = {

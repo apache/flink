@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
-import org.apache.flink.table.planner.utils.PlanUtil
+import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.sql.SqlExplainLevel
@@ -55,10 +55,11 @@ class StreamPlanner(
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
   override protected def translateToPlan(
-      execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+      execNodes: util.List[ExecNode[_, _]],
+      planner: PlannerBase): util.List[Transformation[_]] = {
     overrideEnvParallelism()
     execNodes.map {
-      case node: StreamExecNode[_] => node.translateToPlan(this)
+      case node: StreamExecNode[_] => node.translateToPlan(planner.asInstanceOf[StreamPlanner])
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
@@ -76,8 +77,9 @@ class StreamPlanner(
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
-    val transformations = translateToPlan(execNodes)
-    val streamGraph = executor.asInstanceOf[ExecutorBase].getStreamGraph(transformations, "")
+    val plannerForExplain = createPlannerForExplain()
+    val transformations = translateToPlan(execNodes, plannerForExplain)
+    val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder
@@ -105,5 +107,11 @@ class StreamPlanner(
     sb.append(System.lineSeparator)
     sb.append(executionPlan)
     sb.toString()
+  }
+
+  private def createPlannerForExplain(): StreamPlanner = {
+    val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
+    val executor = new StreamExecutor(dummyExecEnv)
+    new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
 }

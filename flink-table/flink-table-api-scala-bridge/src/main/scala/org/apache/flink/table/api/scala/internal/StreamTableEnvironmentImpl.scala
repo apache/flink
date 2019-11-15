@@ -198,7 +198,8 @@ class StreamTableEnvironmentImpl (
 
   override def explain(extended: Boolean): String = {
     // throw exception directly, because the operations to explain are always empty
-    throw new TableException("'explain' method is unsupported in StreamTableEnvironment.")
+    throw new TableException(
+      "'explain' method without any tables is unsupported in StreamTableEnvironment.")
   }
 
   private def toDataStream[T](
