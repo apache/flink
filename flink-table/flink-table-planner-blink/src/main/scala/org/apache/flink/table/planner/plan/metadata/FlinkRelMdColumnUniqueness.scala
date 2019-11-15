@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.runtime.operators.rank.RankType
 import org.apache.flink.table.sources.TableSource
@@ -84,7 +84,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     // TODO get uniqueKeys from TableSchema of TableSource
 
     relOptTable match {
-      case table: FlinkRelOptTable => table.uniqueKeysSet match {
+      case table: FlinkPreparingTableBase => table.uniqueKeysSet match {
         case Some(keysSet) =>
           if (keysSet.isEmpty) {
             false
