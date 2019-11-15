@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
@@ -492,7 +493,7 @@ public class TaskManagerServices {
 	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
 		int managedMemoryPerSlotMB = (int) bytesToMegabytes(managedMemorySize / numOfSlots);
 		return new ResourceProfile(
-			Double.MAX_VALUE,
+			new CPUResource(Double.MAX_VALUE),
 			MemorySize.MAX_VALUE,
 			MemorySize.MAX_VALUE,
 			// TODO: before operators separate on-heap/off-heap managed memory, we use on-heap managed memory to denote total managed memory
