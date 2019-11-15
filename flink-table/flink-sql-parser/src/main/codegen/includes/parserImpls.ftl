@@ -293,6 +293,65 @@ SqlShowFunctions SqlShowFunctions() :
     }
 }
 
+/**
+* Parse a "Show Tables" metadata query command.
+*/
+SqlShowTables SqlShowTables() :
+{
+}
+{
+    <SHOW> <TABLES>
+    {
+        return new SqlShowTables(getPos());
+    }
+}
+
+/**
+ * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+ * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
+ */
+SqlRichDescribeTable SqlRichDescribeTable() :
+{
+    SqlIdentifier tableName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    <DESCRIBE> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    tableName = CompoundIdentifier()
+    {
+        return new SqlRichDescribeTable(pos, tableName, isExtended);
+    }
+}
+
+SqlAlterTable SqlAlterTable() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier tableIdentifier;
+    SqlIdentifier newTableIdentifier = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    boolean isRename = true;
+}
+{
+    <ALTER> <TABLE> { startPos = getPos(); }
+        tableIdentifier = CompoundIdentifier()
+    (
+        <RENAME> <TO> { isRename = true; }
+        newTableIdentifier = CompoundIdentifier()
+    |
+        <SET>   { isRename = false; }
+        propertyList = TableProperties()
+    )
+    {
+        return new SqlAlterTable(startPos.plus(getPos()),
+            tableIdentifier,
+            newTableIdentifier,
+            propertyList,
+            isRename);
+    }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }

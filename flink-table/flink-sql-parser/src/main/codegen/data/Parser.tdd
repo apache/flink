@@ -40,6 +40,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction",
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction",
     "org.apache.flink.sql.parser.ddl.SqlDropFunction",
+    "org.apache.flink.sql.parser.ddl.SqlAlterTable",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
@@ -47,6 +48,8 @@
     "org.apache.flink.sql.parser.dql.SqlShowDatabases",
     "org.apache.flink.sql.parser.dql.SqlShowFunctions",
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase",
+    "org.apache.flink.sql.parser.dql.SqlShowTables",
+    "org.apache.flink.sql.parser.dql.SqlRichDescribeTable",
     "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
@@ -74,7 +77,9 @@
     "DATABASES",
     "FUNCTIONS",
     "EXTENDED",
-    "SCALA"
+    "SCALA",
+    "TABLES",
+    "RENAME"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -256,6 +261,7 @@
     "QUARTER"
     "READ"
     "RELATIVE"
+    "RENAME"
     "REPEATABLE"
     "REPLACE"
     "RESPECT"
@@ -348,6 +354,7 @@
     "STYLE"
     "SUBCLASS_ORIGIN"
     "SUBSTITUTE"
+    "TABLES"
     "TABLE_NAME"
     "TEMPORARY"
     "TIES"
@@ -406,7 +413,10 @@
     "SqlAlterDatabase()",
     "SqlDescribeDatabase()",
     "SqlAlterFunction()",
-    "SqlShowFunctions()"
+    "SqlShowFunctions()",
+    "SqlShowTables()",
+    "SqlRichDescribeTable()",
+    "SqlAlterTable()"
   ]
 
   # List of methods for parsing custom literals.

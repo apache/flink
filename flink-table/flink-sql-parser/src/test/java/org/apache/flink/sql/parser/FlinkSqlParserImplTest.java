@@ -173,6 +173,35 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testShowTables() {
+		check("show tables", "SHOW TABLES");
+	}
+
+	@Test
+	public void testDescribeTable() {
+		check("describe tbl", "DESCRIBE `TBL`");
+		check("describe catlog1.db1.tbl", "DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+		check("describe extended db1", "DESCRIBE EXTENDED `DB1`");
+	}
+
+	/**
+	 * Here we override the super method to avoid test error from `describe statement` supported in original calcite.
+	 */
+	@Override
+	public void testDescribeStatement() {
+	}
+
+	@Test
+	public void testAlterTable() {
+		check("alter table t1 rename to t2", "ALTER TABLE `T1` RENAME TO `T2`");
+		check("alter table c1.d1.t1 rename to t2", "ALTER TABLE `C1`.`D1`.`T1` RENAME TO `T2`");
+		check("alter table t1 set ('key1'='value1')",
+			"ALTER TABLE `T1` SET (\n" +
+			"  'key1' = 'value1'\n" +
+			")");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +
