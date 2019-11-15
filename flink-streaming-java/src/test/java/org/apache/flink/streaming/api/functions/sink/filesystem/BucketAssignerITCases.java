@@ -57,7 +57,7 @@ public class BucketAssignerITCases {
 			new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 			rollingPolicy,
 			0,
-			PartFileConfig.builder().build()
+			new PartFileConfig()
 		);
 
 		Bucket<String, String> bucket =

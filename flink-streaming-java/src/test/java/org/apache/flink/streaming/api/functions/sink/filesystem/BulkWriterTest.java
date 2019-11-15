@@ -101,7 +101,8 @@ public class BulkWriterTest extends TestLogger {
 							new TestUtils.TupleToStringBucketer(),
 							new TestBulkWriterFactory(),
 							new DefaultBucketFactoryImpl<>(),
-							PartFileConfig.builder().withPartPrefix("prefix").withPartSuffix(".ext").build())
+							"prefix",
+							".ext")
 		) {
 			testPartFilesWithStringBucketer(testHarness, outDir, ".prefix-0-0.ext.inprogress", ".prefix-0-1.ext.inprogress");
 		}

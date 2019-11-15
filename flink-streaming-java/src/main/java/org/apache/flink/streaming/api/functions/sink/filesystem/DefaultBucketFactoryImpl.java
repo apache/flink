@@ -41,7 +41,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 			final long initialPartCounter,
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final OutputFileConfig outputFileConfig) {
+			final PartFileConfig partFileConfig) {
 
 		return Bucket.getNew(
 				fsWriter,
@@ -51,7 +51,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 				initialPartCounter,
 				partFileWriterFactory,
 				rollingPolicy,
-				outputFileConfig);
+				partFileConfig);
 	}
 
 	@Override
@@ -62,7 +62,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
-			final OutputFileConfig outputFileConfig) throws IOException {
+			final PartFileConfig partFileConfig) throws IOException {
 
 		return Bucket.restore(
 				fsWriter,
@@ -71,6 +71,6 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 				partFileWriterFactory,
 				rollingPolicy,
 				bucketState,
-				outputFileConfig);
+				partFileConfig);
 	}
 }

@@ -39,7 +39,7 @@ interface BucketFactory<IN, BucketID> extends Serializable {
 			final long initialPartCounter,
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final OutputFileConfig outputFileConfig) throws IOException;
+			final PartFileConfig partFileConfig) throws IOException;
 
 	Bucket<IN, BucketID> restoreBucket(
 			final RecoverableWriter fsWriter,
@@ -48,5 +48,5 @@ interface BucketFactory<IN, BucketID> extends Serializable {
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
-			final OutputFileConfig outputFileConfig) throws IOException;
+			final PartFileConfig partFileConfig) throws IOException;
 }
