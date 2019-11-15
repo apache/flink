@@ -31,13 +31,16 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -45,7 +48,9 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.is
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitForAllExecutionsPredicate;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionVertexState;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilJobStatus;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -109,7 +114,6 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		eg.start(mainThreadExecutor);
 		eg.scheduleForExecution();
 
-
 		// Inputs constraint not satisfied on init
 		assertFalse(ev31.checkInputDependencyConstraints());
 
@@ -122,9 +126,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		// Inputs constraint not satisfied after failover
 		ev11.fail(new Exception());
 
-
 		waitUntilJobRestarted(eg);
-
 
 		assertFalse(ev31.checkInputDependencyConstraints());
 
@@ -149,7 +151,6 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		eg.start(mainThreadExecutor);
 		eg.scheduleForExecution();
 
-
 		// Inputs constraint not satisfied on init
 		assertFalse(ev31.checkInputDependencyConstraints());
 
@@ -167,10 +168,54 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		// Inputs constraint not satisfied after failover
 		ev11.fail(new Exception());
 
-
 		waitUntilJobRestarted(eg);
 
 		assertFalse(ev31.checkInputDependencyConstraints());
+	}
+
+	@Test
+	public void testInputConstraintALLPerformance() throws Exception {
+		final int parallelism = 1000;
+		final JobVertex v1 = createVertexWithAllInputConstraints("vertex1", parallelism);
+		final JobVertex v2 = createVertexWithAllInputConstraints("vertex2", parallelism);
+		final JobVertex v3 = createVertexWithAllInputConstraints("vertex3", parallelism);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+		v2.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+		final ExecutionGraph eg = createExecutionGraph(Arrays.asList(v1, v3, v2), InputDependencyConstraint.ALL, 3000);
+
+		eg.start(mainThreadExecutor);
+		eg.scheduleForExecution();
+
+		for (int i = 0; i < parallelism - 1; i++) {
+			finishSubtask(eg, v1.getID(), i);
+		}
+
+		final long startTime = System.nanoTime();
+		finishSubtask(eg, v1.getID(), parallelism - 1);
+
+		final Duration duration = Duration.ofNanos(System.nanoTime() - startTime);
+		final Duration timeout = Duration.ofSeconds(5);
+
+		assertThat(duration, lessThan(timeout));
+	}
+
+	private static JobVertex createVertexWithAllInputConstraints(String name, int parallelism) {
+		final JobVertex v = new JobVertex(name);
+		v.setParallelism(parallelism);
+		v.setInvokableClass(AbstractInvokable.class);
+		v.setInputDependencyConstraint(InputDependencyConstraint.ALL);
+		return v;
+	}
+
+	private static void finishSubtask(ExecutionGraph graph, JobVertexID jvId, int subtask) {
+		final ExecutionVertex[] vertices = graph.getJobVertex(jvId).getTaskVertices();
+
+		graph.updateState(
+				new TaskExecutionState(
+					graph.getJobID(),
+					vertices[subtask].getCurrentExecutionAttempt().getAttemptId(),
+					ExecutionState.FINISHED));
 	}
 
 	private static List<JobVertex> createOrderedVertices() {
@@ -192,9 +237,17 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 			List<JobVertex> orderedVertices,
 			InputDependencyConstraint inputDependencyConstraint) throws Exception {
 
+		return createExecutionGraph(orderedVertices, inputDependencyConstraint, 20);
+	}
+
+	private static ExecutionGraph createExecutionGraph(
+			List<JobVertex> orderedVertices,
+			InputDependencyConstraint inputDependencyConstraint,
+			int numSlots) throws Exception {
+
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, 20);
+		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, numSlots);
 
 		for (JobVertex vertex : orderedVertices) {
 			vertex.setInputDependencyConstraint(inputDependencyConstraint);
