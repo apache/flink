@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types}
+import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema, Types}
 import org.apache.flink.table.catalog.{CatalogTableImpl, ObjectPath}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
@@ -709,11 +709,18 @@ class TestPartitionableSourceFactory extends TableSourceFactory[Row] {
 }
 
 object TestPartitionableSourceFactory {
+  private val tableSchema: TableSchema = TableSchema.builder()
+    .field("id", DataTypes.INT())
+    .field("name", DataTypes.STRING())
+    .field("part1", DataTypes.STRING())
+    .field("part2", DataTypes.INT())
+    .build()
 
   def registerTableSource(
       tEnv: TableEnvironment,
       tableName: String,
       isBounded: Boolean,
+      tableSchema: TableSchema = tableSchema,
       remainingPartitions: JList[JMap[String, String]] = null): Unit = {
     val properties = new DescriptorProperties()
     properties.putString("is-bounded", isBounded.toString)
@@ -729,15 +736,8 @@ object TestPartitionableSourceFactory {
       }
     }
 
-    val fieldTypes: Array[TypeInformation[_]] = Array(
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO)
-    val fieldNames = Array("id", "name", "part1", "part2")
-
     val table = new CatalogTableImpl(
-      new TableSchema(fieldNames, fieldTypes),
+      tableSchema,
       util.Arrays.asList[String]("part1", "part2"),
       properties.asMap(),
       ""

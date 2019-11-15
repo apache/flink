@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.table.catalog.{ObjectPath, TestConnectorCatalogTable}
+import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
@@ -53,14 +55,24 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
       Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    util.tableEnv.registerTableSource("MyTable", new TestProjectableTableSource(
+    val tableSource = new TestProjectableTableSource(
       true,
       tableSchema,
       new RowTypeInfo(
         tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
         tableSchema.getFieldNames),
       Seq.empty[Row])
-    )
+    util.tableEnv.registerTableSource("MyTable", tableSource)
+
+    val tableSchema2 = TableSchema.builder()
+      .field("a", DataTypes.INT())
+      .field("b", DataTypes.BIGINT())
+      .field("c", DataTypes.STRING())
+      .field("d", DataTypes.INT(), "`a` + 1")
+      .build()
+    util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .createTable(new ObjectPath(util.tableEnv.getCurrentDatabase, "VirtualTable"),
+        new TestConnectorCatalogTable(tableSource, tableSchema2), true)
   }
 
   @Test
@@ -69,13 +81,29 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
   }
 
   @Test
+  def testSimpleProjectWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT a, d FROM VirtualTable")
+  }
+
+  @Test
   def testCannotProject(): Unit = {
     util.verifyPlan("SELECT a, c, b + 1 FROM MyTable")
   }
 
   @Test
+  def testCannotProjectWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT a, c, d, b + 1 FROM VirtualTable")
+  }
+
+  @Test
   def testProjectWithUdf(): Unit = {
     util.verifyPlan("SELECT a, TRIM(c) FROM MyTable")
+  }
+
+  @Test
+  def testProjectWithUdfWithVirtualColumn(): Unit = {
+    util.tableEnv.registerFunction("my_udf", Func0)
+    util.verifyPlan("SELECT a, my_udf(d) FROM VirtualTable")
   }
 
   @Test
