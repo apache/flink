@@ -66,12 +66,20 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     val statistic = relOptTable.getFlinkStatistic
     val colStats = statistic.getColumnStats(fieldName)
     if (colStats != null) {
-      val min = colStats.getMinValue
-      val max = colStats.getMaxValue
-      if (min == null && max == null) {
-        null
-      } else {
+      val minValue = colStats.getMinValue
+      val maxValue = colStats.getMaxValue
+      val min = colStats.getMin
+      val max = colStats.getMax
+
+      Preconditions.checkArgument(
+        (minValue == null && maxValue == null) || (max == null && min == null))
+
+      if (minValue != null || maxValue != null) {
+        ValueInterval(minValue, maxValue)
+      } else if (max != null || min != null) {
         ValueInterval(min, max)
+      } else {
+        null
       }
     } else {
       null

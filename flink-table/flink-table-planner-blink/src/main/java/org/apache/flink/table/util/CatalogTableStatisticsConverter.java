@@ -124,6 +124,14 @@ public class CatalogTableStatisticsConverter {
 			throw new TableException("Unsupported CatalogColumnStatisticsDataBase: " +
 					columnStatisticsData.getClass().getCanonicalName());
 		}
-		return new ColumnStats(ndv, nullCount, avgLen, maxLen, max, min);
+		return ColumnStats.Builder
+				.builder()
+				.setNdv(ndv)
+				.setNullCount(nullCount)
+				.setAvgLen(avgLen)
+				.setMaxLen(maxLen)
+				.setMax(max)
+				.setMin(min)
+				.build();
 	}
 }
