@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators;
 
+import org.apache.flink.api.common.resources.GPUResource;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -122,10 +123,10 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs3 = rs1.merge(rs2);
 		assertEquals(2.0, rs3.getCpuCores(), 0.000001);
 		assertEquals(200, rs3.getTaskHeapMemory().getMebiBytes());
-		assertEquals(1.1, rs3.getGPUResource(), 0.000001);
+		assertEquals(new GPUResource(1.1), rs3.getGPUResource());
 
 		ResourceSpec rs4 = rs1.merge(rs3);
-		assertEquals(2.2, rs4.getGPUResource(), 0.000001);
+		assertEquals(new GPUResource(2.2), rs4.getGPUResource());
 	}
 
 	@Test
