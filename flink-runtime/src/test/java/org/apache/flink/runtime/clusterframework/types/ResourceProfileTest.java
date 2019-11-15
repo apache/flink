@@ -130,7 +130,7 @@ public class ResourceProfileTest {
 		assertEquals(1.0, rp.getCpuCores(), 0.000001);
 		assertEquals(150, rp.getTotalMemory().getMebiBytes());
 		assertEquals(100, rp.getOperatorsMemory().getMebiBytes());
-		assertEquals(1.6, rp.getExtendedResources().get(GPUResource.NAME).getValue(), 0.000001);
+		assertEquals(new GPUResource(1.6), rp.getExtendedResources().get(GPUResource.NAME));
 	}
 
 	@Test

@@ -27,6 +27,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -301,7 +302,7 @@ public class ResourceProfile implements Serializable {
 			shuffleMemory.getBytes() >= required.shuffleMemory.getBytes()) {
 			for (Map.Entry<String, Resource> resource : required.extendedResources.entrySet()) {
 				if (!extendedResources.containsKey(resource.getKey()) ||
-					extendedResources.get(resource.getKey()).getValue() < resource.getValue().getValue()) {
+					extendedResources.get(resource.getKey()).getValue().compareTo(resource.getValue().getValue()) < 0) {
 					return false;
 				}
 			}
@@ -397,7 +398,7 @@ public class ResourceProfile implements Serializable {
 		other.extendedResources.forEach((String name, Resource resource) -> {
 			resultExtendedResource.compute(name, (ignored, oldResource) -> {
 				Resource resultResource = oldResource.subtract(resource);
-				return resultResource.getValue() == 0 ? null : resultResource;
+				return resultResource.getValue().compareTo(BigDecimal.ZERO) == 0 ? null : resultResource;
 			});
 		});
 
