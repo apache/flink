@@ -1297,4 +1297,10 @@ public class SqlDateTimeUtils {
 		return r;
 	}
 
+	// TODO: remove if CALCITE-3199 fixed
+	//  https://issues.apache.org/jira/browse/CALCITE-3199
+	public static long unixDateCeil(TimeUnitRange range, long date) {
+		return julianDateFloor(range, (int) date + EPOCH_JULIAN, false);
+	}
+
 }
