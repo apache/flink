@@ -22,7 +22,8 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+
+import java.util.{List => JList}
 
 /**
   * An intermediate Table to wrap a optimized RelNode inside. The input data of this Table is
@@ -34,16 +35,15 @@ import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
   */
 @Internal
 class IntermediateRelTable(
+    names: JList[String],
     val relNode: RelNode,
     val isAccRetract: Boolean,
-    val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends FlinkTable {
+    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+  extends FlinkPreparingTableBase(null, relNode.getRowType, names, statistic) {
 
-  def this(relNode: RelNode) {
-    this(relNode, false)
+  def this(names: JList[String], relNode: RelNode) {
+    this(names, relNode, false)
   }
-
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = relNode.getRowType
 
   /**
     * Creates a copy of this table, changing statistic.
@@ -51,14 +51,6 @@ class IntermediateRelTable(
     * @param statistic A new FlinkStatistic.
     * @return Copy of this table, substituting statistic.
     */
-  override def copy(statistic: FlinkStatistic): FlinkTable =
-    new IntermediateRelTable(relNode, isAccRetract, statistic)
-
-  /**
-    * Returns statistics of current table
-    *
-    * @return statistics of current table
-    */
-  override def getStatistic: FlinkStatistic = statistic
-
+  override def copy(statistic: FlinkStatistic): FlinkPreparingTableBase =
+    new IntermediateRelTable(names, relNode, isAccRetract, statistic)
 }

@@ -19,16 +19,22 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
 import org.apache.flink.table.api.{TableException, WatermarkSpec}
-import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
+import org.apache.flink.table.planner.calcite.FlinkToRelContext
+
+import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.LogicalTableScan
+
+import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 /**
   * Abstract class which define the interfaces required to convert a [[TableSource]] to
@@ -39,24 +45,38 @@ import scala.collection.JavaConverters._
   * @param statistic The table statistics.
   */
 class TableSourceTable[T](
+    relOptSchema: RelOptSchema,
+    names: JList[String],
+    rowType: RelDataType,
     val tableSource: TableSource[T],
     val isStreamingMode: Boolean,
-    val statistic: FlinkStatistic,
+    statistic: FlinkStatistic,
     val selectedFields: Option[Array[Int]],
     val catalogTable: CatalogTable)
-  extends FlinkTable {
+  extends FlinkPreparingTableBase(relOptSchema, rowType, names, statistic) {
 
   def this(
+      relOptSchema: RelOptSchema,
+      names: JList[String],
+      rowType: RelDataType,
       tableSource: TableSource[T],
       isStreamingMode: Boolean,
       statistic: FlinkStatistic,
       catalogTable: CatalogTable) {
-    this(tableSource, isStreamingMode, statistic, None, catalogTable)
+    this(relOptSchema, names, rowType, tableSource, isStreamingMode, statistic, None, catalogTable)
   }
 
   Preconditions.checkNotNull(tableSource)
   Preconditions.checkNotNull(statistic)
   Preconditions.checkNotNull(catalogTable)
+
+  lazy val columnExprs: Map[String, String] = {
+      catalogTable.getSchema
+      .getTableColumns
+      .filter(column => column.isGenerated)
+      .map(column => (column.getName, column.getExpr.get()))
+      .toMap
+  }
 
   val watermarkSpec: Option[WatermarkSpec] = catalogTable
     .getSchema
@@ -70,36 +90,53 @@ class TableSourceTable[T](
           " via DefinedRowtimeAttributes interface.")
   }
 
-  // TODO implements this
-  // TableSourceUtil.validateTableSource(tableSource)
-
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    val factory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    val (fieldNames, fieldTypes) = TableSourceUtil.getFieldNameType(
-      catalogTable.getSchema,
-      tableSource,
-      selectedFields,
-      streaming = isStreamingMode)
-    // patch rowtime field according to WatermarkSpec
-    val patchedTypes = if (isStreamingMode && watermarkSpec.isDefined) {
-      // TODO: [FLINK-14473] we only support top-level rowtime attribute right now
-      val rowtime = watermarkSpec.get.getRowtimeAttribute
-      if (rowtime.contains(".")) {
-        throw new TableException(
-          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-      }
-      val idx = fieldNames.indexOf(rowtime)
-      val originalType = fieldTypes(idx).asInstanceOf[TimestampType]
-      val rowtimeType = new TimestampType(
-        originalType.isNullable,
-        TimestampKind.ROWTIME,
-        originalType.getPrecision)
-      fieldTypes.patch(idx, Seq(rowtimeType), 1)
+  override def toRel(context: RelOptTable.ToRelContext): RelNode = {
+    val cluster = context.getCluster
+    if (columnExprs.isEmpty) {
+      LogicalTableScan.create(cluster, this)
     } else {
-      fieldTypes
+      if (!context.isInstanceOf[FlinkToRelContext]) {
+        // If the transform comes from a RelOptRule,
+        // returns the scan directly.
+        return LogicalTableScan.create(cluster, this)
+      }
+      // Get row type of physical fields.
+      val physicalFields = getRowType
+        .getFieldList
+        .filter(f => !columnExprs.contains(f.getName))
+        .toList
+      val scanRowType = relOptSchema.getTypeFactory.createStructType(physicalFields)
+      // Copy this table with physical scan row type.
+      val newRelTable = new TableSourceTable(relOptSchema,
+        names,
+        scanRowType,
+        tableSource,
+        isStreamingMode,
+        statistic,
+        selectedFields,
+        catalogTable)
+      val scan = LogicalTableScan.create(cluster, newRelTable)
+      val toRelContext = context.asInstanceOf[FlinkToRelContext]
+      val relBuilder = toRelContext.createRelBuilder()
+      val fieldNames = rowType.getFieldNames.asScala
+      val fieldExprs = fieldNames
+        .map { name =>
+          if (columnExprs.contains(name)) {
+            columnExprs(name)
+          } else {
+            name
+          }
+        }.toArray
+      val rexNodes = toRelContext
+        .createSqlExprToRexConverter(scanRowType)
+        .convertToRexNodes(fieldExprs)
+      relBuilder.push(scan)
+        .projectNamed(rexNodes.toList, fieldNames, true)
+        .build()
     }
-    factory.buildRelNodeRowType(fieldNames, patchedTypes)
   }
+
+  override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
 
   /**
     * Creates a copy of this table, changing statistic.
@@ -108,13 +145,9 @@ class TableSourceTable[T](
     * @return Copy of this table, substituting statistic.
     */
   override def copy(statistic: FlinkStatistic): TableSourceTable[T] = {
-    new TableSourceTable(tableSource, isStreamingMode, statistic, catalogTable)
+    new TableSourceTable(relOptSchema, names, rowType, tableSource, isStreamingMode,
+      statistic, catalogTable)
   }
-
-  /**
-    * Returns statistics of current table.
-    */
-  override def getStatistic: FlinkStatistic = statistic
 
   /**
     * Replaces table source with the given one, and create a new table source table.
@@ -123,7 +156,7 @@ class TableSourceTable[T](
     * @return new TableSourceTable
     */
   def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T] = {
-    new TableSourceTable[T](
+    new TableSourceTable[T](relOptSchema, names, rowType,
       tableSource, isStreamingMode, statistic, catalogTable)
   }
 }
