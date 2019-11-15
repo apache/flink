@@ -39,7 +39,7 @@ constructFlinkClassPath() {
         exit 1
     fi
 
-    echo "$FLINK_CLASSPATH""$FLINK_DIST"
+    echo "$FLINK_CLASSPATH""$FLINK_DIST":"$FLINK_METRIC_CLASSPATH"
 }
 
 # These are used to mangle paths that are passed to java when using
