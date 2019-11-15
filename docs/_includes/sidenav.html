@@ -109,7 +109,7 @@ level is determined by 'nav-pos'.
     {%- capture target -%}"{{ site.baseurl }}{{ this.url }}"{%- if active %} class="active"{%- endif -%}{%- endcapture -%}
     {%- capture overview_target -%}"{{ site.baseurl }}{{ this.url }}"{%- if this.url == page.url -%} class="active"{%- endif -%}{%- endcapture -%}
 
-    {% if this.section-break %}<hr class="section-break"></hr>{% endif %}
+    {% if this.section-break %}<hr class="section-break"></hr>{% endif -%}
 
     {%- assign pos = pos | plus: 1 -%}
     {%- if this.nav-id -%}

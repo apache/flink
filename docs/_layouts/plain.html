@@ -41,7 +41,7 @@ under the License.
 
 <ol class="breadcrumb">
 {%- for p in active_pages %}
-  {% capture title %}{% if p.nav-title %}{{ p.nav-title }}{% else %}{{ p.title }}{% endif %}{% endcapture %}
+  {% capture title %}{% if p.nav-title %}{{ p.nav-title }}{% else %}{{ p.title }}{% endif %}{% endcapture -%}
   {%- if forloop.last == true %}
     <li class="active">{{ title }}</li>
   {%- elsif p.nav-show_overview %}
