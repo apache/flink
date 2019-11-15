@@ -27,6 +27,8 @@ import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.junit.ClassRule;
 import org.junit.experimental.categories.Category;
 
+import java.time.Duration;
+
 /**
  * Test cluster configuration with fixed-delay recovery.
  */
@@ -45,7 +47,7 @@ public class SimpleRecoveryFixedDelayRestartStrategyITBase extends SimpleRecover
 		Configuration config = new Configuration();
 		config.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 		config.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
-		config.setString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key(), "100 ms");
+		config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(100));
 
 		return config;
 	}

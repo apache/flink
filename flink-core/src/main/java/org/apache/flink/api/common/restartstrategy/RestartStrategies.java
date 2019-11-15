@@ -95,6 +95,11 @@ public class RestartStrategies {
 		 * @return Description of the restart strategy
 		 */
 		public abstract String getDescription();
+
+		@Override
+		public String toString() {
+			return getDescription();
+		}
 	}
 
 	/**
@@ -160,14 +165,6 @@ public class RestartStrategies {
 			} else {
 				return false;
 			}
-		}
-
-		@Override
-		public String toString() {
-			return "FixedDelayRestartStrategyConfiguration{" +
-				"restartAttempts=" + restartAttempts +
-				", delayBetweenAttemptsInterval=" + delayBetweenAttemptsInterval +
-				'}';
 		}
 
 		@Override
