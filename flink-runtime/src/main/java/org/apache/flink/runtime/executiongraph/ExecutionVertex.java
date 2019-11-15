@@ -94,10 +94,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations. */
 	private final String taskNameWithSubtask;
 
-	private volatile CoLocationConstraint locationConstraint;
+	private CoLocationConstraint locationConstraint;
 
 	/** The current or latest execution attempt of this vertex's task. */
-	private volatile Execution currentExecution;	// this field must never be null
+	private Execution currentExecution;	// this field must never be null
 
 	private final ArrayList<InputSplit> inputSplits;
 
