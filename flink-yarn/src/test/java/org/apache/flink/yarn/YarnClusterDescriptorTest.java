@@ -440,7 +440,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			// only execute part of the deployment to test for shipped files
 			Set<File> effectiveShipFiles = new HashSet<>();
-			descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
+			descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
 
 			Assert.assertEquals(0, effectiveShipFiles.size());
 			Assert.assertEquals(2, descriptor.shipFiles.size());
@@ -451,15 +451,15 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 	@Test
 	public void testEnvironmentLibShipping() throws Exception {
-		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_LIB_DIR);
+		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_LIB_DIR, false);
 	}
 
 	@Test
 	public void testEnvironmentPluginsShipping() throws Exception {
-		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_PLUGINS_DIR);
+		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_PLUGINS_DIR, true);
 	}
 
-	public void testEnvironmentDirectoryShipping(String environmentVariable) throws Exception {
+	public void testEnvironmentDirectoryShipping(String environmentVariable, boolean onlyShip) throws Exception {
 		try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
 			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 			File libFile = new File(libFolder, "libFile.jar");
@@ -473,7 +473,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				env.put(environmentVariable, libFolder.getAbsolutePath());
 				CommonTestUtils.setEnv(env);
 				// only execute part of the deployment to test for shipped files
-				descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
+				if (onlyShip) {
+					descriptor.addPluginsFoldersToShipFiles(effectiveShipFiles);
+				} else {
+					descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
+				}
 			} finally {
 				CommonTestUtils.setEnv(oldEnv);
 			}
@@ -498,7 +502,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				env.put(ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsFolder.getAbsolutePath());
 				CommonTestUtils.setEnv(env);
 				// only execute part of the deployment to test for shipped files
-				descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
+				descriptor.addPluginsFoldersToShipFiles(effectiveShipFiles);
 			} finally {
 				CommonTestUtils.setEnv(oldEnv);
 			}

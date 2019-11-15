@@ -21,7 +21,6 @@ package org.apache.flink.fs.dummy;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +38,15 @@ public class DummyFSFactory implements FileSystemFactory {
 	}
 
 	@Override
-	public FileSystem create(URI fsUri) throws IOException {
+	public FileSystem create(URI fsUri) {
+		String anotherFileSystemClassName = "org.apache.flink.fs.anotherdummy.AnotherDummyFSFileSystem";
+		try {
+			this.getClassLoader().loadClass(anotherFileSystemClassName);
+			throw new RuntimeException(String.format("Class %s should not be visible for classloader of %s",
+				anotherFileSystemClassName, this.getClass().getCanonicalName()));
+		} catch (ClassNotFoundException e) {
+			// Expected exception.
+		}
 		return fileSystem;
 	}
 
