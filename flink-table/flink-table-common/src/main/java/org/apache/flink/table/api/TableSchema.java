@@ -22,8 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -31,23 +29,50 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static java.util.Collections.emptyList;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
+import static org.apache.flink.table.utils.TableSchemaValidation.validateNameTypeNumberEqual;
+import static org.apache.flink.table.utils.TableSchemaValidation.validateSchema;
 
 /**
- * A table schema that represents a table's structure with field names and data types.
+ * A table schema that represents a table's structure with field names, data types and
+ * constraint information (e.g. primary key, unique key).
+ *
+ * <p>Concepts about primary key and unique key:</p>
+ * <ul>
+ *     <li>
+ *         Primary key and unique key can consist of single or multiple columns (fields).
+ *     </li>
+ *     <li>
+ *         A primary key or unique key on source will be simply trusted, we won't validate the
+ *         constraint. The primary key and unique key information will then be used for query
+ *         optimization. If a bounded or unbounded table source defines any primary key or
+ *         unique key, it must contain a unique value for each row of data. You cannot have
+ *         two records having the same value of that field(s). Otherwise, the result of query
+ *         might be wrong.
+ *     </li>
+ *     <li>
+ *         A primary key or unique key on sink is a weak constraint. Currently, we won't validate
+ *         the constraint, but we may add some check in the future to validate whether the
+ *         primary/unique key of the query matches the primary/unique key of the sink during
+ *         compile time.
+ *     </li>
+ *     <li>
+ *         The difference between primary key and unique key is that there can be only one primary
+ *         key and there can be more than one unique key. And a primary key doesn't need to be
+ *         declared in unique key list again.
+ *     </li>
+ * </ul>
  */
 @PublicEvolving
 public class TableSchema {
@@ -58,9 +83,19 @@ public class TableSchema {
 
 	private final List<WatermarkSpec> watermarkSpecs;
 
-	private TableSchema(List<TableColumn> columns, List<WatermarkSpec> watermarkSpecs) {
+	private final List<String> primaryKey;
+
+	private final List<List<String>> uniqueKeys;
+
+	private TableSchema(
+			List<TableColumn> columns,
+			List<WatermarkSpec> watermarkSpecs,
+			List<String> primaryKey,
+			List<List<String>> uniqueKeys) {
 		this.columns = Preconditions.checkNotNull(columns);
 		this.watermarkSpecs = Preconditions.checkNotNull(watermarkSpecs);
+		this.primaryKey = Preconditions.checkNotNull(primaryKey);
+		this.uniqueKeys = Preconditions.checkNotNull(uniqueKeys);
 	}
 
 	/**
@@ -74,16 +109,22 @@ public class TableSchema {
 		for (int i = 0; i < fieldNames.length; i++) {
 			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
 		}
-		validateColumnsAndWatermarkSpecs(columns, Collections.emptyList());
+		validateSchema(columns, emptyList(), emptyList(), emptyList());
 		this.columns = columns;
-		this.watermarkSpecs = Collections.emptyList();
+		this.watermarkSpecs = emptyList();
+		this.primaryKey = emptyList();
+		this.uniqueKeys = emptyList();
 	}
 
 	/**
 	 * Returns a deep copy of the table schema.
 	 */
 	public TableSchema copy() {
-		return new TableSchema(new ArrayList<>(columns), new ArrayList<>(watermarkSpecs));
+		return new TableSchema(
+			new ArrayList<>(columns),
+			new ArrayList<>(watermarkSpecs),
+			new ArrayList<>(primaryKey),
+			new ArrayList<>(uniqueKeys));
 	}
 
 	/**
@@ -246,7 +287,28 @@ public class TableSchema {
 	 * support multiple watermarks definition yet. But in the future, we may support multiple watermarks.
 	 */
 	public List<WatermarkSpec> getWatermarkSpecs() {
-		return watermarkSpecs;
+		return new ArrayList<>(watermarkSpecs);
+	}
+
+	/**
+	 * Returns primary key defined on the table. A primary key is consist of single or
+	 * multiple field names. The returned list will be empty if no primary key is defined.
+	 *
+	 * <p>See the {@link TableSchema} class javadoc for more definition about primary key.
+	 */
+	public List<String> getPrimaryKey() {
+		return new ArrayList<>(primaryKey);
+	}
+
+	/**
+	 * Returns unique keys defined on the table. An unique key is consist of single or multiple
+	 * field names. There can be moe than one unique key on a table, so the returned type is
+	 * a nested list. The returned list will be empty if no unique key is defined.
+	 *
+	 * <p>See the {@link TableSchema} class javadoc for more definition about unique key.
+	 */
+	public List<List<String>> getUniqueKeys() {
+		return new ArrayList<>(uniqueKeys);
 	}
 
 	@Override
@@ -267,7 +329,17 @@ public class TableSchema {
 			for (WatermarkSpec watermark : watermarkSpecs) {
 				sb.append(" |-- ").append("WATERMARK FOR ")
 					.append(watermark.getRowtimeAttribute()).append(" AS ")
-					.append(watermark.getWatermarkExpressionString());
+					.append(watermark.getWatermarkExpressionString())
+					.append("\n");
+			}
+		}
+		if (!primaryKey.isEmpty()) {
+			sb.append(" |-- ").append("PRIMARY KEY (").append(String.join(", ", primaryKey)).append(")\n");
+		}
+
+		if (!uniqueKeys.isEmpty()) {
+			for (List<String> uniqueKey : uniqueKeys) {
+				sb.append(" |-- ").append("UNIQUE (").append(String.join(", ", uniqueKey)).append(")\n");
 			}
 		}
 		return sb.toString();
@@ -283,14 +355,14 @@ public class TableSchema {
 		}
 		TableSchema schema = (TableSchema) o;
 		return Objects.equals(columns, schema.columns)
-			&& Objects.equals(watermarkSpecs, schema.getWatermarkSpecs());
+			&& Objects.equals(watermarkSpecs, schema.watermarkSpecs)
+			&& Objects.equals(primaryKey, schema.primaryKey)
+			&& Objects.equals(uniqueKeys, schema.uniqueKeys);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = Objects.hash(columns);
-		result = 31 * result + watermarkSpecs.hashCode();
-		return result;
+		return Objects.hash(columns, watermarkSpecs, primaryKey, uniqueKeys);
 	}
 
 	/**
@@ -327,99 +399,6 @@ public class TableSchema {
 		return new Builder();
 	}
 
-	//~ Tools ------------------------------------------------------------------
-
-	/**
-	 * Validate the field names {@code fieldNames} and field types {@code fieldTypes}
-	 * have equal number.
-	 *
-	 * @param fieldNames Field names
-	 * @param fieldTypes Field data types
-	 */
-	private static void validateNameTypeNumberEqual(String[] fieldNames, DataType[] fieldTypes) {
-		if (fieldNames.length != fieldTypes.length) {
-			throw new ValidationException(
-				"Number of field names and field data types must be equal.\n" +
-					"Number of names is " + fieldNames.length +
-					", number of data types is " + fieldTypes.length + ".\n" +
-					"List of field names: " + Arrays.toString(fieldNames) + "\n" +
-					"List of field data types: " + Arrays.toString(fieldTypes));
-		}
-	}
-
-	/** Table column and watermark specification sanity check. */
-	private static void validateColumnsAndWatermarkSpecs(List<TableColumn> columns,
-			List<WatermarkSpec> watermarkSpecs) {
-		// Validate and create name to type mapping.
-		// Field name to data type mapping, we need this because the row time attribute
-		// field can be nested.
-
-		// This also check duplicate fields.
-		final Map<String, DataType> fieldNameToType = new HashMap<>();
-		for (TableColumn column : columns) {
-			validateAndCreateNameToTypeMapping(fieldNameToType,
-				column.getName(),
-				column.getType(),
-				"");
-		}
-
-		// Validate watermark and rowtime attribute.
-		for (WatermarkSpec watermark : watermarkSpecs) {
-			String rowtimeAttribute = watermark.getRowtimeAttribute();
-			DataType rowtimeType = Optional.ofNullable(fieldNameToType.get(rowtimeAttribute))
-				.orElseThrow(() -> new ValidationException(String.format(
-					"Rowtime attribute '%s' is not defined in schema.", rowtimeAttribute)));
-			if (rowtimeType.getLogicalType().getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
-				throw new ValidationException(String.format(
-					"Rowtime attribute '%s' must be of type TIMESTAMP but is of type '%s'.",
-					rowtimeAttribute, rowtimeType));
-			}
-			LogicalType watermarkOutputType = watermark.getWatermarkExprOutputType().getLogicalType();
-			if (watermarkOutputType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
-				throw new ValidationException(String.format(
-					"Watermark strategy '%s' must be of type TIMESTAMP but is of type '%s'.",
-					watermark.getWatermarkExpressionString(),
-					watermarkOutputType.asSerializableString()));
-			}
-		}
-	}
-
-	/**
-	 * Creates a mapping from field name to data type, the field name can be a nested field.
-	 * This is mainly used for validating whether the rowtime attribute (might be nested) exists
-	 * in the schema. During creating, it also validates whether there is duplicate field names.
-	 *
-	 * <p>For example, a "f0" field of ROW type has two nested fields "q1" and "q2". Then the
-	 * mapping will be ["f0" -> ROW, "f0.q1" -> INT, "f0.q2" -> STRING].
-	 *
-	 * <pre>
-	 * {@code
-	 *     f0 ROW<q1 INT, q2 STRING>
-	 * }
-	 * </pre>
-	 *
-	 * @param fieldNameToType Field name to type mapping that to update
-	 * @param fieldName       Name of this field, e.g. "q1" or "q2" in the above example
-	 * @param fieldType       Data type of this field
-	 * @param parentFieldName Field name of parent type, e.g. "f0" in the above example
-	 */
-	private static void validateAndCreateNameToTypeMapping(
-			Map<String, DataType> fieldNameToType,
-			String fieldName,
-			DataType fieldType,
-			String parentFieldName) {
-		String fullFieldName = parentFieldName.isEmpty() ? fieldName : parentFieldName + "." + fieldName;
-		DataType oldType = fieldNameToType.put(fullFieldName, fieldType);
-		if (oldType != null) {
-			throw new ValidationException("Field names must be unique. Duplicate field: '" + fullFieldName + "'");
-		}
-		if (fieldType instanceof FieldsDataType) {
-			Map<String, DataType> fieldDataTypes = ((FieldsDataType) fieldType).getFieldDataTypes();
-			fieldDataTypes.forEach((key, value) ->
-				validateAndCreateNameToTypeMapping(fieldNameToType, key, value, fullFieldName));
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -427,13 +406,19 @@ public class TableSchema {
 	 */
 	public static class Builder {
 
-		private List<TableColumn> columns;
+		private final List<TableColumn> columns;
 
 		private final List<WatermarkSpec> watermarkSpecs;
+
+		private final List<String> primaryKey;
+
+		private final List<List<String>> uniqueKeys;
 
 		public Builder() {
 			columns = new ArrayList<>();
 			watermarkSpecs = new ArrayList<>();
+			primaryKey = new ArrayList<>();
+			uniqueKeys = new ArrayList<>();
 		}
 
 		/**
@@ -531,11 +516,43 @@ public class TableSchema {
 		}
 
 		/**
+		 * Add a primary key with the given field names.
+		 * There can only be one PRIMARY KEY for a given table.
+		 * See the {@link TableSchema} class javadoc for more definition about primary key.
+		 */
+		public Builder primaryKey(String... fields) {
+			Preconditions.checkArgument(
+				fields != null && fields.length > 0,
+				"The primary key fields shouldn't be null or empty.");
+			Preconditions.checkArgument(
+				primaryKey.isEmpty(),
+				"A primary key " + primaryKey +
+					" have been defined, can not define another primary key " +
+					Arrays.toString(fields));
+			primaryKey.addAll(Arrays.asList(fields));
+			return this;
+		}
+
+		/**
+		 * Add an unique key with the given field names.
+		 * There can be more than one UNIQUE KEY for a given table.
+		 * See the {@link TableSchema} class javadoc for more definition about unique key.
+		 */
+		public Builder uniqueKey(String... fields) {
+			Preconditions.checkArgument(
+				fields != null && fields.length > 0,
+				"The unique key fields shouldn't be null or empty.");
+			// make the unique key immutable, for easy copying list of unique keys.
+			uniqueKeys.add(Collections.unmodifiableList(Arrays.asList(fields)));
+			return this;
+		}
+
+		/**
 		 * Returns a {@link TableSchema} instance.
 		 */
 		public TableSchema build() {
-			validateColumnsAndWatermarkSpecs(this.columns, this.watermarkSpecs);
-			return new TableSchema(columns, watermarkSpecs);
+			validateSchema(this.columns, this.watermarkSpecs, this.primaryKey, this.uniqueKeys);
+			return new TableSchema(columns, watermarkSpecs, this.primaryKey, this.uniqueKeys);
 		}
 	}
 }
