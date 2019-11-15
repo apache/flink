@@ -59,13 +59,12 @@ public final class TableSchemaValidation {
 	}
 
 	/**
-	 * Validate table columns, watermark specification, primary key and unique keys.
+	 * Validate table columns, watermark specification and primary key.
 	 */
 	public static void validateSchema(
 			List<TableColumn> columns,
 			List<WatermarkSpec> watermarkSpecs,
-			List<String> primaryKey,
-			List<List<String>> uniqueKeys) {
+			List<String> primaryKey) {
 		// validate and create nested field name to type mapping.
 		// we need nested field name to type mapping because the row time attribute
 		// field can be nested.
@@ -79,7 +78,7 @@ public final class TableSchemaValidation {
 				"");
 		}
 
-		// primary key and unique key requires the key field is top-level (non-nested)
+		// primary key requires the key field is top-level (non-nested)
 		Map<String, TableColumn> nameToColumn = columns.stream()
 			.collect(Collectors.toMap(TableColumn::getName, Function.identity()));
 
@@ -92,20 +91,6 @@ public final class TableSchemaValidation {
 			} else if (column.isGenerated()) {
 				throw new ValidationException("The primary key field '" + key +
 					"' should not be a generated column.");
-			}
-		}
-
-		// validate unique keys
-		for (List<String> uniqueKey : uniqueKeys) {
-			for (String key : uniqueKey) {
-				TableColumn column = nameToColumn.get(key);
-				if (column == null) {
-					throw new ValidationException("The unique key field '" + key +
-						"' is not existed in the schema.");
-				} else if (column.isGenerated()) {
-					throw new ValidationException("The unique key field '" + key +
-						"' should not be a generated column.");
-				}
 			}
 		}
 

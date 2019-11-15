@@ -28,7 +28,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -45,32 +44,25 @@ import static org.apache.flink.table.utils.TableSchemaValidation.validateNameTyp
 import static org.apache.flink.table.utils.TableSchemaValidation.validateSchema;
 
 /**
- * A table schema that represents a table's structure with field names, data types and
- * constraint information (e.g. primary key, unique key).
+ * A table schema that represents a table's structure with field names, data types, watermark
+ * information and constraint information (e.g. primary key).
  *
- * <p>Concepts about primary key and unique key:</p>
+ * <p>Concepts about primary key:</p>
  * <ul>
  *     <li>
- *         Primary key and unique key can consist of single or multiple columns (fields).
+ *         Primary key can be consist of single or multiple columns (fields).
  *     </li>
  *     <li>
- *         A primary key or unique key on source will be simply trusted, we won't validate the
- *         constraint. The primary key and unique key information will then be used for query
- *         optimization. If a bounded or unbounded table source defines any primary key or
- *         unique key, it must contain a unique value for each row of data. You cannot have
- *         two records having the same value of that field(s). Otherwise, the result of query
- *         might be wrong.
+ *         A primary key on source will be simply trusted, we won't validate the constraint.
+ *         The primary key information will then be used for query optimization. If a bounded
+ *         or unbounded table source defines any primary key, it must contain a unique value
+ *         for each row of data. You cannot have two records having the same value of that field(s).
+ *         Otherwise, the result of query might be wrong.
  *     </li>
  *     <li>
- *         A primary key or unique key on sink is a weak constraint. Currently, we won't validate
- *         the constraint, but we may add some check in the future to validate whether the
- *         primary/unique key of the query matches the primary/unique key of the sink during
- *         compile time.
- *     </li>
- *     <li>
- *         The difference between primary key and unique key is that there can be only one primary
- *         key and there can be more than one unique key. And a primary key doesn't need to be
- *         declared in unique key list again.
+ *         A primary key on sink is a weak constraint. Currently, we won't validate the constraint,
+ *         but we may add some check in the future to validate whether the primary key of the query
+ *         matches the primary key of the sink during compile time.
  *     </li>
  * </ul>
  */
@@ -85,17 +77,13 @@ public class TableSchema {
 
 	private final List<String> primaryKey;
 
-	private final List<List<String>> uniqueKeys;
-
 	private TableSchema(
 			List<TableColumn> columns,
 			List<WatermarkSpec> watermarkSpecs,
-			List<String> primaryKey,
-			List<List<String>> uniqueKeys) {
+			List<String> primaryKey) {
 		this.columns = Preconditions.checkNotNull(columns);
 		this.watermarkSpecs = Preconditions.checkNotNull(watermarkSpecs);
 		this.primaryKey = Preconditions.checkNotNull(primaryKey);
-		this.uniqueKeys = Preconditions.checkNotNull(uniqueKeys);
 	}
 
 	/**
@@ -109,11 +97,10 @@ public class TableSchema {
 		for (int i = 0; i < fieldNames.length; i++) {
 			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
 		}
-		validateSchema(columns, emptyList(), emptyList(), emptyList());
+		validateSchema(columns, emptyList(), emptyList());
 		this.columns = columns;
 		this.watermarkSpecs = emptyList();
 		this.primaryKey = emptyList();
-		this.uniqueKeys = emptyList();
 	}
 
 	/**
@@ -123,8 +110,7 @@ public class TableSchema {
 		return new TableSchema(
 			new ArrayList<>(columns),
 			new ArrayList<>(watermarkSpecs),
-			new ArrayList<>(primaryKey),
-			new ArrayList<>(uniqueKeys));
+			new ArrayList<>(primaryKey));
 	}
 
 	/**
@@ -300,17 +286,6 @@ public class TableSchema {
 		return new ArrayList<>(primaryKey);
 	}
 
-	/**
-	 * Returns unique keys defined on the table. An unique key is consist of single or multiple
-	 * field names. There can be moe than one unique key on a table, so the returned type is
-	 * a nested list. The returned list will be empty if no unique key is defined.
-	 *
-	 * <p>See the {@link TableSchema} class javadoc for more definition about unique key.
-	 */
-	public List<List<String>> getUniqueKeys() {
-		return new ArrayList<>(uniqueKeys);
-	}
-
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
@@ -337,11 +312,6 @@ public class TableSchema {
 			sb.append(" |-- ").append("PRIMARY KEY (").append(String.join(", ", primaryKey)).append(")\n");
 		}
 
-		if (!uniqueKeys.isEmpty()) {
-			for (List<String> uniqueKey : uniqueKeys) {
-				sb.append(" |-- ").append("UNIQUE (").append(String.join(", ", uniqueKey)).append(")\n");
-			}
-		}
 		return sb.toString();
 	}
 
@@ -356,13 +326,12 @@ public class TableSchema {
 		TableSchema schema = (TableSchema) o;
 		return Objects.equals(columns, schema.columns)
 			&& Objects.equals(watermarkSpecs, schema.watermarkSpecs)
-			&& Objects.equals(primaryKey, schema.primaryKey)
-			&& Objects.equals(uniqueKeys, schema.uniqueKeys);
+			&& Objects.equals(primaryKey, schema.primaryKey);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(columns, watermarkSpecs, primaryKey, uniqueKeys);
+		return Objects.hash(columns, watermarkSpecs, primaryKey);
 	}
 
 	/**
@@ -412,13 +381,10 @@ public class TableSchema {
 
 		private final List<String> primaryKey;
 
-		private final List<List<String>> uniqueKeys;
-
 		public Builder() {
 			columns = new ArrayList<>();
 			watermarkSpecs = new ArrayList<>();
 			primaryKey = new ArrayList<>();
-			uniqueKeys = new ArrayList<>();
 		}
 
 		/**
@@ -534,25 +500,11 @@ public class TableSchema {
 		}
 
 		/**
-		 * Add an unique key with the given field names.
-		 * There can be more than one UNIQUE KEY for a given table.
-		 * See the {@link TableSchema} class javadoc for more definition about unique key.
-		 */
-		public Builder uniqueKey(String... fields) {
-			Preconditions.checkArgument(
-				fields != null && fields.length > 0,
-				"The unique key fields shouldn't be null or empty.");
-			// make the unique key immutable, for easy copying list of unique keys.
-			uniqueKeys.add(Collections.unmodifiableList(Arrays.asList(fields)));
-			return this;
-		}
-
-		/**
 		 * Returns a {@link TableSchema} instance.
 		 */
 		public TableSchema build() {
-			validateSchema(this.columns, this.watermarkSpecs, this.primaryKey, this.uniqueKeys);
-			return new TableSchema(columns, watermarkSpecs, this.primaryKey, this.uniqueKeys);
+			validateSchema(this.columns, this.watermarkSpecs, this.primaryKey);
+			return new TableSchema(columns, watermarkSpecs, this.primaryKey);
 		}
 	}
 }
