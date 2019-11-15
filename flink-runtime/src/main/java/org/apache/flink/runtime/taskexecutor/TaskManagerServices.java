@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
@@ -503,7 +504,7 @@ public class TaskManagerServices {
 
 	private static ResourceProfile computeSlotResourceProfile(int numOfSlots, Map<MemoryType, Long> memorySizeByType) {
 		return new ResourceProfile(
-			Double.MAX_VALUE,
+			new CPUResource(Double.MAX_VALUE),
 			MemorySize.MAX_VALUE,
 			MemorySize.MAX_VALUE,
 			new MemorySize(memorySizeByType.getOrDefault(MemoryType.HEAP, 0L) / numOfSlots),
