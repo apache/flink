@@ -63,6 +63,7 @@ public class ConfigOptionsDocGenerator {
 		new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
 		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.shuffle"),
 		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.jobgraph"),
+		new OptionsClassLocation("flink-streaming-java", "org.apache.flink.streaming.api.environment"),
 		new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
@@ -76,6 +77,7 @@ public class ConfigOptionsDocGenerator {
 		"org.apache.flink.configuration.ReadableConfig",
 		"org.apache.flink.configuration.WritableConfig",
 		"org.apache.flink.configuration.ConfigOptions",
+		"org.apache.flink.streaming.api.environment.CheckpointConfig",
 		"org.apache.flink.contrib.streaming.state.PredefinedOptions"));
 
 	static final String DEFAULT_PATH_PREFIX = "src/main/java";
