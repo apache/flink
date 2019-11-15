@@ -44,6 +44,8 @@ import org.apache.flink.runtime.io.network.api.writer.SingleRecordWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -75,7 +77,9 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,6 +96,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -720,6 +725,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return operatorChain;
 	}
 
+	public OperatorEventDispatcher getOperatorEventDispatcher() {
+		return operatorChain.getOperatorEventDispatcher();
+	}
+
 	RecordWriterOutput<?>[] getStreamOutputs() {
 		return operatorChain.getStreamOutputs();
 	}
@@ -967,6 +976,28 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				operator.initializeState();
 				operator.open();
 			}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Operator Events
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event) throws FlinkException {
+		try {
+			mailboxProcessor.getMainMailboxExecutor().execute(
+				() -> {
+					try {
+						operatorChain.dispatchOperatorEvent(operator, event);
+					} catch (Throwable t) {
+						mailboxProcessor.reportThrowable(t);
+					}
+				},
+				"dispatch operator event");
+		}
+		catch (RejectedExecutionException e) {
+			// this happens during shutdown, we can swallow this
 		}
 	}
 

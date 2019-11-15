@@ -46,6 +46,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorUtil;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.OptionalFailure;
@@ -133,6 +135,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * the serialized task information.
 	 */
 	private Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = null;
+
+	private final Map<OperatorID, OperatorCoordinator> operatorCoordinators;
 
 	private InputSplitAssigner splitAssigner;
 
@@ -242,6 +246,16 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			if (ir.getNumberOfAssignedPartitions() != parallelism) {
 				throw new RuntimeException("The intermediate result's partitions were not correctly assigned.");
 			}
+		}
+
+		try {
+			this.operatorCoordinators = OperatorCoordinatorUtil.instantiateCoordinators(
+					jobVertex.getOperatorCoordinators(),
+					graph.getUserClassLoader(),
+					(opId) -> new ExecutionJobVertexCoordinatorContext(opId, this));
+		}
+		catch (IOException | ClassNotFoundException e) {
+			throw new JobException("Cannot instantiate the coordinator for operator " + getName(), e);
 		}
 
 		// set up the input splits, if the vertex has any
@@ -381,6 +395,15 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	public InputDependencyConstraint getInputDependencyConstraint() {
 		return getJobVertex().getInputDependencyConstraint();
+	}
+
+	@Nullable
+	public OperatorCoordinator getOperatorCoordinator(OperatorID operatorId) {
+		return operatorCoordinators.get(operatorId);
+	}
+
+	public Collection<OperatorCoordinator> getOperatorCoordinators() {
+		return Collections.unmodifiableCollection(operatorCoordinators.values());
 	}
 
 	public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey() throws IOException {

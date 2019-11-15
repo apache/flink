@@ -64,6 +64,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
@@ -74,6 +75,9 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
@@ -87,7 +91,10 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.function.FunctionUtils;
@@ -400,7 +407,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return execution.getVertex().getID();
 	}
 
-	protected ExecutionVertex getExecutionVertex(final ExecutionVertexID executionVertexId) {
+	public ExecutionVertex getExecutionVertex(final ExecutionVertexID executionVertexId) {
 		return executionGraph.getAllVertices().get(executionVertexId.getJobVertexId()).getTaskVertices()[executionVertexId.getSubtaskIndex()];
 	}
 
@@ -440,6 +447,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	public final void startScheduling() {
 		mainThreadExecutor.assertRunningInMainThread();
 		registerJobMetrics();
+		startAllOperatorCoordinators();
 		startSchedulingInternal();
 	}
 
@@ -456,6 +464,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 		incrementVersionsOfAllVertices();
 		executionGraph.suspend(cause);
+		disposeAllOperatorCoordinators();
 	}
 
 	@Override
@@ -886,4 +895,62 @@ public abstract class SchedulerBase implements SchedulerNG {
 			.orElse("Unknown location");
 	}
 
+	@Override
+	public void deliverOperatorEventToCoordinator(
+			final ExecutionAttemptID taskExecutionId,
+			final OperatorID operatorId,
+			final OperatorEvent evt) throws FlinkException {
+
+		// Failure semantics (as per the javadocs of the method):
+		// If the task manager sends an event for a non-running task or an non-existing operator
+		// coordinator, then respond with an exception to the call. If task and coordinator exist,
+		// then we assume that the call from the TaskManager was valid, and any bubbling exception
+		// needs to cause a job failure.
+
+		final Execution exec = executionGraph.getRegisteredExecutions().get(taskExecutionId);
+		if (exec == null || exec.getState() != ExecutionState.RUNNING) {
+			// This situation is common when cancellation happens, or when the task failed while the
+			// event was just being dispatched asynchronously on the TM side.
+			// It should be fine in those expected situations to just ignore this event, but, to be
+			// on the safe, we notify the TM that the event could not be delivered.
+			throw new TaskNotRunningException("Task is not known or in state running on the JobManager.");
+		}
+
+		final ExecutionJobVertex ejv = exec.getVertex().getJobVertex();
+		final OperatorCoordinator coordinator = ejv.getOperatorCoordinator(operatorId);
+		if (coordinator == null) {
+			throw new FlinkException("No coordinator registered for operator " + operatorId);
+		}
+
+		try {
+			coordinator.handleEventFromOperator(exec.getParallelSubtaskIndex(), evt);
+		} catch (Throwable t) {
+			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+			failJob(t);
+		}
+	}
+
+	private void startAllOperatorCoordinators() {
+		final Collection<OperatorCoordinator> coordinators = getAllCoordinators();
+		try {
+			for (OperatorCoordinator coordinator : coordinators) {
+				coordinator.start();
+			}
+		}
+		catch (Throwable t) {
+			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+			coordinators.forEach(IOUtils::closeQuietly);
+			throw new FlinkRuntimeException("Failed to start the operator coordinators", t);
+		}
+	}
+
+	private void disposeAllOperatorCoordinators() {
+		getAllCoordinators().forEach(IOUtils::closeQuietly);
+	}
+
+	private Collection<OperatorCoordinator> getAllCoordinators() {
+		return getExecutionGraph().getAllVertices().values().stream()
+			.flatMap((vertex) -> vertex.getOperatorCoordinators().stream())
+			.collect(Collectors.toList());
+	}
 }

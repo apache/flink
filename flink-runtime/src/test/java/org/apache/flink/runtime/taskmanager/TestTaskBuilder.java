@@ -213,6 +213,7 @@ public final class TestTaskBuilder {
 			taskManagerActions,
 			new MockInputSplitProvider(),
 			new TestCheckpointResponder(),
+			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
 			blobCacheService,
 			libraryCacheManager,

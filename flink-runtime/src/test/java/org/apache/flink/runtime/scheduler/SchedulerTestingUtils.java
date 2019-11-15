@@ -34,19 +34,26 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,13 +81,33 @@ public class SchedulerTestingUtils {
 			JobGraph jobGraph,
 			ManuallyTriggeredScheduledExecutorService asyncExecutor) throws Exception {
 
+		return createScheduler(jobGraph, asyncExecutor, new SimpleAckingTaskManagerGateway());
+	}
+
+	public static DefaultScheduler createScheduler(
+			JobGraph jobGraph,
+			ManuallyTriggeredScheduledExecutorService asyncExecutor,
+			TaskExecutorOperatorEventGateway operatorEventGateway) throws Exception {
+
+		final TaskManagerGateway gateway = operatorEventGateway instanceof TaskManagerGateway
+				? (TaskManagerGateway) operatorEventGateway
+				: new TaskExecutorOperatorEventGatewayAdapter(operatorEventGateway);
+
+		return createScheduler(jobGraph, asyncExecutor, gateway);
+	}
+
+	public static DefaultScheduler createScheduler(
+			JobGraph jobGraph,
+			ManuallyTriggeredScheduledExecutorService asyncExecutor,
+			TaskManagerGateway taskManagerGateway) throws Exception {
+
 		return new DefaultScheduler(
 			LOG,
 			jobGraph,
 			VoidBackPressureStatsTracker.INSTANCE,
 			Executors.directExecutor(),
 			new Configuration(),
-			new SimpleSlotProvider(jobGraph.getJobID(), 0),
+			new SimpleSlotProvider(jobGraph.getJobID(), 0), // this is not used any more in the new scheduler
 			asyncExecutor,
 			asyncExecutor,
 			ClassLoader.getSystemClassLoader(),
@@ -96,7 +123,7 @@ public class SchedulerTestingUtils {
 			new TestRestartBackoffTimeStrategy(true, 0),
 			new DefaultExecutionVertexOperations(),
 			new ExecutionVertexVersioner(),
-			new TestExecutionSlotAllocatorFactory());
+			new TestExecutionSlotAllocatorFactory(taskManagerGateway));
 	}
 
 	public static void enableCheckpointing(final JobGraph jobGraph) {
@@ -166,5 +193,24 @@ public class SchedulerTestingUtils {
 	@SuppressWarnings("deprecation")
 	public static CheckpointCoordinator getCheckpointCoordinator(SchedulerBase scheduler) {
 		return scheduler.getExecutionGraph().getCheckpointCoordinator();
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static final class TaskExecutorOperatorEventGatewayAdapter extends SimpleAckingTaskManagerGateway {
+
+		private final TaskExecutorOperatorEventGateway operatorGateway;
+
+		TaskExecutorOperatorEventGatewayAdapter(TaskExecutorOperatorEventGateway operatorGateway) {
+			this.operatorGateway = operatorGateway;
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+				ExecutionAttemptID task,
+				OperatorID operator,
+				SerializedValue<OperatorEvent> evt) {
+			return operatorGateway.sendOperatorEventToTask(task, operator, evt);
+		}
 	}
 }
