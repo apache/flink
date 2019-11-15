@@ -137,11 +137,11 @@ public class YarnFileStageTest extends TestLogger {
 	 * Verifies that a single file is properly copied.
 	 */
 	@Test
-	public void testCopyAFileFromLocal() throws IOException, URISyntaxException, InterruptedException {
+	public void testCopySingleFileFromLocal() throws IOException, URISyntaxException, InterruptedException {
 		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
 		final Path targetDir = targetFileSystem.getWorkingDirectory();
 
-		testCopyAFileFromLocal(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder);
+		testCopySingleFileFromLocal(targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder);
 	}
 
 	/**
@@ -235,7 +235,7 @@ public class YarnFileStageTest extends TestLogger {
 	 * @throws IOException if error occurs when accessing the file system
 	 * @throws URISyntaxException if the format of url has errors when converting a given url to hadoop path
 	 */
-	private static void testCopyAFileFromLocal(
+	private static void testCopySingleFileFromLocal(
 		FileSystem targetFileSystem,
 		Path targetDir,
 		String localResourceDirectory,

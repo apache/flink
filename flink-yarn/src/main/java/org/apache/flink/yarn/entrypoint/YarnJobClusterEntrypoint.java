@@ -32,6 +32,8 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -67,21 +69,26 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 
 	@Override
 	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
+		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
+			YarnResourceManagerFactory.getInstance(),
+			FileJobGraphRetriever.createFrom(configuration, getUsrLibDir(configuration)));
+	}
+
+	@Nullable
+	private static File getUsrLibDir(final Configuration configuration) {
 		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
 			.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
 		final Optional<File> userLibDir = tryFindUserLibDirectory();
+
 		checkState(
 			userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || userLibDir.isPresent(),
 			"The %s is set to %s. But the usrlib directory does not exist.",
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
-				YarnConfigOptions.UserJarInclusion.DISABLED);
-		final File usrLibDir =
-			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir.get() : null;
+			YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
+			YarnConfigOptions.UserJarInclusion.DISABLED);
 
-		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
-			YarnResourceManagerFactory.getInstance(),
-			FileJobGraphRetriever.createFrom(configuration, usrLibDir));
+		return userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir.get() : null;
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  The executable entry point for the Yarn Application Master Process
