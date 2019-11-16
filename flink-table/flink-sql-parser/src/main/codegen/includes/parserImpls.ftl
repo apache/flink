@@ -304,6 +304,10 @@ SqlShowTables SqlShowTables() :
     }
 }
 
+/**
+ * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+ * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
+ */
 SqlRichDescribeTable SqlRichDescribeTable() :
 {
     SqlIdentifier tableName;
@@ -332,7 +336,7 @@ SqlAlterTable SqlAlterTable() :
     tableName = CompoundIdentifier()
     (
         <RENAME> <TO> { isRename = true; }
-        newTableName = SimpleIdentifier()
+        newTableName = CompoundIdentifier()
     |
         <SET>   { isRename = false; }
         propertyList = TableProperties()

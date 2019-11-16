@@ -34,7 +34,7 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName RENAME TO newTableName or
+ * ALTER TABLE [[catalogName.] dataBasesName].tableName RENAME TO [[catalogName.] dataBasesName].newTableName or
  * ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*) sql call.
  */
 public class SqlAlterTable extends SqlCall {
@@ -74,10 +74,6 @@ public class SqlAlterTable extends SqlCall {
 		return tableName;
 	}
 
-	public String getNewTableName() {
-		return newTableName.getSimple();
-	}
-
 	public boolean isRename() {
 		return isRename;
 	}
@@ -113,5 +109,9 @@ public class SqlAlterTable extends SqlCall {
 
 	public String[] fullDatabaseName() {
 		return tableName.names.toArray(new String[0]);
+	}
+
+	public String[] fullNewDatabaseName() {
+		return newTableName.names.toArray(new String[0]);
 	}
 }
