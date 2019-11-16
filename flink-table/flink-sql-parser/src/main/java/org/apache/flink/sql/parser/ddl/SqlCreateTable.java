@@ -291,9 +291,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		if (this.partitionKeyList.size() > 0) {
 			writer.newlineAndIndent();
 			writer.keyword("PARTITIONED BY");
-			SqlWriter.Frame withFrame = writer.startList("(", ")");
+			SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
 			this.partitionKeyList.unparse(writer, leftPrec, rightPrec);
-			writer.endList(withFrame);
+			writer.endList(partitionedByFrame);
 			writer.newlineAndIndent();
 		}
 
