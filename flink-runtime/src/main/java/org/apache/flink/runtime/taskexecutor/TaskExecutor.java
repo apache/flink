@@ -127,6 +127,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.runtime.util.JvmUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -134,6 +135,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -943,6 +945,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			case STDOUT:
 				filePath = taskManagerConfiguration.getTaskManagerStdoutPath();
 				break;
+			case THREAD_DUMP:
+				return putTransientBlobStream(JvmUtils.threadDumpStream(), fileType.toString());
 			default:
 				filePath = null;
 		}
@@ -1014,6 +1018,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ======================================================================
 	//  Internal methods
 	// ======================================================================
+
+	private CompletableFuture<TransientBlobKey> putTransientBlobStream(InputStream inputStream, String fileTag) {
+		final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
+		final TransientBlobKey transientBlobKey;
+
+		try {
+			transientBlobKey = transientBlobService.putTransient(inputStream);
+		} catch (IOException e) {
+			log.debug("Could not upload file {}.", fileTag, e);
+			return FutureUtils.completedExceptionally(new FlinkException("Could not upload file " + fileTag + '.', e));
+		}
+		return CompletableFuture.completedFuture(transientBlobKey);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Internal resource manager connection methods
@@ -1674,15 +1691,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			return CompletableFuture.supplyAsync(() -> {
 				final File file = new File(filePath);
 				if (file.exists()) {
-					final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
-					final TransientBlobKey transientBlobKey;
-					try (FileInputStream fileInputStream = new FileInputStream(file)) {
-						transientBlobKey = transientBlobService.putTransient(fileInputStream);
-					} catch (IOException e) {
+					try {
+						return putTransientBlobStream(new FileInputStream(file), fileTag).get();
+					} catch (Exception e) {
 						log.debug("Could not upload file {}.", fileTag, e);
 						throw new CompletionException(new FlinkException("Could not upload file " + fileTag + '.', e));
 					}
-					return transientBlobKey;
 				} else {
 					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
 					throw new CompletionException(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
