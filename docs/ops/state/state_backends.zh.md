@@ -143,15 +143,20 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </div>
 </div>
 
-如果想使用 `RocksDBStateBackend`，必须添加以下依赖到 Flink 项目中。
+如果希望在 IDE 中使用 `RocksDBStateBackend`，或在 Flink 作业中通过程序配置 `RocksDBStateBackend`，必须添加以下依赖到 Flink 项目中。
 
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.flink</groupId>
     <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
     <version>{{ site.version }}</version>
+    <scope>provided</scope>
 </dependency>
 {% endhighlight %}
+
+<div class="alert alert-info" markdown="span">
+  <strong>注意:</strong> 由于 RocksDB 是 Flink 默认提供的组件，如果在 `flink-conf.yaml` 中使用 `state.backend` 、 [checkpointing]({{ site.baseurl }}/zh/ops/config.html#checkpointing) 或 [RocksDB-specific]({{ site.baseurl }}/zh/ops/config.html#rocksdb-state-backend) 参数配置 State Backend，作业中没有使用任何 RocksDB 的代码，则不需要添加此依赖。
+</div>
 
 
 ### 设置默认的（全局的） State Backend
