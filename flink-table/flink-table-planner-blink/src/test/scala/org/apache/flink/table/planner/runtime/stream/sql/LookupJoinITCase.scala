@@ -54,7 +54,9 @@ class LookupJoinITCase extends StreamingTestBase {
   val userData = List(
     (11, 1L, "Julian"),
     (22, 2L, "Jark"),
-    (33, 3L, "Fabian"))
+    (33, 3L, "Fabian"),
+    (11, 4L, "Hello world"),
+    (11, 5L, "Hello world"))
 
   val userTableSource = InMemoryLookupableTableSource.builder()
     .data(userData)
@@ -535,19 +537,20 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userWithSameAgeTableSourceWith2Keys)
+    tEnv.registerTableSource("userTable", userTableSource)
 
-    val sql = "SELECT T.id, T.content, D.name, D.age  FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.content = concat(D.name, '!') AND D.age = 11"
+    val sql = "SELECT T.id, T.content, D.age, D.id FROM T JOIN userTable " +
+      "for system_time as of T.proctime AS D " +
+      "ON T.id = D.id + 4 AND T.content = concat(D.name, '!') AND D.age = 11"
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "9,Hello world!,Hello world,11")
+      "9,Hello world!,11,5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userWithSameAgeTableSourceWith2Keys.getResourceCounter)
+    assertEquals(0, userTableSource.getResourceCounter)
   }
 
 }

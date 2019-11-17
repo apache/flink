@@ -419,25 +419,29 @@ abstract class CommonLookupJoin(
       joinKeyPairs: Array[IntPair],
       joinInfo: JoinInfo,
       allLookupKeys: Map[Int, LookupKey]): Option[RexNode] = {
-    val joinPairs = joinInfo.pairs().asScala.toArray
-    val remainingPairs = joinPairs.filter(p => !checkedLookupFields.contains(p.target))
-    // convert remaining pairs to RexInputRef tuple for building sqlStdOperatorTable.EQUALS calls
-    val remainingAnds = remainingPairs.map { p =>
-      val leftFieldType = leftRelDataType.getFieldList.get(p.source).getType
-      val leftInputRef = new RexInputRef(p.source, leftFieldType)
-      val rightInputRef = calcOnTemporalTable match {
-        case Some(program) =>
-          new RexInputRef(
-            leftRelDataType.getFieldCount + p.target,
-            program.getOutputRowType.getFieldList.get(p.target).getType)
+    var remainingAnds = Seq[(RexInputRef, RexInputRef)]()
 
-        case None =>
-          new RexInputRef(
-            leftRelDataType.getFieldCount + p.target,
-            tableRelDataType.getFieldList.get(p.target).getType)
+    if (calcOnTemporalTable.isDefined) {
+      val program = calcOnTemporalTable.get
+
+      val joinPairs = joinInfo.pairs().asScala.toArray
+      val checkedCalFields = checkedLookupFields.map { lookupFieldIndex =>
+        program
+          .getOutputRowType.getFieldNames
+          .indexOf(program.getInputRowType.getFieldNames.get(lookupFieldIndex))
       }
-      (leftInputRef, rightInputRef)
+      val remainingPairs = joinPairs.filter(p => !checkedCalFields.contains(p.target))
+      // convert remaining pairs to RexInputRef tuple for building sqlStdOperatorTable.EQUALS calls
+      remainingPairs.map { p =>
+        val leftFieldType = leftRelDataType.getFieldList.get(p.source).getType
+        val leftInputRef = new RexInputRef(p.source, leftFieldType)
+        val rightInputRef = new RexInputRef(leftRelDataType.getFieldCount + p.target,
+          program.getOutputRowType.getFieldList.get(p.target).getType)
+
+        remainingAnds = remainingAnds :+  (leftInputRef, rightInputRef)
+      }
     }
+
     val equiAnds = relBuilder.and(remainingAnds.map(p => relBuilder.equals(p._1, p._2)): _*)
     val condition = relBuilder.and(equiAnds, joinInfo.getRemaining(rexBuilder))
     if (condition.isAlwaysTrue) {
