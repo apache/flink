@@ -296,7 +296,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
 	</Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithMulUDFANDConstantCondition">
+  <TestCase name="testJoinTemporalTableWithMultiUDFANDConstantCondition">
 	<Resource name="sql">
 	  <![CDATA[
 SELECT * FROM MyTable AS T
