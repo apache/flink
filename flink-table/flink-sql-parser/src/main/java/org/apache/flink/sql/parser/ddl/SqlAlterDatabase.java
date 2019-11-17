@@ -41,7 +41,6 @@ public class SqlAlterDatabase extends SqlCall {
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER DATABASE", SqlKind.OTHER);
 
 	private final SqlIdentifier databaseName;
-
 	private final SqlNodeList propertyList;
 
 	public SqlAlterDatabase(
