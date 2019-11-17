@@ -32,7 +32,6 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -162,25 +161,11 @@ public class SchedulerImpl implements Scheduler {
 
 		allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
 			if (failure != null) {
-				Optional<SharedSlotOversubscribedException> sharedSlotOverAllocatedException =
-						ExceptionUtils.findThrowable(failure, SharedSlotOversubscribedException.class);
-				if (sharedSlotOverAllocatedException.isPresent() &&
-						sharedSlotOverAllocatedException.get().canRetry()) {
-
-					// Retry the allocation
-					internalAllocateSlot(
-							allocationResultFuture,
-							slotRequestId,
-							scheduledUnit,
-							slotProfile,
-							allocationTimeout);
-				} else {
-					cancelSlotRequest(
-							slotRequestId,
-							scheduledUnit.getSlotSharingGroupId(),
-							failure);
-					allocationResultFuture.completeExceptionally(failure);
-				}
+				cancelSlotRequest(
+					slotRequestId,
+					scheduledUnit.getSlotSharingGroupId(),
+					failure);
+				allocationResultFuture.completeExceptionally(failure);
 			} else {
 				allocationResultFuture.complete(slot);
 			}

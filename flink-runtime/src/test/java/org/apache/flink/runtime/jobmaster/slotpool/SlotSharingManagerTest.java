@@ -56,9 +56,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -753,68 +753,16 @@ public class SlotSharingManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testSlotOverAllocatedAndSingleSlotReleased() {
+	public void testSlotOverAllocatedAndTaskSlotsReleased() {
 		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(7.0, 700));
 
-		// The two coLocated requests and the third request is successful.
-		for (int i = 0; i < context.singleTaskSlotsInOrder.size(); ++i) {
-			SlotSharingManager.SingleTaskSlot singleTaskSlot = context.singleTaskSlotsInOrder.get(i);
-			assertThat(singleTaskSlot.getLogicalSlotFuture().isDone(), is(true));
-
-			if (i != 3) {
-				assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(false));
-			} else {
-				assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(true));
-				singleTaskSlot.getLogicalSlotFuture().whenComplete((LogicalSlot ignored, Throwable throwable) -> {
-					assertThat(throwable instanceof SharedSlotOversubscribedException, is(true));
-					assertThat(((SharedSlotOversubscribedException) throwable).canRetry(), is(true));
-				});
-			}
-		}
-
-		// The multi-task slot for coLocation should be kept.
-		assertThat(context.slotSharingManager.getTaskSlot(context.coLocationTaskSlot.getSlotRequestId()), notNullValue());
-	}
-
-	@Test
-	public void testSlotOverAllocatedAndMultiTaskSlotReleased() {
-		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(3.0, 300));
-
-		// Only the third request is fulfilled.
-		for (int i = 0; i < context.singleTaskSlotsInOrder.size(); ++i) {
-			SlotSharingManager.SingleTaskSlot singleTaskSlot = context.singleTaskSlotsInOrder.get(i);
-			assertThat(singleTaskSlot.getLogicalSlotFuture().isDone(), is(true));
-
-			if (i == 2) {
-				assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(false));
-			} else {
-				assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(true));
-				singleTaskSlot.getLogicalSlotFuture().whenComplete((LogicalSlot ignored, Throwable throwable) -> {
-					assertThat(throwable instanceof SharedSlotOversubscribedException, is(true));
-					assertThat(((SharedSlotOversubscribedException) throwable).canRetry(), is(true));
-				});
-			}
-		}
-
-		// The multi-task slot for coLocation should not be kept.
-		assertThat(context.slotSharingManager.getTaskSlot(context.coLocationTaskSlot.getSlotRequestId()), nullValue());
-	}
-
-	@Test
-	public void testSlotOverAllocatedAndAllTaskSlotReleased() {
-		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(2.0, 200));
-
-		// Only the third request is fulfilled.
 		for (int i = 0; i < context.singleTaskSlotsInOrder.size(); ++i) {
 			SlotSharingManager.SingleTaskSlot singleTaskSlot = context.singleTaskSlotsInOrder.get(i);
 			assertThat(singleTaskSlot.getLogicalSlotFuture().isDone(), is(true));
 
 			assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(true));
 			singleTaskSlot.getLogicalSlotFuture().whenComplete((LogicalSlot ignored, Throwable throwable) -> {
-				assertThat(throwable instanceof SharedSlotOversubscribedException, is(true));
-
-				// Since no request is fulfilled, these requests will be failed and should not retry.
-				assertThat(((SharedSlotOversubscribedException) throwable).canRetry(), is(false));
+				assertThat(throwable, instanceOf(IllegalStateException.class));
 			});
 		}
 
