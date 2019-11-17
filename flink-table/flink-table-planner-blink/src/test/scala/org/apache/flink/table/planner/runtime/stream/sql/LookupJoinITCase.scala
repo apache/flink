@@ -86,20 +86,6 @@ class LookupJoinITCase extends StreamingTestBase {
     .field("name", Types.STRING)
     .build()
 
-  val userDataWithSameAge = List(
-    (11, 1L, "Julian"),
-    (22, 2L, "Jark"),
-    (33, 3L, "Fabian"),
-    (11, 4L, "Hello world")
-  )
-
-  val userWithSameAgeTableSourceWith2Keys = InMemoryLookupableTableSource.builder()
-    .data(userDataWithSameAge)
-    .field("age", Types.INT)
-    .field("id", Types.LONG)
-    .field("name", Types.STRING)
-    .build()
-
   @Test
   def testJoinTemporalTable(): Unit = {
     val streamTable = env.fromCollection(data)
