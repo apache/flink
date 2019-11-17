@@ -41,6 +41,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.CONNECT_TIMEOUT;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.CONSISTENCY;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.DB;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.HOST;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PASSWORD;
@@ -58,6 +59,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 	private String database;
 	private String retentionPolicy;
+	private InfluxDB.ConsistencyLevel consistency;
 	private InfluxDB influxDB;
 
 	public InfluxdbReporter() {
@@ -81,6 +83,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 		this.database = database;
 		this.retentionPolicy = getString(config, RETENTION_POLICY);
+		this.consistency = InfluxDB.ConsistencyLevel.valueOf(getString(config, CONSISTENCY));
 
 		int connectTimeout = getInteger(config, CONNECT_TIMEOUT);
 		int writeTimeout = getInteger(config, WRITE_TIMEOUT);
@@ -94,7 +97,8 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 			influxDB = InfluxDBFactory.connect(url, client);
 		}
 
-		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, and retentionPolicy:{}}", host, port, database, retentionPolicy);
+		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, and retentionPolicy:{}, consistency:{}}",
+			host, port, database, retentionPolicy, consistency.name());
 	}
 
 	@Override
@@ -118,6 +122,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		Instant timestamp = Instant.now();
 		BatchPoints.Builder report = BatchPoints.database(database);
 		report.retentionPolicy(retentionPolicy);
+		report.consistency(consistency);
 		try {
 			for (Map.Entry<Gauge<?>, MeasurementInfo> entry : gauges.entrySet()) {
 				report.point(MetricMapper.map(entry.getValue(), timestamp, entry.getKey()));
