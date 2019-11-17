@@ -71,14 +71,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The StreamingJobGraphGenerator converts a {@link StreamGraph} into a {@link JobGraph}.
@@ -162,6 +166,12 @@ public class StreamingJobGraphGenerator {
 		setPhysicalEdges();
 
 		setSlotSharingAndCoLocation();
+
+		setManagedMemoryFraction(
+			Collections.unmodifiableMap(jobVertices),
+			Collections.unmodifiableMap(vertexConfigs),
+			Collections.unmodifiableMap(chainedConfigs),
+			id -> streamGraph.getStreamNode(id).getMinResources());
 
 		configureCheckpointing();
 
@@ -682,6 +692,111 @@ public class StreamingJobGraphGenerator {
 				constraint.f1.addVertex(vertex);
 			}
 		}
+	}
+
+	private static void setManagedMemoryFraction(
+			final Map<Integer, JobVertex> jobVertices,
+			final Map<Integer, StreamConfig> operatorConfigs,
+			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
+			final java.util.function.Function<Integer, ResourceSpec> operatorResourceRetriever) {
+
+		// all slot sharing groups in this job
+		final Set<SlotSharingGroup> slotSharingGroups = Collections.newSetFromMap(new IdentityHashMap<>());
+
+		// maps a job vertex ID to its head operator ID
+		final Map<JobVertexID, Integer> vertexHeadOperators = new HashMap<>();
+
+		// maps a job vertex ID to IDs of all operators in the vertex
+		final Map<JobVertexID, Set<Integer>> vertexOperators = new HashMap<>();
+
+		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
+			final int headOperatorId = entry.getKey();
+			final JobVertex jobVertex = entry.getValue();
+
+			final SlotSharingGroup jobVertexSlotSharingGroup = jobVertex.getSlotSharingGroup();
+
+			checkState(jobVertexSlotSharingGroup != null, "JobVertex slot sharing group must not be null");
+			slotSharingGroups.add(jobVertexSlotSharingGroup);
+
+			vertexHeadOperators.put(jobVertex.getID(), headOperatorId);
+
+			final Set<Integer> operatorIds = new HashSet<>();
+			operatorIds.add(headOperatorId);
+			operatorIds.addAll(vertexChainedConfigs.getOrDefault(headOperatorId, Collections.emptyMap()).keySet());
+			vertexOperators.put(jobVertex.getID(), operatorIds);
+		}
+
+		for (SlotSharingGroup slotSharingGroup : slotSharingGroups) {
+			setManagedMemoryFractionForSlotSharingGroup(
+				slotSharingGroup,
+				vertexHeadOperators,
+				vertexOperators,
+				operatorConfigs,
+				vertexChainedConfigs,
+				operatorResourceRetriever);
+		}
+	}
+
+	private static void setManagedMemoryFractionForSlotSharingGroup(
+			final SlotSharingGroup slotSharingGroup,
+			final Map<JobVertexID, Integer> vertexHeadOperators,
+			final Map<JobVertexID, Set<Integer>> vertexOperators,
+			final Map<Integer, StreamConfig> operatorConfigs,
+			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
+			final java.util.function.Function<Integer, ResourceSpec> operatorResourceRetriever) {
+
+		final int groupOperatorCount = slotSharingGroup.getJobVertexIds().stream()
+			.map(vertexOperators::get)
+			.mapToInt(Collection::size)
+			.sum();
+
+		for (JobVertexID jobVertexID : slotSharingGroup.getJobVertexIds()) {
+			for (int operatorNodeId : vertexOperators.get(jobVertexID)) {
+				final StreamConfig operatorConfig = operatorConfigs.get(operatorNodeId);
+				final ResourceSpec operatorResourceSpec = operatorResourceRetriever.apply(operatorNodeId);
+				setManagedMemoryFractionForOperator(
+					operatorResourceSpec,
+					slotSharingGroup.getResourceSpec(),
+					groupOperatorCount,
+					operatorConfig);
+			}
+
+			// need to refresh the chained task configs because they are serialized
+			final int headOperatorNodeId = vertexHeadOperators.get(jobVertexID);
+			final StreamConfig vertexConfig = operatorConfigs.get(headOperatorNodeId);
+			vertexConfig.setTransitiveChainedTaskConfigs(vertexChainedConfigs.get(headOperatorNodeId));
+		}
+	}
+
+	private static void setManagedMemoryFractionForOperator(
+			final ResourceSpec operatorResourceSpec,
+			final ResourceSpec groupResourceSpec,
+			final int groupOperatorCount,
+			final StreamConfig operatorConfig) {
+
+		final double managedMemoryFractionOnHeap;
+		final double managedMemoryFractionOffHeap;
+
+		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
+			checkArgument(groupOperatorCount > 0, "A slot sharing group must contain at least 1 operator");
+
+			managedMemoryFractionOnHeap = 1.0 / groupOperatorCount;
+			managedMemoryFractionOffHeap = 1.0 / groupOperatorCount;
+		} else {
+			final long groupOnHeapManagedMemoryBytes = groupResourceSpec.getOnHeapManagedMemory().getBytes();
+			final long groupOffHeapManagedMemoryBytes = groupResourceSpec.getOffHeapManagedMemory().getBytes();
+
+			managedMemoryFractionOnHeap = groupOnHeapManagedMemoryBytes > 0
+				? (double) operatorResourceSpec.getOnHeapManagedMemory().getBytes() / groupOnHeapManagedMemoryBytes
+				: 0.0;
+
+			managedMemoryFractionOffHeap = groupOffHeapManagedMemoryBytes > 0
+				? (double) operatorResourceSpec.getOffHeapManagedMemory().getBytes() / groupOffHeapManagedMemoryBytes
+				: 0.0;
+		}
+
+		operatorConfig.setManagedMemoryFractionOnHeap(managedMemoryFractionOnHeap);
+		operatorConfig.setManagedMemoryFractionOffHeap(managedMemoryFractionOffHeap);
 	}
 
 	private void configureCheckpointing() {
