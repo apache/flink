@@ -77,8 +77,9 @@ public class ExecutionConfigAccessor {
 		return new ExecutionConfigAccessor(configuration);
 	}
 
-	public Configuration getConfiguration() {
-		return configuration;
+	Configuration applyToConfiguration(final Configuration baseConfiguration) {
+		baseConfiguration.addAll(configuration);
+		return baseConfiguration;
 	}
 
 	public List<URL> getJars() {
