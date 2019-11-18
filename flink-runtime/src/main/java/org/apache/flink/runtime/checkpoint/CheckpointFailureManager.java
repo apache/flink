@@ -117,6 +117,7 @@ public class CheckpointFailureManager {
 
 			case EXCEPTION:
 			case CHECKPOINT_EXPIRED:
+			case TASK_FAILURE:
 			case TASK_CHECKPOINT_FAILURE:
 			case TRIGGER_CHECKPOINT_FAILURE:
 			case FINALIZE_CHECKPOINT_FAILURE:
