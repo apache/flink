@@ -37,7 +37,7 @@ public class StandaloneClientFactory implements ClusterClientFactory<StandaloneC
 	@Override
 	public boolean isCompatibleWith(Configuration configuration) {
 		checkNotNull(configuration);
-		return ID.equals(configuration.getString(DeploymentOptions.TARGET));
+		return ID.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
 	}
 
 	@Override

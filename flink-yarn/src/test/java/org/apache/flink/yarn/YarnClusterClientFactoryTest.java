@@ -37,7 +37,7 @@ public class YarnClusterClientFactoryTest {
 	@Test
 	public void testYarnClusterClientFactoryDiscovery() {
 		final Configuration configuration = new Configuration();
-		configuration.setString(DeploymentOptions.TARGET, YarnClusterClientFactory.ID);
+		configuration.setString(DeploymentOptions.TARGET, YarnClusterClientFactory.ID.toUpperCase());
 
 		final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
 		final ClusterClientFactory<ApplicationId> factory = serviceLoader.getClusterClientFactory(configuration);
