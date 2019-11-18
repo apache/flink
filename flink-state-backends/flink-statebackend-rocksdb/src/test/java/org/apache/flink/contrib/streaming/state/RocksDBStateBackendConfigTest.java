@@ -25,6 +25,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -525,6 +526,77 @@ public class RocksDBStateBackendConfigTest {
 	}
 
 	@Test
+	public void testConfigurableOptionsFromConfigWithMemorySize() throws IOException {
+		Configuration configuration = new Configuration();
+		DefaultConfigurableOptionsFactory defaultOptionsFactory = new DefaultConfigurableOptionsFactory();
+		assertTrue(defaultOptionsFactory.configure(configuration).getConfiguredOptions().isEmpty());
+
+		// verify illegal configuration
+		{
+			verifyIllegalArgument(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, "-1");
+			verifyIllegalArgument(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "-1");
+			verifyIllegalArgument(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "-1");
+
+			verifyIllegalArgument(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE_MEMORYSIZE, MemorySize.parse("0KB"));
+			verifyIllegalArgument(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE_MEMORYSIZE, MemorySize.parse("0MB"));
+			verifyIllegalArgument(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE_MEMORYSIZE, MemorySize.parse("0"));
+			verifyIllegalArgument(RocksDBConfigurableOptions.BLOCK_SIZE_MEMORYSIZE, MemorySize.parse("0MB"));
+			verifyIllegalArgument(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE_MEMORYSIZE, MemorySize.parse("0"));
+
+			verifyIllegalArgument(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "1");
+
+			verifyIllegalArgument(RocksDBConfigurableOptions.COMPACTION_STYLE, "LEV");
+		}
+
+		// verify legal configuration
+		{
+			configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE, "level");
+			configuration.setString(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "TRUE");
+			configuration.set(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE_MEMORYSIZE, MemorySize.parse("8 mb"));
+			configuration.set(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE_MEMORYSIZE, MemorySize.parse("128MB"));
+			configuration.setString(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, "4");
+			configuration.setString(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "4");
+			configuration.setString(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "2");
+			configuration.set(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE_MEMORYSIZE, MemorySize.parse("64 MB"));
+			configuration.set(RocksDBConfigurableOptions.BLOCK_SIZE_MEMORYSIZE, MemorySize.parse("4 kb"));
+			configuration.set(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE_MEMORYSIZE, MemorySize.parse("512 mb"));
+
+			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
+			optionsFactory.configure(configuration);
+			String checkpointPath = tempFolder.newFolder().toURI().toString();
+			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+			rocksDbBackend.setOptions(optionsFactory);
+
+			try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
+				assertEquals(-1, dbOptions.maxOpenFiles());
+			}
+
+			try (ColumnFamilyOptions columnOptions = rocksDbBackend.getColumnOptions()) {
+				assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
+				assertTrue(columnOptions.levelCompactionDynamicLevelBytes());
+				assertEquals(8 * SizeUnit.MB, columnOptions.targetFileSizeBase());
+				assertEquals(128 * SizeUnit.MB, columnOptions.maxBytesForLevelBase());
+				assertEquals(4, columnOptions.maxWriteBufferNumber());
+				assertEquals(2, columnOptions.minWriteBufferNumberToMerge());
+				assertEquals(64 * SizeUnit.MB, columnOptions.writeBufferSize());
+
+				BlockBasedTableConfig tableConfig = (BlockBasedTableConfig) columnOptions.tableFormatConfig();
+				assertEquals(4 * SizeUnit.KB, tableConfig.blockSize());
+				assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
+			}
+		}
+	}
+
+	@Test
+	public void testSetBothKeyAndDeprecatedKey() {
+		verifyIllegalSetBothKeyAndDeprecatedKey(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, "3kb", RocksDBConfigurableOptions.BLOCK_CACHE_SIZE_MEMORYSIZE, new MemorySize(3));
+		verifyIllegalSetBothKeyAndDeprecatedKey(RocksDBConfigurableOptions.BLOCK_SIZE, "3kb", RocksDBConfigurableOptions.BLOCK_SIZE_MEMORYSIZE, new MemorySize(3));
+		verifyIllegalSetBothKeyAndDeprecatedKey(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE, "3kb", RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE_MEMORYSIZE, new MemorySize(3));
+		verifyIllegalSetBothKeyAndDeprecatedKey(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE, "3kb", RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE_MEMORYSIZE, new MemorySize(3));
+		verifyIllegalSetBothKeyAndDeprecatedKey(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE, "3kb", RocksDBConfigurableOptions.WRITE_BUFFER_SIZE_MEMORYSIZE, new MemorySize(3));
+	}
+
+	@Test
 	public void testOptionsFactory() throws Exception {
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
@@ -703,6 +775,38 @@ public class RocksDBStateBackendConfigTest {
 			fail("Not throwing expected IllegalArgumentException.");
 		} catch (IllegalArgumentException e) {
 			// ignored
+		}
+	}
+
+	private void verifyIllegalArgument(
+		ConfigOption<MemorySize> configOption,
+		MemorySize memorySize) {
+		Configuration configuration = new Configuration();
+		configuration.set(configOption, memorySize);
+		DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
+		try {
+			optionsFactory.configure(configuration);
+			fail("No throwing expected IllegalArgumentException.");
+		} catch (IllegalArgumentException ignoee){
+			// ignore
+		}
+	}
+
+	private void verifyIllegalSetBothKeyAndDeprecatedKey(
+		ConfigOption<String> deprecatedKey,
+		String deprecatedValue,
+		ConfigOption<MemorySize> newKey,
+		MemorySize newValue){
+		Configuration config = new Configuration();
+		DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
+		config.setString(deprecatedKey, deprecatedValue);
+		config.set(newKey, newValue);
+
+		try {
+			optionsFactory.configure(config);
+			fail("No throwing expected IllegalArgumentException.");
+		} catch (IllegalArgumentException ignore) {
+			// ignore
 		}
 	}
 

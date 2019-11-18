@@ -9,27 +9,27 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>state.backend.rocksdb.block.blocksize</h5></td>
+            <td><h5>state.backend.rocksdb.block.block-memorysize</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
+            <td>MemorySize</td>
             <td>The approximate size (in bytes) of user data packed per block. RocksDB has default blocksize as '4KB'.</td>
         </tr>
         <tr>
-            <td><h5>state.backend.rocksdb.block.cache-size</h5></td>
+            <td><h5>state.backend.rocksdb.block.cache-memorysize</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
+            <td>MemorySize</td>
             <td>The amount of the cache for data blocks in RocksDB. RocksDB has default block-cache size as '8MB'.</td>
         </tr>
         <tr>
-            <td><h5>state.backend.rocksdb.compaction.level.max-size-level-base</h5></td>
+            <td><h5>state.backend.rocksdb.compaction.level.max-memorysize-level-base</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
+            <td>MemorySize</td>
             <td>The upper-bound of the total size of level base files in bytes. RocksDB has default configuration as '10MB'.</td>
         </tr>
         <tr>
-            <td><h5>state.backend.rocksdb.compaction.level.target-file-size-base</h5></td>
+            <td><h5>state.backend.rocksdb.compaction.level.target-file-memorysize-base</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
+            <td>MemorySize</td>
             <td>The target file size for compaction, which determines a level-1 file size. RocksDB has default configuration as '2MB'.</td>
         </tr>
         <tr>
@@ -63,16 +63,16 @@
             <td>Tne maximum number of write buffers that are built up in memory. RocksDB has default configuration as '2'.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.writebuffer.memorysize</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>The amount of data built up in memory (backed by an unsorted log on disk) before converting to a sorted on-disk files. RocksDB has default writebuffer size as '4MB'.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.writebuffer.number-to-merge</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The minimum number of write buffers that will be merged together before writing to storage. RocksDB has default configuration as '1'.</td>
-        </tr>
-        <tr>
-            <td><h5>state.backend.rocksdb.writebuffer.size</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The amount of data built up in memory (backed by an unsorted log on disk) before converting to a sorted on-disk files. RocksDB has default writebuffer size as '4MB'.</td>
         </tr>
     </tbody>
 </table>

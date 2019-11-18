@@ -18,7 +18,9 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 
 import java.io.Serializable;
@@ -78,23 +80,51 @@ public class RocksDBConfigurableOptions implements Serializable {
 						"RocksDB's doc."))
 				.build());
 
-	public static final ConfigOption<String> TARGET_FILE_SIZE_BASE =
-		key("state.backend.rocksdb.compaction.level.target-file-size-base")
+	@PublicEvolving
+	public static final ConfigOption<MemorySize> TARGET_FILE_SIZE_BASE_MEMORYSIZE =
+		key("state.backend.rocksdb.compaction.level.target-file-memorysize-base")
+			.memoryType()
 			.noDefaultValue()
 			.withDescription("The target file size for compaction, which determines a level-1 file size. " +
 				"RocksDB has default configuration as '2MB'.");
 
-	public static final ConfigOption<String> MAX_SIZE_LEVEL_BASE =
-		key("state.backend.rocksdb.compaction.level.max-size-level-base")
+	@Deprecated
+	public static final ConfigOption<String> TARGET_FILE_SIZE_BASE =
+		key("state.backend.rocksdb.compaction.level.target-file-size-base")
+			.noDefaultValue()
+			.withDescription("The target file size for compaction, which determines a level-1 file size. " +
+				"RocksDB has default configuration as '2MB'. This config has been deprecated, please use " + TARGET_FILE_SIZE_BASE_MEMORYSIZE.key() + ".");
+
+	@PublicEvolving
+	public static final ConfigOption<MemorySize> MAX_SIZE_LEVEL_BASE_MEMORYSIZE =
+		key("state.backend.rocksdb.compaction.level.max-memorysize-level-base")
+			.memoryType()
 			.noDefaultValue()
 			.withDescription("The upper-bound of the total size of level base files in bytes. " +
 				"RocksDB has default configuration as '10MB'.");
 
+	@Deprecated
+	public static final ConfigOption<String> MAX_SIZE_LEVEL_BASE =
+		key("state.backend.rocksdb.compaction.level.max-size-level-base")
+			.noDefaultValue()
+			.withDescription("The upper-bound of the total size of level base files in bytes. " +
+				"RocksDB has default configuration as '10MB'. This config has been deprecated, please use " + MAX_SIZE_LEVEL_BASE_MEMORYSIZE.key() + ".");
+
+	@PublicEvolving
+	public static final ConfigOption<MemorySize> WRITE_BUFFER_SIZE_MEMORYSIZE =
+		key("state.backend.rocksdb.writebuffer.memorysize")
+			.memoryType()
+			.noDefaultValue()
+			.withDescription("The amount of data built up in memory (backed by an unsorted log on disk) " +
+				"before converting to a sorted on-disk files. RocksDB has default writebuffer size as '4MB'.");
+
+	@Deprecated
 	public static final ConfigOption<String> WRITE_BUFFER_SIZE =
 		key("state.backend.rocksdb.writebuffer.size")
 			.noDefaultValue()
 			.withDescription("The amount of data built up in memory (backed by an unsorted log on disk) " +
-				"before converting to a sorted on-disk files. RocksDB has default writebuffer size as '4MB'.");
+				"before converting to a sorted on-disk files. RocksDB has default writebuffer size as '4MB'. " +
+				"This config has been deprecated, please use " + WRITE_BUFFER_SIZE_MEMORYSIZE.key() + ".");
 
 	public static final ConfigOption<String> MAX_WRITE_BUFFER_NUMBER =
 		key("state.backend.rocksdb.writebuffer.count")
@@ -108,16 +138,34 @@ public class RocksDBConfigurableOptions implements Serializable {
 			.withDescription("The minimum number of write buffers that will be merged together before writing to storage. " +
 				"RocksDB has default configuration as '1'.");
 
-	public static final ConfigOption<String> BLOCK_SIZE =
-		key("state.backend.rocksdb.block.blocksize")
+	@PublicEvolving
+	public static final ConfigOption<MemorySize> BLOCK_SIZE_MEMORYSIZE =
+		key("state.backend.rocksdb.block.block-memorysize")
+			.memoryType()
 			.noDefaultValue()
 			.withDescription("The approximate size (in bytes) of user data packed per block. " +
 				"RocksDB has default blocksize as '4KB'.");
 
+	@Deprecated
+	public static final ConfigOption<String> BLOCK_SIZE =
+		key("state.backend.rocksdb.block.blocksize")
+			.noDefaultValue()
+			.withDescription("The approximate size (in bytes) of user data packed per block. " +
+				"RocksDB has default blocksize as '4KB'. This config has been deprecated, please use " + BLOCK_SIZE_MEMORYSIZE.key() + ".");
+
+	@PublicEvolving
+	public static final ConfigOption<MemorySize> BLOCK_CACHE_SIZE_MEMORYSIZE =
+		key("state.backend.rocksdb.block.cache-memorysize")
+			.memoryType()
+			.noDefaultValue()
+			.withDescription("The amount of the cache for data blocks in RocksDB. " +
+				"RocksDB has default block-cache size as '8MB'.");
+
+	@Deprecated
 	public static final ConfigOption<String> BLOCK_CACHE_SIZE =
 		key("state.backend.rocksdb.block.cache-size")
 			.noDefaultValue()
 			.withDescription("The amount of the cache for data blocks in RocksDB. " +
-				"RocksDB has default block-cache size as '8MB'.");
+				"RocksDB has default block-cache size as '8MB'. This config has been deprecated, please uee " + BLOCK_CACHE_SIZE_MEMORYSIZE.key() + ".");
 
 }
