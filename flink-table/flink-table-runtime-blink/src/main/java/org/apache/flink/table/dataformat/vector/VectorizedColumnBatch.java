@@ -159,24 +159,19 @@ public class VectorizedColumnBatch implements Serializable {
 		} else {
 			byte[] bytes = getBytes(rowId, colId);
 			assert bytes.length == 12;
-			long l = 0;
+			long nanoOfDay = 0;
 			for (int i = 0; i < 8; i++) {
-				l <<= 8;
-				l |= (bytes[i] & (0xff));
+				nanoOfDay <<= 8;
+				nanoOfDay |= (bytes[i] & (0xff));
 			}
-			int n = 0;
+			int julianDay = 0;
 			for (int i = 8; i < 12; i++) {
-				n <<= 8;
-				n |= (bytes[i] & (0xff));
+				julianDay <<= 8;
+				julianDay |= (bytes[i] & (0xff));
 			}
-			LocalTime localTime = LocalTime.ofNanoOfDay(l);
 			long millisecond =
-				(n - DateTimeUtils.EPOCH_JULIAN) * DateTimeUtils.MILLIS_PER_DAY +
-				localTime.getHour() * DateTimeUtils.MILLIS_PER_HOUR +
-				localTime.getMinute() * DateTimeUtils.MILLIS_PER_MINUTE +
-				localTime.getSecond() * DateTimeUtils.MILLIS_PER_SECOND +
-				localTime.getNano() / 1000000;
-			int nanoOfMillisecond = localTime.getNano() % 1000000;
+				(julianDay - DateTimeUtils.EPOCH_JULIAN) * DateTimeUtils.MILLIS_PER_DAY + nanoOfDay / 1000000;
+			int nanoOfMillisecond = (int) (nanoOfDay % 1000000);
 			return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
 		}
 	}
