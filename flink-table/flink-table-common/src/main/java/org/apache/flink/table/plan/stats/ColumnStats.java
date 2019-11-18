@@ -57,7 +57,7 @@ public final class ColumnStats {
 	private final Number maxValue;
 
 	/**
-	 * max value of column values, null if the value is not comparable.
+	 * max value of column values, null if the value is unknown or not comparable.
 	 */
 	private final Comparable<?> max;
 
@@ -69,7 +69,7 @@ public final class ColumnStats {
 	private final Number minValue;
 
 	/**
-	 * min value of column values, null if the value is not comparable.
+	 * min value of column values, null if the value is unknown or not comparable.
 	 */
 	private final Comparable<?> min;
 
@@ -208,7 +208,7 @@ public final class ColumnStats {
 	 * @return a deep copy
 	 */
 	public ColumnStats copy() {
-		if (maxValue != null) {
+		if (maxValue != null || minValue != null) {
 			return new ColumnStats(this.ndv, this.nullCount, this.avgLen, this.maxLen,
 					this.maxValue, this.minValue);
 		} else {
