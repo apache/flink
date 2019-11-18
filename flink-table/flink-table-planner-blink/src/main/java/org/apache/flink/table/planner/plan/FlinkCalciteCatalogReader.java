@@ -23,8 +23,6 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -46,8 +44,6 @@ import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
-
-import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -83,7 +79,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 		if (originRelOptTable == null) {
 			return null;
 		} else {
-			// Wrap as linkPreparingTableBase to use in query optimization.
+			// Wrap as FlinkPreparingTableBase to use in query optimization.
 			CatalogSchemaTable table = originRelOptTable.unwrap(CatalogSchemaTable.class);
 			if (table != null) {
 				return toPreparingTable(originRelOptTable.getRelOptSchema(),
@@ -99,27 +95,23 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 	/**
 	 * Translate this {@link CatalogSchemaTable} into Flink source table.
 	 */
-	public static FlinkPreparingTableBase toPreparingTable(RelOptSchema relOptSchema,
+	private static FlinkPreparingTableBase toPreparingTable(
+			RelOptSchema relOptSchema,
 			List<String> names,
 			RelDataType rowType,
 			CatalogSchemaTable table) {
 		if (table.isTemporary()) {
-			return convertTemporaryTable(relOptSchema,
+			return convertTemporaryTable(
+				relOptSchema,
 				names,
 				rowType,
-				table.getObjectIdentifier(),
-				table.getCatalogTable(),
-				table.getStatistic(),
-				table.isStreamingMode());
+				table);
 		} else {
-			return convertPermanentTable(relOptSchema,
+			return convertPermanentTable(
+				relOptSchema,
 				names,
 				rowType,
-				table.getObjectIdentifier(),
-				table.getCatalogTable(),
-				table.getStatistic(),
-				table.getCatalog().getTableFactory().orElse(null),
-				table.isStreamingMode());
+				table);
 		}
 	}
 
@@ -127,11 +119,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			RelOptSchema relOptSchema,
 			List<String> names,
 			RelDataType rowType,
-			ObjectIdentifier objectIdentifier,
-			CatalogBaseTable table,
-			FlinkStatistic statistic,
-			@Nullable TableFactory tableFactory,
-			boolean isStreamingMode) {
+			CatalogSchemaTable schemaTable) {
+		final CatalogBaseTable table = schemaTable.getCatalogTable();
 		if (table instanceof QueryOperationCatalogView) {
 			return convertQueryOperationView(relOptSchema,
 				names,
@@ -144,8 +133,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 					names,
 					rowType,
 					connectorTable,
-					statistic,
-					isStreamingMode);
+					schemaTable.getStatistic(),
+					schemaTable.isStreamingMode());
 			} else {
 				throw new ValidationException("Cannot convert a connector table " +
 					"without source.");
@@ -155,11 +144,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			return convertCatalogTable(relOptSchema,
 				names,
 				rowType,
-				objectIdentifier.toObjectPath(),
 				catalogTable,
-				tableFactory,
-				statistic,
-				isStreamingMode);
+				schemaTable);
 		} else {
 			throw new ValidationException("Unsupported table type: " + table);
 		}
@@ -169,39 +155,34 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			RelOptSchema relOptSchema,
 			List<String> names,
 			RelDataType rowType,
-			ObjectIdentifier objectIdentifier,
-			CatalogBaseTable table,
-			FlinkStatistic statistic,
-			boolean isStreamingMode) {
-		if (table instanceof QueryOperationCatalogView) {
+			CatalogSchemaTable schemaTable) {
+		final CatalogBaseTable baseTable = schemaTable.getCatalogTable();
+		if (baseTable instanceof QueryOperationCatalogView) {
 			return convertQueryOperationView(relOptSchema,
 				names,
 				rowType,
-				(QueryOperationCatalogView) table);
-		} else if (table instanceof ConnectorCatalogTable) {
-			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
+				(QueryOperationCatalogView) baseTable);
+		} else if (baseTable instanceof ConnectorCatalogTable) {
+			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) baseTable;
 			if ((connectorTable).getTableSource().isPresent()) {
 				return convertSourceTable(relOptSchema,
 					names,
 					rowType,
 					connectorTable,
-					statistic,
-					isStreamingMode);
+					schemaTable.getStatistic(),
+					schemaTable.isStreamingMode());
 			} else {
 				throw new ValidationException("Cannot convert a connector table " +
 					"without source.");
 			}
-		} else if (table instanceof CatalogTable) {
+		} else if (baseTable instanceof CatalogTable) {
 			return convertCatalogTable(relOptSchema,
 				names,
 				rowType,
-				objectIdentifier.toObjectPath(),
-				(CatalogTable) table,
-				null,
-				statistic,
-				isStreamingMode);
+				(CatalogTable) baseTable,
+				schemaTable);
 		} else {
-			throw new ValidationException("Unsupported table type: " + table);
+			throw new ValidationException("Unsupported table type: " + baseTable);
 		}
 	}
 
@@ -235,9 +216,9 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			relOptSchema,
 			names,
 			rowType,
+			statistic,
 			tableSource,
 			isStreamingMode,
-			statistic,
 			table);
 	}
 
@@ -245,21 +226,20 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			RelOptSchema relOptSchema,
 			List<String> names,
 			RelDataType rowType,
-			ObjectPath tablePath,
-			CatalogTable table,
-			@Nullable TableFactory tableFactory,
-			FlinkStatistic statistic,
-			boolean isStreamingMode) {
+			CatalogTable catalogTable,
+			CatalogSchemaTable schemaTable) {
 		TableSource<?> tableSource;
+		final TableFactory tableFactory = schemaTable.getCatalog().getTableFactory().orElse(null);
 		if (tableFactory != null) {
 			if (tableFactory instanceof TableSourceFactory) {
-				tableSource = ((TableSourceFactory) tableFactory).createTableSource(tablePath, table);
+				tableSource = ((TableSourceFactory) tableFactory).createTableSource(
+					schemaTable.getTableIdentifier().toObjectPath(), catalogTable);
 			} else {
 				throw new TableException(
 					"Cannot query a sink-only table. TableFactory provided by catalog must implement TableSourceFactory");
 			}
 		} else {
-			tableSource = TableFactoryUtil.findAndCreateTableSource(table);
+			tableSource = TableFactoryUtil.findAndCreateTableSource(catalogTable);
 		}
 
 		if (!(tableSource instanceof StreamTableSource)) {
@@ -270,10 +250,10 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			relOptSchema,
 			names,
 			rowType,
+			schemaTable.getStatistic(),
 			tableSource,
 			!((StreamTableSource<?>) tableSource).isBounded(),
-			statistic,
-			table
+			catalogTable
 		);
 	}
 }

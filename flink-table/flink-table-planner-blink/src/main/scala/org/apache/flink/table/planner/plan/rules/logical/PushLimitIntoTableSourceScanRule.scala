@@ -71,15 +71,15 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val sort = call.rel(0).asInstanceOf[Sort]
     val scan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
-    val relOptTable = scan.getTable.asInstanceOf[FlinkPreparingTableBase]
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     val offset = if (sort.offset == null) 0 else RexLiteral.intValue(sort.offset)
     val limit = offset + RexLiteral.intValue(sort.fetch)
     val relBuilder = call.builder()
-    val newRelOptTable = applyLimit(limit, relOptTable, relBuilder)
+    val newRelOptTable = applyLimit(limit, tableSourceTable, relBuilder)
     val newScan = scan.copy(scan.getTraitSet, newRelOptTable)
 
     val newTableSource = newRelOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
-    val oldTableSource = relOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+    val oldTableSource = tableSourceTable.unwrap(classOf[TableSourceTable[_]]).tableSource
 
     if (newTableSource.asInstanceOf[LimitableTableSource[_]].isLimitPushedDown
         && newTableSource.explainSource().equals(oldTableSource.explainSource)) {
@@ -94,7 +94,7 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
   private def applyLimit(
       limit: Long,
       relOptTable: FlinkPreparingTableBase,
-      relBuilder: RelBuilder): FlinkPreparingTableBase = {
+      relBuilder: RelBuilder): TableSourceTable[_] = {
     val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[Any]])
     val limitedSource = tableSourceTable.tableSource.asInstanceOf[LimitableTableSource[Any]]
     val newTableSource = limitedSource.applyLimit(limit)
@@ -111,7 +111,7 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
         .statistic(statistic)
         .tableStats(newTableStats)
         .build()
-    tableSourceTable.replaceTableSource(newTableSource).copy(newStatistic)
+    tableSourceTable.copy(newTableSource, newStatistic)
   }
 }
 

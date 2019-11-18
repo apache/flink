@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.schema.{DataStreamTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.DataStreamTable
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
@@ -44,7 +44,7 @@ class FlinkLogicalDataStreamTableScan(
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalDataStreamTableScan(cluster, traitSet, getTable)
+    new FlinkLogicalDataStreamTableScan(cluster, traitSet, table)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -83,17 +83,17 @@ object FlinkLogicalDataStreamTableScan {
   }
 
   def create(cluster: RelOptCluster, relOptTable: RelOptTable): FlinkLogicalDataStreamTableScan = {
-    val table = relOptTable.unwrap(classOf[TableSourceTable[_]])
+    val dataStreamTable = relOptTable.unwrap(classOf[DataStreamTable[_]])
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = {
-          if (table != null) {
-            table.getStatistic.getCollations
+          if (dataStreamTable != null) {
+            dataStreamTable.getStatistic.getCollations
           } else {
             ImmutableList.of[RelCollation]
           }
         }
       }).simplify()
-    new FlinkLogicalDataStreamTableScan(cluster, traitSet, relOptTable)
+    new FlinkLogicalDataStreamTableScan(cluster, traitSet, dataStreamTable)
   }
 }

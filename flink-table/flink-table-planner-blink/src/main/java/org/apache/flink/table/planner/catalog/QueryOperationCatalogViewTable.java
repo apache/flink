@@ -67,11 +67,6 @@ public class QueryOperationCatalogViewTable extends FlinkPreparingTableBase {
 	}
 
 	@Override
-	public FlinkPreparingTableBase copy(FlinkStatistic statistic) {
-		return new QueryOperationCatalogViewTable(relOptSchema, names, rowType, catalogView);
-	}
-
-	@Override
 	public RelNode toRel(ToRelContext context) {
 		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), this);
 

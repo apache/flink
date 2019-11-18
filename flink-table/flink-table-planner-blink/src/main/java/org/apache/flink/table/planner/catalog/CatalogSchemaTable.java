@@ -48,8 +48,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.TemporalTable;
 import org.apache.calcite.schema.impl.AbstractTable;
 
-import javax.annotation.Nonnull;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -73,7 +71,7 @@ import static org.apache.flink.table.util.CatalogTableStatisticsConverter.conver
 public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	//~ Instance fields --------------------------------------------------------
 
-	private final ObjectIdentifier objectIdentifier;
+	private final ObjectIdentifier tableIdentifier;
 	private final Catalog catalog;
 	private final CatalogBaseTable catalogBaseTable;
 	private final boolean isStreamingMode;
@@ -82,12 +80,12 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	//~ Constructors -----------------------------------------------------------
 
 	public CatalogSchemaTable(
-			ObjectIdentifier objectIdentifier,
+			ObjectIdentifier tableIdentifier,
 			Catalog catalog,
 			CatalogBaseTable catalogBaseTable,
 			boolean isStreaming,
 			boolean isTemporary) {
-		this.objectIdentifier = objectIdentifier;
+		this.tableIdentifier = tableIdentifier;
 		this.catalog = catalog;
 		this.catalogBaseTable = catalogBaseTable;
 		this.isStreamingMode = isStreaming;
@@ -100,8 +98,8 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 		return catalog;
 	}
 
-	public ObjectIdentifier getObjectIdentifier() {
-		return objectIdentifier;
+	public ObjectIdentifier getTableIdentifier() {
+		return tableIdentifier;
 	}
 
 	public CatalogBaseTable getCatalogTable() {
@@ -128,25 +126,20 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 		}
 		if (catalogBaseTable instanceof CatalogTable) {
 			return FlinkStatistic.builder()
-				.tableStats(extractTableStats((CatalogTable) catalogBaseTable, catalog, objectIdentifier))
+				.tableStats(extractTableStats(catalog, tableIdentifier))
 				.build();
 		} else {
 			throw new TableException("Unsupported table type: " + catalogBaseTable);
 		}
 	}
 
-	private static TableStats extractTableStats(CatalogTable table,
-			Catalog catalog, ObjectIdentifier objectIdentifier) {
-		TableStats tableStats = TableStats.UNKNOWN;
+	private static TableStats extractTableStats(Catalog catalog,
+			ObjectIdentifier objectIdentifier) {
 		final ObjectPath tablePath = objectIdentifier.toObjectPath();
 		try {
-			// TODO supports stats for partitionable table
-			if (!table.isPartitioned()) {
-				CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
-				CatalogColumnStatistics columnStatistics = catalog.getTableColumnStatistics(tablePath);
-				tableStats = convertToTableStats(tableStatistics, columnStatistics);
-			}
-			return tableStats;
+			CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
+			CatalogColumnStatistics columnStatistics = catalog.getTableColumnStatistics(tablePath);
+			return convertToTableStats(tableStatistics, columnStatistics);
 		} catch (TableNotExistException e) {
 			throw new ValidationException(format(
 				"Could not access table partitions for table: [%s, %s, %s]",
@@ -159,7 +152,6 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	private static RelDataType getRowType(RelDataTypeFactory typeFactory,
 			CatalogBaseTable catalogBaseTable,
 			boolean isStreamingMode) {
-		assert typeFactory instanceof FlinkTypeFactory;
 		final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
 		TableSchema tableSchema = catalogBaseTable.getSchema();
 		final String[] fieldNames = tableSchema.getFieldNames();
@@ -208,13 +200,11 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 			JavaScalaConversionUtil.toScala(fieldLogicalTypes));
 	}
 
-	@Nonnull
 	@Override
 	public String getSysStartFieldName() {
 		return "sys_start";
 	}
 
-	@Nonnull
 	@Override
 	public String getSysEndFieldName() {
 		return "sys_end";

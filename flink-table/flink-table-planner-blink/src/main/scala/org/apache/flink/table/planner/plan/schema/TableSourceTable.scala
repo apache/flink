@@ -37,34 +37,25 @@ import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 
 /**
-  * Abstract class which define the interfaces required to convert a [[TableSource]] to
-  * a Calcite Table
+  * Abstract class which define the implementations required to translate
+  * the Calcite [[RelOptTable]] to the Flink specific relational expression with [[TableSource]],
+  * i.e. The computed column and watermark strategy specifications.
   *
-  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table.
-  * @param isStreamingMode A flag that tells if the current table is in stream mode.
-  * @param statistic The table statistics.
+  * <p>It also defines the [[copy]] method used for push down rules.
+  *
+  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table
+  * @param isStreamingMode A flag that tells if the current table is in stream mode
+  * @param catalogTable Catalog table where this table source table comes from
   */
 class TableSourceTable[T](
     relOptSchema: RelOptSchema,
     names: JList[String],
     rowType: RelDataType,
+    statistic: FlinkStatistic,
     val tableSource: TableSource[T],
     val isStreamingMode: Boolean,
-    statistic: FlinkStatistic,
-    val selectedFields: Option[Array[Int]],
     val catalogTable: CatalogTable)
   extends FlinkPreparingTableBase(relOptSchema, rowType, names, statistic) {
-
-  def this(
-      relOptSchema: RelOptSchema,
-      names: JList[String],
-      rowType: RelDataType,
-      tableSource: TableSource[T],
-      isStreamingMode: Boolean,
-      statistic: FlinkStatistic,
-      catalogTable: CatalogTable) {
-    this(relOptSchema, names, rowType, tableSource, isStreamingMode, statistic, None, catalogTable)
-  }
 
   Preconditions.checkNotNull(tableSource)
   Preconditions.checkNotNull(statistic)
@@ -107,14 +98,7 @@ class TableSourceTable[T](
         .toList
       val scanRowType = relOptSchema.getTypeFactory.createStructType(physicalFields)
       // Copy this table with physical scan row type.
-      val newRelTable = new TableSourceTable(relOptSchema,
-        names,
-        scanRowType,
-        tableSource,
-        isStreamingMode,
-        statistic,
-        selectedFields,
-        catalogTable)
+      val newRelTable = copy(tableSource, statistic, scanRowType)
       val scan = LogicalTableScan.create(cluster, newRelTable)
       val toRelContext = context.asInstanceOf[FlinkToRelContext]
       val relBuilder = toRelContext.createRelBuilder()
@@ -139,24 +123,28 @@ class TableSourceTable[T](
   override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
 
   /**
-    * Creates a copy of this table, changing statistic.
+    * Creates a copy of this table, changing table source and statistic.
     *
-    * @param statistic A new FlinkStatistic.
-    * @return Copy of this table, substituting statistic.
+    * @param tableSource tableSource to replace
+    * @param statistic New FlinkStatistic to replace
+    * @return New TableSourceTable instance with specified table source and [[FlinkStatistic]]
     */
-  override def copy(statistic: FlinkStatistic): TableSourceTable[T] = {
-    new TableSourceTable(relOptSchema, names, rowType, tableSource, isStreamingMode,
-      statistic, catalogTable)
+  def copy(tableSource: TableSource[_], statistic: FlinkStatistic): TableSourceTable[T] = {
+    copy(tableSource, statistic, rowType)
   }
 
   /**
-    * Replaces table source with the given one, and create a new table source table.
+    * Creates a copy of this table, changing table source, statistic, rowType and selected fields.
     *
-    * @param tableSource tableSource to replace.
-    * @return new TableSourceTable
+    * @param tableSource tableSource to replace
+    * @param statistic New FlinkStatistic to replace
+    * @param rowType New row type of this table
+    * @return New TableSourceTable instance with specified table source, [[FlinkStatistic]],
+    *         row type and selected fields
     */
-  def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T] = {
-    new TableSourceTable[T](relOptSchema, names, rowType,
-      tableSource, isStreamingMode, statistic, catalogTable)
+  def copy(tableSource: TableSource[_], statistic: FlinkStatistic,
+      rowType: RelDataType): TableSourceTable[T] = {
+    new TableSourceTable[T](relOptSchema, names, rowType, statistic,
+      tableSource.asInstanceOf[TableSource[T]], isStreamingMode, catalogTable)
   }
 }

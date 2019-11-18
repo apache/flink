@@ -100,16 +100,6 @@ class DataStreamTable[T](
 
   val fieldTypes: Array[LogicalType] = DataStreamTable.getFieldLogicalTypes(dataType,
     fieldIndexes, fieldNames)
-
-  /**
-    * Creates a copy of this table, changing statistic.
-    *
-    * @param statistic A new FlinkStatistic.
-    * @return Copy of this table, substituting statistic.
-    */
-  override def copy(statistic: FlinkStatistic): FlinkPreparingTableBase =
-    new DataStreamTable(relOptSchema, names, rowType,
-      dataStream, producesUpdates, isAccRetract, fieldIndexes, fieldNames, statistic)
 }
 
 object DataStreamTable {

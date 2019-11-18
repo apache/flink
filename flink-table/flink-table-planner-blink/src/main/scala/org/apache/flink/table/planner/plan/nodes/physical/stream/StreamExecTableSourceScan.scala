@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
@@ -63,8 +63,8 @@ import scala.collection.JavaConversions._
 class StreamExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkPreparingTableBase)
-  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
+    tableSourceTable: TableSourceTable[_])
+  extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
@@ -79,7 +79,7 @@ class StreamExecTableSourceScan(
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecTableSourceScan(cluster, traitSet, relOptTable)
+    new StreamExecTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -107,8 +107,8 @@ class StreamExecTableSourceScan(
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      isStreamTable = true,
-      tableSourceTable.selectedFields)
+      tableSourceTable.getRowType,
+      tableSourceTable.isStreamingMode)
 
     val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
@@ -124,7 +124,7 @@ class StreamExecTableSourceScan(
     // get expression to extract rowtime attribute
     val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
       tableSource,
-      tableSourceTable.selectedFields,
+      tableSourceTable.getRowType,
       cluster,
       planner.getRelBuilder
     )
@@ -169,7 +169,7 @@ class StreamExecTableSourceScan(
         converter)
     } else {
       val rowtimeDesc: Option[RowtimeAttributeDescriptor] =
-        TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, tableSourceTable.selectedFields)
+        TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, tableSourceTable.getRowType)
 
       // generate watermarks for rowtime indicator from DefinedRowtimeAttributes
       if (rowtimeDesc.isDefined) {
@@ -244,8 +244,8 @@ class StreamExecTableSourceScan(
   private def needInternalConversion: Boolean = {
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      isStreamTable = true,
-      tableSourceTable.selectedFields)
+      tableSourceTable.getRowType,
+      tableSourceTable.isStreamingMode)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)
   }

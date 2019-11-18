@@ -259,9 +259,6 @@ class MockMetaTable(rowType: RelDataType, statistic: FlinkStatistic)
   extends FlinkPreparingTableBase(null, rowType,
     Collections.singletonList("MockMetaTable"), statistic)
   with Table {
-  override def copy(statistic: FlinkStatistic): FlinkPreparingTableBase =
-    new MockMetaTable(rowType, statistic)
-
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = rowType
 
   override def getJdbcTableType: Schema.TableType = TableType.TABLE

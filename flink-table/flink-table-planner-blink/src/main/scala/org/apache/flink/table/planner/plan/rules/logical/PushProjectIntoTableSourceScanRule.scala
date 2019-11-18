@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.sources._
 import org.apache.flink.util.CollectionUtil
@@ -67,8 +67,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       return
     }
 
-    val relOptTable = scan.getTable.asInstanceOf[FlinkPreparingTableBase]
-    val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     val oldTableSource = tableSourceTable.tableSource
     val (newTableSource, isProjectSuccess) = oldTableSource match {
       case nested: NestedFieldsProjectableTableSource[_] =>
@@ -106,15 +105,10 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       oldTableSource,
       Option(usedFields),
       tableSourceTable.isStreamingMode)
-    val newTableSourceTable = new TableSourceTable(
-      tableSourceTable.getRelOptSchema,
-      tableSourceTable.getNames,
-      newSourceRowType,
+    val newTableSourceTable = tableSourceTable.copy(
       newTableSource,
-      tableSourceTable.isStreamingMode,
       tableSourceTable.getStatistic,
-      Option(usedFields),
-      tableSourceTable.catalogTable)
+      newSourceRowType)
     // row type is changed after project push down
     val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newTableSourceTable)
 

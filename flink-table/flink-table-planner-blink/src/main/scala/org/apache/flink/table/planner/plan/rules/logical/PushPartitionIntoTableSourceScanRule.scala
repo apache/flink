@@ -60,9 +60,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
-    val table: FlinkPreparingTableBase = scan.getTable.asInstanceOf[FlinkPreparingTableBase]
-
-    val tableSourceTable = table.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable: TableSourceTable[_] = scan.getTable.unwrap(classOf[TableSourceTable[_]])
 
     val partitionFieldNames = tableSourceTable.catalogTable.getPartitionKeys.toSeq.toArray[String]
 
@@ -123,14 +121,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
       // Remove tableStats after predicates pushed down
       FlinkStatistic.builder().statistic(statistic).tableStats(null).build()
     }
-    val newTableSourceTable = new TableSourceTable(
-      table.getRelOptSchema,
-      table.getQualifiedName,
-      table.getRowType,
-      newTableSource,
-      tableSourceTable.isStreamingMode,
-      newStatistic,
-      tableSourceTable.catalogTable)
+    val newTableSourceTable = tableSourceTable.copy(newTableSource, newStatistic)
 
     val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newTableSourceTable)
     // check whether framework still need to do a filter

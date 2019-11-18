@@ -33,7 +33,6 @@ import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelDistribution;
-import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.logical.LogicalTableScan;
@@ -101,9 +100,6 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 		return this.statistic;
 	}
 
-	/** Returns a copy of this table with a given {@link FlinkStatistic}. */
-	public abstract FlinkPreparingTableBase copy(FlinkStatistic statistic);
-
 	/**
 	 * Returns the table path in the {@link RelOptSchema}.
 	 * Different with {@link #getQualifiedName()}, the latter is mainly used for table digest.
@@ -129,15 +125,6 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 	 * @return True if the given column is monotonic
 	 */
 	public SqlMonotonicity getMonotonicity(String columnName) {
-		int columnIdx = getRowType().getFieldNames().indexOf(columnName);
-		if (columnIdx >= 0) {
-			for (RelCollation collation : getCollationList()) {
-				RelFieldCollation fieldCollation = collation.getFieldCollations().get(0);
-				if (fieldCollation.getFieldIndex() == columnIdx) {
-					return fieldCollation.direction.monotonicity();
-				}
-			}
-		}
 		return SqlMonotonicity.NOT_MONOTONIC;
 	}
 
@@ -189,10 +176,7 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 	 * @see org.apache.calcite.rel.metadata.RelMetadataQuery#collations(RelNode)
 	 */
 	public List<RelCollation> getCollationList() {
-		List<RelCollation> collations = this.statistic.getCollations();
-		return collations == null
-			? ImmutableList.of()
-			: collations;
+		return ImmutableList.of();
 	}
 
 	/**
@@ -202,7 +186,7 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 	 * @see org.apache.calcite.rel.metadata.RelMetadataQuery#distribution
 	 */
 	public RelDistribution getDistribution() {
-		return this.statistic.getDistribution();
+		return null;
 	}
 
 	/**
@@ -227,10 +211,7 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 	 * are represented over other tables using {@link RelReferentialConstraint} nodes.
 	 */
 	public List<RelReferentialConstraint> getReferentialConstraints() {
-		List<RelReferentialConstraint> relReferentialConstraints = this.statistic.getReferentialConstraints();
-		return relReferentialConstraints == null
-			? ImmutableList.of()
-			: ImmutableList.of();
+		return ImmutableList.of();
 	}
 
 	@Override

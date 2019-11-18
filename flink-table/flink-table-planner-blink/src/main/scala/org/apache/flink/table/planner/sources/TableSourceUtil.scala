@@ -57,40 +57,25 @@ object TableSourceUtil {
     * mapped to a field of the input type.
     *
     * @param tableSource The table source for which the table schema is mapped to the input type.
-    * @param isStreamTable True if the mapping is computed for a streaming table, false otherwise.
-    * @param selectedFields The indexes of the table schema fields for which a mapping is
-    *                       computed. If None, a mapping for all fields is computed.
+    * @param rowType Table source table row type
+    * @param isStreamTable If this table source is in streaming mode
     * @return An index mapping from input type to table schema.
     */
   def computeIndexMapping(
       tableSource: TableSource[_],
-      isStreamTable: Boolean,
-      selectedFields: Option[Array[Int]]): Array[Int] = {
-
-    val tableSchema = tableSource.getTableSchema
-
-    // get names of selected fields
-    val tableFieldNames =  if (selectedFields.isDefined) {
-      val names = tableSchema.getFieldNames
-      selectedFields.get.map(names(_))
-    } else {
-      tableSchema.getFieldNames
-    }
-
-    // get types of selected fields
-    val tableFieldTypes = if (selectedFields.isDefined) {
-      val types = tableSchema.getFieldDataTypes
-      selectedFields.get.map(types(_))
-    } else {
-      tableSchema.getFieldDataTypes
-    }
+      rowType: RelDataType,
+      isStreamTable: Boolean): Array[Int] = {
 
     // get rowtime and proctime attributes
     val rowtimeAttributes = getRowtimeAttributes(tableSource)
     val proctimeAttributes = getProctimeAttribute(tableSource)
-
     // compute mapping of selected fields and time attributes
-    val mapping: Array[Int] = tableFieldTypes.map(_.getLogicalType).zip(tableFieldNames).map {
+    val names = rowType.getFieldNames.toArray
+    val fieldTypes = rowType
+      .getFieldList
+      .map(f => FlinkTypeFactory.toLogicalType(f.getType))
+      .toArray
+    val mapping: Array[Int] = fieldTypes.zip(names).map {
       case (_: TimestampType, name: String)
         if proctimeAttributes.contains(name) =>
         if (isStreamTable) {
@@ -105,7 +90,7 @@ object TableSourceUtil {
         } else {
           TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER
         }
-      case (t: LogicalType, name) =>
+      case (t: LogicalType, name: String) =>
         // check if field is registered as time indicator
         if (proctimeAttributes.contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
@@ -115,7 +100,6 @@ object TableSourceUtil {
           throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
             s"Rowtime attributes must be of TimestampType.")
         }
-
         val (physicalName, idx, tpe) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
         if (!isAssignable(fromTypeInfoToLogicalType(tpe), t)) {
@@ -275,13 +259,12 @@ object TableSourceUtil {
     *
     * @param tableSource The [[TableSource]] for which the [[RowtimeAttributeDescriptor]] is
     *                    returned.
-    * @param selectedFields The fields which are selected from the [[TableSource]].
-    *                       If None, all fields are selected.
+    * @param rowType The table source table row type
     * @return The [[RowtimeAttributeDescriptor]] of the [[TableSource]].
     */
   def getRowtimeAttributeDescriptor(
       tableSource: TableSource[_],
-      selectedFields: Option[Array[Int]]): Option[RowtimeAttributeDescriptor] = {
+      rowType: RelDataType): Option[RowtimeAttributeDescriptor] = {
 
     tableSource match {
       case r: DefinedRowtimeAttributes =>
@@ -292,20 +275,13 @@ object TableSourceUtil {
           throw new ValidationException("Table with has more than a single rowtime attribute..")
         } else {
           // exactly one rowtime attribute descriptor
-          if (selectedFields.isEmpty) {
-            // all fields are selected.
-            Some(descriptors.get(0))
+          val descriptor = descriptors.get(0)
+          if (rowType.getFieldNames.contains(descriptor.getAttributeName)) {
+            Some(descriptor)
           } else {
-            val descriptor = descriptors.get(0)
-            // look up index of row time attribute in schema
-            val fieldIdx = tableSource.getTableSchema.getFieldNames.indexOf(
-              descriptor.getAttributeName)
-            // is field among selected fields?
-            if (selectedFields.get.contains(fieldIdx)) {
-              Some(descriptor)
-            } else {
-              None
-            }
+            // If the row type fields does not contain the attribute name
+            // (i.e. filtered out by the push down rules), returns None.
+            None
           }
         }
       case _ => None
@@ -316,15 +292,14 @@ object TableSourceUtil {
     * Obtains the [[RexNode]] expression to extract the rowtime timestamp for a [[TableSource]].
     *
     * @param tableSource The [[TableSource]] for which the expression is extracted.
-    * @param selectedFields The selected fields of the [[TableSource]].
-    *                       If None, all fields are selected.
+    * @param rowType The table source table row type
     * @param cluster The [[RelOptCluster]] of the current optimization process.
     * @param relBuilder The [[RelBuilder]] to build the [[RexNode]].
     * @return The [[RexNode]] expression to extract the timestamp of the table source.
     */
   def getRowtimeExtractionExpression(
       tableSource: TableSource[_],
-      selectedFields: Option[Array[Int]],
+      rowType: RelDataType,
       cluster: RelOptCluster,
       relBuilder: RelBuilder): Option[RexNode] = {
 
@@ -350,7 +325,7 @@ object TableSourceUtil {
         ImmutableList.of().asInstanceOf[ImmutableList[ImmutableList[RexLiteral]]])
     }
 
-    val rowtimeDesc = getRowtimeAttributeDescriptor(tableSource, selectedFields)
+    val rowtimeDesc = getRowtimeAttributeDescriptor(tableSource, rowType)
     rowtimeDesc.map { r =>
       val tsExtractor = r.getTimestampExtractor
 

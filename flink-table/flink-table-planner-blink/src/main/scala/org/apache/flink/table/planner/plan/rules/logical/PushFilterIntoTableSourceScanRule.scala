@@ -73,7 +73,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
-    val table: FlinkPreparingTableBase = scan.getTable.asInstanceOf[FlinkPreparingTableBase]
+    val table: TableSourceTable[_] = scan.getTable.asInstanceOf[TableSourceTable[_]]
     pushFilterIntoScan(call, filter, scan, table)
   }
 
@@ -151,14 +151,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       // Remove tableStats after predicates pushed down
       FlinkStatistic.builder().statistic(statistic).tableStats(null).build()
     }
-    new TableSourceTable(
-      relOptTable.getRelOptSchema,
-      relOptTable.getNames,
-      relOptTable.getRowType,
-      newTableSource,
-      tableSourceTable.isStreamingMode,
-      newStatistic,
-      tableSourceTable.catalogTable)
+    tableSourceTable.copy(newTableSource, newStatistic)
   }
 
 }

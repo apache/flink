@@ -375,9 +375,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				relBuilder.getRelOptSchema(),
 				names,
 				rowType,
+				statistic,
 				tableSource,
 				!isBatch,
-				statistic,
 				ConnectorCatalogTable.source(tableSource, isBatch));
 			return LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable);
 		}
@@ -416,7 +416,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		private RelNode convertToDataStreamScan(
-			    DataStream<?> dataStream,
+				DataStream<?> dataStream,
 				int[] fieldIndices,
 				TableSchema tableSchema,
 				Optional<ObjectIdentifier> identifier) {
@@ -430,12 +430,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				String refId = String.format("Unregistered_DataStream_%s", dataStream.getId());
 				names = Collections.singletonList(refId);
 			}
-            final RelDataType rowType = DataStreamTable$.MODULE$
-				.getRowType(relBuilder.getTypeFactory(),
-					dataStream,
-					tableSchema.getFieldNames(),
-					fieldIndices,
-					scala.Option.empty());
+				final RelDataType rowType = DataStreamTable$.MODULE$
+					.getRowType(relBuilder.getTypeFactory(),
+						dataStream,
+						tableSchema.getFieldNames(),
+						fieldIndices,
+						scala.Option.empty());
 			DataStreamTable<?> dataStreamTable = new DataStreamTable<>(
 				relBuilder.getRelOptSchema(),
 				names,

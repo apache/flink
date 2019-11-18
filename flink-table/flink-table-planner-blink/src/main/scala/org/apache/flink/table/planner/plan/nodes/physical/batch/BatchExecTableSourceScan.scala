@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
@@ -53,13 +53,13 @@ import scala.collection.JavaConversions._
 class BatchExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkPreparingTableBase)
-  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
+    tableSourceTable: TableSourceTable[_])
+  extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with BatchPhysicalRel
   with BatchExecNode[BaseRow]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecTableSourceScan(cluster, traitSet, relOptTable)
+    new BatchExecTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -92,8 +92,8 @@ class BatchExecTableSourceScan(
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      isStreamTable = false,
-      tableSourceTable.selectedFields)
+      tableSourceTable.getRowType,
+      tableSourceTable.isStreamingMode)
 
     val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
@@ -109,7 +109,7 @@ class BatchExecTableSourceScan(
     // get expression to extract rowtime attribute
     val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
       tableSource,
-      tableSourceTable.selectedFields,
+      tableSourceTable.getRowType,
       cluster,
       planner.getRelBuilder
     )
@@ -132,8 +132,8 @@ class BatchExecTableSourceScan(
   def needInternalConversion: Boolean = {
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      isStreamTable = false,
-      tableSourceTable.selectedFields)
+      tableSourceTable.getRowType,
+      tableSourceTable.isStreamingMode)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)
   }

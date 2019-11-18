@@ -31,7 +31,6 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode, RelWriter}
-import org.apache.calcite.schema.Table
 
 import java.util
 import java.util.function.Supplier
@@ -43,7 +42,7 @@ import java.util.function.Supplier
 class FlinkLogicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkPreparingTableBase)
+    relOptTable: TableSourceTable[_])
   extends TableScan(cluster, traitSet, relOptTable)
   with FlinkLogicalRel {
 
@@ -53,8 +52,8 @@ class FlinkLogicalTableSourceScan(
 
   def copy(
       traitSet: RelTraitSet,
-      relOptTable: FlinkPreparingTableBase): FlinkLogicalTableSourceScan = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
+      tableSourceTable: TableSourceTable[_]): FlinkLogicalTableSourceScan = {
+    new FlinkLogicalTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
@@ -109,7 +108,7 @@ object FlinkLogicalTableSourceScan {
 
   def create(cluster: RelOptCluster, relOptTable: FlinkPreparingTableBase)
       : FlinkLogicalTableSourceScan = {
-    val table = relOptTable.unwrap(classOf[Table])
+    val table = relOptTable.unwrap(classOf[TableSourceTable[_]])
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = {
@@ -120,6 +119,6 @@ object FlinkLogicalTableSourceScan {
           }
         }
       }).simplify()
-    new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
+    new FlinkLogicalTableSourceScan(cluster, traitSet, table)
   }
 }
