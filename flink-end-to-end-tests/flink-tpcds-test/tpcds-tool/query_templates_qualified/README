@@ -1,0 +1,7 @@
+-- README
+-- ====================
+-- this directory contains all of the base query templates
+-- approved for TPC-DS. Query variants are located in query_variants/.
+
+-- split query14,query23,query24,query39 from one template to two templates(i.e. query14.tpl, query14a.tpl)
+-- because these templates contains two queries which is not supported in Flink.
