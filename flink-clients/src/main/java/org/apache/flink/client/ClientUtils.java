@@ -30,6 +30,7 @@ import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -145,10 +146,11 @@ public enum ClientUtils {
 	}
 
 	public static JobSubmissionResult executeProgram(
+			ExecutorServiceLoader executorServiceLoader,
 			Configuration configuration,
-			ClusterClient<?> client,
 			PackagedProgram program) throws ProgramMissingJobException, ProgramInvocationException {
 
+		checkNotNull(executorServiceLoader);
 		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
 
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
@@ -160,8 +162,8 @@ public enum ClientUtils {
 			final AtomicReference<JobExecutionResult> jobExecutionResult = new AtomicReference<>();
 
 			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
+					executorServiceLoader,
 					configuration,
-					client,
 					userCodeClassLoader,
 					jobExecutionResult);
 			ContextEnvironment.setAsContext(factory);

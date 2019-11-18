@@ -156,7 +156,15 @@ public class ExecutionEnvironment {
 		this.userClassloader = checkNotNull(userClassloader);
 	}
 
-	protected Configuration getConfiguration() {
+	public ClassLoader getUserCodeClassLoader() {
+		return userClassloader;
+	}
+
+	public ExecutorServiceLoader getExecutorServiceLoader() {
+		return executorServiceLoader;
+	}
+
+	public Configuration getConfiguration() {
 		return this.configuration;
 	}
 
