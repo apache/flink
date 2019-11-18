@@ -694,6 +694,48 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		sql(sql).node(new ValidationMatcher());
 	}
 
+	@Test
+	public void testCreateFunction() {
+		check("create function catalog1.db1.function1 as 'org.apache.fink.function.function1'",
+			"CREATE FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("create temporary function catalog1.db1.function1 as 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("create temporary system function catalog1.db1.function1 as 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY SYSTEM FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("create temporary function db1.function1 as 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY FUNCTION `DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("create temporary function function1 as 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("create temporary function if not exists catalog1.db1.function1 as 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY FUNCTION IF NOT EXISTS `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("create temporary function function1 as 'org.apache.fink.function.function1' language java",
+			"CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA");
+
+		check("create temporary system function  function1 as 'org.apache.fink.function.function1' language scala",
+			"CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA");
+	}
+
+	@Test
+	public void testDropTemporaryFunction() {
+		check("drop temporary function catalog1.db1.function1",
+			"DROP TEMPORARY FUNCTION `CATALOG1`.`DB1`.`FUNCTION1`");
+
+		check("drop temporary system function catalog1.db1.function1",
+			"DROP TEMPORARY SYSTEM FUNCTION `CATALOG1`.`DB1`.`FUNCTION1`");
+
+		check("drop temporary function if exists catalog1.db1.function1",
+			"DROP TEMPORARY FUNCTION IF EXISTS `CATALOG1`.`DB1`.`FUNCTION1`");
+
+		check("drop temporary function if exists catalog1.db1.function1 language java",
+			"DROP TEMPORARY FUNCTION IF EXISTS `CATALOG1`.`DB1`.`FUNCTION1` LANGUAGE JAVA");
+	}
+
 	/** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. **/
 	private static class ValidationMatcher extends BaseMatcher<SqlNode> {
 		private String expectedColumnSql;

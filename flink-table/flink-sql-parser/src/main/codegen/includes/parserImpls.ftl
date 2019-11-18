@@ -177,6 +177,87 @@ SqlDescribeDatabase SqlDescribeDatabase() :
 
 }
 
+SqlCreate SqlCreateFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionName = null;
+    SqlCharStringLiteral functionClassName = null;
+    String functionLanguage = null;
+    boolean ifNotExists = false;
+    boolean hasTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    [
+        <TEMPORARY>   {hasTemporary = true;}
+        (
+            <SYSTEM>   { isSystemFunction = true; }
+        |
+            {isSystemFunction = false; }
+        )
+    ]
+    <FUNCTION>
+    (
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    |
+        { ifNotExists = false; }
+    )
+    functionName = CompoundIdentifier()
+    <AS> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        functionClassName = SqlLiteral.createCharString(p, getPos());
+    }
+    [<LANGUAGE>
+        (
+            <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
+    {
+        return new SqlCreateFunction(s.pos(), functionName, functionClassName, functionLanguage,
+                ifNotExists, hasTemporary, isSystemFunction);
+    }
+}
+
+SqlDrop SqlDropFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionName = null;
+    String functionLanguage = null;
+    boolean ifExists = false;
+    boolean hasTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    [
+        <TEMPORARY> {hasTemporary = true;}
+        (
+            <SYSTEM>   { isSystemFunction = true; }
+        |
+            {isSystemFunction = false; }
+        )
+    ]
+    <FUNCTION>
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+    functionName = CompoundIdentifier()
+    [<LANGUAGE>
+        (   <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
+    {
+        return new SqlDropFunction(s.pos(), functionName, functionLanguage, ifExists, hasTemporary, isSystemFunction);
+    }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }
