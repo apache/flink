@@ -52,7 +52,21 @@ public class ResourceUtilTest {
 			ClassLoader classLoader = ResourceUtil.class.getClassLoader();
 			String prefix = "tmp_";
 			List<File> files = ResourceUtil.extractBasicDependenciesFromResource(
-				tmpdir.getAbsolutePath(), classLoader, prefix);
+				tmpdir.getAbsolutePath(),
+				classLoader,
+				prefix,
+				true);
+			files.forEach(file -> assertTrue(file.exists()));
+			assertArrayEquals(new File[] {
+				new File(tmpdir, "tmp_pyflink.zip"),
+				new File(tmpdir, "tmp_py4j-0.10.8.1-src.zip"),
+				new File(tmpdir, "tmp_cloudpickle-1.2.2-src.zip")}, files.toArray());
+			files.forEach(File::delete);
+			files = ResourceUtil.extractBasicDependenciesFromResource(
+				tmpdir.getAbsolutePath(),
+				classLoader,
+				prefix,
+				false);
 			files.forEach(file -> assertTrue(file.exists()));
 			assertArrayEquals(new File[] {
 				new File(tmpdir, "tmp_pyflink.zip"),

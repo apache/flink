@@ -27,8 +27,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.python.util.ResourceUtil.extractBasicDependenciesFromResource;
 
 /**
- * The program that extracts the internal python libraries and
- * join their absolute paths to append to PYTHONPATH. it can
+ * The program that extracts the internal python libraries and join their absolute paths to append to PYTHONPATH. it can
  * accept one argument as the temp directory.
  */
 public class PythonResourceExtractor {
@@ -36,12 +35,15 @@ public class PythonResourceExtractor {
 	public static void main(String[] args) throws IOException {
 		String tmpdir = System.getProperty("java.io.tmpdir");
 
-		List<File> files = extractBasicDependenciesFromResource(tmpdir,
-			PythonResourceExtractor.class.getClassLoader(), UUID.randomUUID().toString());
+		List<File> files = extractBasicDependenciesFromResource(
+			tmpdir,
+			PythonResourceExtractor.class.getClassLoader(),
+			UUID.randomUUID().toString(),
+			true);
 
-		files.stream().filter(file -> file.getName().endsWith(".sh")).forEach(File::delete);
-
-		System.out.print(files.stream().filter(file -> !file.getName().endsWith(".sh"))
-			.map(File::getAbsolutePath).collect(Collectors.joining(File.pathSeparator)));
+		System.out.print(
+			files.stream()
+				.map(File::getAbsolutePath)
+				.collect(Collectors.joining(File.pathSeparator)));
 	}
 }

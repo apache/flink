@@ -38,9 +38,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Tests for the {@link PythonEnvUtils}.
+ * Tests for the {@link PythonDriverEnvUtils}.
  */
-public class PythonEnvUtilsTest {
+public class PythonDriverEnvUtilsTest {
 	private Path tmpDirPath;
 	private FileSystem tmpDirFs;
 
@@ -76,7 +76,7 @@ public class PythonEnvUtilsTest {
 		List<Path> pyFilesList = new ArrayList<>();
 		pyFilesList.add(tmpDirPath);
 
-		PythonEnvUtils.PythonEnvironment env = PythonEnvUtils.preparePythonEnvironment(pyFilesList);
+		PythonDriverEnvUtils.PythonEnvironment env = PythonDriverEnvUtils.preparePythonEnvironment(pyFilesList);
 		Set<String> expectedPythonPaths = new HashSet<>();
 		expectedPythonPaths.add(env.workingDirectory);
 
@@ -91,7 +91,7 @@ public class PythonEnvUtilsTest {
 
 	@Test
 	public void testStartPythonProcess() {
-		PythonEnvUtils.PythonEnvironment pythonEnv = new PythonEnvUtils.PythonEnvironment();
+		PythonDriverEnvUtils.PythonEnvironment pythonEnv = new PythonDriverEnvUtils.PythonEnvironment();
 		pythonEnv.workingDirectory = tmpDirPath.toString();
 		pythonEnv.pythonPath = tmpDirPath.toString();
 		List<String> commands = new ArrayList<>();
@@ -112,7 +112,7 @@ public class PythonEnvUtilsTest {
 			Path result = new Path(tmpDirPath, "word_count_result.txt");
 			commands.add(pyFile.getName());
 			commands.add(result.getName());
-			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonDriverEnvUtils.startPythonProcess(pythonEnv, commands);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);

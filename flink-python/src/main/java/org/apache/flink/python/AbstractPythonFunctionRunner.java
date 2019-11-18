@@ -322,7 +322,10 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 			String prefix = UUID.randomUUID().toString() + "_";
 			try {
 				pythonInternalLibs = ResourceUtil.extractBasicDependenciesFromResource(
-					tmpdir, this.getClass().getClassLoader(), prefix);
+					tmpdir,
+					this.getClass().getClassLoader(),
+					prefix,
+					false);
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -379,25 +382,16 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 				LOG.warn("Can not get the log directory from property log.file.", e);
 			}
 		}
-		return appendEnvironmentVariable(
-			systemEnv,
-			pythonDependencies, logDir);
-	}
 
-	private static Map<String, String> appendEnvironmentVariable(
-			Map<String, String> systemEnv,
-			List<String> pythonDependencies,
-			String logDirectory) {
 		Map<String, String> result = new HashMap<>(systemEnv);
-
 		String pythonPath = String.join(File.pathSeparator, pythonDependencies);
 		if (systemEnv.get("PYTHONPATH") != null) {
 			pythonPath = String.join(File.pathSeparator, pythonPath, systemEnv.get("PYTHONPATH"));
 		}
 		result.put("PYTHONPATH", pythonPath);
 
-		if (logDirectory != null) {
-			result.put("FLINK_LOG_DIR", logDirectory);
+		if (logDir != null) {
+			result.put("FLINK_LOG_DIR", logDir);
 		}
 
 		return result;

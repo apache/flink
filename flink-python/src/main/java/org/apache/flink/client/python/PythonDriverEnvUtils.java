@@ -41,8 +41,8 @@ import static org.apache.flink.python.util.ResourceUtil.extractBasicDependencies
 /**
  * The util class help to prepare Python env and run the python process.
  */
-public final class PythonEnvUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(PythonEnvUtils.class);
+public final class PythonDriverEnvUtils {
+	private static final Logger LOG = LoggerFactory.getLogger(PythonDriverEnvUtils.class);
 
 	/**
 	 * Wraps Python exec environment.
@@ -109,18 +109,15 @@ public final class PythonEnvUtils {
 
 		List<File> internalLibs = extractBasicDependenciesFromResource(
 			tmpDir,
-			PythonEnvUtils.class.getClassLoader(),
-			UUID.randomUUID().toString());
+			PythonDriverEnvUtils.class.getClassLoader(),
+			UUID.randomUUID().toString(),
+			true);
 
 		// 2. append the internal lib files to PYTHONPATH.
 		for (File file: internalLibs) {
-			if (file.getName().endsWith(".zip")) {
-				pythonPathEnv.append(File.pathSeparator);
-				pythonPathEnv.append(file.getAbsolutePath());
-				file.deleteOnExit();
-			} else {
-				file.delete();
-			}
+			pythonPathEnv.append(File.pathSeparator);
+			pythonPathEnv.append(file.getAbsolutePath());
+			file.deleteOnExit();
 		}
 
 		// 3. copy relevant python files to tmp dir and set them in PYTHONPATH.

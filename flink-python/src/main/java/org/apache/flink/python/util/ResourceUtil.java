@@ -46,9 +46,13 @@ public class ResourceUtil {
 	public static List<File> extractBasicDependenciesFromResource(
 			String tmpdir,
 			ClassLoader classLoader,
-			String prefix) throws IOException {
+			String prefix,
+			boolean skipShellScript) throws IOException {
 		List<File> extractedFiles = new ArrayList<>();
 		for (String fileName : PYTHON_BASIC_DEPENDENCIES) {
+			if (skipShellScript && fileName.endsWith(".sh")) {
+				continue;
+			}
 			File file = new File(tmpdir, prefix + fileName);
 
 			try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file));
