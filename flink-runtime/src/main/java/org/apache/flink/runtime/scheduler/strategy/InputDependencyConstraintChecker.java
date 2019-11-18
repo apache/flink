@@ -37,8 +37,6 @@ import java.util.Set;
 import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
 
 /**
  * A wrapper class for {@link InputDependencyConstraint} checker.
@@ -84,8 +82,8 @@ public class InputDependencyConstraintChecker {
 		if (BLOCKING.equals(partition.getResultType())) {
 			return intermediateDataSetManager.allPartitionsFinished(partition);
 		} else {
-			SchedulingResultPartition.ResultPartitionState state = partition.getState();
-			return PRODUCING.equals(state) || DONE.equals(state);
+			final ResultPartitionState state = partition.getState();
+			return ResultPartitionState.CONSUMABLE.equals(state);
 		}
 	}
 
