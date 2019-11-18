@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
@@ -38,6 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link ClusterClientFactory} for a YARN cluster.
  */
+@Internal
 public class YarnClusterClientFactory implements ClusterClientFactory<ApplicationId> {
 
 	public static final String ID = "yarn-cluster";

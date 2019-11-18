@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 
@@ -28,6 +29,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link ClusterClientFactory} for a standalone cluster, i.e. Flink on bare-metal.
  */
+@Internal
 public class StandaloneClientFactory implements ClusterClientFactory<StandaloneClusterId> {
 
 	public static final String ID = "default";
