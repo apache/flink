@@ -45,6 +45,8 @@ public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 
 	private static final ServiceLoader<ExecutorFactory> defaultLoader = ServiceLoader.load(ExecutorFactory.class);
 
+	public static final DefaultExecutorServiceLoader INSTANCE = new DefaultExecutorServiceLoader();
+
 	@Override
 	public ExecutorFactory getExecutorFactory(final Configuration configuration) {
 		checkNotNull(configuration);
@@ -67,14 +69,18 @@ public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 		}
 
 		if (compatibleFactories.size() > 1) {
-			final List<String> configStr =
+			final String configStr =
 					configuration.toMap().entrySet().stream()
 							.map(e -> e.getKey() + "=" + e.getValue())
-							.collect(Collectors.toList());
+							.collect(Collectors.joining("\n"));
 
-			throw new IllegalStateException("Multiple compatible client factories found for:\n" + String.join("\n", configStr) + ".");
+			throw new IllegalStateException("Multiple compatible client factories found for:\n" + configStr + ".");
 		}
 
 		return compatibleFactories.isEmpty() ? null : compatibleFactories.get(0);
+	}
+
+	private DefaultExecutorServiceLoader() {
+		// make sure nobody instantiates us explicitly.
 	}
 }

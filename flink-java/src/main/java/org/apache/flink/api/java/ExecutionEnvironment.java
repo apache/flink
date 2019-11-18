@@ -140,7 +140,7 @@ public class ExecutionEnvironment {
 	}
 
 	protected ExecutionEnvironment(final Configuration executorConfiguration) {
-		this(new DefaultExecutorServiceLoader(), executorConfiguration);
+		this(DefaultExecutorServiceLoader.INSTANCE, executorConfiguration);
 	}
 
 	protected ExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration executorConfiguration) {
