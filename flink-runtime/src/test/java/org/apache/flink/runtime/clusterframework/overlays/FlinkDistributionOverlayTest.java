@@ -41,6 +41,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+/**
+ * Test {@link FlinkDistributionOverlay}.
+ */
 public class FlinkDistributionOverlayTest extends ContainerOverlayTestBase {
 
 	@Rule
@@ -83,7 +86,7 @@ public class FlinkDistributionOverlayTest extends ContainerOverlayTestBase {
 		overlay.configure(containerSpecification);
 
 		for (Path file : files) {
-			checkArtifact(containerSpecification, new Path(TARGET_ROOT, file.toString()));
+			checkArtifact(containerSpecification, new Path(TARGET_ROOT.getName(), file.toString()));
 		}
 	}
 

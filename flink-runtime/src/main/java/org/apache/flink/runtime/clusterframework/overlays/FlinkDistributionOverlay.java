@@ -43,13 +43,14 @@ import static org.apache.flink.util.Preconditions.checkState;
  * possible to bypass this overlay and rely on the normal installation method.
  *
  * <p>The following files are copied to the container:
- *  - flink/bin/
- *  - flink/conf/
- *  - flink/lib/
+ *  - bin/
+ *  - conf/
+ *  - lib/
+ *  - plugins/
  */
 public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 
-	static final Path TARGET_ROOT = new Path("flink");
+	static final File TARGET_ROOT = new File(Path.CUR_DIR);
 
 	private final File flinkBinPath;
 	private final File flinkConfPath;
@@ -67,15 +68,19 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 	@Override
 	public void configure(ContainerSpecification container) throws IOException {
 
-		container.getEnvironmentVariables().put(ENV_FLINK_HOME_DIR, TARGET_ROOT.toString());
+		container.getEnvironmentVariables().put(ENV_FLINK_HOME_DIR, TARGET_ROOT.getName());
 
 		// add the paths to the container specification.
-		addPathRecursively(flinkBinPath, TARGET_ROOT, container);
-		addPathRecursively(flinkConfPath, TARGET_ROOT, container);
-		addPathRecursively(flinkLibPath, TARGET_ROOT, container);
+		addPathRecursively(flinkBinPath, new Path(TARGET_ROOT.getName()), container);
+		addPathRecursively(flinkConfPath, new Path(TARGET_ROOT.getName()), container);
+		addPathRecursively(flinkLibPath, new Path(TARGET_ROOT.getName()), container);
 		if (flinkPluginsPath != null) {
-			addPathRecursively(flinkPluginsPath, TARGET_ROOT, container);
+			addPathRecursively(flinkPluginsPath, new Path(TARGET_ROOT.getName()), container);
 		}
+	}
+
+	public static File getTargetRoot() {
+		return TARGET_ROOT;
 	}
 
 	public static Builder newBuilder() {
@@ -91,7 +96,6 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		File flinkLibPath;
 		@Nullable
 		File flinkPluginsPath;
-
 		/**
 		 * Configures the overlay using the current environment.
 		 *

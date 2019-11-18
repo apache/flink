@@ -202,7 +202,10 @@ try (FileOutputStream output = new FileOutputStream(jobGraphFile);
 {% endhighlight %}
 
 Note: 
-1. Make sure that all Mesos processes have the user code jar on the classpath (e.g. putting them in the lib directory)
+1. Make sure that all Mesos processes have the user code jar on the classpath. There are two ways:
+    1. One way is putting them in the `lib/` directory, which means the user code jar would be loaded by the system classloader. 
+    1. The other way is making a `usrlib/` directory in the parent directory of `lib/` and putting the user code jar in the `usrlib/`.
+    Then launching job cluster via `bin/mesos-appmaster-job.sh ....` cmd. The user code jar would be loaded by the user code classloader by this way.  
 
 #### General configuration
 
