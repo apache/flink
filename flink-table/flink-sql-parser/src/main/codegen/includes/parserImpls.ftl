@@ -177,6 +177,67 @@ SqlDescribeDatabase SqlDescribeDatabase() :
 
 }
 
+SqlCreate SqlCreateFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+    String functionLanguage = null;
+    boolean ifNotExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    [ <TEMPORARY>   {isTemporary = true;}
+        [ <SYSTEM>   { isSystemFunction = true; } ]
+    ]
+
+    <FUNCTION>
+
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        functionClassName = SqlLiteral.createCharString(p, getPos());
+    }
+    [<LANGUAGE>
+        (
+            <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
+    {
+        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, functionLanguage,
+                ifNotExists, isTemporary, isSystemFunction);
+    }
+}
+
+SqlDrop SqlDropFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    [ <TEMPORARY> {isTemporary = true;}
+        [  <SYSTEM>   { isSystemFunction = true; }  ]
+    ]
+    <FUNCTION>
+
+    [ <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    {
+        return new SqlDropFunction(s.pos(), functionIdentifier, ifExists, isTemporary, isSystemFunction);
+    }
+}
+
 SqlAlterFunction SqlAlterFunction() :
 {
     SqlIdentifier functionIdentifier = null;
