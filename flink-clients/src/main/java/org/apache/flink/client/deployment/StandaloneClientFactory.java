@@ -19,6 +19,7 @@
 package org.apache.flink.client.deployment;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.executors.StandaloneSessionClusterExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 
@@ -32,12 +33,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class StandaloneClientFactory implements ClusterClientFactory<StandaloneClusterId> {
 
-	public static final String ID = "default";
-
 	@Override
 	public boolean isCompatibleWith(Configuration configuration) {
 		checkNotNull(configuration);
-		return ID.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
+		return StandaloneSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
 	}
 
 	@Override

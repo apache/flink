@@ -22,8 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 
-import javax.annotation.Nonnull;
-
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -47,5 +45,5 @@ public interface JobClient extends AutoCloseable {
 	 *
 	 * @param userClassloader the classloader used to de-serialize the accumulators of the job.
 	 */
-	CompletableFuture<JobExecutionResult> getJobExecutionResult(@Nonnull final ClassLoader userClassloader);
+	CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader);
 }

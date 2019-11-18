@@ -155,7 +155,7 @@ public class StreamExecutionEnvironment {
 
 	private final Configuration configuration;
 
-	private ClassLoader userClassloader;
+	private final ClassLoader userClassloader;
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
@@ -166,17 +166,16 @@ public class StreamExecutionEnvironment {
 	}
 
 	public StreamExecutionEnvironment(final Configuration configuration) {
-		this(DefaultExecutorServiceLoader.INSTANCE, configuration);
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
 	}
 
-	public StreamExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration configuration) {
+	public StreamExecutionEnvironment(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
-		this.userClassloader = getClass().getClassLoader();
-	}
-
-	protected void setUserClassloader(final ClassLoader userClassloader) {
-		this.userClassloader = checkNotNull(userClassloader);
+		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
 	}
 
 	protected Configuration getConfiguration() {
