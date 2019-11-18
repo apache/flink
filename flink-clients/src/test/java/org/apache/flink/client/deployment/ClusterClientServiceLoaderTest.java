@@ -57,7 +57,7 @@ public class ClusterClientServiceLoaderTest {
 	@Test
 	public void testStandaloneClusterClientFactoryDiscovery() {
 		final Configuration config = new Configuration();
-		config.setString(DeploymentOptions.TARGET, StandaloneClientFactory.ID);
+		config.setString(DeploymentOptions.TARGET, StandaloneClientFactory.ID.toUpperCase());
 
 		ClusterClientFactory<StandaloneClusterId> factory = serviceLoaderUnderTest.getClusterClientFactory(config);
 		assertTrue(factory instanceof StandaloneClientFactory);
