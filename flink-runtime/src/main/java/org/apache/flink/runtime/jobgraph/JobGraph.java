@@ -34,6 +34,7 @@ import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -352,7 +353,7 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param paths paths of the directories/JAR files required to run the job on a task manager
 	 */
-	public void addClasspaths(List<URL> paths) {
+	public void addClasspaths(Collection<URL> paths) {
 		classpaths.addAll(paths);
 	}
 

@@ -28,14 +28,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -86,27 +84,23 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 	}
 
 	@Override
-	public void registerJob(JobID id, Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
-		throws IOException {
+	public void registerJob(
+			JobID id,
+			Collection<PermanentBlobKey> requiredJarFiles,
+			Collection<URL> requiredClasspaths) throws IOException {
 		registerTask(id, JOB_ATTEMPT_ID, requiredJarFiles, requiredClasspaths);
 	}
 
 	@Override
 	public void registerTask(
-		JobID jobId,
-		ExecutionAttemptID task,
-		@Nullable Collection<PermanentBlobKey> requiredJarFiles,
-		@Nullable Collection<URL> requiredClasspaths) throws IOException {
-
+			JobID jobId,
+			ExecutionAttemptID task,
+			Collection<PermanentBlobKey> requiredJarFiles,
+			Collection<URL> requiredClasspaths) throws IOException {
 		checkNotNull(jobId, "The JobId must not be null.");
 		checkNotNull(task, "The task execution id must not be null.");
-
-		if (requiredJarFiles == null) {
-			requiredJarFiles = Collections.emptySet();
-		}
-		if (requiredClasspaths == null) {
-			requiredClasspaths = Collections.emptySet();
-		}
+		checkNotNull(requiredJarFiles, "Required jar files must not be null.");
+		checkNotNull(requiredClasspaths, "Required classpaths must not be null.");
 
 		synchronized (lockObject) {
 			LibraryCacheEntry entry = cacheEntries.get(jobId);

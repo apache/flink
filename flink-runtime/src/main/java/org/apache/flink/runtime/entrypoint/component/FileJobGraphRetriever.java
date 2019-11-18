@@ -32,9 +32,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -63,23 +60,13 @@ public class FileJobGraphRetriever extends AbstractUserClassPathJobGraphRetrieve
 		try (FileInputStream input = new FileInputStream(fp);
 			ObjectInputStream obInput = new ObjectInputStream(input)) {
 			final JobGraph jobGraph = (JobGraph) obInput.readObject();
-			addUserClassPathsToJobGraph(jobGraph);
+			jobGraph.addClasspaths(getUserClassPaths());
 			return jobGraph;
 		} catch (FileNotFoundException e) {
 			throw new FlinkException("Could not find the JobGraph file.", e);
 		} catch (ClassNotFoundException | IOException e) {
 			throw new FlinkException("Could not load the JobGraph from file.", e);
 		}
-	}
-
-	private void addUserClassPathsToJobGraph(JobGraph jobGraph) {
-		final List<URL> classPaths = new ArrayList<>();
-
-		if (jobGraph.getClasspaths() != null) {
-			classPaths.addAll(jobGraph.getClasspaths());
-		}
-		classPaths.addAll(getUserClassPaths());
-		jobGraph.setClasspaths(classPaths);
 	}
 
 	public static FileJobGraphRetriever createFrom(Configuration configuration, @Nullable File usrLibDir) throws IOException {

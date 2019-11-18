@@ -72,7 +72,7 @@ public class FileJobGraphRetrieverTest {
 		final JobVertex target = new JobVertex("target");
 		final JobGraph jobGraph = new JobGraph(new JobID(), "test", source, target);
 
-		jobGraph.setClasspaths(Collections.singletonList(jarFileInJobGraph.toUri().toURL()));
+		jobGraph.addClasspaths(Collections.singletonList(jarFileInJobGraph.toUri().toURL()));
 
 		try (ObjectOutputStream objectOutputStream =
 				new ObjectOutputStream(Files.newOutputStream(jobGraphPath, CREATE))) {
