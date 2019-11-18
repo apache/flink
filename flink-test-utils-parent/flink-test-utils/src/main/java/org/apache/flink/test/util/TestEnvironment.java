@@ -106,7 +106,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 			jobGraph.addJar(jarFile);
 		}
 
-		jobGraph.setClasspaths(new ArrayList<>(classPaths));
+		jobGraph.addClasspaths(new ArrayList<>(classPaths));
 
 		this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
 		return this.lastJobExecutionResult;

@@ -486,7 +486,7 @@ public class ExecutionContext<ClusterID> {
 					parallelism);
 
 			jobGraph.addJars(executionParameters.getJars());
-			jobGraph.setClasspaths(executionParameters.getClasspaths());
+			jobGraph.addClasspaths(executionParameters.getClasspaths());
 			jobGraph.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 
 			return jobGraph;

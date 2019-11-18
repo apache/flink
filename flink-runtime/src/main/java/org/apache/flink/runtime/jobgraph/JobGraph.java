@@ -91,7 +91,7 @@ public class JobGraph implements Serializable {
 	// --- attached resources ---
 
 	/** Set of JAR files required to run this job. */
-	private final List<Path> userJars = new ArrayList<Path>();
+	private final List<Path> userJars = new ArrayList<>();
 
 	/** Set of custom files required to run this job. */
 	private final Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = new HashMap<>();
@@ -100,7 +100,7 @@ public class JobGraph implements Serializable {
 	private final List<PermanentBlobKey> userJarBlobKeys = new ArrayList<>();
 
 	/** List of classpaths required to run this job. */
-	private List<URL> classpaths = Collections.emptyList();
+	private final List<URL> classpaths = new ArrayList<>();
 
 	// --------------------------------------------------------------------------------------------
 
@@ -352,8 +352,8 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param paths paths of the directories/JAR files required to run the job on a task manager
 	 */
-	public void setClasspaths(List<URL> paths) {
-		classpaths = paths;
+	public void addClasspaths(List<URL> paths) {
+		classpaths.addAll(paths);
 	}
 
 	public List<URL> getClasspaths() {
@@ -465,9 +465,7 @@ public class JobGraph implements Serializable {
 	 *        path of the JAR file required to run the job on a task manager
 	 */
 	public void addJar(Path jar) {
-		if (jar == null) {
-			throw new IllegalArgumentException();
-		}
+		checkNotNull(jar);
 
 		if (!userJars.contains(jar)) {
 			userJars.add(jar);
@@ -536,15 +534,6 @@ public class JobGraph implements Serializable {
 		if (!userJarBlobKeys.contains(key)) {
 			userJarBlobKeys.add(key);
 		}
-	}
-
-	/**
-	 * Checks whether the JobGraph has user code JAR files attached.
-	 *
-	 * @return True, if the JobGraph has user code JAR files attached, false otherwise.
-	 */
-	public boolean hasUsercodeJarFiles() {
-		return this.userJars.size() > 0;
 	}
 
 	/**

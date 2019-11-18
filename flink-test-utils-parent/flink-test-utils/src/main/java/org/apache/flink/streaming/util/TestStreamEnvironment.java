@@ -73,7 +73,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 			jobGraph.addJar(jarFile);
 		}
 
-		jobGraph.setClasspaths(new ArrayList<>(classPaths));
+		jobGraph.addClasspaths(new ArrayList<>(classPaths));
 
 		return jobExecutor.executeJobBlocking(jobGraph);
 	}

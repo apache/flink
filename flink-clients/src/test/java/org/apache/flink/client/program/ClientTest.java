@@ -200,7 +200,7 @@ public class ClientTest extends TestLogger {
 				1);
 
 		jobGraph.addJars(Collections.emptyList());
-		jobGraph.setClasspaths(Collections.emptyList());
+		jobGraph.addClasspaths(Collections.emptyList());
 
 		JobSubmissionResult result = ClientUtils.submitJob(clusterClient, jobGraph);
 		assertNotNull(result);
@@ -393,7 +393,7 @@ public class ClientTest extends TestLogger {
 
 						final ExecutionConfigAccessor accessor = ExecutionConfigAccessor.fromConfiguration(config);
 						jobGraph.addJars(accessor.getJars());
-						jobGraph.setClasspaths(accessor.getClasspaths());
+						jobGraph.addClasspaths(accessor.getClasspaths());
 
 						final JobID jobID = ClientUtils.submitJob(clusterClient, jobGraph).getJobID();
 						return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(clusterClient, jobID, false));

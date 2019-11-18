@@ -64,7 +64,7 @@ public class PackagedProgramUtils {
 			jobGraph.setJobID(jobID);
 		}
 		jobGraph.addJars(packagedProgram.getJobJarAndDependencies());
-		jobGraph.setClasspaths(packagedProgram.getClasspaths());
+		jobGraph.addClasspaths(packagedProgram.getClasspaths());
 		jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
 
 		return jobGraph;
