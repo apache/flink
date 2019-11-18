@@ -18,21 +18,16 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.function.Supplier;
 
-import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.junit.Assert.assertEquals;
 
@@ -41,7 +36,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class DefaultResultPartitionTest extends TestLogger {
 
-	private static final TestExecutionStateSupplier stateProvider = new TestExecutionStateSupplier();
+	private static final TestResultPartitionStateSupplier resultPartitionState = new TestResultPartitionStateSupplier();
 
 	private final IntermediateResultPartitionID resultPartitionId = new IntermediateResultPartitionID();
 	private final IntermediateDataSetID intermediateResultId = new IntermediateDataSetID();
@@ -53,47 +48,32 @@ public class DefaultResultPartitionTest extends TestLogger {
 		resultPartition = new DefaultResultPartition(
 			resultPartitionId,
 			intermediateResultId,
-			BLOCKING);
-
-		DefaultExecutionVertex producerVertex = new DefaultExecutionVertex(
-			new ExecutionVertexID(new JobVertexID(), 0),
-			Collections.singletonList(resultPartition),
-			stateProvider,
-			ANY);
-		resultPartition.setProducer(producerVertex);
+			BLOCKING,
+			resultPartitionState);
 	}
 
 	@Test
 	public void testGetPartitionState() {
-		for (ExecutionState state : ExecutionState.values()) {
-			stateProvider.setExecutionState(state);
-			final ResultPartitionState partitionState = resultPartition.getState();
-			switch (state) {
-				case RUNNING:
-				case FINISHED:
-					assertEquals(ResultPartitionState.CONSUMABLE, partitionState);
-					break;
-				default:
-					assertEquals(ResultPartitionState.CREATED, partitionState);
-					break;
-			}
+		for (ResultPartitionState state : ResultPartitionState.values()) {
+			resultPartitionState.setResultPartitionState(state);
+			assertEquals(state, resultPartition.getState());
 		}
 	}
 
 	/**
-	 * A simple implementation of {@link Supplier} for testing.
+	 * A test {@link ResultPartitionState} supplier.
 	 */
-	private static class TestExecutionStateSupplier implements Supplier<ExecutionState> {
+	private static class TestResultPartitionStateSupplier implements Supplier<ResultPartitionState> {
 
-		private ExecutionState executionState;
+		private ResultPartitionState resultPartitionState;
 
-		void setExecutionState(ExecutionState state) {
-			executionState = state;
+		void setResultPartitionState(ResultPartitionState state) {
+			resultPartitionState = state;
 		}
 
 		@Override
-		public ExecutionState get() {
-			return executionState;
+		public ResultPartitionState get() {
+			return resultPartitionState;
 		}
 	}
 }

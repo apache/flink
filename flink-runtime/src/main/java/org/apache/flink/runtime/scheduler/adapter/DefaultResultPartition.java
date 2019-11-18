@@ -27,6 +27,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -42,6 +43,8 @@ class DefaultResultPartition implements SchedulingResultPartition<DefaultExecuti
 
 	private final ResultPartitionType partitionType;
 
+	private final Supplier<ResultPartitionState> resultPartitionStateSupplier;
+
 	private DefaultExecutionVertex producer;
 
 	private final List<DefaultExecutionVertex> consumers;
@@ -49,10 +52,12 @@ class DefaultResultPartition implements SchedulingResultPartition<DefaultExecuti
 	DefaultResultPartition(
 			IntermediateResultPartitionID partitionId,
 			IntermediateDataSetID intermediateDataSetId,
-			ResultPartitionType partitionType) {
+			ResultPartitionType partitionType,
+			Supplier<ResultPartitionState> resultPartitionStateSupplier) {
 		this.resultPartitionId = checkNotNull(partitionId);
 		this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
 		this.partitionType = checkNotNull(partitionType);
+		this.resultPartitionStateSupplier = checkNotNull(resultPartitionStateSupplier);
 		this.consumers = new ArrayList<>();
 	}
 
@@ -73,13 +78,7 @@ class DefaultResultPartition implements SchedulingResultPartition<DefaultExecuti
 
 	@Override
 	public ResultPartitionState getState() {
-		switch (producer.getState()) {
-			case RUNNING:
-			case FINISHED:
-				return ResultPartitionState.CONSUMABLE;
-			default:
-				return ResultPartitionState.CREATED;
-		}
+		return resultPartitionStateSupplier.get();
 	}
 
 	@Override
