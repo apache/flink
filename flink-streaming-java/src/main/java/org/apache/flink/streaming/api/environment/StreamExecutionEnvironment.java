@@ -163,7 +163,7 @@ public class StreamExecutionEnvironment {
 	}
 
 	public StreamExecutionEnvironment(final Configuration executorConfiguration) {
-		this(new DefaultExecutorServiceLoader(), executorConfiguration);
+		this(DefaultExecutorServiceLoader.INSTANCE, executorConfiguration);
 	}
 
 	public StreamExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration executorConfiguration) {
