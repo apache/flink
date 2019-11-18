@@ -29,6 +29,8 @@ import org.apache.flink.util.OptionalFailure;
 
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -69,12 +71,12 @@ public class ExecutorDiscoveryTest {
 		public static final String ID = "test-executor-A";
 
 		@Override
-		public boolean isCompatibleWith(Configuration configuration) {
+		public boolean isCompatibleWith(@Nonnull Configuration configuration) {
 			return ID.equals(configuration.get(DeploymentOptions.TARGET));
 		}
 
 		@Override
-		public Executor getExecutor(Configuration configuration) {
+		public Executor getExecutor(@Nonnull Configuration configuration) {
 			return (pipeline, executionConfig) -> {
 				final Map<String, OptionalFailure<Object>> res = new HashMap<>();
 				res.put(DeploymentOptions.TARGET.key(), OptionalFailure.of(ID));
