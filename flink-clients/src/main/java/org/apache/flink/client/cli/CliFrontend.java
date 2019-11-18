@@ -1056,12 +1056,10 @@ public class CliFrontend {
 	}
 
 	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
-		List<CustomCommandLine> customCommandLines = new ArrayList<>(2);
+		List<CustomCommandLine> customCommandLines = new ArrayList<>();
 
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
-		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
-		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		final String flinkYarnSessionCLI = "org.apache.flink.yarn.cli.FlinkYarnSessionCli";
 		try {
 			customCommandLines.add(
@@ -1074,6 +1072,22 @@ public class CliFrontend {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
 
+		//	Command line interface of the kubernetes session, with a special initialization here
+		//  to prefix all options with k/kubernetes.
+		final String kubeSessionCLI = "org.apache.flink.kubernetes.cli.FlinkKubernetesCustomCli";
+		try {
+			customCommandLines.add(
+				loadCustomCommandLine(kubeSessionCLI,
+					configuration,
+					"k",
+					"kubernetes"));
+		} catch (NoClassDefFoundError | Exception e) {
+			LOG.warn("Could not load CLI class {}.", kubeSessionCLI, e);
+		}
+
+
+		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
+		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		customCommandLines.add(new DefaultCLI(configuration));
 
 		return customCommandLines;
