@@ -121,7 +121,9 @@ public class JarHandlerUtils {
 			try {
 				final PackagedProgram packagedProgram = new PackagedProgram(
 					jarFile.toFile(),
+					Collections.emptyList(),
 					entryClass,
+					configuration,
 					programArgs.toArray(new String[0]));
 				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism, jobId);
 			} catch (final ProgramInvocationException e) {

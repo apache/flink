@@ -859,9 +859,7 @@ public class CliFrontend {
 		// Get assembler class
 		String entryPointClass = options.getEntryPointClassName();
 
-		PackagedProgram program = entryPointClass == null ?
-				new PackagedProgram(jarFile, classpaths, programArgs) :
-				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
+		PackagedProgram program = new PackagedProgram(jarFile, classpaths, entryPointClass, configuration, programArgs);
 
 		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
