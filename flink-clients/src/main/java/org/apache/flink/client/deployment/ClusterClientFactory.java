@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nullable;
@@ -25,6 +26,7 @@ import javax.annotation.Nullable;
 /**
  * A factory containing all the necessary information for creating clients to Flink clusters.
  */
+@Internal
 public interface ClusterClientFactory<ClusterID> {
 
 	/**
