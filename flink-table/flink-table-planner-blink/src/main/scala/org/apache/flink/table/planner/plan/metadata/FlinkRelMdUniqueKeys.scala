@@ -70,7 +70,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     // TODO get uniqueKeys from TableSchema of TableSource
 
     relOptTable match {
-      case table: FlinkPreparingTableBase => table.uniqueKeysSet.orNull
+      case table: FlinkPreparingTableBase => table.uniqueKeysSet.orElse(null)
       case _ => null
     }
   }

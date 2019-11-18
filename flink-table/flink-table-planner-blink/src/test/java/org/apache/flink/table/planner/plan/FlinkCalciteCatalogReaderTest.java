@@ -73,6 +73,9 @@ public class FlinkCalciteCatalogReaderTest {
 			catalogReader.getTable(Collections.singletonList(tableMockName));
 			fail("Unexpected exception");
 		} catch (NullPointerException npe) {
+			// We have a mocked CatalogSchemaTable which does not have implementation,
+			// if FlinkCalciteCatalogReader#toPreparingTable is triggered, a NPE would
+			// throws.
 			// no-op
 		}
 	}

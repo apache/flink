@@ -49,6 +49,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -271,12 +272,12 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 	/**
 	 * Returns unique keySets of current table.
 	 */
-	public scala.Option<Set<ImmutableBitSet>> uniqueKeysSet() {
+	public Optional<Set<ImmutableBitSet>> uniqueKeysSet() {
 		Set<? extends Set<String>> uniqueKeys = statistic.getUniqueKeys();
 		if (uniqueKeys == null) {
-			return scala.Option.empty();
+			return Optional.empty();
 		} else if (uniqueKeys.size() == 0) {
-			return scala.Option.apply(ImmutableSet.of());
+			return Optional.of(ImmutableSet.of());
 		} else {
 			ImmutableSet.Builder<ImmutableBitSet> uniqueKeysSetBuilder = ImmutableSet.builder();
 			for (Set<String> keys : uniqueKeys) {
@@ -291,7 +292,7 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 					uniqueKeysSetBuilder.add(ImmutableBitSet.of(keysPosition));
 				}
 			}
-			return scala.Option.apply(uniqueKeysSetBuilder.build());
+			return Optional.of(uniqueKeysSetBuilder.build());
 		}
 	}
 }

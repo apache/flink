@@ -28,10 +28,10 @@ import org.apache.flink.table.sources.TableSource;
  * @param <T1> Table source type
  * @param <T2> Table sink type
  */
-public class TestConnectorCatalogTable<T1, T2> extends ConnectorCatalogTable<T1, T2> {
+public class TestingConnectorCatalogTable<T1, T2> extends ConnectorCatalogTable<T1, T2> {
 
 	/** Creates a TestConnectorCatalogTable. */
-	public TestConnectorCatalogTable(TableSource<T1> tableSource, TableSchema tableSchema) {
+	public TestingConnectorCatalogTable(TableSource<T1> tableSource, TableSchema tableSchema) {
 		super(tableSource, null, tableSchema, true);
 	}
 }

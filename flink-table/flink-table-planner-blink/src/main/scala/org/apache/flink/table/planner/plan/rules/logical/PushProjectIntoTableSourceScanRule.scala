@@ -101,7 +101,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       .getTypeFactory
       .asInstanceOf[FlinkTypeFactory]
     val newSourceRowType = TableSourceUtil.getSourceRowType(flinkTypeFactory,
-      oldTableSource.getTableSchema,
+      tableSourceTable.catalogTable.getSchema,
       oldTableSource,
       Option(usedFields),
       tableSourceTable.isStreamingMode)

@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
-import org.apache.flink.table.catalog.{ObjectPath, TestConnectorCatalogTable}
+import org.apache.flink.table.catalog.{ObjectPath, TestingConnectorCatalogTable}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
@@ -72,7 +72,7 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
       .build()
     util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .createTable(new ObjectPath(util.tableEnv.getCurrentDatabase, "VirtualTable"),
-        new TestConnectorCatalogTable(tableSource, tableSchema2), true)
+        new TestingConnectorCatalogTable(tableSource, tableSchema2), true)
   }
 
   @Test

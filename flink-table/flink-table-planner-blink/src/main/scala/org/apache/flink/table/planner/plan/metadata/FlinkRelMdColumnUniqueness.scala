@@ -45,6 +45,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
 
 import java.util
+import java.util.Optional
 
 import scala.collection.JavaConversions._
 
@@ -85,11 +86,11 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
 
     relOptTable match {
       case table: FlinkPreparingTableBase => table.uniqueKeysSet match {
-        case Some(keysSet) =>
-          if (keysSet.isEmpty) {
+        case ukOptional: Optional[java.util.Set[ImmutableBitSet]] if ukOptional.isPresent =>
+          if (ukOptional.get().isEmpty) {
             false
           } else {
-            keysSet.exists(columns.contains)
+            ukOptional.get().exists(columns.contains)
           }
         case _ => null
       }

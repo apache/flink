@@ -174,7 +174,8 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 					if (lt instanceof TimestampType
 						&& (((TimestampType) lt).getKind() == TimestampKind.PROCTIME
 						|| ((TimestampType) lt).getKind() == TimestampKind.ROWTIME)) {
-						fieldDataTypes[i] = DataTypes.TIMESTAMP(3);
+						int precision = ((TimestampType) lt).getPrecision();
+						fieldDataTypes[i] = DataTypes.TIMESTAMP(precision);
 					}
 				}
 			}
