@@ -64,11 +64,10 @@ class BatchPlanner(
   }
 
   override protected def translateToPlan(
-      execNodes: util.List[ExecNode[_, _]],
-      planner: PlannerBase): util.List[Transformation[_]] = {
+      execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
     overrideEnvParallelism()
     execNodes.map {
-      case node: BatchExecNode[_] => node.translateToPlan(planner.asInstanceOf[BatchPlanner])
+      case node: BatchExecNode[_] => node.translateToPlan(this)
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
             "This is a bug and should not happen. Please file an issue.")
@@ -87,8 +86,8 @@ class BatchPlanner(
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
 
-    val plannerForExplain = createPlannerForExplain()
-    val transformations = translateToPlan(execNodes, plannerForExplain)
+    val plannerForExplain = createDummyPlannerForExplain()
+    val transformations = plannerForExplain.translateToPlan(execNodes)
 
     val execEnv = getExecEnv
     ExecutorUtils.setBatchProperties(execEnv, getTableConfig)
@@ -120,7 +119,7 @@ class BatchPlanner(
     sb.toString()
   }
 
-  private def createPlannerForExplain(): BatchPlanner = {
+  private def createDummyPlannerForExplain(): BatchPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executorForExplain = new BatchExecutor(dummyExecEnv)
     new BatchPlanner(executorForExplain, config, functionCatalog, catalogManager)

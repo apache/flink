@@ -30,12 +30,16 @@ import org.apache.flink.util.FileUtils
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import org.junit.{Rule, Test}
 
 import _root_.java.io.File
+import _root_.java.util
 
 
-class TableEnvironmentITCase {
+@RunWith(classOf[Parameterized])
+class TableEnvironmentITCase(settings: EnvironmentSettings, mode: String) {
 
   private val _tempFolder = new TemporaryFolder()
 
@@ -43,23 +47,22 @@ class TableEnvironmentITCase {
   def tempFolder: TemporaryFolder = _tempFolder
 
   @Test
-  def testExecuteTwiceUsingSameTableEnvOnBatch(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+  def testExecuteTwiceUsingSameTableEnv(): Unit = {
     testExecuteTwiceUsingSameTableEnv(TableEnvironmentImpl.create(settings))
   }
 
   @Test
-  def testExecuteTwiceUsingSameTableEnvOnStream(): Unit = {
-    // test TableEnvironment
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
-    testExecuteTwiceUsingSameTableEnv(TableEnvironmentImpl.create(settings))
-
-    // test StreamTableEnvironment
-    testExecuteTwiceUsingSameTableEnv(StreamTableEnvironment.create(
-      StreamExecutionEnvironment.getExecutionEnvironment, settings))
+  def testExecuteTwiceUsingSameStreamTableEnv(): Unit = {
+    if (settings.isStreamingMode) {
+      testExecuteTwiceUsingSameTableEnv(StreamTableEnvironment.create(
+        StreamExecutionEnvironment.getExecutionEnvironment, settings))
+    } else {
+      // batch planner is not supported on StreamTableEnvironment
+    }
   }
 
   private def testExecuteTwiceUsingSameTableEnv(tEnv: TableEnvironment): Unit = {
+    val tEnv = TableEnvironmentImpl.create(settings)
     tEnv.registerTableSource("MyTable", TestTableSources.getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink1")
     val sink2Path = registerCsvTableSink(tEnv, Array("last"), Array(STRING), "MySink2")
@@ -84,20 +87,8 @@ class TableEnvironmentITCase {
   }
 
   @Test
-  def testExplainAndExecuteTableEnvOnBatch(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-    testExplainAndExecuteSingleSink(TableEnvironmentImpl.create(settings))
-    testExplainAndExecuteMultipleSink(TableEnvironmentImpl.create(settings))
-  }
-
-  @Test
-  def testExplainAndExecuteTableEnvOnStream(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
-    testExplainAndExecuteSingleSink(TableEnvironmentImpl.create(settings))
-    testExplainAndExecuteMultipleSink(TableEnvironmentImpl.create(settings))
-  }
-
-  private def testExplainAndExecuteSingleSink(tEnv: TableEnvironment): Unit = {
+  def testExplainAndExecuteSingleSink(): Unit = {
+    val tEnv = TableEnvironmentImpl.create(settings)
     tEnv.registerTableSource("MyTable", TestTableSources.getPersonCsvTableSource)
     val sinkPath = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink1")
 
@@ -109,7 +100,9 @@ class TableEnvironmentITCase {
     assertFirstValues(sinkPath)
   }
 
-  private def testExplainAndExecuteMultipleSink(tEnv: TableEnvironment): Unit = {
+  @Test
+  def testExplainAndExecuteMultipleSink(): Unit = {
+    val tEnv = TableEnvironmentImpl.create(settings)
     tEnv.registerTableSource("MyTable", TestTableSources.getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink1")
     val sink2Path = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink2")
@@ -126,18 +119,8 @@ class TableEnvironmentITCase {
   }
 
   @Test
-  def testExplainTwiceOnBatch(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-    testExplainTwice(TableEnvironmentImpl.create(settings))
-  }
-
-  @Test
-  def testExplainTwiceOnStream(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
-    testExplainTwice(TableEnvironmentImpl.create(settings))
-  }
-
-  private def testExplainTwice(tEnv: TableEnvironment): Unit = {
+  def testExplainTwice(): Unit = {
+    val tEnv = TableEnvironmentImpl.create(settings)
     tEnv.registerTableSource("MyTable", TestTableSources.getPersonCsvTableSource)
     registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink1")
     registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink2")
@@ -182,5 +165,15 @@ class TableEnvironmentITCase {
 
   private def checkEmptyFile(csvFilePath: String): Unit = {
     assertTrue(FileUtils.readFileUtf8(new File(csvFilePath)).isEmpty)
+  }
+}
+
+object TableEnvironmentITCase {
+  @Parameterized.Parameters(name = "{1}")
+  def parameters(): util.Collection[Array[_]] = {
+    util.Arrays.asList(
+      Array(EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build(), "batch"),
+      Array(EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build(), "stream")
+    )
   }
 }

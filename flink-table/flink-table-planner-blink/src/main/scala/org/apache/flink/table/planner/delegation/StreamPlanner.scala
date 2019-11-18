@@ -55,11 +55,10 @@ class StreamPlanner(
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
   override protected def translateToPlan(
-      execNodes: util.List[ExecNode[_, _]],
-      planner: PlannerBase): util.List[Transformation[_]] = {
+      execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
     overrideEnvParallelism()
     execNodes.map {
-      case node: StreamExecNode[_] => node.translateToPlan(planner.asInstanceOf[StreamPlanner])
+      case node: StreamExecNode[_] => node.translateToPlan(this)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
@@ -77,8 +76,8 @@ class StreamPlanner(
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
-    val plannerForExplain = createPlannerForExplain()
-    val transformations = translateToPlan(execNodes, plannerForExplain)
+    val plannerForExplain = createDummyPlannerForExplain()
+    val transformations = plannerForExplain.translateToPlan(execNodes)
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
@@ -109,7 +108,7 @@ class StreamPlanner(
     sb.toString()
   }
 
-  private def createPlannerForExplain(): StreamPlanner = {
+  private def createDummyPlannerForExplain(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new StreamExecutor(dummyExecEnv)
     new StreamPlanner(executor, config, functionCatalog, catalogManager)
