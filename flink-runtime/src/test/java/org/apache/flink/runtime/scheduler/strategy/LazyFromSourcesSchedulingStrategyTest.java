@@ -36,8 +36,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
 import static org.apache.flink.runtime.scheduler.strategy.StrategyTestUtil.getExecutionVertexIdsFromDeployOptions;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
@@ -185,17 +183,17 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that when restart {@link ResultPartitionType#PIPELINED} tasks with {@link SchedulingResultPartition.ResultPartitionState#PRODUCING} will be scheduled.
+	 * Tests that when restart {@link ResultPartitionType#PIPELINED} tasks with {@link ResultPartitionState#CONSUMABLE} will be scheduled.
 	 */
 	@Test
-	public void testRestartProducingPipelinedTasks() {
+	public void testRestartConsumablePipelinedTasks() {
 		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
 
 		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices()
 			.withParallelism(2).finish();
 		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
 			.withParallelism(2).finish();
-		testingSchedulingTopology.connectAllToAll(producers, consumers).withResultPartitionState(PRODUCING)
+		testingSchedulingTopology.connectAllToAll(producers, consumers).withResultPartitionState(ResultPartitionState.CONSUMABLE)
 			.withResultPartitionType(PIPELINED).finish();
 
 		LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
@@ -213,17 +211,17 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that when restart {@link ResultPartitionType#PIPELINED} tasks with {@link SchedulingResultPartition.ResultPartitionState#EMPTY} will not be scheduled.
+	 * Tests that when restart {@link ResultPartitionType#PIPELINED} tasks with {@link ResultPartitionState#CREATED} will not be scheduled.
 	 */
 	@Test
-	public void testRestartEmptyPipelinedTasks() {
+	public void testRestartCreatedPipelinedTasks() {
 		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
 
 		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices()
 			.withParallelism(2).finish();
 		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices()
 			.withParallelism(2).finish();
-		testingSchedulingTopology.connectAllToAll(producers, consumers).withResultPartitionState(EMPTY)
+		testingSchedulingTopology.connectAllToAll(producers, consumers).withResultPartitionState(ResultPartitionState.CREATED)
 			.withResultPartitionType(PIPELINED).finish();
 
 		LazyFromSourcesSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);

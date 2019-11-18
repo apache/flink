@@ -22,14 +22,12 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverResultPart
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -77,11 +75,10 @@ class DefaultResultPartition implements SchedulingResultPartition<DefaultExecuti
 	public ResultPartitionState getState() {
 		switch (producer.getState()) {
 			case RUNNING:
-				return PRODUCING;
 			case FINISHED:
-				return DONE;
+				return ResultPartitionState.CONSUMABLE;
 			default:
-				return EMPTY;
+				return ResultPartitionState.CREATED;
 		}
 	}
 

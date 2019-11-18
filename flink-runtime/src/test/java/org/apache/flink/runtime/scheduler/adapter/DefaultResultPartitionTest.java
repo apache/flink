@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
+import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -34,9 +34,6 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -70,16 +67,14 @@ public class DefaultResultPartitionTest extends TestLogger {
 	public void testGetPartitionState() {
 		for (ExecutionState state : ExecutionState.values()) {
 			stateProvider.setExecutionState(state);
-			SchedulingResultPartition.ResultPartitionState partitionState = resultPartition.getState();
+			final ResultPartitionState partitionState = resultPartition.getState();
 			switch (state) {
 				case RUNNING:
-					assertEquals(PRODUCING, partitionState);
-					break;
 				case FINISHED:
-					assertEquals(DONE, partitionState);
+					assertEquals(ResultPartitionState.CONSUMABLE, partitionState);
 					break;
 				default:
-					assertEquals(EMPTY, partitionState);
+					assertEquals(ResultPartitionState.CREATED, partitionState);
 					break;
 			}
 		}

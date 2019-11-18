@@ -18,28 +18,19 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.topology.Result;
-
 /**
- * Representation of {@link IntermediateResultPartition}.
+ * State of a {@link SchedulingResultPartition}.
  */
-public interface SchedulingResultPartition<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>>
-	extends Result<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
+public enum ResultPartitionState {
 
 	/**
-	 * Gets id of the intermediate result.
-	 *
-	 * @return id of the intermediate result
+	 * Partition is just created or is just reset.
 	 */
-	IntermediateDataSetID getResultId();
+	CREATED,
 
 	/**
-	 * Gets the {@link ResultPartitionState}.
-	 *
-	 * @return result partition state
+	 * Partition is ready for consuming. For pipelined partition, this indicates it has data produced.
+	 * For blocking partition, this indicates all result partitions in its parent result have finished.
 	 */
-	ResultPartitionState getState();
+	CONSUMABLE
 }
