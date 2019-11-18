@@ -25,12 +25,16 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
+import org.apache.flink.client.cli.ExecutionConfigAccessor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Execution Environment for remote execution with the Client.
@@ -54,23 +58,28 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	private boolean alreadyCalled;
 
 	public ContextEnvironment(
-		ClusterClient<?> remoteConnection,
-		List<URL> jarFiles,
-		List<URL> classpaths,
-		ClassLoader userCodeClassLoader,
-		SavepointRestoreSettings savepointSettings,
-		boolean detached,
-		AtomicReference<JobExecutionResult> jobExecutionResult) {
-		this.client = remoteConnection;
-		this.jarFilesToAttach = jarFiles;
-		this.classpathsToAttach = classpaths;
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.savepointSettings = savepointSettings;
+			final Configuration configuration,
+			final ClusterClient<?> remoteConnection,
+			final ClassLoader userCodeClassLoader,
+			final AtomicReference<JobExecutionResult> jobExecutionResult) {
 
-		this.detached = detached;
+		this.client = checkNotNull(remoteConnection);
+		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
+		this.jobExecutionResult = checkNotNull(jobExecutionResult);
+
+		final ExecutionConfigAccessor accessor = ExecutionConfigAccessor
+				.fromConfiguration(checkNotNull(configuration));
+
+		if (accessor.getParallelism() > 0) {
+			setParallelism(accessor.getParallelism());
+		}
+
+		this.jarFilesToAttach = accessor.getJars();
+		this.classpathsToAttach = accessor.getClasspaths();
+		this.savepointSettings = accessor.getSavepointRestoreSettings();
+		this.detached = accessor.getDetachedMode();
+
 		this.alreadyCalled = false;
-
-		this.jobExecutionResult = jobExecutionResult;
 	}
 
 	@Override
