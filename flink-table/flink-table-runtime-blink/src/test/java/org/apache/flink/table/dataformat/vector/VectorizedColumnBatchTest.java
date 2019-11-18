@@ -113,7 +113,7 @@ public class VectorizedColumnBatchTest {
 				int n = 2440588; // Epoch Julian
 				for (int j = 0; j < 4; j++) {
 					bytes[11 - j] = (byte) n;
-					n >>>=8;
+					n >>>= 8;
 				}
 
 				col10.start[i] = start;
