@@ -101,6 +101,9 @@ public abstract class SchedulerTestBase extends TestLogger {
 		CompletableFuture.runAsync(runnable, componentMainThreadExecutor).join();
 	}
 
+	/**
+	 * A test implementation of {@link SlotProvider}.
+	 */
 	protected final class TestingSlotPoolSlotProvider implements SlotProvider {
 
 		private final AtomicInteger numberOfLocalizedAssignments;

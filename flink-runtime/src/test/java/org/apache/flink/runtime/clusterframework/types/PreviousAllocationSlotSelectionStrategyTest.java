@@ -29,6 +29,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 
+/**
+ * Tests for {@link PreviousAllocationSlotSelectionStrategy}.
+ */
 public class PreviousAllocationSlotSelectionStrategyTest extends LocationPreferenceSlotSelectionStrategyTest {
 
 	public PreviousAllocationSlotSelectionStrategyTest() {

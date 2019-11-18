@@ -101,7 +101,7 @@ public class SlotProfile {
 	/**
 	 * Returns a set of all previous allocation ids from the execution graph.
 	 *
-	 * This is optional and can be empty if unused.
+	 * <p>This is optional and can be empty if unused.
 	 */
 	@Nonnull
 	public Set<AllocationID> getPreviousExecutionGraphAllocations() {
