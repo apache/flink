@@ -39,24 +39,34 @@ import static java.util.Objects.requireNonNull;
  * Alter Function Sql Call.
  */
 public class SqlAlterFunction extends SqlCall {
+
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER);
+
 	private final SqlIdentifier functionName;
-	private SqlCharStringLiteral functionClassName;
-	private SqlCharStringLiteral functionLanguage;
+
+	private final SqlCharStringLiteral functionClassName;
+
+	private final String functionLanguage;
+
 	private final boolean ifExists;
+
 	private final boolean isSystemFunction;
+
+	private final boolean hasTemporary;
 
 	public SqlAlterFunction(
 		SqlParserPos pos,
 		SqlIdentifier functionName,
 		SqlCharStringLiteral functionClassName,
-		SqlCharStringLiteral functionLanguage,
+		String functionLanguage,
 		boolean ifExists,
+		boolean hasTemporary,
 		boolean isSystemFunction) {
 		super(pos);
 		this.functionName = requireNonNull(functionName, "functionName should not be null");
 		this.functionClassName = requireNonNull(functionClassName, "functionClassName should not be null");
 		this.isSystemFunction = requireNonNull(isSystemFunction);
+		this.hasTemporary = hasTemporary;
 		this.functionLanguage = functionLanguage;
 		this.ifExists = ifExists;
 
@@ -71,10 +81,11 @@ public class SqlAlterFunction extends SqlCall {
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("ALTER");
-		if (isSystemFunction) {
-			writer.keyword("TEMPORARY SYSTEM");
-		} else {
+		if (hasTemporary) {
 			writer.keyword("TEMPORARY");
+		}
+		if (isSystemFunction) {
+			writer.keyword("SYSTEM");
 		}
 		writer.keyword("FUNCTION");
 		if (ifExists) {
@@ -85,14 +96,18 @@ public class SqlAlterFunction extends SqlCall {
 		functionClassName.unparse(writer, leftPrec, rightPrec);
 		if (functionLanguage != null) {
 			writer.keyword("LANGUAGE");
-			functionLanguage.unparse(writer, leftPrec, rightPrec);
+			writer.keyword(functionLanguage);
 		}
 	}
 
 	@Nonnull
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(functionName, functionClassName, functionLanguage);
+		return ImmutableNullableList.of(functionName, functionClassName);
+	}
+
+	public String getFunctionLanguage() {
+		return functionLanguage;
 	}
 
 	public String[] getFullFunctionName() {

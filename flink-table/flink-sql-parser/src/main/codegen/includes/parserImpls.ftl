@@ -181,49 +181,58 @@ SqlAlterFunction SqlAlterFunction() :
 {
     SqlIdentifier functionName = null;
     SqlCharStringLiteral functionClassName = null;
-    SqlCharStringLiteral functionLanguage = null;
+    String functionLanguage = null;
     SqlParserPos startPos;
     boolean ifExists = false;
+    boolean hasTemporary = false;
     boolean isSystemFunction = false;
 }
 {
     <ALTER>
-    <TEMPORARY>
-    (
-        <SYSTEM>   { isSystemFunction = true; }
-    |
-        {isSystemFunction = false; }
-    )
+
+    [ <TEMPORARY> { hasTemporary = true; }
+        (
+            <SYSTEM>   { isSystemFunction = true; }
+        |
+            {isSystemFunction = false; }
+        )
+    ]
+
     <FUNCTION> { startPos = getPos(); }
-    (
-        <IF> <EXISTS> { ifExists = true; }
-    |
-        { ifExists = false; }
-    )
+
+    [ <IF> <EXISTS> { ifExists = true; } ]
+
     functionName = CompoundIdentifier()
-    [ <AS> <QUOTED_STRING> {
+
+    <AS> <QUOTED_STRING> {
         String p = SqlParserUtil.parseString(token.image);
         functionClassName = SqlLiteral.createCharString(p, getPos());
-    }]
-    [ <LANGUAGE> <QUOTED_STRING> {
-        String lang = SqlParserUtil.parseString(token.image);
-        functionLanguage = SqlLiteral.createCharString(lang, getPos());
-    }]
+    }
+
+    [<LANGUAGE>
+        (   <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
     {
-        return new SqlAlterFunction(startPos.plus(getPos()), functionName, functionClassName, functionLanguage, ifExists, isSystemFunction);
+        return new SqlAlterFunction(startPos.plus(getPos()), functionName, functionClassName,
+            functionLanguage, ifExists, hasTemporary, isSystemFunction);
     }
 }
 
 SqlShowFunctions SqlShowFunctions() :
 {
-    SqlIdentifier functionScope = null;
+    SqlIdentifier database = null;
     SqlParserPos pos;
 }
 {
     <SHOW> <FUNCTIONS> { pos = getPos();}
-    [functionScope = CompoundIdentifier()]
+    [database = CompoundIdentifier()]
     {
-        return new SqlShowFunctions(pos, functionScope);
+        return new SqlShowFunctions(pos, database);
     }
 }
 

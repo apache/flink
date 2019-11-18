@@ -71,7 +71,8 @@
     "USE",
     "DATABASES",
     "FUNCTIONS",
-    "EXTENDED"
+    "EXTENDED",
+    "SCALA"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -346,6 +347,7 @@
     "SUBCLASS_ORIGIN"
     "SUBSTITUTE"
     "TABLE_NAME"
+    "TEMPORARY"
     "TIES"
     "TIMESTAMPADD"
     "TIMESTAMPDIFF"

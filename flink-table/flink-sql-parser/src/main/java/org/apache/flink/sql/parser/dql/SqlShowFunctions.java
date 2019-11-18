@@ -37,11 +37,11 @@ public class SqlShowFunctions extends SqlCall {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW FUNCTIONS", SqlKind.OTHER);
 
-	private final SqlIdentifier functionScope;
+	private final SqlIdentifier databaseName;
 
-	public SqlShowFunctions(SqlParserPos pos, SqlIdentifier functionScope) {
+	public SqlShowFunctions(SqlParserPos pos, SqlIdentifier database) {
 		super(pos);
-		this.functionScope = functionScope;
+		this.databaseName = database;
 	}
 
 	@Override
@@ -51,7 +51,7 @@ public class SqlShowFunctions extends SqlCall {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(functionScope);
+		return ImmutableNullableList.of(databaseName);
 	}
 
 	@Override
@@ -60,8 +60,12 @@ public class SqlShowFunctions extends SqlCall {
 		int leftPrec,
 		int rightPrec) {
 		writer.keyword("SHOW FUNCTIONS");
-		if (functionScope != null) {
-			functionScope.unparse(writer, leftPrec, rightPrec);
+		if (databaseName != null) {
+			databaseName.unparse(writer, leftPrec, rightPrec);
 		}
+	}
+
+	public String[] fullDatabaseName() {
+		return databaseName.names.toArray(new String[0]);
 	}
 }
