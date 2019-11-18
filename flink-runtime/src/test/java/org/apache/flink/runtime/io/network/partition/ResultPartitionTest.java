@@ -27,6 +27,8 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
@@ -324,6 +326,48 @@ public class ResultPartitionTest {
 		} finally {
 			resultPartition.release();
 			network.close();
+		}
+	}
+
+	@Test
+	public void testPipelinedPartitionBufferPool() throws Exception {
+		testPartitionBufferPool(ResultPartitionType.PIPELINED_BOUNDED);
+	}
+
+	@Test
+	public void testBlockingPartitionBufferPool() throws Exception {
+		testPartitionBufferPool(ResultPartitionType.BLOCKING);
+	}
+
+	private void testPartitionBufferPool(ResultPartitionType type) throws Exception {
+		//setup
+		final int networkBuffersPerChannel = 2;
+		final int floatingNetworkBuffersPerGate = 8;
+		final NetworkBufferPool globalPool = new NetworkBufferPool(20, 1, 1);
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setResultPartitionType(type)
+			.setFileChannelManager(fileChannelManager)
+			.setNetworkBuffersPerChannel(networkBuffersPerChannel)
+			.setFloatingNetworkBuffersPerGate(floatingNetworkBuffersPerGate)
+			.setNetworkBufferPool(globalPool)
+			.build();
+
+		try {
+			partition.setup();
+			BufferPool bufferPool = partition.getBufferPool();
+			// verify the amount of buffers in created local pool
+			assertEquals(partition.getNumberOfSubpartitions() + 1, bufferPool.getNumberOfRequiredMemorySegments());
+			if (type.isBounded()) {
+				final int maxNumBuffers = networkBuffersPerChannel * partition.getNumberOfSubpartitions() + floatingNetworkBuffersPerGate;
+				assertEquals(maxNumBuffers, bufferPool.getMaxNumberOfMemorySegments());
+			} else {
+				assertEquals(Integer.MAX_VALUE, bufferPool.getMaxNumberOfMemorySegments());
+			}
+
+		} finally {
+			// cleanup
+			globalPool.destroyAllBufferPools();
+			globalPool.destroy();
 		}
 	}
 

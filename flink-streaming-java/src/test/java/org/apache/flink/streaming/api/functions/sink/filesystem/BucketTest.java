@@ -64,7 +64,7 @@ public class BucketTest {
 
 		final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
 		final Bucket<String, String> bucketUnderTest =
-				createBucket(recoverableWriter, path, 0, 0, new PartFileConfig());
+				createBucket(recoverableWriter, path, 0, 0, OutputFileConfig.builder().build());
 
 		bucketUnderTest.write("test-element", 0L);
 
@@ -82,7 +82,7 @@ public class BucketTest {
 
 		final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
 		final Bucket<String, String> bucketUnderTest =
-				createBucket(recoverableWriter, path, 0, 0, new PartFileConfig());
+				createBucket(recoverableWriter, path, 0, 0, OutputFileConfig.builder().build());
 
 		bucketUnderTest.write("test-element", 0L);
 
@@ -105,7 +105,7 @@ public class BucketTest {
 
 		final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
 		final Bucket<String, String> bucketUnderTest =
-				createBucket(recoverableWriter, path, 0, 0, new PartFileConfig());
+				createBucket(recoverableWriter, path, 0, 0, OutputFileConfig.builder().build());
 
 		final BucketState<String> state = bucketUnderTest.onReceptionOfCheckpoint(0L);
 		assertThat(state, hasNoActiveInProgressFile());
@@ -357,7 +357,7 @@ public class BucketTest {
 			final Path bucketPath,
 			final int subtaskIdx,
 			final int initialPartCounter,
-			final PartFileConfig partFileConfig) {
+			final OutputFileConfig outputFileConfig) {
 
 		return Bucket.getNew(
 				writer,
@@ -367,7 +367,7 @@ public class BucketTest {
 				initialPartCounter,
 				partFileFactory,
 				rollingPolicy,
-				partFileConfig);
+				outputFileConfig);
 	}
 
 	private static Bucket<String, String> restoreBucket(
@@ -375,7 +375,7 @@ public class BucketTest {
 			final int subtaskIndex,
 			final long initialPartCounter,
 			final BucketState<String> bucketState,
-			final PartFileConfig partFileConfig) throws Exception {
+			final OutputFileConfig outputFileConfig) throws Exception {
 
 		return Bucket.restore(
 				writer,
@@ -384,7 +384,7 @@ public class BucketTest {
 				partFileFactory,
 				rollingPolicy,
 				bucketState,
-				partFileConfig);
+				outputFileConfig);
 	}
 
 	private static TestRecoverableWriter getRecoverableWriter(Path path) {
@@ -403,7 +403,7 @@ public class BucketTest {
 	private Bucket<String, String> getRestoredBucketWithOnlyInProgressPart(final BaseStubWriter writer) throws IOException {
 		final BucketState<String> stateWithOnlyInProgressFile =
 				new BucketState<>("test", new Path(), 12345L, new NoOpRecoverable(), new HashMap<>());
-		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, stateWithOnlyInProgressFile, new PartFileConfig());
+		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, stateWithOnlyInProgressFile, OutputFileConfig.builder().build());
 	}
 
 	private Bucket<String, String> getRestoredBucketWithOnlyPendingParts(final BaseStubWriter writer, final int numberOfPendingParts) throws IOException {
@@ -412,7 +412,7 @@ public class BucketTest {
 
 		final BucketState<String> initStateWithOnlyInProgressFile =
 				new BucketState<>("test", new Path(), 12345L, null, completePartsPerCheckpoint);
-		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, initStateWithOnlyInProgressFile, new PartFileConfig());
+		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, initStateWithOnlyInProgressFile, OutputFileConfig.builder().build());
 	}
 
 	private Map<Long, List<RecoverableWriter.CommitRecoverable>> createPendingPartsPerCheckpoint(int noOfCheckpoints) {

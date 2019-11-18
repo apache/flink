@@ -125,7 +125,7 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
+	public CompletableFuture<?> getAvailableFuture() {
 		return AvailabilityProvider.AVAILABLE;
 	}
 

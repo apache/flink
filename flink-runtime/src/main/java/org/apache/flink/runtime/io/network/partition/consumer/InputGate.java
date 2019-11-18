@@ -99,8 +99,8 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	 * not completed futures should become completed once there are more records available.
 	 */
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return availabilityHelper.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return availabilityHelper.getAvailableFuture();
 	}
 
 	/**
