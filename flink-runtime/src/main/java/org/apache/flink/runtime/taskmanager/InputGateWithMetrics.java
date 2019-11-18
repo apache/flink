@@ -46,8 +46,8 @@ public class InputGateWithMetrics extends InputGate {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return inputGate.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return inputGate.getAvailableFuture();
 	}
 
 	@Override

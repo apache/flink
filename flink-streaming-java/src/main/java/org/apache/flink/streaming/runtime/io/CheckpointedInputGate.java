@@ -109,9 +109,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
+	public CompletableFuture<?> getAvailableFuture() {
 		if (bufferStorage.isEmpty()) {
-			return inputGate.isAvailable();
+			return inputGate.getAvailableFuture();
 		}
 		return AVAILABLE;
 	}

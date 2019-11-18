@@ -324,8 +324,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return bufferPool.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return bufferPool.getAvailableFuture();
 	}
 
 	@Override

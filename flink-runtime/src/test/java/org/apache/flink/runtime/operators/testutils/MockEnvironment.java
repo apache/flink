@@ -188,6 +188,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		}
 	}
 
+	public void addOutputs(List<ResultPartitionWriter> writers) {
+		outputs.addAll(writers);
+	}
+
 	@Override
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;

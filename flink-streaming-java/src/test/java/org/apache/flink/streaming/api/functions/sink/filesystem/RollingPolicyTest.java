@@ -204,7 +204,7 @@ public class RollingPolicyTest {
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicyToTest,
 				0,
-				new PartFileConfig()
+				OutputFileConfig.builder().build()
 		);
 	}
 

@@ -143,7 +143,7 @@ public class StreamTaskNetworkInputTest {
 	}
 
 	private static void assertHasNextElement(StreamTaskNetworkInput input, DataOutput output) throws Exception {
-		assertTrue(input.isAvailable().isDone());
+		assertTrue(input.getAvailableFuture().isDone());
 		InputStatus status = input.emitNext(output);
 		assertThat(status, is(InputStatus.MORE_AVAILABLE));
 	}

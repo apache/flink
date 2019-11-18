@@ -16,51 +16,52 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.io;
+package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.SourceReaderOperator;
-import org.apache.flink.util.IOUtils;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.event.AbstractEvent;
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Implementation of {@link StreamTaskInput} that reads data from the {@link SourceReaderOperator}
- * and returns the {@link InputStatus} to indicate whether the source state is available,
- * unavailable or finished.
+ * The specific delegate implementation for the single output case.
  */
-@Internal
-public final class StreamTaskSourceInput<T> implements StreamTaskInput<T> {
+public class SingleRecordWriter<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
 
-	private final SourceReaderOperator<T> operator;
+	private final RecordWriter<T> recordWriter;
 
-	public StreamTaskSourceInput(SourceReaderOperator<T> operator) {
-		this.operator = checkNotNull(operator);
+	public SingleRecordWriter(RecordWriter<T> recordWriter) {
+		this.recordWriter = checkNotNull(recordWriter);
 	}
 
 	@Override
-	public InputStatus emitNext(DataOutput<T> output) throws Exception {
-		return operator.emitNext(output);
+	public void broadcastEvent(AbstractEvent event) throws IOException {
+		recordWriter.broadcastEvent(event);
+	}
+
+	@Override
+	public RecordWriter<T> getRecordWriter(int outputIndex) {
+		checkArgument(outputIndex == 0, "The index should always be 0 for the single record writer delegate.");
+
+		return recordWriter;
 	}
 
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		return operator.getAvailableFuture();
+		return recordWriter.getAvailableFuture();
 	}
 
-	/**
-	 * This method is invalid and never called by the one/source input processor.
-	 */
 	@Override
-	public int getInputIndex() {
-		return -1;
+	public boolean isAvailable() {
+		return recordWriter.isAvailable();
 	}
 
 	@Override
 	public void close() {
-		IOUtils.closeQuietly(operator::close);
+		recordWriter.close();
 	}
 }
-
