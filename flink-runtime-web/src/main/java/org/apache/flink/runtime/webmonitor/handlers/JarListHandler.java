@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -38,6 +39,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -61,6 +63,8 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 
 	private final Executor executor;
 
+	private final Configuration configuration;
+
 	public JarListHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
@@ -68,11 +72,13 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 			MessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> messageHeaders,
 			CompletableFuture<String> localAddressFuture,
 			File jarDir,
+			Configuration configuration,
 			Executor executor) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.localAddressFuture = localAddressFuture;
 		this.jarDir = requireNonNull(jarDir);
+		this.configuration = configuration;
 		this.executor = requireNonNull(executor);
 	}
 
@@ -129,7 +135,7 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 
 						PackagedProgram program = null;
 						try {
-							program = new PackagedProgram(f, clazz, new String[0]);
+							program = new PackagedProgram(f, Collections.emptyList(), clazz, configuration);
 						} catch (Exception ignored) {
 							// ignore jar files which throw an error upon creating a PackagedProgram
 						}
