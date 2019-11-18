@@ -16,37 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.cli;
+package org.apache.flink.client.deployment.executors;
 
-import org.apache.flink.configuration.Configuration;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.AbstractSessionClusterExecutor;
+import org.apache.flink.client.deployment.StandaloneClientFactory;
+import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.core.execution.Executor;
 
 /**
- * The default CLI which is used for interaction with standalone clusters.
+ * The {@link Executor} to be used when executing a job on an already running cluster.
  */
-public class DefaultCLI extends AbstractCustomCommandLine {
+@Internal
+public class StandaloneSessionClusterExecutor extends AbstractSessionClusterExecutor<StandaloneClusterId, StandaloneClientFactory> {
 
-	public static final String ID = "default";
+	public static final String NAME = "standalone-session-cluster";
 
-	public DefaultCLI(Configuration configuration) {
-		super(configuration);
-	}
-
-	@Override
-	public boolean isActive(CommandLine commandLine) {
-		// always active because we can try to read a JobManager address from the config
-		return true;
-	}
-
-	@Override
-	public String getId() {
-		return ID;
-	}
-
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		super.addGeneralOptions(baseOptions);
+	public StandaloneSessionClusterExecutor() {
+		super(new StandaloneClientFactory());
 	}
 }

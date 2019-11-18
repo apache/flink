@@ -16,37 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.cli;
+package org.apache.flink.yarn.executors;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.AbstractJobClusterExecutor;
+import org.apache.flink.core.execution.Executor;
+import org.apache.flink.yarn.YarnClusterClientFactory;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 /**
- * The default CLI which is used for interaction with standalone clusters.
+ * The {@link Executor} to be used when executing a job in isolation.
+ * This executor will start a cluster specifically for the job at hand and
+ * tear it down when the job is finished either successfully or due to an error.
  */
-public class DefaultCLI extends AbstractCustomCommandLine {
+@Internal
+public class YarnJobClusterExecutor extends AbstractJobClusterExecutor<ApplicationId, YarnClusterClientFactory> {
 
-	public static final String ID = "default";
+	public static final String NAME = "yarn-job-cluster";
 
-	public DefaultCLI(Configuration configuration) {
-		super(configuration);
-	}
-
-	@Override
-	public boolean isActive(CommandLine commandLine) {
-		// always active because we can try to read a JobManager address from the config
-		return true;
-	}
-
-	@Override
-	public String getId() {
-		return ID;
-	}
-
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		super.addGeneralOptions(baseOptions);
+	public YarnJobClusterExecutor() {
+		super(new YarnClusterClientFactory());
 	}
 }

@@ -133,7 +133,7 @@ public class ExecutionEnvironment {
 
 	private final Configuration configuration;
 
-	private ClassLoader userClassloader;
+	private final ClassLoader userClassloader;
 
 	/**
 	 * Creates a new Execution Environment.
@@ -143,20 +143,27 @@ public class ExecutionEnvironment {
 	}
 
 	protected ExecutionEnvironment(final Configuration configuration) {
-		this(DefaultExecutorServiceLoader.INSTANCE, configuration);
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
 	}
 
-	protected ExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration configuration) {
+	protected ExecutionEnvironment(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
-		this.userClassloader = getClass().getClassLoader();
+		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
 	}
 
-	protected void setUserClassloader(final ClassLoader userClassloader) {
-		this.userClassloader = checkNotNull(userClassloader);
+	public ClassLoader getUserCodeClassLoader() {
+		return userClassloader;
 	}
 
-	protected Configuration getConfiguration() {
+	public ExecutorServiceLoader getExecutorServiceLoader() {
+		return executorServiceLoader;
+	}
+
+	public Configuration getConfiguration() {
 		return this.configuration;
 	}
 
