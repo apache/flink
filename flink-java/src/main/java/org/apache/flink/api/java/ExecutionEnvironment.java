@@ -142,13 +142,13 @@ public class ExecutionEnvironment {
 		this(new Configuration());
 	}
 
-	protected ExecutionEnvironment(final Configuration executorConfiguration) {
-		this(DefaultExecutorServiceLoader.INSTANCE, executorConfiguration);
+	protected ExecutionEnvironment(final Configuration configuration) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration);
 	}
 
-	protected ExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration executorConfiguration) {
+	protected ExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration configuration) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
-		this.configuration = checkNotNull(executorConfiguration);
+		this.configuration = checkNotNull(configuration);
 		this.userClassloader = getClass().getClassLoader();
 	}
 

@@ -165,15 +165,13 @@ public class StreamExecutionEnvironment {
 		this(new Configuration());
 	}
 
-	public StreamExecutionEnvironment(final Configuration executorConfiguration) {
-		this(DefaultExecutorServiceLoader.INSTANCE, executorConfiguration);
+	public StreamExecutionEnvironment(final Configuration configuration) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration);
 	}
 
-	public StreamExecutionEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
-			final Configuration executorConfiguration) {
+	public StreamExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration configuration) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
-		this.configuration = checkNotNull(executorConfiguration);
+		this.configuration = checkNotNull(configuration);
 		this.userClassloader = getClass().getClassLoader();
 	}
 
