@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ModuleManager {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CatalogManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ModuleManager.class);
 
 	private LinkedHashMap<String, Module> modules;
 
