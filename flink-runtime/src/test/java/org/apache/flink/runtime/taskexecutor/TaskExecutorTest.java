@@ -90,14 +90,12 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
-import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -142,6 +140,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.createDefaultSlots;
+import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.createDefaultTimerService;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -188,8 +188,6 @@ public class TaskExecutorTest extends TestLogger {
 
 	private BlobCacheService dummyBlobCacheService;
 
-	private TimerService<AllocationID> timerService;
-
 	private Configuration configuration;
 
 	private TaskManagerLocation taskManagerLocation;
@@ -211,8 +209,6 @@ public class TaskExecutorTest extends TestLogger {
 	@Before
 	public void setup() throws IOException {
 		rpc = new TestingRpcService();
-		timerService = new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
-
 		dummyBlobCacheService = new BlobCacheService(
 			new Configuration(),
 			new VoidBlobStore(),
@@ -242,11 +238,6 @@ public class TaskExecutorTest extends TestLogger {
 		if (rpc != null) {
 			RpcUtils.terminateRpcService(rpc, timeout);
 			rpc = null;
-		}
-
-		if (timerService != null) {
-			timerService.stop();
-			timerService = null;
 		}
 
 		if (dummyBlobCacheService != null) {
@@ -1706,7 +1697,6 @@ public class TaskExecutorTest extends TestLogger {
 		final CountDownLatch activeSlots = new CountDownLatch(2);
 		final TaskSlotTable taskSlotTable = new ActivateSlotNotifyingTaskSlotTable(
 				2,
-				timerService,
 				activeSlots);
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
 
@@ -1822,7 +1812,7 @@ public class TaskExecutorTest extends TestLogger {
 		resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setTaskSlotTable(new AllocateSlotNotifyingTaskSlotTable(timerService, receivedSlotRequest))
+			.setTaskSlotTable(new AllocateSlotNotifyingTaskSlotTable(receivedSlotRequest))
 			.build();
 		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
 		final ResourceID taskExecutorResourceId = taskManagerServices.getTaskManagerLocation().getResourceID();
@@ -2015,7 +2005,7 @@ public class TaskExecutorTest extends TestLogger {
 		private final Queue<SlotReport> slotReports;
 
 		private TestingTaskSlotTable(Queue<SlotReport> slotReports) {
-			super(TaskSlotUtils.createDefaultSlots(1), new TimerService<>(TestingUtils.defaultExecutor(), 10000L));
+			super(createDefaultSlots(1), createDefaultTimerService(timeout.toMilliseconds()));
 			this.slotReports = slotReports;
 		}
 
@@ -2029,10 +2019,8 @@ public class TaskExecutorTest extends TestLogger {
 
 		private final OneShotLatch allocateSlotLatch;
 
-		private AllocateSlotNotifyingTaskSlotTable(
-				TimerService<AllocationID> timerService,
-				OneShotLatch allocateSlotLatch) {
-			super(TaskSlotUtils.createDefaultSlots(1), timerService);
+		private AllocateSlotNotifyingTaskSlotTable(OneShotLatch allocateSlotLatch) {
+			super(createDefaultSlots(1), createDefaultTimerService(timeout.toMilliseconds()));
 			this.allocateSlotLatch = allocateSlotLatch;
 		}
 
@@ -2049,8 +2037,8 @@ public class TaskExecutorTest extends TestLogger {
 
 		private final CountDownLatch slotsToActivate;
 
-		private ActivateSlotNotifyingTaskSlotTable(int numberOfDefaultSlots, TimerService<AllocationID> timerService, CountDownLatch slotsToActivate) {
-			super(TaskSlotUtils.createDefaultSlots(numberOfDefaultSlots), timerService);
+		private ActivateSlotNotifyingTaskSlotTable(int numberOfDefaultSlots, CountDownLatch slotsToActivate) {
+			super(createDefaultSlots(numberOfDefaultSlots), createDefaultTimerService(timeout.toMilliseconds()));
 			this.slotsToActivate = slotsToActivate;
 		}
 
