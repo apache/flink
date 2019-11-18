@@ -22,8 +22,11 @@ import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.vector.BytesColumnVector.Bytes;
 
+import org.apache.calcite.avatica.util.DateTimeUtils;
+
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalTime;
 
 /**
  * A VectorizedColumnBatch is a set of rows, organized with each column as a vector. It is the
@@ -139,8 +142,20 @@ public class VectorizedColumnBatch implements Serializable {
 			return null;
 		}
 
-		if (SqlTimestamp.isCompact(precision)) {
+		// The precision of Timestamp in parquet should be one of MILLIS, MICROS or NANOS.
+		// https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#timestamp
+		//
+		// For MILLIS, the underlying INT64 holds milliseconds
+		// For MICROS, the underlying INT64 holds microseconds
+		// For NANOS, the underlying INT96 holds nanoOfDay(8 bytes) and julianDay(4 bytes)
+		if (columns[colId] instanceof TimestampColumnVector) {
+			return ((TimestampColumnVector) (columns[colId])).getTimestamp(rowId, precision);
+		} else if (precision <= 3) {
 			return SqlTimestamp.fromEpochMillis(getLong(rowId, colId));
+		} else if (precision <= 6) {
+			long microseconds = getLong(rowId, colId);
+			return SqlTimestamp.fromEpochMillis(
+				microseconds / 1000, (int) (microseconds % 1000) * 1000);
 		} else {
 			byte[] bytes = getBytes(rowId, colId);
 			assert bytes.length == 12;
@@ -154,7 +169,15 @@ public class VectorizedColumnBatch implements Serializable {
 				n <<= 8;
 				n |= (bytes[i] & (0xff));
 			}
-			return SqlTimestamp.fromEpochMillis(l, n);
+			LocalTime localTime = LocalTime.ofNanoOfDay(l);
+			long millisecond =
+				(n - DateTimeUtils.EPOCH_JULIAN) * DateTimeUtils.MILLIS_PER_DAY +
+				localTime.getHour() * DateTimeUtils.MILLIS_PER_HOUR +
+				localTime.getMinute() * DateTimeUtils.MILLIS_PER_MINUTE +
+				localTime.getSecond() * DateTimeUtils.MILLIS_PER_SECOND +
+				localTime.getNano() / 1000000;
+			int nanoOfMillisecond = localTime.getNano() % 1000000;
+			return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
 		}
 	}
 }

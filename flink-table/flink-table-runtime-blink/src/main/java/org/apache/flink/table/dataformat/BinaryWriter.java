@@ -97,11 +97,8 @@ public interface BinaryWriter {
 			case INTERVAL_YEAR_MONTH:
 				writer.writeInt(pos, (int) o);
 				break;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				TimestampType timestampType = (TimestampType) type;
-				writer.writeTimestamp(pos, (SqlTimestamp) o, timestampType.getPrecision());
-				break;
 			case BIGINT:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				writer.writeLong(pos, (long) o);

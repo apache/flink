@@ -227,6 +227,7 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 				setNullAt(pos);
 				// zero-out the bytes
 				SegmentsUtil.setLong(segments, offset + cursor, 0L);
+				// keep the offset for future update
 				segments[0].putLong(fieldOffset, ((long) cursor) << 32);
 			} else {
 				// write millisecond to the variable length portion.
@@ -339,10 +340,7 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndNanoOfMilli = segments[0].getLong(fieldOffset);
-		final int nanoOfMillisecond = (int) offsetAndNanoOfMilli;
-		final int subOffset = (int) (offsetAndNanoOfMilli >> 32);
-		final long millisecond = SegmentsUtil.getLong(segments, offset + subOffset);
-		return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
+		return SqlTimestamp.readTimestampFieldFromSegments(segments, offset, offsetAndNanoOfMilli);
 	}
 
 	@Override

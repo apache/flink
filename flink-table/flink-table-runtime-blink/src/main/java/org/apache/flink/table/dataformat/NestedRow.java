@@ -277,10 +277,7 @@ public final class NestedRow extends BinarySection implements BaseRow {
 
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndNanoOfMilli = SegmentsUtil.getLong(segments, fieldOffset);
-		final int nanoOfMillisecond = (int) offsetAndNanoOfMilli;
-		final int subOffset = (int) (offsetAndNanoOfMilli >> 32);
-		final long millisecond = SegmentsUtil.getLong(segments, offset + subOffset);
-		return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
+		return SqlTimestamp.readTimestampFieldFromSegments(segments, offset, offsetAndNanoOfMilli);
 	}
 
 	@Override

@@ -19,6 +19,7 @@
 package org.apache.flink.table.dataformat.vector;
 
 import org.apache.flink.table.dataformat.ColumnarRow;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.vector.heap.HeapBooleanVector;
 import org.apache.flink.table.dataformat.vector.heap.HeapByteVector;
 import org.apache.flink.table.dataformat.vector.heap.HeapBytesVector;
@@ -30,6 +31,8 @@ import org.apache.flink.table.dataformat.vector.heap.HeapShortVector;
 
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertEquals;
@@ -43,7 +46,7 @@ public class VectorizedColumnBatchTest {
 	private static final int VECTOR_SIZE = 1024;
 
 	@Test
-	public void testTyped() {
+	public void testTyped() throws IOException {
 		HeapBooleanVector col0 = new HeapBooleanVector(VECTOR_SIZE);
 		for (int i = 0; i < VECTOR_SIZE; i++) {
 			col0.vector[i] = i % 2 == 0;
@@ -85,8 +88,65 @@ public class VectorizedColumnBatchTest {
 			col7.vector[i] = (short) i;
 		}
 
+		HeapLongVector col8 = new HeapLongVector(VECTOR_SIZE);
+		for (int i = 0; i < VECTOR_SIZE; i++) {
+			col8.vector[i] = i;
+		}
+
+		HeapLongVector col9 = new HeapLongVector(VECTOR_SIZE);
+		for (int i = 0; i < VECTOR_SIZE; i++) {
+			col9.vector[i] = i * 1000;
+		}
+
+		HeapBytesVector col10 = new HeapBytesVector(VECTOR_SIZE);
+		{
+			int nanosecond = 123456789;
+			int start = 0;
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			for (int i = 0; i < VECTOR_SIZE; i++) {
+				byte[] bytes = new byte[12];
+				long l = i * 1000000000L + nanosecond; // i means second
+				for (int j = 0; j < 8; j++) {
+					bytes[7 - j] = (byte) l;
+					l >>>= 8;
+				}
+				int n = 2440588; // Epoch Julian
+				for (int j = 0; j < 4; j++) {
+					bytes[11 - j] = (byte) n;
+					n >>>=8;
+				}
+
+				col10.start[i] = start;
+				col10.length[i] = 12;
+				start += 12;
+				out.write(bytes);
+			}
+			col10.buffer = out.toByteArray();
+		}
+
+		long[] vector11 = new long[VECTOR_SIZE];
+		for (int i = 0; i < VECTOR_SIZE; i++) {
+			vector11[i] = i;
+		}
+		TimestampColumnVector col11 = new TimestampColumnVector() {
+			@Override
+			public boolean isNullAt(int i) {
+				return false;
+			}
+
+			@Override
+			public void reset() {
+
+			}
+
+			@Override
+			public SqlTimestamp getTimestamp(int i, int precision) {
+				return SqlTimestamp.fromEpochMillis(vector11[i]);
+			}
+		};
+
 		VectorizedColumnBatch batch = new VectorizedColumnBatch(
-				new ColumnVector[]{col0, col1, col2, col3, col4, col5, col6, col7});
+				new ColumnVector[]{col0, col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11});
 
 		for (int i = 0; i < VECTOR_SIZE; i++) {
 			ColumnarRow row = new ColumnarRow(batch, i);
@@ -98,6 +158,11 @@ public class VectorizedColumnBatchTest {
 			assertEquals(row.getInt(5), i);
 			assertEquals(row.getLong(6), (long) i);
 			assertEquals(row.getShort(7), (short) i);
+			assertEquals(row.getTimestamp(8, 3).getMillisecond(), i);
+			assertEquals(row.getTimestamp(9, 6).getMillisecond(), i);
+			assertEquals(row.getTimestamp(10, 9).getMillisecond(), i * 1000L + 123);
+			assertEquals(row.getTimestamp(10, 9).getNanoOfMillisecond(), 456789);
+			assertEquals(row.getTimestamp(8, 3).getMillisecond(), i);
 		}
 	}
 
