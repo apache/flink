@@ -26,7 +26,6 @@ import org.apache.calcite.avatica.util.DateTimeUtils;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalTime;
 
 /**
  * A VectorizedColumnBatch is a set of rows, organized with each column as a vector. It is the
