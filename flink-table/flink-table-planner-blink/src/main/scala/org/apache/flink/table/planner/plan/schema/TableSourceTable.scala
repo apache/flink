@@ -85,17 +85,15 @@ class TableSourceTable[T](
   }
 
   /**
-    * Creates a copy of this table, changing table source, statistic and rowType based on
+    * Creates a copy of this table, changing table source and rowType based on
     * selected fields.
     *
     * @param tableSource tableSource to replace
-    * @param statistic New FlinkStatistic to replace
     * @param selectedFields Selected indices of the table source output fields
-    * @return New TableSourceTable instance with specified table source, [[FlinkStatistic]],
+    * @return New TableSourceTable instance with specified table source
     *         and selected fields
     */
-  def copy(tableSource: TableSource[_], statistic: FlinkStatistic,
-      selectedFields: Array[Int]): TableSourceTable[T] = {
+  def copy(tableSource: TableSource[_], selectedFields: Array[Int]): TableSourceTable[T] = {
     val newRowType = relOptSchema
       .getTypeFactory
       .createStructType(rowType

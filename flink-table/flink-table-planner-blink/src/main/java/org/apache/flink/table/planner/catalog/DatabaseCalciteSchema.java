@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.catalog;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -92,7 +91,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				.tableStats(extractTableStats(catalog, tableIdentifier))
 				.build();
 		} else {
-			throw new TableException("Unsupported table type: " + catalogBaseTable);
+			return FlinkStatistic.UNKNOWN();
 		}
 	}
 
@@ -105,7 +104,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			return convertToTableStats(tableStatistics, columnStatistics);
 		} catch (TableNotExistException e) {
 			throw new ValidationException(format(
-				"Could not access table partitions for table: [%s, %s, %s]",
+				"Could not get statistic for table: [%s, %s, %s]",
 				objectIdentifier.getCatalogName(),
 				tablePath.getDatabaseName(),
 				tablePath.getObjectName()), e);

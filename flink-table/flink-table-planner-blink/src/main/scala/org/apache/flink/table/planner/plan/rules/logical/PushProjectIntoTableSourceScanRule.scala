@@ -96,7 +96,6 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     // project push down does not change the statistic, we can reuse origin statistic
     val newTableSourceTable = tableSourceTable.copy(
       newTableSource,
-      tableSourceTable.getStatistic,
       usedFields)
     // row type is changed after project push down
     val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newTableSourceTable)

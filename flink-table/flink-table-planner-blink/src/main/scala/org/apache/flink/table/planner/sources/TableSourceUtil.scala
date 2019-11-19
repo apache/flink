@@ -126,7 +126,6 @@ object TableSourceUtil {
     * @param fieldNameArray Field names to build the row type
     * @param fieldDataTypeArray Field data types to build the row type
     * @param tableSource    The [[TableSource]] to derive time attributes
-    * @param selectedFields The indices of all selected fields. None, if all fields are selected
     * @param streaming      Flag to determine whether the schema of
     *                       a stream or batch table is created
     * @return The schema for the selected fields of the given [[TableSource]]
@@ -136,10 +135,9 @@ object TableSourceUtil {
       fieldNameArray: Array[String],
       fieldDataTypeArray: Array[DataType],
       tableSource: TableSource[_],
-      selectedFields: Option[Array[Int]],
       streaming: Boolean): RelDataType = {
 
-    var fieldNames = fieldNameArray
+    val fieldNames = fieldNameArray
     var fieldTypes = fieldDataTypeArray
       .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
 
@@ -163,11 +161,6 @@ object TableSourceUtil {
         fieldTypes = fieldTypes.patch(idx, Seq(proctimeType), 1)
       }
     }
-    if (selectedFields.isDefined) {
-      // filter field names and types by selected fields
-      fieldNames = selectedFields.get.map(fieldNames(_))
-      fieldTypes = selectedFields.get.map(fieldTypes(_))
-    }
     typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
   }
 
@@ -178,7 +171,6 @@ object TableSourceUtil {
     * @param fieldNameArray Field names to build the row type
     * @param fieldDataTypeArray Field data types to build the row type
     * @param watermarkSpec Watermark specifications defined through DDL
-    * @param selectedFields The indices of all selected fields. None, if all fields are selected
     * @param streaming Flag to determine whether the schema of a stream or batch table is created
     * @return The row type for the selected fields of the given [[TableSource]], this type would
     *         also be patched with time attributes defined in the give [[WatermarkSpec]]
@@ -188,10 +180,9 @@ object TableSourceUtil {
       fieldNameArray: Array[String],
       fieldDataTypeArray: Array[DataType],
       watermarkSpec: WatermarkSpec,
-      selectedFields: Option[Array[Int]],
       streaming: Boolean): RelDataType = {
 
-    var fieldNames = fieldNameArray
+    val fieldNames = fieldNameArray
     var fieldTypes = fieldDataTypeArray
       .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
 
@@ -213,11 +204,6 @@ object TableSourceUtil {
     } else {
       fieldTypes
     }
-    if (selectedFields.isDefined) {
-      // filter field names and types by selected fields
-      fieldNames = selectedFields.get.map(fieldNames(_))
-      fieldTypes = selectedFields.get.map(fieldTypes(_))
-    }
     typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
   }
 
@@ -230,7 +216,6 @@ object TableSourceUtil {
     * @param typeFactory Type factory to create the type
     * @param tableSchema Table schema to derive table field names and data types
     * @param tableSource Table source to derive watermark strategies
-    * @param selectedFields The indices of all selected fields. None, if all fields are selected
     * @param streaming Flag to determine whether the schema of a stream or batch table is created
     * @return The row type for the selected fields of the given [[TableSource]], this type would
     *         also be patched with time attributes defined in the give [[WatermarkSpec]]
@@ -239,7 +224,6 @@ object TableSourceUtil {
       typeFactory: FlinkTypeFactory,
       tableSchema: TableSchema,
       tableSource: Option[TableSource[_]],
-      selectedFields: Option[Array[Int]],
       streaming: Boolean): RelDataType = {
 
     val fieldNames = tableSchema.getFieldNames
@@ -247,10 +231,10 @@ object TableSourceUtil {
 
     if (tableSchema.getWatermarkSpecs.nonEmpty) {
       getSourceRowType(typeFactory, fieldNames, fieldDataTypes, tableSchema.getWatermarkSpecs.head,
-        selectedFields, streaming)
+        streaming)
     } else if (tableSource.isDefined) {
       getSourceRowType(typeFactory, fieldNames, fieldDataTypes, tableSource.get,
-        selectedFields, streaming)
+        streaming)
     } else {
       val fieldTypes = fieldDataTypes.map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
       typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)

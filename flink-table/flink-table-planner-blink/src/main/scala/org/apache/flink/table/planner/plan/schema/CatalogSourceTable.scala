@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.planner.plan.schema
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
 import org.apache.flink.table.planner.calcite.FlinkToRelContext
+import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
@@ -43,23 +44,15 @@ import scala.collection.JavaConversions._
   * during the last phrase of sql-to-rel conversion, it is overdue once the sql node was converted
   * to relational expression.
   *
-  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table
-  * @param isStreamingMode A flag that tells if the current table is in stream mode
-  * @param catalogTable Catalog table where this table source table comes from
+  * @param schemaTable Schema table which takes the variables needed to find the table source
   */
 class CatalogSourceTable[T](
     relOptSchema: RelOptSchema,
     names: JList[String],
     rowType: RelDataType,
-    statistic: FlinkStatistic,
-    val tableSource: TableSource[T],
-    val isStreamingMode: Boolean,
+    val schemaTable: CatalogSchemaTable,
     val catalogTable: CatalogTable)
-  extends FlinkPreparingTableBase(relOptSchema, rowType, names, statistic) {
-
-  Preconditions.checkNotNull(tableSource)
-  Preconditions.checkNotNull(statistic)
-  Preconditions.checkNotNull(catalogTable)
+  extends FlinkPreparingTableBase(relOptSchema, rowType, names, schemaTable.getStatistic) {
 
   lazy val columnExprs: Map[String, String] = {
     catalogTable.getSchema
@@ -68,6 +61,8 @@ class CatalogSourceTable[T](
       .map(column => (column.getName, column.getExpr.get()))
       .toMap
   }
+
+  lazy val tableSource: TableSource[T] = findAndCreateTableSource().asInstanceOf[TableSource[T]]
 
   override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
 
@@ -79,7 +74,7 @@ class CatalogSourceTable[T](
       rowType,
       statistic,
       tableSource,
-      isStreamingMode,
+      schemaTable.isStreamingMode,
       catalogTable)
     if (columnExprs.isEmpty) {
       LogicalTableScan.create(cluster, tableSourceTable)
@@ -91,7 +86,7 @@ class CatalogSourceTable[T](
         .map(f => f.getIndex)
         .toArray
       // Copy this table with physical scan row type.
-      val newRelTable = tableSourceTable.copy(tableSource, statistic, physicalFields)
+      val newRelTable = tableSourceTable.copy(tableSource, physicalFields)
       val scan = LogicalTableScan.create(cluster, newRelTable)
       val toRelContext = context.asInstanceOf[FlinkToRelContext]
       val relBuilder = toRelContext.createRelBuilder()
@@ -111,5 +106,27 @@ class CatalogSourceTable[T](
         .projectNamed(rexNodes.toList, fieldNames, true)
         .build()
     }
+  }
+
+  /** Create the table source lazily. */
+  private def findAndCreateTableSource(): TableSource[_] = {
+    val tableFactoryOpt = schemaTable.getTableFactory
+    val tableSource = if (tableFactoryOpt.isPresent) {
+      tableFactoryOpt.get() match {
+        case tableSourceFactory: TableSourceFactory[_] =>
+          tableSourceFactory.createTableSource(
+            schemaTable.getTableIdentifier.toObjectPath,
+            catalogTable)
+        case _ => throw new TableException("Cannot query a sink-only table. "
+          + "TableFactory provided by catalog must implement TableSourceFactory")
+      }
+    } else {
+      TableFactoryUtil.findAndCreateTableSource(catalogTable)
+    }
+    if (!tableSource.isInstanceOf[StreamTableSource[_]]) {
+      throw new TableException("Catalog tables support only "
+        + "StreamTableSource and InputFormatTableSource")
+    }
+    tableSource
   }
 }

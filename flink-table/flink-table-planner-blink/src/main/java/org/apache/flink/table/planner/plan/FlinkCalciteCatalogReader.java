@@ -18,15 +18,11 @@
 
 package org.apache.flink.table.planner.plan;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
-import org.apache.flink.table.factories.TableFactory;
-import org.apache.flink.table.factories.TableFactoryUtil;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
 import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
@@ -97,62 +93,6 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 	 * Translate this {@link CatalogSchemaTable} into Flink source table.
 	 */
 	private static FlinkPreparingTableBase toPreparingTable(
-			RelOptSchema relOptSchema,
-			List<String> names,
-			RelDataType rowType,
-			CatalogSchemaTable table) {
-		if (table.isTemporary()) {
-			return convertTemporaryTable(
-				relOptSchema,
-				names,
-				rowType,
-				table);
-		} else {
-			return convertPermanentTable(
-				relOptSchema,
-				names,
-				rowType,
-				table);
-		}
-	}
-
-	private static FlinkPreparingTableBase convertPermanentTable(
-			RelOptSchema relOptSchema,
-			List<String> names,
-			RelDataType rowType,
-			CatalogSchemaTable schemaTable) {
-		final CatalogBaseTable table = schemaTable.getCatalogTable();
-		if (table instanceof QueryOperationCatalogView) {
-			return convertQueryOperationView(relOptSchema,
-				names,
-				rowType,
-				(QueryOperationCatalogView) table);
-		} else if (table instanceof ConnectorCatalogTable) {
-			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
-			if ((connectorTable).getTableSource().isPresent()) {
-				return convertSourceTable(relOptSchema,
-					names,
-					rowType,
-					connectorTable,
-					schemaTable.getStatistic(),
-					schemaTable.isStreamingMode());
-			} else {
-				throw new ValidationException("Cannot convert a connector table " +
-					"without source.");
-			}
-		} else if (table instanceof CatalogTable) {
-			CatalogTable catalogTable = (CatalogTable) table;
-			return convertCatalogTable(relOptSchema,
-				names,
-				rowType,
-				catalogTable,
-				schemaTable);
-		} else {
-			throw new ValidationException("Unsupported table type: " + table);
-		}
-	}
-
-	private static FlinkPreparingTableBase convertTemporaryTable(
 			RelOptSchema relOptSchema,
 			List<String> names,
 			RelDataType rowType,
@@ -229,32 +169,11 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			RelDataType rowType,
 			CatalogTable catalogTable,
 			CatalogSchemaTable schemaTable) {
-		TableSource<?> tableSource;
-		final TableFactory tableFactory = schemaTable.getTableFactory().orElse(null);
-		if (tableFactory != null) {
-			if (tableFactory instanceof TableSourceFactory) {
-				tableSource = ((TableSourceFactory) tableFactory).createTableSource(
-					schemaTable.getTableIdentifier().toObjectPath(), catalogTable);
-			} else {
-				throw new TableException(
-					"Cannot query a sink-only table. TableFactory provided by catalog must implement TableSourceFactory");
-			}
-		} else {
-			tableSource = TableFactoryUtil.findAndCreateTableSource(catalogTable);
-		}
-
-		if (!(tableSource instanceof StreamTableSource)) {
-			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");
-		}
-
 		return new CatalogSourceTable<>(
 			relOptSchema,
 			names,
 			rowType,
-			schemaTable.getStatistic(),
-			tableSource,
-			schemaTable.isStreamingMode(),
-			catalogTable
-		);
+			schemaTable,
+			catalogTable);
 	}
 }
