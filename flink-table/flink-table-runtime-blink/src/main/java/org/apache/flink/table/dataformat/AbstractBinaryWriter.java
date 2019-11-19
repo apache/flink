@@ -184,7 +184,6 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	@Override
 	public void writeTimestamp(int pos, SqlTimestamp value, int precision) {
 		if (SqlTimestamp.isCompact(precision)) {
-			assert 0 == value.getNanoOfMillisecond();
 			writeLong(pos, value.getMillisecond());
 		} else {
 			// store the nanoOfMillisecond in fixed-length part as offset and nanoOfMillisecond
