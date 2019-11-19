@@ -20,9 +20,13 @@ package org.apache.flink.api.common.restartstrategy;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.RestartStrategyOptions;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -95,6 +99,11 @@ public class RestartStrategies {
 		 * @return Description of the restart strategy
 		 */
 		public abstract String getDescription();
+
+		@Override
+		public String toString() {
+			return getDescription();
+		}
 	}
 
 	/**
@@ -156,7 +165,8 @@ public class RestartStrategies {
 			if (obj instanceof FixedDelayRestartStrategyConfiguration) {
 				FixedDelayRestartStrategyConfiguration other = (FixedDelayRestartStrategyConfiguration) obj;
 
-				return restartAttempts == other.restartAttempts && delayBetweenAttemptsInterval.equals(other.delayBetweenAttemptsInterval);
+				return restartAttempts == other.restartAttempts &&
+					delayBetweenAttemptsInterval.equals(other.delayBetweenAttemptsInterval);
 			} else {
 				return false;
 			}
@@ -164,8 +174,10 @@ public class RestartStrategies {
 
 		@Override
 		public String getDescription() {
-			return "Restart with fixed delay (" + delayBetweenAttemptsInterval + "). #"
-				+ restartAttempts + " restart attempts.";
+			return String.format(
+				"Restart with fixed delay (%s). #%d restart attempts.",
+				delayBetweenAttemptsInterval,
+				restartAttempts);
 		}
 	}
 
@@ -179,7 +191,10 @@ public class RestartStrategies {
 		private final Time failureInterval;
 		private final Time delayBetweenAttemptsInterval;
 
-		public FailureRateRestartStrategyConfiguration(int maxFailureRate, Time failureInterval, Time delayBetweenAttemptsInterval) {
+		public FailureRateRestartStrategyConfiguration(
+				int maxFailureRate,
+				Time failureInterval,
+				Time delayBetweenAttemptsInterval) {
 			this.maxFailureRate = maxFailureRate;
 			this.failureInterval = failureInterval;
 			this.delayBetweenAttemptsInterval = delayBetweenAttemptsInterval;
@@ -199,8 +214,11 @@ public class RestartStrategies {
 
 		@Override
 		public String getDescription() {
-			return "Failure rate restart with maximum of " + maxFailureRate + " failures within interval " + failureInterval.toString()
-					+ " and fixed delay " + delayBetweenAttemptsInterval.toString();
+			return String.format(
+				"Failure rate restart with maximum of %d failures within interval %s and fixed delay %s.",
+				maxFailureRate,
+				failureInterval.toString(),
+				delayBetweenAttemptsInterval.toString());
 		}
 
 		@Override
@@ -247,6 +265,44 @@ public class RestartStrategies {
 		@Override
 		public int hashCode() {
 			return Objects.hash();
+		}
+	}
+
+	/**
+	 * Reads a {@link RestartStrategyConfiguration} from a given {@link ReadableConfig}.
+	 *
+	 * @param configuration configuration object to retrieve parameters from
+	 * @return {@link Optional#empty()} when no restart strategy parameters provided
+	 */
+	public static Optional<RestartStrategyConfiguration> fromConfiguration(ReadableConfig configuration) {
+		return configuration.getOptional(RestartStrategyOptions.RESTART_STRATEGY)
+			.map(confName -> parseConfiguration(confName, configuration));
+	}
+
+	private static RestartStrategyConfiguration parseConfiguration(
+			String restartstrategyKind,
+			ReadableConfig configuration) {
+		switch (restartstrategyKind.toLowerCase()) {
+			case "none":
+			case "off":
+			case "disable":
+				return noRestart();
+			case "fixeddelay":
+			case "fixed-delay":
+				int attempts = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
+				Duration delay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY);
+				return fixedDelayRestart(attempts, delay.toMillis());
+			case "failurerate":
+			case "failure-rate":
+				int maxFailures = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL);
+				Duration failureRateInterval = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL);
+				Duration failureRateDelay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY);
+				return failureRateRestart(
+					maxFailures,
+					Time.milliseconds(failureRateInterval.toMillis()),
+					Time.milliseconds(failureRateDelay.toMillis()));
+			default:
+				throw new IllegalArgumentException("Unknown restart strategy " + restartstrategyKind + ".");
 		}
 	}
 }

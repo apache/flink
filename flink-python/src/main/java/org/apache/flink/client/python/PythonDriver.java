@@ -65,12 +65,12 @@ public final class PythonDriver {
 		final List<String> commands = constructPythonCommands(pythonDriverOptions);
 		try {
 			// prepare the exec environment of python progress.
-			PythonEnvUtils.PythonEnvironment pythonEnv = PythonEnvUtils.preparePythonEnvironment(
+			PythonDriverEnvUtils.PythonEnvironment pythonEnv = PythonDriverEnvUtils.preparePythonEnvironment(
 				pythonDriverOptions.getPythonLibFiles());
 			// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python progress.
 			pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 			// start the python process.
-			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonDriverEnvUtils.startPythonProcess(pythonEnv, commands);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);
