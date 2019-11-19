@@ -29,6 +29,8 @@ import org.apache.flink.table.dataformat.vector.heap.HeapIntVector;
 import org.apache.flink.table.dataformat.vector.heap.HeapLongVector;
 import org.apache.flink.table.dataformat.vector.heap.HeapShortVector;
 
+import org.apache.calcite.avatica.util.DateTimeUtils;
+
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -88,17 +90,57 @@ public class VectorizedColumnBatchTest {
 			col7.vector[i] = (short) i;
 		}
 
-		HeapLongVector col8 = new HeapLongVector(VECTOR_SIZE);
+		// The precision of Timestamp in parquet should be one of MILLIS, MICROS or NANOS.
+		// https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#timestamp
+		//
+		// For MILLIS, the underlying INT64 holds milliseconds
+		// For MICROS, the underlying INT64 holds microseconds
+		// For NANOS, the underlying INT96 holds nanoOfDay(8 bytes) and julianDay(4 bytes)
+		long[] vector8 = new long[VECTOR_SIZE];
 		for (int i = 0; i < VECTOR_SIZE; i++) {
-			col8.vector[i] = i;
+			vector8[i] = i;
 		}
+		TimestampColumnVector col8 = new TimestampColumnVector() {
+			@Override
+			public boolean isNullAt(int i) {
+				return false;
+			}
 
-		HeapLongVector col9 = new HeapLongVector(VECTOR_SIZE);
+			@Override
+			public void reset() {
+
+			}
+
+			@Override
+			public SqlTimestamp getTimestamp(int i, int precision) {
+				return SqlTimestamp.fromEpochMillis(vector8[i]);
+			}
+		};
+
+		long[] vector9 = new long[VECTOR_SIZE];
 		for (int i = 0; i < VECTOR_SIZE; i++) {
-			col9.vector[i] = i * 1000;
+			vector9[i] = i * 1000;
 		}
+		TimestampColumnVector col9 = new TimestampColumnVector() {
+			@Override
+			public SqlTimestamp getTimestamp(int i, int precision) {
+				long microseconds = vector9[i];
+				return SqlTimestamp.fromEpochMillis(
+					microseconds / 1000, (int) (microseconds % 1000) * 1000);
+			}
 
-		HeapBytesVector col10 = new HeapBytesVector(VECTOR_SIZE);
+			@Override
+			public boolean isNullAt(int i) {
+				return false;
+			}
+
+			@Override
+			public void reset() {
+
+			}
+		};
+
+		HeapBytesVector vector10 = new HeapBytesVector(VECTOR_SIZE);
 		{
 			int nanosecond = 123456789;
 			int start = 0;
@@ -116,19 +158,35 @@ public class VectorizedColumnBatchTest {
 					n >>>= 8;
 				}
 
-				col10.start[i] = start;
-				col10.length[i] = 12;
+				vector10.start[i] = start;
+				vector10.length[i] = 12;
 				start += 12;
 				out.write(bytes);
 			}
-			col10.buffer = out.toByteArray();
+			vector10.buffer = out.toByteArray();
 		}
 
-		long[] vector11 = new long[VECTOR_SIZE];
-		for (int i = 0; i < VECTOR_SIZE; i++) {
-			vector11[i] = i;
-		}
-		TimestampColumnVector col11 = new TimestampColumnVector() {
+		TimestampColumnVector col10 = new TimestampColumnVector() {
+			@Override
+			public SqlTimestamp getTimestamp(int colId, int precision) {
+				byte[] bytes = vector10.getBytes(colId).getBytes();
+				assert bytes.length == 12;
+				long nanoOfDay = 0;
+				for (int i = 0; i < 8; i++) {
+					nanoOfDay <<= 8;
+					nanoOfDay |= (bytes[i] & (0xff));
+				}
+				int julianDay = 0;
+				for (int i = 8; i < 12; i++) {
+					julianDay <<= 8;
+					julianDay |= (bytes[i] & (0xff));
+				}
+				long millisecond =
+					(julianDay - DateTimeUtils.EPOCH_JULIAN) * DateTimeUtils.MILLIS_PER_DAY + nanoOfDay / 1000000;
+				int nanoOfMillisecond = (int) (nanoOfDay % 1000000);
+				return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
+			}
+
 			@Override
 			public boolean isNullAt(int i) {
 				return false;
@@ -138,12 +196,12 @@ public class VectorizedColumnBatchTest {
 			public void reset() {
 
 			}
-
-			@Override
-			public SqlTimestamp getTimestamp(int i, int precision) {
-				return SqlTimestamp.fromEpochMillis(vector11[i]);
-			}
 		};
+
+		HeapLongVector col11 = new HeapLongVector(VECTOR_SIZE);
+		for (int i = 0; i < VECTOR_SIZE; i++) {
+			col11.vector[i] = i;
+		}
 
 		VectorizedColumnBatch batch = new VectorizedColumnBatch(
 				new ColumnVector[]{col0, col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11});
@@ -162,7 +220,7 @@ public class VectorizedColumnBatchTest {
 			assertEquals(row.getTimestamp(9, 6).getMillisecond(), i);
 			assertEquals(row.getTimestamp(10, 9).getMillisecond(), i * 1000L + 123);
 			assertEquals(row.getTimestamp(10, 9).getNanoOfMillisecond(), 456789);
-			assertEquals(row.getTimestamp(8, 3).getMillisecond(), i);
+			assertEquals(row.getTimestamp(11, 3).getMillisecond(), i);
 		}
 	}
 

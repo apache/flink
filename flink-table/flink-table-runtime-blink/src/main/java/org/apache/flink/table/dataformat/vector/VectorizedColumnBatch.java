@@ -22,8 +22,6 @@ import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.vector.BytesColumnVector.Bytes;
 
-import org.apache.calcite.avatica.util.DateTimeUtils;
-
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 
@@ -141,37 +139,11 @@ public class VectorizedColumnBatch implements Serializable {
 			return null;
 		}
 
-		// The precision of Timestamp in parquet should be one of MILLIS, MICROS or NANOS.
-		// https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#timestamp
-		//
-		// For MILLIS, the underlying INT64 holds milliseconds
-		// For MICROS, the underlying INT64 holds microseconds
-		// For NANOS, the underlying INT96 holds nanoOfDay(8 bytes) and julianDay(4 bytes)
 		if (columns[colId] instanceof TimestampColumnVector) {
 			return ((TimestampColumnVector) (columns[colId])).getTimestamp(rowId, precision);
-		} else if (precision <= 3) {
-			return SqlTimestamp.fromEpochMillis(getLong(rowId, colId));
-		} else if (precision <= 6) {
-			long microseconds = getLong(rowId, colId);
-			return SqlTimestamp.fromEpochMillis(
-				microseconds / 1000, (int) (microseconds % 1000) * 1000);
 		} else {
-			byte[] bytes = getBytes(rowId, colId);
-			assert bytes.length == 12;
-			long nanoOfDay = 0;
-			for (int i = 0; i < 8; i++) {
-				nanoOfDay <<= 8;
-				nanoOfDay |= (bytes[i] & (0xff));
-			}
-			int julianDay = 0;
-			for (int i = 8; i < 12; i++) {
-				julianDay <<= 8;
-				julianDay |= (bytes[i] & (0xff));
-			}
-			long millisecond =
-				(julianDay - DateTimeUtils.EPOCH_JULIAN) * DateTimeUtils.MILLIS_PER_DAY + nanoOfDay / 1000000;
-			int nanoOfMillisecond = (int) (nanoOfDay % 1000000);
-			return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
+			// by default, we assume the underlying LongColumnVector holds millisecond since Epoch.
+			return SqlTimestamp.fromEpochMillis(((LongColumnVector) columns[colId]).getLong(rowId));
 		}
 	}
 }
