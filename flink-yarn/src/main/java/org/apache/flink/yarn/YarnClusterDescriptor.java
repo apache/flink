@@ -814,6 +814,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			appId,
 			paths,
 			localResources,
+			Path.CUR_DIR,
 			envShipFileList);
 
 		final List<String> userClassPaths = uploadAndRegisterFiles(
