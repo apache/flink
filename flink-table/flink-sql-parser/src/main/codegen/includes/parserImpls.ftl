@@ -184,18 +184,14 @@ SqlAlterFunction SqlAlterFunction() :
     String functionLanguage = null;
     SqlParserPos startPos;
     boolean ifExists = false;
-    boolean hasTemporary = false;
+    boolean isTemporary = false;
     boolean isSystemFunction = false;
 }
 {
     <ALTER>
 
-    [ <TEMPORARY> { hasTemporary = true; }
-        (
-            <SYSTEM>   { isSystemFunction = true; }
-        |
-            {isSystemFunction = false; }
-        )
+    [ <TEMPORARY> { isTemporary = true; }
+        [  <SYSTEM>   { isSystemFunction = true; } ]
     ]
 
     <FUNCTION> { startPos = getPos(); }
@@ -219,7 +215,7 @@ SqlAlterFunction SqlAlterFunction() :
     ]
     {
         return new SqlAlterFunction(startPos.plus(getPos()), functionName, functionClassName,
-            functionLanguage, ifExists, hasTemporary, isSystemFunction);
+            functionLanguage, ifExists, isTemporary, isSystemFunction);
     }
 }
 

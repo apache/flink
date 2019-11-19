@@ -52,21 +52,21 @@ public class SqlAlterFunction extends SqlCall {
 
 	private final boolean isSystemFunction;
 
-	private final boolean hasTemporary;
+	private final boolean isTemporary;
 
 	public SqlAlterFunction(
-		SqlParserPos pos,
-		SqlIdentifier functionName,
-		SqlCharStringLiteral functionClassName,
-		String functionLanguage,
-		boolean ifExists,
-		boolean hasTemporary,
-		boolean isSystemFunction) {
+			SqlParserPos pos,
+			SqlIdentifier functionName,
+			SqlCharStringLiteral functionClassName,
+			String functionLanguage,
+			boolean ifExists,
+			boolean isTemporary,
+			boolean isSystemFunction) {
 		super(pos);
 		this.functionName = requireNonNull(functionName, "functionName should not be null");
 		this.functionClassName = requireNonNull(functionClassName, "functionClassName should not be null");
 		this.isSystemFunction = requireNonNull(isSystemFunction);
-		this.hasTemporary = hasTemporary;
+		this.isTemporary = isTemporary;
 		this.functionLanguage = functionLanguage;
 		this.ifExists = ifExists;
 
@@ -81,7 +81,7 @@ public class SqlAlterFunction extends SqlCall {
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("ALTER");
-		if (hasTemporary) {
+		if (isTemporary) {
 			writer.keyword("TEMPORARY");
 		}
 		if (isSystemFunction) {
@@ -106,11 +106,11 @@ public class SqlAlterFunction extends SqlCall {
 		return ImmutableNullableList.of(functionName, functionClassName);
 	}
 
-	public String getFunctionLanguage() {
+	public String getLanguage() {
 		return functionLanguage;
 	}
 
-	public String[] getFullFunctionName() {
+	public String[] getFunctionName() {
 		return functionName.names.toArray(new String[0]);
 	}
 }
