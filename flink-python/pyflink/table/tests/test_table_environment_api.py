@@ -25,7 +25,8 @@ from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
 from pyflink.table.types import RowType
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
+    PyFlinkBlinkBatchTableTestCase
 from pyflink.util.exceptions import TableException
 
 
@@ -347,7 +348,7 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         assert isinstance(actual, str)
 
     def test_explain_with_multi_sinks(self):
-        t_env = self.bt_env
+        t_env = self.t_env
         source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
@@ -361,8 +362,8 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         t_env.sql_update("insert into sink1 select * from %s where a > 100" % source)
         t_env.sql_update("insert into sink2 select * from %s where a < 100" % source)
 
-        actual = t_env.explain(extended=True)
-        assert isinstance(actual, str) or isinstance(actual, unicode)
+        with self.assertRaises(TableException):
+            t_env.explain(extended=True)
 
     def test_register_java_function(self):
         t_env = self.t_env
@@ -438,3 +439,24 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
                         line = f.readline()
 
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
+
+
+class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
+
+    def test_explain_with_multi_sinks(self):
+        t_env = self.t_env
+        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink(
+            "sink1",
+            CsvTableSink(field_names, field_types, "path1"))
+        t_env.register_table_sink(
+            "sink2",
+            CsvTableSink(field_names, field_types, "path2"))
+
+        t_env.sql_update("insert into sink1 select * from %s where a > 100" % source)
+        t_env.sql_update("insert into sink2 select * from %s where a < 100" % source)
+
+        actual = t_env.explain(extended=True)
+        self.assertIsInstance(actual, str)

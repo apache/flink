@@ -32,8 +32,8 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sinks.StreamTableSink;
+import org.apache.flink.table.sources.TableSource;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -50,9 +50,10 @@ import java.util.List;
  * translating will happen in explain method. If calling explain method before execute method, the transformations in
  * StreamExecutionEnvironment is dirty, and execution result may be incorrect.
  *
- * <p>All set methods (e.g. setXXX, enableXXX, disableXXX, etc) are disabled to prohibit changing configuration,
- * all get methods (e.g. getXXX, isXXX) will be delegated to real StreamExecutionEnvironment.
- * `execute`, `getStreamGraph`, `getExecutionPlan` methods are also disabled.
+ * <p>All set methods (e.g. `setXX`, `enableXX`, `disableXX`, etc) are disabled to prohibit changing configuration,
+ * all get methods (e.g. `getXX`, `isXX`, etc) will be delegated to real StreamExecutionEnvironment.
+ * `execute`, `getStreamGraph`, `getExecutionPlan` methods are also disabled, while `addOperator` method is enabled to
+ * let `explain` method add Transformations to this StreamExecutionEnvironment.
  *
  * <p>This class could be removed once the {@link TableSource} interface and {@link StreamTableSink} interface
  * are reworked.
