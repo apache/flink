@@ -30,7 +30,6 @@ import org.apache.flink.table.dataformat.vector.heap.HeapLongVector;
 import org.apache.flink.table.dataformat.vector.heap.HeapShortVector;
 
 import org.apache.calcite.avatica.util.DateTimeUtils;
-
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
