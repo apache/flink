@@ -395,7 +395,7 @@ public class ClientTest extends TestLogger {
 						jobGraph.setClasspaths(accessor.getClasspaths());
 
 						final JobID jobID = ClientUtils.submitJob(clusterClient, jobGraph).getJobID();
-						return CompletableFuture.completedFuture(new JobClientImpl<>(clusterClient, jobID));
+						return CompletableFuture.completedFuture(new JobClientImpl<>(clusterClient, jobID, false));
 					};
 				}
 			};
