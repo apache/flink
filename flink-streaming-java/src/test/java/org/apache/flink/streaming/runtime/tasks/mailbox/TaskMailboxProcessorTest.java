@@ -82,7 +82,7 @@ public class TaskMailboxProcessorTest {
 
 		MailboxProcessor mailboxProcessor = start(mailboxThread);
 		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> stop.set(true), "stop");
-		stop(mailboxThread);
+		mailboxThread.join();
 	}
 
 	@Test
@@ -100,7 +100,7 @@ public class TaskMailboxProcessorTest {
 		};
 
 		start(mailboxThread);
-		stop(mailboxThread);
+		mailboxThread.join();
 		Assert.assertEquals(expectedInvocations, counter.get());
 	}
 
@@ -131,7 +131,7 @@ public class TaskMailboxProcessorTest {
 
 		MailboxDefaultAction.Suspension suspension = suspendedActionRef.get();
 		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspension::resume, "resume");
-		stop(mailboxThread);
+		mailboxThread.join();
 		Assert.assertEquals(totalInvocations, counter.get());
 	}
 
@@ -196,8 +196,6 @@ public class TaskMailboxProcessorTest {
 		mailboxThread.join();
 		asyncUnblocker.interrupt();
 		asyncUnblocker.join();
-		mailboxProcessor.prepareClose();
-		mailboxProcessor.close();
 		mailboxThread.checkException();
 	}
 
@@ -246,20 +244,13 @@ public class TaskMailboxProcessorTest {
 					mailboxExecutor.execute(this, "Blocking mail" + index.incrementAndGet());
 				}
 			},
-			"Blocking mail" + index);
+			"Blocking mail" + index.get());
 
 		mailboxThread.signalStart();
-		stop(mailboxThread);
+		mailboxThread.join();
+
 		Assert.assertEquals(expectedInvocations, counter.get());
 		Assert.assertEquals(expectedInvocations, index.get());
-	}
-
-	private static void stop(MailboxThread mailboxThread) throws Exception {
-		mailboxThread.join();
-		MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
-		mailboxProcessor.prepareClose();
-		mailboxProcessor.close();
-		mailboxThread.checkException();
 	}
 
 	static class MailboxThread extends Thread implements MailboxDefaultAction {
