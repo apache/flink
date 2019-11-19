@@ -121,7 +121,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	@Override
-	public @Nonnull Mail take(int priorty) throws InterruptedException, IllegalStateException {
+	public @Nonnull Mail take(int priority) throws InterruptedException, IllegalStateException {
 		Optional<Mail> head = tryTakeFromBatch();
 		if (head.isPresent()) {
 			return head.get();
@@ -130,7 +130,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 		lock.lockInterruptibly();
 		try {
 			Mail headMail;
-			while ((headMail = takeOrNull(queue, priorty)) == null) {
+			while ((headMail = takeOrNull(queue, priority)) == null) {
 				notEmpty.await();
 			}
 			return headMail;
@@ -248,16 +248,14 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	private void checkPutStateConditions() {
-		final State state = this.state;
-		if (this.state != OPEN) {
+		if (state != OPEN) {
 			throw new IllegalStateException("Mailbox is in state " + state + ", but is required to be in state " +
 				OPEN + " for put operations.");
 		}
 	}
 
 	private void checkTakeStateConditions() {
-		final State state = this.state;
-		if (this.state == CLOSED) {
+		if (state == CLOSED) {
 			throw new IllegalStateException("Mailbox is in state " + state + ", but is required to be in state " +
 				OPEN + " or " + QUIESCED + " for take operations.");
 		}
@@ -265,6 +263,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 
 	@Override
 	public void quiesce() {
+		checkIsMailboxThread();
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
@@ -279,6 +278,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	@Nonnull
 	@Override
 	public List<Mail> close() {
+		checkIsMailboxThread();
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
