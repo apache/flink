@@ -65,7 +65,7 @@ public class SqlShowFunctions extends SqlCall {
 		}
 	}
 
-	public String[] getDatabaseName() {
+	public String[] getDatabasePath() {
 		return databaseName.names.toArray(new String[0]);
 	}
 }

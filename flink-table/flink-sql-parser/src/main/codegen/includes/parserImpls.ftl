@@ -179,7 +179,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
 
 SqlAlterFunction SqlAlterFunction() :
 {
-    SqlIdentifier functionName = null;
+    SqlIdentifier functionIdentifier = null;
     SqlCharStringLiteral functionClassName = null;
     String functionLanguage = null;
     SqlParserPos startPos;
@@ -198,7 +198,7 @@ SqlAlterFunction SqlAlterFunction() :
 
     [ <IF> <EXISTS> { ifExists = true; } ]
 
-    functionName = CompoundIdentifier()
+    functionIdentifier = CompoundIdentifier()
 
     <AS> <QUOTED_STRING> {
         String p = SqlParserUtil.parseString(token.image);
@@ -214,7 +214,7 @@ SqlAlterFunction SqlAlterFunction() :
         )
     ]
     {
-        return new SqlAlterFunction(startPos.plus(getPos()), functionName, functionClassName,
+        return new SqlAlterFunction(startPos.plus(getPos()), functionIdentifier, functionClassName,
             functionLanguage, ifExists, isTemporary, isSystemFunction);
     }
 }

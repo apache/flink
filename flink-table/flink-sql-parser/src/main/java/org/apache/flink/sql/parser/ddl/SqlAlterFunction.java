@@ -42,7 +42,7 @@ public class SqlAlterFunction extends SqlCall {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER);
 
-	private final SqlIdentifier functionName;
+	private final SqlIdentifier functionIdentifier;
 
 	private final SqlCharStringLiteral functionClassName;
 
@@ -56,14 +56,14 @@ public class SqlAlterFunction extends SqlCall {
 
 	public SqlAlterFunction(
 			SqlParserPos pos,
-			SqlIdentifier functionName,
+			SqlIdentifier functionIdentifier,
 			SqlCharStringLiteral functionClassName,
 			String functionLanguage,
 			boolean ifExists,
 			boolean isTemporary,
 			boolean isSystemFunction) {
 		super(pos);
-		this.functionName = requireNonNull(functionName, "functionName should not be null");
+		this.functionIdentifier = requireNonNull(functionIdentifier, "functionIdentifier should not be null");
 		this.functionClassName = requireNonNull(functionClassName, "functionClassName should not be null");
 		this.isSystemFunction = requireNonNull(isSystemFunction);
 		this.isTemporary = isTemporary;
@@ -91,7 +91,7 @@ public class SqlAlterFunction extends SqlCall {
 		if (ifExists) {
 			writer.keyword("IF EXISTS");
 		}
-		functionName.unparse(writer, leftPrec, rightPrec);
+		functionIdentifier.unparse(writer, leftPrec, rightPrec);
 		writer.keyword("AS");
 		functionClassName.unparse(writer, leftPrec, rightPrec);
 		if (functionLanguage != null) {
@@ -103,14 +103,14 @@ public class SqlAlterFunction extends SqlCall {
 	@Nonnull
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(functionName, functionClassName);
+		return ImmutableNullableList.of(functionIdentifier, functionClassName);
 	}
 
 	public String getLanguage() {
 		return functionLanguage;
 	}
 
-	public String[] getFunctionName() {
-		return functionName.names.toArray(new String[0]);
+	public String[] getFunctionIdentifier() {
+		return functionIdentifier.names.toArray(new String[0]);
 	}
 }
