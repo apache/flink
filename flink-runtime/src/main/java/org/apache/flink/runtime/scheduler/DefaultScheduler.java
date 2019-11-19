@@ -50,6 +50,8 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -390,6 +392,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			if (executionVertexVersioner.isModified(requiredVertexVersion)) {
 				log.debug("Refusing to assign slot to execution vertex {} because this deployment was " +
 					"superseded by another deployment", executionVertexId);
+				releaseSlotIfPresent(logicalSlot);
 				return null;
 			}
 
@@ -405,6 +408,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			}
 			return null;
 		};
+	}
+
+	private void releaseSlotIfPresent(@Nullable final LogicalSlot logicalSlot) {
+		if (logicalSlot != null) {
+			logicalSlot.releaseSlot(null);
+		}
 	}
 
 	private static Throwable maybeWrapWithNoResourceAvailableException(final Throwable failure) {
@@ -423,6 +432,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		return (ignored, throwable) -> {
 			if (executionVertexVersioner.isModified(requiredVertexVersion)) {
+				final boolean slotAlive = deploymentHandle
+					.getLogicalSlot()
+					.map(LogicalSlot::isAlive)
+					.orElse(false);
+				checkState(!slotAlive, "Expected slot to be released");
+
 				log.debug("Refusing to deploy execution vertex {} because this deployment was " +
 					"superseded by another deployment", executionVertexId);
 				return null;

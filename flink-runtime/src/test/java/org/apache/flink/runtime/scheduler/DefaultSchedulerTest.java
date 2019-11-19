@@ -296,6 +296,21 @@ public class DefaultSchedulerTest extends TestLogger {
 	}
 
 	@Test
+	public void releaseSlotIfVertexVersionOutdated() {
+		testExecutionSlotAllocator.disableAutoCompletePendingRequests();
+
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		final ExecutionVertexID onlyExecutionVertexId = new ExecutionVertexID(getOnlyJobVertex(jobGraph).getID(), 0);
+
+		createSchedulerAndStartScheduling(jobGraph);
+
+		executionVertexVersioner.recordModification(onlyExecutionVertexId);
+		testExecutionSlotAllocator.completePendingRequests();
+
+		assertThat(testExecutionSlotAllocator.getReturnedSlots(), hasSize(1));
+	}
+
+	@Test
 	public void vertexIsResetBeforeRestarted() throws Exception {
 		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
 
