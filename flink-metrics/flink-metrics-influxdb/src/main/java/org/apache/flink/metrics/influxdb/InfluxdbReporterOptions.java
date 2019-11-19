@@ -59,13 +59,11 @@ public class InfluxdbReporterOptions {
 		.defaultValue("")
 		.withDescription("(optional) the InfluxDB retention policy for metrics");
 
-	public static final ConfigOption<String>  CONSISTENCY = ConfigOptions
+	public static final ConfigOption<InfluxDB.ConsistencyLevel>  CONSISTENCY = ConfigOptions
 		.key("consistency")
-		.defaultValue(InfluxDB.ConsistencyLevel.ONE.name())
-		.withDescription(String.format("(optional) InfluxDB consistency level for metrics. " +
-			"The consistency level is %s,%s,%s,%s, default is %s",
-			InfluxDB.ConsistencyLevel.ALL.name(), InfluxDB.ConsistencyLevel.ANY.name(),
-			InfluxDB.ConsistencyLevel.ONE.name(), InfluxDB.ConsistencyLevel.QUORUM.name(),
+		.enumType(InfluxDB.ConsistencyLevel.class)
+		.defaultValue(InfluxDB.ConsistencyLevel.ONE)
+		.withDescription(String.format("(optional) InfluxDB consistency level for metrics. default is %s",
 			InfluxDB.ConsistencyLevel.ONE.name()));
 
 	public static final ConfigOption<Integer> CONNECT_TIMEOUT = ConfigOptions
@@ -84,5 +82,9 @@ public class InfluxdbReporterOptions {
 
 	static int getInteger(MetricConfig config, ConfigOption<Integer> key) {
 		return config.getInteger(key.key(), key.defaultValue());
+	}
+
+	static InfluxDB.ConsistencyLevel getConsistencyLevel(MetricConfig config, ConfigOption<InfluxDB.ConsistencyLevel> key) {
+		return InfluxDB.ConsistencyLevel.valueOf(config.getProperty(key.key(), key.defaultValue().name()));
 	}
 }

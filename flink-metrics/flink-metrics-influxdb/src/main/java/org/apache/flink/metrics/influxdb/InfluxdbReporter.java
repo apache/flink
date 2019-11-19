@@ -49,6 +49,7 @@ import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PORT;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.RETENTION_POLICY;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.WRITE_TIMEOUT;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getConsistencyLevel;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getInteger;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getString;
 
@@ -83,7 +84,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 		this.database = database;
 		this.retentionPolicy = getString(config, RETENTION_POLICY);
-		this.consistency = InfluxDB.ConsistencyLevel.valueOf(getString(config, CONSISTENCY));
+		this.consistency = getConsistencyLevel(config, CONSISTENCY);
 
 		int connectTimeout = getInteger(config, CONNECT_TIMEOUT);
 		int writeTimeout = getInteger(config, WRITE_TIMEOUT);
@@ -97,7 +98,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 			influxDB = InfluxDBFactory.connect(url, client);
 		}
 
-		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, and retentionPolicy:{}, consistency:{}}",
+		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, retentionPolicy:{} and consistency:{}}",
 			host, port, database, retentionPolicy, consistency.name());
 	}
 
