@@ -340,4 +340,10 @@ public class HiveShimV100 implements HiveShim {
 		// NOT NULL constraints not supported until 3.0.0 -- HIVE-16575
 		return Collections.emptySet();
 	}
+
+	@Override
+	public List<String> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait) {
+		// PK constraints not supported until 2.1.0 -- HIVE-13290
+		return Collections.emptyList();
+	}
 }

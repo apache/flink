@@ -221,6 +221,10 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		return hiveShim.getNotNullColumns(client, conf, dbName, tableName);
 	}
 
+	public List<String> getPrimaryKey(String dbName, String tableName, byte trait) {
+		return hiveShim.getPrimaryKey(client, dbName, tableName, trait);
+	}
+
 	public List<String> getViews(String databaseName) throws UnknownDBException, TException {
 		return hiveShim.getViews(client, databaseName);
 	}

@@ -545,6 +545,12 @@ public class HiveCatalog extends AbstractCatalog {
 					properties,
 					comment);
 		} else {
+			List<String> primaryKey = client.getPrimaryKey(hiveTable.getDbName(), hiveTable.getTableName(),
+					HiveTableUtil.relyConstraint((byte) 0));
+			// Need a better place to hold the PK constraints. Put it as a property for now.
+			if (!primaryKey.isEmpty()) {
+				properties.put(CatalogConfig.PRIMARY_KEY_COLUMNS, String.join(",", primaryKey));
+			}
 			return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
 		}
 	}

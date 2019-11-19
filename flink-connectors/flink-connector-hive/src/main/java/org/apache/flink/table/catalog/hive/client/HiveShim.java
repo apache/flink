@@ -203,4 +203,10 @@ public interface HiveShim extends Serializable {
 	 * Get the set of columns that have NOT NULL constraints.
 	 */
 	Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName);
+
+	/**
+	 * Get the names of columns that compose a table's primary key. An empty list is returned if the table
+	 * doesn't have a primary key, or the constraint doesn't satisfy the desired trait, e.g. RELY.
+	 */
+	List<String> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait);
 }

@@ -33,4 +33,9 @@ public class CatalogConfig {
 	// Used to distinguish properties created by Hive and Flink,
 	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
 	public static final String FLINK_PROPERTY_PREFIX = "flink.";
+
+	/**
+	 * A comma separated list of columns that compose the primary key of a table.
+	 */
+	public static final String PRIMARY_KEY_COLUMNS = "primary.key.columns";
 }
