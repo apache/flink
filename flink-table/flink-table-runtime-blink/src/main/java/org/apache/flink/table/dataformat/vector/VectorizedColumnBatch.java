@@ -135,15 +135,6 @@ public class VectorizedColumnBatch implements Serializable {
 	}
 
 	public SqlTimestamp getTimestamp(int rowId, int colId, int precision) {
-		if (isNullAt(rowId, colId)) {
-			return null;
-		}
-
-		if (columns[colId] instanceof TimestampColumnVector) {
-			return ((TimestampColumnVector) (columns[colId])).getTimestamp(rowId, precision);
-		} else {
-			// by default, we assume the underlying LongColumnVector holds millisecond since Epoch.
-			return SqlTimestamp.fromEpochMillis(((LongColumnVector) columns[colId]).getLong(rowId));
-		}
+		return ((TimestampColumnVector) (columns[colId])).getTimestamp(rowId, precision);
 	}
 }

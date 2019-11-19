@@ -198,13 +198,8 @@ public class VectorizedColumnBatchTest {
 			}
 		};
 
-		HeapLongVector col11 = new HeapLongVector(VECTOR_SIZE);
-		for (int i = 0; i < VECTOR_SIZE; i++) {
-			col11.vector[i] = i;
-		}
-
 		VectorizedColumnBatch batch = new VectorizedColumnBatch(
-				new ColumnVector[]{col0, col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11});
+				new ColumnVector[]{col0, col1, col2, col3, col4, col5, col6, col7, col8, col9, col10});
 
 		for (int i = 0; i < VECTOR_SIZE; i++) {
 			ColumnarRow row = new ColumnarRow(batch, i);
@@ -220,7 +215,6 @@ public class VectorizedColumnBatchTest {
 			assertEquals(row.getTimestamp(9, 6).getMillisecond(), i);
 			assertEquals(row.getTimestamp(10, 9).getMillisecond(), i * 1000L + 123);
 			assertEquals(row.getTimestamp(10, 9).getNanoOfMillisecond(), 456789);
-			assertEquals(row.getTimestamp(11, 3).getMillisecond(), i);
 		}
 	}
 
