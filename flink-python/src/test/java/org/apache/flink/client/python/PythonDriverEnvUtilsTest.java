@@ -32,15 +32,20 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Tests for the {@link PythonDriverEnvUtils}.
  */
 public class PythonDriverEnvUtilsTest {
+	private static final String UUID_PATTERN = "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}";
+
 	private Path tmpDirPath;
 	private FileSystem tmpDirFs;
 
@@ -86,7 +91,20 @@ public class PythonDriverEnvUtilsTest {
 
 		// the parent dir for files suffixed with .py should also be added to PYTHONPATH
 		expectedPythonPaths.add(targetDir + File.separator + "subdir");
-		Assert.assertEquals(expectedPythonPaths, new HashSet<>(Arrays.asList(env.pythonPath.split(File.pathSeparator))));
+
+		Set<String> expectedInteralLibPatterns = new HashSet<>();
+		expectedInteralLibPatterns.add(
+			Pattern.quote(env.workingDirectory + File.separator) + UUID_PATTERN + "pyflink\\.zip");
+		expectedInteralLibPatterns.add(
+			Pattern.quote(env.workingDirectory + File.separator) + UUID_PATTERN + "py4j-0\\.10\\.8\\.1-src\\.zip");
+		expectedInteralLibPatterns.add(
+			Pattern.quote(env.workingDirectory + File.separator) + UUID_PATTERN + "cloudpickle-1\\.2\\.2-src\\.zip");
+		List<String> actualPaths = Arrays.asList(env.pythonPath.split(File.pathSeparator));
+		expectedPythonPaths.addAll(
+			getMatchedPaths(
+				expectedInteralLibPatterns,
+				actualPaths));
+		Assert.assertEquals(expectedPythonPaths, new HashSet<>(actualPaths));
 	}
 
 	@Test
@@ -134,5 +152,13 @@ public class PythonDriverEnvUtilsTest {
 		} catch (IOException e) {
 			throw new RuntimeException("delete tmp dir failed " + e.getMessage());
 		}
+	}
+
+	private static Set<String> getMatchedPaths(Collection<String> patterns, Collection<String> paths) {
+		List<Pattern> regexPatterns = patterns.stream().map(Pattern::compile).collect(Collectors.toList());
+		return paths.stream()
+			.filter(
+				path -> regexPatterns.stream().anyMatch(p -> p.matcher(path).matches()))
+			.collect(Collectors.toSet());
 	}
 }
