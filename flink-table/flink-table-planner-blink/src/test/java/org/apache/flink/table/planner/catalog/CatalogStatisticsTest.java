@@ -44,6 +44,7 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.planner.utils.TestTableSource;
 import org.apache.flink.table.types.DataType;
 
+import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Test;
@@ -161,7 +162,11 @@ public class CatalogStatisticsTest {
 		// date type
 		assertEquals(100.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(3), null), 0.0);
 		assertEquals(0.0, mq.getColumnNullCount(t1, 3), 0.0);
-		assertNull(mq.getColumnInterval(t1, 3));
+		assertEquals(
+				ValueInterval$.MODULE$.apply(
+						java.sql.Date.valueOf(DateTimeUtils.unixDateToString(71)),
+						java.sql.Date.valueOf(DateTimeUtils.unixDateToString(17923)), true, true),
+				mq.getColumnInterval(t1, 3));
 
 		// double type
 		assertEquals(73.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(4), null), 0.0);
