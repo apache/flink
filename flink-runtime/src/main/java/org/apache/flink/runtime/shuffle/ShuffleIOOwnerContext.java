@@ -32,18 +32,21 @@ public class ShuffleIOOwnerContext {
 	private final MetricGroup parentGroup;
 	private final MetricGroup outputGroup;
 	private final MetricGroup inputGroup;
+	private final MetricGroup backPreessureGroup;
 
 	public ShuffleIOOwnerContext(
 			String ownerName,
 			ExecutionAttemptID executionAttemptID,
 			MetricGroup parentGroup,
 			MetricGroup outputGroup,
-			MetricGroup inputGroup) {
+			MetricGroup inputGroup,
+			MetricGroup backPreessureGroup) {
 		this.ownerName = checkNotNull(ownerName);
 		this.executionAttemptID = checkNotNull(executionAttemptID);
 		this.parentGroup = checkNotNull(parentGroup);
 		this.outputGroup = checkNotNull(outputGroup);
 		this.inputGroup = checkNotNull(inputGroup);
+		this.backPreessureGroup = checkNotNull(backPreessureGroup);
 	}
 
 	public String getOwnerName() {
@@ -64,5 +67,9 @@ public class ShuffleIOOwnerContext {
 
 	public MetricGroup getInputGroup() {
 		return inputGroup;
+	}
+
+	public MetricGroup getBackPreessureGroup() {
+		return backPreessureGroup;
 	}
 }

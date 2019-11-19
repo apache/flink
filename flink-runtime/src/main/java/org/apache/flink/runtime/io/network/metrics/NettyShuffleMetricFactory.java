@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.taskmanager.Task;
 
 import java.util.Arrays;
 
@@ -56,6 +57,7 @@ public class NettyShuffleMetricFactory {
 	public static final String METRIC_GROUP_OUTPUT = "Output";
 	public static final String METRIC_GROUP_INPUT = "Input";
 	private static final String METRIC_GROUP_BUFFERS = "Buffers";
+	public static final String METRIC_GROUP_BACKPRESSURE = "BackPressure";
 
 	// task level output metrics: Shuffle.Netty.Output.*
 
@@ -68,6 +70,9 @@ public class NettyShuffleMetricFactory {
 	private static final String METRIC_INPUT_POOL_USAGE = "inPoolUsage";
 	private static final String METRIC_INPUT_FLOATING_BUFFERS_USAGE = "inputFloatingBuffersUsage";
 	private static final String METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE = "inputExclusiveBuffersUsage";
+
+	// task level backpressure metric: Shuffle.Netty.BackPressure.isBackPressured;
+	private static final String METRIC_BACKPRESSURE_IS_BACKPRESSURED = "isBackPressured";
 
 	private NettyShuffleMetricFactory() {
 	}
@@ -193,5 +198,11 @@ public class NettyShuffleMetricFactory {
 		} else {
 			buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, new InputBufferPoolUsageGauge(inputGates));
 		}
+	}
+
+	public static void registerBackPressureMetrics(
+		MetricGroup backPressureGroup,
+		Task task) {
+		backPressureGroup.gauge(METRIC_BACKPRESSURE_IS_BACKPRESSURED, new BackPressureGauge(task));
 	}
 }

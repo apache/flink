@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.taskmanager.Task;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -173,4 +174,11 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	boolean updatePartitionInfo(
 		ExecutionAttemptID consumerID,
 		PartitionInfo partitionInfo) throws IOException, InterruptedException;
+
+	/**
+	 * Register metric for task is back pressured.
+	 * @param ownerContext
+	 * @param task
+	 */
+	void registgerBackPressureMetric(ShuffleIOOwnerContext ownerContext, Task task);
 }

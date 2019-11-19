@@ -392,6 +392,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 				.registerLegacyNetworkMetrics(metrics.getIOMetricGroup(), resultPartitionWriters, gates);
 		}
 
+		shuffleEnvironment.registgerBackPressureMetric(taskShuffleContext, this);
 		invokableHasBeenCanceled = new AtomicBoolean(false);
 
 		// finally, create the executing thread, but do not start it
