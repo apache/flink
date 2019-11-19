@@ -19,7 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfig.ClosureCleanerLevel;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
@@ -68,37 +68,39 @@ public class PipelineOptions {
 				.linebreak()
 				.linebreak()
 				.text("It is highly recommended that users specify UIDs before deploying to" +
-					"production since they are used to match state in savepoints to operators" +
-					"in a job. Because auto-generated ID's are likely to change when modifying" +
-					"a job, specifying custom IDs allow an application to evolve overtime" +
-					"without discarding state.")
+					" production since they are used to match state in savepoints to operators" +
+					" in a job. Because auto-generated ID's are likely to change when modifying" +
+					" a job, specifying custom IDs allow an application to evolve over time" +
+					" without discarding state.")
 				.build());
 
 	public static final ConfigOption<Boolean> AUTO_TYPE_REGISTRATION =
 		key("pipeline.auto-type-registration")
 			.booleanType()
 			.defaultValue(true)
-			.withDescription("Controls whether Flink is automatically registering all types in the user programs with " +
-				"Kryo.");
+			.withDescription("Controls whether Flink is automatically registering all types in the user programs" +
+				" with Kryo.");
 
 	public static final ConfigOption<Duration> AUTO_WATERMARK_INTERVAL =
 		key("pipeline.auto-watermark-interval")
 			.durationType()
 			.defaultValue(Duration.ZERO)
-			.withDescription("The interval of the automatic watermark emission. Watermarks are used throughout " +
-				"the streaming system to keep track of the progress of time. They are used, for example, " +
-				"for time based windowing.");
+			.withDescription("The interval of the automatic watermark emission. Watermarks are used throughout" +
+				" the streaming system to keep track of the progress of time. They are used, for example," +
+				" for time based windowing.");
 
-	public static final ConfigOption<ExecutionConfig.ClosureCleanerLevel> CLOSURE_CLEANER_LEVEL =
+	public static final ConfigOption<ClosureCleanerLevel> CLOSURE_CLEANER_LEVEL =
 		key("pipeline.closure-cleaner-level")
-			.enumType(ExecutionConfig.ClosureCleanerLevel.class)
-			.defaultValue(ExecutionConfig.ClosureCleanerLevel.RECURSIVE)
+			.enumType(ClosureCleanerLevel.class)
+			.defaultValue(ClosureCleanerLevel.RECURSIVE)
 		.withDescription(Description.builder()
 			.text("Configures the mode in which the closure cleaner works")
 			.list(
-				text("NONE - disables the closure cleaner completely"),
-				text("TOP_LEVEL - cleans only the top-level class without recursing into fields"),
-				text("RECURSIVE - cleans all the fields recursively")
+				text("%s - disables the closure cleaner completely", code(ClosureCleanerLevel.NONE.toString())),
+				text(
+					"%s - cleans only the top-level class without recursing into fields",
+					code(ClosureCleanerLevel.TOP_LEVEL.toString())),
+				text("%s - cleans all the fields recursively", code(ClosureCleanerLevel.RECURSIVE.toString()))
 			)
 			.build());
 
@@ -117,9 +119,9 @@ public class PipelineOptions {
 		key("pipeline.force-kryo")
 			.booleanType()
 			.defaultValue(false)
-			.withDescription("If enabled, forces TypeExtractor to use Kryo serializer for POJOS even though we could " +
-				"analyze as POJO. In some cases this might be preferable. For example, when using interfaces" +
-				"with subclasses that cannot be analyzed as POJO.");
+			.withDescription("If enabled, forces TypeExtractor to use Kryo serializer for POJOS even though we could" +
+				" analyze as POJO. In some cases this might be preferable. For example, when using interfaces" +
+				" with subclasses that cannot be analyzed as POJO.");
 
 	public static final ConfigOption<Boolean> GENERIC_TYPES =
 		key("pipeline.generic-types")
@@ -127,20 +129,20 @@ public class PipelineOptions {
 			.defaultValue(true)
 			.withDescription(Description.builder()
 				.text("If the use of generic types is disabled, Flink will throw an %s whenever it encounters" +
-						"a data type that would go through Kryo for serialization.",
+						" a data type that would go through Kryo for serialization.",
 					code("UnsupportedOperationException"))
 				.linebreak()
 				.linebreak()
 				.text("Disabling generic types can be helpful to eagerly find and eliminate the use of types" +
-					"that would go through Kryo serialization during runtime. Rather than checking types" +
-					"individually, using this option will throw exceptions eagerly in the places where generic" +
-					"types are used.")
+					" that would go through Kryo serialization during runtime. Rather than checking types" +
+					" individually, using this option will throw exceptions eagerly in the places where generic" +
+					" types are used.")
 				.linebreak()
 				.linebreak()
 				.text("We recommend to use this option only during development and pre-production" +
-					"phases, not during actual production use. The application program and/or the input data may be" +
-					"such that new, previously unseen, types occur at some point. In that case, setting this option" +
-					"would cause the program to fail.")
+					" phases, not during actual production use. The application program and/or the input data may be" +
+					" such that new, previously unseen, types occur at some point. In that case, setting this option" +
+					" would cause the program to fail.")
 				.build());
 
 	public static final ConfigOption<Map<String, String>> GLOBAL_JOB_PARAMETERS =
@@ -148,23 +150,23 @@ public class PipelineOptions {
 			.mapType()
 			.noDefaultValue()
 			.withDescription("Register a custom, serializable user configuration object. The configuration can be " +
-				"accessed in operators");
+				" accessed in operators");
 
 	public static final ConfigOption<Integer> MAX_PARALLELISM =
 		key("pipeline.max-parallelism")
 			.intType()
 			.defaultValue(-1)
-			.withDescription("The program wide maximum parallelism used for operators which haven't specified a " +
-				"maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and " +
-				"the number of key groups used for partitioned state.");
+			.withDescription("The program-wide maximum parallelism used for operators which haven't specified a" +
+				" maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and" +
+				" the number of key groups used for partitioned state.");
 
 	public static final ConfigOption<Boolean> OBJECT_REUSE =
 		key("pipeline.object-reuse")
 			.booleanType()
 			.defaultValue(false)
-		.withDescription("When enabled objects that Flink internally uses for deserialization and passing " +
-			"data to user-code functions will be reused. Keep in mind that this can lead to bugs when the " +
-			"user-code function of an operation is not aware of this behaviour.");
+		.withDescription("When enabled objects that Flink internally uses for deserialization and passing" +
+			" data to user-code functions will be reused. Keep in mind that this can lead to bugs when the" +
+			" user-code function of an operation is not aware of this behaviour.");
 
 	public static final ConfigOption<List<String>> KRYO_DEFAULT_SERIALIZERS =
 		key("pipeline.default-kryo-serializers")
@@ -172,14 +174,14 @@ public class PipelineOptions {
 			.asList()
 			.noDefaultValue()
 			.withDescription(Description.builder()
-				.text("Semicolon separated list of pairs of class names and Kryo serializers class names to be used " +
-					"as Kryo default serializers")
+				.text("Semicolon separated list of pairs of class names and Kryo serializers class names to be used" +
+					" as Kryo default serializers")
 				.linebreak()
 				.linebreak()
 				.text("Example:")
 				.linebreak()
-				.add(TextElement.code("class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1; " +
-					"class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2"))
+				.add(TextElement.code("class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1;" +
+					" class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2"))
 				.build());
 
 	public static final ConfigOption<List<String>> KRYO_REGISTERED_CLASSES =
@@ -188,10 +190,10 @@ public class PipelineOptions {
 			.asList()
 			.noDefaultValue()
 			.withDescription(Description.builder()
-				.text("Semicolon separated list of types to be registered with the serialization stack. If the type " +
-					"is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the " +
-					"type ends up being serialized with Kryo, then it will be registered at Kryo to make " +
-					"sure that only tags are written.")
+				.text("Semicolon separated list of types to be registered with the serialization stack. If the type" +
+					" is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the" +
+					" type ends up being serialized with Kryo, then it will be registered at Kryo to make" +
+					" sure that only tags are written.")
 				.build());
 
 	public static final ConfigOption<List<String>> POJO_REGISTERED_CLASSES =
@@ -200,10 +202,10 @@ public class PipelineOptions {
 			.asList()
 			.noDefaultValue()
 			.withDescription(Description.builder()
-				.text("Semicolon separated list of types to be registered with the serialization stack. If the type " +
-					"is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the " +
-					"type ends up being serialized with Kryo, then it will be registered at Kryo to make " +
-					"sure that only tags are written.")
+				.text("Semicolon separated list of types to be registered with the serialization stack. If the type" +
+					" is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the" +
+					" type ends up being serialized with Kryo, then it will be registered at Kryo to make" +
+					" sure that only tags are written.")
 				.build());
 
 }
