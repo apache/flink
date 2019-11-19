@@ -239,7 +239,9 @@ public class CliFrontend {
 
 			// directly deploy the job if the cluster is started in job mode and detached
 			if (clusterId == null && executionParameters.getDetachedMode()) {
-				int parallelism = executionParameters.getParallelism() == -1 ? defaultParallelism : executionParameters.getParallelism();
+				final int parallelism = executionParameters.getParallelism() == CoreOptions.DEFAULT_PARALLELISM.defaultValue()
+						? defaultParallelism
+						: executionParameters.getParallelism();
 
 				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(program, configuration, parallelism);
 
@@ -276,7 +278,11 @@ public class CliFrontend {
 				}
 
 				try {
-					int userParallelism = executionParameters.getParallelism();
+					final int userParallelism = executionParameters.getParallelism() == CoreOptions.DEFAULT_PARALLELISM.defaultValue()
+							? defaultParallelism
+							: executionParameters.getParallelism();
+					executionConfig.setInteger(CoreOptions.DEFAULT_PARALLELISM, userParallelism);
+
 					LOG.debug("User parallelism is set to {}", userParallelism);
 
 					executeProgram(executionConfig, program, client);
