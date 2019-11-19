@@ -29,7 +29,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableSet;
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelDistribution;
@@ -115,7 +114,7 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 	}
 
 	@Override
-	public RelNode toRel(ToRelContext context) {
+	public RelNode toRel(RelOptTable.ToRelContext context) {
 		return LogicalTableScan.create(context.getCluster(), this);
 	}
 

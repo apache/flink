@@ -20,13 +20,10 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
-import org.apache.flink.table.catalog.{ObjectPath, TestingConnectorCatalogTable}
+import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
-import org.apache.flink.types.Row
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
@@ -52,27 +49,32 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
         .build()
     )
 
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    val tableSource = new TestProjectableTableSource(
-      true,
-      tableSchema,
-      new RowTypeInfo(
-        tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
-        tableSchema.getFieldNames),
-      Seq.empty[Row])
-    util.tableEnv.registerTableSource("MyTable", tableSource)
+    val ddl1 =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  b bigint,
+         |  c string
+         |) WITH (
+         |  'connector.type' = 'TestProjectableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.sqlUpdate(ddl1)
 
-    val tableSchema2 = TableSchema.builder()
-      .field("a", DataTypes.INT())
-      .field("b", DataTypes.BIGINT())
-      .field("c", DataTypes.STRING())
-      .field("d", DataTypes.INT(), "`a` + 1")
-      .build()
-    util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
-      .createTable(new ObjectPath(util.tableEnv.getCurrentDatabase, "VirtualTable"),
-        new TestingConnectorCatalogTable(tableSource, tableSchema2), true)
+    val ddl2 =
+      s"""
+         |CREATE TABLE VirtualTable (
+         |  a int,
+         |  b bigint,
+         |  c string,
+         |  d as a + 1
+         |) WITH (
+         |  'connector.type' = 'TestProjectableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.sqlUpdate(ddl2)
   }
 
   @Test

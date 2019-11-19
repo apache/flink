@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api.{DataTypes, TableSchema}
-import org.apache.flink.table.catalog.{ObjectPath, TestingConnectorCatalogTable}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestFilterableTableSource}
@@ -48,19 +46,22 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
         .build()
     )
 
-    val tableSource = TestFilterableTableSource(true)
     // name: STRING, id: LONG, amount: INT, price: DOUBLE
     util.tableEnv.registerTableSource("MyTable", TestFilterableTableSource(true))
-    val tableSchema = TableSchema.builder()
-      .field("name", DataTypes.STRING())
-      .field("id", DataTypes.BIGINT())
-      .field("amount", DataTypes.INT())
-      .field("virtualField", DataTypes.INT(), "amount + 1")
-      .field("price", DataTypes.DOUBLE())
-      .build()
-    util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
-      .createTable(new ObjectPath(util.tableEnv.getCurrentDatabase, "VirtualTable"),
-        new TestingConnectorCatalogTable(tableSource, tableSchema), true)
+    val ddl =
+      s"""
+         |CREATE TABLE VirtualTable (
+         |  name STRING,
+         |  id bigint,
+         |  amount int,
+         |  virtualField as amount + 1,
+         |  price double
+         |) with (
+         |  'connector.type' = 'TestFilterableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.sqlUpdate(ddl)
   }
 
   @Test

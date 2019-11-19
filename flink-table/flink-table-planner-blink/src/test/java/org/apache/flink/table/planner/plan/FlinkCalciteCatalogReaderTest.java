@@ -18,10 +18,15 @@
 
 package org.apache.flink.table.planner.plan;
 
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.sources.TableSource;
 
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
 import org.apache.calcite.config.CalciteConnectionProperty;
@@ -34,10 +39,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
@@ -65,23 +71,27 @@ public class FlinkCalciteCatalogReaderTest {
 	}
 
 	@Test
-	public void testGetCatalogSchemaTable() {
+	public void testGetFlinkPreparingTableBase() {
+		// Mock CatalogSchemaTable.
 		CatalogSchemaTable mockTable = mock(CatalogSchemaTable.class);
 		when(mockTable.getRowType(typeFactory)).thenReturn(mock(RelDataType.class));
+		when(mockTable.isStreamingMode()).thenReturn(true);
+		when(mockTable.getStatistic()).thenReturn(FlinkStatistic.UNKNOWN());
+		// Mock ConnectorCatalogTable.
+		TableSource mockTableSource = mock(StreamTableSource.class);
+		ConnectorCatalogTable mockConnectorTable = mock(ConnectorCatalogTable.class);
+		when(mockConnectorTable.getTableSource()).thenReturn(Optional.of(mockTableSource));
+		when(mockConnectorTable.getSchema()).thenReturn(TableSchema.builder().build());
+
+		when(mockTable.getCatalogTable()).thenReturn(mockConnectorTable);
 		rootSchemaPlus.add(tableMockName, mockTable);
-		try {
-			catalogReader.getTable(Collections.singletonList(tableMockName));
-			fail("Unexpected exception");
-		} catch (NullPointerException npe) {
-			// We have a mocked CatalogSchemaTable which does not have implementation,
-			// if FlinkCalciteCatalogReader#toPreparingTable is triggered, a NPE would
-			// throws.
-			// no-op
-		}
+		Prepare.PreparingTable preparingTable = catalogReader
+			.getTable(Collections.singletonList(tableMockName));
+		assertTrue(preparingTable instanceof FlinkPreparingTableBase);
 	}
 
 	@Test
-	public void testGetNonCatalogSchemaTable() {
+	public void testGetNonFlinkPreparingTableBase() {
 		Table nonFlinkTableMock = mock(Table.class);
 		when(nonFlinkTableMock.getRowType(typeFactory)).thenReturn(mock(RelDataType.class));
 		rootSchemaPlus.add(tableMockName, nonFlinkTableMock);

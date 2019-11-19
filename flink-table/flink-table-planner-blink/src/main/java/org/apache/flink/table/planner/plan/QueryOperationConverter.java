@@ -368,7 +368,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			RelDataType rowType = TableSourceUtil.getSourceRowType(relBuilder.getTypeFactory(),
 				tableSourceOperation.getTableSchema(),
-				tableSource,
+				scala.Option.apply(tableSource),
 				scala.Option.empty(),
 				!isBatch);
 			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(

@@ -236,21 +236,24 @@ object TableSourceUtil {
     *         also be patched with time attributes defined in the give [[WatermarkSpec]]
     */
   def getSourceRowType(
-    typeFactory: FlinkTypeFactory,
-    tableSchema: TableSchema,
-    tableSource: TableSource[_],
-    selectedFields: Option[Array[Int]],
-    streaming: Boolean): RelDataType = {
+      typeFactory: FlinkTypeFactory,
+      tableSchema: TableSchema,
+      tableSource: Option[TableSource[_]],
+      selectedFields: Option[Array[Int]],
+      streaming: Boolean): RelDataType = {
 
     val fieldNames = tableSchema.getFieldNames
-    val fieldTypes = tableSchema.getFieldDataTypes
+    val fieldDataTypes = tableSchema.getFieldDataTypes
 
     if (tableSchema.getWatermarkSpecs.nonEmpty) {
-      getSourceRowType(typeFactory, fieldNames, fieldTypes, tableSchema.getWatermarkSpecs.head,
+      getSourceRowType(typeFactory, fieldNames, fieldDataTypes, tableSchema.getWatermarkSpecs.head,
+        selectedFields, streaming)
+    } else if (tableSource.isDefined) {
+      getSourceRowType(typeFactory, fieldNames, fieldDataTypes, tableSource.get,
         selectedFields, streaming)
     } else {
-      getSourceRowType(typeFactory, fieldNames, fieldTypes, tableSource,
-        selectedFields, streaming)
+      val fieldTypes = fieldDataTypes.map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
+      typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
     }
   }
 

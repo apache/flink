@@ -28,8 +28,6 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableScan}
 import org.apache.calcite.rel.rules.ProjectRemoveRule
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.sources.TableSourceUtil
 
 /**
   * Planner rule that pushes a [[LogicalProject]] into a [[LogicalTableScan]]
@@ -96,19 +94,10 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     }
 
     // project push down does not change the statistic, we can reuse origin statistic
-    val flinkTypeFactory = tableSourceTable
-      .getRelOptSchema
-      .getTypeFactory
-      .asInstanceOf[FlinkTypeFactory]
-    val newSourceRowType = TableSourceUtil.getSourceRowType(flinkTypeFactory,
-      tableSourceTable.catalogTable.getSchema,
-      oldTableSource,
-      Option(usedFields),
-      tableSourceTable.isStreamingMode)
     val newTableSourceTable = tableSourceTable.copy(
       newTableSource,
       tableSourceTable.getStatistic,
-      newSourceRowType)
+      usedFields)
     // row type is changed after project push down
     val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newTableSourceTable)
 

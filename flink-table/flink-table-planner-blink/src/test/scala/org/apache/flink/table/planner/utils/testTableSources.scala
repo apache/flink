@@ -29,11 +29,11 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema, Types}
 import org.apache.flink.table.catalog.{CatalogTableImpl, ObjectPath}
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.DescriptorProperties
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
-import org.apache.flink.table.factories.TableSourceFactory
+import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSourceFactory}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -48,7 +48,7 @@ import org.apache.flink.types.Row
 
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
-import java.util.{Collections, function, List => JList, Map => JMap}
+import java.util.{Collections, function, ArrayList => JArrayList, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -336,6 +336,37 @@ class TestNestedProjectableTableSource(
   }
 }
 
+/** Table source factory to find and create [[TestProjectableTableSource]]. */
+class TestProjectableTableSourceFactory extends StreamTableSourceFactory[Row] {
+  override def createStreamTableSource(properties: JMap[String, String])
+  : StreamTableSource[Row] = {
+    val descriptorProps = new DescriptorProperties()
+    descriptorProps.putProperties(properties)
+    val isBounded = descriptorProps.getBoolean("is-bounded")
+    val tableSchema = descriptorProps.getTableSchema(Schema.SCHEMA)
+    // Build physical row type.
+    val schemaBuilder = TableSchema.builder()
+    tableSchema
+      .getTableColumns
+      .filter(c => !c.isGenerated)
+      .foreach(c => schemaBuilder.field(c.getName, c.getType))
+    val rowTypeInfo = schemaBuilder.build().toRowType
+    new TestProjectableTableSource(isBounded, tableSchema, rowTypeInfo, Seq())
+  }
+
+  override def requiredContext(): JMap[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "TestProjectableSource")
+    context
+  }
+
+  override def supportedProperties(): JList[String] = {
+    val supported = new JArrayList[String]()
+    supported.add("*")
+    supported
+  }
+}
+
 /**
   * A data source that implements some very basic filtering in-memory in order to test
   * expression push-down logic.
@@ -540,6 +571,29 @@ object TestFilterableTableSource {
         cnt.toInt.asInstanceOf[AnyRef],
         cnt.toDouble.asInstanceOf[AnyRef])
     }
+  }
+}
+
+/** Table source factory to find and create [[TestFilterableTableSource]]. */
+class TestFilterableTableSourceFactory extends StreamTableSourceFactory[Row] {
+  override def createStreamTableSource(properties: JMap[String, String])
+    : StreamTableSource[Row] = {
+    val descriptorProps = new DescriptorProperties()
+    descriptorProps.putProperties(properties)
+    val isBounded = descriptorProps.getBoolean("is-bounded")
+    TestFilterableTableSource.apply(isBounded)
+  }
+
+  override def requiredContext(): JMap[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "TestFilterableSource")
+    context
+  }
+
+  override def supportedProperties(): JList[String] = {
+    val supported = new JArrayList[String]()
+    supported.add("*")
+    supported
   }
 }
 

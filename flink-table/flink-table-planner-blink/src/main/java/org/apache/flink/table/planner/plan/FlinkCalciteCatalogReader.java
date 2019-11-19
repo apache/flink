@@ -29,6 +29,7 @@ import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
+import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
@@ -229,7 +230,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			CatalogTable catalogTable,
 			CatalogSchemaTable schemaTable) {
 		TableSource<?> tableSource;
-		final TableFactory tableFactory = schemaTable.getCatalog().getTableFactory().orElse(null);
+		final TableFactory tableFactory = schemaTable.getTableFactory().orElse(null);
 		if (tableFactory != null) {
 			if (tableFactory instanceof TableSourceFactory) {
 				tableSource = ((TableSourceFactory) tableFactory).createTableSource(
@@ -246,13 +247,13 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");
 		}
 
-		return new TableSourceTable<>(
+		return new CatalogSourceTable<>(
 			relOptSchema,
 			names,
 			rowType,
 			schemaTable.getStatistic(),
 			tableSource,
-			!((StreamTableSource<?>) tableSource).isBounded(),
+			schemaTable.isStreamingMode(),
 			catalogTable
 		);
 	}

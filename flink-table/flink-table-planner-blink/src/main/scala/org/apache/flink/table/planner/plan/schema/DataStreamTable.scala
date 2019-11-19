@@ -35,8 +35,6 @@ import java.util.{List => JList}
 
 /**
   * The class that wraps [[DataStream]] as a Calcite Table.
-  *
-  * <p> This table is only used for tests.
   */
 class DataStreamTable[T](
     relOptSchema: RelOptSchema,

@@ -18,9 +18,20 @@
 
 package org.apache.flink.table.planner.catalog;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.schema.Schema;
@@ -30,6 +41,9 @@ import org.apache.calcite.schema.Table;
 
 import java.util.HashSet;
 import java.util.Set;
+
+import static java.lang.String.format;
+import static org.apache.flink.table.util.CatalogTableStatisticsConverter.convertToTableStats;
 
 /**
  * A mapping between Flink catalog's database and Calcite's schema.
@@ -55,13 +69,47 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		return catalogManager.getTable(identifier)
 			.map(result -> {
 				CatalogBaseTable table = result.getTable();
+				Catalog catalog = catalogManager.getCatalog(catalogName).get();
+				FlinkStatistic statistic = getStatistic(result.isTemporary(),
+					catalog, table, identifier);
 				return new CatalogSchemaTable(identifier,
-					catalogManager.getCatalog(catalogName).get(),
 					table,
+					statistic,
+					catalog.getTableFactory().orElse(null),
 					isStreamingMode,
 					result.isTemporary());
 			})
 			.orElse(null);
+	}
+
+	private static FlinkStatistic getStatistic(boolean isTemporary, Catalog catalog,
+			CatalogBaseTable catalogBaseTable, ObjectIdentifier tableIdentifier) {
+		if (isTemporary || catalogBaseTable instanceof QueryOperationCatalogView) {
+			return FlinkStatistic.UNKNOWN();
+		}
+		if (catalogBaseTable instanceof CatalogTable) {
+			return FlinkStatistic.builder()
+				.tableStats(extractTableStats(catalog, tableIdentifier))
+				.build();
+		} else {
+			throw new TableException("Unsupported table type: " + catalogBaseTable);
+		}
+	}
+
+	private static TableStats extractTableStats(Catalog catalog,
+			ObjectIdentifier objectIdentifier) {
+		final ObjectPath tablePath = objectIdentifier.toObjectPath();
+		try {
+			CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
+			CatalogColumnStatistics columnStatistics = catalog.getTableColumnStatistics(tablePath);
+			return convertToTableStats(tableStatistics, columnStatistics);
+		} catch (TableNotExistException e) {
+			throw new ValidationException(format(
+				"Could not access table partitions for table: [%s, %s, %s]",
+				objectIdentifier.getCatalogName(),
+				tablePath.getDatabaseName(),
+				tablePath.getObjectName()), e);
+		}
 	}
 
 	@Override
