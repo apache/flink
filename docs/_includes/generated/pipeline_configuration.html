@@ -12,7 +12,7 @@
             <td><h5>pipeline.auto-generate-uids</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>When auto-generated UIDs are disabled, users are forced to manually specify UIDs on DataStream applications.<br /><br />It is highly recommended that users specify UIDs before deploying toproduction since they are used to match state in savepoints to operatorsin a job. Because auto-generated ID's are likely to change when modifyinga job, specifying custom IDs allow an application to evolve overtimewithout discarding state.</td>
+            <td>When auto-generated UIDs are disabled, users are forced to manually specify UIDs on DataStream applications.<br /><br />It is highly recommended that users specify UIDs before deploying to production since they are used to match state in savepoints to operators in a job. Because auto-generated ID's are likely to change when modifying a job, specifying custom IDs allow an application to evolve over time without discarding state.</td>
         </tr>
         <tr>
             <td><h5>pipeline.auto-type-registration</h5></td>
@@ -36,7 +36,7 @@
             <td><h5>pipeline.closure-cleaner-level</h5></td>
             <td style="word-wrap: break-word;">RECURSIVE</td>
             <td><p>Enum</p>Possible values: [NONE, TOP_LEVEL, RECURSIVE]</td>
-            <td>Configures the mode in which the closure cleaner works<ul><li>NONE - disables the closure cleaner completely</li><li>TOP_LEVEL - cleans only the top-level class without recursing into fields</li><li>RECURSIVE - cleans all the fields recursively</li></ul></td>
+            <td>Configures the mode in which the closure cleaner works<ul><li><span markdown="span">`NONE`</span> - disables the closure cleaner completely</li><li><span markdown="span">`TOP_LEVEL`</span> - cleans only the top-level class without recursing into fields</li><li><span markdown="span">`RECURSIVE`</span> - cleans all the fields recursively</li></ul></td>
         </tr>
         <tr>
             <td><h5>pipeline.default-kryo-serializers</h5></td>
@@ -54,19 +54,19 @@
             <td><h5>pipeline.force-kryo</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>If enabled, forces TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO. In some cases this might be preferable. For example, when using interfaceswith subclasses that cannot be analyzed as POJO.</td>
+            <td>If enabled, forces TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO. In some cases this might be preferable. For example, when using interfaces with subclasses that cannot be analyzed as POJO.</td>
         </tr>
         <tr>
             <td><h5>pipeline.generic-types</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>If the use of generic types is disabled, Flink will throw an <span markdown="span">`UnsupportedOperationException`</span> whenever it encountersa data type that would go through Kryo for serialization.<br /><br />Disabling generic types can be helpful to eagerly find and eliminate the use of typesthat would go through Kryo serialization during runtime. Rather than checking typesindividually, using this option will throw exceptions eagerly in the places where generictypes are used.<br /><br />We recommend to use this option only during development and pre-productionphases, not during actual production use. The application program and/or the input data may besuch that new, previously unseen, types occur at some point. In that case, setting this optionwould cause the program to fail.</td>
+            <td>If the use of generic types is disabled, Flink will throw an <span markdown="span">`UnsupportedOperationException`</span> whenever it encounters a data type that would go through Kryo for serialization.<br /><br />Disabling generic types can be helpful to eagerly find and eliminate the use of types that would go through Kryo serialization during runtime. Rather than checking types individually, using this option will throw exceptions eagerly in the places where generic types are used.<br /><br />We recommend to use this option only during development and pre-production phases, not during actual production use. The application program and/or the input data may be such that new, previously unseen, types occur at some point. In that case, setting this option would cause the program to fail.</td>
         </tr>
         <tr>
             <td><h5>pipeline.global-job-parameters</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
-            <td>Register a custom, serializable user configuration object. The configuration can be accessed in operators</td>
+            <td>Register a custom, serializable user configuration object. The configuration can be  accessed in operators</td>
         </tr>
         <tr>
             <td><h5>pipeline.jars</h5></td>
@@ -78,7 +78,7 @@
             <td><h5>pipeline.max-parallelism</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
-            <td>The program wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
+            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
         </tr>
         <tr>
             <td><h5>pipeline.object-reuse</h5></td>
