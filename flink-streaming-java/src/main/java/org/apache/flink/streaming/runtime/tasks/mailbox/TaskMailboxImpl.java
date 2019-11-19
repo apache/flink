@@ -80,6 +80,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 	 */
 	private final Deque<Mail> batch = new ArrayDeque<>();
 
+	/**
+	 * Performance optimization where hasNewMail == !queue.isEmpty(). Will not reflect the state of {@link #batch}.
+	 */
+	private volatile boolean hasNewMail = false;
+
 	public TaskMailboxImpl(@Nonnull final Thread taskMailboxThread) {
 		this.taskMailboxThread = taskMailboxThread;
 	}
@@ -97,17 +102,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	@Override
 	public boolean hasMail() {
 		checkIsMailboxThread();
-		if (!batch.isEmpty()) {
-			return true;
-		}
-
-		final ReentrantLock lock = this.lock;
-		lock.lock();
-		try {
-			return !queue.isEmpty();
-		} finally {
-			lock.unlock();
-		}
+		return !batch.isEmpty() || hasNewMail;
 	}
 
 	@Override
@@ -149,6 +144,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 	@Override
 	public boolean createBatch() {
 		checkIsMailboxThread();
+		if (!hasNewMail) {
+			// batch is usually depleted by previous MailboxProcessor#runMainLoop
+			// however, putFirst may add a message directly to the batch if called from mailbox thread
+			return !batch.isEmpty();
+		}
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
@@ -156,6 +156,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 			while ((mail = queue.pollFirst()) != null) {
 				batch.addLast(mail);
 			}
+			hasNewMail = false;
 			return !batch.isEmpty();
 		} finally {
 			lock.unlock();
@@ -177,6 +178,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 		try {
 			checkPutStateConditions();
 			queue.addLast(mail);
+			hasNewMail = true;
 			notEmpty.signal();
 		} finally {
 			lock.unlock();
@@ -194,6 +196,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 			try {
 				checkPutStateConditions();
 				queue.addFirst(mail);
+				hasNewMail = true;
 				notEmpty.signal();
 			} finally {
 				lock.unlock();
@@ -205,12 +208,16 @@ public class TaskMailboxImpl implements TaskMailbox {
 
 	@Nullable
 	private Mail takeOrNull(Deque<Mail> queue, int priority) {
-		checkTakeStateConditions();
+		if (queue.isEmpty()) {
+			return null;
+		}
+
 		Iterator<Mail> iterator = queue.iterator();
 		while (iterator.hasNext()) {
 			Mail mail = iterator.next();
 			if (mail.getPriority() >= priority) {
 				iterator.remove();
+				hasNewMail = !queue.isEmpty();
 				return mail;
 			}
 		}
@@ -226,6 +233,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 		try {
 			drainedMails.addAll(queue);
 			queue.clear();
+			hasNewMail = false;
 			return drainedMails;
 		} finally {
 			lock.unlock();
