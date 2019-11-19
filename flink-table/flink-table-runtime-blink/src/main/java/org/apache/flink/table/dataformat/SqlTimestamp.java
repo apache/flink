@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.sql.Timestamp;
@@ -183,5 +185,21 @@ public class SqlTimestamp implements Comparable<SqlTimestamp> {
 	 */
 	public static boolean isCompact(int precision) {
 		return precision <= 3;
+	}
+
+	/**
+	 * Obtains an instance of {@code SqlTimestamp} from underlying {@link MemorySegment}.
+	 *
+	 * @param segments the underlying MemorySegments
+	 * @param baseOffset the base offset of current instance of {@code SqlTimestamp}
+	 * @param offsetAndNanos the offset of millseconds part and nanoseconds
+	 * @return an instance of {@code SqlTimestamp}
+	 */
+	public static SqlTimestamp readTimestampFieldFromSegments(
+			MemorySegment[] segments, int baseOffset, long offsetAndNanos) {
+		final int nanoOfMillisecond = (int) offsetAndNanos;
+		final int subOffset = (int) (offsetAndNanos >> 32);
+		final long millisecond = SegmentsUtil.getLong(segments, baseOffset + subOffset);
+		return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
 	}
 }
