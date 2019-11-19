@@ -27,6 +27,10 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ShutdownHookUtil;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -40,13 +44,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class JobClientImpl<ClusterID> implements JobClient {
 
+	private static final Logger LOG = LoggerFactory.getLogger(JobClientImpl.class);
+
 	private final ClusterClient<ClusterID> clusterClient;
 
 	private final JobID jobID;
 
-	public JobClientImpl(final ClusterClient<ClusterID> clusterClient, final JobID jobID) {
+	private final Thread shutdownHook;
+
+	public JobClientImpl(final ClusterClient<ClusterID> clusterClient, final JobID jobID, final boolean withShutdownHook) {
 		this.jobID = checkNotNull(jobID);
 		this.clusterClient = checkNotNull(clusterClient);
+
+		if (withShutdownHook) {
+			shutdownHook = ShutdownHookUtil.addShutdownHook(
+					clusterClient::shutDownCluster, clusterClient.getClass().getSimpleName(), LOG);
+		} else {
+			shutdownHook = null;
+		}
 	}
 
 	@Override
@@ -82,6 +97,9 @@ public class JobClientImpl<ClusterID> implements JobClient {
 
 	@Override
 	public void close() throws Exception {
+		if (shutdownHook != null) {
+			ShutdownHookUtil.removeShutdownHook(shutdownHook, clusterClient.getClass().getSimpleName(), LOG);
+		}
 		this.clusterClient.close();
 	}
 }
