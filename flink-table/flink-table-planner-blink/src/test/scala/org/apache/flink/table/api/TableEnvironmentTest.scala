@@ -82,7 +82,8 @@ class TableEnvironmentTest {
   @Test
   def testStreamTableEnvironmentExplain(): Unit = {
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("'explain' method is unsupported in StreamTableEnvironment.")
+    thrown.expectMessage(
+      "'explain' method without any tables is unsupported in StreamTableEnvironment.")
 
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
