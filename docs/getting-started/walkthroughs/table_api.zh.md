@@ -256,7 +256,7 @@ env.execute("Spend Report")
 目标是建立一个报表来显示每天每小时每个账户的总支出。
 就像一个 SQL 查询一样，Flink 可以选取所需的字段并且按键分组。
 由于时间戳字段具有毫秒的粒度，你可以使用自定义函数将其舍入到最近的小时。
-最后，选取所有的字段，用内建的 `sum` [聚合函数]({{ site.baseurl }}/zh/dev/table/systemFunctions.html#aggregate-functions)函数合计每一个账户每小时的支出。
+最后，选取所有的字段，用内建的 `sum` [聚合函数]({{ site.baseurl }}/zh/dev/table/functions/systemFunctions.html#aggregate-functions)函数合计每一个账户每小时的支出。
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
