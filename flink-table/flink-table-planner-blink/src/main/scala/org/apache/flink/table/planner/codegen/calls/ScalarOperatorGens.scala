@@ -174,8 +174,8 @@ object ScalarOperatorGens {
               (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
             }
           case TIMESTAMP_WITHOUT_TIME_ZONE =>
-            generateOperatorIfNotNull(ctx, new TimestampType(), left, right) {
-              (l, r) => s"($l * ${MILLIS_PER_DAY}L) $op $r"
+            generateOperatorIfNotNull(ctx, new TimestampType(3), left, right) {
+              (l, r) => s"$SQL_TIMESTAMP.fromEpochMillis(($l * ${MILLIS_PER_DAY}L) $op $r)"
             }
         }
 
@@ -191,12 +191,21 @@ object ScalarOperatorGens {
 
       case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
-          (l, r) => s"$l $op $r"
+          (l, r) => {
+            val leftTerm = s"$l.getMillisecond()"
+            s"$SQL_TIMESTAMP.fromEpochMillis($leftTerm $op $r)"
+          }
         }
 
       case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
-          (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+          (l, r) => {
+            val leftTerm = s"$l.getMillisecond()"
+            s"""
+               |$SQL_TIMESTAMP.fromEpochMillis(
+               |  ${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($r)))
+             """.stripMargin
+          }
         }
 
       // minus arithmetic of time points (i.e. for TIMESTAMPDIFF)
@@ -207,11 +216,23 @@ object ScalarOperatorGens {
             generateOperatorIfNotNull(ctx, resultType, left, right) {
               (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
+                  val leftTerm = s"$ll.getMillisecond()"
                   s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
-                    s"($ll, $rr * ${MILLIS_PER_DAY}L)"
+                    s"($leftTerm, $rr * ${MILLIS_PER_DAY}L)"
                 case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+                  val rightTerm = s"$rr.getMillisecond()"
                   s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
-                    s"($ll * ${MILLIS_PER_DAY}L, $rr)"
+                    s"($ll * ${MILLIS_PER_DAY}L, $rightTerm)"
+                case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+                  val leftTerm = s"$ll.getMillisecond()"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($leftTerm, $rightTerm)"
+                case (TIMESTAMP_WITHOUT_TIME_ZONE, _) =>
+                  val leftTerm = s"$ll.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($leftTerm, $rr)"
+                case (_, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rightTerm)"
                 case _ =>
                   s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rr)"
               }
@@ -221,13 +242,17 @@ object ScalarOperatorGens {
             generateOperatorIfNotNull(ctx, resultType, left, right) {
               (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-                  s"$ll $op $rr"
+                  val leftTerm = s"$ll.getMillisecond()"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"$leftTerm $op $rightTerm"
                 case (DATE, DATE) =>
                   s"($ll * ${MILLIS_PER_DAY}L) $op ($rr * ${MILLIS_PER_DAY}L)"
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
-                  s"$ll $op ($rr * ${MILLIS_PER_DAY}L)"
+                  val leftTerm = s"$ll.getMillisecond()"
+                  s"$leftTerm $op ($rr * ${MILLIS_PER_DAY}L)"
                 case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-                  s"($ll * ${MILLIS_PER_DAY}L) $op $rr"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"($ll * ${MILLIS_PER_DAY}L) $op $rightTerm"
               }
             }
         }
