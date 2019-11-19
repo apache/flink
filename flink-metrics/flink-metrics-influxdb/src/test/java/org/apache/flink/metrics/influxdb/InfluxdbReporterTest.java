@@ -68,7 +68,7 @@ public class InfluxdbReporterTest extends TestLogger {
 	@Test
 	public void testReporterRegistration() throws Exception {
 		MetricRegistryImpl metricRegistry = createMetricRegistry(InfluxdbReporterOptions.RETENTION_POLICY.defaultValue(),
-			InfluxDB.ConsistencyLevel.valueOf(InfluxdbReporterOptions.RETENTION_POLICY.defaultValue()));
+			InfluxdbReporterOptions.CONSISTENCY.defaultValue());
 		try {
 			assertEquals(1, metricRegistry.getReporters().size());
 			MetricReporter reporter = metricRegistry.getReporters().get(0);
@@ -81,7 +81,7 @@ public class InfluxdbReporterTest extends TestLogger {
 	@Test
 	public void testMetricRegistration() throws Exception {
 		MetricRegistryImpl metricRegistry = createMetricRegistry(InfluxdbReporterOptions.RETENTION_POLICY.defaultValue(),
-			InfluxDB.ConsistencyLevel.valueOf(InfluxdbReporterOptions.RETENTION_POLICY.defaultValue()));
+			InfluxdbReporterOptions.CONSISTENCY.defaultValue());
 		try {
 			String metricName = "TestCounter";
 			Counter counter = registerTestMetric(metricName, metricRegistry);

@@ -653,7 +653,15 @@ of your Flink distribution.
 
 Parameters:
 
-{% include generated/Influxdb_reporter_coniguration.html %}
+- `host` - the InfluxDB server host
+- `port` - (optional) the InfluxDB server port, defaults to `8086`
+- `db` - the InfluxDB database to store metrics
+- `username` - (optional) InfluxDB username used for authentication
+- `password` - (optional) InfluxDB username's password used for authentication
+- `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server for the db
+- `consistency` - (optional) InfluxDB consistency level for metrics. Possible values: [ALL, ANY, ONE, QUORUM], default is ONE
+- `connectTimeout` - (optional) the InfluxDB client connect timeout in milliseconds, default is 10000 ms
+- `writeTimeout` - (optional) the InfluxDB client write timeout in milliseconds, default is 10000 ms
 
 Example configuration:
 
