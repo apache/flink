@@ -166,7 +166,8 @@ public class TaskMailboxImpl implements TaskMailbox {
 	@Override
 	public Optional<Mail> tryTakeFromBatch() {
 		checkIsMailboxThread();
-		return Optional.ofNullable(takeOrNull(batch, MIN_PRIORITY));
+		checkTakeStateConditions();
+		return Optional.ofNullable(batch.pollFirst());
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
