@@ -19,6 +19,7 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -1297,10 +1298,74 @@ public class SqlDateTimeUtils {
 		return r;
 	}
 
+	public static String timestampToString(SqlTimestamp ts) {
+		LocalDateTime ldt = ts.toLocalDateTime();
+
+		String fraction = pad(9, (long) ldt.getNano());
+		while (fraction.endsWith("0")) {
+			fraction = fraction.substring(0, fraction.length() - 1);
+		}
+
+		StringBuilder ymdhms = ymdhms(
+			new StringBuilder(),
+			ldt.getYear(), ldt.getMonthValue(), ldt.getDayOfMonth(),
+			ldt.getHour(), ldt.getMinute(), ldt.getSecond());
+
+		if (fraction.length() > 0) {
+			ymdhms.append(".").append(fraction);
+		}
+
+		return ymdhms.toString();
+	}
+
+	private static String pad(int length, long v) {
+		StringBuilder s = new StringBuilder(Long.toString(v));
+		while (s.length() < length) {
+			s.insert(0, "0");
+		}
+		return s.toString();
+	}
+
+	/** Appends hour:minute:second to a buffer; assumes they are valid. */
+	private static StringBuilder hms(StringBuilder b, int h, int m, int s) {
+		int2(b, h);
+		b.append(':');
+		int2(b, m);
+		b.append(':');
+		int2(b, s);
+		return b;
+	}
+
+	/** Appends year-month-day and hour:minute:second to a buffer; assumes they
+	 * are valid. */
+	private static StringBuilder ymdhms(
+			StringBuilder b, int year, int month, int day, int h, int m, int s) {
+		ymd(b, year, month, day);
+		b.append(' ');
+		hms(b, h, m, s);
+		return b;
+	}
+
+	/** Appends year-month-day to a buffer; assumes they are valid. */
+	private static StringBuilder ymd(StringBuilder b, int year, int month, int day) {
+		int4(b, year);
+		b.append('-');
+		int2(b, month);
+		b.append('-');
+		int2(b, day);
+		return b;
+	}
+
+	private static void int4(StringBuilder buf, int i) {
+		buf.append((char) ('0' + (i / 1000) % 10));
+		buf.append((char) ('0' + (i / 100) % 10));
+		buf.append((char) ('0' + (i / 10) % 10));
+		buf.append((char) ('0' + i % 10));
+	}
+
 	// TODO: remove if CALCITE-3199 fixed
 	//  https://issues.apache.org/jira/browse/CALCITE-3199
 	public static long unixDateCeil(TimeUnitRange range, long date) {
 		return julianDateFloor(range, (int) date + EPOCH_JULIAN, false);
 	}
-
 }

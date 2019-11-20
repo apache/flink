@@ -37,6 +37,8 @@ import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -105,11 +107,15 @@ public class TypeInfoDataTypeConverter {
 		switch (logicalType.getTypeRoot()) {
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				TimestampType timestampType = (TimestampType) logicalType;
+				int precision = timestampType.getPrecision();
 				if (timestampType.getKind() == TimestampKind.REGULAR) {
 					return clazz == SqlTimestamp.class ?
-						new SqlTimestampTypeInfo(timestampType.getPrecision()) :
+						new SqlTimestampTypeInfo(precision) :
 						(clazz == LocalDateTime.class ?
-							Types.LOCAL_DATE_TIME : Types.SQL_TIMESTAMP);
+							((3 == precision) ?
+								Types.LOCAL_DATE_TIME : new LegacyLocalDateTimeTypeInfo(precision)) :
+							((3 == precision) ?
+								Types.SQL_TIMESTAMP : new LegacyTimestampTypeInfo(precision)));
 				} else {
 					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 				}
