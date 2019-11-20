@@ -468,7 +468,7 @@ abstract class TableEnvImpl(
 
     if (operations.size != 1) throw new TableException(
       "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-        "INSERT, CREATE TABLE, DROP TABLE")
+        "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG")
 
     operations.get(0) match {
       case op: CatalogSinkModifyOperation =>
@@ -485,9 +485,11 @@ abstract class TableEnvImpl(
         catalogManager.dropTable(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
+      case useCatalogOperation: UseCatalogOperation =>
+        catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
       case _ => throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-          "type INSERT, CREATE TABLE, DROP TABLE")
+          "type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG")
     }
   }
 

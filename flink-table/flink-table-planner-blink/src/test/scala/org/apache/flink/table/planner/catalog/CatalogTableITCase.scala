@@ -21,18 +21,16 @@ package org.apache.flink.table.planner.catalog
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
-import org.apache.flink.table.catalog.{CatalogFunctionImpl, ObjectPath}
+import org.apache.flink.table.catalog.{CatalogFunctionImpl, GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Ignore, Rule, Test}
-
 import java.sql.Timestamp
 import java.util
 
@@ -827,6 +825,16 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
     tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+  }
+
+  @Test
+  def testUseCatalog(): Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+    tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    assertEquals("cat1", tableEnv.getCurrentCatalog)
+    tableEnv.sqlUpdate("use catalog cat2")
+    assertEquals("cat2", tableEnv.getCurrentCatalog)
   }
 }
 
