@@ -30,7 +30,6 @@ import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.planner.calcite.FlinkContext;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;

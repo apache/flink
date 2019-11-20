@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.table.api.{DataTypes, TableException}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.types.logical._
@@ -170,6 +170,18 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       originalType.asInstanceOf[BasicSqlType],
       isNullable,
       isEventTime = true))
+  }
+
+  /**
+    * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory
+    *
+    * @param tableSchema schema to convert to Calcite's specific one
+    * @return a struct type with the input fieldNames, input fieldTypes, and system fields
+    */
+  def buildRelNodeRowType(tableSchema: TableSchema): RelDataType = {
+    buildRelNodeRowType(
+      tableSchema.getFieldNames,
+      tableSchema.getFieldDataTypes.map(_.getLogicalType))
   }
 
   /**
