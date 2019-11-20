@@ -29,18 +29,16 @@ import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
-import org.apache.flink.table.operations.ddl.{CreateTableOperation, DropTableOperation}
+import org.apache.flink.table.operations.ddl.{CreateTableOperation, DropTableOperation, UseCatalogOperation}
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
-
 import _root_.java.util.function.{Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
@@ -468,7 +466,7 @@ abstract class TableEnvImpl(
 
     if (operations.size != 1) throw new TableException(
       "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-        "INSERT, CREATE TABLE, DROP TABLE")
+        "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG")
 
     operations.get(0) match {
       case op: CatalogSinkModifyOperation =>
@@ -485,6 +483,8 @@ abstract class TableEnvImpl(
         catalogManager.dropTable(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
+      case useCatalogOperation: UseCatalogOperation =>
+        catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
       case _ => throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
           "type INSERT, CREATE TABLE, DROP TABLE")
