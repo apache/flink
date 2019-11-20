@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-
-import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A slot profile describes the profile of a slot into which a task wants to be scheduled. The profile contains
@@ -39,45 +40,32 @@ public class SlotProfile {
 	private static final SlotProfile NO_REQUIREMENTS = noLocality(ResourceProfile.UNKNOWN);
 
 	/** This specifies the desired resource profile for the slot. */
-	@Nonnull
 	private final ResourceProfile resourceProfile;
 
 	/** This specifies the preferred locations for the slot. */
-	@Nonnull
 	private final Collection<TaskManagerLocation> preferredLocations;
 
 	/** This contains desired allocation ids of the slot. */
-	@Nonnull
 	private final Collection<AllocationID> preferredAllocations;
 
 	/** This contains all prior allocation ids from the whole execution graph. */
-	@Nonnull
 	private final Set<AllocationID> previousExecutionGraphAllocations;
 
-	public SlotProfile(
-		@Nonnull ResourceProfile resourceProfile,
-		@Nonnull Collection<TaskManagerLocation> preferredLocations,
-		@Nonnull Collection<AllocationID> preferredAllocations) {
+	private SlotProfile(
+			final ResourceProfile resourceProfile,
+			final Collection<TaskManagerLocation> preferredLocations,
+			final Collection<AllocationID> preferredAllocations,
+			final Set<AllocationID> previousExecutionGraphAllocations) {
 
-		this(resourceProfile, preferredLocations, preferredAllocations, Collections.emptySet());
-	}
-
-	public SlotProfile(
-		@Nonnull ResourceProfile resourceProfile,
-		@Nonnull Collection<TaskManagerLocation> preferredLocations,
-		@Nonnull Collection<AllocationID> preferredAllocations,
-		@Nonnull Set<AllocationID> previousExecutionGraphAllocations) {
-
-		this.resourceProfile = resourceProfile;
-		this.preferredLocations = preferredLocations;
-		this.preferredAllocations = preferredAllocations;
-		this.previousExecutionGraphAllocations = previousExecutionGraphAllocations;
+		this.resourceProfile = checkNotNull(resourceProfile);
+		this.preferredLocations = checkNotNull(preferredLocations);
+		this.preferredAllocations = checkNotNull(preferredAllocations);
+		this.previousExecutionGraphAllocations = checkNotNull(previousExecutionGraphAllocations);
 	}
 
 	/**
 	 * Returns the desired resource profile for the slot.
 	 */
-	@Nonnull
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
 	}
@@ -85,7 +73,6 @@ public class SlotProfile {
 	/**
 	 * Returns the preferred locations for the slot.
 	 */
-	@Nonnull
 	public Collection<TaskManagerLocation> getPreferredLocations() {
 		return preferredLocations;
 	}
@@ -93,7 +80,6 @@ public class SlotProfile {
 	/**
 	 * Returns the desired allocation ids for the slot.
 	 */
-	@Nonnull
 	public Collection<AllocationID> getPreferredAllocations() {
 		return preferredAllocations;
 	}
@@ -103,7 +89,6 @@ public class SlotProfile {
 	 *
 	 * <p>This is optional and can be empty if unused.
 	 */
-	@Nonnull
 	public Set<AllocationID> getPreviousExecutionGraphAllocations() {
 		return previousExecutionGraphAllocations;
 	}
@@ -111,6 +96,7 @@ public class SlotProfile {
 	/**
 	 * Returns a slot profile that has no requirements.
 	 */
+	@VisibleForTesting
 	public static SlotProfile noRequirements() {
 		return NO_REQUIREMENTS;
 	}
@@ -118,8 +104,9 @@ public class SlotProfile {
 	/**
 	 * Returns a slot profile for the given resource profile, without any locality requirements.
 	 */
+	@VisibleForTesting
 	public static SlotProfile noLocality(ResourceProfile resourceProfile) {
-		return new SlotProfile(resourceProfile, Collections.emptyList(), Collections.emptyList());
+		return preferredLocality(resourceProfile, Collections.emptyList());
 	}
 
 	/**
@@ -129,18 +116,30 @@ public class SlotProfile {
 	 * @param preferredLocations specifying the preferred locations
 	 * @return Slot profile with the given resource profile and preferred locations
 	 */
-	public static SlotProfile preferredLocality(ResourceProfile resourceProfile, Collection<TaskManagerLocation> preferredLocations) {
-		return new SlotProfile(resourceProfile, preferredLocations, Collections.emptyList());
+	@VisibleForTesting
+	public static SlotProfile preferredLocality(
+			final ResourceProfile resourceProfile,
+			final Collection<TaskManagerLocation> preferredLocations) {
+
+		return priorAllocation(resourceProfile, preferredLocations, Collections.emptyList(), Collections.emptySet());
 	}
 
 	/**
-	 * Returns a slot profile for the given resource profile and the prior allocations.
+	 * Returns a slot profile for the given resource profile, prior allocations and
+	 * all prior allocation ids from the whole execution graph.
 	 *
 	 * @param resourceProfile specifying the slot requirements
+	 * @param preferredLocations specifying the preferred locations
 	 * @param priorAllocations specifying the prior allocations
-	 * @return Slot profile with the given resource profile and prior allocations
+	 * @param previousExecutionGraphAllocations specifying all prior allocation ids from the whole execution graph
+	 * @return Slot profile with all the given information
 	 */
-	public static SlotProfile priorAllocation(ResourceProfile resourceProfile, Collection<AllocationID> priorAllocations) {
-		return new SlotProfile(resourceProfile, Collections.emptyList(), priorAllocations);
+	public static SlotProfile priorAllocation(
+			final ResourceProfile resourceProfile,
+			final Collection<TaskManagerLocation> preferredLocations,
+			final Collection<AllocationID> priorAllocations,
+			final Set<AllocationID> previousExecutionGraphAllocations) {
+
+		return new SlotProfile(resourceProfile, preferredLocations, priorAllocations, previousExecutionGraphAllocations);
 	}
 }

@@ -545,7 +545,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						slotProviderStrategy.allocateSlot(
 							slotRequestId,
 							toSchedule,
-							new SlotProfile(
+							SlotProfile.priorAllocation(
 								vertex.getResourceProfile(),
 								preferredLocations,
 								previousAllocationIDs,
