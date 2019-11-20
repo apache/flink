@@ -31,7 +31,6 @@ import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
 
 /**
   * A [[FlinkPreparingTableBase]] implementation which defines the context variables
@@ -96,10 +95,11 @@ class TableSourceTable[T](
   def copy(tableSource: TableSource[_], selectedFields: Array[Int]): TableSourceTable[T] = {
     val newRowType = relOptSchema
       .getTypeFactory
-      .createStructType(rowType
-        .getFieldList
-        .filter(f => selectedFields.contains(f.getIndex))
-        .toList)
+      .createStructType(
+        selectedFields
+          .map(idx => rowType.getFieldList.get(idx))
+          .toList
+          .asJava)
     new TableSourceTable[T](relOptSchema, names, newRowType, statistic,
       tableSource.asInstanceOf[TableSource[T]], isStreamingMode, catalogTable)
   }
