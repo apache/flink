@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
@@ -503,14 +502,14 @@ public class TaskManagerServices {
 	}
 
 	private static ResourceProfile computeSlotResourceProfile(int numOfSlots, Map<MemoryType, Long> memorySizeByType) {
-		return new ResourceProfile(
-			new CPUResource(Double.MAX_VALUE),
-			MemorySize.MAX_VALUE,
-			MemorySize.MAX_VALUE,
-			new MemorySize(memorySizeByType.getOrDefault(MemoryType.HEAP, 0L) / numOfSlots),
-			new MemorySize(memorySizeByType.getOrDefault(MemoryType.OFF_HEAP, 0L) / numOfSlots),
-			MemorySize.MAX_VALUE,
-			Collections.emptyMap());
+		return ResourceProfile.newBuilder()
+			.setCpuCores(Double.MAX_VALUE)
+			.setTaskHeapMemory(MemorySize.MAX_VALUE)
+			.setTaskOffHeapMemory(MemorySize.MAX_VALUE)
+			.setOnHeapManagedMemory(new MemorySize(memorySizeByType.getOrDefault(MemoryType.HEAP, 0L) / numOfSlots))
+			.setOffHeapManagedMemory(new MemorySize(memorySizeByType.getOrDefault(MemoryType.OFF_HEAP, 0L) / numOfSlots))
+			.setShuffleMemory(MemorySize.MAX_VALUE)
+			.build();
 	}
 
 	private static long bytesToMegabytes(long bytes) {

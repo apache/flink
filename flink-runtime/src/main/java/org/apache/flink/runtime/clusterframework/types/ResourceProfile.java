@@ -67,10 +67,17 @@ public class ResourceProfile implements Serializable {
 	 * A ResourceProfile that indicates infinite resource that matches any resource requirement, for testability purpose only.
 	 */
 	@VisibleForTesting
-	public static final ResourceProfile ANY = new ResourceProfile(new CPUResource(Double.MAX_VALUE), MemorySize.MAX_VALUE, MemorySize.MAX_VALUE, MemorySize.MAX_VALUE, MemorySize.MAX_VALUE, MemorySize.MAX_VALUE, Collections.emptyMap());
+	public static final ResourceProfile ANY = newBuilder()
+		.setCpuCores(Double.MAX_VALUE)
+		.setTaskHeapMemory(MemorySize.MAX_VALUE)
+		.setTaskOffHeapMemory(MemorySize.MAX_VALUE)
+		.setOnHeapManagedMemory(MemorySize.MAX_VALUE)
+		.setOffHeapManagedMemory(MemorySize.MAX_VALUE)
+		.setShuffleMemory(MemorySize.MAX_VALUE)
+		.build();
 
 	/** A ResourceProfile describing zero resources. */
-	public static final ResourceProfile ZERO = new ResourceProfile(0, 0);
+	public static final ResourceProfile ZERO = newBuilder().build();
 
 	// ------------------------------------------------------------------------
 
@@ -114,7 +121,7 @@ public class ResourceProfile implements Serializable {
 	 * @param shuffleMemory The size of the shuffle memory.
 	 * @param extendedResources The extended resources such as GPU and FPGA
 	 */
-	public ResourceProfile(
+	private ResourceProfile(
 			final Resource cpuCores,
 			final MemorySize taskHeapMemory,
 			final MemorySize taskOffHeapMemory,
@@ -135,38 +142,6 @@ public class ResourceProfile implements Serializable {
 		if (extendedResources != null) {
 			this.extendedResources.putAll(extendedResources);
 		}
-	}
-
-	@VisibleForTesting
-	public ResourceProfile(
-			final double cpuCores,
-			final int taskHeapMemoryMB,
-			final int taskOffHeapMemoryMB,
-			final int onHeapManagedMemoryMB,
-			final int offHeapManagedMemoryMB,
-			final int shuffleMemoryMB,
-			final Map<String, Resource> extendedResources) {
-
-		this(
-			new CPUResource(cpuCores),
-			MemorySize.parse(taskHeapMemoryMB + "m"),
-			MemorySize.parse(taskOffHeapMemoryMB + "m"),
-			MemorySize.parse(onHeapManagedMemoryMB + "m"),
-			MemorySize.parse(offHeapManagedMemoryMB + "m"),
-			MemorySize.parse(shuffleMemoryMB + "m"),
-			extendedResources);
-	}
-
-	@VisibleForTesting
-	public ResourceProfile(double cpuCores, int taskHeapMemoryMB) {
-		this(
-			new CPUResource(cpuCores),
-			MemorySize.parse(taskHeapMemoryMB + "m"),
-			MemorySize.ZERO,
-			MemorySize.ZERO,
-			MemorySize.ZERO,
-			MemorySize.ZERO,
-			Collections.emptyMap());
 	}
 
 	/**
@@ -483,15 +458,126 @@ public class ResourceProfile implements Serializable {
 			return UNKNOWN;
 		}
 
-		Map<String, Resource> copiedExtendedResources = new HashMap<>(resourceSpec.getExtendedResources());
+		return newBuilder()
+			.setCpuCores(resourceSpec.getCpuCores())
+			.setTaskHeapMemory(resourceSpec.getTaskHeapMemory())
+			.setTaskOffHeapMemory(resourceSpec.getTaskOffHeapMemory())
+			.setOnHeapManagedMemory(resourceSpec.getOnHeapManagedMemory())
+			.setOffHeapManagedMemory(resourceSpec.getOffHeapManagedMemory())
+			.setShuffleMemory(networkMemory)
+			.addExtendedResources(resourceSpec.getExtendedResources())
+			.build();
+	}
 
-		return new ResourceProfile(
-			resourceSpec.getCpuCores(),
-			resourceSpec.getTaskHeapMemory(),
-			resourceSpec.getTaskOffHeapMemory(),
-			resourceSpec.getOnHeapManagedMemory(),
-			resourceSpec.getOffHeapManagedMemory(),
-			networkMemory,
-			copiedExtendedResources);
+	@VisibleForTesting
+	public static ResourceProfile fromResources(final double cpuCores, final int taskHeapMemoryMB) {
+		return newBuilder()
+			.setCpuCores(cpuCores)
+			.setTaskHeapMemoryMB(taskHeapMemoryMB)
+			.build();
+	}
+
+	public static Builder newBuilder() {
+		return new Builder();
+	}
+
+	/**
+	 * Builder for the {@link ResourceProfile}.
+	 */
+	public static class Builder {
+
+		private Resource cpuCores = new CPUResource(0.0);
+		private MemorySize taskHeapMemory = MemorySize.ZERO;
+		private MemorySize taskOffHeapMemory = MemorySize.ZERO;
+		private MemorySize onHeapManagedMemory = MemorySize.ZERO;
+		private MemorySize offHeapManagedMemory = MemorySize.ZERO;
+		private MemorySize shuffleMemory = MemorySize.ZERO;
+		private Map<String, Resource> extendedResources = new HashMap<>();
+
+		private Builder() {
+		}
+
+		public Builder setCpuCores(Resource cpuCores) {
+			this.cpuCores = cpuCores;
+			return this;
+		}
+
+		public Builder setCpuCores(double cpuCores) {
+			this.cpuCores = new CPUResource(cpuCores);
+			return this;
+		}
+
+		public Builder setTaskHeapMemory(MemorySize taskHeapMemory) {
+			this.taskHeapMemory = taskHeapMemory;
+			return this;
+		}
+
+		public Builder setTaskHeapMemoryMB(int taskHeapMemoryMB) {
+			this.taskHeapMemory = MemorySize.parse(taskHeapMemoryMB + "m");
+			return this;
+		}
+
+		public Builder setTaskOffHeapMemory(MemorySize taskOffHeapMemory) {
+			this.taskOffHeapMemory = taskOffHeapMemory;
+			return this;
+		}
+
+		public Builder setTaskOffHeapMemoryMB(int taskOffHeapMemoryMB) {
+			this.taskOffHeapMemory = MemorySize.parse(taskOffHeapMemoryMB + "m");
+			return this;
+		}
+
+		public Builder setOnHeapManagedMemory(MemorySize onHeapManagedMemory) {
+			this.onHeapManagedMemory = onHeapManagedMemory;
+			return this;
+		}
+
+		public Builder setOnHeapManagedMemoryMB(int onHeapManagedMemoryMB) {
+			this.onHeapManagedMemory = MemorySize.parse(onHeapManagedMemoryMB + "m");
+			return this;
+		}
+
+		public Builder setOffHeapManagedMemory(MemorySize offHeapManagedMemory) {
+			this.offHeapManagedMemory = offHeapManagedMemory;
+			return this;
+		}
+
+		public Builder setOffHeapManagedMemoryMB(int offHeapManagedMemoryMB) {
+			this.offHeapManagedMemory = MemorySize.parse(offHeapManagedMemoryMB + "m");
+			return this;
+		}
+
+		public Builder setShuffleMemory(MemorySize shuffleMemory) {
+			this.shuffleMemory = shuffleMemory;
+			return this;
+		}
+
+		public Builder setShuffleMemoryMB(int shuffleMemoryMB) {
+			this.shuffleMemory = MemorySize.parse(shuffleMemoryMB + "m");
+			return this;
+		}
+
+		public Builder addExtendedResource(String name, Resource extendedResource) {
+			this.extendedResources.put(name, extendedResource);
+			return this;
+		}
+
+		public Builder addExtendedResources(Map<String, Resource> extendedResources) {
+			if (extendedResources != null) {
+				this.extendedResources.putAll(extendedResources);
+			}
+			return this;
+		}
+
+		public ResourceProfile build() {
+			return new ResourceProfile(
+				cpuCores,
+				taskHeapMemory,
+				taskOffHeapMemory,
+				onHeapManagedMemory,
+				offHeapManagedMemory,
+				shuffleMemory,
+				extendedResources);
+		}
 	}
 }

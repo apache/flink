@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
-import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -26,7 +25,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -37,15 +35,14 @@ public enum TaskSlotUtils {
 
 	private static final long DEFAULT_SLOT_TIMEOUT = 10000L;
 
-	private static final ResourceProfile DEFAULT_RESOURCE_PROFILE =
-		new ResourceProfile(
-			new CPUResource(Double.MAX_VALUE),
-			MemorySize.MAX_VALUE,
-			MemorySize.MAX_VALUE,
-			new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE),
-			new MemorySize(0),
-			MemorySize.MAX_VALUE,
-			Collections.emptyMap());
+	private static final ResourceProfile DEFAULT_RESOURCE_PROFILE = ResourceProfile.newBuilder()
+		.setCpuCores(Double.MAX_VALUE)
+		.setTaskHeapMemory(MemorySize.MAX_VALUE)
+		.setTaskOffHeapMemory(MemorySize.MAX_VALUE)
+		.setOnHeapManagedMemory(new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE))
+		.setOffHeapManagedMemory(MemorySize.ZERO)
+		.setShuffleMemory(MemorySize.MAX_VALUE)
+		.build();
 
 	public static TaskSlotTable createTaskSlotTable(int numberOfSlots) {
 		return createTaskSlotTable(

@@ -47,8 +47,8 @@ public class AnyMatchingSlotMatchingStrategyTest extends TestLogger {
 
 	@Before
 	public void setup() {
-		final ResourceProfile largeResourceProfile = new ResourceProfile(10.2 , 42);
-		final ResourceProfile smallResourceProfile = new ResourceProfile(1 , 1);
+		final ResourceProfile largeResourceProfile = ResourceProfile.fromResources(10.2 , 42);
+		final ResourceProfile smallResourceProfile = ResourceProfile.fromResources(1 , 1);
 
 		largeTaskManagerSlotInformation = TestingTaskManagerSlotInformation.newBuilder()
 			.setInstanceId(instanceId)
@@ -77,7 +77,7 @@ public class AnyMatchingSlotMatchingStrategyTest extends TestLogger {
 	@Test
 	public void findMatchingSlot_withUnfulfillableRequest_returnsEmptyResult() {
 		final Optional<TestingTaskManagerSlotInformation> optionalMatchingSlot = AnyMatchingSlotMatchingStrategy.INSTANCE.findMatchingSlot(
-			new ResourceProfile(Double.MAX_VALUE, Integer.MAX_VALUE),
+			ResourceProfile.fromResources(Double.MAX_VALUE, Integer.MAX_VALUE),
 			freeSlots,
 			countSlotsPerInstance(freeSlots));
 
