@@ -37,11 +37,12 @@ under the License.
 
 	<modules>
 		<module>flink-avro</module>
-		<module>flink-json</module>
 		<module>flink-avro-confluent-registry</module>
+		<module>flink-csv</module>
+		<module>flink-json</module>
 		<module>flink-parquet</module>
 		<module>flink-sequence-file</module>
-		<module>flink-csv</module>
+		<module>flink-thrift</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up

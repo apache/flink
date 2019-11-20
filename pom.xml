@@ -125,6 +125,7 @@ under the License.
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
+		<thrift.version>0.12.0</thrift.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.2</powermock.version>
