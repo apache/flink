@@ -30,8 +30,6 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -78,12 +76,12 @@ public class ExecutorDiscoveryAndJobClientTest {
 	public static class IDReportingExecutorFactory implements ExecutorFactory {
 
 		@Override
-		public boolean isCompatibleWith(@Nonnull Configuration configuration) {
+		public boolean isCompatibleWith(Configuration configuration) {
 			return EXEC_NAME.equals(configuration.get(DeploymentOptions.TARGET));
 		}
 
 		@Override
-		public Executor getExecutor(@Nonnull Configuration configuration) {
+		public Executor getExecutor(Configuration configuration) {
 			return (pipeline, executionConfig) -> CompletableFuture.completedFuture(new JobClient() {
 				@Override
 				public JobID getJobID() {
@@ -91,7 +89,7 @@ public class ExecutorDiscoveryAndJobClientTest {
 				}
 
 				@Override
-				public CompletableFuture<JobExecutionResult> getJobExecutionResult(@Nonnull ClassLoader userClassloader) {
+				public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader userClassloader) {
 					return CompletableFuture.completedFuture(new JobExecutionResult(new JobID(), 0L, Collections.emptyMap()));
 				}
 

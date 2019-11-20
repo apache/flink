@@ -21,8 +21,6 @@ package org.apache.flink.core.execution;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
-import javax.annotation.Nonnull;
-
 /**
  * An interface to be implemented by the entity responsible for finding the correct {@link Executor} to
  * execute a given {@link org.apache.flink.api.dag.Pipeline}.
@@ -39,5 +37,5 @@ public interface ExecutorServiceLoader {
 	 * @throws Exception if there is more than one compatible factories, or something went wrong when
 	 * 			loading the registered factories.
 	 */
-	ExecutorFactory getExecutorFactory(@Nonnull final Configuration configuration) throws Exception;
+	ExecutorFactory getExecutorFactory(final Configuration configuration) throws Exception;
 }

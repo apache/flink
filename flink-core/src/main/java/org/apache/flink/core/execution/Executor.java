@@ -22,8 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
 
-import javax.annotation.Nonnull;
-
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -43,5 +41,5 @@ public interface Executor {
 	 * @param configuration the {@link Configuration} with the required execution parameters
 	 * @return a {@link CompletableFuture} with the {@link JobClient} corresponding to the pipeline.
 	 */
-	CompletableFuture<JobClient> execute(@Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration) throws Exception;
+	CompletableFuture<JobClient> execute(final Pipeline pipeline, final Configuration configuration) throws Exception;
 }

@@ -21,8 +21,6 @@ package org.apache.flink.core.execution;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
-import javax.annotation.Nonnull;
-
 /**
  * A factory for selecting and instantiating the adequate {@link Executor}
  * based on a provided {@link Configuration}.
@@ -34,11 +32,11 @@ public interface ExecutorFactory {
 	 * Returns {@code true} if this factory is compatible with the options in the
 	 * provided configuration, {@code false} otherwise.
 	 */
-	boolean isCompatibleWith(@Nonnull final Configuration configuration);
+	boolean isCompatibleWith(final Configuration configuration);
 
 	/**
 	 * Instantiates an {@link Executor} compatible with the provided configuration.
 	 * @return the executor instance.
 	 */
-	Executor getExecutor(@Nonnull Configuration configuration);
+	Executor getExecutor(Configuration configuration);
 }
