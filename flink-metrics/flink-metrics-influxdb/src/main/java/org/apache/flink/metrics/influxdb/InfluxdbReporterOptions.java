@@ -63,8 +63,7 @@ public class InfluxdbReporterOptions {
 		.key("consistency")
 		.enumType(InfluxDB.ConsistencyLevel.class)
 		.defaultValue(InfluxDB.ConsistencyLevel.ONE)
-		.withDescription(String.format("(optional) InfluxDB consistency level for metrics. default is %s",
-			InfluxDB.ConsistencyLevel.ONE.name()));
+		.withDescription("(optional) the InfluxDB consistency level for metrics");
 
 	public static final ConfigOption<Integer> CONNECT_TIMEOUT = ConfigOptions
 		.key("connectTimeout")

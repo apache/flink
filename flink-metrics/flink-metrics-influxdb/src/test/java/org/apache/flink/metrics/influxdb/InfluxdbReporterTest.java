@@ -132,6 +132,7 @@ public class InfluxdbReporterTest extends TestLogger {
 		metricConfig.setProperty(InfluxdbReporterOptions.DB.key(), TEST_INFLUXDB_DB);
 		metricConfig.setProperty(InfluxdbReporterOptions.RETENTION_POLICY.key(), retentionPolicy);
 		metricConfig.setProperty(InfluxdbReporterOptions.CONSISTENCY.key(), consistencyLevel.name());
+
 		return new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
 			Collections.singletonList(ReporterSetup.forReporter("test", metricConfig, new InfluxdbReporter())));
