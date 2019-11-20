@@ -45,6 +45,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.UseCatalogOperation;
 import org.apache.flink.table.planner.PlanningConfigurationBuilder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -111,6 +112,16 @@ public class SqlToOperationConverterTest {
 		final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
 		catalog.dropTable(path1, true);
 		catalog.dropTable(path2, true);
+	}
+
+	@Test
+	public void testUseCatalog() {
+		final String sql = "USE CATALOG cat1";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
+		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+		assert operation instanceof UseCatalogOperation;
+		assertEquals("cat1", ((UseCatalogOperation) operation).getCatalogName());
 	}
 
 	@Test

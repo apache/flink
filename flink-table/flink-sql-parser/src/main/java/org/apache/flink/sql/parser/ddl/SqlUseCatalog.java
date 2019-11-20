@@ -35,7 +35,7 @@ import java.util.List;
  */
 public class SqlUseCatalog extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE CATALOG", SqlKind.OTHER);
+	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE CATALOG", SqlKind.OTHER_DDL);
 	private final SqlIdentifier catalogName;
 
 	public SqlUseCatalog(SqlParserPos pos, SqlIdentifier catalogName) {
