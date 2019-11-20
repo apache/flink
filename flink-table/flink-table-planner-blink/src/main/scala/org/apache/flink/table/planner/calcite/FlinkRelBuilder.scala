@@ -166,7 +166,7 @@ object FlinkRelBuilder {
   def proto(context: Context): RelBuilderFactory = new RelBuilderFactory() {
     def create(cluster: RelOptCluster, schema: RelOptSchema): RelBuilder = {
       val clusterContext = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
-      val mergedContext = Contexts.chain(clusterContext, context)
+      val mergedContext = Contexts.chain(context, clusterContext)
 
       new FlinkRelBuilder(mergedContext, cluster, schema)
     }
