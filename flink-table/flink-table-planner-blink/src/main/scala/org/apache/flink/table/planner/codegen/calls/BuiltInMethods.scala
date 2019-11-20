@@ -346,12 +346,12 @@ object BuiltInMethods {
 
   val STRING_TO_TIMESTAMP = Types.lookupMethod(
     classOf[SqlDateTimeUtils],
-    "toTimestamp",
+    "toSqlTimestamp",
     classOf[String])
 
   val STRING_TO_TIMESTAMP_WITH_FORMAT = Types.lookupMethod(
     classOf[SqlDateTimeUtils],
-    "toTimestamp",
+    "toSqlTimestamp",
     classOf[String], classOf[String])
 
   val STRING_TO_TIMESTAMP_TIME_ZONE = Types.lookupMethod(
@@ -461,4 +461,7 @@ object BuiltInMethods {
   //  https://issues.apache.org/jira/browse/CALCITE-3199
   val UNIX_DATE_CEIL = Types.lookupMethod(classOf[SqlDateTimeUtils], "unixDateCeil",
     classOf[TimeUnitRange], classOf[Int])
+
+  val TRUNCATE_SQL_TIMESTAMP = Types.lookupMethod(classOf[SqlDateTimeUtils], "truncate",
+    classOf[SqlTimestamp], classOf[Int])
 }

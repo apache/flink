@@ -909,6 +909,73 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1437699600")
   }
 
+  @Test
+  def testHighPrecisionTimestamp(): Unit = {
+    // EXTRACT should support millisecond/microsecond/nanosecond
+    testSqlApi(
+      "EXTRACT(MILLISECOND FROM TIMESTAMP '1970-01-01 00:00:00.123456789')",
+      "123")
+    testSqlApi(
+      "EXTRACT(MICROSECOND FROM TIMESTAMP '1970-01-01 00:00:00.123456789')",
+      "123456")
+    testSqlApi(
+      "EXTRACT(NANOSECOND FROM TIMESTAMP '1970-01-01 00:00:00.123456789')",
+      "123456789")
+
+    // TIMESTAMPADD should support microsecond/nanosecond
+    // TODO:
+    //  (1970-01-01 00:00:00.123455789:TIMESTAMP(9), /INT(*(1:INTERVAL MICROSECOND, 1), 1000))
+    // testSqlApi(
+    //  "TIMESTAMPADD(MICROSECOND, 1, TIMESTAMP '1970-01-01 00:00:00.123455789')",
+    //  "1970-01-01 00:00:00.123456789"
+    //)
+
+    // TIMESTAMPDIFF should support microsecond/nanosecond
+    // TODO:
+    //  *(
+    //  CAST(
+    //    /INT(
+    //      Reinterpret(
+    //        -(1970-01-01 00:00:00.123455789:TIMESTAMP(9),
+    //          1970-01-01 00:00:00.123456789:TIMESTAMP(9))),
+    //      1000)
+    //  ):INTEGER NOT NULL,
+    //  1000000)
+    //testSqlApi(
+    //  "TIMESTAMPDIFF(MICROSECOND, TIMESTAMP '1970-01-01 00:00:00.123456789', " +
+    //    "TIMESTAMP '1970-01-01 00:00:00.123455789')",
+    //  "1")
+
+    // TO_TIMESTAMP should support up to nanosecond
+    testSqlApi(
+      "TO_TIMESTAMP('1970-01-01 00:00:00.123456789')",
+      "1970-01-01 00:00:00.123456789")
+
+    testSqlApi(
+      "TO_TIMESTAMP('1970-01-01 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
+      "1970-01-01 00:00:00.12345")
+
+    testSqlApi("TO_TIMESTAMP('abc')", "null")
+
+    // CAST between two TIMESTAMPs
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:00:00.123456789' AS TIMESTAMP(6))",
+      "1970-01-01 00:00:00.123456")
+
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:00:00.123456789' AS TIMESTAMP(9))",
+      "1970-01-01 00:00:00.123456789")
+
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:00:00.123456789' AS TIMESTAMP)",
+      "1970-01-01 00:00:00.123456")
+
+    testSqlApi(
+      "CAST(TO_TIMESTAMP('1970-01-01 00:00:00.123456789') AS TIMESTAMP(0))",
+      "1970-01-01 00:00:00")
+
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {

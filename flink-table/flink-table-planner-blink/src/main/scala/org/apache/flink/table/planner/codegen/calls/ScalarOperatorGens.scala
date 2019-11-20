@@ -823,7 +823,20 @@ object ScalarOperatorGens {
           operand.resultType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.PROCTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME =>
-      operand.copy(resultType = new TimestampType(3)) // just replace the DataType
+        operand.copy(resultType = new TimestampType(3)) // just replace the DataType
+
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+      val fromType = operand.resultType.asInstanceOf[TimestampType]
+      val toType = targetType.asInstanceOf[TimestampType]
+      if (fromType.getPrecision <= toType.getPrecision) {
+        operand
+      } else {
+        val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            s"$method($operandTerm, ${toType.getPrecision})"
+        }
+      }
 
     case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
       val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_TIMESTAMP_WITH_LOCAL_ZONE)

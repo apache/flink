@@ -277,17 +277,17 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
   def testInsertSourceTableWithFuncField(): Unit = {
     val sourceData = List(
       toRow(1, "1990-02-10 12:34:56"),
-      toRow(2, "2019-09-10 9:23:41"),
-      toRow(3, "2019-09-10 9:23:42"),
-      toRow(1, "2019-09-10 9:23:43"),
-      toRow(2, "2019-09-10 9:23:44")
+      toRow(2, "2019-09-10 09:23:41"),
+      toRow(3, "2019-09-10 09:23:42"),
+      toRow(1, "2019-09-10 09:23:43"),
+      toRow(2, "2019-09-10 09:23:44")
     )
     val expected = List(
       toRow(1, "1990-02-10 12:34:56", Timestamp.valueOf("1990-02-10 12:34:56")),
-      toRow(2, "2019-09-10 9:23:41", Timestamp.valueOf("2019-09-10 9:23:41")),
-      toRow(3, "2019-09-10 9:23:42", Timestamp.valueOf("2019-09-10 9:23:42")),
-      toRow(1, "2019-09-10 9:23:43", Timestamp.valueOf("2019-09-10 9:23:43")),
-      toRow(2, "2019-09-10 9:23:44", Timestamp.valueOf("2019-09-10 9:23:44"))
+      toRow(2, "2019-09-10 09:23:41", Timestamp.valueOf("2019-09-10 9:23:41")),
+      toRow(3, "2019-09-10 09:23:42", Timestamp.valueOf("2019-09-10 9:23:42")),
+      toRow(1, "2019-09-10 09:23:43", Timestamp.valueOf("2019-09-10 9:23:43")),
+      toRow(2, "2019-09-10 09:23:44", Timestamp.valueOf("2019-09-10 9:23:44"))
     )
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =

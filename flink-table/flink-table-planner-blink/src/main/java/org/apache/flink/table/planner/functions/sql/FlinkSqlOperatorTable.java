@@ -644,6 +644,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
 		SqlFunctionCategory.STRING);
 
+	// TODO: the return type of TO_TIMESTAMP should be TIMESTAMP(9)
+	//  but conversion of DataType and TypeInformation only support TIMESTAMP(3) now.
+	//  change to TIMESTAMP(9) when FLINK-14645 is fixed.
 	public static final SqlFunction TO_TIMESTAMP = new SqlFunction(
 		"TO_TIMESTAMP",
 		SqlKind.OTHER_FUNCTION,
