@@ -16,28 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
-
-import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
+package org.apache.flink.api.common;
 
 import java.util.Map;
 
 /**
- * The {@link JobExecutionResult} returned by a {@link ContextEnvironment} when
+ * The {@link JobExecutionResult} returned by a context environment when
  * executing a job in detached mode.
  */
 public final class DetachedJobExecutionResult extends JobExecutionResult {
 
-	static final String DETACHED_MESSAGE = "Job was submitted in detached mode. ";
+	public static final String DETACHED_MESSAGE = "Job was submitted in detached mode. ";
 
-	static final String EXECUTE_TWICE_MESSAGE = "Only one call to execute is allowed. ";
+	public static final String EXECUTE_TWICE_MESSAGE = "Only one call to execute is allowed. ";
 
-	static final String EAGER_FUNCTION_MESSAGE = "Please make sure your program doesn't call " +
+	public static final String EAGER_FUNCTION_MESSAGE = "Please make sure your program doesn't call " +
 			"an eager execution function [collect, print, printToErr, count]. ";
 
-	static final String JOB_RESULT_MESSAGE = "Results of job execution, such as accumulators," +
+	public static final String JOB_RESULT_MESSAGE = "Results of job execution, such as accumulators," +
 			" runtime, etc. are not available. ";
 
 	public DetachedJobExecutionResult(final JobID jobID) {

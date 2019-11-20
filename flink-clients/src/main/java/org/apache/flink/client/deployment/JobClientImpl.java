@@ -21,7 +21,6 @@ package org.apache.flink.client.deployment;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -67,11 +66,6 @@ public class JobClientImpl<ClusterID> implements JobClient {
 	@Override
 	public JobID getJobID() {
 		return jobID;
-	}
-
-	@Override
-	public CompletableFuture<JobExecutionResult> getJobSubmissionResult() {
-		return CompletableFuture.completedFuture(new DetachedJobExecutionResult(jobID));
 	}
 
 	@Override

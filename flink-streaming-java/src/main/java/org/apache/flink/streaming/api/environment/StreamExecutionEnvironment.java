@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.DetachedJobExecutionResult;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -1564,7 +1565,7 @@ public class StreamExecutionEnvironment {
 
 			return configuration.getBoolean(DeploymentOptions.ATTACHED)
 					? jobClient.getJobExecutionResult(userClassloader).get()
-					: jobClient.getJobSubmissionResult().get();
+					: new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 	}
 
