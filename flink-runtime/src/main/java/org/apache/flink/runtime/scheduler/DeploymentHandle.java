@@ -75,7 +75,7 @@ class DeploymentHandle {
 		final CompletableFuture<LogicalSlot> logicalSlotFuture = slotExecutionVertexAssignment.getLogicalSlotFuture();
 		Preconditions.checkState(logicalSlotFuture.isDone(), "method can only be called after slot future is done");
 
-		if (logicalSlotFuture.isCompletedExceptionally() || logicalSlotFuture.isCancelled()) {
+		if (logicalSlotFuture.isCompletedExceptionally()) {
 			return Optional.empty();
 		}
 		return Optional.ofNullable(logicalSlotFuture.getNow(null));
