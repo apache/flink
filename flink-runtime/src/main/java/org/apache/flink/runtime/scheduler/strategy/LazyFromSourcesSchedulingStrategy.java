@@ -142,7 +142,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 
 		schedulerOperations.allocateSlotsAndDeploy(
 			IterableUtils.toStream(vertices)
-				.filter(isInputConstraintSatisfied().and(IS_IN_CREATED_EXECUTION_STATE))
+				.filter(IS_IN_CREATED_EXECUTION_STATE.and(isInputConstraintSatisfied()))
 				.map(SchedulingExecutionVertex::getId)
 				.map(executionVertexID -> new ExecutionVertexDeploymentOption(
 					executionVertexID,
