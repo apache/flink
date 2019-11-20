@@ -316,8 +316,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		ResultSubpartitionView view = partition.createReadView(listener);
 
 		// The added bufferConsumer and end-of-partition event
-		assertNotNull(view.getNextBuffer());
-		assertNotNull(view.getNextBuffer());
+		assertNotNull(view.getNextBuffer(true));
+		assertNotNull(view.getNextBuffer(true));
 
 		// Release the parent
 		assertFalse(view.isReleased());

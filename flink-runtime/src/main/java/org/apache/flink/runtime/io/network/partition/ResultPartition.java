@@ -22,6 +22,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
@@ -99,6 +100,10 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private final FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory;
 
+	/** Used to compress buffer to reduce IO. */
+	@Nullable
+	protected final BufferCompressor bufferCompressor;
+
 	public ResultPartition(
 		String owningTaskName,
 		ResultPartitionID partitionId,
@@ -106,6 +111,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		ResultSubpartition[] subpartitions,
 		int numTargetKeyGroups,
 		ResultPartitionManager partitionManager,
+		@Nullable BufferCompressor bufferCompressor,
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
@@ -114,6 +120,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		this.subpartitions = checkNotNull(subpartitions);
 		this.numTargetKeyGroups = numTargetKeyGroups;
 		this.partitionManager = checkNotNull(partitionManager);
+		this.bufferCompressor = bufferCompressor;
 		this.bufferPoolFactory = bufferPoolFactory;
 	}
 

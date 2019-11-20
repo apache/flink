@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -44,6 +45,8 @@ public class SingleInputGateBuilder {
 	private int numberOfChannels = 1;
 
 	private PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
+
+	private BufferDecompressor bufferDecompressor = null;
 
 	private SupplierWithException<BufferPool, IOException> bufferPoolFactory = () -> {
 		throw new UnsupportedOperationException();
@@ -87,6 +90,11 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
+	public SingleInputGateBuilder setBufferDecompressor(BufferDecompressor bufferDecompressor) {
+		this.bufferDecompressor = bufferDecompressor;
+		return this;
+	}
+
 	public SingleInputGate build() {
 		return new SingleInputGate(
 			"Single Input Gate",
@@ -95,6 +103,7 @@ public class SingleInputGateBuilder {
 			consumedSubpartitionIndex,
 			numberOfChannels,
 			partitionProducerStateProvider,
-			bufferPoolFactory);
+			bufferPoolFactory,
+			bufferDecompressor);
 	}
 }
