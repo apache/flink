@@ -88,7 +88,7 @@ public class PackagedProgram {
 
 	private final List<URL> classpaths;
 
-	private ClassLoader userCodeClassLoader;
+	private final ClassLoader userCodeClassLoader;
 
 	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 
