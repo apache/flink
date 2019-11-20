@@ -338,6 +338,11 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return isWaitingForFloatingBuffers;
 	}
 
+	@VisibleForTesting
+	public Buffer getNextReceivedBuffer() {
+		return receivedBuffers.poll();
+	}
+
 	/**
 	 * The Buffer pool notifies this channel of an available floating buffer. If the channel is released or
 	 * currently does not need extra buffers, the buffer should be returned to the buffer pool. Otherwise,

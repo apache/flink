@@ -36,6 +36,7 @@ import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Wrapper for pooled {@link MemorySegment} instances.
@@ -62,6 +63,9 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	 * size of the backing {@link MemorySegment} (inclusive).
 	 */
 	private int currentSize;
+
+	/** Whether the buffer is compressed or not. */
+	private boolean isCompressed = false;
 
 	/**
 	 * Creates a new buffer instance backed by the given <tt>memorySegment</tt> with <tt>0</tt> for
@@ -105,10 +109,30 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	 * 		current size of data in the buffer, i.e. the writer index to set
 	 */
 	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer, int size) {
+		this(memorySegment, recycler, isBuffer, false, size);
+	}
+
+	/**
+	 * Creates a new buffer instance backed by the given <tt>memorySegment</tt> with <tt>0</tt> for
+	 * the <tt>readerIndex</tt> and <tt>size</tt> as <tt>writerIndex</tt>.
+	 *
+	 * @param memorySegment
+	 * 		backing memory segment (defines {@link #maxCapacity})
+	 * @param recycler
+	 * 		will be called to recycle this buffer once the reference count is <tt>0</tt>
+	 * @param isBuffer
+	 * 		whether this buffer represents a buffer (<tt>true</tt>) or an event (<tt>false</tt>)
+	 * @param size
+	 * 		current size of data in the buffer, i.e. the writer index to set
+	 * @param isCompressed
+	 * 		whether the buffer is compressed or not
+	 */
+	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer, boolean isCompressed, int size) {
 		super(memorySegment.size());
 		this.memorySegment = checkNotNull(memorySegment);
 		this.recycler = checkNotNull(recycler);
 		this.isBuffer = isBuffer;
+		this.isCompressed = isCompressed;
 		this.currentSize = memorySegment.size();
 		setSize(size);
 	}
@@ -164,6 +188,7 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 
 	@Override
 	public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
+		checkState(!isCompressed, "Unable to slice a compressed buffer.");
 		return new ReadOnlySlicedNetworkBuffer(this, index, length);
 	}
 
@@ -603,5 +628,15 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	@Override
 	public ByteBuf asByteBuf() {
 		return this;
+	}
+
+	@Override
+	public boolean isCompressed() {
+		return isCompressed;
+	}
+
+	@Override
+	public void setCompressed(boolean isCompressed) {
+		this.isCompressed = isCompressed;
 	}
 }

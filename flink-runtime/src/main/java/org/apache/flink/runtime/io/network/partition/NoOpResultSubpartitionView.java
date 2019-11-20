@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
 public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 
 	@Nullable
-	public ResultSubpartition.BufferAndBacklog getNextBuffer() {
+	public ResultSubpartition.BufferAndBacklog getNextBuffer(boolean isLocalChannel) {
 		return null;
 	}
 

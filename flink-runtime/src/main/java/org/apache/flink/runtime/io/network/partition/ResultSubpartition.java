@@ -45,6 +45,14 @@ public abstract class ResultSubpartition {
 	}
 
 	/**
+	 * Whether the buffer can be compressed or not. Note that event is not compressed because it
+	 * is usually small and the size can become even larger after compression.
+	 */
+	protected boolean canBeCompressed(Buffer buffer) {
+		return parent.bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
+	}
+
+	/**
 	 * Gets the total numbers of buffers (data buffers plus events).
 	 */
 	protected abstract long getTotalNumberOfBuffers();
