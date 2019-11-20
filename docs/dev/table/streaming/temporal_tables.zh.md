@@ -119,7 +119,7 @@ Temporal Table Function
 ------------------------
 
 In order to access the data in a temporal table, one must pass a [time attribute](time_attributes.html) that determines the version of the table that will be returned.
-Flink uses the SQL syntax of [table functions](../udfs.html#table-functions) to provide a way to express it.
+Flink uses the SQL syntax of [table functions]({{ site.baseurl }}/dev/table/functions/udfs.html#table-functions) to provide a way to express it.
 
 Once defined, a *Temporal Table Function* takes a single time argument `timeAttribute` and returns a set of rows.
 This set contains the latest versions of the rows for all of the existing primary keys with respect to the given time attribute.
