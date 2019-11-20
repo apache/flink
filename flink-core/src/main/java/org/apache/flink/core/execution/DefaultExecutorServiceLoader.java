@@ -24,8 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -52,7 +50,7 @@ public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 	public static final DefaultExecutorServiceLoader INSTANCE = new DefaultExecutorServiceLoader();
 
 	@Override
-	public ExecutorFactory getExecutorFactory(@Nonnull final Configuration configuration) {
+	public ExecutorFactory getExecutorFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 
 		final List<ExecutorFactory> compatibleFactories = new ArrayList<>();
