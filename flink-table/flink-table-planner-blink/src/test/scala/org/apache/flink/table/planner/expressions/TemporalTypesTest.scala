@@ -92,7 +92,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi(
       "TIMESTAMP '1500-04-30 12:00:00.123456789'",
-    "1500-04-30 12:00:00.123456789")
+      "1500-04-30 12:00:00.123456789")
 
     testSqlApi(
       "TIMESTAMP '1500-04-30 12:00:00.12345678'",
