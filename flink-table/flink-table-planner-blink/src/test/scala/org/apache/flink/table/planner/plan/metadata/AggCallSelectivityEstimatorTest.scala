@@ -170,14 +170,18 @@ class AggCallSelectivityEstimatorTest {
       nullCount: Option[JLong] = None,
       avgLen: Option[JDouble] = None,
       maxLen: Option[Integer] = None,
-      min: Option[Number] = None,
-      max: Option[Number] = None): ColumnStats = new ColumnStats(
-    ndv.getOrElse(null.asInstanceOf[JLong]),
-    nullCount.getOrElse(null.asInstanceOf[JLong]),
-    avgLen.getOrElse(null.asInstanceOf[JDouble]),
-    maxLen.getOrElse(null.asInstanceOf[Integer]),
-    max.orNull,
-    min.orNull)
+      min: Option[Comparable[_]] = None,
+      max: Option[Comparable[_]] = None): ColumnStats = {
+    ColumnStats.Builder
+      .builder
+      .setNdv(ndv.getOrElse(null.asInstanceOf[JLong]))
+      .setNullCount(nullCount.getOrElse(null.asInstanceOf[JLong]))
+      .setAvgLen(avgLen.getOrElse(null.asInstanceOf[JDouble]))
+      .setMaxLen(maxLen.getOrElse(null.asInstanceOf[Integer]))
+      .setMax(max.orNull)
+      .setMin(min.orNull)
+      .build
+  }
 
   private def createFlinkStatistic(
       rowCount: Option[JLong] = None,

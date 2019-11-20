@@ -98,7 +98,6 @@ public class BytesHashMapTest {
 		MemoryManager memoryManager = MemoryManagerBuilder
 			.newBuilder()
 			.setMemorySize(numMemSegments * PAGE_SIZE)
-			.setNumberOfSlots(32)
 			.build();
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
@@ -124,7 +123,6 @@ public class BytesHashMapTest {
 		MemoryManager memoryManager = MemoryManagerBuilder
 			.newBuilder()
 			.setMemorySize(memorySize)
-			.setNumberOfSlots(32)
 			.build();
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
@@ -152,7 +150,6 @@ public class BytesHashMapTest {
 		MemoryManager memoryManager = MemoryManagerBuilder
 			.newBuilder()
 			.setMemorySize(memorySize)
-			.setNumberOfSlots(32)
 			.build();
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
@@ -180,7 +177,6 @@ public class BytesHashMapTest {
 		MemoryManager memoryManager = MemoryManagerBuilder
 			.newBuilder()
 			.setMemorySize(memorySize)
-			.setNumberOfSlots(32)
 			.build();
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
@@ -210,7 +206,6 @@ public class BytesHashMapTest {
 		MemoryManager memoryManager = MemoryManagerBuilder
 			.newBuilder()
 			.setMemorySize(minMemorySize)
-			.setNumberOfSlots(32)
 			.build();
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
 				minMemorySize, keyTypes, valueTypes, true);
@@ -286,7 +281,6 @@ public class BytesHashMapTest {
 		MemoryManager memoryManager = MemoryManagerBuilder
 			.newBuilder()
 			.setMemorySize(memorySize)
-			.setNumberOfSlots(32)
 			.build();
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
 				memorySize, keyTypes, valueTypes);

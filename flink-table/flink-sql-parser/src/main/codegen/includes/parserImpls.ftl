@@ -177,6 +177,61 @@ SqlDescribeDatabase SqlDescribeDatabase() :
 
 }
 
+SqlAlterFunction SqlAlterFunction() :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+    String functionLanguage = null;
+    SqlParserPos startPos;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+    boolean isSystemFunction = false;
+}
+{
+    <ALTER>
+
+    [ <TEMPORARY> { isTemporary = true; }
+        [  <SYSTEM>   { isSystemFunction = true; } ]
+    ]
+
+    <FUNCTION> { startPos = getPos(); }
+
+    [ <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        functionClassName = SqlLiteral.createCharString(p, getPos());
+    }
+
+    [<LANGUAGE>
+        (   <JAVA>  { functionLanguage = "JAVA"; }
+        |
+            <SCALA> { functionLanguage = "SCALA"; }
+        |
+            <SQL>   { functionLanguage = "SQL"; }
+        )
+    ]
+    {
+        return new SqlAlterFunction(startPos.plus(getPos()), functionIdentifier, functionClassName,
+            functionLanguage, ifExists, isTemporary, isSystemFunction);
+    }
+}
+
+SqlShowFunctions SqlShowFunctions() :
+{
+    SqlIdentifier database = null;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <FUNCTIONS> { pos = getPos();}
+    [database = CompoundIdentifier()]
+    {
+        return new SqlShowFunctions(pos, database);
+    }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }

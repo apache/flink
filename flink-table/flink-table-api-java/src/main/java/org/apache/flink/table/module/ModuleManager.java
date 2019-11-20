@@ -22,9 +22,13 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.util.StringUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -37,6 +41,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Responsible for loading/unloading modules, managing their life cycles, and resolving module objects.
  */
 public class ModuleManager {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ModuleManager.class);
+
 	private LinkedHashMap<String, Module> modules;
 
 	public ModuleManager() {
@@ -59,6 +66,8 @@ public class ModuleManager {
 
 		if (!modules.containsKey(name)) {
 			modules.put(name, module);
+
+			LOG.info("Loaded module {} from class {}", name, module.getClass().getName());
 		} else {
 			throw new ValidationException(
 				String.format("A module with name %s already exists", name));
@@ -74,6 +83,8 @@ public class ModuleManager {
 	public void unloadModule(String name) {
 		if (modules.containsKey(name)) {
 			modules.remove(name);
+
+			LOG.info("Unloaded module {}", name);
 		} else {
 			throw new ValidationException(
 				String.format("No module with name %s exists", name));
@@ -110,11 +121,19 @@ public class ModuleManager {
 	 * @return an optional of {@link FunctionDefinition}
 	 */
 	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-		Optional<Module> module = modules.values().stream()
-			.filter(p -> p.listFunctions().stream().anyMatch(e -> e.equalsIgnoreCase(name)))
+		Optional<Map.Entry<String, Module>> result = modules.entrySet().stream()
+			.filter(p -> p.getValue().listFunctions().stream().anyMatch(e -> e.equalsIgnoreCase(name)))
 			.findFirst();
 
-		return module.isPresent() ? module.get().getFunctionDefinition(name) : Optional.empty();
+		if (result.isPresent()) {
+			LOG.info("Got FunctionDefinition {} from module {}", name, result.get().getKey());
+
+			return result.get().getValue().getFunctionDefinition(name);
+		} else {
+			LOG.info("Cannot find FunctionDefinition {} from any loaded modules", name);
+
+			return Optional.empty();
+		}
 	}
 
 }

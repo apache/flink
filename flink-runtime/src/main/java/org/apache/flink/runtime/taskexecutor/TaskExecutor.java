@@ -64,6 +64,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -269,8 +270,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		this.jobManagerConnections = new HashMap<>(4);
 
-		this.hardwareDescription = HardwareDescription.extractFromSystem(
-			taskExecutorServices.getMemoryManager().getMemorySize());
+		this.hardwareDescription = HardwareDescription.extractFromSystem(taskExecutorServices.getManagedMemorySize());
 
 		this.resourceManagerAddress = null;
 		this.resourceManagerConnection = null;
@@ -404,8 +404,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
-
-		taskSlotTable.stop();
 
 		try {
 			resourceManagerLeaderRetriever.stop();
@@ -553,6 +551,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskRestore,
 				checkpointResponder);
 
+			MemoryManager memoryManager;
+			try {
+				memoryManager = taskSlotTable.getTaskMemoryManager(tdd.getAllocationId());
+			} catch (SlotNotFoundException e) {
+				throw new TaskSubmissionException("Could not submit task.", e);
+			}
+
 			Task task = new Task(
 				jobInformation,
 				taskInformation,
@@ -563,7 +568,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getProducedPartitions(),
 				tdd.getInputGates(),
 				tdd.getTargetSlotNumber(),
-				taskExecutorServices.getMemoryManager(),
+				memoryManager,
 				taskExecutorServices.getIOManager(),
 				taskExecutorServices.getShuffleEnvironment(),
 				taskExecutorServices.getKvStateService(),

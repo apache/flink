@@ -148,6 +148,31 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testAlterFunction() {
+		check("alter function function1 as 'org.apache.fink.function.function1'",
+			"ALTER FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("alter temporary function function1 as 'org.apache.fink.function.function1'",
+			"ALTER TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("alter temporary function function1 as 'org.apache.fink.function.function1' language scala",
+			"ALTER TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA");
+
+		check ("alter temporary system function function1 as 'org.apache.fink.function.function1'",
+			"ALTER TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("alter temporary system function function1 as 'org.apache.fink.function.function1' language java",
+			"ALTER TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA");
+	}
+
+	@Test
+	public void testShowFuntions() {
+		check("show functions", "SHOW FUNCTIONS");
+		check("show functions db1", "SHOW FUNCTIONS `DB1`");
+		check("show functions catalog1.db1", "SHOW FUNCTIONS `CATALOG1`.`DB1`");
+	}
+
+	@Test
 	public void testCreateTable() {
 		check("CREATE TABLE tbl1 (\n" +
 				"  a bigint,\n" +

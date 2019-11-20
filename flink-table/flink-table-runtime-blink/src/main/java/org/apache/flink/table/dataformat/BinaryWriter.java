@@ -63,6 +63,8 @@ public interface BinaryWriter {
 
 	void writeDecimal(int pos, Decimal value, int precision);
 
+	void writeTimestamp(int pos, SqlTimestamp value, int precision);
+
 	void writeArray(int pos, BaseArray value, BaseArraySerializer serializer);
 
 	void writeMap(int pos, BaseMap value, BaseMapSerializer serializer);

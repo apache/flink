@@ -29,6 +29,16 @@ if sys.version_info < (3, 5):
           file=sys.stderr)
     sys.exit(-1)
 
+
+def remove_if_exists(file_path):
+    if os.path.exists(file_path):
+        if os.path.islink(file_path) or os.path.isfile(file_path):
+            os.remove(file_path)
+        else:
+            assert os.path.isdir(file_path)
+            rmtree(file_path)
+
+
 this_directory = os.path.abspath(os.path.dirname(__file__))
 version_file = os.path.join(this_directory, 'pyflink/version.py')
 
@@ -75,8 +85,9 @@ try:
             print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
                   file=sys.stderr)
             sys.exit(-1)
-
-        FLINK_HOME = os.path.abspath("../build-target")
+        flink_version = VERSION.replace(".dev0", "-SNAPSHOT")
+        FLINK_HOME = os.path.abspath(
+            "../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
 
         incorrect_invocation_message = """
 If you are installing pyflink from flink source, you must first build Flink and
@@ -108,8 +119,13 @@ run sdist.
             print(incorrect_invocation_message, file=sys.stderr)
             sys.exit(-1)
 
-        if getattr(os, "symlink", None) is not None:
+        try:
             os.symlink(LIB_PATH, LIB_TEMP_PATH)
+            support_symlinks = True
+        except BaseException:  # pylint: disable=broad-except
+            support_symlinks = False
+
+        if support_symlinks:
             os.symlink(OPT_PATH, OPT_TEMP_PATH)
             os.symlink(CONF_PATH, CONF_TEMP_PATH)
             os.symlink(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
@@ -222,31 +238,7 @@ run sdist.
     )
 finally:
     if in_flink_source:
-        if getattr(os, "symlink", None) is not None:
-            os.remove(LIB_TEMP_PATH)
-            os.remove(OPT_TEMP_PATH)
-            os.remove(CONF_TEMP_PATH)
-            os.remove(EXAMPLES_TEMP_PATH)
-            if exist_licenses:
-                os.remove(LICENSES_TEMP_PATH)
-            os.remove(PLUGINS_TEMP_PATH)
-            os.remove(SCRIPTS_TEMP_PATH)
-            os.remove(LICENSE_FILE_TEMP_PATH)
-            if exist_notice:
-                os.remove(NOTICE_FILE_TEMP_PATH)
-            os.remove(README_FILE_TEMP_PATH)
-        else:
-            rmtree(LIB_TEMP_PATH)
-            rmtree(OPT_TEMP_PATH)
-            rmtree(CONF_TEMP_PATH)
-            rmtree(EXAMPLES_TEMP_PATH)
-            if exist_licenses:
-                rmtree(LICENSES_TEMP_PATH)
-            rmtree(PLUGINS_TEMP_PATH)
-            rmtree(SCRIPTS_TEMP_PATH)
-            os.remove(LICENSE_FILE_TEMP_PATH)
-            if exist_notice:
-                os.remove(NOTICE_FILE_TEMP_PATH)
-            os.remove(README_FILE_TEMP_PATH)
-        rmtree(LOG_TEMP_PATH)
-        os.rmdir(TEMP_PATH)
+        remove_if_exists(TEMP_PATH)
+        remove_if_exists(LICENSE_FILE_TEMP_PATH)
+        remove_if_exists(NOTICE_FILE_TEMP_PATH)
+        remove_if_exists(README_FILE_TEMP_PATH)
