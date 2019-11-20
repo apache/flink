@@ -385,7 +385,7 @@ public class SchedulerImpl implements Scheduler {
 
 		if (coLocationConstraint.isAssigned()) {
 			// refine the preferred locations of the slot profile
-			slotProfile = new SlotProfile(
+			slotProfile = SlotProfile.priorAllocation(
 				slotProfile.getResourceProfile(),
 				Collections.singleton(coLocationConstraint.getLocation()),
 				slotProfile.getPreferredAllocations(),

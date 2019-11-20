@@ -35,7 +35,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -243,6 +242,6 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 	}
 
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation... location) {
-		return new SlotProfile(ResourceProfile.UNKNOWN, Arrays.asList(location), Collections.emptySet());
+		return SlotProfile.preferredLocality(ResourceProfile.UNKNOWN, Arrays.asList(location));
 	}
 }

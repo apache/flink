@@ -41,12 +41,20 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 	@Test
 	public void matchPreviousAllocationOverridesPreferredLocation() {
 
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml2), Collections.singleton(aid3));
+		SlotProfile slotProfile = SlotProfile.priorAllocation(
+			resourceProfile,
+			Collections.singletonList(tml2),
+			Collections.singleton(aid3),
+			Collections.emptySet());
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
 		Assert.assertEquals(slotInfo3, match.get().getSlotInfo());
 
-		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tmlX, tml1), new HashSet<>(Arrays.asList(aidX, aid2)));
+		slotProfile = SlotProfile.priorAllocation(
+			resourceProfile,
+			Arrays.asList(tmlX, tml1),
+			new HashSet<>(Arrays.asList(aidX, aid2)),
+			Collections.emptySet());
 		match = runMatching(slotProfile);
 
 		Assert.assertEquals(slotInfo2, match.get().getSlotInfo());
@@ -55,7 +63,11 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 	@Test
 	public void matchPreviousLocationNotAvailableButByLocality() {
 
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singleton(aidX));
+		SlotProfile slotProfile = SlotProfile.priorAllocation(
+			resourceProfile,
+			Collections.singletonList(tml4),
+			Collections.singleton(aidX),
+			Collections.emptySet());
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
 		Assert.assertEquals(slotInfo4, match.get().getSlotInfo());
@@ -68,7 +80,11 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 		blacklisted.add(aid2);
 		blacklisted.add(aid3);
 		blacklisted.add(aid4);
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singletonList(aidX), blacklisted);
+		SlotProfile slotProfile = SlotProfile.priorAllocation(
+			resourceProfile,
+			Collections.singletonList(tml4),
+			Collections.singletonList(aidX),
+			blacklisted);
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
 		// there should be no valid option left and we expect null as return
@@ -81,7 +97,11 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 		blacklisted.add(aid1);
 		blacklisted.add(aid3);
 		blacklisted.add(aid4);
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singletonList(aidX), blacklisted);
+		SlotProfile slotProfile = SlotProfile.priorAllocation(
+			resourceProfile,
+			Collections.singletonList(tml4),
+			Collections.singletonList(aidX),
+			blacklisted);
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
 		// we expect that the candidate that is not blacklisted is returned
