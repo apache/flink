@@ -305,7 +305,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |create table t2(
         |  a int,
         |  b varchar,
-        |  c timestamp
+        |  c timestamp(3)
         |) with (
         |  'connector' = 'COLLECTION'
         |)

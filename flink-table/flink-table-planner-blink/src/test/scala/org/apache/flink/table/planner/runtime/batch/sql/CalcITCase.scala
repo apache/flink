@@ -702,14 +702,14 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testValueConstructor(): Unit = {
-    val data = Seq(row("foo", 12, localDateTime("1984-07-12 14:34:24")))
+    val data = Seq(row("foo", 12, localDateTime("1984-07-12 14:34:24.001")))
     BatchTableEnvUtil.registerCollection(
       tEnv, "MyTable", data,
       new RowTypeInfo(Types.STRING, Types.INT, Types.LOCAL_DATE_TIME),
       Some(parseFieldNames("a, b, c")), None, None)
 
     val table = parseQuery("SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable " +
-        "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')")
+        "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24.001')")
     val result = executeQuery(table)
 
     val baseRow = result.head.getField(0).asInstanceOf[Row]

@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.dataformat.Decimal
+import org.apache.flink.table.dataformat.{Decimal, SqlTimestamp}
 import org.apache.flink.table.runtime.functions._
-
 import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.SqlFunctions
-
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
 import java.util.TimeZone
@@ -220,7 +218,7 @@ object BuiltInMethods {
   val TIMESTAMP_TO_STRING = Types.lookupMethod(
     classOf[SqlDateTimeUtils],
     "timestampToString",
-    classOf[Long], classOf[Int])
+    classOf[SqlTimestamp])
 
   val TIMESTAMP_TO_STRING_TIME_ZONE = Types.lookupMethod(
     classOf[SqlDateTimeUtils],

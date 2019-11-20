@@ -33,11 +33,16 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.avatica.util.ByteString
-import org.apache.commons.lang3.StringEscapeUtils
+import org.apache.calcite.util.TimestampString
 
+import org.apache.commons.lang3.StringEscapeUtils
 import java.math.{BigDecimal => JBigDecimal}
+import java.lang.{Integer => JInteger}
+
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 
 import scala.collection.mutable
+import scala.math.pow
 
 /**
   * Utilities to generate code for general purpose.
@@ -370,12 +375,14 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        // TODO: support Timestamp(3) now
         val fieldTerm = newName("timestamp")
-        val millis = literalValue.asInstanceOf[Long]
+        val millis = literalValue.asInstanceOf[TimestampString].getMillisSinceEpoch
+        val nanoOfMillis = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(
+          literalValue.asInstanceOf[TimestampString].toString)
         val fieldTimestamp =
           s"""
-             |$SQL_TIMESTAMP $fieldTerm = $SQL_TIMESTAMP.fromEpochMillis(${millis}L);
+             |$SQL_TIMESTAMP $fieldTerm =
+             |  $SQL_TIMESTAMP.fromEpochMillis(${millis}L, $nanoOfMillis);
            """.stripMargin
         ctx.addReusableMember(fieldTimestamp)
         generateNonNullLiteral(literalType, fieldTerm, literalType)

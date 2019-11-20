@@ -37,10 +37,10 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
+import org.apache.calcite.util.TimestampString
 
 import scala.collection.JavaConversions._
 
@@ -388,7 +388,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(literal.getType)
-    val value = literal.getValue3
+    val value = resultType.getTypeRoot match {
+      case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
+        literal.getValueAs(classOf[TimestampString])
+      case _ =>
+        literal.getValue3
+    }
     generateLiteral(ctx, resultType, value)
   }
 

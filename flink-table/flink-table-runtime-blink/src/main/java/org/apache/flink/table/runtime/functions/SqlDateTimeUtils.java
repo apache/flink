@@ -1363,6 +1363,17 @@ public class SqlDateTimeUtils {
 		buf.append((char) ('0' + i % 10));
 	}
 
+	public static int getNanoOfMillisSinceEpoch(final String v) {
+		switch (v.length()) {
+			case 19:
+			case 20:
+				return 0;
+			default:
+				return (Integer.valueOf(v.substring(20)) *
+					(int) Math.pow(10, 9 - (v.length() - 20))) % 1000000;
+		}
+	}
+
 	// TODO: remove if CALCITE-3199 fixed
 	//  https://issues.apache.org/jira/browse/CALCITE-3199
 	public static long unixDateCeil(TimeUnitRange range, long date) {

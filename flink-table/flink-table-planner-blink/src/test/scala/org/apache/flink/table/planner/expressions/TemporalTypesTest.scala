@@ -82,13 +82,29 @@ class TemporalTypesTest extends ExpressionTestBase {
     testTableApi(
       localDateTime2Literal(localDateTime("2040-09-11 00:00:00.000")),
       "'2040-09-11 00:00:00.000'.toTimestamp",
-      "2040-09-11 00:00:00.000")
+      "2040-09-11 00:00:00")
 
     testAllApis(
       "1500-04-30 12:00:00".cast(DataTypes.TIMESTAMP(3)),
       "'1500-04-30 12:00:00'.cast(SQL_TIMESTAMP)",
-      "CAST('1500-04-30 12:00:00' AS TIMESTAMP)",
-      "1500-04-30 12:00:00.000")
+      "CAST('1500-04-30 12:00:00' AS TIMESTAMP(3))",
+      "1500-04-30 12:00:00")
+
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.123456789'",
+    "1500-04-30 12:00:00.123456789")
+
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.12345678'",
+      "1500-04-30 12:00:00.12345678")
+
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.123456'",
+      "1500-04-30 12:00:00.123456")
+
+    testSqlApi(
+      "TIMESTAMP '1500-04-30 12:00:00.1234'",
+      "1500-04-30 12:00:00.1234")
   }
 
   @Test
@@ -178,13 +194,13 @@ class TemporalTypesTest extends ExpressionTestBase {
       'f0.cast(DataTypes.TIMESTAMP(3)),
       "f0.cast(SQL_TIMESTAMP)",
       "CAST(f0 AS TIMESTAMP)",
-      "1990-10-14 00:00:00.000")
+      "1990-10-14 00:00:00")
 
     testAllApis(
       'f1.cast(DataTypes.TIMESTAMP(3)),
       "f1.cast(SQL_TIMESTAMP)",
       "CAST(f1 AS TIMESTAMP)",
-      "1970-01-01 10:20:45.000")
+      "1970-01-01 10:20:45")
 
     testAllApis(
       'f2.cast(DataTypes.DATE),
@@ -227,12 +243,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     testTableApi(
       'f15.cast(DataTypes.TIMESTAMP(3)),
       "f15.cast(SQL_TIMESTAMP)",
-      "2016-06-27 07:23:33.000")
+      "2016-06-27 07:23:33")
 
     testTableApi(
       'f15.toTimestamp,
       "f15.toTimestamp",
-      "2016-06-27 07:23:33.000")
+      "2016-06-27 07:23:33")
 
     testTableApi(
       'f8.cast(DataTypes.TIMESTAMP(3)).cast(DataTypes.BIGINT()),
@@ -276,13 +292,13 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       'f0.cast(DataTypes.TIMESTAMP(3)) !== 'f2,
       "f0.cast(SQL_TIMESTAMP) !== f2",
-      "CAST(f0 AS TIMESTAMP) <> f2",
+      "CAST(f0 AS TIMESTAMP(3)) <> f2",
       "true")
 
     testAllApis(
       'f0.cast(DataTypes.TIMESTAMP(3)) === 'f6,
       "f0.cast(SQL_TIMESTAMP) === f6",
-      "CAST(f0 AS TIMESTAMP) = f6",
+      "CAST(f0 AS TIMESTAMP(3)) = f6",
       "true")
   }
 
@@ -680,21 +696,21 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CEIL(TIME '12:44:31' TO MINUTE)", "12:45:00")
     testSqlApi("CEIL(TIME '12:44:31' TO HOUR)", "13:00:00")
 
-    testSqlApi("FLOOR(TIMESTAMP '2018-03-20 06:44:31' TO HOUR)", "2018-03-20 06:00:00.000")
-    testSqlApi("FLOOR(TIMESTAMP '2018-03-20 06:44:31' TO DAY)", "2018-03-20 00:00:00.000")
-    testSqlApi("FLOOR(TIMESTAMP '2018-03-20 00:00:00' TO DAY)", "2018-03-20 00:00:00.000")
-    testSqlApi("FLOOR(TIMESTAMP '2018-04-01 06:44:31' TO MONTH)", "2018-04-01 00:00:00.000")
-    testSqlApi("FLOOR(TIMESTAMP '2018-01-01 06:44:31' TO MONTH)", "2018-01-01 00:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:44:31' TO HOUR)", "2018-03-20 07:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:00:00' TO HOUR)", "2018-03-20 06:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:44:31' TO DAY)", "2018-03-21 00:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-03-01 00:00:00' TO DAY)", "2018-03-01 00:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-03-31 00:00:01' TO DAY)", "2018-04-01 00:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-03-01 21:00:01' TO MONTH)", "2018-03-01 00:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-03-01 00:00:00' TO MONTH)", "2018-03-01 00:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-12-02 00:00:00' TO MONTH)", "2019-01-01 00:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-01-01 21:00:01' TO YEAR)", "2018-01-01 00:00:00.000")
-    testSqlApi("CEIL(TIMESTAMP '2018-01-02 21:00:01' TO YEAR)", "2019-01-01 00:00:00.000")
+    testSqlApi("FLOOR(TIMESTAMP '2018-03-20 06:44:31' TO HOUR)", "2018-03-20 06:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2018-03-20 06:44:31' TO DAY)", "2018-03-20 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2018-03-20 00:00:00' TO DAY)", "2018-03-20 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2018-04-01 06:44:31' TO MONTH)", "2018-04-01 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2018-01-01 06:44:31' TO MONTH)", "2018-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:44:31' TO HOUR)", "2018-03-20 07:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:00:00' TO HOUR)", "2018-03-20 06:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:44:31' TO DAY)", "2018-03-21 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-03-01 00:00:00' TO DAY)", "2018-03-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-03-31 00:00:01' TO DAY)", "2018-04-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-03-01 21:00:01' TO MONTH)", "2018-03-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-03-01 00:00:00' TO MONTH)", "2018-03-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-12-02 00:00:00' TO MONTH)", "2019-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-01-01 21:00:01' TO YEAR)", "2018-01-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2018-01-02 21:00:01' TO YEAR)", "2019-01-01 00:00:00")
 
     testSqlApi(s"FLOOR(${timestampTz("2018-03-20 06:44:31")} TO HOUR)", "2018-03-20 06:00:00.000")
     testSqlApi(s"FLOOR(${timestampTz("2018-03-20 06:44:31")} TO DAY)", "2018-03-20 00:00:00.000")

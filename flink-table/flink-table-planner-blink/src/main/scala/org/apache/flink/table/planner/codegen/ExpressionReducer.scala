@@ -37,6 +37,8 @@ import org.apache.commons.lang3.StringEscapeUtils
 import java.io.File
 import java.util.TimeZone
 
+import org.apache.calcite.util.TimestampString
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
@@ -173,7 +175,16 @@ class ExpressionReducer(
           case SqlTypeName.TIMESTAMP =>
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
-              Long.box(reducedValue.asInstanceOf[SqlTimestamp].getMillisecond)
+              val dt = reducedValue.asInstanceOf[SqlTimestamp].toLocalDateTime
+              val timestampString =
+                new TimestampString(
+                  dt.getYear,
+                  dt.getMonthValue,
+                  dt.getDayOfMonth,
+                  dt.getHour,
+                  dt.getMinute,
+                  dt.getSecond)
+              timestampString.withNanos(dt.getNano)
             } else {
               reducedValue
             }

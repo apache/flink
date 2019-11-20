@@ -439,14 +439,14 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       relBuilder,
       functionCatalog)
 
-    val timestamp = DateTimeTestUtil.localDateTime("2017-09-10 14:23:01")
+    val datetime = DateTimeTestUtil.localDateTime("2017-09-10 14:23:01")
     val date = DateTimeTestUtil.localDate("2017-09-12")
     val time = DateTimeTestUtil.localTime("14:23:01")
 
     {
       val expected = Array[Expression](
         // timestamp_col = '2017-09-10 14:23:01'
-        unresolvedCall(EQUALS, unresolvedRef("timestamp_col"), valueLiteral(timestamp)),
+        unresolvedCall(EQUALS, unresolvedRef("timestamp_col"), valueLiteral(datetime)),
         // date_col = '2017-09-12'
         unresolvedCall(EQUALS, unresolvedRef("date_col"), valueLiteral(date)),
         // time_col = '14:23:01'
@@ -460,7 +460,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       val expected = Array[Expression](
         EqualTo(
           UnresolvedFieldReference("timestamp_col"),
-          Literal(Timestamp.valueOf("2017-09-10 14:23:01"))
+          Literal(datetime)
         ),
         EqualTo(
           UnresolvedFieldReference("date_col"),
