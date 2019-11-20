@@ -61,7 +61,7 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 			return clusterClient
 					.submitJob(jobGraph)
 					.thenApply(JobSubmissionResult::getJobID)
-					.thenApply(jobID -> new JobClientImpl<>(clusterClient, jobID, false));
+					.thenApply(jobID -> new ClusterClientJobClientAdapter<>(clusterClient, jobID, false));
 		}
 	}
 }

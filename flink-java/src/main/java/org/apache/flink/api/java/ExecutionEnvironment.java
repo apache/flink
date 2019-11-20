@@ -156,14 +156,17 @@ public class ExecutionEnvironment {
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
 	}
 
+	@Internal
 	public ClassLoader getUserCodeClassLoader() {
 		return userClassloader;
 	}
 
+	@Internal
 	public ExecutorServiceLoader getExecutorServiceLoader() {
 		return executorServiceLoader;
 	}
 
+	@Internal
 	public Configuration getConfiguration() {
 		return this.configuration;
 	}

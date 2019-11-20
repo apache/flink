@@ -31,19 +31,18 @@ import org.apache.flink.util.ShutdownHookUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An implementation of the {@link JobClient} interface.
+ * An implementation of the {@link JobClient} interface that uses a {@link ClusterClient} underneath..
  */
-public class JobClientImpl<ClusterID> implements JobClient {
+public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 
-	private static final Logger LOG = LoggerFactory.getLogger(JobClientImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ClusterClientJobClientAdapter.class);
 
 	private final ClusterClient<ClusterID> clusterClient;
 
@@ -51,7 +50,7 @@ public class JobClientImpl<ClusterID> implements JobClient {
 
 	private final Thread shutdownHook;
 
-	public JobClientImpl(final ClusterClient<ClusterID> clusterClient, final JobID jobID, final boolean withShutdownHook) {
+	public ClusterClientJobClientAdapter(final ClusterClient<ClusterID> clusterClient, final JobID jobID, final boolean withShutdownHook) {
 		this.jobID = checkNotNull(jobID);
 		this.clusterClient = checkNotNull(clusterClient);
 
@@ -69,24 +68,22 @@ public class JobClientImpl<ClusterID> implements JobClient {
 	}
 
 	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(@Nonnull final ClassLoader userClassloader) {
-		final CompletableFuture<JobExecutionResult> res = new CompletableFuture<>();
+	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
+		checkNotNull(userClassloader);
 
 		final CompletableFuture<JobResult> jobResultFuture = clusterClient.requestJobResult(jobID);
-		jobResultFuture.whenComplete(((jobResult, throwable) -> {
+		return jobResultFuture.handle((jobResult, throwable) -> {
 			if (throwable != null) {
 				ExceptionUtils.checkInterrupted(throwable);
-				res.completeExceptionally(new ProgramInvocationException("Could not run job", jobID, throwable));
+				throw new CompletionException(new ProgramInvocationException("Could not run job", jobID, throwable));
 			} else {
 				try {
-					final JobExecutionResult result = jobResult.toJobExecutionResult(userClassloader);
-					res.complete(result);
+					return jobResult.toJobExecutionResult(userClassloader);
 				} catch (JobExecutionException | IOException | ClassNotFoundException e) {
-					res.completeExceptionally(new ProgramInvocationException("Job failed", jobID, e));
+					throw new CompletionException(new ProgramInvocationException("Job failed", jobID, e));
 				}
 			}
-		}));
-		return res;
+		});
 	}
 
 	@Override
