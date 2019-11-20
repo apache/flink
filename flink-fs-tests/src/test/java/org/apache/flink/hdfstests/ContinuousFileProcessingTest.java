@@ -940,7 +940,7 @@ public class ContinuousFileProcessingTest {
 		}
 
 		ContinuousFileReaderOperator<String> restoredReader = new ContinuousFileReaderOperator<>(
-			format, FileMissingSplitsMode.FAIL_ON_MISSING_SPLITS);
+			format, FileMissingSplitsMode.SKIP_MISSING_SPLITS);
 		restoredReader.setOutputType(typeInfo, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> restoredTestInstance  =
