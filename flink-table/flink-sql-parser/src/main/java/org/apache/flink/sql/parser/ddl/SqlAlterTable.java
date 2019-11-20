@@ -41,8 +41,8 @@ public class SqlAlterTable extends SqlCall {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
 
-	private final SqlIdentifier tableName;
-	private final SqlIdentifier newTableName;
+	private final SqlIdentifier tableIdentifier;
+	private final SqlIdentifier newTableIdentifier;
 
 	private final SqlNodeList propertyList;
 	private final boolean isRename;
@@ -54,8 +54,8 @@ public class SqlAlterTable extends SqlCall {
 			SqlNodeList propertyList,
 			boolean isRename) {
 		super(pos);
-		this.tableName = requireNonNull(tableName, "tableName should not be null");
-		this.newTableName = newTableName;
+		this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
+		this.newTableIdentifier = newTableName;
 		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
 		this.isRename = isRename;
 	}
@@ -67,11 +67,11 @@ public class SqlAlterTable extends SqlCall {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableName, propertyList);
+		return ImmutableNullableList.of(tableIdentifier, newTableIdentifier, propertyList);
 	}
 
 	public SqlIdentifier getTableName() {
-		return tableName;
+		return tableIdentifier;
 	}
 
 	public boolean isRename() {
@@ -85,10 +85,10 @@ public class SqlAlterTable extends SqlCall {
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("ALTER TABLE");
-		tableName.unparse(writer, leftPrec, rightPrec);
+		tableIdentifier.unparse(writer, leftPrec, rightPrec);
 		if (isRename) {
 			writer.keyword("RENAME TO");
-			newTableName.unparse(writer, leftPrec, rightPrec);
+			newTableIdentifier.unparse(writer, leftPrec, rightPrec);
 		} else {
 			writer.keyword("SET");
 			SqlWriter.Frame withFrame = writer.startList("(", ")");
@@ -107,11 +107,11 @@ public class SqlAlterTable extends SqlCall {
 		writer.print("  ");
 	}
 
-	public String[] fullDatabaseName() {
-		return tableName.names.toArray(new String[0]);
+	public String[] fullTableName() {
+		return tableIdentifier.names.toArray(new String[0]);
 	}
 
-	public String[] fullNewDatabaseName() {
-		return newTableName.names.toArray(new String[0]);
+	public String[] fullNewTableName() {
+		return newTableIdentifier.names.toArray(new String[0]);
 	}
 }

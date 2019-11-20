@@ -77,13 +77,9 @@
     "DATABASES",
     "FUNCTIONS",
     "EXTENDED",
-<<<<<<< HEAD
-    "SCALA"
-    "TABLES"
-=======
+    "SCALA",
     "TABLES",
     "RENAME"
->>>>>>> add alter table support in parser
   ]
 
   # List of keywords from "keywords" section that are not reserved.

@@ -31,18 +31,18 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+ * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier sql call.
  * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
  */
 public class SqlRichDescribeTable extends SqlCall {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DESCRIBE TABLE", SqlKind.DESCRIBE_TABLE);
-	private final SqlIdentifier tableName;
+	private final SqlIdentifier tableNameIdentifier;
 	private boolean isExtended = false;
 
-	public SqlRichDescribeTable(SqlParserPos pos, SqlIdentifier tableName, boolean isExtended) {
+	public SqlRichDescribeTable(SqlParserPos pos, SqlIdentifier tableNameIdentifier, boolean isExtended) {
 		super(pos);
-		this.tableName = tableName;
+		this.tableNameIdentifier = tableNameIdentifier;
 		this.isExtended = isExtended;
 	}
 
@@ -53,11 +53,7 @@ public class SqlRichDescribeTable extends SqlCall {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return Collections.singletonList(tableName);
-	}
-
-	public String getDatabaseName() {
-		return tableName.getSimple();
+		return Collections.singletonList(tableNameIdentifier);
 	}
 
 	public boolean isExtended() {
@@ -65,7 +61,7 @@ public class SqlRichDescribeTable extends SqlCall {
 	}
 
 	public String[] fullTableName() {
-		return tableName.names.toArray(new String[0]);
+		return tableNameIdentifier.names.toArray(new String[0]);
 	}
 
 	@Override
@@ -77,6 +73,6 @@ public class SqlRichDescribeTable extends SqlCall {
 		if (isExtended) {
 			writer.keyword("EXTENDED");
 		}
-		tableName.unparse(writer, leftPrec, rightPrec);
+		tableNameIdentifier.unparse(writer, leftPrec, rightPrec);
 	}
 }

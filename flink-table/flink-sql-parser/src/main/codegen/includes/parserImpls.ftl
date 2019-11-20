@@ -290,6 +290,8 @@ SqlShowFunctions SqlShowFunctions() :
     [database = CompoundIdentifier()]
     {
         return new SqlShowFunctions(pos, database);
+    }
+}
 
 /**
 * Parse a "Show Tables" metadata query command.
@@ -326,25 +328,25 @@ SqlRichDescribeTable SqlRichDescribeTable() :
 SqlAlterTable SqlAlterTable() :
 {
     SqlParserPos startPos;
-    SqlIdentifier tableName;
-    SqlIdentifier newTableName = null;
+    SqlIdentifier tableIdentifier;
+    SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     boolean isRename = true;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
-    tableName = CompoundIdentifier()
+        tableIdentifier = CompoundIdentifier()
     (
         <RENAME> <TO> { isRename = true; }
-        newTableName = CompoundIdentifier()
+        newTableIdentifier = CompoundIdentifier()
     |
         <SET>   { isRename = false; }
         propertyList = TableProperties()
     )
     {
         return new SqlAlterTable(startPos.plus(getPos()),
-            tableName,
-            newTableName,
+            tableIdentifier,
+            newTableIdentifier,
             propertyList,
             isRename);
     }
