@@ -24,7 +24,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -35,6 +37,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -239,6 +242,25 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		assertEquals(1, testingSlotProvider.getNumberOfUnconstrainedAssignments());
 		assertTrue(1 == testingSlotProvider.getNumberOfNonLocalizedAssignments() || 1 == testingSlotProvider.getNumberOfHostLocalizedAssignments());
 		assertEquals(5, testingSlotProvider.getNumberOfLocalizedAssignments());
+	}
+
+	@Test
+	public void testNewPhysicalSlotAllocation() {
+		final ResourceProfile taskResourceProfile = new ResourceProfile(0.5, 250);
+		final ResourceProfile physicalSlotResourceProfile = new ResourceProfile(1.0, 300);
+
+		testingSlotProvider.allocateSlot(
+			new SlotRequestId(),
+			new ScheduledUnit(new JobVertexID(), null, null),
+			SlotProfile.priorAllocation(
+				taskResourceProfile,
+				physicalSlotResourceProfile,
+				Collections.emptyList(),
+				Collections.emptyList(),
+				Collections.emptySet()),
+			TestingUtils.infiniteTime());
+
+		assertEquals(physicalSlotResourceProfile, testingSlotProvider.getSlotPool().getLastRequestedSlotResourceProfile());
 	}
 
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation... location) {

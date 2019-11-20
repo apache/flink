@@ -43,6 +43,7 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 
 		SlotProfile slotProfile = SlotProfile.priorAllocation(
 			resourceProfile,
+			resourceProfile,
 			Collections.singletonList(tml2),
 			Collections.singleton(aid3),
 			Collections.emptySet());
@@ -51,6 +52,7 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 		Assert.assertEquals(slotInfo3, match.get().getSlotInfo());
 
 		slotProfile = SlotProfile.priorAllocation(
+			resourceProfile,
 			resourceProfile,
 			Arrays.asList(tmlX, tml1),
 			new HashSet<>(Arrays.asList(aidX, aid2)),
@@ -64,6 +66,7 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 	public void matchPreviousLocationNotAvailableButByLocality() {
 
 		SlotProfile slotProfile = SlotProfile.priorAllocation(
+			resourceProfile,
 			resourceProfile,
 			Collections.singletonList(tml4),
 			Collections.singleton(aidX),
@@ -82,6 +85,7 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 		blacklisted.add(aid4);
 		SlotProfile slotProfile = SlotProfile.priorAllocation(
 			resourceProfile,
+			resourceProfile,
 			Collections.singletonList(tml4),
 			Collections.singletonList(aidX),
 			blacklisted);
@@ -98,6 +102,7 @@ public class PreviousAllocationSlotSelectionStrategyTest extends LocationPrefere
 		blacklisted.add(aid3);
 		blacklisted.add(aid4);
 		SlotProfile slotProfile = SlotProfile.priorAllocation(
+			resourceProfile,
 			resourceProfile,
 			Collections.singletonList(tml4),
 			Collections.singletonList(aidX),

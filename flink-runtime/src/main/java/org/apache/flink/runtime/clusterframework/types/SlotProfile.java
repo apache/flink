@@ -30,17 +30,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A slot profile describes the profile of a slot into which a task wants to be scheduled. The profile contains
- * attributes such as resource or locality constraints, some of which may be hard or soft. A matcher can be generated
- * to filter out candidate slots by matching their {@link SlotContext} against the slot profile and, potentially,
- * further requirements.
+ * attributes such as resource or locality constraints, some of which may be hard or soft. It also contains the
+ * information of resources for the physical slot to host this task slot, which can be used to allocate a physical
+ * slot when no physical slot is available for this task slot. A matcher can be generated to filter out candidate
+ * slots by matching their {@link SlotContext} against the slot profile and, potentially, further requirements.
  */
 public class SlotProfile {
 
 	/** Singleton object for a slot profile without any requirements. */
 	private static final SlotProfile NO_REQUIREMENTS = noLocality(ResourceProfile.UNKNOWN);
 
-	/** This specifies the desired resource profile for the slot. */
-	private final ResourceProfile resourceProfile;
+	/** This specifies the desired resource profile for the task slot. */
+	private final ResourceProfile taskResourceProfile;
+
+	/** This specifies the desired resource profile for the physical slot to host this task slot. */
+	private final ResourceProfile physicalSlotResourceProfile;
 
 	/** This specifies the preferred locations for the slot. */
 	private final Collection<TaskManagerLocation> preferredLocations;
@@ -52,22 +56,31 @@ public class SlotProfile {
 	private final Set<AllocationID> previousExecutionGraphAllocations;
 
 	private SlotProfile(
-			final ResourceProfile resourceProfile,
+			final ResourceProfile taskResourceProfile,
+			final ResourceProfile physicalSlotResourceProfile,
 			final Collection<TaskManagerLocation> preferredLocations,
 			final Collection<AllocationID> preferredAllocations,
 			final Set<AllocationID> previousExecutionGraphAllocations) {
 
-		this.resourceProfile = checkNotNull(resourceProfile);
+		this.taskResourceProfile = checkNotNull(taskResourceProfile);
+		this.physicalSlotResourceProfile = checkNotNull(physicalSlotResourceProfile);
 		this.preferredLocations = checkNotNull(preferredLocations);
 		this.preferredAllocations = checkNotNull(preferredAllocations);
 		this.previousExecutionGraphAllocations = checkNotNull(previousExecutionGraphAllocations);
 	}
 
 	/**
-	 * Returns the desired resource profile for the slot.
+	 * Returns the desired resource profile for the task slot.
 	 */
-	public ResourceProfile getResourceProfile() {
-		return resourceProfile;
+	public ResourceProfile getTaskResourceProfile() {
+		return taskResourceProfile;
+	}
+
+	/**
+	 * Returns the desired resource profile for the physical slot to host this task slot.
+	 */
+	public ResourceProfile getPhysicalSlotResourceProfile() {
+		return physicalSlotResourceProfile;
 	}
 
 	/**
@@ -121,25 +134,37 @@ public class SlotProfile {
 			final ResourceProfile resourceProfile,
 			final Collection<TaskManagerLocation> preferredLocations) {
 
-		return priorAllocation(resourceProfile, preferredLocations, Collections.emptyList(), Collections.emptySet());
+		return priorAllocation(
+			resourceProfile,
+			resourceProfile,
+			preferredLocations,
+			Collections.emptyList(),
+			Collections.emptySet());
 	}
 
 	/**
 	 * Returns a slot profile for the given resource profile, prior allocations and
 	 * all prior allocation ids from the whole execution graph.
 	 *
-	 * @param resourceProfile specifying the slot requirements
+	 * @param taskResourceProfile specifying the required resources for the task slot
+	 * @param physicalSlotResourceProfile specifying the required resources for the physical slot to host this task slot
 	 * @param preferredLocations specifying the preferred locations
 	 * @param priorAllocations specifying the prior allocations
 	 * @param previousExecutionGraphAllocations specifying all prior allocation ids from the whole execution graph
 	 * @return Slot profile with all the given information
 	 */
 	public static SlotProfile priorAllocation(
-			final ResourceProfile resourceProfile,
+			final ResourceProfile taskResourceProfile,
+			final ResourceProfile physicalSlotResourceProfile,
 			final Collection<TaskManagerLocation> preferredLocations,
 			final Collection<AllocationID> priorAllocations,
 			final Set<AllocationID> previousExecutionGraphAllocations) {
 
-		return new SlotProfile(resourceProfile, preferredLocations, priorAllocations, previousExecutionGraphAllocations);
+		return new SlotProfile(
+			taskResourceProfile,
+			physicalSlotResourceProfile,
+			preferredLocations,
+			priorAllocations,
+			previousExecutionGraphAllocations);
 	}
 }
