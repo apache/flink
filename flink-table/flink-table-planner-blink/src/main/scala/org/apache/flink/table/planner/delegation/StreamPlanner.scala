@@ -56,7 +56,6 @@ class StreamPlanner(
 
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
-    overrideEnvParallelism()
     execNodes.map {
       case node: StreamExecNode[_] => node.translateToPlan(this)
       case _ =>
@@ -76,7 +75,9 @@ class StreamPlanner(
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
+
     val plannerForExplain = createDummyPlannerForExplain()
+    plannerForExplain.overrideEnvParallelism()
     val transformations = plannerForExplain.translateToPlan(execNodes)
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)

@@ -65,7 +65,6 @@ class BatchPlanner(
 
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
-    overrideEnvParallelism()
     execNodes.map {
       case node: BatchExecNode[_] => node.translateToPlan(this)
       case _ =>
@@ -87,6 +86,7 @@ class BatchPlanner(
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
 
     val plannerForExplain = createDummyPlannerForExplain()
+    plannerForExplain.overrideEnvParallelism()
     val transformations = plannerForExplain.translateToPlan(execNodes)
 
     val execEnv = getExecEnv
