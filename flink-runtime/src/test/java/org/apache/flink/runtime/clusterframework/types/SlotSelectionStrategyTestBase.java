@@ -32,6 +32,9 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Test base for {@link SlotSelectionStrategy}.
+ */
 public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 
 	protected final ResourceProfile resourceProfile = new ResourceProfile(2, 1024);
