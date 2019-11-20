@@ -120,6 +120,25 @@ public class SqlTimestamp implements Comparable<SqlTimestamp> {
 	}
 
 	/**
+	 * Obtains an instance of {@code SqlTimestamp} from a millisecond.
+	 *
+	 * <p>This returns a {@code SqlTimestamp} with the specified millisecond.
+	 * The nanoOfMillisecond field will be set to zero.
+	 *
+	 * @param millisecond the number of milliseconds since January 1, 1970, 00:00:00 GMT
+	 *                    A negative number is the number of milliseconds before
+	 *                    January 1, 1970, 00:00:00 GMT
+	 * @return an instance of {@code SqlTimestamp}
+	 */
+	public static SqlTimestamp fromEpochMillis(Long millisecond) {
+		if (millisecond == null) {
+			return null;
+		}
+		return new SqlTimestamp(millisecond, 0);
+	}
+
+
+	/**
 	 * Convert this {@code SqlTimestmap} object to a {@link Timestamp}.
 	 *
 	 * @return An instance of {@link Timestamp}
