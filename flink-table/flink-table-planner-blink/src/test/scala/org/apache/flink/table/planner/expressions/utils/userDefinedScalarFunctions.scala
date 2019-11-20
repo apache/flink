@@ -24,13 +24,13 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
-
 import org.apache.commons.lang3.StringUtils
 import org.junit.Assert
-
 import java.lang.{Long => JLong}
 import java.sql.{Date, Time, Timestamp}
 import java.util.Random
+
+import org.apache.flink.table.dataformat.SqlTimestamp
 
 import scala.annotation.varargs
 import scala.collection.mutable
@@ -117,15 +117,20 @@ object Func8 extends ScalarFunction {
 
 @SerialVersionUID(1L)
 object Func9 extends ScalarFunction {
-  def eval(a: Int, b: Int, c: Long): String = {
-    s"$a and $b and $c"
+  def eval(a: Int, b: Int, c: SqlTimestamp): String = {
+    val ts = if (c == null) null else c.getMillisecond
+    s"$a and $b and $ts"
   }
 }
 
 @SerialVersionUID(1L)
 object Func10 extends ScalarFunction {
-  def eval(c: Long): Long = {
-    c
+  def eval(c: SqlTimestamp): Timestamp = {
+    if (c == null) {
+      null
+    } else {
+      c.toTimestamp
+    }
   }
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -29,6 +30,8 @@ import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunction;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.TimeZone;
@@ -82,8 +85,9 @@ public class JavaUserDefinedScalarFunctions {
 	 * Concatenate inputs as strings.
 	 */
 	public static class JavaFunc1 extends ScalarFunction {
-		public String eval(Integer a, int b,  Long c) {
-			return a + " and " + b + " and " + c;
+		public String eval(Integer a, int b,  SqlTimestamp c) {
+			Long ts = (c == null) ? null : c.getMillisecond();
+			return a + " and " + b + " and " + ts;
 		}
 	}
 
@@ -137,14 +141,14 @@ public class JavaUserDefinedScalarFunctions {
 			openCalled = true;
 		}
 
-		public Timestamp eval(Long l, Integer offset) {
+		public Timestamp eval(SqlTimestamp sqlTimestamp, Integer offset) {
 			if (!openCalled) {
 				fail("Open was not called before run.");
 			}
-			if (l == null || offset == null) {
+			if (sqlTimestamp == null || offset == null) {
 				return null;
 			} else {
-				long ts = l - offset;
+				long ts = sqlTimestamp.getMillisecond() - offset;
 				int tzOffset = TimeZone.getDefault().getOffset(ts);
 				return new Timestamp(ts - tzOffset);
 			}
