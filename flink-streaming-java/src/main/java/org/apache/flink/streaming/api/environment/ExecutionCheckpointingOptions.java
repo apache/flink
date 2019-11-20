@@ -86,7 +86,7 @@ public class ExecutionCheckpointingOptions {
 				"we do not tolerance any checkpoint failure.");
 
 	public static final ConfigOption<CheckpointConfig.ExternalizedCheckpointCleanup> EXTERNALIZED_CHECKPOINT =
-		ConfigOptions.key("execution.checkpointing.externalized-checkpoint")
+		ConfigOptions.key("execution.checkpointing.externalized-checkpoint-retention")
 			.enumType(CheckpointConfig.ExternalizedCheckpointCleanup.class)
 			.noDefaultValue()
 			.withDescription(Description.builder()
