@@ -32,7 +32,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
-import org.apache.flink.client.deployment.JobClientImpl;
+import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -396,7 +396,7 @@ public class ClientTest extends TestLogger {
 						jobGraph.setClasspaths(accessor.getClasspaths());
 
 						final JobID jobID = ClientUtils.submitJob(clusterClient, jobGraph).getJobID();
-						return CompletableFuture.completedFuture(new JobClientImpl<>(clusterClient, jobID, false));
+						return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(clusterClient, jobID, false));
 					};
 				}
 			};

@@ -66,7 +66,7 @@ public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends Cluster
 			LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
 
 			final boolean withShutdownHook = !configAccessor.getDetachedMode() && configAccessor.isShutdownOnAttachedExit();
-			return CompletableFuture.completedFuture(new JobClientImpl<>(clusterClient, jobGraph.getJobID(), withShutdownHook));
+			return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(clusterClient, jobGraph.getJobID(), withShutdownHook));
 		}
 	}
 }
