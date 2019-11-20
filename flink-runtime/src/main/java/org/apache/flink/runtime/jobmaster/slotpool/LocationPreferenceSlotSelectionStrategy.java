@@ -49,7 +49,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 			return Optional.empty();
 		}
 
-		final ResourceProfile resourceProfile = slotProfile.getResourceProfile();
+		final ResourceProfile resourceProfile = slotProfile.getPhysicalSlotResourceProfile();
 
 		// if we have no location preferences, we can only filter by the additional requirements.
 		return locationPreferences.isEmpty() ?

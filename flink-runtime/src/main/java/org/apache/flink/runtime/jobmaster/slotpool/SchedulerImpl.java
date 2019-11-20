@@ -246,9 +246,9 @@ public class SchedulerImpl implements Scheduler {
 			SlotProfile slotProfile,
 			@Nullable Time allocationTimeout) {
 		if (allocationTimeout == null) {
-			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, slotProfile.getResourceProfile());
+			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile());
 		} else {
-			return slotPool.requestNewAllocatedSlot(slotRequestId, slotProfile.getResourceProfile(), allocationTimeout);
+			return slotPool.requestNewAllocatedSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile(), allocationTimeout);
 		}
 	}
 
@@ -338,7 +338,7 @@ public class SchedulerImpl implements Scheduler {
 
 		final SlotSharingManager.SingleTaskSlot leaf = multiTaskSlotLocality.getMultiTaskSlot().allocateSingleTaskSlot(
 			slotRequestId,
-			slotProfile.getResourceProfile(),
+			slotProfile.getTaskResourceProfile(),
 			scheduledUnit.getJobVertexId(),
 			multiTaskSlotLocality.getLocality());
 		return leaf.getLogicalSlotFuture();
@@ -372,7 +372,7 @@ public class SchedulerImpl implements Scheduler {
 
 				SlotSharingManager.MultiTaskSlot multiTaskSlot = (SlotSharingManager.MultiTaskSlot) taskSlot;
 
-				if (multiTaskSlot.mayHaveEnoughResourcesToFulfill(slotProfile.getResourceProfile())) {
+				if (multiTaskSlot.mayHaveEnoughResourcesToFulfill(slotProfile.getTaskResourceProfile())) {
 					return SlotSharingManager.MultiTaskSlotLocality.of(multiTaskSlot, Locality.LOCAL);
 				}
 
@@ -386,7 +386,8 @@ public class SchedulerImpl implements Scheduler {
 		if (coLocationConstraint.isAssigned()) {
 			// refine the preferred locations of the slot profile
 			slotProfile = SlotProfile.priorAllocation(
-				slotProfile.getResourceProfile(),
+				slotProfile.getTaskResourceProfile(),
+				slotProfile.getPhysicalSlotResourceProfile(),
 				Collections.singleton(coLocationConstraint.getLocation()),
 				slotProfile.getPreferredAllocations(),
 				slotProfile.getPreviousExecutionGraphAllocations());
