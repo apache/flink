@@ -41,6 +41,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.CONNECT_TIMEOUT;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.CONSISTENCY;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.DB;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.HOST;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PASSWORD;
@@ -48,6 +49,7 @@ import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PORT;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.RETENTION_POLICY;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.WRITE_TIMEOUT;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getConsistencyLevel;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getInteger;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getString;
 
@@ -58,6 +60,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 	private String database;
 	private String retentionPolicy;
+	private InfluxDB.ConsistencyLevel consistency;
 	private InfluxDB influxDB;
 
 	public InfluxdbReporter() {
@@ -81,6 +84,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 		this.database = database;
 		this.retentionPolicy = getString(config, RETENTION_POLICY);
+		this.consistency = getConsistencyLevel(config, CONSISTENCY);
 
 		int connectTimeout = getInteger(config, CONNECT_TIMEOUT);
 		int writeTimeout = getInteger(config, WRITE_TIMEOUT);
@@ -94,7 +98,8 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 			influxDB = InfluxDBFactory.connect(url, client);
 		}
 
-		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, and retentionPolicy:{}}", host, port, database, retentionPolicy);
+		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, retentionPolicy:{} and consistency:{}}",
+			host, port, database, retentionPolicy, consistency.name());
 	}
 
 	@Override
@@ -118,6 +123,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		Instant timestamp = Instant.now();
 		BatchPoints.Builder report = BatchPoints.database(database);
 		report.retentionPolicy(retentionPolicy);
+		report.consistency(consistency);
 		try {
 			for (Map.Entry<Gauge<?>, MeasurementInfo> entry : gauges.entrySet()) {
 				report.point(MetricMapper.map(entry.getValue(), timestamp, entry.getKey()));
