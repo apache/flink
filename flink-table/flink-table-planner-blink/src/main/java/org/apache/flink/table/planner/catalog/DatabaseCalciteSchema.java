@@ -68,25 +68,28 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		return catalogManager.getTable(identifier)
 			.map(result -> {
 				CatalogBaseTable table = result.getTable();
-				Catalog catalog = catalogManager.getCatalog(catalogName).get();
-				FlinkStatistic statistic = getStatistic(result.isTemporary(),
-					catalog, table, identifier);
+				FlinkStatistic statistic = getStatistic(result.isTemporary(), table, identifier);
 				return new CatalogSchemaTable(identifier,
 					table,
 					statistic,
-					catalog.getTableFactory().orElse(null),
+					catalogManager.getCatalog(catalogName)
+						.flatMap(Catalog::getTableFactory)
+						.orElse(null),
 					isStreamingMode,
 					result.isTemporary());
 			})
 			.orElse(null);
 	}
 
-	private static FlinkStatistic getStatistic(boolean isTemporary, Catalog catalog,
-			CatalogBaseTable catalogBaseTable, ObjectIdentifier tableIdentifier) {
+	private FlinkStatistic getStatistic(
+			boolean isTemporary,
+			CatalogBaseTable catalogBaseTable,
+			ObjectIdentifier tableIdentifier) {
 		if (isTemporary || catalogBaseTable instanceof QueryOperationCatalogView) {
 			return FlinkStatistic.UNKNOWN();
 		}
 		if (catalogBaseTable instanceof CatalogTable) {
+			Catalog catalog = catalogManager.getCatalog(catalogName).get();
 			return FlinkStatistic.builder()
 				.tableStats(extractTableStats(catalog, tableIdentifier))
 				.build();
@@ -95,7 +98,8 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		}
 	}
 
-	private static TableStats extractTableStats(Catalog catalog,
+	private static TableStats extractTableStats(
+			Catalog catalog,
 			ObjectIdentifier objectIdentifier) {
 		final ObjectPath tablePath = objectIdentifier.toObjectPath();
 		try {
