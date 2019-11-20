@@ -94,7 +94,7 @@ public class SqlToOperationConverter {
 		SqlToOperationConverter converter = new SqlToOperationConverter(flinkPlanner, catalogManager);
 		if (validated instanceof SqlCreateTable) {
 			return Optional.of(converter.convertCreateTable((SqlCreateTable) validated));
-		} if (validated instanceof SqlDropTable) {
+		} else if (validated instanceof SqlDropTable) {
 			return Optional.of(converter.convertDropTable((SqlDropTable) validated));
 		} else if (validated instanceof RichSqlInsert) {
 			SqlNodeList targetColumnList = ((RichSqlInsert) validated).getTargetColumnList();
