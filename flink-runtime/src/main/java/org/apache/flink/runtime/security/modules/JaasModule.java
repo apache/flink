@@ -79,7 +79,7 @@ public class JaasModule implements SecurityModule {
 	public JaasModule(SecurityConfiguration securityConfig) {
 		this.securityConfig = checkNotNull(securityConfig);
 		String[] dirs = splitPaths(securityConfig.getFlinkConfig().getString(CoreOptions.TMP_DIRS));
-		// should at least a single directory.
+		// should be at least one directory.
 		checkState(dirs.length > 0);
 		this.workingDir = dirs[0];
 	}
@@ -93,7 +93,7 @@ public class JaasModule implements SecurityModule {
 		if (priorConfigFile == null) {
 			File configFile = generateDefaultConfigFile(workingDir);
 			System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, configFile.getAbsolutePath());
-			LOG.info("Jaas file will install into {}.", configFile);
+			LOG.info("Jaas file will be created as {}.", configFile);
 		}
 
 		// read the JAAS configuration file

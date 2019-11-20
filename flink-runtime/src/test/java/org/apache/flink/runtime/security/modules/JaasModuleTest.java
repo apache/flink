@@ -48,7 +48,7 @@ public class JaasModuleTest {
 	}
 
 	/**
-	 * Test that jaas config file locates in the working directory.
+	 * Test that the jaas config file is created in the working directory.
 	 */
 	@Test
 	public void testJaasModuleFilePath() throws IOException {
@@ -67,7 +67,7 @@ public class JaasModuleTest {
 	}
 
 	/**
-	 * Test that the jaas file will locate in the directory specified by {@link CoreOptions#TMP_DIRS}'s default value
+	 * Test that the jaas file will be created in the directory specified by {@link CoreOptions#TMP_DIRS}'s default value
 	 * if we do not manually specify it.
 	 */
 	@Test
