@@ -401,10 +401,15 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 					.registerProducedPartitions(logicalSlot.getTaskManagerLocation(), sendScheduleOrUpdateConsumerMessage);
 				executionVertex.tryAssignResource(logicalSlot);
 			} else {
-				handleTaskFailure(executionVertexId, maybeWrapWithNoResourceAvailableException(throwable));
+				handleTaskDeploymentFailure(executionVertexId, maybeWrapWithNoResourceAvailableException(throwable));
 			}
 			return null;
 		};
+	}
+
+	private void handleTaskDeploymentFailure(final ExecutionVertexID executionVertexId, final Throwable error) {
+		log.info("Error while scheduling or deploying task {}.", executionVertexId, error);
+		handleTaskFailure(executionVertexId, error);
 	}
 
 	private static Throwable maybeWrapWithNoResourceAvailableException(final Throwable failure) {
@@ -431,7 +436,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			if (throwable == null) {
 				deployTaskSafe(executionVertexId);
 			} else {
-				handleTaskFailure(executionVertexId, throwable);
+				handleTaskDeploymentFailure(executionVertexId, throwable);
 			}
 			return null;
 		};
@@ -442,7 +447,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
 			executionVertexOperations.deploy(executionVertex);
 		} catch (Throwable e) {
-			handleTaskFailure(executionVertexId, e);
+			handleTaskDeploymentFailure(executionVertexId, e);
 		}
 	}
 }
