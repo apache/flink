@@ -246,8 +246,8 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 	@Test
 	public void testNewPhysicalSlotAllocation() {
-		final ResourceProfile taskResourceProfile = new ResourceProfile(0.5, 250);
-		final ResourceProfile physicalSlotResourceProfile = new ResourceProfile(1.0, 300);
+		final ResourceProfile taskResourceProfile = ResourceProfile.fromResources(0.5, 250);
+		final ResourceProfile physicalSlotResourceProfile = ResourceProfile.fromResources(1.0, 300);
 
 		testingSlotProvider.allocateSlot(
 			new SlotRequestId(),

@@ -327,9 +327,9 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotSharingRespectsRemainingResource() throws Exception {
-		final ResourceProfile allocatedSlotRp = new ResourceProfile(3.0, 300);
-		final ResourceProfile largeRequestResource = new ResourceProfile(2.0, 200);
-		final ResourceProfile smallRequestResource = new ResourceProfile(1.0, 100);
+		final ResourceProfile allocatedSlotRp = ResourceProfile.fromResources(3.0, 300);
+		final ResourceProfile largeRequestResource = ResourceProfile.fromResources(2.0, 200);
+		final ResourceProfile smallRequestResource = ResourceProfile.fromResources(1.0, 100);
 
 		final BlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
 		final TestingResourceManagerGateway testingResourceManagerGateway = slotPoolResource.getTestingResourceManagerGateway();

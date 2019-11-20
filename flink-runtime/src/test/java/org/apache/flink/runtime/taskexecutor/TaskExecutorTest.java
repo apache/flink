@@ -476,7 +476,7 @@ public class TaskExecutorTest extends TestLogger {
 		rpc.registerGateway(rmAddress, rmGateway);
 
 		final SlotID slotId = new SlotID(taskManagerLocation.getResourceID(), 0);
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
 		final SlotReport slotReport1 = new SlotReport(
 			new SlotStatus(
 				slotId,

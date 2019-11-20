@@ -37,8 +37,8 @@ import java.util.Set;
  */
 public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 
-	protected final ResourceProfile resourceProfile = new ResourceProfile(2, 1024);
-	protected final ResourceProfile biggerResourceProfile = new ResourceProfile(3, 1024);
+	protected final ResourceProfile resourceProfile = ResourceProfile.fromResources(2, 1024);
+	protected final ResourceProfile biggerResourceProfile = ResourceProfile.fromResources(3, 1024);
 
 	protected final AllocationID aid1 = new AllocationID();
 	protected final AllocationID aid2 = new AllocationID();

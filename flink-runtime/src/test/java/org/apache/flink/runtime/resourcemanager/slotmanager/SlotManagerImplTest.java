@@ -111,7 +111,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final SlotID slotId1 = new SlotID(resourceId, 0);
 		final SlotID slotId2 = new SlotID(resourceId, 1);
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 		final SlotStatus slotStatus1 = new SlotStatus(slotId1, resourceProfile);
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 		final SlotReport slotReport = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
@@ -149,7 +149,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final SlotID slotId2 = new SlotID(resourceId, 1);
 		final AllocationID allocationId1 = new AllocationID();
 		final AllocationID allocationId2 = new AllocationID();
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 		final SlotStatus slotStatus1 = new SlotStatus(slotId1, resourceProfile, jobId, allocationId1);
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 		final SlotReport slotReport = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
@@ -193,7 +193,7 @@ public class SlotManagerImplTest extends TestLogger {
 	@Test
 	public void testSlotRequestWithoutFreeSlots() throws Exception {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(
 			new JobID(),
 			new AllocationID(),
@@ -219,7 +219,7 @@ public class SlotManagerImplTest extends TestLogger {
 	@Test
 	public void testSlotRequestWithResourceAllocationFailure() throws Exception {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(
 			new JobID(),
 			new AllocationID(),
@@ -254,7 +254,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final SlotID slotId = new SlotID(resourceID, 0);
 		final String targetAddress = "localhost";
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(
 			jobId,
 			allocationId,
@@ -308,7 +308,7 @@ public class SlotManagerImplTest extends TestLogger {
 			.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple5 -> new CompletableFuture<>())
 			.createTestingTaskExecutorGateway();
 
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
 		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
 		final SlotReport slotReport = new SlotReport(slotStatus);
 
@@ -347,7 +347,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final SlotID slotId = new SlotID(resourceID, 0);
 		final String targetAddress = "localhost";
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(
 			jobId,
 			allocationId,
@@ -405,7 +405,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final ResourceID resourceID = taskExecutorConnection.getResourceID();
 		final SlotID slotId = new SlotID(resourceID, 0);
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 
 		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile, jobId, allocationId);
 		final SlotReport slotReport = new SlotReport(slotStatus);
@@ -445,8 +445,8 @@ public class SlotManagerImplTest extends TestLogger {
 			.setAllocateResourceConsumer(resourceProfile -> numberAllocateResourceFunctionCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 2);
-		final ResourceProfile resourceProfile2 = new ResourceProfile(2.0, 1);
+		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);
+		final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2.0, 1);
 		final SlotRequest slotRequest1 = new SlotRequest(new JobID(), allocationId, resourceProfile1, "foobar");
 		final SlotRequest slotRequest2 = new SlotRequest(new JobID(), allocationId, resourceProfile2, "barfoo");
 
@@ -474,7 +474,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
 		final SlotID slotId = new SlotID(resourceID, 0);
 		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile, jobId, allocationId);
 		final SlotReport slotReport = new SlotReport(slotStatus);
@@ -500,8 +500,8 @@ public class SlotManagerImplTest extends TestLogger {
 			.setAllocateResourceConsumer(resourceProfile -> allocateResourceCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 2);
-		final ResourceProfile resourceProfile2 = new ResourceProfile(2.0, 1);
+		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);
+		final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2.0, 1);
 		final SlotRequest slotRequest1 = new SlotRequest(new JobID(), allocationId, resourceProfile1, "foobar");
 		final SlotRequest slotRequest2 = new SlotRequest(new JobID(), allocationId, resourceProfile2, "barfoo");
 
@@ -543,8 +543,8 @@ public class SlotManagerImplTest extends TestLogger {
 			.setAllocateResourceConsumer(resourceProfile -> allocateResourceCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 2);
-		final ResourceProfile resourceProfile2 = new ResourceProfile(2.0, 1);
+		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);
+		final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2.0, 1);
 		final SlotRequest slotRequest1 = new SlotRequest(new JobID(), allocationId, resourceProfile1, "foobar");
 		final SlotRequest slotRequest2 = new SlotRequest(new JobID(), allocationId, resourceProfile2, "barfoo");
 
@@ -554,7 +554,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
 
 		final SlotID slotId = new SlotID(resourceID, 0);
-		final SlotStatus slotStatus = new SlotStatus(slotId, new ResourceProfile(2.0, 2));
+		final SlotStatus slotStatus = new SlotStatus(slotId, ResourceProfile.fromResources(2.0, 2));
 		final SlotReport slotReport = new SlotReport(slotStatus);
 
 		try (SlotManagerImpl slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
@@ -592,7 +592,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final InstanceID unknownInstanceID = new InstanceID();
 		final SlotID unknownSlotId = new SlotID(ResourceID.generate(), 0);
-		final ResourceProfile unknownResourceProfile = new ResourceProfile(1.0, 1);
+		final ResourceProfile unknownResourceProfile = ResourceProfile.fromResources(1.0, 1);
 		final SlotStatus unknownSlotStatus = new SlotStatus(unknownSlotId, unknownResourceProfile);
 		final SlotReport unknownSlotReport = new SlotReport(unknownSlotStatus);
 
@@ -625,7 +625,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final SlotID slotId1 = new SlotID(resourceId, 0);
 		final SlotID slotId2 = new SlotID(resourceId, 1);
 
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
 		final SlotStatus slotStatus1 = new SlotStatus(slotId1, resourceProfile);
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 
@@ -677,7 +677,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
 
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
 		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
@@ -716,7 +716,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
 		final CompletableFuture<Acknowledge> slotRequestFuture1 = new CompletableFuture<>();
 		final CompletableFuture<Acknowledge> slotRequestFuture2 = new CompletableFuture<>();
@@ -782,7 +782,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
 		final CompletableFuture<Acknowledge> slotRequestFuture1 = new CompletableFuture<>();
 
@@ -881,7 +881,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
 		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
 
 		final CompletableFuture<SlotID> requestedSlotFuture = new CompletableFuture<>();
@@ -967,7 +967,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
 
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
-		final SlotStatus slotStatus = createEmptySlotStatus(new SlotID(resourceID, 0), new ResourceProfile(1.0, 1));
+		final SlotStatus slotStatus = createEmptySlotStatus(new SlotID(resourceID, 0), ResourceProfile.fromResources(1.0, 1));
 		final SlotReport initialSlotReport = new SlotReport(slotStatus);
 
 		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder()
@@ -1368,7 +1368,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder()
 			.setAllocateResourceFunction(convert(value -> numberSlots))
 			.build();
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 
 		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions)) {
 			final JobID jobId = new JobID();
@@ -1412,7 +1412,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions)) {
 			final JobID jobId = new JobID();
-			final ResourceProfile requestedSlotProfile = new ResourceProfile(1.0, 1);
+			final ResourceProfile requestedSlotProfile = ResourceProfile.fromResources(1.0, 1);
 
 			assertThat(slotManager.registerSlotRequest(createSlotRequest(jobId, requestedSlotProfile)), is(true));
 
@@ -1420,7 +1420,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 			final int numberOfferedSlots = 1;
 			final TaskExecutorConnection taskExecutorConnection = createTaskExecutorConnection();
-			final ResourceProfile offeredSlotProfile = new ResourceProfile(2.0, 2);
+			final ResourceProfile offeredSlotProfile = ResourceProfile.fromResources(2.0, 2);
 			final SlotReport slotReport = createSlotReport(
 				taskExecutorConnection.getResourceID(),
 				numberOfferedSlots,

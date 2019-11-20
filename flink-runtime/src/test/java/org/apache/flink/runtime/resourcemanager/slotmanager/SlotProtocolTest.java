@@ -93,7 +93,7 @@ public class SlotProtocolTest extends TestLogger {
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
 			final AllocationID allocationID = new AllocationID();
-			final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+			final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 			final String targetAddress = "foobar";
 
 			SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile, targetAddress);
@@ -157,7 +157,7 @@ public class SlotProtocolTest extends TestLogger {
 
 			final ResourceID resourceID = ResourceID.generate();
 			final AllocationID allocationID = new AllocationID();
-			final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+			final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 			final SlotID slotID = new SlotID(resourceID, 0);
 
 			final SlotStatus slotStatus =
