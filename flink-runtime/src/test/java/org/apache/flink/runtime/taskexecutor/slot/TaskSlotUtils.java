@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -38,7 +39,7 @@ public enum TaskSlotUtils {
 
 	private static final ResourceProfile DEFAULT_RESOURCE_PROFILE =
 		new ResourceProfile(
-			Double.MAX_VALUE,
+			new CPUResource(Double.MAX_VALUE),
 			MemorySize.MAX_VALUE,
 			MemorySize.MAX_VALUE,
 			new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE),
