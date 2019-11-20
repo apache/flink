@@ -64,4 +64,3 @@ abstract class EnforceLocalAggRuleTestBase extends TableTestBase {
   }
 
 }
-
