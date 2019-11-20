@@ -54,6 +54,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
@@ -816,7 +817,7 @@ public class ExecutionEnvironment {
 
 			lastJobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
 					? jobClient.getJobExecutionResult(userClassloader).get()
-					: jobClient.getJobSubmissionResult().get();
+					: new DetachedJobExecutionResult(jobClient.getJobID());
 
 			return lastJobExecutionResult;
 		}

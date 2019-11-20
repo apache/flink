@@ -36,11 +36,6 @@ public interface JobClient extends AutoCloseable {
 	JobID getJobID();
 
 	/**
-	 * Returns the result of the job submission which will also contain the job id of the submitted job.
-	 */
-	CompletableFuture<JobExecutionResult> getJobSubmissionResult();
-
-	/**
 	 * Returns the {@link JobExecutionResult result of the job execution} of the submitted job.
 	 *
 	 * @param userClassloader the classloader used to de-serialize the accumulators of the job.
