@@ -18,23 +18,35 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
+import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
+import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
+import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -104,6 +116,14 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
 		} else if (validated instanceof SqlUseCatalog) {
 			return Optional.of(converter.convertUseCatalog((SqlUseCatalog) validated));
+		} else if (validated instanceof SqlUseDatabase) {
+			return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
+		} else if (validated instanceof SqlCreateDatabase) {
+			return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
+		} else if (validated instanceof SqlDropDatabase) {
+			return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
+		} else if (validated instanceof SqlAlterDatabase) {
+			return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -184,6 +204,80 @@ public class SqlToOperationConverter {
 	/** Convert use catalog statement. */
 	private Operation convertUseCatalog(SqlUseCatalog useCatalog) {
 		return new UseCatalogOperation(useCatalog.getCatalogName());
+	}
+
+	/** Convert use database statement. */
+	private Operation convertUseDatabase(SqlUseDatabase useDatabase) {
+		String[] fullDatabaseName = useDatabase.fullDatabaseName();
+		if (fullDatabaseName.length > 2) {
+			throw new SqlConversionException("use database identifier format error");
+		}
+		String catalogName = fullDatabaseName.length == 2 ? fullDatabaseName[0] : catalogManager.getCurrentCatalog();
+		String databaseName = fullDatabaseName.length == 2 ? fullDatabaseName[1] : fullDatabaseName[0];
+		return new UseDatabaseOperation(catalogName, databaseName);
+	}
+
+	/** Convert CREATE DATABASE statement. */
+	private Operation convertCreateDatabase(SqlCreateDatabase sqlCreateDatabase) {
+		String[] fullDatabaseName = sqlCreateDatabase.fullDatabaseName();
+		if (fullDatabaseName.length > 2) {
+			throw new SqlConversionException("create database identifier format error");
+		}
+		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
+		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+		boolean ignoreIfExists = sqlCreateDatabase.isIfNotExists();
+		String databaseComment = sqlCreateDatabase.getComment()
+								.map(comment -> comment.getNlsString().getValue()).orElse(null);
+		// set with properties
+		Map<String, String> properties = new HashMap<>();
+		sqlCreateDatabase.getPropertyList().getList().forEach(p ->
+			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+				((SqlTableOption) p).getValueString()));
+		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
+		return new CreateDatabaseOperation(catalogName, databaseName, catalogDatabase, ignoreIfExists);
+	}
+
+	/** Convert DROP DATABASE statement. */
+	private Operation convertDropDatabase(SqlDropDatabase sqlDropDatabase) {
+		String[] fullDatabaseName = sqlDropDatabase.fullDatabaseName();
+		if (fullDatabaseName.length > 2) {
+			throw new SqlConversionException("drop database identifier format error");
+		}
+		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
+		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+		return new DropDatabaseOperation(
+				catalogName,
+				databaseName,
+				sqlDropDatabase.getIfExists(),
+				sqlDropDatabase.isCascade());
+	}
+
+	/** Convert ALTER DATABASE statement. */
+	private Operation convertAlterDatabase(SqlAlterDatabase sqlAlterDatabase) {
+		String[] fullDatabaseName = sqlAlterDatabase.fullDatabaseName();
+		if (fullDatabaseName.length > 2) {
+			throw new SqlConversionException("alter database identifier format error");
+		}
+		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
+		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+		Map<String, String> properties = new HashMap<>();
+		CatalogDatabase originCatalogDatabase;
+		Optional<Catalog> catalog = catalogManager.getCatalog(catalogName);
+		if (catalog.isPresent()) {
+			try {
+				originCatalogDatabase = catalog.get().getDatabase(databaseName);
+				properties.putAll(originCatalogDatabase.getProperties());
+			} catch (DatabaseNotExistException e) {
+				throw new SqlConversionException(String.format("Database %s not exists", databaseName), e);
+			}
+		} else {
+			throw new SqlConversionException(String.format("Catalog %s not exists", catalogName));
+		}
+		// set with properties
+		sqlAlterDatabase.getPropertyList().getList().forEach(p ->
+			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(), ((SqlTableOption) p).getValueString()));
+		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
+		return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
 	}
 
 	/** Fallback method for sql query. */

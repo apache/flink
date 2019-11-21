@@ -149,6 +149,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		client.dropDatabase(name, deleteData, ignoreIfNotExists);
 	}
 
+	public void dropDatabase(String name, boolean deleteData, boolean ignoreIfNotExists, boolean cascade)
+			throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
+		client.dropDatabase(name, deleteData, ignoreIfNotExists, cascade);
+	}
+
 	public void alterDatabase(String name, Database database) throws NoSuchObjectException, MetaException, TException {
 		client.alterDatabase(name, database);
 	}

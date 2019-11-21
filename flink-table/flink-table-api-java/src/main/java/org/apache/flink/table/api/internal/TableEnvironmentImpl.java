@@ -39,6 +39,9 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Parser;
@@ -59,7 +62,11 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
+import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
@@ -94,6 +101,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	protected final FunctionCatalog functionCatalog;
 	protected final Planner planner;
 	protected final Parser parser;
+	private static final String UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
+			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
+			"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
+			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -449,9 +460,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		List<Operation> operations = parser.parse(stmt);
 
 		if (operations.size() != 1) {
-			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-					"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG");
+			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
 
 		Operation operation = operations.get(0);
@@ -469,19 +478,73 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				createTableOperation.getCatalogTable(),
 				createTableOperation.getTableIdentifier(),
 				createTableOperation.isIgnoreIfExists());
+		} else if (operation instanceof CreateDatabaseOperation) {
+			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString());
+			try {
+				catalog.createDatabase(
+						createDatabaseOperation.getDatabaseName(),
+						createDatabaseOperation.getCatalogDatabase(),
+						createDatabaseOperation.isIgnoreIfExists());
+			} catch (DatabaseAlreadyExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
 			catalogManager.dropTable(
 				dropTableOperation.getTableIdentifier(),
 				dropTableOperation.isIfExists());
+		} else if (operation instanceof DropDatabaseOperation) {
+			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString());
+			try {
+				catalog.dropDatabase(
+						dropDatabaseOperation.getDatabaseName(),
+						dropDatabaseOperation.isIfExists(),
+						dropDatabaseOperation.isCascade());
+			} catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
+		} else if (operation instanceof AlterDatabaseOperation) {
+			AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(alterDatabaseOperation.asSummaryString());
+			try {
+				catalog.alterDatabase(
+						alterDatabaseOperation.getDatabaseName(),
+						alterDatabaseOperation.getCatalogDatabase(),
+						false);
+			} catch (DatabaseNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof UseCatalogOperation) {
 			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
 			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
+		} else if (operation instanceof UseDatabaseOperation) {
+			UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
+			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
+			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 		} else {
-			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG");
+			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
+	}
+
+	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
+	private Catalog getCatalogOrThrowException(String catalogName) {
+		return getCatalog(catalogName)
+				.orElseThrow(() -> new ValidationException(String.format("Catalog %s does not exist.", catalogName)));
+	}
+
+	private String getDDLOpExecuteErrorMsg(String action) {
+		return String.format("Could not execute %s ", action);
 	}
 
 	@Override
