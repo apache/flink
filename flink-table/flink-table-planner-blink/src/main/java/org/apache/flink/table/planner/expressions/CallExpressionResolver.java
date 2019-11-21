@@ -40,10 +40,10 @@ public class CallExpressionResolver {
 
 	public CallExpressionResolver(RelBuilder relBuilder) {
 		// dummy way to get context
-		FlinkContext context = (FlinkContext) relBuilder
+		FlinkContext context = relBuilder
 			.values(new String[]{"dummyField"}, "dummyValue")
 			.build()
-			.getCluster().getPlanner().getContext();
+			.getCluster().getPlanner().getContext().unwrap(FlinkContext.class);
 		this.resolver = ExpressionResolver.resolverFor(
 			name -> Optional.empty(),
 			context.getFunctionCatalog()).build();

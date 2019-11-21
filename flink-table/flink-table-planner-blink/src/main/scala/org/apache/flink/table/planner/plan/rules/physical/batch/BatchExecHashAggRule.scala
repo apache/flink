@@ -63,7 +63,7 @@ class BatchExecHashAggRule
   with BatchExecAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     if (isOperatorDisabled(tableConfig, OperatorType.HashAgg)) {
       return false
     }
@@ -73,7 +73,7 @@ class BatchExecHashAggRule
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val agg: FlinkLogicalAggregate = call.rel(0)
     val input: RelNode = call.rels(1)
     val inputRowType = input.getRowType

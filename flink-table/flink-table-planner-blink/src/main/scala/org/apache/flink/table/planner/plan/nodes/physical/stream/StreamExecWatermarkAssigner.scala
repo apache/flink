@@ -81,7 +81,7 @@ class StreamExecWatermarkAssigner(
       // 3. operator requiring watermark, but minibatch is not enabled
       "None"
     } else if (miniBatchInterval.mode == MiniBatchMode.ProcTime) {
-      val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+      val tableConfig = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
       val miniBatchLatency = getMillisecondFromConfigDuration(tableConfig,
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
       Preconditions.checkArgument(miniBatchLatency > 0,
