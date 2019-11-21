@@ -50,6 +50,7 @@ public enum JavaGcCleanerWrapper {
 		CleanerFactory foundCleanerFactory = null;
 		Throwable t = null;
 		for (CleanerProvider cleanerProvider : CLEANER_PROVIDERS) {
+			//noinspection OverlyBroadCatchBlock
 			try {
 				foundCleanerFactory = cleanerProvider.createCleanerFactory();
 				break;
@@ -60,7 +61,7 @@ public enum JavaGcCleanerWrapper {
 
 		if (foundCleanerFactory == null) {
 			String errorMessage = String.format("Failed to find GC Cleaner among available providers: %s", CLEANER_PROVIDERS);
-			throw new FlinkRuntimeException(errorMessage, t);
+			throw new Error(errorMessage, t);
 		}
 		return foundCleanerFactory;
 	}
@@ -135,7 +136,7 @@ public enum JavaGcCleanerWrapper {
 			try {
 				cleaner = cleanerCreateMethod.invoke(null, owner, cleanupOperation);
 			} catch (IllegalAccessException | InvocationTargetException e) {
-				throw new FlinkRuntimeException("Failed to create a Java legacy Cleaner", e);
+				throw new Error("Failed to create a Java legacy Cleaner", e);
 			}
 			String ownerString = owner.toString(); // lambda should not capture the owner object
 			return () -> {
@@ -144,7 +145,7 @@ public enum JavaGcCleanerWrapper {
 				} catch (IllegalAccessException | InvocationTargetException e) {
 					String message = String.format("FATAL UNEXPECTED - Failed to invoke a Java legacy Cleaner for %s", ownerString);
 					LOG.error(message, e);
-					throw new FlinkRuntimeException(message, e);
+					throw new Error(message, e);
 				}
 			};
 		}
@@ -238,7 +239,7 @@ public enum JavaGcCleanerWrapper {
 			try {
 				cleanable = cleanerRegisterMethod.invoke(cleaner, owner, cleanupOperation);
 			} catch (IllegalAccessException | InvocationTargetException e) {
-				throw new FlinkRuntimeException("Failed to create a Java 9 Cleaner", e);
+				throw new Error("Failed to create a Java 9 Cleaner", e);
 			}
 			String ownerString = owner.toString(); // lambda should not capture the owner object
 			return () -> {
@@ -247,7 +248,7 @@ public enum JavaGcCleanerWrapper {
 				} catch (IllegalAccessException | InvocationTargetException e) {
 					String message = String.format("FATAL UNEXPECTED - Failed to invoke a Java 9 Cleaner$Cleanable for %s", ownerString);
 					LOG.error(message, e);
-					throw new FlinkRuntimeException(message, e);
+					throw new Error(message, e);
 				}
 			};
 		}
