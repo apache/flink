@@ -92,9 +92,9 @@ Configuration options to control Flink's restart behaviour in case of job failur
 
 {% include generated/task_manager_configuration.html %}
 
-For *batch* jobs Flink allocates a fraction of 0.7 of the free memory (total memory configured via taskmanager.memory.total-process.size minus memory used for network buffers) for its managed memory. Managed memory helps Flink to run the batch operators efficiently. It prevents OutOfMemoryExceptions because Flink knows how much memory it can use to execute operations. If Flink runs out of managed memory, it utilizes disk space. Using managed memory, some operations can be performed directly on the raw data without having to deserialize the data to convert it into Java objects. All in all, managed memory improves the robustness and speed of the system.
+For *batch* jobs Flink allocates a fraction of 0.4 of the total flink memory (configured via taskmanager.memory.total-flink.size) for its managed memory. Managed memory helps Flink to run the batch operators efficiently. It prevents OutOfMemoryExceptions because Flink knows how much memory it can use to execute operations. If Flink runs out of managed memory, it utilizes disk space. Using managed memory, some operations can be performed directly on the raw data without having to deserialize the data to convert it into Java objects. All in all, managed memory improves the robustness and speed of the system.
 
-The default fraction for managed memory can be adjusted using the taskmanager.memory.fraction parameter. An absolute value may be set using taskmanager.memory.size (overrides the fraction parameter). If desired, the managed memory may be allocated outside the JVM heap. This may improve performance in setups with large memory sizes.
+The default fraction for managed memory can be adjusted using the taskmanager.memory.managed.fraction parameter. An absolute value may be set using taskmanager.memory.managed.size (overrides the fraction parameter). If desired, the managed memory may be allocated outside the JVM heap. This may improve performance in setups with large memory sizes.
 
 {% include generated/task_manager_memory_configuration.html %}
 
