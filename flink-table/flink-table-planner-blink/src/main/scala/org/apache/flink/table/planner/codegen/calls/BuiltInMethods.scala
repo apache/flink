@@ -256,8 +256,8 @@ object BuiltInMethods {
   val DATE_FORMAT_STIRNG_STRING = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "dateFormat", classOf[String], classOf[String])
 
-  val DATE_FORMAT_LONG_STRING = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "dateFormat", classOf[Long], classOf[String])
+  val DATE_FORMAT_TIMESTAMP_STRING = Types.lookupMethod(
+    classOf[SqlDateTimeUtils], "dateFormat", classOf[SqlTimestamp], classOf[String])
 
   val UNIX_TIMESTAMP_FORMAT = Types.lookupMethod(
     classOf[SqlDateTimeUtils],

@@ -337,6 +337,21 @@ public class SqlDateTimeUtils {
 
 	/**
 	 * Format a timestamp as specific.
+	 * @param ts the {@link SqlTimestamp} to format.
+	 * @param format the string formatter.
+	 * @param zoneId the ZoneId.
+	 */
+	public static String dateFormat(SqlTimestamp ts, String format, ZoneId zoneId) {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern(format);
+		return ts.toLocalDateTime().atZone(zoneId).format(formatter);
+	}
+
+	public static String dateFormat(SqlTimestamp ts, String format) {
+		return dateFormat(ts, format, ZoneId.of("UTC"));
+	}
+
+	/**
+	 * Format a timestamp as specific.
 	 * @param ts the timestamp to format.
 	 * @param format the string formatter.
 	 * @param tz the time zone

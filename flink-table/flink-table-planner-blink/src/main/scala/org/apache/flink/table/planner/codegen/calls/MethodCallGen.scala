@@ -38,10 +38,6 @@ class MethodCallGen(method: Method) extends CallGenerator {
             // convert the BinaryString parameter to String if the method parameter accept String
             if (clazz == classOf[String]) {
               s"$term.toString()"
-            } else if ((clazz == classOf[Long] || clazz == classOf[java.lang.Long]) &&
-                operands(i).resultType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
-              // convert the SqlTimestamp parameter to Long if the method parameter accept Long
-              s"$term.getMillisecond()"
             } else {
               term
             }
@@ -64,11 +60,6 @@ class MethodCallGen(method: Method) extends CallGenerator {
         // convert String to BinaryString if the return type is String
         if (method.getReturnType == classOf[String]) {
           s"$BINARY_STRING.fromString($call)"
-        } else if ((method.getReturnType == classOf[Long]
-            || method.getReturnType == classOf[java.lang.Long]) &&
-            returnType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
-          // convert Long to SqlTimestamp if the return type is Timestamp
-          s"$SQL_TIMESTAMP.fromEpochMillis($call)"
         } else {
           call
         }

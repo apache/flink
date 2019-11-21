@@ -1000,6 +1000,10 @@ class TemporalTypesTest extends ExpressionTestBase {
       "TIMESTAMP '1970-01-01 00:00:00.123456788' < TIMESTAMP '1970-01-01 00:00:00.123456789'",
       "true")
 
+    // DATE_FORMAT() should support nanosecond
+    testSqlApi(
+      "DATE_FORMAT(TIMESTAMP '1970-01-01 00:00:00.123456789', 'yyyy/MM/dd HH:mm:ss.SSSSSSSSS')",
+      "1970/01/01 00:00:00.123456789")
   }
 
   // ----------------------------------------------------------------------------------------------
