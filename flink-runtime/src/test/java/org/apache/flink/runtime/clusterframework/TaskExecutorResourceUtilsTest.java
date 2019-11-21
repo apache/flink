@@ -23,8 +23,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -57,6 +60,20 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		MemorySize.parse("7m"),
 		MemorySize.parse("8m"),
 		MemorySize.parse("9m"));
+
+	private static Map<String, String> oldEnvVariables;
+
+	@Before
+	public void setup() {
+		oldEnvVariables = System.getenv();
+	}
+
+	@After
+	public void teardown() {
+		if (oldEnvVariables != null) {
+			CommonTestUtils.setEnv(oldEnvVariables, true);
+		}
+	}
 
 	@Test
 	public void testGenerateDynamicConfigurations() {
@@ -522,6 +539,16 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);
 		assertThat(taskExecutorResourceSpec.getTotalProcessMemorySize(), is(totalProcessMemorySize));
+	}
+
+	@Test
+	public void testConfigTotalProcessMemoryLegacyEnv() {
+		final Map<String, String> env = new HashMap<>();
+		env.put("FLINK_TM_HEAP", "1g");
+		CommonTestUtils.setEnv(env);
+
+		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(new Configuration());
+		assertThat(taskExecutorResourceSpec.getTotalProcessMemorySize(), is(MemorySize.parse("1g")));
 	}
 
 	@Test
