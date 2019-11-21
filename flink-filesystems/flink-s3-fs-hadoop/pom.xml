@@ -49,6 +49,15 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>${jaxb.api.version}</version>
+			<!-- packaged in flink-dist-->
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- for the behavior test suite -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -126,47 +135,5 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
-	<profiles>
-		<profile>
-			<id>java11</id>
-			<activation>
-				<jdk>11</jdk>
-			</activation>
-			<dependencies>
-				<dependency>
-					<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
-					<groupId>javax.xml.bind</groupId>
-					<artifactId>jaxb-api</artifactId>
-					<version>2.3.0</version>
-				</dependency>
-			</dependencies>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-shade-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>shade-flink</id>
-								<phase>package</phase>
-								<goals>
-									<goal>shade</goal>
-								</goals>
-								<configuration>
-									<relocations combine.children="append">
-										<relocation>
-											<pattern>javax.xml.bind</pattern>
-											<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.javax.xml.bind</shadedPattern>
-										</relocation>
-									</relocations>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 
 </project>
