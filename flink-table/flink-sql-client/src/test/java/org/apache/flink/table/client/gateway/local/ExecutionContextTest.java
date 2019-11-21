@@ -20,22 +20,17 @@ package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
@@ -68,7 +63,7 @@ public class ExecutionContextTest {
 	@Test
 	public void testExecutionConfig() throws Exception {
 		final ExecutionContext<?> context = createDefaultExecutionContext();
-		final ExecutionConfig config = context.createEnvironmentInstance().getExecutionConfig();
+		final ExecutionConfig config = context.getExecutionConfig();
 
 		assertEquals(99, config.getAutoWatermarkInterval());
 
@@ -84,7 +79,7 @@ public class ExecutionContextTest {
 	@Test
 	public void testModules() throws Exception {
 		final ExecutionContext<?> context = createModuleExecutionContext();
-		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		Set<String> allModules = new HashSet<>(Arrays.asList(tableEnv.listModules()));
 		assertEquals(2, allModules.size());
@@ -105,7 +100,7 @@ public class ExecutionContextTest {
 		final String hiveDefaultVersionCatalog = "hivedefaultversion";
 
 		final ExecutionContext<?> context = createCatalogExecutionContext();
-		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		assertEquals(inmemoryCatalog, tableEnv.getCurrentCatalog());
 		assertEquals("mydatabase", tableEnv.getCurrentDatabase());
@@ -146,7 +141,7 @@ public class ExecutionContextTest {
 		final String hiveCatalog = "hivecatalog";
 
 		final ExecutionContext<?> context = createCatalogExecutionContext();
-		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		assertEquals(1, tableEnv.listDatabases().length);
 		assertEquals("mydatabase", tableEnv.listDatabases()[0]);
@@ -175,7 +170,7 @@ public class ExecutionContextTest {
 	@Test
 	public void testFunctions() throws Exception {
 		final ExecutionContext<?> context = createDefaultExecutionContext();
-		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		final String[] expected = new String[]{"scalarudf", "tableudf", "aggregateudf"};
 		final String[] actual = tableEnv.listUserDefinedFunctions();
 		Arrays.sort(expected);
@@ -186,42 +181,7 @@ public class ExecutionContextTest {
 	@Test
 	public void testTables() throws Exception {
 		final ExecutionContext<?> context = createDefaultExecutionContext();
-		final Map<String, TableSource<?>> sources = context.getTableSources();
-		final Map<String, TableSink<?>> sinks = context.getTableSinks();
-
-		assertEquals(
-			new HashSet<>(Arrays.asList("TableSourceSink", "TableNumber1", "TableNumber2")),
-			sources.keySet());
-
-		assertEquals(
-			new HashSet<>(Collections.singletonList("TableSourceSink")),
-			sinks.keySet());
-
-		assertArrayEquals(
-			new String[]{"IntegerField1", "StringField1"},
-			sources.get("TableNumber1").getTableSchema().getFieldNames());
-
-		assertArrayEquals(
-			new TypeInformation[]{Types.INT(), Types.STRING()},
-			sources.get("TableNumber1").getTableSchema().getFieldTypes());
-
-		assertArrayEquals(
-			new String[]{"IntegerField2", "StringField2"},
-			sources.get("TableNumber2").getTableSchema().getFieldNames());
-
-		assertArrayEquals(
-			new TypeInformation[]{Types.INT(), Types.STRING()},
-			sources.get("TableNumber2").getTableSchema().getFieldTypes());
-
-		assertArrayEquals(
-			new String[]{"BooleanField", "StringField"},
-			sinks.get("TableSourceSink").getTableSchema().getFieldNames());
-
-		assertArrayEquals(
-			new TypeInformation[]{Types.BOOLEAN(), Types.STRING()},
-			sinks.get("TableSourceSink").getTableSchema().getFieldTypes());
-
-		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		assertArrayEquals(
 			new String[]{"TableNumber1", "TableNumber2", "TableSourceSink", "TestView1", "TestView2"},
@@ -231,12 +191,7 @@ public class ExecutionContextTest {
 	@Test
 	public void testTemporalTables() throws Exception {
 		final ExecutionContext<?> context = createStreamingExecutionContext();
-
-		assertEquals(
-			new HashSet<>(Arrays.asList("EnrichmentSource", "HistorySource")),
-			context.getTableSources().keySet());
-
-		final StreamTableEnvironment tableEnv = (StreamTableEnvironment) context.createEnvironmentInstance().getTableEnvironment();
+		final StreamTableEnvironment tableEnv = (StreamTableEnvironment) context.getTableEnvironment();
 
 		assertArrayEquals(
 			new String[]{"EnrichmentSource", "HistorySource", "HistoryView", "TemporalTableUsage"},
@@ -254,7 +209,7 @@ public class ExecutionContextTest {
 	@Test
 	public void testConfiguration() throws Exception {
 		final ExecutionContext<?> context = createConfigurationExecutionContext();
-		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		assertEquals(
 			100,
@@ -291,11 +246,9 @@ public class ExecutionContextTest {
 		final Environment env = EnvironmentFileUtil.parseModified(
 			file,
 			replaceVars);
-		final SessionContext session = new SessionContext("test-session", new Environment());
 		final Configuration flinkConfig = new Configuration();
 		return new ExecutionContext<>(
 			env,
-			session,
 			Collections.emptyList(),
 			flinkConfig,
 			new Options(),

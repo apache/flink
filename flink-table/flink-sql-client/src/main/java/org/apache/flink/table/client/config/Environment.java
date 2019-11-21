@@ -266,6 +266,10 @@ public class Environment {
 		return mergedEnv;
 	}
 
+	public Environment clone() {
+		return enrich(this, Collections.emptyMap(), Collections.emptyMap());
+	}
+
 	/**
 	 * Enriches an environment with new/modified properties or views and returns the new instance.
 	 */

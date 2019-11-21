@@ -538,7 +538,6 @@ public class CliClient {
 		try {
 			// perform and validate change
 			executor.addView(sessionId, name, query);
-			executor.validateSession(sessionId);
 			printInfo(CliStrings.MESSAGE_VIEW_CREATED);
 		} catch (SqlExecutionException e) {
 			// rollback change
@@ -558,7 +557,6 @@ public class CliClient {
 		try {
 			// perform and validate change
 			executor.removeView(sessionId, name);
-			executor.validateSession(sessionId);
 			printInfo(CliStrings.MESSAGE_VIEW_REMOVED);
 		} catch (SqlExecutionException e) {
 			// rollback change

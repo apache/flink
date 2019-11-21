@@ -24,7 +24,6 @@ import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 
 import org.slf4j.Logger;
@@ -97,15 +96,15 @@ public class SqlClient {
 
 			// Open an new session
 			String sessionId = executor.openSession(context);
+			try {
+				// add shutdown hook
+				Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(sessionId, executor));
 
-			// validate the environment (defaults and session)
-			validateEnvironment(sessionId, executor);
-
-			// add shutdown hook
-			Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(sessionId, executor));
-
-			// do the actual work
-			openCli(sessionId, executor);
+				// do the actual work
+				openCli(sessionId, executor);
+			} finally {
+				executor.closeSession(sessionId);
+			}
 		} else {
 			throw new SqlClientException("Gateway mode is not supported yet.");
 		}
@@ -140,17 +139,6 @@ public class SqlClient {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	private static void validateEnvironment(String sessionId, Executor executor) {
-		System.out.print("Validating current environment...");
-		try {
-			executor.validateSession(sessionId);
-			System.out.println("done.");
-		} catch (SqlExecutionException e) {
-			throw new SqlClientException(
-				"The configured environment is invalid. Please check your environment files again.", e);
-		}
-	}
 
 	private static Environment readSessionEnvironment(URL envUrl) {
 		// use an empty environment by default
@@ -214,7 +202,7 @@ public class SqlClient {
 
 	// --------------------------------------------------------------------------------------------
 
-	private class EmbeddedShutdownThread extends Thread {
+	private static class EmbeddedShutdownThread extends Thread {
 
 		private final String sessionId;
 		private final Executor executor;

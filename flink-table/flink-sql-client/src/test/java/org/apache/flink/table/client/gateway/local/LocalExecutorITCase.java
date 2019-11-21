@@ -139,11 +139,8 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		executor.validateSession(sessionId);
-
 		executor.addView(sessionId, "AdditionalView1", "SELECT 1");
 		executor.addView(sessionId, "AdditionalView2", "SELECT * FROM AdditionalView1");
-		executor.validateSession(sessionId);
 
 		List<String> actualTables = executor.listTables(sessionId);
 		List<String> expectedTables = Arrays.asList(
@@ -156,16 +153,16 @@ public class LocalExecutorITCase extends TestLogger {
 			"TestView2");
 		assertEquals(expectedTables, actualTables);
 
-		executor.removeView(sessionId, "AdditionalView1");
 		try {
-			executor.validateSession(sessionId);
+			executor.removeView(sessionId, "AdditionalView1");
 			fail();
 		} catch (SqlExecutionException e) {
 			// AdditionalView2 needs AdditionalView1
 		}
 
 		executor.removeView(sessionId, "AdditionalView2");
-		executor.validateSession(sessionId);
+
+		executor.removeView(sessionId, "AdditionalView1");
 
 		actualTables = executor.listTables(sessionId);
 		expectedTables = Arrays.asList(
@@ -250,11 +247,11 @@ public class LocalExecutorITCase extends TestLogger {
 	public void testGetSessionProperties() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
-		session.setSessionProperty("execution.result-mode", "changelog");
-
 		// Open the session and get the sessionId.
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
+		executor.setSessionProperty(sessionId, "execution.result-mode", "changelog");
+		assertEquals(executor.getSessionProperties(sessionId).get("execution.result-mode"), "changelog");
 
 		// modify defaults
 		executor.setSessionProperty(sessionId, "execution.result-mode", "table");

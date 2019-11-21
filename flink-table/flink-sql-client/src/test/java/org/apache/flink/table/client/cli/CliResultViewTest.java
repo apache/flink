@@ -249,11 +249,6 @@ public class CliResultViewTest {
 		public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
 			return null;
 		}
-
-		@Override
-		public void validateSession(String sessionId) throws SqlExecutionException {
-			// do nothing
-		}
 	}
 
 	private static final class TestingCliResultView implements Runnable {

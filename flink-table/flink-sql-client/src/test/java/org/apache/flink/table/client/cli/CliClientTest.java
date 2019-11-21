@@ -353,10 +353,5 @@ public class CliClientTest extends TestLogger {
 			}
 			return new ProgramTargetDescriptor("testClusterId", "testJobId", "http://testcluster:1234");
 		}
-
-		@Override
-		public void validateSession(String sessionId) throws SqlExecutionException {
-			// nothing to do
-		}
 	}
 }

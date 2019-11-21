@@ -43,6 +43,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.TableEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -59,6 +60,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
 import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
@@ -196,11 +199,28 @@ public class LocalExecutor implements Executor {
 		// nothing to do yet
 	}
 
+	/**
+	 * Create a new {@link ExecutionContext} by merging the default environment the the environment in session context.
+	 */
 	private ExecutionContext<?> createExecutionContext(SessionContext sessionContext) {
+		return createExecutionContext(defaultEnvironment, sessionContext.getSessionEnv());
+	}
+
+	/**
+	 * Create a new {@link ExecutionContext} by merging the default environment and session environment.
+	 */
+	private ExecutionContext<?> createExecutionContext(Environment defaultEnv, Environment sessionEnv) {
+		Environment mergedEnv = Environment.merge(defaultEnv, sessionEnv);
+		return createExecutionContext(mergedEnv);
+	}
+
+	/**
+	 * Create a new {@link ExecutionContext} by using the given environment.
+	 */
+	private ExecutionContext<?> createExecutionContext(Environment environment) {
 		try {
 			return new ExecutionContext<>(
-				defaultEnvironment,
-				sessionContext,
+				environment,
 				dependencies,
 				flinkConfig,
 				clusterClientServiceLoader,
@@ -214,10 +234,9 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public String openSession(SessionContext sessionContext) throws SqlExecutionException {
-		ExecutionContext previousContext = this.contextMap.putIfAbsent(
-			sessionContext.getSessionId(),
-			createExecutionContext(sessionContext));
-		if (previousContext != null && !sessionContext.equals(previousContext.getSessionContext())) {
+		String sessionId = sessionContext.getSessionId();
+		ExecutionContext previousContext = this.contextMap.putIfAbsent(sessionId, createExecutionContext(sessionContext));
+		if (previousContext != null) {
 			throw new SqlExecutionException("Found another session with the same session identifier: " + sessionContext.getSessionId());
 		}
 		return sessionContext.getSessionId();
@@ -232,22 +251,24 @@ public class LocalExecutor implements Executor {
 				// ignore any throwable to keep the clean up running
 			}
 		});
+		// Remove the session's ExecutionContext from contextMap.
+		this.contextMap.remove(sessionId);
 	}
 
 	/**
-	 * Creates or reuses the execution context.
+	 * Get the existed {@link ExecutionContext} from contextMap, or thrown exception if does not exist.
 	 */
 	private ExecutionContext<?> getExecutionContext(String sessionId) throws SqlExecutionException {
 		ExecutionContext<?> context = this.contextMap.get(sessionId);
 		if (context == null) {
-			throw new IllegalArgumentException("Invalid session identifier: " + sessionId);
+			throw new SqlExecutionException("Invalid session identifier: " + sessionId);
 		}
 		return context;
 	}
 
 	@Override
 	public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
-		final Environment env = getExecutionContext(sessionId).getMergedEnvironment();
+		final Environment env = getExecutionContext(sessionId).getEnvironment();
 		final Map<String, String> properties = new HashMap<>();
 		properties.putAll(env.getExecution().asTopLevelMap());
 		properties.putAll(env.getDeployment().asTopLevelMap());
@@ -257,105 +278,97 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public void resetSessionProperties(String sessionId) throws SqlExecutionException {
-		SessionContext sessionContext = getExecutionContext(sessionId).getSessionContext();
-		sessionContext.resetSessionProperties();
-		// Renew the ExecutionContext.
-		this.contextMap.put(sessionId, createExecutionContext(sessionContext));
+		// Renew the ExecutionContext by using the default environment.
+		this.contextMap.put(sessionId, createExecutionContext(defaultEnvironment));
 	}
 
 	@Override
 	public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
-		SessionContext sessionContext = getExecutionContext(sessionId).getSessionContext();
-		sessionContext.setSessionProperty(key, value);
-		// Renew the ExecutionContext.
-		this.contextMap.put(sessionId, createExecutionContext(sessionContext));
+		Environment env = getExecutionContext(sessionId).getEnvironment();
+		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
+		// Renew the ExecutionContext by merging the default environment and new environment.
+		this.contextMap.put(sessionId, createExecutionContext(defaultEnvironment, newEnv));
 	}
 
 	@Override
 	public void addView(String sessionId, String name, String query) throws SqlExecutionException {
-		SessionContext sessionContext = getExecutionContext(sessionId).getSessionContext();
-		sessionContext.addView(ViewEntry.create(name, query));
+		Environment env = getExecutionContext(sessionId).getEnvironment();
+		Environment newEnv = Environment.enrich(
+			env,
+			ImmutableMap.of(),
+			ImmutableMap.of(name, ViewEntry.create(name, query)));
 		// Renew the ExecutionContext.
-		this.contextMap.put(sessionId, createExecutionContext(sessionContext));
+		this.contextMap.put(sessionId, createExecutionContext(defaultEnvironment, newEnv));
 	}
 
 	@Override
 	public void removeView(String sessionId, String name) throws SqlExecutionException {
-		SessionContext sessionContext = getExecutionContext(sessionId).getSessionContext();
-		sessionContext.removeView(name);
-		// Renew the ExecutionContext.
-		this.contextMap.put(sessionId, createExecutionContext(sessionContext));
+		Environment env = getExecutionContext(sessionId).getEnvironment();
+		Environment newEnv = env.clone();
+		if (newEnv.getTables().remove(name) != null) {
+			// Renew the ExecutionContext.
+			this.contextMap.put(sessionId, createExecutionContext(defaultEnvironment, newEnv));
+		}
 	}
 
 	@Override
 	public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
-		return getExecutionContext(sessionId).getSessionContext().getViews();
+		Map<String, ViewEntry> views = new HashMap<>();
+		Map<String, TableEntry> tables = getExecutionContext(sessionId).getEnvironment().getTables();
+		for (Map.Entry<String, TableEntry> entry : tables.entrySet()) {
+			if (entry.getValue() instanceof ViewEntry) {
+				views.put(entry.getKey(), (ViewEntry) entry.getValue());
+			}
+		}
+		return views;
 	}
 
 	@Override
 	public List<String> listCatalogs(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
-
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listCatalogs()));
 	}
 
 	@Override
 	public List<String> listDatabases(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
-
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listDatabases()));
 	}
 
 	@Override
 	public List<String> listTables(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listTables()));
 	}
 
 	@Override
 	public List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listUserDefinedFunctions()));
 	}
 
 	@Override
 	public List<String> listFunctions(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listFunctions()));
 	}
 
 	@Override
 	public List<String> listModules(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listModules()));
 	}
 
 	@Override
 	public void useCatalog(String sessionId, String catalogName) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		context.wrapClassLoader(() -> {
 			// Rely on TableEnvironment/CatalogManager to validate input
@@ -364,8 +377,6 @@ public class LocalExecutor implements Executor {
 			} catch (CatalogException e) {
 				throw new SqlExecutionException("Failed to switch to catalog " + catalogName, e);
 			}
-			context.getSessionContext().setCurrentCatalog(catalogName);
-			context.getSessionContext().setCurrentDatabase(tableEnv.getCurrentDatabase());
 			return null;
 		});
 	}
@@ -373,9 +384,7 @@ public class LocalExecutor implements Executor {
 	@Override
 	public void useDatabase(String sessionId, String databaseName) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		context.wrapClassLoader(() -> {
 			// Rely on TableEnvironment/CatalogManager to validate input
@@ -384,7 +393,6 @@ public class LocalExecutor implements Executor {
 			} catch (CatalogException e) {
 				throw new SqlExecutionException("Failed to switch to database " + databaseName, e);
 			}
-			context.getSessionContext().setCurrentDatabase(databaseName);
 			return null;
 		});
 	}
@@ -392,9 +400,7 @@ public class LocalExecutor implements Executor {
 	@Override
 	public TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		try {
 			return context.wrapClassLoader(() -> tableEnv.scan(name).getSchema());
 		} catch (Throwable t) {
@@ -406,10 +412,7 @@ public class LocalExecutor implements Executor {
 	@Override
 	public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
-
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 		// translate
 		try {
 			final Table table = createTable(context, tableEnv, statement);
@@ -423,9 +426,7 @@ public class LocalExecutor implements Executor {
 	@Override
 	public List<String> completeStatement(String sessionId, String statement, int position) {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context
-			.createEnvironmentInstance()
-			.getTableEnvironment();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		try {
 			return context.wrapClassLoader(() ->
@@ -442,7 +443,7 @@ public class LocalExecutor implements Executor {
 	@Override
 	public ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		return executeQueryInternal(context, query);
+		return executeQueryInternal(sessionId, context, query);
 	}
 
 	@Override
@@ -493,13 +494,7 @@ public class LocalExecutor implements Executor {
 	@Override
 	public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		return executeUpdateInternal(context, statement);
-	}
-
-	@Override
-	public void validateSession(String sessionId) throws SqlExecutionException {
-		// throws exceptions if an environment cannot be created with the given session context
-		getExecutionContext(sessionId).createEnvironmentInstance();
+		return executeUpdateInternal(sessionId, context, statement);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -544,16 +539,17 @@ public class LocalExecutor implements Executor {
 		}
 	}
 
-	private <C> ProgramTargetDescriptor executeUpdateInternal(ExecutionContext<C> context, String statement) {
-		final ExecutionContext<C>.EnvironmentInstance envInst = context.createEnvironmentInstance();
-
-		applyUpdate(context, envInst.getTableEnvironment(), envInst.getQueryConfig(), statement);
+	private <C> ProgramTargetDescriptor executeUpdateInternal(
+		String sessionId,
+		ExecutionContext<C> context,
+		String statement) {
+		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
 
 		// create job graph with dependencies
-		final String jobName = context.getSessionContext().getSessionId() + ": " + statement;
+		final String jobName = sessionId + ": " + statement;
 		final JobGraph jobGraph;
 		try {
-			jobGraph = envInst.createJobGraph(jobName);
+			jobGraph = context.createJobGraph(jobName);
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
@@ -573,31 +569,29 @@ public class LocalExecutor implements Executor {
 			result.getWebInterfaceUrl());
 	}
 
-	private <C> ResultDescriptor executeQueryInternal(ExecutionContext<C> context, String query) {
-		final ExecutionContext<C>.EnvironmentInstance envInst = context.createEnvironmentInstance();
-
+	private <C> ResultDescriptor executeQueryInternal(String sessionId, ExecutionContext<C> context, String query) {
 		// create table
-		final Table table = createTable(context, envInst.getTableEnvironment(), query);
+		final Table table = createTable(context, context.getTableEnvironment(), query);
 
 		// initialize result
 		final DynamicResult<C> result = resultStore.createResult(
-			context.getMergedEnvironment(),
+			context.getEnvironment(),
 			removeTimeAttributes(table.getSchema()),
-			envInst.getExecutionConfig());
+			context.getExecutionConfig());
 
 		// create job graph with dependencies
-		final String jobName = context.getSessionContext().getSessionId() + ": " + query;
+		final String jobName = sessionId + ": " + query;
 		final JobGraph jobGraph;
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
-				envInst.getTableEnvironment().registerTableSink(jobName, result.getTableSink());
+				context.getTableEnvironment().registerTableSink(jobName, result.getTableSink());
 				table.insertInto(
-					envInst.getQueryConfig(),
+					context.getQueryConfig(),
 					jobName);
 				return null;
 			});
-			jobGraph = envInst.createJobGraph(jobName);
+			jobGraph = context.createJobGraph(jobName);
 		} catch (Throwable t) {
 			// the result needs to be closed as long as
 			// it not stored in the result store

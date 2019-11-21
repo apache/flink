@@ -194,9 +194,4 @@ public interface Executor {
 	 * @return information about the target of the submitted Flink job
 	 */
 	ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException;
-
-	/**
-	 * Validates the current session. For example, it checks whether all views are still valid.
-	 */
-	void validateSession(String sessionId) throws SqlExecutionException;
 }

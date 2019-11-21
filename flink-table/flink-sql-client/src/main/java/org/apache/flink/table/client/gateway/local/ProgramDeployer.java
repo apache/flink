@@ -73,7 +73,7 @@ public class ProgramDeployer<C> implements Runnable {
 		LOG.info("Submitting job {} for query {}`", jobGraph.getJobID(), jobName);
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Submitting job {} with the following environment: \n{}",
-					jobGraph.getJobID(), context.getMergedEnvironment());
+					jobGraph.getJobID(), context.getEnvironment());
 		}
 		deployJob(context, jobGraph, result);
 	}
