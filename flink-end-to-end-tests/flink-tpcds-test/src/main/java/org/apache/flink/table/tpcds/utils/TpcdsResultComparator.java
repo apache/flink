@@ -93,8 +93,8 @@ public class TpcdsResultComparator {
 				// reslut top 8 line of query 34,
 				// result line  2、3  0f query 77
 				// result line 18、 19 of query 79
-				// have different order, because of Flink keep nulls last for DESC, nulls first for ASC.
-				// it's up to standard.
+				// have different order with answer set, because of Flink keep nulls last for DESC, nulls first for ASC.
+				// it's up to TPC-DS standard.
 				if ("34.ans".equals(expectedFile.getName()) && expectedLineNum == 1) {
 					List<String> expectedTop8Line = new ArrayList<>(8);
 					List<String> actualTop8Line = new ArrayList<>(8);

@@ -37,14 +37,23 @@ public class CatalogTableStats {
 	}
 
 	public void register2Catalog(TableEnvironment tEnv, String table) {
-		try {
-			tEnv.getCatalog(tEnv.getCurrentCatalog()).get()
-				.alterTableStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogTableStatistics, false);
-			tEnv.getCatalog(tEnv.getCurrentCatalog()).get()
-				.alterTableColumnStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogColumnStatistics, false);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+
+		tEnv.getCatalog(tEnv.getCurrentCatalog())
+			.ifPresent(catalog -> {
+				try {
+					catalog.alterTableStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogTableStatistics, false);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			});
+		tEnv.getCatalog(tEnv.getCurrentCatalog())
+			.ifPresent(catalog -> {
+				try {
+					catalog.alterTableColumnStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogColumnStatistics, false);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			});
 	}
 }
 

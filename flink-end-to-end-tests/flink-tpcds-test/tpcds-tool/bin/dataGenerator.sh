@@ -24,7 +24,7 @@
 set -Eeuo pipefail
 
 if [ $# -lt 2 ]; then
-	echo "[ERROR] Insufficient params, need 2 parameters: <scaleFactor>  <outputDataDir>"
+	echo "[ERROR] `date +%H:%M:%S` Insufficient params, need 2 parameters: <scaleFactor>  <outputDataDir>"
 	exit 127
 fi
 
@@ -43,17 +43,24 @@ workDir=`pwd`
 
 # Obtain OS from shell
 if [[ "$OS_TYPE" == "mac" ]]; then
-    echo "[INFO] Current OS: Mac OS X OS"
-    echo "[INFO] Generating TPC-DS qualification data, this need several minutes, please wait..."
+    echo "[INFO] `date +%H:%M:%S` Current OS: Mac OS X OS"
+    echo "[INFO] `date +%H:%M:%S` Download data generator from github..."
+    #TODO download form ververica github account
+    echo "[INFO] `date +%H:%M:%S` Download data generator from success."
+    echo "[INFO] `date +%H:%M:%S` Generating TPC-DS qualification data, this need several minutes, please wait..."
+
     $workDir/dsdgen_macos -SCALE $scale_factor -FORCE Y -DIR $data_dir
 elif  [[ "$OS_TYPE" == "linux" ]]; then
-    echo "[INFO] Current OS: GNU/Linux OS"
-    echo "[INFO] Generating TPC-DS qualification data, this need several minutes, please wait..."
+    echo "[INFO] `date +%H:%M:%S` Current OS: GNU/Linux OS"
+    echo "[INFO] `date +%H:%M:%S` Download data generator from github..."
+    #TODO download form ververica github account
+    echo "[INFO] `date +%H:%M:%S` Download data generator from success."
+    echo "[INFO] `date +%H:%M:%S` Generating TPC-DS qualification data, this need several minutes, please wait..."
     $workDir/dsdgen_linux -SCALE $scale_factor -FORCE Y -DIR $data_dir
 else
-    echo "[ERROR] Unsupported OS, only support Mac OS、Linux."
+    echo "[ERROR] `date +%H:%M:%S` Unsupported OS, only support Mac OS、Linux."
     exit 127
 fi
 
-echo "[INFO] Generate TPC-DS qualification data success."
+echo "[INFO] `date +%H:%M:%S` Generate TPC-DS qualification data success."
 

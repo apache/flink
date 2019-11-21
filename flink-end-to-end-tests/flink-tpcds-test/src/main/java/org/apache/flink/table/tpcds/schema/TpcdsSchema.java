@@ -24,19 +24,17 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** Class to define table schema of TPS-DS table. */
-public class TpcdsSchema implements Schema {
+public class TpcdsSchema {
 	List<Column> columns;
 
 	public TpcdsSchema(List<Column> columns) {
 		this.columns = columns;
 	}
 
-	@Override
 	public List<String> getFieldNames() {
 		return columns.stream().map(column -> column.getName()).collect(Collectors.toList());
 	}
 
-	@Override
 	public List<DataType> getFieldTypes() {
 		return columns.stream().map(column -> column.getDataType()).collect(Collectors.toList());
 	}

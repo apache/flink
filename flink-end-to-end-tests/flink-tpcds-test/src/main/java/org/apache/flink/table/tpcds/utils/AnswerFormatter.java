@@ -53,11 +53,12 @@ public class AnswerFormatter {
 	private static final String COL_DELIMITER = "|";
 	private static final String ANSWER_FILE_SUFFIX = ".ans";
 	private static final String REGEX_SPLIT_BAR = "\\|";
+	private static final String FILE_SEPARATOR = "/";
 
 	/**
 	 * 1.flink keeps NULLS_FIRST in ASC order, keeps NULLS_LAST in DESC order,
 	 * choose corresponding answer set file here.
-	 * 2.for query 8、14a、18、70、77, decimal precision of answer set is to low
+	 * 2.for query 8、14a、18、70、77, decimal precision of answer set is too low
 	 * and unreasonable, compare result with result from SQL server, they can
 	 * strictly match.
 	 */
@@ -84,33 +85,19 @@ public class AnswerFormatter {
 			String file = ORIGIN_ANSWER_FILE.get(i);
 			String originFileName = file + ANSWER_FILE_SUFFIX;
 			String destFileName = file.split("_")[0] + ANSWER_FILE_SUFFIX;
-			File originFIle = new File(originDir + "/" + originFileName);
-			File destFile = new File(destDir + "/" + destFileName);
-			convert(originFIle, destFile);
+			File originFIle = new File(originDir + FILE_SEPARATOR + originFileName);
+			File destFile = new File(destDir + FILE_SEPARATOR + destFileName);
+			format(originFIle, destFile);
 		}
 	}
 
 	/**
 	 * TPC-DS answer set has three kind of formats, recognize them and convert to unified format.
-	 *<p>format 1:
-	 * CUSTOMER_ID     |CUSTOMER_FIRST_NAME |CUSTOMER_LAST_NAME            |C
-	 * ----------------|--------------------|------------------------------|-
-	 * AAAAAAAAAFGBBAAA|Howard              |Major                         |Y
-	 *</p>
-	 * <p>format 2:
-	 * CUSTOMER_ID      CUSTOMER_FIRST_NAME  CUSTOMER_LAST_NAME             C
-	 * ---------------- -------------------- ------------------------------ -
-	 * AAAAAAAAAFGBBAAA Howard               Major                          Y
-	 * </p>
-	 * <p>format 3:
-	 * CUSTOMER_ID|CUSTOMER_FIRST_NAME|CUSTOMER_LAST_NAME|C
-	 * AAAAAAAAAFGBBAAA|Howard|Major|Y
-	 *</p>
-	 * @param originFile
-	 * @param destFile
+	 * @param originFile origin answer set file from TPC-DS.
+	 * @param destFile file to save formatted answer set.
 	 * @throws Exception
 	 */
-	private static void convert(File originFile, File destFile) throws Exception {
+	private static void format(File originFile, File destFile) throws Exception {
 		BufferedReader reader = new BufferedReader(new FileReader(originFile));
 		BufferedWriter writer = new BufferedWriter(new FileWriter(destFile));
 
@@ -134,20 +121,20 @@ public class AnswerFormatter {
 		} else {
 			writeContent(reader, writer, content, null);
 		}
+
+		reader.close();
+		writer.close();
 	}
 
 	private static Boolean isFormat1(List<String> content) {
-		if (content.size() > 1 && content.get(1).contains(RESULT_HEAD_STRING_DASH)) {
-			return content.get(0).contains(RESULT_HEAD_STRING_BAR);
-		}
-		return false;
+		return content.size() > 1
+			&& content.get(0).contains(RESULT_HEAD_STRING_BAR)
+			&& content.get(1).contains(RESULT_HEAD_STRING_DASH);
 	}
 
 	private static Boolean isFormat2(List<String> content) {
-		if (content.size() > 1 && content.get(1).contains(RESULT_HEAD_STRING_DASH)) {
-			return true;
-		}
-		return false;
+		return content.size() > 1
+			&& content.get(1).contains(RESULT_HEAD_STRING_DASH);
 	}
 
 	private static String formatRow(String row, List<Integer> colLengthList) {
@@ -160,14 +147,11 @@ public class AnswerFormatter {
 			} else {
 				start = end + SPACE_BETWEEN_COL;
 			}
-			end = start + colLengthList.get(i);
-			end = end < row.length() ? end : row.length();
-			try {
-				sb.append(row.substring(start, end).trim());
-			} catch (Exception e) {
-				e.getMessage();
-				sb.append("");
-			}
+
+			start = start < row.length() ? start : row.length();
+			end = (start + colLengthList.get(i)) < row.length() ? (start + colLengthList.get(i)) : row.length();
+			sb.append(row.substring(start, end).trim());
+
 			if (i != colLengthList.size() - 1) {
 				sb.append(COL_DELIMITER);
 			}
@@ -191,7 +175,6 @@ public class AnswerFormatter {
 		else {
 			for (int i = 1; i < content.size(); i++) {
 				if (i == (content.size() - 1) && content.get(i).endsWith("rows)")) {
-					System.out.println(content.get(i));
 					break;
 				} else {
 					String formattedLine = content.get(i);
@@ -200,7 +183,5 @@ public class AnswerFormatter {
 				}
 			}
 		}
-		reader.close();
-		writer.close();
 	}
 }

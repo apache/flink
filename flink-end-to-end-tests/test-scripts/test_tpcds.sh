@@ -29,6 +29,8 @@ source "$(dirname "$0")"/common.sh
 ################################################################################
 TPCDS_BIN_DIR="$END_TO_END_DIR/flink-tpcds-test/tpcds-tool/bin"
 ORGIN_ANSWER_DIR="$END_TO_END_DIR/flink-tpcds-test/tpcds-tool/answer_set"
+TPCDS_QUERY_DIR="$END_TO_END_DIR/flink-tpcds-test/tpcds-tool/query"
+
 TARGET_DIR="$END_TO_END_DIR/flink-tpcds-test/target"
 
 TPCDS_DATA_DIR="$TARGET_DIR/table"
@@ -42,18 +44,6 @@ ${TPCDS_BIN_DIR}/dataGenerator.sh "$SCALE" "$TPCDS_DATA_RELATIVE_DIR"
 cd "$END_TO_END_DIR"
 
 ################################################################################
-# Generate test query
-################################################################################
-TPCDS_QUERY_DIR="$TARGET_DIR/query"
-mkdir -p "$TPCDS_QUERY_DIR"
-
-cd "$TPCDS_BIN_DIR"
-TPCDS_QUERY_RELATIVE_DIR="../../target/query"
-
-$TPCDS_BIN_DIR/queryGenerator.sh "$SCALE" "$TPCDS_QUERY_RELATIVE_DIR"
-cd "$END_TO_END_DIR"
-
-################################################################################
 # Prepare Flink
 ################################################################################
 
@@ -63,6 +53,7 @@ set_config_key "taskmanager.heap.size" "4096m"
 set_config_key "taskmanager.numberOfTaskSlots" "4"
 set_config_key "parallelism.default" "4"
 start_cluster
+
 
 ################################################################################
 # Run TPC-DS SQL

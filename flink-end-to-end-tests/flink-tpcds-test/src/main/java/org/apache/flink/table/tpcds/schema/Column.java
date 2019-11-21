@@ -23,12 +23,10 @@ import org.apache.flink.table.types.DataType;
 /** Class to define column schema of TPS-DS table. */
 public class Column {
 	private String name;
-	private int index;
 	private DataType dataType;
 
-	public Column(String name, int index, DataType dataType) {
+	public Column(String name, DataType dataType) {
 		this.name = name;
-		this.index = index;
 		this.dataType = dataType;
 	}
 

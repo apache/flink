@@ -21,8 +21,6 @@ package org.apache.flink.table.tpcds;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
-import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
@@ -31,18 +29,13 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.planner.calcite.CalciteConfig;
-import org.apache.flink.table.planner.calcite.CalciteConfigBuilder;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.CsvTableSource;
-import org.apache.flink.table.tpcds.schema.Schema;
+import org.apache.flink.table.tpcds.schema.TpcdsSchema;
 import org.apache.flink.table.tpcds.schema.TpcdsSchemaProvider;
 import org.apache.flink.table.tpcds.stats.TpcdsStatsProvider;
 import org.apache.flink.table.types.utils.TypeConversions;
-
-import org.apache.calcite.config.Lex;
-import org.apache.calcite.sql.parser.SqlParser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -137,20 +130,6 @@ public class TpcdsTestProgram {
 			.build();
 		TableEnvironment tEnv = TableEnvironment.create(environmentSettings);
 
-		//ignore case in sql
-		SqlParser.Config sqlParserConfig = SqlParser
-			.configBuilder()
-			.setParserFactory(FlinkSqlParserImpl.FACTORY)
-			.setConformance(FlinkSqlConformance.DEFAULT)
-			.setLex(Lex.JAVA)
-			.setCaseSensitive(false)
-			.setIdentifierMaxLength(256)
-			.build();
-		CalciteConfig newCalciteConfig = new CalciteConfigBuilder()
-			.replaceSqlParserConfig(sqlParserConfig)
-			.build();
-		tEnv.getConfig().setPlannerConfig(newCalciteConfig);
-
 		//config Optimizer parameters
 		tEnv.getConfig().getConfiguration()
 			.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.BATCH.toString());
@@ -161,13 +140,15 @@ public class TpcdsTestProgram {
 		tEnv.getConfig().getConfiguration()
 			.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY, "32 mb");
 		tEnv.getConfig().getConfiguration()
+			.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
+		tEnv.getConfig().getConfiguration()
 			.setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 10 * 1024 * 1024);
 		tEnv.getConfig().getConfiguration()
 			.setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
 		//register TPC-DS tables
 		TCPDS_TABLES.forEach(table -> {
-			Schema schema = TpcdsSchemaProvider.getTpcdsSchema(table);
+			TpcdsSchema schema = TpcdsSchemaProvider.getTableSchema(table);
 			CsvTableSource.Builder builder = CsvTableSource.builder();
 			builder.path(sourceTablePath + FILE_SEPARATOR + table + DATA_SUFFIX);
 			for (int i = 0; i < schema.getFieldNames().size(); i++) {
