@@ -125,27 +125,6 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	}
 
 	@Test
-	public void testCorrectSettingOfDetachedMode() throws Exception {
-		String[] params =
-			new String[] {"-yd"};
-
-		FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
-			new Configuration(),
-			tmp.getRoot().getAbsolutePath(),
-			"y",
-			"yarn");
-
-		final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
-
-		final Configuration executorConfig = yarnCLI.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
-		final YarnClusterDescriptor descriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
-
-		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
-		assertTrue(descriptor.isDetachedMode());
-	}
-
-	@Test
 	public void testZookeeperNamespaceProperty() throws Exception {
 		String zkNamespaceCliInput = "flink_test_namespace";
 
