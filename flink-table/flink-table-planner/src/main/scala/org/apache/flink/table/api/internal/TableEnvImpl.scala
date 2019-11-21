@@ -36,9 +36,11 @@ import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
+
 import _root_.java.util.function.{Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
@@ -487,7 +489,7 @@ abstract class TableEnvImpl(
         catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
       case _ => throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-          "type INSERT, CREATE TABLE, DROP TABLE")
+          "type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG")
     }
   }
 

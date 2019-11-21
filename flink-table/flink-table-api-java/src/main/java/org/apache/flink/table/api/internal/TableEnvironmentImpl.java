@@ -477,11 +477,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof UseCatalogOperation) {
 			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
 			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
-		}
-		else {
+		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE");
+					"type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG");
 		}
 	}
 
