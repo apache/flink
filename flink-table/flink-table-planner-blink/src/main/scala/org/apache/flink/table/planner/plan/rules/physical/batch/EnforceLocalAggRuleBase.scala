@@ -46,7 +46,7 @@ abstract class EnforceLocalAggRuleBase(
     operand: RelOptRuleOperand,
     description: String)
   extends RelOptRule(operand, description)
-    with BatchExecAggRuleBase {
+  with BatchExecAggRuleBase {
 
   protected def getBatchExecExpand(call: RelOptRuleCall): BatchExecExpand
 
