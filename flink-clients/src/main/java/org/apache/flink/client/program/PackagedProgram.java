@@ -125,25 +125,16 @@ public class PackagedProgram {
 
 		checkArgument(jarFile != null || entryPointClassName != null, "Either the jarFile or the entryPointClassName needs to be non-null.");
 
-		// Whether the job is a Python job.
+		// whether the job is a Python job.
 		this.isPython = isPython(entryPointClassName);
 
+		// load the jar file if exists
+		this.jarFile = loadJarFile(jarFile);
 
-		URL jarFileUrl = null;
-		if (jarFile != null) {
-			try {
-				jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
-			} catch (MalformedURLException e1) {
-				throw new IllegalArgumentException("The jar file path is invalid.");
-			}
-
-			checkJarFile(jarFileUrl);
-		}
-
-		this.jarFile = jarFileUrl;
+		assert this.jarFile != null || entryPointClassName != null;
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
+		this.extractedTempLibraries = this.jarFile == null ? Collections.emptyList() : extractContainedLibraries(this.jarFile);
 		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 			getJobJarAndDependencies(),
 			classpaths,
@@ -153,7 +144,7 @@ public class PackagedProgram {
 		// load the entry point class
 		this.mainClass = loadMainClass(
 			// if no entryPointClassName name was given, we try and look one up through the manifest
-			entryPointClassName != null ? entryPointClassName : getEntryPointClassNameFromJar(jarFileUrl),
+			entryPointClassName != null ? entryPointClassName : getEntryPointClassNameFromJar(this.jarFile),
 			userCodeClassLoader);
 
 		if (!hasMainMethod(mainClass)) {
@@ -398,6 +389,25 @@ public class PackagedProgram {
 			} catch (Throwable t) {
 				throw new ProgramInvocationException("Could not close the JAR file: " + t.getMessage(), t);
 			}
+		}
+	}
+
+	@Nullable
+	private static URL loadJarFile(File jar) throws ProgramInvocationException {
+		if (jar != null) {
+			URL jarFileUrl;
+
+			try {
+				jarFileUrl = jar.getAbsoluteFile().toURI().toURL();
+			} catch (MalformedURLException e1) {
+				throw new IllegalArgumentException("The jar file path is invalid.");
+			}
+
+			checkJarFile(jarFileUrl);
+
+			return jarFileUrl;
+		} else {
+			return null;
 		}
 	}
 
