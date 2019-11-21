@@ -53,7 +53,7 @@ class StreamExecJoinRule
     }
     val left: FlinkLogicalRel = call.rel(1).asInstanceOf[FlinkLogicalRel]
     val right: FlinkLogicalRel = call.rel(2).asInstanceOf[FlinkLogicalRel]
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val joinRowType = join.getRowType
 
     if (left.isInstanceOf[FlinkLogicalSnapshot]) {

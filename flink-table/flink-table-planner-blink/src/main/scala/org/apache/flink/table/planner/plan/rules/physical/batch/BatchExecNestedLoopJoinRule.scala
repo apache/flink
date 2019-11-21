@@ -41,7 +41,7 @@ class BatchExecNestedLoopJoinRule
   with BatchExecNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     !isOperatorDisabled(tableConfig, OperatorType.NestedLoopJoin)
   }
 

@@ -72,7 +72,7 @@ class StreamExecGroupWindowAggregateRule
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    val config = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val config = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
 
     val timeField = agg.getWindow.timeAttribute
