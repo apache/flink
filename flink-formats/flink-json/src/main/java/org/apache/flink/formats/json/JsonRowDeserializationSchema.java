@@ -147,7 +147,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	/**
 	 * Builder for {@link JsonRowDeserializationSchema}.
 	 */
-	public static class  Builder {
+	public static class Builder {
 
 		private final RowTypeInfo typeInfo;
 		private boolean failOnMissingField = false;
