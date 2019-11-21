@@ -25,12 +25,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
@@ -254,22 +250,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
-		Configuration configuration = new Configuration();
-		configuration.addAll(clientConfiguration);
-
-		configuration.setString(JobManagerOptions.ADDRESS, host);
-		configuration.setInteger(JobManagerOptions.PORT, port);
-
-		configuration.setInteger(RestOptions.PORT, port);
-
-		final ClusterClient<?> client;
-		try {
-			client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
-		}
-		catch (Exception e) {
-			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(), e);
-		}
-
 		if (savepointRestoreSettings != null) {
 			streamGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 		}
@@ -288,13 +268,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		catch (Exception e) {
 			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
 			throw new ProgramInvocationException("The program execution failed" + term, e);
-		}
-		finally {
-			try {
-				client.close();
-			} catch (Exception e) {
-				LOG.warn("Could not properly shut down the cluster client.", e);
-			}
 		}
 	}
 
