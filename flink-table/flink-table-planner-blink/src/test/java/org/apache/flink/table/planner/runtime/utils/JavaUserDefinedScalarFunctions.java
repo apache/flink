@@ -233,7 +233,7 @@ public class JavaUserDefinedScalarFunctions {
 
 		@Override
 		public PythonEnv getPythonEnv() {
-			return null;
+			return new PythonEnv(PythonEnv.ExecType.PROCESS);
 		}
 	}
 

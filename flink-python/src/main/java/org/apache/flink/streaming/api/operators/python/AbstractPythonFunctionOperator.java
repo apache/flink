@@ -23,6 +23,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -80,6 +81,10 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 * Callback to be executed after the current bundle was finished.
 	 */
 	private transient Runnable bundleFinishedCallback;
+
+	public AbstractPythonFunctionOperator() {
+		this.chainingStrategy = ChainingStrategy.ALWAYS;
+	}
 
 	@Override
 	public void open() throws Exception {
