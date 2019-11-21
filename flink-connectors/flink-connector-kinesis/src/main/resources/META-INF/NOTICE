@@ -15,6 +15,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.amazonaws:aws-java-sdk-sts:1.11.603
 - com.amazonaws:dynamodb-streams-kinesis-adapter:1.5.0
 - com.amazonaws:jmespath-java:1.11.603
+- com.fasterxml.jackson.core:jackson-databind:2.10.1
+- com.fasterxml.jackson.core:jackson-annotations:2.10.1
+- com.fasterxml.jackson.core:jackson-core:2.10.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.10.1
 - org.apache.httpcomponents:httpclient:4.5.9
 - org.apache.httpcomponents:httpcore:4.4.6
 

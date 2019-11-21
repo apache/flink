@@ -195,6 +195,7 @@ under the License.
 							<artifactSet combine.children="append">
 								<includes>
 									<include>com.amazonaws:*</include>
+									<include>com.fasterxml*:*</include>
 									<include>com.google.protobuf:*</include>
 									<include>org.apache.httpcomponents:*</include>
 								</includes>
@@ -205,6 +206,10 @@ under the License.
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.com.fasterxml</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.amazonaws</pattern>
