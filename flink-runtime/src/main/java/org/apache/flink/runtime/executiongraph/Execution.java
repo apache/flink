@@ -855,44 +855,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	private void checkInputDependenciesAndScheduleConsumers(Collection<ExecutionVertex> allConsumerVertices) {
-		if (!isLegacyScheduling()) {
-			return;
-		}
-
-		for (ExecutionVertex consumerVertex : allConsumerVertices) {
-			final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
-
-			// ----------------------------------------------------------------
-			// Consumer is created => try to schedule it and the partition info
-			// is known during deployment
-			// ----------------------------------------------------------------
-			if (consumer.getState() == CREATED) {
-				// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise skip the scheduling.
-				// A shortcut of input constraint check is added for InputDependencyConstraint.ANY since
-				// at least one of the consumer vertex's inputs is consumable here. This is to avoid the
-				// O(N) complexity introduced by input constraint check for InputDependencyConstraint.ANY,
-				// as we do not want the default scheduling performance to be affected.
-				if (consumerVertex.getInputDependencyConstraint() == InputDependencyConstraint.ANY ||
-						consumerVertex.checkInputDependencyConstraints()) {
-
-					scheduleConsumer(consumerVertex);
-				}
-			}
-		}
-	}
-
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
 		assertRunningInJobMasterMainThread();
 
-		final HashSet<ExecutionVertex> candidatesToSchedule = new HashSet<>();
-		updateEdgesAndCollectConsumersToSchedule(allConsumers, candidatesToSchedule);
-		checkInputDependenciesAndScheduleConsumers(candidatesToSchedule);
+		final HashSet<ExecutionVertex> consumerDeduplicator = new HashSet<>();
+		scheduleOrUpdateConsumers(allConsumers, consumerDeduplicator);
 	}
 
-	private void updateEdgesAndCollectConsumersToSchedule(
+	private void scheduleOrUpdateConsumers(
 			final List<List<ExecutionEdge>> allConsumers,
-			final HashSet<ExecutionVertex> consumersToSchedule) {
+			final HashSet<ExecutionVertex> consumerDeduplicator) {
 
 		if (allConsumers.size() == 0) {
 			return;
@@ -911,7 +883,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// Consumer is created => needs to be scheduled
 			// ----------------------------------------------------------------
 			if (consumerState == CREATED) {
-				consumersToSchedule.add(consumerVertex);
+				// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise skip the scheduling.
+				// A shortcut of input constraint check is added for InputDependencyConstraint.ANY since
+				// at least one of the consumer vertex's inputs is consumable here. This is to avoid the
+				// O(N) complexity introduced by input constraint check for InputDependencyConstraint.ANY,
+				// as we do not want the default scheduling performance to be affected.
+				if (isLegacyScheduling() && consumerDeduplicator.add(consumerVertex) &&
+						(consumerVertex.getInputDependencyConstraint() == InputDependencyConstraint.ANY ||
+						consumerVertex.checkInputDependencyConstraints())) {
+
+					scheduleConsumer(consumerVertex);
+				}
 			}
 			// ----------------------------------------------------------------
 			// Consumer is running => send update message now
@@ -1110,18 +1092,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			return;
 		}
 
-		final HashSet<ExecutionVertex> consumersToSchedule = new HashSet<>();
+		final HashSet<ExecutionVertex> consumerDeduplicator = new HashSet<>();
 
 		for (IntermediateResultPartition finishedPartition : newlyFinishedResults) {
 			final IntermediateResultPartition[] allPartitionsOfNewlyFinishedResults =
 					finishedPartition.getIntermediateResult().getPartitions();
 
 			for (IntermediateResultPartition partition : allPartitionsOfNewlyFinishedResults) {
-				updateEdgesAndCollectConsumersToSchedule(partition.getConsumers(), consumersToSchedule);
+				scheduleOrUpdateConsumers(partition.getConsumers(), consumerDeduplicator);
 			}
 		}
-
-		checkInputDependenciesAndScheduleConsumers(consumersToSchedule);
 	}
 
 	private boolean cancelAtomically() {
