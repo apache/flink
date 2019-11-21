@@ -432,7 +432,7 @@ public class NetUtils {
 	}
 
 	/**
-	 * Check whether the given port is in right range when connecting to somewhere
+	 * Check whether the given port is in right range when connecting to somewhere.
 	 *
 	 * @param port the port to check
 	 * @return true if the number in the range 1 to 65535
@@ -442,7 +442,7 @@ public class NetUtils {
 	}
 
 	/**
-	 * check whether the given port is in right range when getting port from local system
+	 * check whether the given port is in right range when getting port from local system.
 	 *
 	 * @param port the port to check
 	 * @return true if the number in the range 0 to 65535
