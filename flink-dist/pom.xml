@@ -389,6 +389,15 @@ under the License.
 		</dependency>
 		<!-- end optional Flink libraries -->
 
+		<dependency>
+			<!-- some components require jaxb-api on Java 11+, which is no longer bundled with the JDK -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<!-- packaged as an optional dependency that is only accessible on Java 11+ -->
+			<!-- this entry exists to prevent a compile dependency from slipping through -->
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
@@ -544,6 +553,73 @@ under the License.
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifestEntries>
+									<!-- jaxb-api is packaged as an optional dependency that is only accessible on Java 11 -->
+									<Multi-Release>true</Multi-Release>
+								</manifestEntries>
+							</archive>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-jaxb-jar</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<artifactItems>
+						<artifactItem>
+							<groupId>javax.xml.bind</groupId>
+							<artifactId>jaxb-api</artifactId>
+							<version>${jaxb.api.version}</version>
+							<type>jar</type>
+							<overWrite>true</overWrite>
+						</artifactItem>
+					</artifactItems>
+					<outputDirectory>${project.build.directory}/temporary</outputDirectory>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-jaxb-library</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<echo message="unpacking jaxb-api jar"/>
+								<unzip src="${project.build.directory}/temporary/jaxb-api-${jaxb.api.version}.jar"
+									   dest="${project.build.directory}/classes/META-INF/versions/11"/>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 
 			<!--Build uber jar-->
