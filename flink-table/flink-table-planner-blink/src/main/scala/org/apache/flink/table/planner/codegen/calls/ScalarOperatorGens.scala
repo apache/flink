@@ -193,7 +193,8 @@ object ScalarOperatorGens {
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
-            s"$SQL_TIMESTAMP.fromEpochMillis($leftTerm $op $r)"
+            val nanoTerm = s"$l.getNanoOfMillisecond()"
+            s"$SQL_TIMESTAMP.fromEpochMillis($leftTerm $op $r, $nanoTerm)"
           }
         }
 
@@ -201,9 +202,11 @@ object ScalarOperatorGens {
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
+            val nanoTerm = s"$l.getNanoOfMillisecond()"
             s"""
                |$SQL_TIMESTAMP.fromEpochMillis(
-               |  ${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($r)))
+               |  ${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($r)),
+               |  $nanoTerm)
              """.stripMargin
           }
         }

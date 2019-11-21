@@ -974,6 +974,32 @@ class TemporalTypesTest extends ExpressionTestBase {
       "CAST(TO_TIMESTAMP('1970-01-01 00:00:00.123456789') AS TIMESTAMP(0))",
       "1970-01-01 00:00:00")
 
+    // DATETIME +/- INTERVAL should support nanosecond
+    testSqlApi(
+      "TIMESTAMP '1970-02-01 00:00:00.123456789' - INTERVAL '1' MONTH",
+      "1970-01-01 00:00:00.123456789")
+
+    testSqlApi(
+      "TIMESTAMP '1970-02-01 00:00:00.123456789' + INTERVAL '1' MONTH",
+      "1970-03-01 00:00:00.123456789")
+
+    testSqlApi(
+      "TIMESTAMP '1970-02-01 00:00:00.123456789' - INTERVAL '1' SECOND",
+      "1970-01-31 23:59:59.123456789")
+
+    testSqlApi(
+      "TIMESTAMP '1970-02-01 00:00:00.123456789' + INTERVAL '1' SECOND",
+      "1970-02-01 00:00:01.123456789")
+
+    // TIMESTAMP compare should support nanosecond
+    testSqlApi(
+      "TIMESTAMP '1970-01-01 00:00:00.123456789' > TIMESTAMP '1970-01-01 00:00:00.123456788'",
+      "true")
+
+    testSqlApi(
+      "TIMESTAMP '1970-01-01 00:00:00.123456788' < TIMESTAMP '1970-01-01 00:00:00.123456789'",
+      "true")
+
   }
 
   // ----------------------------------------------------------------------------------------------
