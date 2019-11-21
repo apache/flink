@@ -210,10 +210,10 @@ function get_test_modules_for_stage() {
             echo "-pl $modules_tests"
         ;;
         (${STAGE_SCHEDULER_NG_CORE})
-            echo "-Dscheduler-ng -pl $MODULES_CORE"
+            echo "-Dlegacy-scheduler -pl $MODULES_CORE"
         ;;
         (${STAGE_SCHEDULER_NG_TESTS})
-            echo "-Dscheduler-ng -pl $MODULES_TESTS"
+            echo "-Dlegacy-scheduler -pl $MODULES_TESTS"
         ;;
         (${STAGE_MISC})
             echo "-pl $modules_misc"

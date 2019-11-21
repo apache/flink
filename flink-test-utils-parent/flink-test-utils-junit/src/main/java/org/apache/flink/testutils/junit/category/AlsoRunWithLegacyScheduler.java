@@ -21,5 +21,5 @@ package org.apache.flink.testutils.junit.category;
 /**
  * Category marker interface to run tests with SchedulerNG.
  */
-public interface AlsoRunWithSchedulerNG {
+public interface AlsoRunWithLegacyScheduler {
 }

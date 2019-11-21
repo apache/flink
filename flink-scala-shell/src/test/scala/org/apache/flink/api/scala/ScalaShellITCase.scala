@@ -25,7 +25,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.minicluster.MiniCluster
 import org.apache.flink.runtime.testutils.{MiniClusterResource, MiniClusterResourceConfiguration}
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler
 import org.apache.flink.util.TestLogger
 import org.junit._
 import org.junit.experimental.categories.Category
@@ -443,7 +443,7 @@ class ScalaShellITCase extends TestLogger {
 
 }
 
-@Category(Array(classOf[AlsoRunWithSchedulerNG]))
+@Category(Array(classOf[AlsoRunWithLegacyScheduler]))
 object ScalaShellITCase {
 
   val configuration = new Configuration()
