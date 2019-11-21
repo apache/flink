@@ -45,6 +45,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
+import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.PlanningConfigurationBuilder;
 import org.apache.flink.table.types.DataType;
@@ -117,11 +118,28 @@ public class SqlToOperationConverterTest {
 	@Test
 	public void testUseCatalog() {
 		final String sql = "USE CATALOG cat1";
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
-		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+		Operation operation = parse(sql, SqlDialect.DEFAULT);
 		assert operation instanceof UseCatalogOperation;
 		assertEquals("cat1", ((UseCatalogOperation) operation).getCatalogName());
+	}
+
+	@Test
+	public void testUseDatabase() {
+		final String sql1 = "USE db1";
+		Operation operation1 = parse(sql1, SqlDialect.DEFAULT);
+		assert operation1 instanceof UseDatabaseOperation;
+		assertArrayEquals(new String[]{"db1"}, ((UseDatabaseOperation) operation1).getFullDatabaseName());
+
+		final String sql2 = "USE cat1.db1";
+		Operation operation2 = parse(sql2, SqlDialect.DEFAULT);
+		assert operation2 instanceof UseDatabaseOperation;
+		assertArrayEquals(new String[]{"cat1", "db1"}, ((UseDatabaseOperation) operation2).getFullDatabaseName());
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testUseDatabaseWithException() {
+		final String sql = "USE cat1.db1.tbl1";
+		Operation operation = parse(sql, SqlDialect.DEFAULT);
 	}
 
 	@Test
@@ -440,6 +458,13 @@ public class SqlToOperationConverterTest {
 		tableConfig.setSqlDialect(sqlDialect);
 		return planningConfigurationBuilder.createFlinkPlanner(catalogManager.getCurrentCatalog(),
 			catalogManager.getCurrentDatabase());
+	}
+
+	private Operation parse(String sql, SqlDialect sqlDialect) {
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(sqlDialect);
+		final CalciteParser parser = getParserBySqlDialect(sqlDialect);
+		SqlNode node = parser.parse(sql);
+		return SqlToOperationConverter.convert(planner, catalogManager, node).get();
 	}
 
 	//~ Inner Classes ----------------------------------------------------------

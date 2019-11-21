@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
+import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
@@ -38,6 +39,7 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
+import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -106,7 +108,9 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
 		} else if (validated instanceof SqlUseCatalog) {
 			return Optional.of(converter.convertUseCatalog((SqlUseCatalog) validated));
-		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
+		} else if (validated instanceof SqlUseDatabase) {
+			return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
+		}  else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
 			return Optional.empty();
@@ -196,6 +200,11 @@ public class SqlToOperationConverter {
 	/** Convert use catalog statement. */
 	private Operation convertUseCatalog(SqlUseCatalog useCatalog) {
 		return new UseCatalogOperation(useCatalog.getCatalogName());
+	}
+
+	/** Convert use database statement. */
+	private Operation convertUseDatabase(SqlUseDatabase useDatabase) {
+		return new UseDatabaseOperation(useDatabase.fullDatabaseName());
 	}
 
 	//~ Tools ------------------------------------------------------------------

@@ -30,17 +30,16 @@ import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, 
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations.ddl.{CreateTableOperation, DropTableOperation}
+import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
-
 import _root_.java.util.function.{Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
@@ -468,7 +467,7 @@ abstract class TableEnvImpl(
 
     if (operations.size != 1) throw new TableException(
       "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-        "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG")
+        "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database")
 
     operations.get(0) match {
       case op: CatalogSinkModifyOperation =>
@@ -485,12 +484,26 @@ abstract class TableEnvImpl(
         catalogManager.dropTable(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
-      case useCatalogOperation: UseCatalogOperation =>
-        catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
+      case useOperation: UseOperation => applyUseOperation(useOperation)
       case _ => throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-          "type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG")
+          "type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database")
     }
+  }
+
+  /** Apply use operation to current table environment. */
+  private def applyUseOperation(useOperation: UseOperation): Unit = {
+      useOperation match {
+        case useCatalogOperation: UseCatalogOperation =>
+          catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
+        case useDatabaseOperation: UseDatabaseOperation => {
+          val fullDatabaseName = useDatabaseOperation.getFullDatabaseName
+          if (fullDatabaseName.length == 2) {
+            catalogManager.setCurrentCatalog(fullDatabaseName(0))
+            catalogManager.setCurrentDatabase(fullDatabaseName(1))
+          } else catalogManager.setCurrentDatabase(fullDatabaseName(0))
+        }
+      }
   }
 
   protected def createTable(tableOperation: QueryOperation): TableImpl = {

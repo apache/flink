@@ -544,6 +544,20 @@ class CatalogTableITCase(isStreaming: Boolean) {
     tableEnv.sqlUpdate("use catalog cat2")
     assertEquals("cat2", tableEnv.getCurrentCatalog)
   }
+
+  @Test
+  def testUseDatabase(): Unit = {
+    val catalog = new GenericInMemoryCatalog("cat1")
+    tableEnv.registerCatalog("cat1", catalog)
+    val catalogDB1 = new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1")
+    val catalogDB2 = new CatalogDatabaseImpl(new util.HashMap[String, String](), "db2")
+    catalog.createDatabase("db1", catalogDB1, true)
+    catalog.createDatabase("db2", catalogDB2, true)
+    tableEnv.sqlUpdate("use cat1.db1")
+    assertEquals("db1", tableEnv.getCurrentDatabase)
+    tableEnv.sqlUpdate("use db2")
+    assertEquals("db2", tableEnv.getCurrentDatabase)
+  }
 }
 
 object CatalogTableITCase {
