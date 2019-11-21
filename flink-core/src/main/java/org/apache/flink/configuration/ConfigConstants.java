@@ -248,14 +248,6 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
 
 	/**
-	 * The config parameter defining the memory allocation method (JVM heap or off-heap).
-	 *
-	 * @deprecated Use {@link TaskManagerOptions#MEMORY_OFF_HEAP} instead
-	 */
-	@Deprecated
-	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_KEY = "taskmanager.memory.off-heap";
-
-	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
 	 * number of possible tasks and shuffles.
 	 *
