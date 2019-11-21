@@ -142,11 +142,6 @@ public class PackagedProgram {
 
 		this.jarFile = jarFileUrl;
 
-		// if no entryPointClassName name was given, we try and look one up through the manifest
-		if (entryPointClassName == null) {
-			entryPointClassName = getEntryPointClassNameFromJar(jarFileUrl);
-		}
-
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
@@ -156,7 +151,10 @@ public class PackagedProgram {
 			configuration);
 
 		// load the entry point class
-		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
+		this.mainClass = loadMainClass(
+			// if no entryPointClassName name was given, we try and look one up through the manifest
+			entryPointClassName != null ? entryPointClassName : getEntryPointClassNameFromJar(jarFileUrl),
+			userCodeClassLoader);
 
 		if (!hasMainMethod(mainClass)) {
 			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
