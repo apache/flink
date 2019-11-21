@@ -714,17 +714,14 @@ public class CliFrontend {
 			jarFile = getJarFile(jarFilePath);
 		}
 
-		PackagedProgram program = PackagedProgram.newBuilder()
+		return PackagedProgram.newBuilder()
 			.setJarFile(jarFile)
 			.setUserClassPaths(classpaths)
 			.setEntryPointClassName(entryPointClass)
 			.setConfiguration(configuration)
+			.setSavepointRestoreSettings(runOptions.getSavepointRestoreSettings())
 			.setArguments(programArgs)
 			.build();
-
-		program.setSavepointRestoreSettings(runOptions.getSavepointRestoreSettings());
-
-		return program;
 	}
 
 	/**

@@ -90,7 +90,7 @@ public class PackagedProgram {
 
 	private final ClassLoader userCodeClassLoader;
 
-	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
+	private final SavepointRestoreSettings savepointSettings;
 
 	/**
 	 * Flag indicating whether the job is a Python job.
@@ -117,13 +117,17 @@ public class PackagedProgram {
 			List<URL> classpaths,
 			@Nullable String entryPointClassName,
 			Configuration configuration,
+			SavepointRestoreSettings savepointRestoreSettings,
 			String... args) throws ProgramInvocationException {
-		checkNotNull(classpaths);
-		checkNotNull(args);
+		this.classpaths = checkNotNull(classpaths);
+		this.savepointSettings = checkNotNull(savepointRestoreSettings);
+		this.args = checkNotNull(args);
+
 		checkArgument(jarFile != null || entryPointClassName != null, "Either the jarFile or the entryPointClassName needs to be non-null.");
 
 		// Whether the job is a Python job.
-		isPython = isPython(entryPointClassName);
+		this.isPython = isPython(entryPointClassName);
+
 
 		URL jarFileUrl = null;
 		if (jarFile != null) {
@@ -137,7 +141,6 @@ public class PackagedProgram {
 		}
 
 		this.jarFile = jarFileUrl;
-		this.args = args;
 
 		// if no entryPointClassName name was given, we try and look one up through the manifest
 		if (entryPointClassName == null) {
@@ -146,7 +149,6 @@ public class PackagedProgram {
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
-		this.classpaths = classpaths;
 		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 			getJobJarAndDependencies(),
 			classpaths,
@@ -159,10 +161,6 @@ public class PackagedProgram {
 		if (!hasMainMethod(mainClass)) {
 			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
 		}
-	}
-
-	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointSettings) {
-		this.savepointSettings = savepointSettings;
 	}
 
 	public SavepointRestoreSettings getSavepointSettings() {
@@ -544,6 +542,8 @@ public class PackagedProgram {
 
 		private Configuration configuration = new Configuration();
 
+		private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
+
 		public Builder setJarFile(@Nullable File jarFile) {
 			this.jarFile = jarFile;
 			return this;
@@ -569,6 +569,11 @@ public class PackagedProgram {
 			return this;
 		}
 
+		public Builder setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
+			this.savepointRestoreSettings = savepointRestoreSettings;
+			return this;
+		}
+
 		public PackagedProgram build() throws ProgramInvocationException {
 			if (jarFile == null && entryPointClassName == null) {
 				throw new IllegalArgumentException("The jarFile and entryPointClassName can not be null at the same time.");
@@ -578,6 +583,7 @@ public class PackagedProgram {
 				userClassPaths,
 				entryPointClassName,
 				configuration,
+				savepointRestoreSettings,
 				args);
 		}
 
