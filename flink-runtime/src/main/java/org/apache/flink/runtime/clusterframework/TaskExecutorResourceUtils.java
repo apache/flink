@@ -433,7 +433,15 @@ public class TaskExecutorResourceUtils {
 
 	private static MemorySize getTotalProcessMemorySize(final Configuration config) {
 		checkArgument(isTotalProcessMemorySizeExplicitlyConfigured(config));
-		if (config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY)) {
+		String totalProcessEnv = System.getenv("FLINK_TM_HEAP");
+		if (totalProcessEnv != null) {
+			try {
+				return MemorySize.parse(totalProcessEnv);
+			} catch (Throwable t) {
+				throw new IllegalConfigurationException("Cannot read total process memory size from environment variable value "
+					+ totalProcessEnv + ".", t);
+			}
+		} else if (config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY)) {
 			return getMemorySizeFromConfig(config, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 		} else {
 			@SuppressWarnings("deprecation")
@@ -495,7 +503,8 @@ public class TaskExecutorResourceUtils {
 		@SuppressWarnings("deprecation")
 		final boolean legacyConfigured =
 			config.contains(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB) || config.contains(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
-		return config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY) || legacyConfigured;
+		final boolean configuredWithEnv = System.getenv("FLINK_TM_HEAP") != null;
+		return config.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY) || legacyConfigured || configuredWithEnv;
 	}
 
 	private static void sanityCheckTotalFlinkMemory(final Configuration config, final FlinkInternalMemory flinkInternalMemory) {
