@@ -135,7 +135,7 @@ public class LocalExecutorITCase extends TestLogger {
 	public ExpectedException exception = ExpectedException.none();
 
 	@Test
-	public void testValidateSession() throws Exception {
+	public void testViews() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
@@ -146,13 +146,13 @@ public class LocalExecutorITCase extends TestLogger {
 
 		List<String> actualTables = executor.listTables(sessionId);
 		List<String> expectedTables = Arrays.asList(
-			"AdditionalView1",
-			"AdditionalView2",
-			"TableNumber1",
-			"TableNumber2",
-			"TableSourceSink",
-			"TestView1",
-			"TestView2");
+				"AdditionalView1",
+				"AdditionalView2",
+				"TableNumber1",
+				"TableNumber2",
+				"TableSourceSink",
+				"TestView1",
+				"TestView2");
 		assertEquals(expectedTables, actualTables);
 
 		try {
@@ -168,11 +168,11 @@ public class LocalExecutorITCase extends TestLogger {
 
 		actualTables = executor.listTables(sessionId);
 		expectedTables = Arrays.asList(
-			"TableNumber1",
-			"TableNumber2",
-			"TableSourceSink",
-			"TestView1",
-			"TestView2");
+				"TableNumber1",
+				"TableNumber2",
+				"TableSourceSink",
+				"TestView1",
+				"TestView2");
 		assertEquals(expectedTables, actualTables);
 
 		executor.closeSession(sessionId);

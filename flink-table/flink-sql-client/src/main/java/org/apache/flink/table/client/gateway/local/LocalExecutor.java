@@ -288,17 +288,20 @@ public class LocalExecutor implements Executor {
 	@Override
 	public void addView(String sessionId, String name, String query) throws SqlExecutionException {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
-		Environment env = context.getEnvironment();
-		Environment newEnv = Environment.enrich(
-				env,
-				ImmutableMap.of(),
-				ImmutableMap.of(name, ViewEntry.create(name, query)));
-		// Renew the ExecutionContext.
-		this.contextMap.put(sessionId, createExecutionContext(newEnv, context.getOriginalSessionContext()));
+		TableEnvironment tableEnv = context.getTableEnvironment();
+		tableEnv.createTemporaryView(name, tableEnv.sqlQuery(query));
+		// Also attach the view to ExecutionContext#environment.
+		context.getEnvironment().getTables().put(name, ViewEntry.create(name, query));
 	}
 
 	@Override
 	public void removeView(String sessionId, String name) throws SqlExecutionException {
+		// Here we rebuild the ExecutionContext because we want to ensure that all the remaining views can work fine.
+		// Assume the case:
+		//   view1=select 1;
+		//   view2=select * from view1;
+		// If we delete view1 successfully, then query view2 will throw exception because view1 does not exist. we want
+		// all the remaining views are OK, so do the ExecutionContext rebuilding to avoid breaking the view dependency.
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		Environment env = context.getEnvironment();
 		Environment newEnv = env.clone();

@@ -237,7 +237,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private void createTemporaryView(UnresolvedIdentifier identifier, Table view) {
 		if (((TableImpl) view).getTableEnvironment() != this) {
 			throw new TableException(
-				"Only table API objects that belong to this TableEnvironment can be registered.");
+					"Only table API objects that belong to this TableEnvironment can be registered.");
 		}
 
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);

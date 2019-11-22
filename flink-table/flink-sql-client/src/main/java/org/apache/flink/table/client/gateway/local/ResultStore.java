@@ -63,19 +63,19 @@ public class ResultStore {
 
 		if (env.getExecution().inStreamingMode()) {
 			// determine gateway address (and port if possible)
-			InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
+			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
 			final int gatewayPort = getGatewayPort(env.getDeployment());
 
 			if (env.getExecution().isChangelogMode()) {
 				return new ChangelogCollectStreamResult<>(outputType, schema, config, gatewayAddress, gatewayPort);
 			} else {
 				return new MaterializedCollectStreamResult<>(
-					outputType,
-					schema,
-					config,
-					gatewayAddress,
-					gatewayPort,
-					env.getExecution().getMaxTableResultRows());
+						outputType,
+						schema,
+						config,
+						gatewayAddress,
+						gatewayPort,
+						env.getExecution().getMaxTableResultRows());
 			}
 
 		} else {
@@ -130,19 +130,19 @@ public class ResultStore {
 			if (jobManagerAddress != null && !jobManagerAddress.isEmpty()) {
 				try {
 					return ConnectionUtils.findConnectingAddress(
-						new InetSocketAddress(jobManagerAddress, jobManagerPort),
-						deploy.getResponseTimeout(),
-						400);
+							new InetSocketAddress(jobManagerAddress, jobManagerPort),
+							deploy.getResponseTimeout(),
+							400);
 				} catch (Exception e) {
 					throw new SqlClientException("Could not determine address of the gateway for result retrieval " +
-						"by connecting to the job manager. Please specify the gateway address manually.", e);
+							"by connecting to the job manager. Please specify the gateway address manually.", e);
 				}
 			} else {
 				try {
 					return InetAddress.getLocalHost();
 				} catch (UnknownHostException e) {
 					throw new SqlClientException("Could not determine address of the gateway for result retrieval. " +
-						"Please specify the gateway address manually.", e);
+							"Please specify the gateway address manually.", e);
 				}
 			}
 		}
