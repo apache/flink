@@ -358,7 +358,7 @@ public class JobGraph implements Serializable {
 	}
 
 	public List<URL> getClasspaths() {
-		return classpaths;
+		return Collections.unmodifiableList(classpaths);
 	}
 
 	/**
