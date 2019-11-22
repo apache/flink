@@ -592,14 +592,11 @@ object CodeGenUtils {
     case TINYINT => s"$arrayTerm.setNullByte($index)"
     case SMALLINT => s"$arrayTerm.setNullShort($index)"
     case INTEGER => s"$arrayTerm.setNullInt($index)"
-    case BIGINT => s"$arrayTerm.setNullLong($index)"
     case FLOAT => s"$arrayTerm.setNullFloat($index)"
     case DOUBLE => s"$arrayTerm.setNullDouble($index)"
     case TIME_WITHOUT_TIME_ZONE => s"$arrayTerm.setNullInt($index)"
     case DATE => s"$arrayTerm.setNullInt($index)"
-    case TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$arrayTerm.setNullLong($index)"
     case INTERVAL_YEAR_MONTH => s"$arrayTerm.setNullInt($index)"
-    case INTERVAL_DAY_TIME => s"$arrayTerm.setNullLong($index)"
     case _ => s"$arrayTerm.setNullLong($index)"
   }
 

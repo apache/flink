@@ -28,8 +28,8 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter}
-import org.apache.flink.table.dataformat.Decimal
+import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter}
+import org.apache.flink.table.dataformat.{Decimal, SqlTimestamp}
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
@@ -41,10 +41,8 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit._
-
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime}
@@ -1006,7 +1004,7 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = LocalDateTimeConverter.INSTANCE.toInternal(
+    val ts1 = SqlTimestamp.fromLocalDateTime(
       result.toList.head.getField(0).asInstanceOf[LocalDateTime]).getMillisecond
 
     val ts2 = System.currentTimeMillis()

@@ -250,6 +250,12 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func10(f6)",
       "Func10(f6)",
       "1990-10-14 12:10:10")
+
+    testAllApis(
+      Func13('f6),
+      "Func13(f6)",
+      "Func13(f6)",
+      "1990-10-14 12:10:10")
   }
 
   @Test
@@ -477,6 +483,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func10" -> Func10,
     "Func11" -> Func11,
     "Func12" -> Func12,
+    "Func13" -> Func13,
     "Func14" -> Func14,
     "Func15" -> Func15,
     "Func16" -> Func16,

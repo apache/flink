@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateTimeComparator;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * {@link TypeInformation} for {@link LocalDateTime}.
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
  * <p>The difference between Types.LOCAL_DATE_TIME is this TypeInformation holds a precision
  * Reminder: Conversion from DateType to TypeInformation (and back) exists in
  * TableSourceUtil.computeIndexMapping, which should be fixed after we remove Legacy TypeInformation
+ * TODO: https://issues.apache.org/jira/browse/FLINK-14927
  */
 public class LegacyLocalDateTimeTypeInfo extends LocalTimeTypeInfo<LocalDateTime> {
 
@@ -57,6 +59,12 @@ public class LegacyLocalDateTimeTypeInfo extends LocalTimeTypeInfo<LocalDateTime
 	public String toString() {
 		return String.format("Timestamp(%d)", precision);
 	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(this.getClass().getCanonicalName(), precision);
+	}
+
 
 	public int getPrecision() {
 		return precision;

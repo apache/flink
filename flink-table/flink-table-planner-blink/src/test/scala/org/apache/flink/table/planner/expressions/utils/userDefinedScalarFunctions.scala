@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.utils
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils
 import org.junit.Assert
 import java.lang.{Long => JLong}
 import java.sql.{Date, Time, Timestamp}
+import java.time.LocalDateTime
 import java.util.Random
 
 import org.apache.flink.table.dataformat.SqlTimestamp
@@ -153,6 +154,20 @@ object Func12 extends ScalarFunction {
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
     TimeIntervalTypeInfo.INTERVAL_MILLIS
   }
+}
+
+@SerialVersionUID(1L)
+object Func13 extends ScalarFunction {
+  def eval(c: SqlTimestamp): LocalDateTime = {
+    if (c == null) {
+      null
+    } else {
+      c.toLocalDateTime
+    }
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    LocalTimeTypeInfo.LOCAL_DATE_TIME
 }
 
 @SerialVersionUID(1L)

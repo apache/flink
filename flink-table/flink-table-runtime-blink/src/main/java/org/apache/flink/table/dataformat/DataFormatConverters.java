@@ -118,8 +118,8 @@ public class DataFormatConverters {
 		t2C.put(DataTypes.TIME().bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.TIME().bridgedTo(int.class), IntConverter.INSTANCE);
 
-		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), TimestampConverter.INSTANCE);
-		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), LocalDateTimeConverter.INSTANCE);
+		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), new TimestampConverter(3));
+		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), new LocalDateTimeConverter(3));
 
 		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Long.class), LongConverter.INSTANCE);
 		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Instant.class), InstantConverter.INSTANCE);
@@ -703,11 +703,9 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = 1L;
 
-		public static final LocalDateTimeConverter INSTANCE = new LocalDateTimeConverter(3);
-
 		private final int precision;
 
-		private LocalDateTimeConverter(int precision) {
+		public LocalDateTimeConverter(int precision) {
 			this.precision = precision;
 		}
 
@@ -815,11 +813,9 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -779956524906131757L;
 
-		public static final TimestampConverter INSTANCE = new TimestampConverter(3);
-
 		private final int precision;
 
-		private TimestampConverter(int precision) {
+		public TimestampConverter(int precision) {
 			this.precision = precision;
 		}
 

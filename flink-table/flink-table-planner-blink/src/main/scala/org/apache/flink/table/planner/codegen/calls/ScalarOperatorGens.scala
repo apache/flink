@@ -832,7 +832,7 @@ object ScalarOperatorGens {
       val fromType = operand.resultType.asInstanceOf[TimestampType]
       val toType = targetType.asInstanceOf[TimestampType]
       if (fromType.getPrecision <= toType.getPrecision) {
-        operand
+        operand.copy(resultType = targetType)
       } else {
         val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
         generateUnaryOperatorIfNotNull(ctx, targetType, operand) {

@@ -424,12 +424,7 @@ object FlinkTypeFactory {
         // blink runner support precision 3, but for consistent with flink runner, we set to 0.
         new TimeType()
       case TIMESTAMP =>
-        val precision = relDataType.getPrecision
-        if (precision > TimestampType.MAX_PRECISION || precision < TimestampType.MIN_PRECISION) {
-          throw new TableException(
-            s"TIMESTAMP precision is not supported: $precision")
-        }
-        new TimestampType(precision)
+        new TimestampType(relDataType.getPrecision)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         if (relDataType.getPrecision > 3) {
           throw new TableException(

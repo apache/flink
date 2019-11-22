@@ -33,14 +33,13 @@ class MethodCallGen(method: Method) extends CallGenerator {
       returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, operands, !method.getReturnType.isPrimitive) {
       originalTerms => {
-        val terms = originalTerms.zipWithIndex.zip(method.getParameterTypes).map {
-          case ((term, i), clazz) =>
-            // convert the BinaryString parameter to String if the method parameter accept String
-            if (clazz == classOf[String]) {
-              s"$term.toString()"
-            } else {
-              term
-            }
+        val terms = originalTerms.zip(method.getParameterTypes).map { case (term, clazz) =>
+          // convert the BinaryString parameter to String if the method parameter accept String
+          if (clazz == classOf[String]) {
+            s"$term.toString()"
+          } else {
+            term
+          }
         }
 
         // generate method invoke code and adapt when it's a time zone related function

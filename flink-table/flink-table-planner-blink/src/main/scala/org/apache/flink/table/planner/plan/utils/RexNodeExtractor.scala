@@ -342,8 +342,7 @@ class RexNodeToExpressionConverter(
         val v = literal.getValueAs(classOf[TimestampString])
         val millisecond = v.getMillisSinceEpoch
         val nanoOfMillisecond = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(v.toString)
-        LocalDateTimeConverter.INSTANCE.toExternal(
-          SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond))
+        SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond).toLocalDateTime
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val v = literal.getValueAs(classOf[java.lang.Long])
