@@ -544,21 +544,22 @@ public class CsvTableSource
 			}
 			CsvInputFormatConfig that = (CsvInputFormatConfig) o;
 			return ignoreFirstLine == that.ignoreFirstLine &&
-				lenient == that.lenient &&
-				Objects.equals(path, that.path) &&
-				Arrays.equals(fieldNames, that.fieldNames) &&
-				Arrays.equals(fieldTypes, that.fieldTypes) &&
-				Arrays.equals(selectedFields, that.selectedFields) &&
-				Objects.equals(fieldDelim, that.fieldDelim) &&
-				Objects.equals(lineDelim, that.lineDelim) &&
-				Objects.equals(quoteCharacter, that.quoteCharacter) &&
-				Objects.equals(ignoreComments, that.ignoreComments);
+					lenient == that.lenient &&
+					Objects.equals(path, that.path) &&
+					Arrays.equals(fieldNames, that.fieldNames) &&
+					Arrays.equals(fieldTypes, that.fieldTypes) &&
+					Arrays.equals(selectedFields, that.selectedFields) &&
+					Objects.equals(fieldDelim, that.fieldDelim) &&
+					Objects.equals(lineDelim, that.lineDelim) &&
+					Objects.equals(quoteCharacter, that.quoteCharacter) &&
+					Objects.equals(ignoreComments, that.ignoreComments) &&
+					Objects.equals(emptyColumnAsNull, that.emptyColumnAsNull);
 		}
 
 		@Override
 		public int hashCode() {
 			int result = Objects.hash(path, fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
-				ignoreComments, lenient);
+					ignoreComments, lenient, emptyColumnAsNull);
 			result = 31 * result + Arrays.hashCode(fieldNames);
 			result = 31 * result + Arrays.hashCode(fieldTypes);
 			result = 31 * result + Arrays.hashCode(selectedFields);
