@@ -49,6 +49,8 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -247,38 +249,44 @@ public class LocalExecutorITCase extends TestLogger {
 	public void testGetSessionProperties() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		session.getSessionEnv().setExecution(ImmutableMap.of("result-mode", "changelog"));
 		// Open the session and get the sessionId.
 		String sessionId = executor.openSession(session);
-		assertEquals("test-session", sessionId);
-		executor.setSessionProperty(sessionId, "execution.result-mode", "changelog");
-		assertEquals(executor.getSessionProperties(sessionId).get("execution.result-mode"), "changelog");
+		try {
+			assertEquals("test-session", sessionId);
+			assertEquals(executor.getSessionProperties(sessionId).get("execution.result-mode"), "changelog");
 
-		// modify defaults
-		executor.setSessionProperty(sessionId, "execution.result-mode", "table");
+			// modify defaults
+			executor.setSessionProperty(sessionId, "execution.result-mode", "table");
 
-		final Map<String, String> actualProperties = executor.getSessionProperties(sessionId);
+			final Map<String, String> actualProperties = executor.getSessionProperties(sessionId);
 
-		final Map<String, String> expectedProperties = new HashMap<>();
-		expectedProperties.put("execution.planner", planner);
-		expectedProperties.put("execution.type", "batch");
-		expectedProperties.put("execution.time-characteristic", "event-time");
-		expectedProperties.put("execution.periodic-watermarks-interval", "99");
-		expectedProperties.put("execution.parallelism", "1");
-		expectedProperties.put("execution.max-parallelism", "16");
-		expectedProperties.put("execution.max-idle-state-retention", "0");
-		expectedProperties.put("execution.min-idle-state-retention", "0");
-		expectedProperties.put("execution.result-mode", "table");
-		expectedProperties.put("execution.max-table-result-rows", "100");
-		expectedProperties.put("execution.restart-strategy.type", "failure-rate");
-		expectedProperties.put("execution.restart-strategy.max-failures-per-interval", "10");
-		expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
-		expectedProperties.put("execution.restart-strategy.delay", "1000");
-		expectedProperties.put("table.optimizer.join-reorder-enabled", "false");
-		expectedProperties.put("deployment.response-timeout", "5000");
+			final Map<String, String> expectedProperties = new HashMap<>();
+			expectedProperties.put("execution.planner", planner);
+			expectedProperties.put("execution.type", "batch");
+			expectedProperties.put("execution.time-characteristic", "event-time");
+			expectedProperties.put("execution.periodic-watermarks-interval", "99");
+			expectedProperties.put("execution.parallelism", "1");
+			expectedProperties.put("execution.max-parallelism", "16");
+			expectedProperties.put("execution.max-idle-state-retention", "0");
+			expectedProperties.put("execution.min-idle-state-retention", "0");
+			expectedProperties.put("execution.result-mode", "table");
+			expectedProperties.put("execution.max-table-result-rows", "100");
+			expectedProperties.put("execution.restart-strategy.type", "failure-rate");
+			expectedProperties.put("execution.restart-strategy.max-failures-per-interval", "10");
+			expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
+			expectedProperties.put("execution.restart-strategy.delay", "1000");
+			expectedProperties.put("table.optimizer.join-reorder-enabled", "false");
+			expectedProperties.put("deployment.response-timeout", "5000");
 
-		assertEquals(expectedProperties, actualProperties);
+			assertEquals(expectedProperties, actualProperties);
 
-		executor.closeSession(sessionId);
+			// Reset session properties
+			executor.resetSessionProperties(sessionId);
+			assertEquals(executor.getSessionProperties(sessionId).get("execution.result-mode"), "changelog");
+		} finally {
+			executor.closeSession(sessionId);
+		}
 	}
 
 	@Test

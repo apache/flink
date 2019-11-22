@@ -61,6 +61,7 @@ import org.apache.flink.table.client.config.entries.SourceSinkTableEntry;
 import org.apache.flink.table.client.config.entries.SourceTableEntry;
 import org.apache.flink.table.client.config.entries.TemporalTableEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
+import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
@@ -113,6 +114,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ExecutionContext<ClusterID> {
 
 	private final Environment environment;
+	private final SessionContext originalSessionContext;
 	private final ClassLoader classLoader;
 
 	private final Configuration flinkConfig;
@@ -128,33 +130,39 @@ public class ExecutionContext<ClusterID> {
 	private Executor executor;
 
 	public ExecutionContext(
-		Environment environment,
-		List<URL> dependencies,
-		Configuration flinkConfig,
-		Options commandLineOptions,
-		List<CustomCommandLine> availableCommandLines) throws FlinkException {
-		this(environment,
-			dependencies,
-			flinkConfig,
-			new DefaultClusterClientServiceLoader(),
-			commandLineOptions,
-			availableCommandLines);
+			Environment environment,
+			SessionContext originalSessionContext,
+			List<URL> dependencies,
+			Configuration flinkConfig,
+			Options commandLineOptions,
+			List<CustomCommandLine> availableCommandLines) throws FlinkException {
+		this(
+				environment,
+				originalSessionContext,
+				dependencies,
+				flinkConfig,
+				new DefaultClusterClientServiceLoader(),
+				commandLineOptions,
+				availableCommandLines);
 	}
 
 	public ExecutionContext(
-		Environment environment,
-		List<URL> dependencies,
-		Configuration flinkConfig,
-		ClusterClientServiceLoader clusterClientServiceLoader,
-		Options commandLineOptions,
-		List<CustomCommandLine> availableCommandLines) throws FlinkException {
+			Environment environment,
+			SessionContext originalSessionContext,
+			List<URL> dependencies,
+			Configuration flinkConfig,
+			ClusterClientServiceLoader clusterClientServiceLoader,
+			Options commandLineOptions,
+			List<CustomCommandLine> availableCommandLines) throws FlinkException {
 		this.environment = environment;
+		this.originalSessionContext = originalSessionContext;
+
 		this.flinkConfig = flinkConfig;
 
 		// create class loader
 		classLoader = FlinkUserCodeClassLoaders.parentFirst(
-			dependencies.toArray(new URL[dependencies.size()]),
-			this.getClass().getClassLoader());
+				dependencies.toArray(new URL[dependencies.size()]),
+				this.getClass().getClassLoader());
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment();
@@ -171,6 +179,16 @@ public class ExecutionContext<ClusterID> {
 		executionParameters = createExecutionParameterProvider(commandLine, dependencies);
 		clusterId = clusterClientFactory.getClusterId(executorConfig);
 		clusterSpec = clusterClientFactory.getClusterSpecification(executorConfig);
+	}
+
+	/**
+	 * Get the {@link SessionContext} when initialize the ExecutionContext. It's usually used when resetting the session
+	 * properties.
+	 *
+	 * @return the original session context.
+	 */
+	public SessionContext getOriginalSessionContext() {
+		return this.originalSessionContext;
 	}
 
 	public ClassLoader getClassLoader() {
@@ -246,9 +264,9 @@ public class ExecutionContext<ClusterID> {
 			throw new RuntimeException("No execution environment defined.");
 		}
 		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
-			pipeline,
-			flinkConfig,
-			parallelism);
+				pipeline,
+				flinkConfig,
+				parallelism);
 
 		jobGraph.addJars(executionParameters.getJars());
 		jobGraph.setClasspaths(executionParameters.getClasspaths());

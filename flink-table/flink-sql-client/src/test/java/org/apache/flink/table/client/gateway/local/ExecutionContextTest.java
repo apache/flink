@@ -29,6 +29,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.util.StringUtils;
@@ -249,6 +250,7 @@ public class ExecutionContextTest {
 		final Configuration flinkConfig = new Configuration();
 		return new ExecutionContext<>(
 			env,
+			new SessionContext("test-session", new Environment()),
 			Collections.emptyList(),
 			flinkConfig,
 			new Options(),

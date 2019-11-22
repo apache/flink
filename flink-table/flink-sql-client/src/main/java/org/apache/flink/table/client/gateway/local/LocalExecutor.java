@@ -176,12 +176,11 @@ public class LocalExecutor implements Executor {
 	 * Constructor for testing purposes.
 	 */
 	public LocalExecutor(
-		Environment defaultEnvironment,
-		List<URL> dependencies,
-		Configuration flinkConfig,
-		CustomCommandLine commandLine,
-		ClusterClientServiceLoader clusterClientServiceLoader
-	) {
+			Environment defaultEnvironment,
+			List<URL> dependencies,
+			Configuration flinkConfig,
+			CustomCommandLine commandLine,
+			ClusterClientServiceLoader clusterClientServiceLoader) {
 		this.defaultEnvironment = defaultEnvironment;
 		this.dependencies = dependencies;
 		this.flinkConfig = flinkConfig;
@@ -203,29 +202,23 @@ public class LocalExecutor implements Executor {
 	 * Create a new {@link ExecutionContext} by merging the default environment the the environment in session context.
 	 */
 	private ExecutionContext<?> createExecutionContext(SessionContext sessionContext) {
-		return createExecutionContext(defaultEnvironment, sessionContext.getSessionEnv());
-	}
-
-	/**
-	 * Create a new {@link ExecutionContext} by merging the default environment and session environment.
-	 */
-	private ExecutionContext<?> createExecutionContext(Environment defaultEnv, Environment sessionEnv) {
-		Environment mergedEnv = Environment.merge(defaultEnv, sessionEnv);
-		return createExecutionContext(mergedEnv);
+		Environment mergedEnv = Environment.merge(defaultEnvironment, sessionContext.getSessionEnv());
+		return createExecutionContext(mergedEnv, sessionContext);
 	}
 
 	/**
 	 * Create a new {@link ExecutionContext} by using the given environment.
 	 */
-	private ExecutionContext<?> createExecutionContext(Environment environment) {
+	private ExecutionContext<?> createExecutionContext(Environment environment, SessionContext sessionContext) {
 		try {
 			return new ExecutionContext<>(
-				environment,
-				dependencies,
-				flinkConfig,
-				clusterClientServiceLoader,
-				commandLineOptions,
-				commandLines);
+					environment,
+					sessionContext,
+					dependencies,
+					flinkConfig,
+					clusterClientServiceLoader,
+					commandLineOptions,
+					commandLines);
 		} catch (Throwable t) {
 			// catch everything such that a configuration does not crash the executor
 			throw new SqlExecutionException("Could not create execution context.", t);
@@ -237,9 +230,9 @@ public class LocalExecutor implements Executor {
 		String sessionId = sessionContext.getSessionId();
 		ExecutionContext previousContext = this.contextMap.putIfAbsent(sessionId, createExecutionContext(sessionContext));
 		if (previousContext != null) {
-			throw new SqlExecutionException("Found another session with the same session identifier: " + sessionContext.getSessionId());
+			throw new SqlExecutionException("Found another session with the same session identifier: " + sessionId);
 		}
-		return sessionContext.getSessionId();
+		return sessionId;
 	}
 
 	@Override
@@ -278,36 +271,40 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public void resetSessionProperties(String sessionId) throws SqlExecutionException {
-		// Renew the ExecutionContext by using the default environment.
-		this.contextMap.put(sessionId, createExecutionContext(defaultEnvironment));
+		ExecutionContext<?> context = getExecutionContext(sessionId);
+		// Renew the ExecutionContext by merging the default environment with original session context.
+		this.contextMap.put(sessionId, createExecutionContext(context.getOriginalSessionContext()));
 	}
 
 	@Override
 	public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
-		Environment env = getExecutionContext(sessionId).getEnvironment();
+		ExecutionContext<?> context = getExecutionContext(sessionId);
+		Environment env = context.getEnvironment();
 		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
-		// Renew the ExecutionContext by merging the default environment and new environment.
-		this.contextMap.put(sessionId, createExecutionContext(defaultEnvironment, newEnv));
+		// Renew the ExecutionContext by new environment.
+		this.contextMap.put(sessionId, createExecutionContext(newEnv, context.getOriginalSessionContext()));
 	}
 
 	@Override
 	public void addView(String sessionId, String name, String query) throws SqlExecutionException {
-		Environment env = getExecutionContext(sessionId).getEnvironment();
+		ExecutionContext<?> context = getExecutionContext(sessionId);
+		Environment env = context.getEnvironment();
 		Environment newEnv = Environment.enrich(
-			env,
-			ImmutableMap.of(),
-			ImmutableMap.of(name, ViewEntry.create(name, query)));
+				env,
+				ImmutableMap.of(),
+				ImmutableMap.of(name, ViewEntry.create(name, query)));
 		// Renew the ExecutionContext.
-		this.contextMap.put(sessionId, createExecutionContext(defaultEnvironment, newEnv));
+		this.contextMap.put(sessionId, createExecutionContext(newEnv, context.getOriginalSessionContext()));
 	}
 
 	@Override
 	public void removeView(String sessionId, String name) throws SqlExecutionException {
-		Environment env = getExecutionContext(sessionId).getEnvironment();
+		ExecutionContext<?> context = getExecutionContext(sessionId);
+		Environment env = context.getEnvironment();
 		Environment newEnv = env.clone();
 		if (newEnv.getTables().remove(name) != null) {
 			// Renew the ExecutionContext.
-			this.contextMap.put(sessionId, createExecutionContext(defaultEnvironment, newEnv));
+			this.contextMap.put(sessionId, createExecutionContext(newEnv, context.getOriginalSessionContext()));
 		}
 	}
 
@@ -430,7 +427,7 @@ public class LocalExecutor implements Executor {
 
 		try {
 			return context.wrapClassLoader(() ->
-				Arrays.asList(tableEnv.getCompletionHints(statement, position)));
+					Arrays.asList(tableEnv.getCompletionHints(statement, position)));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			if (LOG.isDebugEnabled()) {
@@ -448,9 +445,8 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(
-		String sessionId,
-		String resultId
-	) throws SqlExecutionException {
+			String sessionId,
+			String resultId) throws SqlExecutionException {
 		final DynamicResult<?> result = resultStore.getResult(resultId);
 		if (result == null) {
 			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
@@ -540,9 +536,9 @@ public class LocalExecutor implements Executor {
 	}
 
 	private <C> ProgramTargetDescriptor executeUpdateInternal(
-		String sessionId,
-		ExecutionContext<C> context,
-		String statement) {
+			String sessionId,
+			ExecutionContext<C> context,
+			String statement) {
 		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
 
 		// create job graph with dependencies
@@ -558,15 +554,15 @@ public class LocalExecutor implements Executor {
 		// create execution
 		final BasicResult<C> result = new BasicResult<>();
 		final ProgramDeployer<C> deployer = new ProgramDeployer<>(
-			context, jobName, jobGraph, result, false);
+				context, jobName, jobGraph, result, false);
 
 		// blocking deployment
 		deployer.run();
 
 		return ProgramTargetDescriptor.of(
-			result.getClusterId(),
-			jobGraph.getJobID(),
-			result.getWebInterfaceUrl());
+				result.getClusterId(),
+				jobGraph.getJobID(),
+				result.getWebInterfaceUrl());
 	}
 
 	private <C> ResultDescriptor executeQueryInternal(String sessionId, ExecutionContext<C> context, String query) {
@@ -575,9 +571,9 @@ public class LocalExecutor implements Executor {
 
 		// initialize result
 		final DynamicResult<C> result = resultStore.createResult(
-			context.getEnvironment(),
-			removeTimeAttributes(table.getSchema()),
-			context.getExecutionConfig());
+				context.getEnvironment(),
+				removeTimeAttributes(table.getSchema()),
+				context.getExecutionConfig());
 
 		// create job graph with dependencies
 		final String jobName = sessionId + ": " + query;
@@ -587,8 +583,8 @@ public class LocalExecutor implements Executor {
 			context.wrapClassLoader(() -> {
 				context.getTableEnvironment().registerTableSink(jobName, result.getTableSink());
 				table.insertInto(
-					context.getQueryConfig(),
-					jobName);
+						context.getQueryConfig(),
+						jobName);
 				return null;
 			});
 			jobGraph = context.createJobGraph(jobName);
@@ -606,15 +602,15 @@ public class LocalExecutor implements Executor {
 
 		// create execution
 		final ProgramDeployer<C> deployer = new ProgramDeployer<>(
-			context, jobName, jobGraph, result, true);
+				context, jobName, jobGraph, result, true);
 
 		// start result retrieval
 		result.startRetrieval(deployer);
 
 		return new ResultDescriptor(
-			resultId,
-			removeTimeAttributes(table.getSchema()),
-			result.isMaterialized());
+				resultId,
+				removeTimeAttributes(table.getSchema()),
+				result.isMaterialized());
 	}
 
 	/**
