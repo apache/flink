@@ -22,7 +22,6 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogFunction;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -63,7 +62,7 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 
 	@Override
 	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
-		if (Boolean.valueOf(catalogFunction.getProperties().get(CatalogConfig.IS_GENERIC))) {
+		if (catalogFunction.isGeneric()) {
 			return FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
 		}
 

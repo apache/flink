@@ -124,7 +124,7 @@ public abstract class CatalogTestBase extends CatalogTest {
 	protected CatalogFunction createFunction() {
 		return new CatalogFunctionImpl(
 			"test.class.name",
-			getGenericFlag(isGeneric())
+			isGeneric()
 		);
 	}
 
@@ -132,7 +132,7 @@ public abstract class CatalogTestBase extends CatalogTest {
 	protected CatalogFunction createAnotherFunction() {
 		return new CatalogFunctionImpl(
 			"test.another.class.name",
-			getGenericFlag(isGeneric())
+			isGeneric()
 		);
 	}
 
