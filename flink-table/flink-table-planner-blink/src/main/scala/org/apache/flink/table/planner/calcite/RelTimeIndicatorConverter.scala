@@ -642,7 +642,7 @@ class RexTimeIndicatorMaterializer(
 
       // materialize function's result and operands
       case _ if isTimeIndicatorType(updatedCall.getType) =>
-        if (updatedCall.getOperator == FlinkSqlOperatorTable.PROCTIME_MATERIALIZE) {
+        if (updatedCall.getOperator == FlinkSqlOperatorTable.PROCTIME) {
           updatedCall
         } else {
           updatedCall.clone(timestamp(updatedCall.getType.isNullable), materializedOperands)
