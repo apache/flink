@@ -37,9 +37,9 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
+import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
-import org.apache.flink.table.operations.ddl.UseCatalogOperation;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.RelRoot;

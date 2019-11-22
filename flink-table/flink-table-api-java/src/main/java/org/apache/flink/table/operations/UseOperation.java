@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.ddl;
+package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.operations.Operation;
 
 /**
  * An {@link Operation} that describes the catalog/database switch statements,

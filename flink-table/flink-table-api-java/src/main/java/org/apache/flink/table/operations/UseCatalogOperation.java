@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.ddl;
+package org.apache.flink.table.operations;
 
 /**
  * Operation to describe a USE CATALOG statement.
