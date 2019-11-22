@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.scheduler.DeploymentOption;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
@@ -108,8 +107,7 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 		@Override
 		public SchedulingStrategy createInstance(
 				final SchedulerOperations schedulerOperations,
-				final SchedulingTopology<?, ?> schedulingTopology,
-				final JobGraph jobGraph) {
+				final SchedulingTopology<?, ?> schedulingTopology) {
 
 			lastInstance = new TestSchedulingStrategy(schedulerOperations, schedulingTopology);
 			return lastInstance;
