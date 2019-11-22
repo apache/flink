@@ -866,16 +866,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			stream = null;
 		}
 	}
-
-	/**
-	 * Check if the file input stream exists
-	 * @param path of the input file
-	 * @return True if the path exists, else False
-	 */
-	public boolean exists(Path path) throws IOException {
-		final FileSystem fs = FileSystem.get(path.toUri());
-		return fs.exists(path);
-	}
 	
 	/**
 	 * Override this method to supports multiple paths.
