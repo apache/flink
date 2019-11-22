@@ -55,7 +55,6 @@ import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.TimestampWithTimeZoneString;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -139,15 +138,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 						valueAsCalendar(extractValue(valueLiteral, java.sql.Time.class))), 0);
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				TimestampType timestampType = (TimestampType) type;
-				Class<?> clazz = valueLiteral.getOutputDataType().getConversionClass();
-				LocalDateTime datetime = null;
-				if (clazz == LocalDateTime.class) {
-					datetime = extractValue(valueLiteral, LocalDateTime.class);
-				} else if (clazz == Timestamp.class) {
-					datetime = extractValue(valueLiteral, Timestamp.class).toLocalDateTime();
-				} else {
-					throw new TableException(String.format("Invalid literal of %s.", clazz.getCanonicalName()));
-				}
+				LocalDateTime datetime = extractValue(valueLiteral, LocalDateTime.class);
 				return relBuilder.getRexBuilder().makeTimestampLiteral(
 					new TimestampString(
 						datetime.getYear(),
