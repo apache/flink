@@ -326,10 +326,6 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
       "select f0, count(*) from TableName group by f0",
       Seq((1, 2L), (2, 2L), (3, 2L)) // count=>long
     )
-  }
-
-  @Test
-  def testGroupBy2(): Unit = {
     checkQuery(
       Seq(("a", 1, 0), ("b", 2, 4), ("a", 2, 3)),
       "select f0, min(f1), min(f2) from TableName group by f0",
