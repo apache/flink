@@ -163,9 +163,9 @@ public class CheckpointCoordinator {
 	 * Non-volatile, because only accessed in synchronized scope */
 	private boolean periodicScheduling;
 
-	/** Flag whether a trigger request could not be handled immediately. Non-volatile, because only
-	 * accessed in synchronized scope */
-	private boolean triggerRequestQueued;
+	/** Flag whether periodic triggering is suspended (too many concurrent pending checkpoint).
+	 * Non-volatile, because only accessed in synchronized scope */
+	private boolean periodicTriggeringSuspended;
 
 	/** Flag marking the coordinator as shut down (not accepting any messages any more). */
 	private volatile boolean shutdown;
@@ -355,7 +355,7 @@ public class CheckpointCoordinator {
 				LOG.info("Stopping checkpoint coordinator for job {}.", job);
 
 				periodicScheduling = false;
-				triggerRequestQueued = false;
+				periodicTriggeringSuspended = false;
 
 				// shut down the hooks
 				MasterHooks.close(masterHooks.values(), LOG);
@@ -884,7 +884,7 @@ public class CheckpointCoordinator {
 		} finally {
 			pendingCheckpoints.remove(checkpointId);
 
-			triggerQueuedRequests();
+			resumePeriodicTriggering();
 		}
 
 		rememberRecentCheckpointId(checkpointId);
@@ -952,25 +952,25 @@ public class CheckpointCoordinator {
 	}
 
 	/**
-	 * Triggers the queued request, if there is one.
+	 * Resumes suspended periodic triggering.
 	 *
 	 * <p>NOTE: The caller of this method must hold the lock when invoking the method!
 	 */
-	private void triggerQueuedRequests() {
-		if (triggerRequestQueued) {
-			triggerRequestQueued = false;
+	private void resumePeriodicTriggering() {
+		assert(Thread.holdsLock(lock));
+
+		if (shutdown || !periodicScheduling) {
+			return;
+		}
+		if (periodicTriggeringSuspended) {
+			periodicTriggeringSuspended = false;
 
 			// trigger the checkpoint from the trigger timer, to finish the work of this thread before
 			// starting with the next checkpoint
-			if (periodicScheduling) {
-				if (currentPeriodicTrigger != null) {
-					currentPeriodicTrigger.cancel(false);
-				}
-				currentPeriodicTrigger = scheduleTriggerWithDelay(0L);
+			if (currentPeriodicTrigger != null) {
+				currentPeriodicTrigger.cancel(false);
 			}
-			else {
-				timer.execute(new ScheduledTrigger());
-			}
+			currentPeriodicTrigger = scheduleTriggerWithDelay(0L);
 		}
 	}
 
@@ -1223,7 +1223,7 @@ public class CheckpointCoordinator {
 
 	public void stopCheckpointScheduler() {
 		synchronized (lock) {
-			triggerRequestQueued = false;
+			periodicTriggeringSuspended = false;
 			periodicScheduling = false;
 
 			if (currentPeriodicTrigger != null) {
@@ -1273,7 +1273,7 @@ public class CheckpointCoordinator {
 	 */
 	private void checkConcurrentCheckpoints() throws CheckpointException {
 		if (pendingCheckpoints.size() >= maxConcurrentCheckpointAttempts) {
-			triggerRequestQueued = true;
+			periodicTriggeringSuspended = true;
 			if (currentPeriodicTrigger != null) {
 				currentPeriodicTrigger.cancel(false);
 				currentPeriodicTrigger = null;
@@ -1413,7 +1413,7 @@ public class CheckpointCoordinator {
 				pendingCheckpoints.remove(pendingCheckpoint.getCheckpointId());
 				rememberRecentCheckpointId(pendingCheckpoint.getCheckpointId());
 
-				triggerQueuedRequests();
+				resumePeriodicTriggering();
 			}
 		}
 	}
@@ -1430,13 +1430,7 @@ public class CheckpointCoordinator {
 		}
 
 		if (!forceCheckpoint) {
-			if (triggerRequestQueued) {
-				LOG.warn("Trying to trigger another checkpoint for job {} while one was queued already.", job);
-				throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
-			}
-
 			checkConcurrentCheckpoints();
-
 			checkMinPauseBetweenCheckpoints();
 		}
 	}
