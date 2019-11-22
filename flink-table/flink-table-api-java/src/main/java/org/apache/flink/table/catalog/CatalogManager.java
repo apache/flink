@@ -511,7 +511,38 @@ public class CatalogManager {
 		} else if (!ignoreNoCatalog) {
 			throw new ValidationException(String.format("Catalog %s does not exist.", catalogName));
 		}
+	}
 
+	/**
+	 * Drop a database in a given path.
+	 * @param catalogName
+	 * @param databaseName
+	 * @param catalogDatabase new catalogDatabase.
+	 */
+	public void alterDatabase(String catalogName,
+							String databaseName,
+							CatalogDatabase catalogDatabase,
+							boolean ignoreNoCatalog) {
+		Optional<Catalog> catalog = getCatalog(catalogName);
+		if (catalog.isPresent()) {
+			try {
+				CatalogDatabase originDatabase = catalog.get().getDatabase(databaseName);
+				Map<String, String> properties = new HashMap<>(originDatabase.getProperties());
+				properties.putAll(catalogDatabase.getProperties());
+				catalog.get().alterDatabase(
+						databaseName,
+						new CatalogDatabaseImpl(properties, originDatabase.getComment()),
+						false);
+			} catch (DatabaseNotExistException e) {
+				throw new ValidationException(
+						String.format("Could not execute %s in path %s", "ALTER DATABASE", catalogName), e);
+			} catch (Exception e) {
+				throw new TableException(
+						String.format("Could not execute %s in path %s", "ALTER DATABASE", catalogName), e);
+			}
+		} else if (!ignoreNoCatalog) {
+			throw new ValidationException(String.format("Catalog %s does not exist.", catalogName));
+		}
 	}
 
 	/**

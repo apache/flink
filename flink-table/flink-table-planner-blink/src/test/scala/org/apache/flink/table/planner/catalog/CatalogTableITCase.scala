@@ -919,6 +919,21 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     }
     tableEnv.sqlUpdate("drop database db1 cascade")
   }
+
+  @Test
+  def testAlterDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1 comment 'db1_comment' with ('k1' = 'v1')")
+    tableEnv.sqlUpdate("alter database db1 set ('k1' = 'a', 'k2' = 'b')")
+    val database = tableEnv.getCatalog("cat1").get().getDatabase("db1")
+    assertEquals("db1_comment", database.getComment)
+    assertEquals(2, database.getProperties.size())
+    val expectedProperty = new util.HashMap[String, String]()
+    expectedProperty.put("k1", "a")
+    expectedProperty.put("k2", "b")
+    assertEquals(expectedProperty, database.getProperties)
+  }
 }
 
 object CatalogTableITCase {

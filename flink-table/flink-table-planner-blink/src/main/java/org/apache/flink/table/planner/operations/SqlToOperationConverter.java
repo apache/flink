@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
@@ -40,6 +41,7 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -118,6 +120,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
 		} else if (validated instanceof SqlDropDatabase) {
 			return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
+		} else if (validated instanceof SqlAlterDatabase) {
+			return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -211,14 +215,8 @@ public class SqlToOperationConverter {
 		if (fullDatabaseName.length > 2) {
 			throw new SqlConversionException("create database identifier format error");
 		}
-		String catalogName = catalogManager.getCurrentCatalog();
-		String databaseName = null;
-		if (fullDatabaseName.length == 1) {
-			databaseName = fullDatabaseName[0];
-		} else {
-			catalogName = fullDatabaseName[0];
-			databaseName = fullDatabaseName[1];
-		}
+		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
+		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
 		boolean ignoreIfExists = sqlCreateDatabase.isIfNotExists();
 		String databaseComment = sqlCreateDatabase.getComment()
 								.map(comment -> comment.getNlsString().getValue()).orElse(null);
@@ -237,19 +235,31 @@ public class SqlToOperationConverter {
 		if (fullDatabaseName.length > 2) {
 			throw new SqlConversionException("drop database identifier format error");
 		}
-		String catalogName = catalogManager.getCurrentCatalog();
-		String databaseName = null;
-		if (fullDatabaseName.length == 1) {
-			databaseName = fullDatabaseName[0];
-		} else {
-			catalogName = fullDatabaseName[0];
-			databaseName = fullDatabaseName[1];
-		}
+		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
+		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
 		return new DropDatabaseOperation(
 				catalogName,
 				databaseName,
 				sqlDropDatabase.getIfExists(),
 				sqlDropDatabase.isRestrict());
+	}
+
+	/** Convert ALTER DATABASE statement. */
+	private Operation convertAlterDatabase(SqlAlterDatabase sqlAlterDatabase) {
+		String[] fullDatabaseName = sqlAlterDatabase.fullDatabaseName();
+		if (fullDatabaseName.length > 2) {
+			throw new SqlConversionException("alter database identifier format error");
+		}
+		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
+		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+
+		// set with properties
+		Map<String, String> properties = new HashMap<>();
+		sqlAlterDatabase.getPropertyList().getList().forEach(p ->
+						properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+						((SqlTableOption) p).getValueString()));
+		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, null);
+		return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
 	}
 
 	/** Fallback method for sql query. */

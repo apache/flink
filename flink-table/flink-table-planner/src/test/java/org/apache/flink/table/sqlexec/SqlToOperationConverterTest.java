@@ -46,6 +46,7 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -168,6 +169,15 @@ public class SqlToOperationConverterTest {
 			assertEquals(expectedIgnoreIfExists[i], createDatabaseOperation.isIgnoreIfExists());
 			assertEquals(expectedPropertySize[i], createDatabaseOperation.getCatalogDatabase().getProperties().size());
 		}
+	}
+
+	@Test
+	public void testAlterDatabase() {
+		final String sql = "alter database cat1.db1 set ('k1'='a')";
+		Operation operation = parse(sql, SqlDialect.DEFAULT);
+		assert operation instanceof AlterDatabaseOperation;
+		assertEquals("db1", ((AlterDatabaseOperation) operation).getDatabaseName());
+		assertEquals("cat1", ((AlterDatabaseOperation) operation).getCatalogName());
 	}
 
 	@Test
