@@ -266,11 +266,11 @@ public class FlinkKafkaProducer<IN>
 
 	/** The callback than handles error propagation or logging callbacks. */
 	@Nullable
-	private transient Callback callback;
+	protected transient Callback callback;
 
 	/** Errors encountered in the async producer are stored here. */
 	@Nullable
-	private transient volatile Exception asyncException;
+	protected transient volatile Exception asyncException;
 
 	/** Number of unacknowledged records. */
 	private final AtomicLong pendingRecords = new AtomicLong();
@@ -947,7 +947,7 @@ public class FlinkKafkaProducer<IN>
 		}
 	}
 
-	private void acknowledgeMessage() {
+	protected void acknowledgeMessage() {
 		pendingRecords.decrementAndGet();
 	}
 
