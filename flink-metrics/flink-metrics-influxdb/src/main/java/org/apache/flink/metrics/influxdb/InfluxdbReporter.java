@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.util.NetUtils;
 
 import okhttp3.OkHttpClient;
 import org.influxdb.InfluxDB;
@@ -71,7 +72,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 	public void open(MetricConfig config) {
 		String host = getString(config, HOST);
 		int port = getInteger(config, PORT);
-		if (!isValidHost(host) || !isValidPort(port)) {
+		if (!isValidHost(host) || !NetUtils.isValidClientPort(port)) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
 		}
 		String database = getString(config, DB);
@@ -153,7 +154,4 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		return host != null && !host.isEmpty();
 	}
 
-	private static boolean isValidPort(int port) {
-		return 0 < port && port <= 65535;
-	}
 }
