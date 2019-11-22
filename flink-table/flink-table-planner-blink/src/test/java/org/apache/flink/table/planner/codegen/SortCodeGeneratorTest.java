@@ -38,6 +38,7 @@ import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.DataFormatConverters;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.plan.utils.SortUtil;
@@ -62,6 +63,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
@@ -108,7 +110,9 @@ public class SortCodeGeneratorTest {
 			new ArrayType(new TinyIntType()),
 			RowType.of(new IntType()),
 			RowType.of(RowType.of(new IntType())),
-			new TypeInformationRawType<>(Types.INT)
+			new TypeInformationRawType<>(Types.INT),
+			new TimestampType(3),
+			new TimestampType(9)
 	};
 
 	private int[] fields;
@@ -250,6 +254,14 @@ public class SortCodeGeneratorTest {
 							ThreadLocalRandom.current().nextInt(1, 30), BigDecimal.ROUND_HALF_EVEN);
 					seeds[i] = Decimal.fromBigDecimal(decimal, decimalType.getPrecision(), decimalType.getScale());
 					break;
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
+					TimestampType timestampType = (TimestampType) type;
+					if (timestampType.getPrecision() <= 3) {
+						seeds[i] = SqlTimestamp.fromEpochMillis(rnd.nextLong());
+					} else {
+						seeds[i] = SqlTimestamp.fromEpochMillis(rnd.nextLong(), rnd.nextInt(1000000));
+					}
+					break;
 				case ARRAY:
 				case VARBINARY:
 					byte[] bytes = new byte[rnd.nextInt(16) + 1];
@@ -302,6 +314,8 @@ public class SortCodeGeneratorTest {
 				DecimalType decimalType = (DecimalType) type;
 				return Decimal.fromBigDecimal(new BigDecimal(Integer.MIN_VALUE),
 						decimalType.getPrecision(), decimalType.getScale());
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return SqlTimestamp.fromEpochMillis(Long.MIN_VALUE);
 			case ARRAY:
 				byte[] bytes = new byte[rnd.nextInt(7) + 1];
 				rnd.nextBytes(bytes);
@@ -345,6 +359,8 @@ public class SortCodeGeneratorTest {
 				DecimalType decimalType = (DecimalType) type;
 				return Decimal.fromBigDecimal(new BigDecimal(0),
 						decimalType.getPrecision(), decimalType.getScale());
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return SqlTimestamp.fromEpochMillis(0);
 			case ARRAY:
 			case VARBINARY:
 				byte[] bytes = new byte[rnd.nextInt(7) + 10];
@@ -386,6 +402,8 @@ public class SortCodeGeneratorTest {
 				DecimalType decimalType = (DecimalType) type;
 				return Decimal.fromBigDecimal(new BigDecimal(Integer.MAX_VALUE),
 						decimalType.getPrecision(), decimalType.getScale());
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return SqlTimestamp.fromEpochMillis(Long.MAX_VALUE, 999999);
 			case ARRAY:
 			case VARBINARY:
 				byte[] bytes = new byte[rnd.nextInt(100) + 100];

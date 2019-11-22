@@ -3029,6 +3029,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1996-11-10 00:00:00")
 
     testAllApis(
+      'f18.floor(TimeIntervalUnit.HOUR),
+      "f18.floor(HOUR)",
+      "FLOOR(f18 TO HOUR)",
+      "1996-11-10 06:00:00")
+
+    testAllApis(
       'f18.floor(TimeIntervalUnit.MINUTE),
       "f18.floor(MINUTE)",
       "FLOOR(f18 TO MINUTE)",
@@ -3087,6 +3093,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f18.ceil(DAY)",
       "CEIL(f18 TO DAY)",
       "1996-11-11 00:00:00")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.HOUR),
+      "f18.ceil(HOUR)",
+      "CEIL(f18 TO HOUR)",
+      "1996-11-10 07:00:00")
 
     testAllApis(
       'f18.ceil(TimeIntervalUnit.MINUTE),

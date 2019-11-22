@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
 import org.junit.Test
-
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.time.{Instant, ZoneId}
@@ -254,6 +253,43 @@ class TemporalTypesTest extends ExpressionTestBase {
       'f8.cast(DataTypes.TIMESTAMP(3)).cast(DataTypes.BIGINT()),
       "f8.cast(SQL_TIMESTAMP).cast(LONG)",
       "1467012213000")
+
+    testSqlApi(
+      "CAST(CAST('123' as DECIMAL(5, 2)) AS TIMESTAMP)",
+      "1970-01-01 00:02:03")
+
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS DECIMAL(5, 2))",
+      "123.00")
+
+    testSqlApi(
+      "CAST(CAST('123' AS FLOAT) AS TIMESTAMP)",
+      "1970-01-01 00:02:03")
+
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS FLOAT)",
+      "123.0")
+
+    testSqlApi(
+      "CAST(CAST('123' AS DOUBLE) AS TIMESTAMP)",
+      "1970-01-01 00:02:03")
+
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS DOUBLE)",
+      "123.0")
+
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS TINYINT)",
+      "123")
+
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS SMALLINT)",
+      "123")
+
+    testSqlApi(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS INT)",
+      "123")
+
   }
 
   @Test
@@ -923,7 +959,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       "123456789")
 
     // TIMESTAMPADD should support microsecond/nanosecond
-    // TODO:
+    // TODO: https://issues.apache.org/jira/browse/CALCITE-3530
     //  (1970-01-01 00:00:00.123455789:TIMESTAMP(9), /INT(*(1:INTERVAL MICROSECOND, 1), 1000))
     // testSqlApi(
     //  "TIMESTAMPADD(MICROSECOND, 1, TIMESTAMP '1970-01-01 00:00:00.123455789')",
@@ -931,7 +967,8 @@ class TemporalTypesTest extends ExpressionTestBase {
     //)
 
     // TIMESTAMPDIFF should support microsecond/nanosecond
-    // TODO:
+    // TODO: https://issues.apache.org/jira/browse/CALCITE-3530 and
+    //   https://issues.apache.org/jira/browse/CALCITE-3529
     //  *(
     //  CAST(
     //    /INT(
@@ -1009,7 +1046,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
-    val testData = new Row(23)
+    val testData = new Row(24)
     testData.setField(0, localDate("1990-10-14"))
     testData.setField(1, DateTimeTestUtil.localTime("10:20:45"))
     testData.setField(2, localDateTime("1990-10-14 10:20:45.123"))
