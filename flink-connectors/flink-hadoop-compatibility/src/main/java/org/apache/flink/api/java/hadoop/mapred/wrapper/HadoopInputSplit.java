@@ -78,6 +78,7 @@ public class HadoopInputSplit extends LocatableInputSplit {
 		try {
 			return this.hadoopInputSplit.getLocations();
 		} catch (IOException e) {
+			e.printStackTrace();
 			return new String[0];
 		}
 	}
