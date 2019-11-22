@@ -60,7 +60,6 @@ public class HadoopInputSplitTest {
 		HadoopInputSplit split = new HadoopInputSplit(5, fileSplit, conf);
 
 		byte[] bytes = InstantiationUtil.serializeObject(split);
-		System.out.println(bytes.length);
 		serializeSizeChecker.accept(bytes.length);
 
 		split  = InstantiationUtil.deserializeObject(bytes, split.getClass().getClassLoader());
