@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.compression;
+package org.apache.flink.runtime.io.compression;
 
 import net.jpountz.lz4.LZ4Exception;
 import net.jpountz.lz4.LZ4Factory;
@@ -24,8 +24,9 @@ import net.jpountz.lz4.LZ4FastDecompressor;
 import net.jpountz.util.SafeUtils;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
-import static org.apache.flink.table.runtime.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
+import static org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
 
 /**
  * Decode data written with {@link Lz4BlockCompressor}.
@@ -47,6 +48,7 @@ public class Lz4BlockDecompressor implements BlockDecompressor {
 		final int prevSrcOff = src.position() + srcOff;
 		final int prevDstOff = dst.position() + dstOff;
 
+		src.order(ByteOrder.LITTLE_ENDIAN);
 		final int compressedLen = src.getInt(prevSrcOff);
 		final int originalLen = src.getInt(prevSrcOff + 4);
 		validateLength(compressedLen, originalLen);

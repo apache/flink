@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
+import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
-import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.util.MutableObjectIterator;

@@ -20,13 +20,13 @@ package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
