@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.compression;
+package org.apache.flink.runtime.io.compression;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
-import static org.apache.flink.table.runtime.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
+import static org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
 import static org.junit.Assert.assertEquals;
 
 /**

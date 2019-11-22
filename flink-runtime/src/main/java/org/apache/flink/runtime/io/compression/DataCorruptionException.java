@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.compression;
+package org.apache.flink.runtime.io.compression;
 
 /**
  * A {@code DataCorruptionException} is thrown when the decompressed data is corrupted and cannot be

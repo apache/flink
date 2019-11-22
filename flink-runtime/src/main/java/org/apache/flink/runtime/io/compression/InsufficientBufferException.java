@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.compression;
+package org.apache.flink.runtime.io.compression;
 
 /**
  * An {@code InsufficientBufferException} is thrown when there is no enough buffer to
