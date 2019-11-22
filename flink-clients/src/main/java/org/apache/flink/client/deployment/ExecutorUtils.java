@@ -51,7 +51,7 @@ public class ExecutorUtils {
 				.getJobGraph(pipeline, configuration, executionConfigAccessor.getParallelism());
 
 		jobGraph.addJars(executionConfigAccessor.getJars());
-		jobGraph.setClasspaths(executionConfigAccessor.getClasspaths());
+		jobGraph.addClasspaths(executionConfigAccessor.getClasspaths());
 		jobGraph.setSavepointRestoreSettings(executionConfigAccessor.getSavepointRestoreSettings());
 
 		return jobGraph;
