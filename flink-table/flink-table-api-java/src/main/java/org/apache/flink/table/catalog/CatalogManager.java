@@ -23,6 +23,7 @@ import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -453,6 +454,34 @@ public class CatalogManager {
 			objectIdentifier,
 			false,
 			"CreateTable");
+	}
+
+	/**
+	 * Creates a database in a given fully qualified path.
+	 * @param catalogName
+	 * @param databaseName
+	 * @param database
+	 * @param ignoreIfExists If false exception will be thrown if a database exists in the given path.
+	 */
+	public void createDatabase(String catalogName,
+					String databaseName,
+					CatalogDatabase database,
+					boolean ignoreIfExists,
+					boolean ignoreNoCatalog) {
+		Optional<Catalog> catalog = getCatalog(catalogName);
+		if (catalog.isPresent()) {
+			try {
+				catalog.get().createDatabase(databaseName, database, ignoreIfExists);
+			} catch (DatabaseAlreadyExistException e) {
+				throw new ValidationException(
+						String.format("Could not execute %s in path %s", "CREATE DATABASE", catalogName), e);
+			} catch (Exception e) {
+				throw new TableException(
+						String.format("Could not execute %s in path %s", "CREATE DATABASE", catalogName), e);
+			}
+		} else if (!ignoreNoCatalog) {
+			throw new ValidationException(String.format("Catalog %s does not exist.", catalogName));
+		}
 	}
 
 	/**

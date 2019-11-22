@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -848,6 +848,30 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     assertEquals("db1", tableEnv.getCurrentDatabase)
     tableEnv.sqlUpdate("use db2")
     assertEquals("db2", tableEnv.getCurrentDatabase)
+  }
+
+  @Test
+  def testCreateDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1 ")
+    tableEnv.sqlUpdate("create database if not exists db1 ")
+    try {
+      tableEnv.sqlUpdate("create database db1 ")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("create database cat2.db1 comment 'test_comment'" +
+                         " with ('k1' = 'v1', 'k2' = 'v2')")
+    val database = tableEnv.getCatalog("cat2").get().getDatabase("db1")
+    assertEquals("test_comment", database.getComment)
+    assertEquals(2, database.getProperties.size())
+    val expectedProperty = new util.HashMap[String, String]()
+    expectedProperty.put("k1", "v1")
+    expectedProperty.put("k2", "v2")
+    assertEquals(expectedProperty, database.getProperties)
   }
 }
 

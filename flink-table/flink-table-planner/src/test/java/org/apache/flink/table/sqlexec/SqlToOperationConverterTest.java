@@ -46,6 +46,7 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.PlanningConfigurationBuilder;
 import org.apache.flink.table.types.DataType;
@@ -140,6 +141,32 @@ public class SqlToOperationConverterTest {
 	public void testUseDatabaseWithException() {
 		final String sql = "USE cat1.db1.tbl1";
 		Operation operation = parse(sql, SqlDialect.DEFAULT);
+	}
+
+	@Test
+	public void testCreateDatabase() {
+		final String[] createDatabaseSqls = new String[] {
+				"create database db1",
+				"create database if not exists cat1.db1",
+				"create database cat1.db1 comment 'db1_comment'",
+				"create database cat1.db1 comment 'db1_comment' with ('k1' = 'v1', 'k2' = 'v2')"
+		};
+		final String[] expectedCatalogs = new String[] {"builtin", "cat1", "cat1", "cat1"};
+		final String expectedDatabase = "db1";
+		final String[] expectedComments = new String[] {null, null, "db1_comment", "db1_comment"};
+		final boolean[] expectedIgnoreIfExists = new boolean[] {false, true, false, false};
+		final int[] expectedPropertySize = new int[] {0, 0, 0, 2};
+
+		for (int i = 0; i < createDatabaseSqls.length; i++) {
+			Operation operation = parse(createDatabaseSqls[i], SqlDialect.DEFAULT);
+			assert operation instanceof CreateDatabaseOperation;
+			final CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
+			assertEquals(expectedCatalogs[i], createDatabaseOperation.getCatalogName());
+			assertEquals(expectedDatabase, createDatabaseOperation.getDatabaseName());
+			assertEquals(expectedComments[i], createDatabaseOperation.getCatalogDatabase().getComment());
+			assertEquals(expectedIgnoreIfExists[i], createDatabaseOperation.isIgnoreIfExists());
+			assertEquals(expectedPropertySize[i], createDatabaseOperation.getCatalogDatabase().getProperties().size());
+		}
 	}
 
 	@Test

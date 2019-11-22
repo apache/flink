@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.sqlexec;
 
+import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
@@ -30,6 +31,8 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -40,6 +43,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -110,6 +114,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertUseCatalog((SqlUseCatalog) validated));
 		} else if (validated instanceof SqlUseDatabase) {
 			return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
+		} else if (validated instanceof SqlCreateDatabase) {
+			return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
 		}  else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -205,6 +211,32 @@ public class SqlToOperationConverter {
 	/** Convert use database statement. */
 	private Operation convertUseDatabase(SqlUseDatabase useDatabase) {
 		return new UseDatabaseOperation(useDatabase.fullDatabaseName());
+	}
+
+	/** Convert CREATE DATABASE statement. */
+	private Operation convertCreateDatabase(SqlCreateDatabase sqlCreateDatabase) {
+		String[] fullDatabaseName = sqlCreateDatabase.fullDatabaseName();
+		if (fullDatabaseName.length > 2) {
+			throw new SqlConversionException("create database identifier format error");
+		}
+		String catalogName = catalogManager.getCurrentCatalog();
+		String databaseName = null;
+		if (fullDatabaseName.length == 1) {
+			databaseName = fullDatabaseName[0];
+		} else {
+			catalogName = fullDatabaseName[0];
+			databaseName = fullDatabaseName[1];
+		}
+		boolean ignoreIfExists = sqlCreateDatabase.isIfNotExists();
+		String databaseComment = sqlCreateDatabase.getComment()
+												.map(comment -> comment.getNlsString().getValue()).orElse(null);
+		// set with properties
+		Map<String, String> properties = new HashMap<>();
+		sqlCreateDatabase.getPropertyList().getList().forEach(p ->
+			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+				((SqlTableOption) p).getValueString()));
+		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
+		return new CreateDatabaseOperation(catalogName, databaseName, catalogDatabase, ignoreIfExists);
 	}
 
 	//~ Tools ------------------------------------------------------------------

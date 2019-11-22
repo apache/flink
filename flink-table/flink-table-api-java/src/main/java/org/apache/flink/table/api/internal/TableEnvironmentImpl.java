@@ -61,6 +61,7 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseOperation;
+import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
@@ -453,7 +454,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		if (operations.size() != 1) {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-					"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database");
+					"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, CREATE DATABASE");
 		}
 
 		Operation operation = operations.get(0);
@@ -471,6 +472,13 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				createTableOperation.getCatalogTable(),
 				createTableOperation.getTableIdentifier(),
 				createTableOperation.isIgnoreIfExists());
+		} else if (operation instanceof CreateDatabaseOperation) {
+			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
+			catalogManager.createDatabase(createDatabaseOperation.getCatalogName(),
+										createDatabaseOperation.getDatabaseName(),
+										createDatabaseOperation.getCatalogDatabase(),
+										createDatabaseOperation.isIgnoreIfExists(),
+										false);
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
 			catalogManager.dropTable(
@@ -481,7 +489,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database");
+					"type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, CREATE DATABASE");
 		}
 	}
 
