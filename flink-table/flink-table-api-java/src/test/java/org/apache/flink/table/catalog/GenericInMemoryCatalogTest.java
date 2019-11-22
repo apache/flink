@@ -28,6 +28,8 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.functions.TestGenericUDF;
+import org.apache.flink.table.functions.TestSimpleUDF;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -151,5 +153,15 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		colStatsMap.put("dd5", doubleColStats);
 		colStatsMap.put("bb6", binaryColStats);
 		return new CatalogColumnStatistics(colStatsMap);
+	}
+
+	@Override
+	protected CatalogFunction createFunction() {
+		return new CatalogFunctionImpl(TestGenericUDF.class.getCanonicalName());
+	}
+
+	@Override
+	protected CatalogFunction createAnotherFunction() {
+		return new CatalogFunctionImpl(TestSimpleUDF.class.getCanonicalName());
 	}
 }

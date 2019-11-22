@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -32,13 +31,6 @@ public interface CatalogFunction {
 	 * @return the full name of the class
 	 */
 	String getClassName();
-
-	/**
-	 * Get the properties of the function.
-	 *
-	 * @return the properties of the function
-	 */
-	Map<String, String> getProperties();
 
 	/**
 	 * Create a deep copy of the function.
@@ -61,4 +53,10 @@ public interface CatalogFunction {
 	 */
 	Optional<String> getDetailedDescription();
 
+	/**
+	 * Distinguish if the function is a generic Flink function.
+	 *
+	 * @return whether the function is a generic Flink function
+	 */
+	boolean isGeneric();
 }

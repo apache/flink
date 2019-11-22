@@ -970,8 +970,8 @@ public class HiveCatalog extends AbstractCatalog {
 
 		try {
 			CatalogFunction existingFunction = getFunction(functionPath);
-			boolean existingType = Boolean.valueOf(existingFunction.getProperties().get(CatalogConfig.IS_GENERIC));
-			boolean newType = Boolean.valueOf(newFunction.getProperties().get(CatalogConfig.IS_GENERIC));
+			boolean existingType = existingFunction.isGeneric();
+			boolean newType = newFunction.isGeneric();
 			if (existingType != newType) {
 				throw new CatalogException(
 					String.format("Function types don't match. Existing function %s generic, and new function %s generic.",
@@ -1045,20 +1045,9 @@ public class HiveCatalog extends AbstractCatalog {
 			Function function = client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
 
 			if (function.getClassName().startsWith(FLINK_FUNCTION_PREFIX)) {
-
-				return new CatalogFunctionImpl(
-					function.getClassName().substring(FLINK_FUNCTION_PREFIX.length()),
-					new HashMap<String, String>() {{
-						put(CatalogConfig.IS_GENERIC, String.valueOf(true));
-					}}
-				);
+				return new CatalogFunctionImpl(function.getClassName().substring(FLINK_FUNCTION_PREFIX.length()));
 			} else {
-				return new CatalogFunctionImpl(
-					function.getClassName(),
-					new HashMap<String, String>() {{
-						put(CatalogConfig.IS_GENERIC, String.valueOf(false));
-					}}
-				);
+				return new CatalogFunctionImpl(function.getClassName());
 			}
 		} catch (NoSuchObjectException e) {
 			throw new FunctionNotExistException(getName(), functionPath, e);
@@ -1084,7 +1073,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private static Function instantiateHiveFunction(ObjectPath functionPath, CatalogFunction function) {
 
-		boolean isGeneric = Boolean.valueOf(function.getProperties().get(CatalogConfig.IS_GENERIC));
+		boolean isGeneric = function.isGeneric();
 
 		// Hive Function does not have properties map
 		// thus, use a prefix in class name to distinguish Flink and Hive functions

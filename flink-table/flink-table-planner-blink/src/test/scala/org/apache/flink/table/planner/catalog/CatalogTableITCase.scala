@@ -63,8 +63,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     TestCollectionTableFactory.isStreaming = isStreamingMode
 
     val func = new CatalogFunctionImpl(
-      classOf[JavaFunc0].getName,
-      new util.HashMap[String, String]())
+      classOf[JavaFunc0].getName)
     tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().createFunction(
       new ObjectPath(tableEnv.getCurrentDatabase, "myfunc"),
       func,

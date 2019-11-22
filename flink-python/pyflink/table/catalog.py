@@ -757,14 +757,6 @@ class CatalogFunction(object):
         """
         return self._j_catalog_function.getClassName()
 
-    def get_properties(self):
-        """
-        Get the properties of the function.
-
-        :return: The properties of the function.
-        """
-        return dict(self._j_catalog_function.getProperties())
-
     def copy(self):
         """
         Create a deep copy of the function.
@@ -796,6 +788,14 @@ class CatalogFunction(object):
             return detailed_description.get()
         else:
             return None
+
+    def is_generic(self):
+        """
+        Whether or not is the function a flink UDF.
+
+        :return: Whether is the function a flink UDF.
+        """
+        return self._j_catalog_function.isGeneric()
 
 
 class ObjectPath(object):

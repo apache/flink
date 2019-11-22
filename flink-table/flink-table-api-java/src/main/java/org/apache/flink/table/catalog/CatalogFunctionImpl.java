@@ -18,27 +18,22 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.util.StringUtils;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A catalog function implementation.
  */
 public class CatalogFunctionImpl implements CatalogFunction {
 	private final String className; // Fully qualified class name of the function
-	private final Map<String, String> properties;
 
-	public CatalogFunctionImpl(String className, Map<String, String> properties) {
+	public CatalogFunctionImpl(String className) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
-
 		this.className = className;
-		this.properties = checkNotNull(properties, "properties cannot be null");
 	}
 
 	@Override
@@ -47,13 +42,8 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	}
 
 	@Override
-	public Map<String, String> getProperties() {
-		return this.properties;
-	}
-
-	@Override
 	public CatalogFunction copy() {
-		return new CatalogFunctionImpl(getClassName(), new HashMap<>(getProperties()));
+		return new CatalogFunctionImpl(getClassName());
 	}
 
 	@Override
@@ -67,10 +57,22 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	}
 
 	@Override
+	public boolean isGeneric() {
+		try {
+			Class c = Class.forName(className);
+			if (UserDefinedFunction.class.isAssignableFrom(c)) {
+				return true;
+			}
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(String.format("Can't resolve udf class %s", className), e);
+		}
+		return false;
+	}
+
+	@Override
 	public String toString() {
 		return "CatalogFunctionImpl{" +
-			", className='" + getClassName() + '\'' +
-			", properties=" + getProperties() +
-			'}';
+			"className='" + getClassName() +
+			"'}";
 	}
 }
