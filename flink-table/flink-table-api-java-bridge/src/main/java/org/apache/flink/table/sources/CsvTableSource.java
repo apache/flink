@@ -64,9 +64,9 @@ public class CsvTableSource
 	 */
 	public CsvTableSource(String path, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		this(path, fieldNames, fieldTypes,
-			IntStream.range(0, fieldNames.length).toArray(),
-			CsvInputFormat.DEFAULT_FIELD_DELIMITER, CsvInputFormat.DEFAULT_LINE_DELIMITER,
-			null, false, null, false);
+				IntStream.range(0, fieldNames.length).toArray(),
+				CsvInputFormat.DEFAULT_FIELD_DELIMITER, CsvInputFormat.DEFAULT_LINE_DELIMITER,
+				null, false, null, false);
 	}
 
 	/**
@@ -85,54 +85,19 @@ public class CsvTableSource
 	 *                        default.
 	 */
 	public CsvTableSource(
-		String path,
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes,
-		String fieldDelim,
-		String lineDelim,
-		Character quoteCharacter,
-		boolean ignoreFirstLine,
-		String ignoreComments,
-		boolean lenient) {
-
+			String path,
+			String[] fieldNames,
+			TypeInformation<?>[] fieldTypes,
+			String fieldDelim,
+			String lineDelim,
+			Character quoteCharacter,
+			boolean ignoreFirstLine,
+			String ignoreComments,
+			boolean lenient) {
 		this(path, fieldNames, fieldTypes,
-			IntStream.range(0, fieldNames.length).toArray(),
-			fieldDelim, lineDelim,
-			quoteCharacter, ignoreFirstLine, ignoreComments, lenient);
-	}
-
-	/**
-	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
-	 * a (logically) unlimited number of fields.
-	 *
-	 * @param path            	The path to the CSV file.
-	 * @param fieldNames      	The names of the table fields.
-	 * @param fieldTypes      	The types of the table fields.
-	 * @param fieldDelim      	The field delimiter, "," by default.
-	 * @param lineDelim       	The row delimiter, "\n" by default.
-	 * @param quoteCharacter  	An optional quote character for String values, null by default.
-	 * @param ignoreFirstLine 	Flag to ignore the first line, false by default.
-	 * @param ignoreComments  	An optional prefix to indicate comments, null by default.
-	 * @param lenient         	Flag to skip records with parse error instead to fail, false by
-	 *                        	default.
-	 * @param emptyColumnAsNull	Flag to treat empty column as null.
-	 */
-	public CsvTableSource(
-		String path,
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes,
-		String fieldDelim,
-		String lineDelim,
-		Character quoteCharacter,
-		boolean ignoreFirstLine,
-		String ignoreComments,
-		boolean lenient,
-		boolean emptyColumnAsNull) {
-
-		this(path, fieldNames, fieldTypes,
-			IntStream.range(0, fieldNames.length).toArray(),
-			fieldDelim, lineDelim,
-			quoteCharacter, ignoreFirstLine, ignoreComments, lenient, emptyColumnAsNull);
+				IntStream.range(0, fieldNames.length).toArray(),
+				fieldDelim, lineDelim, quoteCharacter,
+				ignoreFirstLine, ignoreComments, lenient);
 	}
 
 	/**
@@ -153,53 +118,20 @@ public class CsvTableSource
 	 *                        default.
 	 */
 	public CsvTableSource(
-		String path,
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes,
-		int[] selectedFields,
-		String fieldDelim,
-		String lineDelim,
-		Character quoteCharacter,
-		boolean ignoreFirstLine,
-		String ignoreComments,
-		boolean lenient) {
-		this(path, fieldNames, fieldTypes, selectedFields,
-			fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
-			ignoreComments, lenient, false);
-	}
-
-	/**
-	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
-	 * a (logically) unlimited number of fields.
-	 *
-	 * @param path            	The path to the CSV file.
-	 * @param fieldNames      	The names of the table fields.
-	 * @param fieldTypes      	The types of the table fields.
-	 * @param selectedFields  	The fields which will be read and returned by the table source. If
-	 *                        	None, all fields are returned.
-	 * @param fieldDelim      	The field delimiter, "," by default.
-	 * @param lineDelim     	The row delimiter, "\n" by default.
-	 * @param quoteCharacter  	An optional quote character for String values, null by default.
-	 * @param ignoreFirstLine 	Flag to ignore the first line, false by default.
-	 * @param ignoreComments  	An optional prefix to indicate comments, null by default.
-	 * @param lenient         	Flag to skip records with parse error instead to fail, false by
-	 *                        	default.
-	 * @param emptyColumnAsNull	Flag to treat empty column as null.
-	 */
-	public CsvTableSource(
-		String path,
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes,
-		int[] selectedFields,
-		String fieldDelim,
-		String lineDelim,
-		Character quoteCharacter,
-		boolean ignoreFirstLine,
-		String ignoreComments,
-		boolean lenient,
-		boolean emptyColumnAsNull) {
-		this(new CsvInputFormatConfig(path, fieldNames, fieldTypes, selectedFields, fieldDelim,
-			lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient, emptyColumnAsNull));
+			String path,
+			String[] fieldNames,
+			TypeInformation<?>[] fieldTypes,
+			int[] selectedFields,
+			String fieldDelim,
+			String lineDelim,
+			Character quoteCharacter,
+			boolean ignoreFirstLine,
+			String ignoreComments,
+			boolean lenient) {
+		this(new CsvInputFormatConfig(
+				path, fieldNames, fieldTypes, selectedFields,
+				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
+				ignoreComments, lenient, false));
 	}
 
 	private CsvTableSource(CsvInputFormatConfig config) {
@@ -409,17 +341,19 @@ public class CsvTableSource
 			if (schema.isEmpty()) {
 				throw new IllegalArgumentException("Fields can not be empty.");
 			}
-			return new CsvTableSource(
-				path,
-				schema.keySet().toArray(new String[0]),
-				schema.values().toArray(new TypeInformation<?>[0]),
-				fieldDelim,
-				lineDelim,
-				quoteCharacter,
-				isIgnoreFirstLine,
-				commentPrefix,
-				lenient,
-				emptyColumnAsNull);
+
+			return new CsvTableSource(new CsvInputFormatConfig(
+					path,
+					schema.keySet().toArray(new String[0]),
+					schema.values().toArray(new TypeInformation<?>[0]),
+					IntStream.range(0, schema.values().size()).toArray(),
+					fieldDelim,
+					lineDelim,
+					quoteCharacter,
+					isIgnoreFirstLine,
+					commentPrefix,
+					lenient,
+					emptyColumnAsNull));
 		}
 	}
 
