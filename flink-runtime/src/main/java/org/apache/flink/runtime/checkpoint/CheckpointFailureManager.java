@@ -98,7 +98,6 @@ public class CheckpointFailureManager {
 		CheckpointFailureReason reason = exception.getCheckpointFailureReason();
 		switch (reason) {
 			case PERIODIC_SCHEDULER_SHUTDOWN:
-			case ALREADY_QUEUED:
 			case TOO_MANY_CONCURRENT_CHECKPOINTS:
 			case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
 			case NOT_ALL_REQUIRED_TASKS_RUNNING:
