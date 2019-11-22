@@ -60,11 +60,21 @@ class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
         operand(classOf[BatchExecExpand], any)))),
   "EnforceLocalSortAggRule") {
 
-  override protected def getBatchExecExpand(call: RelOptRuleCall): BatchExecExpand = call.rel(3)
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val agg: BatchExecSortAggregate = call.rel(0)
+    val expand: BatchExecExpand = call.rel(3)
+
+    val enableTwoPhaseAgg = isTwoPhaseAggEnabled(agg)
+
+    val grouping = agg.getGrouping
+    val constantShuffleKey = hasConstantShuffleKey(grouping, expand)
+
+    grouping.nonEmpty && enableTwoPhaseAgg && constantShuffleKey
+  }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val agg: BatchExecSortAggregate = call.rel(0)
-    val expand = getBatchExecExpand(call)
+    val expand: BatchExecExpand = call.rel(3)
 
     val localGrouping = agg.getGrouping
     // create local sort

@@ -54,11 +54,21 @@ class EnforceLocalHashAggRule extends EnforceLocalAggRuleBase(
       operand(classOf[BatchExecExpand], any))),
   "EnforceLocalHashAggRule") {
 
-  override protected def getBatchExecExpand(call: RelOptRuleCall): BatchExecExpand = call.rel(2)
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val agg: BatchExecHashAggregate = call.rel(0)
+    val expand: BatchExecExpand = call.rel(2)
+
+    val enableTwoPhaseAgg = isTwoPhaseAggEnabled(agg)
+
+    val grouping = agg.getGrouping
+    val constantShuffleKey = hasConstantShuffleKey(grouping, expand)
+
+    grouping.nonEmpty && enableTwoPhaseAgg && constantShuffleKey
+  }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val agg: BatchExecHashAggregate = call.rel(0)
-    val expand = getBatchExecExpand(call)
+    val expand: BatchExecExpand = call.rel(2)
 
     val localAgg = createLocalAgg(agg, expand, call.builder)
     val exchange = createExchange(agg, localAgg)

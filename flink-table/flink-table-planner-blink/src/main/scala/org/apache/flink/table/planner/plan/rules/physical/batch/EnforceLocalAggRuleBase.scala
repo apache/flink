@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchan
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexUtil
 import org.apache.calcite.tools.RelBuilder
@@ -48,27 +48,19 @@ abstract class EnforceLocalAggRuleBase(
   extends RelOptRule(operand, description)
   with BatchExecAggRuleBase {
 
-  protected def getBatchExecExpand(call: RelOptRuleCall): BatchExecExpand
-
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: BatchExecGroupAggregateBase = call.rel(0)
-    val expand = getBatchExecExpand(call)
-
+  protected def isTwoPhaseAggEnabled(agg: BatchExecGroupAggregateBase): Boolean = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(agg)
     val aggFunctions = agg.getAggCallToAggFunction.map(_._2).toArray
-    val enableTwoPhaseAgg = isTwoPhaseAggWorkable(aggFunctions, tableConfig)
+    isTwoPhaseAggWorkable(aggFunctions, tableConfig)
+  }
 
-    val grouping = agg.getGrouping
-    // if all group columns in a expand row are constant, this row will be shuffled to
-    // a single node. (shuffle keys are grouping)
+  protected def hasConstantShuffleKey(shuffleKey: Array[Int], expand: BatchExecExpand): Boolean = {
+    // if all shuffle-key columns in a expand row are constant, this row will be shuffled to
+    // a single node.
     // add local aggregate to greatly reduce the output data
-    val hasConstantRow = expand.projects.exists {
-      project =>
-        val groupingColumns = grouping.map(i => project.get(i))
-        groupingColumns.forall(RexUtil.isConstant)
+    expand.projects.exists {
+      project => shuffleKey.map(i => project.get(i)).forall(RexUtil.isConstant)
     }
-
-    grouping.nonEmpty && enableTwoPhaseAgg && hasConstantRow
   }
 
   protected def createLocalAgg(
