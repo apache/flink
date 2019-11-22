@@ -105,6 +105,40 @@ public class CsvTableSource
 	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
 	 * a (logically) unlimited number of fields.
 	 *
+	 * @param path            	The path to the CSV file.
+	 * @param fieldNames      	The names of the table fields.
+	 * @param fieldTypes      	The types of the table fields.
+	 * @param fieldDelim      	The field delimiter, "," by default.
+	 * @param lineDelim       	The row delimiter, "\n" by default.
+	 * @param quoteCharacter  	An optional quote character for String values, null by default.
+	 * @param ignoreFirstLine 	Flag to ignore the first line, false by default.
+	 * @param ignoreComments  	An optional prefix to indicate comments, null by default.
+	 * @param lenient         	Flag to skip records with parse error instead to fail, false by
+	 *                        	default.
+	 * @param emptyColumnAsNull	Flag to treat empty column as null.
+	 */
+	public CsvTableSource(
+		String path,
+		String[] fieldNames,
+		TypeInformation<?>[] fieldTypes,
+		String fieldDelim,
+		String lineDelim,
+		Character quoteCharacter,
+		boolean ignoreFirstLine,
+		String ignoreComments,
+		boolean lenient,
+		boolean emptyColumnAsNull) {
+
+		this(path, fieldNames, fieldTypes,
+			IntStream.range(0, fieldNames.length).toArray(),
+			fieldDelim, lineDelim,
+			quoteCharacter, ignoreFirstLine, ignoreComments, lenient, emptyColumnAsNull);
+	}
+
+	/**
+	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
+	 * a (logically) unlimited number of fields.
+	 *
 	 * @param path            The path to the CSV file.
 	 * @param fieldNames      The names of the table fields.
 	 * @param fieldTypes      The types of the table fields.
@@ -129,8 +163,43 @@ public class CsvTableSource
 		boolean ignoreFirstLine,
 		String ignoreComments,
 		boolean lenient) {
-		this(new CsvInputFormatConfig(path, fieldNames, fieldTypes, selectedFields,
-			fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient));
+		this(path, fieldNames, fieldTypes, selectedFields,
+			fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
+			ignoreComments, lenient, false);
+	}
+
+	/**
+	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
+	 * a (logically) unlimited number of fields.
+	 *
+	 * @param path            	The path to the CSV file.
+	 * @param fieldNames      	The names of the table fields.
+	 * @param fieldTypes      	The types of the table fields.
+	 * @param selectedFields  	The fields which will be read and returned by the table source. If
+	 *                        	None, all fields are returned.
+	 * @param fieldDelim      	The field delimiter, "," by default.
+	 * @param lineDelim     	The row delimiter, "\n" by default.
+	 * @param quoteCharacter  	An optional quote character for String values, null by default.
+	 * @param ignoreFirstLine 	Flag to ignore the first line, false by default.
+	 * @param ignoreComments  	An optional prefix to indicate comments, null by default.
+	 * @param lenient         	Flag to skip records with parse error instead to fail, false by
+	 *                        	default.
+	 * @param emptyColumnAsNull	Flag to treat empty column as null.
+	 */
+	public CsvTableSource(
+		String path,
+		String[] fieldNames,
+		TypeInformation<?>[] fieldTypes,
+		int[] selectedFields,
+		String fieldDelim,
+		String lineDelim,
+		Character quoteCharacter,
+		boolean ignoreFirstLine,
+		String ignoreComments,
+		boolean lenient,
+		boolean emptyColumnAsNull) {
+		this(new CsvInputFormatConfig(path, fieldNames, fieldTypes, selectedFields, fieldDelim,
+			lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient, emptyColumnAsNull));
 	}
 
 	private CsvTableSource(CsvInputFormatConfig config) {
@@ -236,6 +305,7 @@ public class CsvTableSource
 		private boolean isIgnoreFirstLine = false;
 		private String commentPrefix;
 		private boolean lenient = false;
+		private boolean emptyColumnAsNull = false;
 
 		/**
 		 * Sets the path to the CSV file. Required.
@@ -320,6 +390,14 @@ public class CsvTableSource
 		}
 
 		/**
+		 * Treat empty column as null, false by default.
+		 */
+		public Builder emptyColumnAsNull() {
+			this.emptyColumnAsNull = true;
+			return this;
+		}
+
+		/**
 		 * Apply the current values and constructs a newly-created CsvTableSource.
 		 *
 		 * @return a newly-created CsvTableSource
@@ -340,9 +418,9 @@ public class CsvTableSource
 				quoteCharacter,
 				isIgnoreFirstLine,
 				commentPrefix,
-				lenient);
+				lenient,
+				emptyColumnAsNull);
 		}
-
 	}
 
 	// ------------------------------------------------------------------------------------
@@ -456,6 +534,7 @@ public class CsvTableSource
 		private final boolean ignoreFirstLine;
 		private final String ignoreComments;
 		private final boolean lenient;
+		private final boolean emptyColumnAsNull;
 
 		CsvInputFormatConfig(
 			String path,
@@ -467,7 +546,8 @@ public class CsvTableSource
 			Character quoteCharacter,
 			boolean ignoreFirstLine,
 			String ignoreComments,
-			boolean lenient) {
+			boolean lenient,
+			boolean emptyColumnAsNull) {
 
 			this.path = path;
 			this.fieldNames = fieldNames;
@@ -479,6 +559,7 @@ public class CsvTableSource
 			this.ignoreFirstLine = ignoreFirstLine;
 			this.ignoreComments = ignoreComments;
 			this.lenient = lenient;
+			this.emptyColumnAsNull = emptyColumnAsNull;
 		}
 
 		String[] getSelectedFieldNames() {
@@ -503,7 +584,8 @@ public class CsvTableSource
 				getSelectedFieldTypes(),
 				lineDelim,
 				fieldDelim,
-				selectedFields);
+				selectedFields,
+				emptyColumnAsNull);
 			inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine);
 			inputFormat.setCommentPrefix(ignoreComments);
 			inputFormat.setLenient(lenient);
@@ -515,7 +597,7 @@ public class CsvTableSource
 
 		CsvInputFormatConfig select(int[] fields) {
 			return new CsvInputFormatConfig(path, fieldNames, fieldTypes, fields,
-				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient);
+				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient, emptyColumnAsNull);
 		}
 
 		@Override
