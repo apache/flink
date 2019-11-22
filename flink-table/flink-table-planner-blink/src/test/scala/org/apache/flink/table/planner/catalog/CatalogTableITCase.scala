@@ -873,6 +873,52 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     expectedProperty.put("k2", "v2")
     assertEquals(expectedProperty, database.getProperties)
   }
+
+  @Test
+  def testDropDatabase: Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("default"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    tableEnv.sqlUpdate("create database db1")
+    tableEnv.sqlUpdate("drop database db1")
+    tableEnv.sqlUpdate("drop database if exists db1")
+    try {
+      tableEnv.sqlUpdate("drop database db1")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("create database db1")
+    tableEnv.sqlUpdate("use db1")
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl1)
+    val ddl2 =
+      """
+        |create table t2(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl2)
+    try {
+      tableEnv.sqlUpdate("drop database db1")
+      fail("ValidationException expected")
+    } catch {
+      case _: ValidationException => //ignore
+    }
+    tableEnv.sqlUpdate("drop database db1 cascade")
+  }
 }
 
 object CatalogTableITCase {

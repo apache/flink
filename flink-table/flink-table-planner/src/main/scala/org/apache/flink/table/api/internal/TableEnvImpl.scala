@@ -491,6 +491,13 @@ abstract class TableEnvImpl(
         catalogManager.dropTable(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
+      case dropDatabaseOperation: DropDatabaseOperation =>
+        catalogManager.dropDatabase(
+          dropDatabaseOperation.getCatalogName,
+          dropDatabaseOperation.getDatabaseName,
+          dropDatabaseOperation.isIfExists,
+          dropDatabaseOperation.isRestrict,
+          false)
       case useOperation: UseOperation => applyUseOperation(useOperation)
       case _ => throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +

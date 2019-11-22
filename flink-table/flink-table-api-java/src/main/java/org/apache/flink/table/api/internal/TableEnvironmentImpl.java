@@ -63,6 +63,7 @@ import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
@@ -484,6 +485,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			catalogManager.dropTable(
 				dropTableOperation.getTableIdentifier(),
 				dropTableOperation.isIfExists());
+		} else if (operation instanceof DropDatabaseOperation) {
+			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
+			catalogManager.dropDatabase(
+					dropDatabaseOperation.getCatalogName(),
+					dropDatabaseOperation.getDatabaseName(),
+					dropDatabaseOperation.isIfExists(),
+					dropDatabaseOperation.isRestrict(),
+					false);
 		} else if (operation instanceof UseOperation) {
 			applyUseOperation((UseOperation) operation);
 		} else {

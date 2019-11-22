@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
@@ -41,6 +42,7 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -114,6 +116,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
 		} else if (validated instanceof SqlCreateDatabase) {
 			return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
+		} else if (validated instanceof SqlDropDatabase) {
+			return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -225,6 +229,27 @@ public class SqlToOperationConverter {
 				((SqlTableOption) p).getValueString()));
 		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
 		return new CreateDatabaseOperation(catalogName, databaseName, catalogDatabase, ignoreIfExists);
+	}
+
+	/** Convert DROP DATABASE statement. */
+	private Operation convertDropDatabase(SqlDropDatabase sqlDropDatabase) {
+		String[] fullDatabaseName = sqlDropDatabase.fullDatabaseName();
+		if (fullDatabaseName.length > 2) {
+			throw new SqlConversionException("drop database identifier format error");
+		}
+		String catalogName = catalogManager.getCurrentCatalog();
+		String databaseName = null;
+		if (fullDatabaseName.length == 1) {
+			databaseName = fullDatabaseName[0];
+		} else {
+			catalogName = fullDatabaseName[0];
+			databaseName = fullDatabaseName[1];
+		}
+		return new DropDatabaseOperation(
+				catalogName,
+				databaseName,
+				sqlDropDatabase.getIfExists(),
+				sqlDropDatabase.isRestrict());
 	}
 
 	/** Fallback method for sql query. */

@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -482,6 +483,35 @@ public class CatalogManager {
 		} else if (!ignoreNoCatalog) {
 			throw new ValidationException(String.format("Catalog %s does not exist.", catalogName));
 		}
+	}
+
+	/**
+	 * Drop a database in a given path.
+	 * @param catalogName
+	 * @param databaseName
+	 * @param ignoreIfNotExists  If false exception will be thrown if a database not exists in the given path.
+	 * @param isRestrict
+	 */
+	public void dropDatabase(String catalogName,
+					String databaseName,
+					boolean ignoreIfNotExists,
+					boolean isRestrict,
+					boolean ignoreNoCatalog) {
+		Optional<Catalog> catalog = getCatalog(catalogName);
+		if (catalog.isPresent()) {
+			try {
+				catalog.get().dropDatabase(databaseName, ignoreIfNotExists, isRestrict);
+			} catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
+				throw new ValidationException(
+						String.format("Could not execute %s in path %s", "DROP DATABASE", catalogName), e);
+			} catch (Exception e) {
+				throw new TableException(
+						String.format("Could not execute %s in path %s", "DROP DATABASE", catalogName), e);
+			}
+		} else if (!ignoreNoCatalog) {
+			throw new ValidationException(String.format("Catalog %s does not exist.", catalogName));
+		}
+
 	}
 
 	/**

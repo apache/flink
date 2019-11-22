@@ -37,7 +37,7 @@ import java.util.List;
  */
 public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
 	private static final SqlOperator OPERATOR =
-		new SqlSpecialOperator("DROP DATABASE", SqlKind.OTHER);
+		new SqlSpecialOperator("DROP DATABASE", SqlKind.OTHER_DDL);
 
 	private SqlIdentifier databaseName;
 	private boolean ifExists;
@@ -62,16 +62,12 @@ public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
 		return databaseName;
 	}
 
-	public void setDatabaseName(SqlIdentifier viewName) {
-		this.databaseName = viewName;
-	}
-
 	public boolean getIfExists() {
 		return this.ifExists;
 	}
 
-	public void setIfExists(boolean ifExists) {
-		this.ifExists = ifExists;
+	public boolean isRestrict() {
+		return isRestrict;
 	}
 
 	@Override

@@ -45,6 +45,7 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
@@ -167,6 +168,30 @@ public class SqlToOperationConverterTest {
 			assertEquals(expectedComments[i], createDatabaseOperation.getCatalogDatabase().getComment());
 			assertEquals(expectedIgnoreIfExists[i], createDatabaseOperation.isIgnoreIfExists());
 			assertEquals(expectedPropertySize[i], createDatabaseOperation.getCatalogDatabase().getProperties().size());
+		}
+	}
+
+	@Test
+	public void testDropDatabase() {
+		final String[] dropDatabaseSqls = new String[] {
+				"drop database db1",
+				"drop database if exists db1",
+				"drop database if exists cat1.db1 CASCADE",
+				"drop database if exists cat1.db1 RESTRICT"
+		};
+		final String[] expectedCatalogs = new String[] {"builtin", "builtin", "cat1", "cat1"};
+		final String expectedDatabase = "db1";
+		final boolean[] expectedIfExists = new boolean[] {false, true, true, true};
+		final boolean[] expectedIsRestricts = new boolean[] {true, true, false, true};
+
+		for (int i = 0; i < dropDatabaseSqls.length; i++) {
+			Operation operation = parse(dropDatabaseSqls[i], SqlDialect.DEFAULT);
+			assert operation instanceof DropDatabaseOperation;
+			final DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
+			assertEquals(expectedCatalogs[i], dropDatabaseOperation.getCatalogName());
+			assertEquals(expectedDatabase, dropDatabaseOperation.getDatabaseName());
+			assertEquals(expectedIfExists[i], dropDatabaseOperation.isIfExists());
+			assertEquals(expectedIsRestricts[i], dropDatabaseOperation.isRestrict());
 		}
 	}
 
