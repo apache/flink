@@ -111,9 +111,9 @@ Flink 程序天生就是并行的、分布式的。在执行的时候，一个 *
 
 当提到流程序中的时间时（比如声明一个窗口），这可能指的是不同概念的时间：
 
-  - **事件时间（Event Time）**是事件（event）被创建那一刻的时间。它一般用事件中的一个时间戳来表示，这个时间戳可能是生成数据的传感器附加上去的，也可能是产生数据的服务附加上去的。Flink 可以通过 [timestamp assigners]({{ site.baseurl }}/zh/dev/event_timestamps_watermarks.html) 来访问事件时间。
+  - **事件时间（Event Time）** 是事件（event）被创建那一刻的时间。它一般用事件中的一个时间戳来表示，这个时间戳可能是生成数据的传感器附加上去的，也可能是产生数据的服务附加上去的。Flink 可以通过 [timestamp assigners]({{ site.baseurl }}/zh/dev/event_timestamps_watermarks.html) 来访问事件时间。
 
-  - **摄取时间（Ingestion time）**是事件通过数据源算子（source operator）进入到 Flink 数据流的时间。
+  - **摄取时间（Ingestion time）** 是事件通过数据源算子（source operator）进入到 Flink 数据流的时间。
 
   - **处理时间（Processing Time）** 每个基于时间进行操作的算子各自的本地时间。
 
