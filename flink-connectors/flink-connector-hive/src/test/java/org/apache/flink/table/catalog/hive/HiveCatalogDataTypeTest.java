@@ -83,10 +83,10 @@ public class HiveCatalogDataTypeTest {
 			catalog.dropFunction(path1, true);
 		}
 		if (catalog.databaseExists(db1)) {
-			catalog.dropDatabase(db1, true);
+			catalog.dropDatabase(db1, true, true);
 		}
 		if (catalog.databaseExists(db2)) {
-			catalog.dropDatabase(db2, true);
+			catalog.dropDatabase(db2, true, true);
 		}
 	}
 
