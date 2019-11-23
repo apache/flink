@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
-import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -47,6 +46,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
@@ -55,7 +55,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -556,27 +556,27 @@ public class LogicalTypesTest {
 	}
 
 	@Test
-	public void testTypeInformationAnyType() {
-		final TypeInformationAnyType<?> anyType = new TypeInformationAnyType<>(Types.TUPLE(Types.STRING, Types.INT));
+	public void testTypeInformationRawType() {
+		final TypeInformationRawType<?> rawType = new TypeInformationRawType<>(Types.TUPLE(Types.STRING, Types.INT));
 
-		testEquality(anyType, new TypeInformationAnyType<>(Types.TUPLE(Types.STRING, Types.LONG)));
+		testEquality(rawType, new TypeInformationRawType<>(Types.TUPLE(Types.STRING, Types.LONG)));
 
-		testStringSummary(anyType, "ANY('org.apache.flink.api.java.tuple.Tuple2', ?)");
+		testStringSummary(rawType, "RAW('org.apache.flink.api.java.tuple.Tuple2', ?)");
 
-		testNullability(anyType);
+		testNullability(rawType);
 
-		testJavaSerializability(anyType);
+		testJavaSerializability(rawType);
 
-		testConversions(anyType, new Class[]{Tuple2.class}, new Class[]{Tuple.class});
+		testConversions(rawType, new Class[]{Tuple2.class}, new Class[]{Tuple.class});
 
-		testInvalidStringSerializability(anyType);
+		testInvalidStringSerializability(rawType);
 	}
 
 	@Test
-	public void testAnyType() {
+	public void testRawType() {
 		testAll(
-			new AnyType<>(Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig())),
-				"ANY('org.apache.flink.table.types.LogicalTypesTest$Human', " +
+			new RawType<>(Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig())),
+				"RAW('org.apache.flink.table.types.LogicalTypesTest$Human', " +
 					"'AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
 					"hbGl6ZXJTbmFwc2hvdAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cG" +
 					"VzVGVzdCRIdW1hbgAABPLGmj1wAAAAAgAzb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY" +
@@ -588,11 +588,11 @@ public class LogicalTypesTest {
 					"RHVtbXlBdnJvUmVnaXN0ZXJlZENsYXNzAAAAAQBZb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXB" +
 					"ldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3" +
 					"MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=')",
-			"ANY('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
+			"RAW('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
 			new Class[]{Human.class, User.class}, // every User is Human
 			new Class[]{Human.class},
 			new LogicalType[]{},
-			new AnyType<>(User.class, new KryoSerializer<>(User.class, new ExecutionConfig()))
+			new RawType<>(User.class, new KryoSerializer<>(User.class, new ExecutionConfig()))
 		);
 	}
 

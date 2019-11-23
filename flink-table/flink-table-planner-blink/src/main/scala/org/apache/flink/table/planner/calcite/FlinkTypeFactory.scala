@@ -116,9 +116,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
         val multisetType = t.asInstanceOf[MultisetType]
         createMultisetType(createFieldTypeFromLogicalType(multisetType.getElementType), -1)
 
-      case LogicalTypeRoot.ANY =>
+      case LogicalTypeRoot.RAW =>
         new GenericRelDataType(
-          t.asInstanceOf[TypeInformationAnyType[_]],
+          t.asInstanceOf[TypeInformationRawType[_]],
           true,
           getTypeSystem)
 
@@ -314,9 +314,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     } else {
       // types are not all the same
       if (allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)) {
-        // one of the type was ANY.
+        // one of the type was RAW.
         // we cannot generate a common type if it differs from other types.
-        throw new TableException("Generic ANY types must have a common type information.")
+        throw new TableException("Generic RAW types must have a common type information.")
       } else {
         // cannot resolve a common type for different input types
         None
@@ -451,7 +451,7 @@ object FlinkTypeFactory {
 
       // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
       // are represented as Enum
-      case SYMBOL => new TypeInformationAnyType[Enum[_]](
+      case SYMBOL => new TypeInformationRawType[Enum[_]](
         TypeExtractor.createTypeInfo(classOf[Enum[_]]))
 
       // extract encapsulated Type
@@ -473,7 +473,7 @@ object FlinkTypeFactory {
           toLogicalType(mapRelDataType.getValueType))
 
       // CURSOR for UDTF case, whose type info will never be used, just a placeholder
-      case CURSOR => new TypeInformationAnyType[Nothing](new NothingTypeInfo)
+      case CURSOR => new TypeInformationRawType[Nothing](new NothingTypeInfo)
 
       case _@t =>
         throw new TableException(s"Type is not supported: $t")

@@ -642,7 +642,7 @@ class AggFunctionFactory(
 
   private def createCollectAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
     val elementTypeInfo = argTypes(0) match {
-      case gt: TypeInformationAnyType[_] => gt.getTypeInformation
+      case gt: TypeInformationRawType[_] => gt.getTypeInformation
       case t => TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(t)
     }
     new CollectAggFunction(elementTypeInfo)

@@ -163,7 +163,7 @@ object CodeGenUtils {
     case MULTISET | MAP => className[BaseMap]
     case ROW => className[BaseRow]
 
-    case ANY => className[BinaryGeneric[_]]
+    case RAW => className[BinaryGeneric[_]]
   }
 
   /**
@@ -239,8 +239,8 @@ object CodeGenUtils {
       ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
       ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
       s"$hashFunc.hashCode($term)"
-    case ANY =>
-      val gt = t.asInstanceOf[TypeInformationAnyType[_]]
+    case RAW =>
+      val gt = t.asInstanceOf[TypeInformationRawType[_]]
       val serTerm = ctx.addReusableObject(
         gt.getTypeInformation.createSerializer(new ExecutionConfig), "serializer")
       s"$BINARY_GENERIC.getJavaObjectFromBinaryGeneric($term, $serTerm).hashCode()"
@@ -322,7 +322,7 @@ object CodeGenUtils {
   def getEnum(genExpr: GeneratedExpression): Enum[_] = {
     val split = genExpr.resultTerm.split('.')
     val value = split.last
-    val clazz = genExpr.resultType.asInstanceOf[TypeInformationAnyType[_]]
+    val clazz = genExpr.resultType.asInstanceOf[TypeInformationRawType[_]]
         .getTypeInformation.getTypeClass
     enumValueOf(clazz, value)
   }
@@ -424,7 +424,7 @@ object CodeGenUtils {
       case MULTISET | MAP  => s"$rowTerm.getMap($indexTerm)"
       case ROW => s"$rowTerm.getRow($indexTerm, ${t.asInstanceOf[RowType].getFieldCount})"
 
-      case ANY => s"$rowTerm.getGeneric($indexTerm)"
+      case RAW => s"$rowTerm.getGeneric($indexTerm)"
     }
 
   // -------------------------- BaseRow Set Field -------------------------------
@@ -655,7 +655,7 @@ object CodeGenUtils {
       case ROW =>
         val ser = ctx.addReusableTypeSerializer(t)
         s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
-      case ANY =>
+      case RAW =>
         val ser = ctx.addReusableTypeSerializer(t)
         s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm, $ser)"
     }

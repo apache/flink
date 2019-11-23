@@ -43,7 +43,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -236,8 +236,8 @@ public class LogicalTypeAssignableTest {
 				},
 
 				{
-					new TypeInformationAnyType<>(Types.GENERIC(PlannerTypeUtils.class)),
-					new TypeInformationAnyType<>(Types.GENERIC(Object.class)),
+					new TypeInformationRawType<>(Types.GENERIC(PlannerTypeUtils.class)),
+					new TypeInformationRawType<>(Types.GENERIC(Object.class)),
 					false
 				},
 

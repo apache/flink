@@ -41,7 +41,7 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
@@ -224,10 +224,10 @@ public class DataFormatConverters {
 				} else {
 					return new PojoConverter((PojoTypeInfo) compositeType, fieldTypes);
 				}
-			case ANY:
+			case RAW:
 				TypeInformation typeInfo = logicalType instanceof LegacyTypeInformationType ?
 						((LegacyTypeInformationType) logicalType).getTypeInformation() :
-						((TypeInformationAnyType) logicalType).getTypeInformation();
+						((TypeInformationRawType) logicalType).getTypeInformation();
 
 				// planner type info
 				if (typeInfo instanceof BinaryStringTypeInfo) {
