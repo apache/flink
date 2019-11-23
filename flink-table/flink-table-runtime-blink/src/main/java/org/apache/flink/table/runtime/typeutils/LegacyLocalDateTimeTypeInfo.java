@@ -65,7 +65,6 @@ public class LegacyLocalDateTimeTypeInfo extends LocalTimeTypeInfo<LocalDateTime
 		return Objects.hash(this.getClass().getCanonicalName(), precision);
 	}
 
-
 	public int getPrecision() {
 		return precision;
 	}
