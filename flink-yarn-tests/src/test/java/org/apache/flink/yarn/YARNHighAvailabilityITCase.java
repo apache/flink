@@ -288,11 +288,12 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	}
 
 	private RestClusterClient<ApplicationId> deploySessionCluster(YarnClusterDescriptor yarnClusterDescriptor) throws ClusterDeploymentException {
-		final int containerMemory = 256;
+		final int masterMemory = 256;
+		final int taskManagerMemory = 1024;
 		final ClusterClient<ApplicationId> yarnClusterClient = yarnClusterDescriptor.deploySessionCluster(
 			new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(containerMemory)
-				.setTaskManagerMemoryMB(containerMemory)
+				.setMasterMemoryMB(masterMemory)
+				.setTaskManagerMemoryMB(taskManagerMemory)
 				.setSlotsPerTaskManager(1)
 				.createClusterSpecification());
 

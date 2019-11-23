@@ -33,6 +33,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
@@ -40,11 +41,10 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -454,16 +454,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * @throws FlinkException if the cluster cannot be started with the provided {@link ClusterSpecification}
 	 */
 	private void validateClusterSpecification(ClusterSpecification clusterSpecification) throws FlinkException {
+		MemorySize totalProcessMemory = MemorySize.parse(clusterSpecification.getTaskManagerMemoryMB() + "m");
 		try {
-			final long taskManagerMemorySize = clusterSpecification.getTaskManagerMemoryMB();
-			// We do the validation by calling the calculation methods here
-			// Internally these methods will check whether the cluster can be started with the provided
-			// ClusterSpecification and the configured memory requirements
-			final long cutoff = ContaineredTaskManagerParameters.calculateCutoffMB(flinkConfiguration, taskManagerMemorySize);
-			TaskManagerServices.calculateHeapSizeMB(taskManagerMemorySize - cutoff, flinkConfiguration);
+			TaskExecutorResourceUtils.resourceSpecFromConfig(flinkConfiguration, totalProcessMemory);
 		} catch (IllegalArgumentException iae) {
-			throw new FlinkException("Cannot fulfill the minimum memory requirements with the provided " +
-					"cluster specification. Please increase the memory of the cluster.", iae);
+			throw new FlinkException("Inconsistent cluster specification.", iae);
 		}
 	}
 
@@ -859,7 +854,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				clusterSpecification.getSlotsPerTaskManager());
 
 		configuration.setString(
-				TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
+				TaskManagerOptions.TOTAL_PROCESS_MEMORY,
 				clusterSpecification.getTaskManagerMemoryMB() + "m");
 
 		// Upload the flink configuration

@@ -20,6 +20,8 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.configuration.MemorySize;
 
+import java.io.Serializable;
+
 /**
  * Describe the specifics of different resource dimensions of the TaskExecutor.
  *
@@ -74,7 +76,7 @@ import org.apache.flink.configuration.MemorySize;
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class TaskExecutorResourceSpec {
+public class TaskExecutorResourceSpec implements Serializable {
 
 	private final MemorySize frameworkHeapSize;
 

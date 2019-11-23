@@ -48,8 +48,8 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 	private static final MemorySize TASK_HEAP_SIZE = MemorySize.parse("100m");
 	private static final MemorySize MANAGED_MEM_SIZE = MemorySize.parse("200m");
-	private static final MemorySize TOTAL_FLINK_MEM_SIZE = MemorySize.parse("900m");
-	private static final MemorySize TOTAL_PROCESS_MEM_SIZE = MemorySize.parse("1g");
+	private static final MemorySize TOTAL_FLINK_MEM_SIZE = MemorySize.parse("1280m");
+	private static final MemorySize TOTAL_PROCESS_MEM_SIZE = MemorySize.parse("1536m");
 
 	private static final TaskExecutorResourceSpec TM_RESOURCE_SPEC = new TaskExecutorResourceSpec(
 		MemorySize.parse("1m"),
@@ -492,7 +492,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 	@Test
 	public void testConfigTotalProcessMemoryLegacyMB() {
-		final MemorySize totalProcessMemorySize = MemorySize.parse("1g");
+		final MemorySize totalProcessMemorySize = MemorySize.parse("2g");
 
 		@SuppressWarnings("deprecation")
 		final ConfigOption<Integer> legacyOption = TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB;
@@ -506,7 +506,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 	@Test
 	public void testConfigTotalProcessMemorySize() {
-		final MemorySize totalProcessMemorySize = MemorySize.parse("1g");
+		final MemorySize totalProcessMemorySize = MemorySize.parse("2g");
 
 		Configuration conf = new Configuration();
 		conf.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcessMemorySize.getMebiBytes() + "m");
@@ -540,7 +540,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 	@Test
 	public void testConfigTotalProcessMemoryLegacySize() {
-		final MemorySize totalProcessMemorySize = MemorySize.parse("1g");
+		final MemorySize totalProcessMemorySize = MemorySize.parse("2g");
 
 		@SuppressWarnings("deprecation")
 		final ConfigOption<String> legacyOption = TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY;

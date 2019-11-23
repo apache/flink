@@ -358,8 +358,6 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 				configuration,
 				resourceID,
 				remoteAddress,
-				EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
-				EnvironmentInformation.getMaxJvmHeapMemory(),
 				localCommunicationOnly);
 
 		Tuple2<TaskManagerMetricGroup, MetricGroup> taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(

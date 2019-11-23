@@ -86,6 +86,14 @@ public class TaskExecutorResourceUtils {
 	//  Memory Configuration Calculations
 	// ------------------------------------------------------------------------
 
+	public static TaskExecutorResourceSpec resourceSpecFromConfig(
+			final Configuration config,
+			final MemorySize totalProcessMemory) {
+		final Configuration copiedConfig = new Configuration(config);
+		copiedConfig.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcessMemory.toString());
+		return resourceSpecFromConfig(copiedConfig);
+	}
+
 	public static TaskExecutorResourceSpec resourceSpecFromConfig(final Configuration config) {
 		if (isTaskHeapMemorySizeExplicitlyConfigured(config) && isManagedMemorySizeExplicitlyConfigured(config)) {
 			// both task heap memory and managed memory are configured, use these to derive total flink memory
