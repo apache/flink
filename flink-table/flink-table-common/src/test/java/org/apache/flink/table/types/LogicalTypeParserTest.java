@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -40,6 +39,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -393,8 +393,8 @@ public class LogicalTypeParserTest {
 				.expectType(new NullType()),
 
 			TestSpec
-				.forString(createAnyType(LogicalTypeParserTest.class).asSerializableString())
-				.expectType(createAnyType(LogicalTypeParserTest.class)),
+				.forString(createRawType(LogicalTypeParserTest.class).asSerializableString())
+				.expectType(createRawType(LogicalTypeParserTest.class)),
 
 			TestSpec
 				.forString("cat.db.MyType")
@@ -443,8 +443,8 @@ public class LogicalTypeParserTest {
 				.expectErrorMessage("<KEYWORD> expected"),
 
 			TestSpec
-				.forString("ANY('unknown.class', '')")
-				.expectErrorMessage("Unable to restore the ANY type")
+				.forString("RAW('unknown.class', '')")
+				.expectErrorMessage("Unable to restore the RAW type")
 		);
 	}
 
@@ -514,7 +514,7 @@ public class LogicalTypeParserTest {
 		}
 	}
 
-	private static <T> AnyType<T> createAnyType(Class<T> clazz) {
-		return new AnyType<>(clazz, new KryoSerializer<>(clazz, new ExecutionConfig()));
+	private static <T> RawType<T> createRawType(Class<T> clazz) {
+		return new RawType<>(clazz, new KryoSerializer<>(clazz, new ExecutionConfig()));
 	}
 }

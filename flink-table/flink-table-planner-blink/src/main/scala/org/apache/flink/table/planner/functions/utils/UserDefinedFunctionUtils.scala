@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.{getDefaul
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isAny
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isRaw
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
@@ -170,7 +170,7 @@ object UserDefinedFunctionUtils {
     udiTypes.zipWithIndex.map {
       case (t: DataType, i) =>
         // we don't trust GenericType.
-        if (fromDataTypeToLogicalType(t).getTypeRoot == LogicalTypeRoot.ANY) {
+        if (fromDataTypeToLogicalType(t).getTypeRoot == LogicalTypeRoot.RAW) {
           val returnType = fromLogicalTypeToDataType(expectedTypes(i))
           if (expectedTypes(i).supportsOutputConversion(t.getConversionClass)) {
             returnType.bridgedTo(t.getConversionClass)
@@ -747,7 +747,7 @@ object UserDefinedFunctionUtils {
       internal: LogicalType,
       parameterType: DataType): Boolean = {
     val paraInternalType = fromDataTypeToLogicalType(parameterType)
-    if (isAny(internal) && isAny(paraInternalType)) {
+    if (isRaw(internal) && isRaw(paraInternalType)) {
       getDefaultExternalClassForType(internal) == getDefaultExternalClassForType(paraInternalType)
     } else {
       // There is a special equal to GenericType. We need rewrite type extract to BaseRow etc...

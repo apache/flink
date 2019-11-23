@@ -34,22 +34,22 @@ import java.util.Set;
 
 /**
  * Placeholder type of an arbitrary serialized type backed by {@link TypeInformation}. This type is
- * a black box within the table ecosystem and is only deserialized at the edges. The any type is an
+ * a black box within the table ecosystem and is only deserialized at the edges. The raw type is an
  * extension to the SQL standard.
  *
- * <p>Compared to an {@link AnyType}, this type does not contain a {@link TypeSerializer} yet. The
+ * <p>Compared to an {@link RawType}, this type does not contain a {@link TypeSerializer} yet. The
  * serializer will be generated from the enclosed {@link TypeInformation} but needs access to the
  * {@link ExecutionConfig} of the current execution environment. Thus, this type is just a placeholder
- * for the fully resolved {@link AnyType} returned by {@link #resolve(ExecutionConfig)}.
+ * for the fully resolved {@link RawType} returned by {@link #resolve(ExecutionConfig)}.
  *
  * <p>This type has no serializable string representation.
  *
  * <p>If no type information is supplied, generic type serialization for {@link Object} is used.
  */
 @PublicEvolving
-public final class TypeInformationAnyType<T> extends LogicalType {
+public final class TypeInformationRawType<T> extends LogicalType {
 
-	private static final String FORMAT = "ANY('%s', ?)";
+	private static final String FORMAT = "RAW('%s', ?)";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
@@ -59,17 +59,17 @@ public final class TypeInformationAnyType<T> extends LogicalType {
 
 	private final TypeInformation<T> typeInfo;
 
-	public TypeInformationAnyType(boolean isNullable, TypeInformation<T> typeInfo) {
-		super(isNullable, LogicalTypeRoot.ANY);
+	public TypeInformationRawType(boolean isNullable, TypeInformation<T> typeInfo) {
+		super(isNullable, LogicalTypeRoot.RAW);
 		this.typeInfo = Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
 	}
 
-	public TypeInformationAnyType(TypeInformation<T> typeInfo) {
+	public TypeInformationRawType(TypeInformation<T> typeInfo) {
 		this(true, typeInfo);
 	}
 
 	@SuppressWarnings("unchecked")
-	public TypeInformationAnyType() {
+	public TypeInformationRawType() {
 		this(true, (TypeInformation<T>) DEFAULT_TYPE_INFO);
 	}
 
@@ -78,13 +78,13 @@ public final class TypeInformationAnyType<T> extends LogicalType {
 	}
 
 	@Internal
-	public AnyType<T> resolve(ExecutionConfig config) {
-		return new AnyType<>(isNullable(), typeInfo.getTypeClass(), typeInfo.createSerializer(config));
+	public RawType<T> resolve(ExecutionConfig config) {
+		return new RawType<>(isNullable(), typeInfo.getTypeClass(), typeInfo.createSerializer(config));
 	}
 
 	@Override
 	public LogicalType copy(boolean isNullable) {
-		return new TypeInformationAnyType<>(isNullable, typeInfo); // we must assume immutability here
+		return new TypeInformationRawType<>(isNullable, typeInfo); // we must assume immutability here
 	}
 
 	@Override
@@ -95,8 +95,8 @@ public final class TypeInformationAnyType<T> extends LogicalType {
 	@Override
 	public String asSerializableString() {
 		throw new TableException(
-			"An any type backed by type information has no serializable string representation. It " +
-				"needs to be resolved into a proper any type.");
+			"A raw type backed by type information has no serializable string representation. It " +
+				"needs to be resolved into a proper raw type.");
 	}
 
 	@Override
@@ -137,7 +137,7 @@ public final class TypeInformationAnyType<T> extends LogicalType {
 		if (!super.equals(o)) {
 			return false;
 		}
-		TypeInformationAnyType<?> that = (TypeInformationAnyType<?>) o;
+		TypeInformationRawType<?> that = (TypeInformationRawType<?>) o;
 		return typeInfo.equals(that.typeInfo);
 	}
 

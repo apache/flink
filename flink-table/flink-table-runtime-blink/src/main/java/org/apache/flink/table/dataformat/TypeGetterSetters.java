@@ -213,7 +213,7 @@ public interface TypeGetterSetters {
 			case BINARY:
 			case VARBINARY:
 				return row.getBinary(ordinal);
-			case ANY:
+			case RAW:
 				return row.getGeneric(ordinal);
 			default:
 				throw new RuntimeException("Not support type: " + type);

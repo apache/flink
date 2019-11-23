@@ -147,7 +147,7 @@ public class NestedRowTest {
 				DataTypes.BIGINT().getLogicalType(),
 				DataTypes.STRING().getLogicalType(),
 				DataTypes.STRING().getLogicalType(),
-				DataTypes.ANY(info).getLogicalType()
+				DataTypes.RAW(info).getLogicalType()
 			},
 			new TypeSerializer[]{
 				IntSerializer.INSTANCE,

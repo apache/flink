@@ -35,7 +35,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -99,7 +99,7 @@ public class LogicalTypeDataTypeConverter {
 					BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
 					return new DecimalType(decimalType.precision(), decimalType.scale());
 				} else {
-					return new TypeInformationAnyType<>(typeInfo);
+					return new TypeInformationRawType<>(typeInfo);
 				}
 			} else {
 				return logicalType;

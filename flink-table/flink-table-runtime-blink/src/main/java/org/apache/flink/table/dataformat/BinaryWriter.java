@@ -126,7 +126,7 @@ public interface BinaryWriter {
 			case ROW:
 				writer.writeRow(pos, (BaseRow) o, (BaseRowSerializer) serializer);
 				break;
-			case ANY:
+			case RAW:
 				writer.writeGeneric(pos, (BinaryGeneric) o, (BinaryGenericSerializer) serializer);
 				break;
 			case BINARY:

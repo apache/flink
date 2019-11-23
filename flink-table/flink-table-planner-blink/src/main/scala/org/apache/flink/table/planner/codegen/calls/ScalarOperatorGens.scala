@@ -848,7 +848,7 @@ object ScalarOperatorGens {
     case (ROW, VARCHAR | CHAR) =>
       generateCastBaseRowToString(ctx, operand, operand.resultType.asInstanceOf[RowType])
 
-    case (ANY, VARCHAR | CHAR) =>
+    case (RAW, VARCHAR | CHAR) =>
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms =>
           val converter = DataFormatConverters.getConverterForDataType(

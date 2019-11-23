@@ -77,7 +77,7 @@ public class ClassLogicalTypeConverter {
 			case BINARY:
 			case VARBINARY:
 				return byte[].class;
-			case ANY:
+			case RAW:
 				return BinaryGeneric.class;
 			default:
 				throw new RuntimeException("Not support type: " + type);

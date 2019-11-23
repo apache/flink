@@ -41,7 +41,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 
 /**
  * {@link TypeSerializer} of {@link LogicalType} for internal sql engine execution data formats.
@@ -89,9 +89,9 @@ public class InternalSerializers {
 			case BINARY:
 			case VARBINARY:
 				return BytePrimitiveArraySerializer.INSTANCE;
-			case ANY:
+			case RAW:
 				return new BinaryGenericSerializer(
-						((TypeInformationAnyType) type).getTypeInformation().createSerializer(config));
+						((TypeInformationRawType) type).getTypeInformation().createSerializer(config));
 			default:
 				throw new RuntimeException("Not support type: " + type);
 		}

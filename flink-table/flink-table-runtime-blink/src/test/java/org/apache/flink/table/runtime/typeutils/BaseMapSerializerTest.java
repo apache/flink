@@ -107,7 +107,7 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 
 		MyObj outputObj = BinaryGeneric.getJavaObjectFromBinaryGeneric(
 			(BinaryGeneric) outputMap.toJavaMap(
-				DataTypes.INT().getLogicalType(), DataTypes.ANY(TypeInformation.of(MyObj.class)).getLogicalType())
+				DataTypes.INT().getLogicalType(), DataTypes.RAW(TypeInformation.of(MyObj.class)).getLogicalType())
 				.get(inputKey), new KryoSerializer<>(MyObj.class, config));
 		assertEquals(inputObj, outputObj);
 	}
@@ -115,7 +115,7 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 	private BaseMapSerializer createSerializerWithConfig(ExecutionConfig config) {
 		return new BaseMapSerializer(
 			DataTypes.INT().getLogicalType(),
-			DataTypes.ANY(TypeInformation.of(MyObj.class)).getLogicalType(),
+			DataTypes.RAW(TypeInformation.of(MyObj.class)).getLogicalType(),
 			config);
 	}
 

@@ -33,17 +33,17 @@ import java.util.Set;
 
 /**
  * Logical type of an arbitrary serialized type. This type is a black box within the table ecosystem
- * and is only deserialized at the edges. The any type is an extension to the SQL standard.
+ * and is only deserialized at the edges. The raw type is an extension to the SQL standard.
  *
- * <p>The serialized string representation is {@code ANY('c', 's')} where {@code c} is the originating
+ * <p>The serialized string representation is {@code RAW('c', 's')} where {@code c} is the originating
  * class and {@code s} is the serialized {@link TypeSerializerSnapshot} in Base64 encoding.
  *
  * @param <T> originating class for this type
  */
 @PublicEvolving
-public final class AnyType<T> extends LogicalType {
+public final class RawType<T> extends LogicalType {
 
-	private static final String FORMAT = "ANY('%s', '%s')";
+	private static final String FORMAT = "RAW('%s', '%s')";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
@@ -55,13 +55,13 @@ public final class AnyType<T> extends LogicalType {
 
 	private transient String serializerString;
 
-	public AnyType(boolean isNullable, Class<T> clazz, TypeSerializer<T> serializer) {
-		super(isNullable, LogicalTypeRoot.ANY);
+	public RawType(boolean isNullable, Class<T> clazz, TypeSerializer<T> serializer) {
+		super(isNullable, LogicalTypeRoot.RAW);
 		this.clazz = Preconditions.checkNotNull(clazz, "Class must not be null.");
 		this.serializer = Preconditions.checkNotNull(serializer, "Serializer must not be null.");
 	}
 
-	public AnyType(Class<T> clazz, TypeSerializer<T> serializer) {
+	public RawType(Class<T> clazz, TypeSerializer<T> serializer) {
 		this(true, clazz, serializer);
 	}
 
@@ -75,7 +75,7 @@ public final class AnyType<T> extends LogicalType {
 
 	@Override
 	public LogicalType copy(boolean isNullable) {
-		return new AnyType<>(isNullable, clazz, serializer.duplicate());
+		return new RawType<>(isNullable, clazz, serializer.duplicate());
 	}
 
 	@Override
@@ -126,8 +126,8 @@ public final class AnyType<T> extends LogicalType {
 		if (!super.equals(o)) {
 			return false;
 		}
-		AnyType<?> anyType = (AnyType<?>) o;
-		return clazz.equals(anyType.clazz) && serializer.equals(anyType.serializer);
+		RawType<?> rawType = (RawType<?>) o;
+		return clazz.equals(rawType.clazz) && serializer.equals(rawType.serializer);
 	}
 
 	@Override
@@ -147,7 +147,7 @@ public final class AnyType<T> extends LogicalType {
 			} catch (Exception e) {
 				throw new TableException(String.format(
 					"Unable to generate a string representation of the serializer snapshot of '%s' " +
-						"describing the class '%s' for the ANY type.",
+						"describing the class '%s' for the RAW type.",
 					serializer.getClass().getName(),
 					clazz.toString()), e);
 			}

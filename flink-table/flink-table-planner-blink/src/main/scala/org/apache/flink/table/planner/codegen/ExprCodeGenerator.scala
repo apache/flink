@@ -270,10 +270,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     fieldExprs.zipWithIndex foreach {
       // timestamp type(Include TimeIndicator) and generic type can compatible with each other.
       case (fieldExpr, i)
-        if fieldExpr.resultType.isInstanceOf[TypeInformationAnyType[_]] ||
+        if fieldExpr.resultType.isInstanceOf[TypeInformationRawType[_]] ||
           fieldExpr.resultType.isInstanceOf[TimestampType] =>
         if (returnType.getTypeAt(i).getClass != fieldExpr.resultType.getClass
-          && !returnType.getTypeAt(i).isInstanceOf[TypeInformationAnyType[_]]) {
+          && !returnType.getTypeAt(i).isInstanceOf[TypeInformationRawType[_]]) {
           throw new CodeGenException(
             s"Incompatible types of expression and result type, Expression[$fieldExpr] type is " +
               s"[${fieldExpr.resultType}], result type is [${returnType.getTypeAt(i)}]")

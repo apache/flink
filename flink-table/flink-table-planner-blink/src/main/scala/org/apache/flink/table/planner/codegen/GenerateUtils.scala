@@ -401,7 +401,7 @@ object GenerateUtils {
         }
 
       // Symbol type for special flags e.g. TRIM's BOTH, LEADING, TRAILING
-      case ANY if literalType.asInstanceOf[TypeInformationAnyType[_]]
+      case RAW if literalType.asInstanceOf[TypeInformationRawType[_]]
           .getTypeInformation.getTypeClass.isAssignableFrom(classOf[Enum[_]]) =>
         generateSymbol(literalValue.asInstanceOf[Enum[_]])
 
@@ -415,7 +415,7 @@ object GenerateUtils {
       qualifyEnum(enum),
       NEVER_NULL,
       NO_CODE,
-      new TypeInformationAnyType[AnyRef](new GenericTypeInfo[AnyRef](
+      new TypeInformationRawType[AnyRef](new GenericTypeInfo[AnyRef](
         enum.getDeclaringClass.asInstanceOf[Class[AnyRef]])),
       literalValue = Some(enum))
   }
@@ -700,12 +700,12 @@ object GenerateUtils {
         """
       ctx.addReusableMember(funcCode)
       s"$compareFunc($leftTerm, $rightTerm)"
-    case ANY =>
-      val anyType = t.asInstanceOf[TypeInformationAnyType[_]]
+    case RAW =>
+      val rawType = t.asInstanceOf[TypeInformationRawType[_]]
       val ser = ctx.addReusableObject(
-        anyType.getTypeInformation.createSerializer(new ExecutionConfig), "serializer")
+        rawType.getTypeInformation.createSerializer(new ExecutionConfig), "serializer")
       val comp = ctx.addReusableObject(
-        anyType.getTypeInformation.asInstanceOf[AtomicTypeInfo[_]]
+        rawType.getTypeInformation.asInstanceOf[AtomicTypeInfo[_]]
             .createComparator(true, new ExecutionConfig),
         "comparator")
       s"""

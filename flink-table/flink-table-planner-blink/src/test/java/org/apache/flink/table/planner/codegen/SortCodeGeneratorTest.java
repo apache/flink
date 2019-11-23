@@ -63,7 +63,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
@@ -108,7 +108,7 @@ public class SortCodeGeneratorTest {
 			new ArrayType(new TinyIntType()),
 			RowType.of(new IntType()),
 			RowType.of(RowType.of(new IntType())),
-			new TypeInformationAnyType<>(Types.INT)
+			new TypeInformationRawType<>(Types.INT)
 	};
 
 	private int[] fields;
@@ -264,7 +264,7 @@ public class SortCodeGeneratorTest {
 						seeds[i] = GenericRow.of(GenericRow.of(rnd.nextInt()));
 					}
 					break;
-				case ANY:
+				case RAW:
 					seeds[i] = new BinaryGeneric<>(rnd.nextInt());
 					break;
 				default:
@@ -316,7 +316,7 @@ public class SortCodeGeneratorTest {
 				return bytes2;
 			case ROW:
 				return GenericRow.of(new Object[]{null});
-			case ANY:
+			case RAW:
 				return new BinaryGeneric<>(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
@@ -357,7 +357,7 @@ public class SortCodeGeneratorTest {
 				} else {
 					return GenericRow.of(GenericRow.of(new Object[]{null}));
 				}
-			case ANY:
+			case RAW:
 				return new BinaryGeneric<>(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
@@ -398,7 +398,7 @@ public class SortCodeGeneratorTest {
 				} else {
 					return GenericRow.of(GenericRow.of(rnd.nextInt()));
 				}
-			case ANY:
+			case RAW:
 				return new BinaryGeneric<>(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
@@ -529,7 +529,7 @@ public class SortCodeGeneratorTest {
 						if (comp != 0) {
 							return order ? comp : -comp;
 						}
-					} else if (t.getTypeRoot() == LogicalTypeRoot.ANY) {
+					} else if (t.getTypeRoot() == LogicalTypeRoot.RAW) {
 						Integer i1 = BinaryGeneric.getJavaObjectFromBinaryGeneric((BinaryGeneric) first, IntSerializer.INSTANCE);
 						Integer i2 = BinaryGeneric.getJavaObjectFromBinaryGeneric((BinaryGeneric) second, IntSerializer.INSTANCE);
 						int comp = Integer.compare(i1, i2);
@@ -565,7 +565,7 @@ public class SortCodeGeneratorTest {
 					Object o2 = TypeGetterSetters.get(result.get(i), keys[j], keyTypes[j]);
 					if (keyTypes[j] instanceof VarBinaryType) {
 						Assert.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
-					} else if (keyTypes[j] instanceof TypeInformationAnyType) {
+					} else if (keyTypes[j] instanceof TypeInformationRawType) {
 						assertThat(
 							msg,
 							(BinaryGeneric) o1,
