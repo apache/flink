@@ -57,6 +57,8 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
 	private static final String LOCAL_HOST = "localhost";
 
+	private static final int TOTAL_FLINK_MEMORY_MB = 1024;
+
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -87,7 +89,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 			nonWritable.setWritable(false, false));
 
 		try {
-			Configuration cfg = new Configuration();
+			Configuration cfg = createFlinkConfiguration();
 			cfg.setString(CoreOptions.TMP_DIRS, nonWritable.getAbsolutePath());
 
 			try {
@@ -117,7 +119,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	 */
 	@Test
 	public void testMemoryConfigWrong() throws Exception {
-		Configuration cfg = new Configuration();
+		Configuration cfg = createFlinkConfiguration();
 
 		// something invalid
 		cfg.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "-42m");
@@ -142,7 +144,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		final ServerSocket blocker = new ServerSocket(0, 50, InetAddress.getByName(LOCAL_HOST));
 
 		try {
-			final Configuration cfg = new Configuration();
+			final Configuration cfg = createFlinkConfiguration();
 			cfg.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
 
 			startTaskManager(
@@ -159,6 +161,13 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	}
 
 	//-----------------------------------------------------------------------------------------------
+
+	private static Configuration createFlinkConfiguration() {
+		final Configuration config = new Configuration();
+		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_MEMORY_MB + "m");
+
+		return config;
+	}
 
 	private static RpcService createRpcService() {
 		final RpcService rpcService = mock(RpcService.class);

@@ -87,6 +87,7 @@ public class TaskManagerRunnerTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		configuration.setString(TaskManagerOptions.HOST, "localhost");
+		configuration.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1g");
 		return configuration;
 	}
 

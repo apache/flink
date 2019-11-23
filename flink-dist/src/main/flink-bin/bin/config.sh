@@ -790,3 +790,17 @@ runBashJavaUtilsCmd() {
 
     echo ${output}
 }
+
+getTmResourceJvmParams() {
+    local class_path=`constructFlinkClassPath`
+    class_path=`manglePathList ${class_path}`
+
+    echo $(runBashJavaUtilsCmd GET_TM_RESOURCE_JVM_PARAMS ${class_path} ${FLINK_CONF_DIR})
+}
+
+getTmResourceDynamicConfigs() {
+    local class_path=`constructFlinkClassPath`
+    class_path=`manglePathList ${class_path}`
+
+    echo $(runBashJavaUtilsCmd GET_TM_RESOURCE_DYNAMIC_CONFIGS ${class_path} ${FLINK_CONF_DIR})
+}

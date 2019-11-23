@@ -30,8 +30,10 @@ import org.junit.Test;
 import java.net.InetAddress;
 import java.util.Random;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -40,10 +42,22 @@ import static org.junit.Assert.fail;
  */
 public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
 
-	private static final long MEM_SIZE_PARAM = 128L * 1024 * 1024;
+	private static final MemorySize MEM_SIZE_PARAM = new MemorySize(128L * 1024 * 1024);
+
+	@Test
+	public void testNetworkBufferNumberCalculation() {
+		final Configuration config = new Configuration();
+		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "1m");
+		final int numNetworkBuffers = NettyShuffleEnvironmentConfiguration.fromConfiguration(
+			config,
+			MEM_SIZE_PARAM,
+			false,
+			InetAddress.getLoopbackAddress()).numNetworkBuffers();
+		assertThat(numNetworkBuffers, is(128));
+	}
 
 	/**
-	 * Verifies that {@link  NettyShuffleEnvironmentConfiguration#fromConfiguration(Configuration, long, boolean, InetAddress)}
+	 * Verifies that {@link  NettyShuffleEnvironmentConfiguration#fromConfiguration(Configuration, MemorySize, boolean, InetAddress)}
 	 * returns the correct result for new configurations via
 	 * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_INITIAL},
 	 * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX},
@@ -222,41 +236,6 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
 	 */
 	private static long enforceBounds(final long value, final long lower, final long upper) {
 		return Math.min(upper, Math.max(lower, value));
-	}
-
-	/**
-	 * Test for {@link TaskManagerServices#calculateHeapSizeMB(long, Configuration)} with some
-	 * manually calculated scenarios.
-	 */
-	@Test
-	public void calculateHeapSizeMB() throws Exception {
-		Configuration config = new Configuration();
-		config.setFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		config.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(64L << 20)); // 64MB
-		config.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(1L << 30)); // 1GB
-
-		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, false);
-		assertEquals(900, TaskManagerServices.calculateHeapSizeMB(1000, config));
-
-		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, false);
-		config.setFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.2f);
-		assertEquals(800, TaskManagerServices.calculateHeapSizeMB(1000, config));
-
-		config.setFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.6f);
-		assertEquals(400, TaskManagerServices.calculateHeapSizeMB(1000, config));
-
-		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, true);
-		config.setFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "10m"); // 10MB
-		assertEquals(890, TaskManagerServices.calculateHeapSizeMB(1000, config));
-
-		config.setFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.6f);
-		assertEquals(390, TaskManagerServices.calculateHeapSizeMB(1000, config));
-
-		config.removeConfig(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE); // use fraction of given memory
-		config.setFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		config.setFloat(TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION, 0.1f); // 10%
-		assertEquals(810, TaskManagerServices.calculateHeapSizeMB(1000, config));
 	}
 
 	/**
