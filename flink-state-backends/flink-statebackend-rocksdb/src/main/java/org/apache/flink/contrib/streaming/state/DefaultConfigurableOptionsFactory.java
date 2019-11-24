@@ -31,6 +31,7 @@ import org.rocksdb.PlainTableConfig;
 import org.rocksdb.TableFormatConfig;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,7 +60,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 	private final Map<String, String> configuredOptions = new HashMap<>();
 
 	@Override
-	public DBOptions createDBOptions(DBOptions currentOptions) {
+	public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 		if (isOptionConfigured(MAX_BACKGROUND_THREADS)) {
 			currentOptions.setIncreaseParallelism(getMaxBackgroundThreads());
 		}
@@ -72,7 +73,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 	}
 
 	@Override
-	public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+	public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 		if (isOptionConfigured(COMPACTION_STYLE)) {
 			currentOptions.setCompactionStyle(getCompactionStyle());
 		}

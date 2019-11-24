@@ -55,7 +55,6 @@ import org.mockito.stubbing.Answer;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
@@ -118,17 +117,18 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private File instanceBasePath = null;
 	private ColumnFamilyHandle defaultCFHandle = null;
 	private ColumnFamilyOptions columnOptions = null;
-	private DBOptions dbOptions = null;
+	private RocksDBResourceContainer optionsContainer = null;
+	private ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 
 	public void prepareRocksDB() throws Exception {
 		instanceBasePath = tempFolder.newFolder();
 		instanceBasePath.mkdirs();
 		String dbPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING).getAbsolutePath();
-		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions();
-		dbOptions = PredefinedOptions.DEFAULT.createDBOptions().setCreateIfMissing(true);
+		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose);
+		optionsContainer = new RocksDBResourceContainer();
 		ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
 		db = RocksDBOperationUtils.openDB(dbPath, Collections.emptyList(),
-			columnFamilyHandles, columnOptions, dbOptions);
+			columnFamilyHandles, columnOptions, optionsContainer.getDbOptions());
 		defaultCFHandle = columnFamilyHandles.remove(0);
 	}
 
@@ -161,7 +161,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		IOUtils.closeQuietly(defaultCFHandle);
 		IOUtils.closeQuietly(db);
 		IOUtils.closeQuietly(columnOptions);
-		IOUtils.closeQuietly(dbOptions);
+		IOUtils.closeQuietly(optionsContainer);
+		handlesToClose.forEach(IOUtils::closeQuietly);
 
 		if (allCreatedCloseables != null) {
 			for (RocksObject rocksCloseable : allCreatedCloseables) {
@@ -192,7 +193,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				IntSerializer.INSTANCE,
 				spy(db),
 				defaultCFHandle,
-				PredefinedOptions.DEFAULT.createColumnOptions())
+				PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose))
 			.setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
 			.build();
 

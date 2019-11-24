@@ -25,6 +25,8 @@ import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 
+import java.util.Collection;
+
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}.
  * The various pre-defined choices are configurations that have been empirically
@@ -55,16 +57,25 @@ public enum PredefinedOptions {
 	DEFAULT {
 
 		@Override
-		public DBOptions createDBOptions() {
-			return new DBOptions()
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
+			DBOptions dbOptions =
+				new DBOptions()
 					.setUseFsync(false)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
+			if (handlesToClose != null) {
+				handlesToClose.add(dbOptions);
+			}
+			return dbOptions;
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions();
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
+			ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
+			if (handlesToClose != null) {
+				handlesToClose.add(columnFamilyOptions);
+			}
+			return columnFamilyOptions;
 		}
 
 	},
@@ -94,21 +105,30 @@ public enum PredefinedOptions {
 	SPINNING_DISK_OPTIMIZED {
 
 		@Override
-		public DBOptions createDBOptions() {
-
-			return new DBOptions()
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
+			DBOptions dbOptions =
+				new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
+			if (handlesToClose != null) {
+				handlesToClose.add(dbOptions);
+			}
+			return dbOptions;
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions()
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
+			ColumnFamilyOptions columnFamilyOptions =
+				new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true);
+			if (handlesToClose != null) {
+				handlesToClose.add(columnFamilyOptions);
+			}
+			return columnFamilyOptions;
 		}
 	},
 
@@ -143,25 +163,32 @@ public enum PredefinedOptions {
 	SPINNING_DISK_OPTIMIZED_HIGH_MEM {
 
 		@Override
-		public DBOptions createDBOptions() {
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 
-			return new DBOptions()
+			DBOptions dbOptions =
+				new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
+			if (handlesToClose != null) {
+				handlesToClose.add(dbOptions);
+			}
+			return dbOptions;
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 
 			final long blockCacheSize = 256 * 1024 * 1024;
 			final long blockSize = 128 * 1024;
 			final long targetFileSize = 256 * 1024 * 1024;
 			final long writeBufferSize = 64 * 1024 * 1024;
 
-			return new ColumnFamilyOptions()
+			BloomFilter bloomFilter = new BloomFilter();
+			ColumnFamilyOptions columnFamilyOptions =
+				new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true)
 					.setTargetFileSizeBase(targetFileSize)
@@ -173,8 +200,13 @@ public enum PredefinedOptions {
 							new BlockBasedTableConfig()
 									.setBlockCacheSize(blockCacheSize)
 									.setBlockSize(blockSize)
-									.setFilter(new BloomFilter())
+									.setFilter(bloomFilter)
 					);
+			if (handlesToClose != null) {
+				handlesToClose.add(bloomFilter);
+				handlesToClose.add(columnFamilyOptions);
+			}
+			return columnFamilyOptions;
 		}
 	},
 
@@ -200,18 +232,27 @@ public enum PredefinedOptions {
 	FLASH_SSD_OPTIMIZED {
 
 		@Override
-		public DBOptions createDBOptions() {
-			return new DBOptions()
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
+			DBOptions dbOptions =
+				new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
+			if (handlesToClose != null) {
+				handlesToClose.add(dbOptions);
+			}
+			return dbOptions;
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions();
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
+			ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
+			if (handlesToClose != null) {
+				handlesToClose.add(columnFamilyOptions);
+			}
+			return columnFamilyOptions;
 		}
 	};
 
@@ -220,15 +261,33 @@ public enum PredefinedOptions {
 	/**
 	 * Creates the {@link DBOptions}for this pre-defined setting.
 	 *
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
-	public abstract DBOptions createDBOptions();
+	public abstract DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * @return The pre-defined options object.
+	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
+	 */
+	public DBOptions createDBOptions() {
+		return createDBOptions(null);
+	}
 
 	/**
 	 * Creates the {@link org.rocksdb.ColumnFamilyOptions}for this pre-defined setting.
 	 *
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
-	public abstract ColumnFamilyOptions createColumnOptions();
+	public abstract ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * @return The pre-defined options object.
+	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
+	 */
+	public ColumnFamilyOptions createColumnOptions() {
+		return createColumnOptions(null);
+	}
 
 }
