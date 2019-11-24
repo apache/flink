@@ -81,4 +81,12 @@ public interface OptionsFactory extends java.io.Serializable {
 	default RocksDBNativeMetricOptions createNativeMetricsOptions(RocksDBNativeMetricOptions nativeMetricOptions) {
 		return nativeMetricOptions;
 	}
+
+	/**
+	 * This method should do necessary clean up like closing all
+	 * {@link org.rocksdb.RocksObject}s initiated in this factory.
+	 */
+	default void close() {
+		// do nothing by default
+	}
 }
