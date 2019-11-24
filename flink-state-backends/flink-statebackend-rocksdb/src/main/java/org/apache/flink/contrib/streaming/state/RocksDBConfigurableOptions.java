@@ -94,7 +94,7 @@ public class RocksDBConfigurableOptions implements Serializable {
 		key("state.backend.rocksdb.writebuffer.size")
 			.noDefaultValue()
 			.withDescription("The amount of data built up in memory (backed by an unsorted log on disk) " +
-				"before converting to a sorted on-disk files. RocksDB has default writebuffer size as '4MB'.");
+				"before converting to a sorted on-disk files. RocksDB has default writebuffer size as '64MB'.");
 
 	public static final ConfigOption<String> MAX_WRITE_BUFFER_NUMBER =
 		key("state.backend.rocksdb.writebuffer.count")
