@@ -24,12 +24,12 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 /**
- * Class to save catalog table statistics.
- * Consist ofå {@link CatalogTableStatistics} and {@link CatalogTableStatistics}.
+ * Class to describe catalog table statistics.
+ * Consists of {@link CatalogTableStatistics} and {@link CatalogColumnStatistics}.
  */
 public class CatalogTableStats {
-	private CatalogTableStatistics catalogTableStatistics;
-	private CatalogColumnStatistics catalogColumnStatistics;
+	private final CatalogTableStatistics catalogTableStatistics;
+	private final CatalogColumnStatistics catalogColumnStatistics;
 
 	public CatalogTableStats(CatalogTableStatistics catalogTableStatistics, CatalogColumnStatistics catalogColumnStatistics) {
 		this.catalogTableStatistics = catalogTableStatistics;
@@ -38,22 +38,20 @@ public class CatalogTableStats {
 
 	public void register2Catalog(TableEnvironment tEnv, String table) {
 
-		tEnv.getCatalog(tEnv.getCurrentCatalog())
-			.ifPresent(catalog -> {
-				try {
-					catalog.alterTableStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogTableStatistics, false);
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			});
-		tEnv.getCatalog(tEnv.getCurrentCatalog())
-			.ifPresent(catalog -> {
-				try {
-					catalog.alterTableColumnStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogColumnStatistics, false);
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			});
+		tEnv.getCatalog(tEnv.getCurrentCatalog()).ifPresent(catalog -> {
+			try {
+				catalog.alterTableStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogTableStatistics, false);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		});
+		tEnv.getCatalog(tEnv.getCurrentCatalog()).ifPresent(catalog -> {
+			try {
+				catalog.alterTableColumnStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogColumnStatistics, false);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		});
 	}
 }
 

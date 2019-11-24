@@ -20,10 +20,13 @@ package org.apache.flink.table.tpcds.schema;
 
 import org.apache.flink.table.types.DataType;
 
-/** Class to define column schema of TPS-DS table. */
+/**
+ * Class to define column schema of TPS-DS table.
+ * The Column schema consists of field name {@link String} and field type {@link DataType}.
+ * */
 public class Column {
-	private String name;
-	private DataType dataType;
+	private final String name;
+	private final DataType dataType;
 
 	public Column(String name, DataType dataType) {
 		this.name = name;

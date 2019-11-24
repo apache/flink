@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * answer set format tool class. convert delimiter from spaces or tabs to bar('|') in TPC-DS answer set.
+ * Answer set format tool class. convert delimiter from spaces or tabs to bar('|') in TPC-DS answer set.
  * before convert, need to format TPC-DS result as following:
  * 1. split answer set which has multi query results to multi answer set, includes query14, 23, 24, 39.
  * 2. replace tabs by spaces in answer set by vim.

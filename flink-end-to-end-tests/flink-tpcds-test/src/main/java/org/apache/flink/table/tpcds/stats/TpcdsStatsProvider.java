@@ -36,11 +36,14 @@ import java.util.Map;
  */
 public class TpcdsStatsProvider {
 
-	private static CatalogTableStats catalogsalesCatalogTableStats;
+	private static final int tpcdsTableNums = 24;
+	private static final Map<String, CatalogTableStats> catalogTableStatsMap = createCatalogTableStatsMap();
 
-	static {
-		CatalogTableStatistics catalogsalesCatalogTableStatistics = new CatalogTableStatistics(1441548, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> catalogsalesColumnStatisticsData = new HashMap<>();
+	private static Map<String, CatalogTableStats> createCatalogTableStatsMap() {
+		final Map<String, CatalogTableStats> catalogTableStatsMap = new HashMap<>(tpcdsTableNums);
+
+		//CatalogTableStats for table catalog_sales
+		final Map<String, CatalogColumnStatisticsDataBase> catalogsalesColumnStatisticsData = new HashMap<>();
 		catalogsalesColumnStatisticsData.put("cs_ship_mode_sk", new CatalogColumnStatisticsDataLong(1L, 20L, 20L, 7127L));
 		catalogsalesColumnStatisticsData.put("cs_bill_customer_sk", new CatalogColumnStatisticsDataLong(1L, 100000L, 80434L, 7029L));
 		catalogsalesColumnStatisticsData.put("cs_sales_price", new CatalogColumnStatisticsDataDouble(0.00D, 297.83D, 25905L, 7015L));
@@ -75,15 +78,13 @@ public class TpcdsStatsProvider {
 		catalogsalesColumnStatisticsData.put("cs_coupon_amt", new CatalogColumnStatisticsDataDouble(0.00D, 24188.55D, 156969L, 7185L));
 		catalogsalesColumnStatisticsData.put("cs_bill_hdemo_sk", new CatalogColumnStatisticsDataLong(1L, 7200L, 7207L, 7060L));
 		catalogsalesColumnStatisticsData.put("cs_sold_time_sk", new CatalogColumnStatisticsDataLong(4L, 86399L, 66950L, 7053L));
-		CatalogColumnStatistics catalogsalesCatalogColumnStatistics = new CatalogColumnStatistics(catalogsalesColumnStatisticsData);
-		catalogsalesCatalogTableStats = new CatalogTableStats(catalogsalesCatalogTableStatistics, catalogsalesCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics catalogsalesCatalogColumnStatistics = new CatalogColumnStatistics(catalogsalesColumnStatisticsData);
+		final CatalogTableStatistics catalogsalesCatalogTableStatistics = new CatalogTableStatistics(1441548, 0, 0, 0);
+		final CatalogTableStats catalogsalesCatalogTableStats = new CatalogTableStats(catalogsalesCatalogTableStatistics, catalogsalesCatalogColumnStatistics);
+		catalogTableStatsMap.put("catalog_sales", catalogsalesCatalogTableStats);
 
-	private static CatalogTableStats catalogreturnsCatalogTableStats;
-
-	static {
-		CatalogTableStatistics catalogreturnsCatalogTableStatistics = new CatalogTableStatistics(144067, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> catalogreturnsColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table catalog_returns
+		final Map<String, CatalogColumnStatisticsDataBase> catalogreturnsColumnStatisticsData = new HashMap<>();
 		catalogreturnsColumnStatisticsData.put("cr_order_number", new CatalogColumnStatisticsDataLong(2L, 160000L, 93971L, 0L));
 		catalogreturnsColumnStatisticsData.put("cr_return_amount", new CatalogColumnStatisticsDataDouble(0.00D, 24445.40D, 82653L, 2876L));
 		catalogreturnsColumnStatisticsData.put("cr_refunded_addr_sk", new CatalogColumnStatisticsDataLong(1L, 50000L, 41875L, 2849L));
@@ -111,28 +112,24 @@ public class TpcdsStatsProvider {
 		catalogreturnsColumnStatisticsData.put("cr_returning_cdemo_sk", new CatalogColumnStatisticsDataLong(13L, 1920792L, 136751L, 2858L));
 		catalogreturnsColumnStatisticsData.put("cr_return_quantity", new CatalogColumnStatisticsDataLong(1L, 100L, 100L, 2895L));
 		catalogreturnsColumnStatisticsData.put("cr_reason_sk", new CatalogColumnStatisticsDataLong(1L, 35L, 35L, 2840L));
-		CatalogColumnStatistics catalogreturnsCatalogColumnStatistics = new CatalogColumnStatistics(catalogreturnsColumnStatisticsData);
-		catalogreturnsCatalogTableStats = new CatalogTableStats(catalogreturnsCatalogTableStatistics, catalogreturnsCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics catalogreturnsCatalogColumnStatistics = new CatalogColumnStatistics(catalogreturnsColumnStatisticsData);
+		final CatalogTableStatistics catalogreturnsCatalogTableStatistics = new CatalogTableStatistics(144067, 0, 0, 0);
+		final CatalogTableStats catalogreturnsCatalogTableStats = new CatalogTableStats(catalogreturnsCatalogTableStatistics, catalogreturnsCatalogColumnStatistics);
+		catalogTableStatsMap.put("catalog_returns", catalogreturnsCatalogTableStats);
 
-	private static CatalogTableStats inventoryCatalogTableStats;
-
-	static {
-		CatalogTableStatistics inventoryCatalogTableStatistics = new CatalogTableStatistics(11745000, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> inventoryColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table inventory
+		final Map<String, CatalogColumnStatisticsDataBase> inventoryColumnStatisticsData = new HashMap<>();
 		inventoryColumnStatisticsData.put("inv_date_sk", new CatalogColumnStatisticsDataLong(2450815L, 2452635L, 261L, 0L));
 		inventoryColumnStatisticsData.put("inv_item_sk", new CatalogColumnStatisticsDataLong(1L, 18000L, 17869L, 0L));
 		inventoryColumnStatisticsData.put("inv_warehouse_sk", new CatalogColumnStatisticsDataLong(1L, 5L, 5L, 0L));
 		inventoryColumnStatisticsData.put("inv_quantity_on_hand", new CatalogColumnStatisticsDataLong(0L, 1000L, 1003L, 586913L));
-		CatalogColumnStatistics inventoryCatalogColumnStatistics = new CatalogColumnStatistics(inventoryColumnStatisticsData);
-		inventoryCatalogTableStats = new CatalogTableStats(inventoryCatalogTableStatistics, inventoryCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics inventoryCatalogColumnStatistics = new CatalogColumnStatistics(inventoryColumnStatisticsData);
+		final CatalogTableStatistics inventoryCatalogTableStatistics = new CatalogTableStatistics(11745000, 0, 0, 0);
+		final CatalogTableStats inventoryCatalogTableStats = new CatalogTableStats(inventoryCatalogTableStatistics, inventoryCatalogColumnStatistics);
+		catalogTableStatsMap.put("inventory", inventoryCatalogTableStats);
 
-	private static CatalogTableStats storesalesCatalogTableStats;
-
-	static {
-		CatalogTableStatistics storesalesCatalogTableStatistics = new CatalogTableStatistics(2880404, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> storesalesColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table store_sales
+		final Map<String, CatalogColumnStatisticsDataBase> storesalesColumnStatisticsData = new HashMap<>();
 		storesalesColumnStatisticsData.put("ss_quantity", new CatalogColumnStatisticsDataLong(1L, 100L, 100L, 129996L));
 		storesalesColumnStatisticsData.put("ss_wholesale_cost", new CatalogColumnStatisticsDataDouble(1.00D, 100.00D, 9872L, 130023L));
 		storesalesColumnStatisticsData.put("ss_net_paid", new CatalogColumnStatisticsDataDouble(0.00D, 19562.40D, 461704L, 129397L));
@@ -156,15 +153,13 @@ public class TpcdsStatsProvider {
 		storesalesColumnStatisticsData.put("ss_ext_tax", new CatalogColumnStatisticsDataDouble(0.00D, 1749.87D, 78453L, 130410L));
 		storesalesColumnStatisticsData.put("ss_hdemo_sk", new CatalogColumnStatisticsDataLong(1L, 7200L, 7207L, 129847L));
 		storesalesColumnStatisticsData.put("ss_ext_list_price", new CatalogColumnStatisticsDataDouble(1.12D, 19984.00D, 576650L, 129933L));
-		CatalogColumnStatistics storesalesCatalogColumnStatistics = new CatalogColumnStatistics(storesalesColumnStatisticsData);
-		storesalesCatalogTableStats = new CatalogTableStats(storesalesCatalogTableStatistics, storesalesCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics storesalesCatalogColumnStatistics = new CatalogColumnStatistics(storesalesColumnStatisticsData);
+		final CatalogTableStatistics storesalesCatalogTableStatistics = new CatalogTableStatistics(2880404, 0, 0, 0);
+		final CatalogTableStats storesalesCatalogTableStats = new CatalogTableStats(storesalesCatalogTableStatistics, storesalesCatalogColumnStatistics);
+		catalogTableStatsMap.put("store_sales", storesalesCatalogTableStats);
 
-	private static CatalogTableStats storereturnsCatalogTableStats;
-
-	static {
-		CatalogTableStatistics storereturnsCatalogTableStatistics = new CatalogTableStatistics(287514, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> storereturnsColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table store_returns
+		final Map<String, CatalogColumnStatisticsDataBase> storereturnsColumnStatisticsData = new HashMap<>();
 		storereturnsColumnStatisticsData.put("sr_return_time_sk", new CatalogColumnStatisticsDataLong(28799L, 61199L, 32528L, 9946L));
 		storereturnsColumnStatisticsData.put("sr_return_ship_cost", new CatalogColumnStatisticsDataDouble(0.00D, 8631.06D, 82007L, 9871L));
 		storereturnsColumnStatisticsData.put("sr_cdemo_sk", new CatalogColumnStatisticsDataLong(2L, 1920800L, 256899L, 9883L));
@@ -185,15 +180,13 @@ public class TpcdsStatsProvider {
 		storereturnsColumnStatisticsData.put("sr_reason_sk", new CatalogColumnStatisticsDataLong(1L, 35L, 35L, 9984L));
 		storereturnsColumnStatisticsData.put("sr_reversed_charge", new CatalogColumnStatisticsDataDouble(0.00D, 11531.04D, 72486L, 10032L));
 		storereturnsColumnStatisticsData.put("sr_return_amt", new CatalogColumnStatisticsDataDouble(0.00D, 16917.12D, 111419L, 10028L));
-		CatalogColumnStatistics storereturnsCatalogColumnStatistics = new CatalogColumnStatistics(storereturnsColumnStatisticsData);
-		storereturnsCatalogTableStats = new CatalogTableStats(storereturnsCatalogTableStatistics, storereturnsCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics storereturnsCatalogColumnStatistics = new CatalogColumnStatistics(storereturnsColumnStatisticsData);
+		final CatalogTableStatistics storereturnsCatalogTableStatistics = new CatalogTableStatistics(287514, 0, 0, 0);
+		final CatalogTableStats storereturnsCatalogTableStats = new CatalogTableStats(storereturnsCatalogTableStatistics, storereturnsCatalogColumnStatistics);
+		catalogTableStatsMap.put("store_returns", storereturnsCatalogTableStats);
 
-	private static CatalogTableStats websalesCatalogTableStats;
-
-	static {
-		CatalogTableStatistics websalesCatalogTableStatistics = new CatalogTableStatistics(719384, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> websalesColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table web_sales
+		final Map<String, CatalogColumnStatisticsDataBase> websalesColumnStatisticsData = new HashMap<>();
 		websalesColumnStatisticsData.put("ws_ship_mode_sk", new CatalogColumnStatisticsDataLong(1L, 20L, 20L, 174L));
 		websalesColumnStatisticsData.put("ws_net_paid_inc_ship", new CatalogColumnStatisticsDataDouble(0.00D, 41222.09D, 375366L, 0L));
 		websalesColumnStatisticsData.put("ws_coupon_amt", new CatalogColumnStatisticsDataDouble(0.00D, 26909.62D, 95986L, 196L));
@@ -228,15 +221,13 @@ public class TpcdsStatsProvider {
 		websalesColumnStatisticsData.put("ws_ext_sales_price", new CatalogColumnStatisticsDataDouble(0.00D, 28592.19D, 283961L, 181L));
 		websalesColumnStatisticsData.put("ws_wholesale_cost", new CatalogColumnStatisticsDataDouble(1.00D, 100.00D, 9872L, 173L));
 		websalesColumnStatisticsData.put("ws_web_site_sk", new CatalogColumnStatisticsDataLong(1L, 30L, 30L, 186L));
-		CatalogColumnStatistics websalesCatalogColumnStatistics = new CatalogColumnStatistics(websalesColumnStatisticsData);
-		websalesCatalogTableStats = new CatalogTableStats(websalesCatalogTableStatistics, websalesCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics websalesCatalogColumnStatistics = new CatalogColumnStatistics(websalesColumnStatisticsData);
+		final CatalogTableStatistics websalesCatalogTableStatistics = new CatalogTableStatistics(719384, 0, 0, 0);
+		final CatalogTableStats websalesCatalogTableStats = new CatalogTableStats(websalesCatalogTableStatistics, websalesCatalogColumnStatistics);
+		catalogTableStatsMap.put("web_sales", websalesCatalogTableStats);
 
-	private static CatalogTableStats webreturnsCatalogTableStats;
-
-	static {
-		CatalogTableStatistics webreturnsCatalogTableStatistics = new CatalogTableStatistics(71763, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> webreturnsColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table web_returns
+		final Map<String, CatalogColumnStatisticsDataBase> webreturnsColumnStatisticsData = new HashMap<>();
 		webreturnsColumnStatisticsData.put("wr_reason_sk", new CatalogColumnStatisticsDataLong(1L, 35L, 35L, 3212L));
 		webreturnsColumnStatisticsData.put("wr_fee", new CatalogColumnStatisticsDataDouble(0.50D, 100.00D, 9914L, 3165L));
 		webreturnsColumnStatisticsData.put("wr_return_amt", new CatalogColumnStatisticsDataDouble(0.00D, 25649.40D, 49033L, 3211L));
@@ -261,15 +252,13 @@ public class TpcdsStatsProvider {
 		webreturnsColumnStatisticsData.put("wr_refunded_addr_sk", new CatalogColumnStatisticsDataLong(2L, 50000L, 37063L, 3164L));
 		webreturnsColumnStatisticsData.put("wr_refunded_cdemo_sk", new CatalogColumnStatisticsDataLong(44L, 1920789L, 67243L, 3230L));
 		webreturnsColumnStatisticsData.put("wr_net_loss", new CatalogColumnStatisticsDataDouble(0.63D, 13871.85D, 51848L, 3201L));
-		CatalogColumnStatistics webreturnsCatalogColumnStatistics = new CatalogColumnStatistics(webreturnsColumnStatisticsData);
-		webreturnsCatalogTableStats = new CatalogTableStats(webreturnsCatalogTableStatistics, webreturnsCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics webreturnsCatalogColumnStatistics = new CatalogColumnStatistics(webreturnsColumnStatisticsData);
+		final CatalogTableStatistics webreturnsCatalogTableStatistics = new CatalogTableStatistics(71763, 0, 0, 0);
+		final CatalogTableStats webreturnsCatalogTableStats = new CatalogTableStats(webreturnsCatalogTableStatistics, webreturnsCatalogColumnStatistics);
+		catalogTableStatsMap.put("web_returns", webreturnsCatalogTableStats);
 
-	private static CatalogTableStats callcenterCatalogTableStats;
-
-	static {
-		CatalogTableStatistics callcenterCatalogTableStatistics = new CatalogTableStatistics(6, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> callcenterColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table call_center
+		final Map<String, CatalogColumnStatisticsDataBase> callcenterColumnStatisticsData = new HashMap<>();
 		callcenterColumnStatisticsData.put("cc_street_number", new CatalogColumnStatisticsDataString(3L, 3.0D, 3L, 0L));
 		callcenterColumnStatisticsData.put("cc_call_center_id", new CatalogColumnStatisticsDataString(16L, 16.0D, 3L, 0L));
 		callcenterColumnStatisticsData.put("cc_state", new CatalogColumnStatisticsDataString(2L, 2.0D, 1L, 0L));
@@ -301,15 +290,13 @@ public class TpcdsStatsProvider {
 		callcenterColumnStatisticsData.put("cc_mkt_desc", new CatalogColumnStatisticsDataString(92L, 69.33333333333333D, 4L, 0L));
 		callcenterColumnStatisticsData.put("cc_suite_number", new CatalogColumnStatisticsDataString(8L, 7.333333333333333D, 3L, 0L));
 		callcenterColumnStatisticsData.put("cc_call_center_sk", new CatalogColumnStatisticsDataLong(1L, 6L, 6L, 0L));
-		CatalogColumnStatistics callcenterCatalogColumnStatistics = new CatalogColumnStatistics(callcenterColumnStatisticsData);
-		callcenterCatalogTableStats = new CatalogTableStats(callcenterCatalogTableStatistics, callcenterCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics callcenterCatalogColumnStatistics = new CatalogColumnStatistics(callcenterColumnStatisticsData);
+		final CatalogTableStatistics callcenterCatalogTableStatistics = new CatalogTableStatistics(6, 0, 0, 0);
+		final CatalogTableStats callcenterCatalogTableStats = new CatalogTableStats(callcenterCatalogTableStatistics, callcenterCatalogColumnStatistics);
+		catalogTableStatsMap.put("call_center", callcenterCatalogTableStats);
 
-	private static CatalogTableStats catalogpageCatalogTableStats;
-
-	static {
-		CatalogTableStatistics catalogpageCatalogTableStatistics = new CatalogTableStatistics(11718, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> catalogpageColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table catalog_page
+		final Map<String, CatalogColumnStatisticsDataBase> catalogpageColumnStatisticsData = new HashMap<>();
 		catalogpageColumnStatisticsData.put("cp_department", new CatalogColumnStatisticsDataString(10L, 9.897593445980542D, 2L, 0L));
 		catalogpageColumnStatisticsData.put("cp_catalog_page_number", new CatalogColumnStatisticsDataLong(1L, 108L, 108L, 116L));
 		catalogpageColumnStatisticsData.put("cp_catalog_page_sk", new CatalogColumnStatisticsDataLong(1L, 11718L, 11692L, 0L));
@@ -319,15 +306,13 @@ public class TpcdsStatsProvider {
 		catalogpageColumnStatisticsData.put("cp_type", new CatalogColumnStatisticsDataString(9L, 7.600443761734084D, 4L, 0L));
 		catalogpageColumnStatisticsData.put("cp_start_date_sk", new CatalogColumnStatisticsDataLong(2450815L, 2453005L, 91L, 101L));
 		catalogpageColumnStatisticsData.put("cp_catalog_number", new CatalogColumnStatisticsDataLong(1L, 109L, 109L, 104L));
-		CatalogColumnStatistics catalogpageCatalogColumnStatistics = new CatalogColumnStatistics(catalogpageColumnStatisticsData);
-		catalogpageCatalogTableStats = new CatalogTableStats(catalogpageCatalogTableStatistics, catalogpageCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics catalogpageCatalogColumnStatistics = new CatalogColumnStatistics(catalogpageColumnStatisticsData);
+		final CatalogTableStatistics catalogpageCatalogTableStatistics = new CatalogTableStatistics(11718, 0, 0, 0);
+		final CatalogTableStats catalogpageCatalogTableStats = new CatalogTableStats(catalogpageCatalogTableStatistics, catalogpageCatalogColumnStatistics);
+		catalogTableStatsMap.put("catalog_page", catalogpageCatalogTableStats);
 
-	private static CatalogTableStats customerCatalogTableStats;
-
-	static {
-		CatalogTableStatistics customerCatalogTableStatistics = new CatalogTableStatistics(100000, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> customerColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table customer
+		final Map<String, CatalogColumnStatisticsDataBase> customerColumnStatisticsData = new HashMap<>();
 		customerColumnStatisticsData.put("c_email_address", new CatalogColumnStatisticsDataString(46L, 26.48564D, 98193L, 0L));
 		customerColumnStatisticsData.put("c_birth_month", new CatalogColumnStatisticsDataLong(1L, 12L, 12L, 3449L));
 		customerColumnStatisticsData.put("c_first_sales_date_sk", new CatalogColumnStatisticsDataLong(2448998L, 2452648L, 3623L, 3518L));
@@ -346,15 +331,13 @@ public class TpcdsStatsProvider {
 		customerColumnStatisticsData.put("c_current_hdemo_sk", new CatalogColumnStatisticsDataLong(1L, 7200L, 7207L, 3431L));
 		customerColumnStatisticsData.put("c_customer_sk", new CatalogColumnStatisticsDataLong(1L, 100000L, 100425L, 0L));
 		customerColumnStatisticsData.put("c_first_name", new CatalogColumnStatisticsDataString(11L, 5.63556D, 4134L, 0L));
-		CatalogColumnStatistics customerCatalogColumnStatistics = new CatalogColumnStatistics(customerColumnStatisticsData);
-		customerCatalogTableStats = new CatalogTableStats(customerCatalogTableStatistics, customerCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics customerCatalogColumnStatistics = new CatalogColumnStatistics(customerColumnStatisticsData);
+		final CatalogTableStatistics customerCatalogTableStatistics = new CatalogTableStatistics(100000, 0, 0, 0);
+		final CatalogTableStats customerCatalogTableStats = new CatalogTableStats(customerCatalogTableStatistics, customerCatalogColumnStatistics);
+		catalogTableStatsMap.put("customer", customerCatalogTableStats);
 
-	private static CatalogTableStats customeraddressCatalogTableStats;
-
-	static {
-		CatalogTableStatistics customeraddressCatalogTableStatistics = new CatalogTableStatistics(50000, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> customeraddressColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table customer_address
+		final Map<String, CatalogColumnStatisticsDataBase> customeraddressColumnStatisticsData = new HashMap<>();
 		customeraddressColumnStatisticsData.put("ca_state", new CatalogColumnStatisticsDataString(2L, 1.938D, 52L, 0L));
 		customeraddressColumnStatisticsData.put("ca_street_type", new CatalogColumnStatisticsDataString(9L, 4.0803D, 21L, 0L));
 		customeraddressColumnStatisticsData.put("ca_gmt_offset", new CatalogColumnStatisticsDataDouble(-10.00D, -5.00D, 6L, 1556L));
@@ -368,15 +351,13 @@ public class TpcdsStatsProvider {
 		customeraddressColumnStatisticsData.put("ca_county", new CatalogColumnStatisticsDataString(28L, 13.55138D, 1856L, 0L));
 		customeraddressColumnStatisticsData.put("ca_city", new CatalogColumnStatisticsDataString(20L, 8.6713D, 690L, 0L));
 		customeraddressColumnStatisticsData.put("ca_street_name", new CatalogColumnStatisticsDataString(21L, 8.45012D, 6955L, 0L));
-		CatalogColumnStatistics customeraddressCatalogColumnStatistics = new CatalogColumnStatistics(customeraddressColumnStatisticsData);
-		customeraddressCatalogTableStats = new CatalogTableStats(customeraddressCatalogTableStatistics, customeraddressCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics customeraddressCatalogColumnStatistics = new CatalogColumnStatistics(customeraddressColumnStatisticsData);
+		final CatalogTableStatistics customeraddressCatalogTableStatistics = new CatalogTableStatistics(50000, 0, 0, 0);
+		final CatalogTableStats customeraddressCatalogTableStats = new CatalogTableStats(customeraddressCatalogTableStatistics, customeraddressCatalogColumnStatistics);
+		catalogTableStatsMap.put("customer_address", customeraddressCatalogTableStats);
 
-	private static CatalogTableStats customerdemographicsCatalogTableStats;
-
-	static {
-		CatalogTableStatistics customerdemographicsCatalogTableStatistics = new CatalogTableStatistics(1920800, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> customerdemographicsColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table customer_demographics
+		final Map<String, CatalogColumnStatisticsDataBase> customerdemographicsColumnStatisticsData = new HashMap<>();
 		customerdemographicsColumnStatisticsData.put("cd_demo_sk", new CatalogColumnStatisticsDataLong(1L, 1920800L, 1913326L, 0L));
 		customerdemographicsColumnStatisticsData.put("cd_education_status", new CatalogColumnStatisticsDataString(15L, 9.571428571428571D, 7L, 0L));
 		customerdemographicsColumnStatisticsData.put("cd_credit_rating", new CatalogColumnStatisticsDataString(9L, 7.0D, 4L, 0L));
@@ -386,15 +367,13 @@ public class TpcdsStatsProvider {
 		customerdemographicsColumnStatisticsData.put("cd_gender", new CatalogColumnStatisticsDataString(1L, 1.0D, 2L, 0L));
 		customerdemographicsColumnStatisticsData.put("cd_dep_employed_count", new CatalogColumnStatisticsDataLong(0L, 6L, 7L, 0L));
 		customerdemographicsColumnStatisticsData.put("cd_marital_status", new CatalogColumnStatisticsDataString(1L, 1.0D, 5L, 0L));
-		CatalogColumnStatistics customerdemographicsCatalogColumnStatistics = new CatalogColumnStatistics(customerdemographicsColumnStatisticsData);
-		customerdemographicsCatalogTableStats = new CatalogTableStats(customerdemographicsCatalogTableStatistics, customerdemographicsCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics customerdemographicsCatalogColumnStatistics = new CatalogColumnStatistics(customerdemographicsColumnStatisticsData);
+		final CatalogTableStatistics customerdemographicsCatalogTableStatistics = new CatalogTableStatistics(1920800, 0, 0, 0);
+		final CatalogTableStats customerdemographicsCatalogTableStats = new CatalogTableStats(customerdemographicsCatalogTableStatistics, customerdemographicsCatalogColumnStatistics);
+		catalogTableStatsMap.put("customer_demographics", customerdemographicsCatalogTableStats);
 
-	private static CatalogTableStats datedimCatalogTableStats;
-
-	static {
-		CatalogTableStatistics datedimCatalogTableStatistics = new CatalogTableStatistics(73049, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> datedimColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table date_dim
+		final Map<String, CatalogColumnStatisticsDataBase> datedimColumnStatisticsData = new HashMap<>();
 		datedimColumnStatisticsData.put("d_same_day_lq", new CatalogColumnStatisticsDataLong(2414930L, 2487978L, 72576L, 0L));
 		datedimColumnStatisticsData.put("d_holiday", new CatalogColumnStatisticsDataString(1L, 1.0D, 2L, 0L));
 		datedimColumnStatisticsData.put("d_date", new CatalogColumnStatisticsDataDate(null, null, 73063L, 0L));
@@ -423,41 +402,35 @@ public class TpcdsStatsProvider {
 		datedimColumnStatisticsData.put("d_current_quarter", new CatalogColumnStatisticsDataString(1L, 1.0D, 2L, 0L));
 		datedimColumnStatisticsData.put("d_month_seq", new CatalogColumnStatisticsDataLong(0L, 2400L, 2420L, 0L));
 		datedimColumnStatisticsData.put("d_dom", new CatalogColumnStatisticsDataLong(1L, 31L, 31L, 0L));
-		CatalogColumnStatistics datedimCatalogColumnStatistics = new CatalogColumnStatistics(datedimColumnStatisticsData);
-		datedimCatalogTableStats = new CatalogTableStats(datedimCatalogTableStatistics, datedimCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics datedimCatalogColumnStatistics = new CatalogColumnStatistics(datedimColumnStatisticsData);
+		final CatalogTableStatistics datedimCatalogTableStatistics = new CatalogTableStatistics(73049, 0, 0, 0);
+		final CatalogTableStats datedimCatalogTableStats = new CatalogTableStats(datedimCatalogTableStatistics, datedimCatalogColumnStatistics);
+		catalogTableStatsMap.put("date_dim", datedimCatalogTableStats);
 
-	private static CatalogTableStats householddemographicsCatalogTableStats;
-
-	static {
-		CatalogTableStatistics householddemographicsCatalogTableStatistics = new CatalogTableStatistics(7200, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> householddemographicsColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table household_demographics
+		final Map<String, CatalogColumnStatisticsDataBase> householddemographicsColumnStatisticsData = new HashMap<>();
 		householddemographicsColumnStatisticsData.put("hd_demo_sk", new CatalogColumnStatisticsDataLong(1L, 7200L, 7207L, 0L));
 		householddemographicsColumnStatisticsData.put("hd_income_band_sk", new CatalogColumnStatisticsDataLong(1L, 20L, 20L, 0L));
 		householddemographicsColumnStatisticsData.put("hd_dep_count", new CatalogColumnStatisticsDataLong(0L, 9L, 10L, 0L));
 		householddemographicsColumnStatisticsData.put("hd_buy_potential", new CatalogColumnStatisticsDataString(10L, 7.5D, 6L, 0L));
 		householddemographicsColumnStatisticsData.put("hd_vehicle_count", new CatalogColumnStatisticsDataLong(-1L, 4L, 6L, 0L));
-		CatalogColumnStatistics householddemographicsCatalogColumnStatistics = new CatalogColumnStatistics(householddemographicsColumnStatisticsData);
-		householddemographicsCatalogTableStats = new CatalogTableStats(householddemographicsCatalogTableStatistics, householddemographicsCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics householddemographicsCatalogColumnStatistics = new CatalogColumnStatistics(householddemographicsColumnStatisticsData);
+		final CatalogTableStatistics householddemographicsCatalogTableStatistics = new CatalogTableStatistics(7200, 0, 0, 0);
+		final CatalogTableStats householddemographicsCatalogTableStats = new CatalogTableStats(householddemographicsCatalogTableStatistics, householddemographicsCatalogColumnStatistics);
+		catalogTableStatsMap.put("household_demographics", householddemographicsCatalogTableStats);
 
-	private static CatalogTableStats incomebandCatalogTableStats;
-
-	static {
-		CatalogTableStatistics incomebandCatalogTableStatistics = new CatalogTableStatistics(20, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> incomebandColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table income_band
+		final Map<String, CatalogColumnStatisticsDataBase> incomebandColumnStatisticsData = new HashMap<>();
 		incomebandColumnStatisticsData.put("ib_income_band_sk", new CatalogColumnStatisticsDataLong(1L, 20L, 20L, 0L));
 		incomebandColumnStatisticsData.put("ib_lower_bound", new CatalogColumnStatisticsDataLong(0L, 190001L, 20L, 0L));
 		incomebandColumnStatisticsData.put("ib_upper_bound", new CatalogColumnStatisticsDataLong(10000L, 200000L, 20L, 0L));
-		CatalogColumnStatistics incomebandCatalogColumnStatistics = new CatalogColumnStatistics(incomebandColumnStatisticsData);
-		incomebandCatalogTableStats = new CatalogTableStats(incomebandCatalogTableStatistics, incomebandCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics incomebandCatalogColumnStatistics = new CatalogColumnStatistics(incomebandColumnStatisticsData);
+		final CatalogTableStatistics incomebandCatalogTableStatistics = new CatalogTableStatistics(20, 0, 0, 0);
+		final CatalogTableStats incomebandCatalogTableStats = new CatalogTableStats(incomebandCatalogTableStatistics, incomebandCatalogColumnStatistics);
+		catalogTableStatsMap.put("income_band", incomebandCatalogTableStats);
 
-	private static CatalogTableStats itemCatalogTableStats;
-
-	static {
-		CatalogTableStatistics itemCatalogTableStatistics = new CatalogTableStatistics(18000, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> itemColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table item
+		final Map<String, CatalogColumnStatisticsDataBase> itemColumnStatisticsData = new HashMap<>();
 		itemColumnStatisticsData.put("i_units", new CatalogColumnStatisticsDataString(7L, 4.182111111111111D, 22L, 0L));
 		itemColumnStatisticsData.put("i_brand", new CatalogColumnStatisticsDataString(22L, 16.160722222222223D, 709L, 0L));
 		itemColumnStatisticsData.put("i_rec_start_date", new CatalogColumnStatisticsDataDate(null, null, 4L, 46L));
@@ -480,15 +453,13 @@ public class TpcdsStatsProvider {
 		itemColumnStatisticsData.put("i_color", new CatalogColumnStatisticsDataString(10L, 5.3742222222222225D, 93L, 0L));
 		itemColumnStatisticsData.put("i_class_id", new CatalogColumnStatisticsDataLong(1L, 16L, 16L, 35L));
 		itemColumnStatisticsData.put("i_wholesale_cost", new CatalogColumnStatisticsDataDouble(0.02D, 87.36D, 2031L, 46L));
-		CatalogColumnStatistics itemCatalogColumnStatistics = new CatalogColumnStatistics(itemColumnStatisticsData);
-		itemCatalogTableStats = new CatalogTableStats(itemCatalogTableStatistics, itemCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics itemCatalogColumnStatistics = new CatalogColumnStatistics(itemColumnStatisticsData);
+		final CatalogTableStatistics itemCatalogTableStatistics = new CatalogTableStatistics(18000, 0, 0, 0);
+		final CatalogTableStats itemCatalogTableStats = new CatalogTableStats(itemCatalogTableStatistics, itemCatalogColumnStatistics);
+		catalogTableStatsMap.put("item", itemCatalogTableStats);
 
-	private static CatalogTableStats promotionCatalogTableStats;
-
-	static {
-		CatalogTableStatistics promotionCatalogTableStatistics = new CatalogTableStatistics(300, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> promotionColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table promotion
+		final Map<String, CatalogColumnStatisticsDataBase> promotionColumnStatisticsData = new HashMap<>();
 		promotionColumnStatisticsData.put("p_channel_radio", new CatalogColumnStatisticsDataString(1L, 0.98D, 2L, 0L));
 		promotionColumnStatisticsData.put("p_item_sk", new CatalogColumnStatisticsDataLong(28L, 17926L, 292L, 7L));
 		promotionColumnStatisticsData.put("p_channel_catalog", new CatalogColumnStatisticsDataString(1L, 0.9866666666666667D, 2L, 0L));
@@ -508,42 +479,36 @@ public class TpcdsStatsProvider {
 		promotionColumnStatisticsData.put("p_channel_event", new CatalogColumnStatisticsDataString(1L, 0.9866666666666667D, 2L, 0L));
 		promotionColumnStatisticsData.put("p_channel_demo", new CatalogColumnStatisticsDataString(1L, 0.99D, 2L, 0L));
 		promotionColumnStatisticsData.put("p_channel_details", new CatalogColumnStatisticsDataString(60L, 39.96333333333333D, 301L, 0L));
-		CatalogColumnStatistics promotionCatalogColumnStatistics = new CatalogColumnStatistics(promotionColumnStatisticsData);
-		promotionCatalogTableStats = new CatalogTableStats(promotionCatalogTableStatistics, promotionCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics promotionCatalogColumnStatistics = new CatalogColumnStatistics(promotionColumnStatisticsData);
+		final CatalogTableStatistics promotionCatalogTableStatistics = new CatalogTableStatistics(300, 0, 0, 0);
+		final CatalogTableStats promotionCatalogTableStats = new CatalogTableStats(promotionCatalogTableStatistics, promotionCatalogColumnStatistics);
+		catalogTableStatsMap.put("promotion", promotionCatalogTableStats);
 
-	private static CatalogTableStats reasonCatalogTableStats;
-
-	static {
-		CatalogTableStatistics reasonCatalogTableStatistics = new CatalogTableStatistics(35, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> reasonColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table reason
+		final Map<String, CatalogColumnStatisticsDataBase> reasonColumnStatisticsData = new HashMap<>();
 		reasonColumnStatisticsData.put("r_reason_sk", new CatalogColumnStatisticsDataLong(1L, 35L, 35L, 0L));
 		reasonColumnStatisticsData.put("r_reason_id", new CatalogColumnStatisticsDataString(16L, 16.0D, 35L, 0L));
 		reasonColumnStatisticsData.put("r_reason_desc", new CatalogColumnStatisticsDataString(43L, 16.514285714285716D, 34L, 0L));
-		CatalogColumnStatistics reasonCatalogColumnStatistics = new CatalogColumnStatistics(reasonColumnStatisticsData);
-		reasonCatalogTableStats = new CatalogTableStats(reasonCatalogTableStatistics, reasonCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics reasonCatalogColumnStatistics = new CatalogColumnStatistics(reasonColumnStatisticsData);
+		final CatalogTableStatistics reasonCatalogTableStatistics = new CatalogTableStatistics(35, 0, 0, 0);
+		final CatalogTableStats reasonCatalogTableStats = new CatalogTableStats(reasonCatalogTableStatistics, reasonCatalogColumnStatistics);
+		catalogTableStatsMap.put("reason", reasonCatalogTableStats);
 
-	private static CatalogTableStats shipmodeCatalogTableStats;
-
-	static {
-		CatalogTableStatistics shipmodeCatalogTableStatistics = new CatalogTableStatistics(20, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> shipmodeColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table ship_mode
+		final Map<String, CatalogColumnStatisticsDataBase> shipmodeColumnStatisticsData = new HashMap<>();
 		shipmodeColumnStatisticsData.put("sm_type", new CatalogColumnStatisticsDataString(9L, 7.5D, 6L, 0L));
 		shipmodeColumnStatisticsData.put("sm_ship_mode_id", new CatalogColumnStatisticsDataString(16L, 16.0D, 20L, 0L));
 		shipmodeColumnStatisticsData.put("sm_ship_mode_sk", new CatalogColumnStatisticsDataLong(1L, 20L, 20L, 0L));
 		shipmodeColumnStatisticsData.put("sm_contract", new CatalogColumnStatisticsDataString(20L, 12.6D, 20L, 0L));
 		shipmodeColumnStatisticsData.put("sm_code", new CatalogColumnStatisticsDataString(7L, 4.35D, 4L, 0L));
 		shipmodeColumnStatisticsData.put("sm_carrier", new CatalogColumnStatisticsDataString(14L, 6.65D, 20L, 0L));
-		CatalogColumnStatistics shipmodeCatalogColumnStatistics = new CatalogColumnStatistics(shipmodeColumnStatisticsData);
-		shipmodeCatalogTableStats = new CatalogTableStats(shipmodeCatalogTableStatistics, shipmodeCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics shipmodeCatalogColumnStatistics = new CatalogColumnStatistics(shipmodeColumnStatisticsData);
+		final CatalogTableStatistics shipmodeCatalogTableStatistics = new CatalogTableStatistics(20, 0, 0, 0);
+		final CatalogTableStats shipmodeCatalogTableStats = new CatalogTableStats(shipmodeCatalogTableStatistics, shipmodeCatalogColumnStatistics);
+		catalogTableStatsMap.put("ship_mode", shipmodeCatalogTableStats);
 
-	private static CatalogTableStats storeCatalogTableStats;
-
-	static {
-		CatalogTableStatistics storeCatalogTableStatistics = new CatalogTableStatistics(12, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> storeColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table store
+		final Map<String, CatalogColumnStatisticsDataBase> storeColumnStatisticsData = new HashMap<>();
 		storeColumnStatisticsData.put("s_country", new CatalogColumnStatisticsDataString(13L, 13.0D, 1L, 0L));
 		storeColumnStatisticsData.put("s_tax_precentage", new CatalogColumnStatisticsDataDouble(0.01D, 0.11D, 5L, 0L));
 		storeColumnStatisticsData.put("s_market_desc", new CatalogColumnStatisticsDataString(94L, 55.5D, 10L, 0L));
@@ -573,15 +538,13 @@ public class TpcdsStatsProvider {
 		storeColumnStatisticsData.put("s_division_id", new CatalogColumnStatisticsDataLong(1L, 1L, 1L, 0L));
 		storeColumnStatisticsData.put("s_rec_end_date", new CatalogColumnStatisticsDataDate(null, null, 3L, 6L));
 		storeColumnStatisticsData.put("s_market_id", new CatalogColumnStatisticsDataLong(2L, 10L, 7L, 0L));
-		CatalogColumnStatistics storeCatalogColumnStatistics = new CatalogColumnStatistics(storeColumnStatisticsData);
-		storeCatalogTableStats = new CatalogTableStats(storeCatalogTableStatistics, storeCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics storeCatalogColumnStatistics = new CatalogColumnStatistics(storeColumnStatisticsData);
+		final CatalogTableStatistics storeCatalogTableStatistics = new CatalogTableStatistics(12, 0, 0, 0);
+		final CatalogTableStats storeCatalogTableStats = new CatalogTableStats(storeCatalogTableStatistics, storeCatalogColumnStatistics);
+		catalogTableStatsMap.put("store", storeCatalogTableStats);
 
-	private static CatalogTableStats timedimCatalogTableStats;
-
-	static {
-		CatalogTableStatistics timedimCatalogTableStatistics = new CatalogTableStatistics(86400, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> timedimColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table time_dim
+		final Map<String, CatalogColumnStatisticsDataBase> timedimColumnStatisticsData = new HashMap<>();
 		timedimColumnStatisticsData.put("t_minute", new CatalogColumnStatisticsDataLong(0L, 59L, 60L, 0L));
 		timedimColumnStatisticsData.put("t_am_pm", new CatalogColumnStatisticsDataString(2L, 2.0D, 2L, 0L));
 		timedimColumnStatisticsData.put("t_time_sk", new CatalogColumnStatisticsDataLong(0L, 86399L, 86180L, 0L));
@@ -592,15 +555,14 @@ public class TpcdsStatsProvider {
 		timedimColumnStatisticsData.put("t_shift", new CatalogColumnStatisticsDataString(6L, 5.333333333333333D, 3L, 0L));
 		timedimColumnStatisticsData.put("t_hour", new CatalogColumnStatisticsDataLong(0L, 23L, 24L, 0L));
 		timedimColumnStatisticsData.put("t_sub_shift", new CatalogColumnStatisticsDataString(9L, 6.916666666666667D, 4L, 0L));
-		CatalogColumnStatistics timedimCatalogColumnStatistics = new CatalogColumnStatistics(timedimColumnStatisticsData);
-		timedimCatalogTableStats = new CatalogTableStats(timedimCatalogTableStatistics, timedimCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics timedimCatalogColumnStatistics = new CatalogColumnStatistics(timedimColumnStatisticsData);
+		final CatalogTableStatistics timedimCatalogTableStatistics = new CatalogTableStatistics(86400, 0, 0, 0);
+		final CatalogTableStats timedimCatalogTableStats = new CatalogTableStats(timedimCatalogTableStatistics, timedimCatalogColumnStatistics);
+		catalogTableStatsMap.put("time_dim", timedimCatalogTableStats);
 
-	private static CatalogTableStats warehouseCatalogTableStats;
-
-	static {
-		CatalogTableStatistics warehouseCatalogTableStatistics = new CatalogTableStatistics(5, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> warehouseColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table warehouse
+		final CatalogTableStatistics warehouseCatalogTableStatistics = new CatalogTableStatistics(5, 0, 0, 0);
+		final Map<String, CatalogColumnStatisticsDataBase> warehouseColumnStatisticsData = new HashMap<>();
 		warehouseColumnStatisticsData.put("w_state", new CatalogColumnStatisticsDataString(2L, 2.0D, 1L, 0L));
 		warehouseColumnStatisticsData.put("w_gmt_offset", new CatalogColumnStatisticsDataDouble(-5.00D, -5.00D, 1L, 1L));
 		warehouseColumnStatisticsData.put("w_warehouse_id", new CatalogColumnStatisticsDataString(16L, 16.0D, 5L, 0L));
@@ -615,15 +577,12 @@ public class TpcdsStatsProvider {
 		warehouseColumnStatisticsData.put("w_warehouse_sk", new CatalogColumnStatisticsDataLong(1L, 5L, 5L, 0L));
 		warehouseColumnStatisticsData.put("w_warehouse_sq_ft", new CatalogColumnStatisticsDataLong(138504L, 977787L, 4L, 1L));
 		warehouseColumnStatisticsData.put("w_suite_number", new CatalogColumnStatisticsDataString(9L, 6.2D, 5L, 0L));
-		CatalogColumnStatistics warehouseCatalogColumnStatistics = new CatalogColumnStatistics(warehouseColumnStatisticsData);
-		warehouseCatalogTableStats = new CatalogTableStats(warehouseCatalogTableStatistics, warehouseCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics warehouseCatalogColumnStatistics = new CatalogColumnStatistics(warehouseColumnStatisticsData);
+		final CatalogTableStats warehouseCatalogTableStats = new CatalogTableStats(warehouseCatalogTableStatistics, warehouseCatalogColumnStatistics);
+		catalogTableStatsMap.put("warehouse", warehouseCatalogTableStats);
 
-	private static CatalogTableStats webpageCatalogTableStats;
-
-	static {
-		CatalogTableStatistics webpageCatalogTableStatistics = new CatalogTableStatistics(60, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> webpageColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table web_page
+		final Map<String, CatalogColumnStatisticsDataBase> webpageColumnStatisticsData = new HashMap<>();
 		webpageColumnStatisticsData.put("wp_image_count", new CatalogColumnStatisticsDataLong(1L, 7L, 7L, 1L));
 		webpageColumnStatisticsData.put("wp_char_count", new CatalogColumnStatisticsDataLong(701L, 7046L, 42L, 1L));
 		webpageColumnStatisticsData.put("wp_autogen_flag", new CatalogColumnStatisticsDataString(1L, 1.0D, 2L, 0L));
@@ -638,15 +597,13 @@ public class TpcdsStatsProvider {
 		webpageColumnStatisticsData.put("wp_max_ad_count", new CatalogColumnStatisticsDataLong(0L, 4L, 5L, 1L));
 		webpageColumnStatisticsData.put("wp_type", new CatalogColumnStatisticsDataString(9L, 6.366666666666666D, 8L, 0L));
 		webpageColumnStatisticsData.put("wp_url", new CatalogColumnStatisticsDataString(18L, 18.0D, 1L, 0L));
-		CatalogColumnStatistics webpageCatalogColumnStatistics = new CatalogColumnStatistics(webpageColumnStatisticsData);
-		webpageCatalogTableStats = new CatalogTableStats(webpageCatalogTableStatistics, webpageCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics webpageCatalogColumnStatistics = new CatalogColumnStatistics(webpageColumnStatisticsData);
+		final CatalogTableStatistics webpageCatalogTableStatistics = new CatalogTableStatistics(60, 0, 0, 0);
+		final CatalogTableStats webpageCatalogTableStats = new CatalogTableStats(webpageCatalogTableStatistics, webpageCatalogColumnStatistics);
+		catalogTableStatsMap.put("web_page", webpageCatalogTableStats);
 
-	private static CatalogTableStats websiteCatalogTableStats;
-
-	static {
-		CatalogTableStatistics websiteCatalogTableStatistics = new CatalogTableStatistics(30, 0, 0, 0);
-		Map<String, CatalogColumnStatisticsDataBase> websiteColumnStatisticsData = new HashMap<>();
+		//CatalogTableStats for table web_site
+		final Map<String, CatalogColumnStatisticsDataBase> websiteColumnStatisticsData = new HashMap<>();
 		websiteColumnStatisticsData.put("web_market_manager", new CatalogColumnStatisticsDataString(16L, 12.733333333333333D, 25L, 0L));
 		websiteColumnStatisticsData.put("web_country", new CatalogColumnStatisticsDataString(13L, 13.0D, 1L, 0L));
 		websiteColumnStatisticsData.put("web_open_date_sk", new CatalogColumnStatisticsDataLong(2450577L, 2450807L, 15L, 0L));
@@ -673,41 +630,16 @@ public class TpcdsStatsProvider {
 		websiteColumnStatisticsData.put("web_county", new CatalogColumnStatisticsDataString(17L, 17.0D, 1L, 0L));
 		websiteColumnStatisticsData.put("web_site_id", new CatalogColumnStatisticsDataString(16L, 16.0D, 15L, 0L));
 		websiteColumnStatisticsData.put("web_street_name", new CatalogColumnStatisticsDataString(14L, 9.066666666666666D, 30L, 0L));
-		CatalogColumnStatistics websiteCatalogColumnStatistics = new CatalogColumnStatistics(websiteColumnStatisticsData);
-		websiteCatalogTableStats = new CatalogTableStats(websiteCatalogTableStatistics, websiteCatalogColumnStatistics);
-	}
+		final CatalogColumnStatistics websiteCatalogColumnStatistics = new CatalogColumnStatistics(websiteColumnStatisticsData);
+		final CatalogTableStatistics websiteCatalogTableStatistics = new CatalogTableStatistics(30, 0, 0, 0);
+		final CatalogTableStats websiteCatalogTableStats = new CatalogTableStats(websiteCatalogTableStatistics, websiteCatalogColumnStatistics);
+		catalogTableStatsMap.put("web_site", websiteCatalogTableStats);
 
-	private static Map<String, CatalogTableStats> tpcdsCatalogStats = new HashMap<>();
-
-	static {
-		tpcdsCatalogStats.put("catalog_sales", catalogsalesCatalogTableStats);
-		tpcdsCatalogStats.put("catalog_returns", catalogreturnsCatalogTableStats);
-		tpcdsCatalogStats.put("inventory", inventoryCatalogTableStats);
-		tpcdsCatalogStats.put("store_sales", storesalesCatalogTableStats);
-		tpcdsCatalogStats.put("store_returns", storereturnsCatalogTableStats);
-		tpcdsCatalogStats.put("web_sales", websalesCatalogTableStats);
-		tpcdsCatalogStats.put("web_returns", webreturnsCatalogTableStats);
-		tpcdsCatalogStats.put("call_center", callcenterCatalogTableStats);
-		tpcdsCatalogStats.put("catalog_page", catalogpageCatalogTableStats);
-		tpcdsCatalogStats.put("customer", customerCatalogTableStats);
-		tpcdsCatalogStats.put("customer_address", customeraddressCatalogTableStats);
-		tpcdsCatalogStats.put("customer_demographics", customerdemographicsCatalogTableStats);
-		tpcdsCatalogStats.put("date_dim", datedimCatalogTableStats);
-		tpcdsCatalogStats.put("household_demographics", householddemographicsCatalogTableStats);
-		tpcdsCatalogStats.put("income_band", incomebandCatalogTableStats);
-		tpcdsCatalogStats.put("item", itemCatalogTableStats);
-		tpcdsCatalogStats.put("promotion", promotionCatalogTableStats);
-		tpcdsCatalogStats.put("reason", reasonCatalogTableStats);
-		tpcdsCatalogStats.put("ship_mode", shipmodeCatalogTableStats);
-		tpcdsCatalogStats.put("store", storeCatalogTableStats);
-		tpcdsCatalogStats.put("time_dim", timedimCatalogTableStats);
-		tpcdsCatalogStats.put("warehouse", warehouseCatalogTableStats);
-		tpcdsCatalogStats.put("web_page", webpageCatalogTableStats);
-		tpcdsCatalogStats.put("web_site", websiteCatalogTableStats);
+		return catalogTableStatsMap;
 	}
 
 	public static void registerTpcdsStats(TableEnvironment tEnv) {
-		for (Map.Entry<String, CatalogTableStats> enrty : tpcdsCatalogStats.entrySet()) {
+		for (Map.Entry<String, CatalogTableStats> enrty : catalogTableStatsMap.entrySet()) {
 			String table = enrty.getKey();
 			CatalogTableStats catalogTableStats = enrty.getValue();
 			catalogTableStats.register2Catalog(tEnv, table);

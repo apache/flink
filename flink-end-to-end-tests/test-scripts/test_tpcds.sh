@@ -27,19 +27,24 @@ source "$(dirname "$0")"/common.sh
 ################################################################################
 # Generate test data
 ################################################################################
-TPCDS_BIN_DIR="$END_TO_END_DIR/flink-tpcds-test/tpcds-tool/bin"
+TPCDS_TOOL_DIR="$END_TO_END_DIR/flink-tpcds-test/tpcds-tool"
 ORGIN_ANSWER_DIR="$END_TO_END_DIR/flink-tpcds-test/tpcds-tool/answer_set"
 TPCDS_QUERY_DIR="$END_TO_END_DIR/flink-tpcds-test/tpcds-tool/query"
 
 TARGET_DIR="$END_TO_END_DIR/flink-tpcds-test/target"
 
+TPCDS_GENERATOR_DIR_DIR="$TARGET_DIR/generator"
 TPCDS_DATA_DIR="$TARGET_DIR/table"
+
+mkdir -p "$TPCDS_GENERATOR_DIR_DIR"
 mkdir -p "$TPCDS_DATA_DIR"
 
-cd "$TPCDS_BIN_DIR"
+cd "$TPCDS_TOOL_DIR"
 # use relative path, because tpcds gennerator cannot recognize path which is too long.
-TPCDS_DATA_RELATIVE_DIR="../../target/table"
-${TPCDS_BIN_DIR}/dataGenerator.sh "$SCALE" "$TPCDS_DATA_RELATIVE_DIR"
+TPCDS_GENERATOR_RELATIVE_DIR="../target/generator"
+TPCDS_DATA_RELATIVE_DIR="../table"
+
+${TPCDS_TOOL_DIR}/data_generator.sh "$TPCDS_GENERATOR_RELATIVE_DIR" "$SCALE" "$TPCDS_DATA_RELATIVE_DIR"
 
 cd "$END_TO_END_DIR"
 

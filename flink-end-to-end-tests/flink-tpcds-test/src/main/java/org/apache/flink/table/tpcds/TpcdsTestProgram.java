@@ -37,7 +37,6 @@ import org.apache.flink.table.tpcds.schema.TpcdsSchemaProvider;
 import org.apache.flink.table.tpcds.stats.TpcdsStatsProvider;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -52,23 +51,23 @@ import java.util.stream.Stream;
 public class TpcdsTestProgram {
 
 	private static final List<String> TCPDS_TABLES = Arrays.asList(
-		"catalog_sales", "catalog_returns", "inventory", "store_sales",
-		"store_returns", "web_sales", "web_returns", "call_center", "catalog_page",
-		"customer", "customer_address", "customer_demographics", "date_dim",
-		"household_demographics", "income_band", "item", "promotion", "reason",
-		"ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site"
+			"catalog_sales", "catalog_returns", "inventory", "store_sales",
+			"store_returns", "web_sales", "web_returns", "call_center", "catalog_page",
+			"customer", "customer_address", "customer_demographics", "date_dim",
+			"household_demographics", "income_band", "item", "promotion", "reason",
+			"ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site"
 	);
 	private static final List<String> TPCDS_QUERIES = Arrays.asList(
-		"1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
-		"11", "12", "13", "14a", "14b", "15", "16", "17", "18", "19", "20",
-		"21", "22", "23a", "23b", "24a", "24b", "25", "26", "27", "28", "29", "30",
-		"31", "32", "33", "34", "35", "36", "37", "38", "39a", "39b", "40",
-		"41", "42", "43", "44", "45", "46", "47", "48", "49", "50",
-		"51", "52", "53", "54", "55", "56", "57", "58", "59", "60",
-		"61", "62", "63", "64", "65", "66", "67", "68", "69", "70",
-		"71", "72", "73", "74", "75", "76", "77", "78", "79", "80",
-		"81", "82", "83", "84", "85", "86", "87", "88", "89", "90",
-		"91", "92", "93", "94", "95", "96", "97", "98", "99"
+			"1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+			"11", "12", "13", "14a", "14b", "15", "16", "17", "18", "19", "20",
+			"21", "22", "23a", "23b", "24a", "24b", "25", "26", "27", "28", "29", "30",
+			"31", "32", "33", "34", "35", "36", "37", "38", "39a", "39b", "40",
+			"41", "42", "43", "44", "45", "46", "47", "48", "49", "50",
+			"51", "52", "53", "54", "55", "56", "57", "58", "59", "60",
+			"61", "62", "63", "64", "65", "66", "67", "68", "69", "70",
+			"71", "72", "73", "74", "75", "76", "77", "78", "79", "80",
+			"81", "82", "83", "84", "85", "86", "87", "88", "89", "90",
+			"91", "92", "93", "94", "95", "96", "97", "98", "99"
 	);
 
 	private static final String QUERY_PREFIX = "query";
@@ -84,11 +83,11 @@ public class TpcdsTestProgram {
 		String queryPath = params.getRequired("queryPath");
 		String sinkTablePath = params.getRequired("sinkTablePath");
 		Boolean useTableStats = params.getBoolean("useTableStats");
+		TableEnvironment tableEnvironment = prepareTableEnv(sourceTablePath, useTableStats);
 
 		//execute TPC-DS queries
 		for (String queryId : TPCDS_QUERIES) {
 			System.out.println("[INFO]Run TPC-DS query " + queryId + " ...");
-			TableEnvironment tableEnvironment = prepareTableEnv(sourceTablePath, useTableStats);
 			String queryName = QUERY_PREFIX + queryId + QUERY_SUFFIX;
 			String queryFilePath = queryPath + FILE_SEPARATOR + queryName;
 			String queryString = loadFile2String(queryFilePath);
@@ -97,18 +96,18 @@ public class TpcdsTestProgram {
 			//register sink table
 			String sinkTableName = QUERY_PREFIX + queryId + "_sinkTable";
 			tableEnvironment.registerTableSink(sinkTableName,
-				new CsvTableSink(
-					sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
-					COL_DELIMITER,
-					1,
-					FileSystem.WriteMode.OVERWRITE)
-					.configure(
-						resultTable.getSchema().getFieldNames(),
-						Arrays.stream(resultTable.getSchema().getFieldDataTypes())
-							.map(r -> TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(r))
-							.collect(Collectors.toList())
-							.toArray(new TypeInformation[0])
-					));
+					new CsvTableSink(
+							sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
+							COL_DELIMITER,
+							1,
+							FileSystem.WriteMode.OVERWRITE)
+							.configure(
+									resultTable.getSchema().getFieldNames(),
+									Arrays.stream(resultTable.getSchema().getFieldDataTypes())
+											.map(r -> TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(r))
+											.collect(Collectors.toList())
+											.toArray(new TypeInformation[0])
+							));
 			tableEnvironment.insertInto(resultTable, sinkTableName);
 			tableEnvironment.execute(queryName);
 			System.out.println("[INFO]Run TPC-DS query " + queryId + " success.");
@@ -121,30 +120,30 @@ public class TpcdsTestProgram {
 	 * @param sourceTablePath
 	 * @return
 	 */
-	private static TableEnvironment prepareTableEnv(String sourceTablePath, Boolean useTableStats) throws Exception {
+	private static TableEnvironment prepareTableEnv(String sourceTablePath, Boolean useTableStats) {
 		//init Table Env
 		EnvironmentSettings environmentSettings = EnvironmentSettings
-			.newInstance()
-			.useBlinkPlanner()
-			.inBatchMode()
-			.build();
+				.newInstance()
+				.useBlinkPlanner()
+				.inBatchMode()
+				.build();
 		TableEnvironment tEnv = TableEnvironment.create(environmentSettings);
 
 		//config Optimizer parameters
 		tEnv.getConfig().getConfiguration()
-			.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.BATCH.toString());
+				.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.BATCH.toString());
 		tEnv.getConfig().getConfiguration()
-			.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY, "32 mb");
+				.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY, "32 mb");
 		tEnv.getConfig().getConfiguration()
-			.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY, "32 mb");
+				.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY, "32 mb");
 		tEnv.getConfig().getConfiguration()
-			.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY, "32 mb");
+				.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY, "32 mb");
 		tEnv.getConfig().getConfiguration()
-			.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
+				.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
 		tEnv.getConfig().getConfiguration()
-			.setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 10 * 1024 * 1024);
+				.setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 10 * 1024 * 1024);
 		tEnv.getConfig().getConfiguration()
-			.setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
+				.setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
 		//register TPC-DS tables
 		TCPDS_TABLES.forEach(table -> {
@@ -153,19 +152,21 @@ public class TpcdsTestProgram {
 			builder.path(sourceTablePath + FILE_SEPARATOR + table + DATA_SUFFIX);
 			for (int i = 0; i < schema.getFieldNames().size(); i++) {
 				builder.field(
-					schema.getFieldNames().get(i),
-					TypeConversions.fromDataTypeToLegacyInfo(schema.getFieldTypes().get(i)));
+						schema.getFieldNames().get(i),
+						TypeConversions.fromDataTypeToLegacyInfo(schema.getFieldTypes().get(i)));
 			}
 			builder.fieldDelimiter(COL_DELIMITER);
+			builder.emptyColumnAsNull();
 			builder.lineDelimiter("\n");
 			CsvTableSource tableSource = builder.build();
 			ConnectorCatalogTable catalogTable = ConnectorCatalogTable.source(tableSource, true);
-			try {
-				tEnv.getCatalog(tEnv.getCurrentCatalog()).get()
-					.createTable(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogTable, false);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			tEnv.getCatalog(tEnv.getCurrentCatalog()).ifPresent(catalog -> {
+				try {
+					catalog.createTable(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogTable, false);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			});
 		});
 		// register statistics info
 		if (useTableStats) {
@@ -174,14 +175,10 @@ public class TpcdsTestProgram {
 		return tEnv;
 	}
 
-	private static String loadFile2String(String filePath) {
+	private static String loadFile2String(String filePath) throws Exception {
 		StringBuilder stringBuilder = new StringBuilder();
-		try {
-			Stream<String> stream = Files.lines(Paths.get(filePath), StandardCharsets.UTF_8);
-			stream.forEach(s -> stringBuilder.append(s).append("\n"));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		Stream<String> stream = Files.lines(Paths.get(filePath), StandardCharsets.UTF_8);
+		stream.forEach(s -> stringBuilder.append(s).append('\n'));
 		return stringBuilder.toString();
 	}
 }
