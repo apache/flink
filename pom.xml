@@ -120,7 +120,7 @@ under the License.
 		<chill.version>0.7.6</chill.version>
 		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
-		<jackson.version>2.9.8</jackson.version>
+		<jackson.version>2.10.1</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
@@ -264,13 +264,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-jackson</artifactId>
-				<version>${jackson.version}-${flink.shaded.version}</version>
+				<version>${jackson.version}-9.0</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-jackson-module-jsonSchema</artifactId>
-				<version>${jackson.version}-${flink.shaded.version}</version>
+				<version>${jackson.version}-9.0</version>
 			</dependency>
 
 			<dependency>
