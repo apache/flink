@@ -131,11 +131,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private File[] localRocksDbDirectories;
 
 	/** The pre-configured option settings. */
-	@Nullable
 	private PredefinedOptions predefinedOptions;
 
 	/** The options factory to create the RocksDB options in the cluster. */
-	@Nullable
 	private OptionsFactory optionsFactory;
 
 	/** This determines if incremental checkpointing is enabled. */
@@ -359,7 +357,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		// configure RocksDB options factory
 		try {
-			this.optionsFactory = configureOptionsFactory(
+			optionsFactory = configureOptionsFactory(
 				original.optionsFactory,
 				config.getString(RocksDBOptions.OPTIONS_FACTORY),
 				config,
@@ -504,7 +502,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
-		DBOptions dbOptions = getDbOptions();
+		// create resource container
+		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
+		resourceContainer.setPredefinedOptions(this.predefinedOptions);
+		resourceContainer.setOptionsFactory(this.optionsFactory);
+		DBOptions dbOptions = resourceContainer.getDbOptions();
 		Function<String, ColumnFamilyOptions> createColumnOptions;
 
 		final OpaqueMemoryResource<RocksDBSharedResources> sharedResources = RocksDBOperationUtils
@@ -512,6 +514,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		if (sharedResources != null) {
 			LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
+			// register into options container for disposal.
+			resourceContainer.setSharedResources(sharedResources);
 
 			final RocksDBSharedResources rocksResources = sharedResources.getResourceHandle();
 			final Cache blockCache = rocksResources.getCache();
@@ -519,7 +523,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			dbOptions.setWriteBufferManager(rocksResources.getWriteBufferManager());
 
 			createColumnOptions = stateName -> {
-				ColumnFamilyOptions columnOptions = getColumnOptions();
+				ColumnFamilyOptions columnOptions = resourceContainer.getColumnOptions();
 				TableFormatConfig tableFormatConfig = columnOptions.tableFormatConfig();
 				Preconditions.checkArgument(tableFormatConfig instanceof BlockBasedTableConfig,
 					"We currently only support BlockBasedTableConfig When bounding total memory.");
@@ -532,7 +536,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				return columnOptions;
 			};
 		} else {
-			createColumnOptions = stateName -> getColumnOptions();
+			createColumnOptions = stateName -> resourceContainer.getColumnOptions();
 		}
 
 		ExecutionConfig executionConfig = env.getExecutionConfig();
@@ -541,7 +545,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			operatorIdentifier,
 			env.getUserClassLoader(),
 			instanceBasePath,
-			dbOptions,
+			resourceContainer,
 			createColumnOptions,
 			kvStateRegistry,
 			keySerializer,
@@ -559,7 +563,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			.setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferThreads())
-			.setNativeMetricOptions(getMemoryWatcherOptions());
+			.setNativeMetricOptions(getMemoryWatcherOptions(resourceContainer));
 		return builder.build();
 	}
 
@@ -780,7 +784,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @param options The options to set (must not be null).
 	 */
-	public void setPredefinedOptions(PredefinedOptions options) {
+	public void setPredefinedOptions(@Nonnull PredefinedOptions options) {
 		predefinedOptions = checkNotNull(options);
 	}
 
@@ -795,6 +799,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @return The currently set predefined options for RocksDB.
 	 */
+	@VisibleForTesting
 	public PredefinedOptions getPredefinedOptions() {
 		if (predefinedOptions == null) {
 			predefinedOptions = PredefinedOptions.DEFAULT;
@@ -824,45 +829,36 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @return The options factory.
 	 */
+	@VisibleForTesting
 	public OptionsFactory getOptions() {
 		return optionsFactory;
 	}
 
 	/**
-	 * Gets the RocksDB {@link DBOptions} to be used for all RocksDB instances.
+	 * Gets the RocksDB {@link DBOptions} to be used for all RocksDB instances. Only for testing.
 	 */
+	@VisibleForTesting
 	public DBOptions getDbOptions() {
-		// initial options from pre-defined profile
-		DBOptions opt = getPredefinedOptions().createDBOptions();
-
-		// add user-defined options factory, if specified
-		if (optionsFactory != null) {
-			opt = optionsFactory.createDBOptions(opt);
-		}
-
-		// add necessary default options
-		opt = opt.setCreateIfMissing(true);
-
-		return opt;
+		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
+		resourceContainer.setOptionsFactory(optionsFactory);
+		resourceContainer.setPredefinedOptions(predefinedOptions);
+		return resourceContainer.getDbOptions();
 	}
 
 	/**
-	 * Gets the RocksDB {@link ColumnFamilyOptions} to be used for all RocksDB instances.
+	 * Gets the RocksDB {@link ColumnFamilyOptions} to be used for all RocksDB instances. Only for testing.
 	 */
+	@VisibleForTesting
 	public ColumnFamilyOptions getColumnOptions() {
-		// initial options from pre-defined profile
-		ColumnFamilyOptions opt = getPredefinedOptions().createColumnOptions();
-
-		// add user-defined options, if specified
-		if (optionsFactory != null) {
-			opt = optionsFactory.createColumnOptions(opt);
-		}
-
-		return opt;
+		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
+		resourceContainer.setOptionsFactory(optionsFactory);
+		resourceContainer.setPredefinedOptions(predefinedOptions);
+		return resourceContainer.getColumnOptions();
 	}
 
-	public RocksDBNativeMetricOptions getMemoryWatcherOptions() {
+	public RocksDBNativeMetricOptions getMemoryWatcherOptions(RocksDBResourceContainer resourceContainer) {
 		RocksDBNativeMetricOptions options = this.defaultMetricOptions;
+		OptionsFactory optionsFactory = resourceContainer.getOptionsFactory();
 		if (optionsFactory != null) {
 			options = optionsFactory.createNativeMetricsOptions(options);
 		}

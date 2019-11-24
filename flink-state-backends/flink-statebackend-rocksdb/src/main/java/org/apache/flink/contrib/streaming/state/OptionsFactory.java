@@ -21,6 +21,8 @@ package org.apache.flink.contrib.streaming.state;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
+import java.util.Collection;
+
 /**
  * A factory for {@link DBOptions} and {@link ColumnFamilyOptions} to be passed to the {@link RocksDBStateBackend}.
  * Options have to be created lazily by this factory, because the {@code Options}
@@ -52,9 +54,21 @@ public interface OptionsFactory extends java.io.Serializable {
 	 * the setter methods, otherwise the pre-defined options may get lost.
 	 *
 	 * @param currentOptions The options object with the pre-defined options.
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The options object on which the additional options are set.
 	 */
-	DBOptions createDBOptions(DBOptions currentOptions);
+	DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * Set the additional options on top of the current options object.
+	 *
+	 * @param currentOptions The options object with the pre-defined options.
+	 * @return The options object on which the additional options are set.
+	 * @deprecated use {@link #createDBOptions(DBOptions, Collection)} instead.
+	 */
+	default DBOptions createDBOptions(DBOptions currentOptions) {
+		return createDBOptions(currentOptions, null);
+	}
 
 	/**
 	 * This method should set the additional options on top of the current options object.
@@ -65,9 +79,21 @@ public interface OptionsFactory extends java.io.Serializable {
 	 * the setter methods, otherwise the pre-defined options may get lost.
 	 *
 	 * @param currentOptions The options object with the pre-defined options.
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The options object on which the additional options are set.
 	 */
-	ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions);
+	ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * Set the additional options on top of the current options object.
+	 *
+	 * @param currentOptions The options object with the pre-defined options.
+	 * @return The options object on which the additional options are set.
+	 * @deprecated use {@link #createColumnOptions(ColumnFamilyOptions, Collection)} instead.
+	 */
+	default ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+		return createColumnOptions(currentOptions, null);
+	}
 
 	/**
 	 * This method should enable certain RocksDB metrics to be forwarded to
