@@ -407,4 +407,18 @@ public class BootstrapToolsTest extends TestLogger {
 			portOccupier.close();
 		}
 	}
+
+	@Test
+	public void testGetDynamicProperties() {
+		Configuration baseConfig = new Configuration();
+		baseConfig.setString("key.a", "a");
+		baseConfig.setString("key.b", "b1");
+
+		Configuration targetConfig = new Configuration();
+		targetConfig.setString("key.b", "b2");
+		targetConfig.setString("key.c", "c");
+
+		String dynamicProperties = BootstrapTools.getDynamicProperties(baseConfig, targetConfig);
+		assertEquals("-Dkey.b=b2 -Dkey.c=c", dynamicProperties);
+	}
 }
