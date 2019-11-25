@@ -21,9 +21,11 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
@@ -46,6 +48,7 @@ import java.net.BindException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import scala.Some;
 import scala.Tuple2;
@@ -609,5 +612,32 @@ public class BootstrapTools {
 		public Config getAkkaConfig() {
 			return AkkaUtils.getThreadPoolExecutorConfig(this);
 		}
+	}
+
+	/**
+	 * Get dynamic properties based on two Flink configurations. If base config does not contain and target config
+	 * contains the key or the value is different, it should be added to results. Otherwise, if the base config contains
+	 * and target config does not contain the key, it will be ignored.
+	 *
+	 * @param baseConfig The base configuration.
+	 * @param targetConfig The target configuration.
+	 * @return Dynamic properties as string, separated by whitespace.
+	 */
+	public static String getDynamicProperties(Configuration baseConfig, Configuration targetConfig) {
+
+		String[] newAddedConfigs = targetConfig.keySet().stream().flatMap(
+			(String key) -> {
+				final String baseValue = baseConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
+				final String targetValue = targetConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
+
+				if (!baseConfig.keySet().contains(key) || !baseValue.equals(targetValue)) {
+					return Stream.of("-" + CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getOpt() + key +
+						CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getValueSeparator() + targetValue);
+				} else {
+					return Stream.empty();
+				}
+			})
+			.toArray(String[]::new);
+		return String.join(" ", newAddedConfigs);
 	}
 }
