@@ -23,26 +23,40 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Placeholder for a missing type strategy.
+ * Type strategy that returns a fixed {@link DataType}.
  */
 @Internal
-public final class MissingTypeStrategy implements TypeStrategy {
+public final class ExplicitTypeStrategy implements TypeStrategy {
+
+	private final DataType explicitDataType;
+
+	public ExplicitTypeStrategy(DataType explicitDataType) {
+		this.explicitDataType = explicitDataType;
+	}
 
 	@Override
 	public Optional<DataType> inferType(CallContext callContext) {
-		return Optional.empty();
+		return Optional.of(explicitDataType);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o || o instanceof MissingTypeStrategy;
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ExplicitTypeStrategy that = (ExplicitTypeStrategy) o;
+		return explicitDataType.equals(that.explicitDataType);
 	}
 
 	@Override
 	public int hashCode() {
-		return MissingTypeStrategy.class.hashCode();
+		return Objects.hash(explicitDataType);
 	}
 }
