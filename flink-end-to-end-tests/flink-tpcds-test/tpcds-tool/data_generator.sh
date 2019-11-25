@@ -78,8 +78,6 @@ elif  [[ "$OS_TYPE" == "linux" ]]; then
         echo "[ERROR] Download data generator fail, please check your network."
         exit 127
     fi
-    echo "[INFO] `date +%H:%M:%S` Download data generator success."
-    echo "[INFO] `date +%H:%M:%S` Generating TPC-DS qualification data, this need several minutes, please wait..."
 else
     echo "[ERROR] `date +%H:%M:%S` Unsupported OS, only support Mac OS、Linux."
     exit 127

@@ -518,7 +518,7 @@ public class TpcdsSchemaProvider {
 
 	public static TpcdsSchema getTableSchema(String tableName) {
 		TpcdsSchema result = schemaMap.get(tableName);
-		if (result != null ) {
+		if (result != null) {
 			return result;
 		}
 		else {
