@@ -19,18 +19,15 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecExpand, BatchExecGroupAggregateBase, BatchExecHashAggregate, BatchExecLocalHashAggregate, BatchExecLocalSortAggregate, BatchExecSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecExpand, BatchExecGroupAggregateBase, BatchExecHashAggregate, BatchExecSortAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexUtil
 import org.apache.calcite.tools.RelBuilder
-import org.apache.calcite.util.Util
 
 import scala.collection.JavaConversions._
 
@@ -75,52 +72,32 @@ abstract class EnforceLocalAggRuleBase(
     val aggCalls = completeAgg.getAggCallList
     val aggCallToAggFunction = completeAgg.getAggCallToAggFunction
 
-    val (_, aggBufferTypes, aggFunctions) = AggregateUtil.transformToBatchAggregateFunctions(
+    val (_, aggBufferTypes, _) = AggregateUtil.transformToBatchAggregateFunctions(
       aggCalls, inputRowType)
-
-    val typeFactory = completeAgg.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val aggCallNames = Util.skip(
-      completeAgg.getRowType.getFieldNames, grouping.length + auxGrouping.length).toList.toArray
-
-    val localAggRowType = inferLocalAggType(
-      inputRowType,
-      typeFactory,
-      aggCallNames,
-      grouping,
-      auxGrouping,
-      aggFunctions,
-      aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
 
     val traitSet = cluster.getPlanner
       .emptyTraitSet
       .replace(FlinkConventions.BATCH_PHYSICAL)
 
-    completeAgg match {
-      case _: BatchExecHashAggregate =>
-        new BatchExecLocalHashAggregate(
-          cluster,
-          relBuilder,
-          traitSet,
-          input,
-          localAggRowType,
-          inputRowType,
-          grouping,
-          auxGrouping,
-          aggCallToAggFunction)
-      case _: BatchExecSortAggregate =>
-        new BatchExecLocalSortAggregate(
-          cluster,
-          relBuilder,
-          traitSet,
-          input,
-          localAggRowType,
-          inputRowType,
-          grouping,
-          auxGrouping,
-          aggCallToAggFunction)
+    val isLocalHashAgg = completeAgg match {
+      case _: BatchExecHashAggregate => true
+      case _: BatchExecSortAggregate => false
       case _ =>
         throw new TableException(s"Unsupported aggregate: ${completeAgg.getClass.getSimpleName}")
     }
+
+    createLocalAgg(
+      cluster,
+      relBuilder,
+      traitSet,
+      input,
+      completeAgg.getRowType,
+      grouping,
+      auxGrouping,
+      aggBufferTypes,
+      aggCallToAggFunction,
+      isLocalHashAgg
+    )
   }
 
   protected def createExchange(
@@ -148,8 +125,7 @@ abstract class EnforceLocalAggRuleBase(
     val auxGrouping = completeAgg.getAuxGrouping
     val aggCallToAggFunction = completeAgg.getAggCallToAggFunction
 
-    val newGrouping = grouping.indices.toArray
-    val newAuxGrouping = (grouping.length until grouping.length + auxGrouping.length).toArray
+    val (newGrouping, newAuxGrouping) = getGlobalAggGroupSetPair(grouping, auxGrouping)
 
     val aggRowType = completeAgg.getRowType
     val inputRowType = input.getRowType
