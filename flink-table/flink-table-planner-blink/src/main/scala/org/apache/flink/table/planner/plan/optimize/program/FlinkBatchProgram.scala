@@ -40,6 +40,7 @@ object FlinkBatchProgram {
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
   val PHYSICAL = "physical"
+  val PHYSICAL_REWRITE = "physical_rewrite"
 
   def buildProgram(config: Configuration): FlinkChainedProgram[BatchOptimizeContext] = {
     val chainedProgram = new FlinkChainedProgram[BatchOptimizeContext]()
@@ -204,6 +205,15 @@ object FlinkBatchProgram {
       FlinkVolcanoProgramBuilder.newBuilder
         .add(FlinkBatchRuleSets.PHYSICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.BATCH_PHYSICAL))
+        .build())
+
+    // physical rewrite
+    chainedProgram.addLast(
+      PHYSICAL_REWRITE,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(FlinkBatchRuleSets.PHYSICAL_REWRITE)
         .build())
 
     chainedProgram

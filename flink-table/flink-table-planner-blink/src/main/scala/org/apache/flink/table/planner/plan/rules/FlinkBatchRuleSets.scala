@@ -415,4 +415,12 @@ object FlinkBatchRuleSets {
     // sink
     BatchExecSinkRule.INSTANCE
   )
+
+  /**
+    * RuleSet to optimize plans after batch exec execution.
+    */
+  val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
+    EnforceLocalHashAggRule.INSTANCE,
+    EnforceLocalSortAggRule.INSTANCE
+  )
 }
