@@ -20,6 +20,7 @@ package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -31,6 +32,7 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -85,10 +87,10 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 
 	@Override
 	public LogicalType visit(DistinctType distinctType) {
-		final DistinctType.Builder builder = new DistinctType.Builder(
+		final DistinctType.Builder builder = DistinctType.newBuilder(
 			distinctType.getObjectIdentifier(),
 			distinctType.getSourceType().accept(this));
-		distinctType.getDescription().ifPresent(builder::setDescription);
+		distinctType.getDescription().ifPresent(builder::description);
 		return builder.build();
 	}
 
@@ -107,22 +109,32 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 					a.getType().accept(this));
 			})
 			.collect(Collectors.toList());
-		final StructuredType.Builder builder = new StructuredType.Builder(
-			structuredType.getObjectIdentifier(),
-			attributes);
-		builder.setNullable(structuredType.isNullable());
-		builder.setFinal(structuredType.isFinal());
-		builder.setInstantiable(structuredType.isInstantiable());
-		builder.setComparision(structuredType.getComparision());
+		final Optional<ObjectIdentifier> identifier = structuredType.getOptionalObjectIdentifier();
+		final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
+
+		final StructuredType.Builder builder;
+		if (identifier.isPresent() && implementationClass.isPresent()) {
+			builder = StructuredType.newBuilder(identifier.get(), implementationClass.get());
+		} else if (identifier.isPresent()) {
+			builder = StructuredType.newBuilder(identifier.get());
+		} else if (implementationClass.isPresent()) {
+			builder = StructuredType.newBuilder(implementationClass.get());
+		} else {
+			throw new TableException("Invalid structured type.");
+		}
+		builder.attributes(attributes);
+		builder.isNullable(structuredType.isNullable());
+		builder.isFinal(structuredType.isFinal());
+		builder.isInstantiable(structuredType.isInstantiable());
+		builder.comparision(structuredType.getComparision());
 		structuredType.getSuperType().ifPresent(st -> {
 			final LogicalType visited = st.accept(this);
 			if (!(visited instanceof StructuredType)) {
 				throw new TableException("Unexpected super type. Structured type expected but was: " + visited);
 			}
-			builder.setSuperType((StructuredType) visited);
+			builder.superType((StructuredType) visited);
 		});
-		structuredType.getDescription().ifPresent(builder::setDescription);
-		structuredType.getImplementationClass().ifPresent(builder::setImplementationClass);
+		structuredType.getDescription().ifPresent(builder::description);
 		return builder.build();
 	}
 

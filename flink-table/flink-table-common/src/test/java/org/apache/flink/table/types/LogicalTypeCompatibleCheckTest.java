@@ -274,23 +274,22 @@ public class LogicalTypeCompatibleCheckTest {
 	}
 
 	private static DistinctType createDistinctType(LogicalType sourceType) {
-		return new DistinctType.Builder(
-			ObjectIdentifier.of("cat", "db", UUID.randomUUID().toString()),
-			sourceType)
-			.setDescription("Money type desc.")
+		return DistinctType.newBuilder(
+				ObjectIdentifier.of("cat", "db", UUID.randomUUID().toString()),
+				sourceType)
+			.description("Money type desc.")
 			.build();
 	}
 
 	private static StructuredType createUserType(LogicalType... children) {
-		return new StructuredType.Builder(
-			ObjectIdentifier.of("cat", "db", "User"),
-			Arrays.stream(children).map(lt ->
-				new StructuredType.StructuredAttribute(UUID.randomUUID().toString(), lt))
-				.collect(Collectors.toList()))
-			.setDescription("User type desc.")
-			.setFinal(true)
-			.setInstantiable(true)
-			.setImplementationClass(User.class)
+		return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"), User.class)
+			.attributes(
+				Arrays.stream(children)
+					.map(lt -> new StructuredType.StructuredAttribute(UUID.randomUUID().toString(), lt))
+					.collect(Collectors.toList()))
+			.description("User type desc.")
+			.isFinal(true)
+			.isInstantiable(true)
 			.build();
 	}
 
