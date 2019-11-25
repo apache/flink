@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -200,6 +201,13 @@ public class SqlToOperationConverterTest {
 
 	@Test
 	public void testAlterDatabase() {
+		catalogManager.registerCatalog("cat1",
+									new GenericInMemoryCatalog("default", "default"));
+		catalogManager.createDatabase("cat1",
+									"db1",
+									new CatalogDatabaseImpl(new HashMap<>(), null),
+									true,
+									true);
 		final String sql = "alter database cat1.db1 set ('k1'='a')";
 		Operation operation = parse(sql, SqlDialect.DEFAULT);
 		assert operation instanceof AlterDatabaseOperation;

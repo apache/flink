@@ -33,6 +33,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -40,6 +41,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
@@ -270,13 +272,24 @@ public class SqlToOperationConverter {
 		}
 		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
 		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
-
-		// set with properties
 		Map<String, String> properties = new HashMap<>();
+		CatalogDatabase originCatalogDatabase;
+		Optional<Catalog> catalog = catalogManager.getCatalog(catalogName);
+		if (catalog.isPresent()) {
+			try {
+				originCatalogDatabase = catalog.get().getDatabase(databaseName);
+				properties.putAll(originCatalogDatabase.getProperties());
+			} catch (DatabaseNotExistException e) {
+				throw new SqlConversionException(String.format("Database %s not exists", databaseName), e);
+			}
+		} else {
+			throw new SqlConversionException(String.format("Catalog %s not exists", catalogName));
+		}
+		// set with properties
 		sqlAlterDatabase.getPropertyList().getList().forEach(p ->
-						properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-						((SqlTableOption) p).getValueString()));
-		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, null);
+							properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+							((SqlTableOption) p).getValueString()));
+		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
 		return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
 	}
 
