@@ -87,7 +87,8 @@ public final class PythonDriverEnvUtils {
 	 * @param pythonLibFiles The dependent Python files.
 	 * @return PythonEnvironment the Python environment which will be executed in Python process.
 	 */
-	public static PythonEnvironment preparePythonEnvironment(List<Path> pythonLibFiles) throws IOException {
+	public static PythonEnvironment preparePythonEnvironment(List<Path> pythonLibFiles)
+		throws IOException, InterruptedException {
 		PythonEnvironment env = new PythonEnvironment();
 
 		// 1. setup temporary local directory for the user files

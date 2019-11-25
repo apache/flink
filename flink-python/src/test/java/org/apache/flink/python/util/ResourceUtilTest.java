@@ -36,7 +36,7 @@ import static org.junit.Assert.assertTrue;
 public class ResourceUtilTest {
 
 	@Test
-	public void testExtractBasicDependenciesFromResource() throws IOException {
+	public void testExtractBasicDependenciesFromResource() throws IOException, InterruptedException {
 		File tmpdir = File.createTempFile(UUID.randomUUID().toString(), null);
 		tmpdir.delete();
 		tmpdir.mkdirs();

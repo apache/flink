@@ -32,7 +32,7 @@ import static org.apache.flink.python.util.ResourceUtil.extractBasicDependencies
  */
 public class PythonResourceExtractor {
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, InterruptedException {
 		String tmpdir = System.getProperty("java.io.tmpdir");
 
 		List<File> files = extractBasicDependenciesFromResource(
