@@ -58,6 +58,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -384,7 +385,7 @@ public final class LogicalTypeParser {
 
 		private int tokenAsInt() {
 			try {
-				return Integer.valueOf(token().value);
+				return Integer.parseInt(token().value);
 			} catch (NumberFormatException e) {
 				throw parsingError("Invalid integer value.", e);
 			}
@@ -558,18 +559,10 @@ public final class LogicalTypeParser {
 				nextToken(TokenType.IDENTIFIER);
 				parts.add(tokenAsString());
 			}
-			final String catPart = lastPart(parts, 2);
-			final String dbPart = lastPart(parts, 1);
-			final String objPart = lastPart(parts, 0);
-			final UnresolvedIdentifier identifier;
-			if (catPart != null) {
-				identifier = UnresolvedIdentifier.of(catPart, dbPart, objPart);
-			} else if (dbPart != null) {
-				identifier = UnresolvedIdentifier.of(dbPart, objPart);
-			} else {
-				identifier = UnresolvedIdentifier.of(objPart);
-			}
-			return new UnresolvedUserDefinedType(identifier);
+			final String[] identifierParts = Stream.of(lastPart(parts, 2), lastPart(parts, 1), lastPart(parts, 0))
+				.filter(Objects::nonNull)
+				.toArray(String[]::new);
+			return new UnresolvedUserDefinedType(UnresolvedIdentifier.of(identifierParts));
 		}
 
 		private @Nullable String lastPart(List<String> parts, int inversePos) {
