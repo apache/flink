@@ -477,11 +477,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				createTableOperation.isIgnoreIfExists());
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
-			catalogManager.createDatabase(createDatabaseOperation.getCatalogName(),
-										createDatabaseOperation.getDatabaseName(),
-										createDatabaseOperation.getCatalogDatabase(),
-										createDatabaseOperation.isIgnoreIfExists(),
-										false);
+			catalogManager.createDatabase(
+					createDatabaseOperation.getCatalogName(),
+					createDatabaseOperation.getDatabaseName(),
+					createDatabaseOperation.getCatalogDatabase(),
+					createDatabaseOperation.isIgnoreIfExists(),
+					false);
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
 			catalogManager.dropTable(
