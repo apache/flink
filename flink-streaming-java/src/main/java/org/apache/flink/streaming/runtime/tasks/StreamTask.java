@@ -263,7 +263,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriter = createRecordWriterDelegate(configuration, environment);
 		this.executionDecorator = Preconditions.checkNotNull(executionDecorator);
-		this.mailboxProcessor = new MailboxProcessor(this::processInput);
+		this.mailboxProcessor = new MailboxProcessor(this::processInput, this.executionDecorator);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 	}
 
@@ -835,9 +835,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		getEnvironment().declineCheckpoint(checkpointId, cause);
 
 		// notify all downstream operators that they should not wait for a barrier from us
-		executionDecorator.runThrowing(() -> {
-			operatorChain.broadcastCheckpointCancelMarker(checkpointId);
-		});
+		executionDecorator.runThrowing(() -> operatorChain.broadcastCheckpointCancelMarker(checkpointId));
 	}
 
 	private boolean performCheckpoint(

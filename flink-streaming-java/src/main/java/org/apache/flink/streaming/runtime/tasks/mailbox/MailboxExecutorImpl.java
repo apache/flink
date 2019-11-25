@@ -19,6 +19,8 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.ExecutionDecorator;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
@@ -37,9 +39,12 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	private final int priority;
 
-	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority) {
+	public final ExecutionDecorator executionDecorator;
+
+	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority, ExecutionDecorator executionDecorator) {
 		this.mailbox = mailbox;
 		this.priority = priority;
+		this.executionDecorator = Preconditions.checkNotNull(executionDecorator);
 	}
 
 	@Override
@@ -68,14 +73,14 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	@Override
 	public void yield() throws InterruptedException {
-		mailbox.take(priority).run();
+		executionDecorator.dispatch(mailbox.take(priority));
 	}
 
 	@Override
 	public boolean tryYield() {
 		Optional<Mail> optionalMail = mailbox.tryTake(priority);
 		if (optionalMail.isPresent()) {
-			optionalMail.get().run();
+			executionDecorator.dispatch(optionalMail.get());
 			return true;
 		} else {
 			return false;

@@ -190,6 +190,7 @@ import static org.mockito.Mockito.when;
 public class StreamTaskTest extends TestLogger {
 
 	private static OneShotLatch syncLatch;
+	private static Task task;
 
 	@Rule
 	public final Timeout timeoutPerTest = Timeout.seconds(30);
@@ -318,17 +319,10 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testCancellationNotBlockedOnLock() throws Exception {
 		syncLatch = new OneShotLatch();
-
-		StreamConfig cfg = new StreamConfig(new Configuration());
-		Task task = createTask(CancelLockingTask.class, cfg, new Configuration());
-
-		// start the task and wait until it runs
-		// execution state RUNNING is not enough, we need to wait until the stream task's run() method
-		// is entered
+		task = createTask(CancelLockingTask.class, new StreamConfig(new Configuration()), new Configuration());
 		task.startTaskThread();
-		syncLatch.await();
 
-		// cancel the execution - this should lead to smooth shutdown
+		syncLatch.await(); // wait for the main loop to start
 		task.cancelExecution();
 		task.getExecutingThread().join();
 
@@ -1420,10 +1414,6 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	public static class CancelLockingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
-		private final OneShotLatch latch = new OneShotLatch();
-
-		private LockHolder holder;
-
 		public CancelLockingTask(Environment env) {
 			super(env);
 		}
@@ -1433,35 +1423,16 @@ public class StreamTaskTest extends TestLogger {
 
 		@Override
 		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			holder = new LockHolder(getCheckpointLock(), latch);
-			holder.start();
-			latch.await();
-
-			// we are at the point where cancelling can happen
-			syncLatch.trigger();
-
-			// just put this to sleep until it is interrupted
-			try {
-				Thread.sleep(100000000);
-			} catch (InterruptedException ignored) {
-				// restore interruption state
-				Thread.currentThread().interrupt();
+			syncLatch.trigger(); // signal that the task can be cancelled now
+			while (task.getExecutionState() == ExecutionState.RUNNING) { // wait for the containing task to be terminated from the outside
+				try {
+					Thread.sleep(50);
+				} catch (InterruptedException e) {
+					LOG.debug("interrupted while waiting for state transition", e);
+					Thread.currentThread().interrupt();
+				}
 			}
-			controller.allActionsCompleted();
 		}
-
-		@Override
-		protected void cleanup() {
-			holder.close();
-		}
-
-		@Override
-		protected void cancelTask() {
-			holder.cancel();
-			// do not interrupt the lock holder here, to simulate spawned threads that
-			// we cannot properly interrupt on cancellation
-		}
-
 	}
 
 	/**

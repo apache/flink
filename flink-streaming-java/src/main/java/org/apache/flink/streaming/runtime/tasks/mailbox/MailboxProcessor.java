@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.ExecutionDecorator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
@@ -78,10 +79,17 @@ public class MailboxProcessor {
 	 */
 	private MailboxDefaultAction.Suspension suspendedDefaultAction;
 
+	private final ExecutionDecorator executionDecorator;
+
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
+		this(mailboxDefaultAction, ExecutionDecorator.NOP);
+	}
+
+	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction, ExecutionDecorator executionDecorator) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
+		this.executionDecorator = Preconditions.checkNotNull(executionDecorator);
 		mailbox = new TaskMailboxImpl(Thread.currentThread());
-		mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY);
+		mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY, executionDecorator);
 		mailboxLoopRunning = true;
 		suspendedDefaultAction = null;
 	}
@@ -99,7 +107,7 @@ public class MailboxProcessor {
 	 * @param priority the priority of the {@link MailboxExecutor}.
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
-		return new MailboxExecutorImpl(mailbox, priority);
+		return new MailboxExecutorImpl(mailbox, priority, executionDecorator);
 	}
 
 	/**
@@ -132,7 +140,7 @@ public class MailboxProcessor {
 	 */
 	public void drain() {
 		for (final Mail mail : mailbox.drain()) {
-			mail.run();
+			executionDecorator.dispatch(mail);
 		}
 	}
 
@@ -152,7 +160,7 @@ public class MailboxProcessor {
 		final MailboxController defaultActionContext = new MailboxController(this);
 
 		while (processMail(localMailbox)) {
-			mailboxDefaultAction.runDefaultAction(defaultActionContext);
+			executionDecorator.runThrowing(() -> mailboxDefaultAction.runDefaultAction(defaultActionContext));
 		}
 	}
 
@@ -204,13 +212,13 @@ public class MailboxProcessor {
 		// Take mails in a non-blockingly and execute them.
 		Optional<Mail> maybeMail;
 		while (isMailboxLoopRunning() && (maybeMail = mailbox.tryTakeFromBatch()).isPresent()) {
-			maybeMail.get().run();
+			executionDecorator.dispatch(maybeMail.get());
 		}
 
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
 		// action becomes available again.
 		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-			mailbox.take(MIN_PRIORITY).run();
+			executionDecorator.dispatch(mailbox.take(MIN_PRIORITY));
 		}
 
 		return isMailboxLoopRunning();
