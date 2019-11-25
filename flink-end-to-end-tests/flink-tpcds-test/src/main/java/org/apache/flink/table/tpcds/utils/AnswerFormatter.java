@@ -85,9 +85,9 @@ public class AnswerFormatter {
 			String file = ORIGIN_ANSWER_FILE.get(i);
 			String originFileName = file + ANSWER_FILE_SUFFIX;
 			String destFileName = file.split("_")[0] + ANSWER_FILE_SUFFIX;
-			File originFIle = new File(originDir + FILE_SEPARATOR + originFileName);
+			File originFile = new File(originDir + FILE_SEPARATOR + originFileName);
 			File destFile = new File(destDir + FILE_SEPARATOR + destFileName);
-			format(originFIle, destFile);
+			format(originFile, destFile);
 		}
 	}
 
@@ -112,14 +112,14 @@ public class AnswerFormatter {
 			colLengthList = Arrays.stream(content.get(1).split(REGEX_SPLIT_BAR))
 				.map(col -> col.length())
 				.collect(Collectors.toList());
-			writeContent(reader, writer, content, colLengthList);
+			writeContent(writer, content, colLengthList);
 		} else if (isFormat2(content)) {
 			colLengthList = Arrays.stream(content.get(1).split(RESULT_HEAD_STRING_SPACE))
 				.map(col -> col.length())
 				.collect(Collectors.toList());
-			writeContent(reader, writer, content, colLengthList);
+			writeContent(writer, content, colLengthList);
 		} else {
-			writeContent(reader, writer, content, null);
+			writeContent(writer, content, null);
 		}
 
 		reader.close();
@@ -159,7 +159,7 @@ public class AnswerFormatter {
 		return sb.toString();
 	}
 
-	private static void writeContent(BufferedReader reader, BufferedWriter writer, List<String> content, List<Integer> colLengthList) throws Exception {
+	private static void writeContent(BufferedWriter writer, List<String> content, List<Integer> colLengthList) throws Exception {
 		if (colLengthList != null) {
 			for (int i = 2; i < content.size(); i++) {
 				if (content.get(i).isEmpty() || content.get(i).endsWith("rows selected.)")) {
