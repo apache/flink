@@ -52,13 +52,18 @@ public class TableResultUtilsITCase extends BatchTestBase {
 			new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO),
 			"a, b");
 
-		final Table table = tEnv().sqlQuery("SELECT sum(b) FROM T GROUP BY a HAVING a < 3 ORDER BY a");
-		final List<Row> actual = TableResultUtils.tableResultToList(table);
-
+		final String sql = "SELECT sum(b) FROM T GROUP BY a HAVING a < 3 ORDER BY a";
 		final List<Row> expected = new ArrayList<>();
 		expected.add(row(23L));
 		expected.add(row(43L));
-		assertEquals(expected, actual);
+
+		final Table table = tEnv().sqlQuery(sql);
+		// run multiple times to make sure no errors will occur
+		// when the utility method is called a second time
+		for (int i = 0; i < 2; i++) {
+			final List<Row> actual = TableResultUtils.tableResultToList(table);
+			assertEquals(expected, actual);
+		}
 	}
 
 	private static Row row(Object ...args) {

@@ -63,11 +63,14 @@ public class TableResultUtils {
 		final Utils.CollectHelper<Row> outputFormat = new Utils.CollectHelper<>(id, serializer);
 		final TableResultSink sink = new TableResultSink(table, outputFormat);
 
-		tEnv.registerTableSink("tableResultSink", sink);
-		tEnv.insertInto("tableResultSink", table);
+		final String sinkName = "tableResultSink" + id;
+		final String jobName = "tableResultToList" + id;
+
+		tEnv.registerTableSink(sinkName, sink);
+		tEnv.insertInto(sinkName, table);
 
 		try {
-			JobExecutionResult executionResult = tEnv.execute("tableResultToList");
+			JobExecutionResult executionResult = tEnv.execute(jobName);
 			return SerializedListAccumulator.deserializeList(
 				executionResult.getAccumulatorResult(id),
 				serializer);
