@@ -19,10 +19,15 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException
+import org.apache.flink.table.catalog.{Catalog, CatalogPartitionSpec, ObjectIdentifier}
+import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor}
+import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.sources.PartitionableTableSource
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
@@ -30,6 +35,8 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle}
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -60,12 +67,18 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
+    val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val config = context.getTableConfig
     val tableSourceTable: TableSourceTable[_] = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableIdentifier = tableSourceTable.tableIdentifier
+    val catalogOption = toScala(context.getCatalogManager.getCatalog(
+      tableIdentifier.getCatalogName))
 
     val partitionFieldNames = tableSourceTable.catalogTable.getPartitionKeys.toSeq.toArray[String]
 
     val tableSource = tableSourceTable.tableSource.asInstanceOf[PartitionableTableSource]
     val inputFieldType = filter.getInput.getRowType
+    val inputFields = inputFieldType.getFieldNames.toList.toArray
 
     val relBuilder = call.builder()
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
@@ -73,7 +86,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
       RexNodeExtractor.extractPartitionPredicates(
         filter.getCondition,
         maxCnfNodeCount,
-        inputFieldType.getFieldNames.toList.toArray,
+        inputFields,
         relBuilder.getRexBuilder,
         partitionFieldNames
       )
@@ -96,7 +109,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
 
     val allPartitions = tableSource.getPartitions
     val remainingPartitions = PartitionPruner.prunePartitions(
-      call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig,
+      config,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,
@@ -112,14 +125,28 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
     }
 
     val statistic = tableSourceTable.getStatistic
-    val newStatistic = if (remainingPartitions.size() == allPartitions.size()) {
-      // Keep all Statistics if no predicates can be pushed down
-      statistic
-    } else if (statistic == FlinkStatistic.UNKNOWN) {
-      statistic
-    } else {
-      // Remove tableStats after predicates pushed down
-      FlinkStatistic.builder().statistic(statistic).tableStats(null).build()
+    val newStatistic = {
+      val tableStats = catalogOption match {
+        case Some(catalog) =>
+          def mergePartitionStats(): TableStats = {
+            var stats: TableStats = null
+            for (p <- remainingPartitions) {
+              getPartitionStats(catalog, tableIdentifier, p) match {
+                case Some(currStats) =>
+                  if (stats == null) {
+                    stats = currStats
+                  } else {
+                    stats = stats.merge(currStats)
+                  }
+                case None => return null
+              }
+            }
+            stats
+          }
+          mergePartitionStats()
+        case None => null
+      }
+      FlinkStatistic.builder().statistic(statistic).tableStats(tableStats).build()
     }
     val newTableSourceTable = tableSourceTable.copy(newTableSource, newStatistic)
 
@@ -130,6 +157,21 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
     } else {
       val newFilter = filter.copy(filter.getTraitSet, newScan, nonPartitionPredicate)
       call.transformTo(newFilter)
+    }
+  }
+
+  private def getPartitionStats(
+      catalog: Catalog,
+      objectIdentifier: ObjectIdentifier,
+      partSpec: util.Map[String, String]): Option[TableStats] = {
+    val tablePath = objectIdentifier.toObjectPath
+    val spec = new CatalogPartitionSpec(new util.LinkedHashMap[String, String](partSpec))
+    try {
+      val tableStatistics = catalog.getPartitionStatistics(tablePath, spec)
+      val columnStatistics = catalog.getPartitionColumnStatistics(tablePath, spec)
+      Some(CatalogTableStatisticsConverter.convertToTableStats(tableStatistics, columnStatistics))
+    } catch {
+      case _: PartitionNotExistException => None
     }
   }
 

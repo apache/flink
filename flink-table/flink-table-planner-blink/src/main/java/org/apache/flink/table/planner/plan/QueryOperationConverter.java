@@ -22,9 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -54,6 +56,7 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
@@ -349,21 +352,19 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			}
 
 			FlinkStatistic statistic;
-			List<String> names;
+			ObjectIdentifier tableIdentifier;
 			if (tableSourceOperation instanceof RichTableSourceQueryOperation &&
 				((RichTableSourceQueryOperation<U>) tableSourceOperation).getIdentifier() != null) {
-				ObjectIdentifier identifier = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getIdentifier();
+				tableIdentifier = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getIdentifier();
 				statistic = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getStatistic();
-				names = Arrays.asList(
-					identifier.getCatalogName(),
-					identifier.getDatabaseName(),
-					identifier.getObjectName());
 			} else {
 				statistic = FlinkStatistic.UNKNOWN();
 				// TableSourceScan requires a unique name of a Table for computing a digest.
 				// We are using the identity hash of the TableSource object.
 				String refId = "Unregistered_TableSource_" + System.identityHashCode(tableSource);
-				names = Collections.singletonList(refId);
+				CatalogManager catalogManager = relBuilder.getCluster().getPlanner().getContext()
+						.unwrap(FlinkContext.class).getCatalogManager();
+				tableIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(refId));
 			}
 
 			RelDataType rowType = TableSourceUtil.getSourceRowType(relBuilder.getTypeFactory(),
@@ -372,7 +373,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				!isBatch);
 			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(
 				relBuilder.getRelOptSchema(),
-				names,
+				tableIdentifier,
 				rowType,
 				statistic,
 				tableSource,
