@@ -42,6 +42,7 @@ under the License.
 		<module>flink-parquet</module>
 		<module>flink-sequence-file</module>
 		<module>flink-csv</module>
+		<module>flink-orc</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
