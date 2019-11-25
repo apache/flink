@@ -63,7 +63,7 @@ files. The meta data file and data files are stored in the directory that is
 configured via `state.checkpoints.dir` in the configuration files, 
 and also can be specified for per job in the code.
 
-The current checkpoint directory layout which introduced by FLINK-8531 is as follows:
+The current checkpoint directory layout ([introduced by FLINK-8531](https://issues.apache.org/jira/browse/FLINK-8531)) is as follows:
 
 {% highlight yaml %}
 /user-defined-checkpoint-dir

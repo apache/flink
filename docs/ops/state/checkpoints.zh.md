@@ -48,7 +48,7 @@ config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CAN
 
 与 [savepoints](savepoints.html) 相似，checkpoint 由元数据文件、数据文件（与 state backend 相关）组成。可通过配置文件中 "state.checkpoints.dir" 配置项来指定元数据文件和数据文件的存储路径，另外也可以在代码中针对单个作业特别指定该配置项。
 
-当前的 checkpoint 目录结构（由 FLINK-8531 引入）如下所示:
+当前的 checkpoint 目录结构（由 [FLINK-8531](https://issues.apache.org/jira/browse/FLINK-8531) 引入）如下所示:
 
 {% highlight yaml %}
 /user-defined-checkpoint-dir
