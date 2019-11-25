@@ -21,28 +21,53 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.TypeStrategy;
 
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Placeholder for a missing type strategy.
+ * Type strategy that maps an {@link InputTypeValidator} to a {@link TypeStrategy} if the validator
+ * matches.
  */
 @Internal
-public final class MissingTypeStrategy implements TypeStrategy {
+public final class MatchingTypeStrategy implements TypeStrategy {
+
+	private final Map<InputTypeValidator, TypeStrategy> matchers;
+
+	public MatchingTypeStrategy(Map<InputTypeValidator, TypeStrategy> matchers) {
+		this.matchers = matchers;
+	}
 
 	@Override
 	public Optional<DataType> inferType(CallContext callContext) {
+		for (Map.Entry<InputTypeValidator, TypeStrategy> matcher : matchers.entrySet()) {
+			final InputTypeValidator validator = matcher.getKey();
+			final TypeStrategy strategy = matcher.getValue();
+			if (validator.getArgumentCount().isValidCount(callContext.getArgumentDataTypes().size()) &&
+					validator.validate(callContext, false)) {
+				return strategy.inferType(callContext);
+			}
+		}
 		return Optional.empty();
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o || o instanceof MissingTypeStrategy;
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		MatchingTypeStrategy that = (MatchingTypeStrategy) o;
+		return matchers.equals(that.matchers);
 	}
 
 	@Override
 	public int hashCode() {
-		return MissingTypeStrategy.class.hashCode();
+		return Objects.hash(matchers);
 	}
 }
