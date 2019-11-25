@@ -275,7 +275,10 @@ public class MesosResourceManagerTest extends TestLogger {
 			ContainerSpecification containerSpecification = new ContainerSpecification();
 
 			MemorySize totalProcessMemory = MemorySize.parse("2g");
-			TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(flinkConfig, totalProcessMemory);
+			TaskExecutorResourceSpec spec = TaskExecutorResourceUtils
+				.newResourceSpecBuilder(flinkConfig)
+				.withTotalProcessMemory(totalProcessMemory)
+				.build();
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(spec, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
