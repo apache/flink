@@ -358,6 +358,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 						slotStatus.getSlotID(),
 						jobId,
 						taskDeploymentDescriptor.getAllocationId(),
+						ResourceProfile.ZERO,
 						jobMasterAddress,
 						testingResourceManagerGateway.getFencingToken(),
 						timeout
