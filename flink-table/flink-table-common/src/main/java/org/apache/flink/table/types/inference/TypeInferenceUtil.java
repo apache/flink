@@ -44,7 +44,7 @@ public final class TypeInferenceUtil {
 		} catch (ValidationException e) {
 			throw new ValidationException(
 				String.format(
-					"Invalid call to function '%s'. Given arguments: %s",
+					"Invalid function call:\n%s(%s)",
 					callContext.getName(),
 					callContext.getArgumentDataTypes().stream()
 						.map(DataType::toString)
@@ -106,7 +106,7 @@ public final class TypeInferenceUtil {
 				typeInference.getInputTypeValidator().getArgumentCount(),
 				argumentTypes.size());
 		} catch (ValidationException e) {
-			throw getInvalidInputException(typeInference.getInputTypeValidator(), callContext);
+			throw getInvalidInputException(typeInference.getInputTypeValidator(), callContext, e);
 		}
 
 		final List<DataType> expectedTypes = typeInference.getArgumentTypes()
@@ -121,7 +121,10 @@ public final class TypeInferenceUtil {
 				typeInference.getInputTypeValidator(),
 				adaptedCallContext);
 		} catch (ValidationException e) {
-			throw getInvalidInputException(typeInference.getInputTypeValidator(), adaptedCallContext);
+			throw getInvalidInputException(
+				typeInference.getInputTypeValidator(),
+				adaptedCallContext,
+				e);
 		}
 
 		return inferTypes(
@@ -132,7 +135,8 @@ public final class TypeInferenceUtil {
 
 	private static ValidationException getInvalidInputException(
 			InputTypeValidator validator,
-			CallContext callContext) {
+			CallContext callContext,
+			ValidationException cause) {
 
 		final String expectedSignatures = validator.getExpectedSignatures(callContext.getFunctionDefinition())
 			.stream()
@@ -141,7 +145,9 @@ public final class TypeInferenceUtil {
 		return new ValidationException(
 			String.format(
 				"Invalid input arguments. Expected signatures are:\n%s",
-				expectedSignatures));
+				expectedSignatures
+			),
+			cause);
 	}
 
 	private static String formatSignature(String name, Signature s) {
@@ -154,7 +160,7 @@ public final class TypeInferenceUtil {
 
 	private static String formatArgument(Signature.Argument arg) {
 		final StringBuilder stringBuilder = new StringBuilder();
-		arg.getName().ifPresent(n -> stringBuilder.append(n).append(" => "));
+		arg.getName().ifPresent(n -> stringBuilder.append(n).append(" "));
 		stringBuilder.append(arg.getType());
 		return stringBuilder.toString();
 	}
