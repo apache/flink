@@ -23,10 +23,12 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.ExecutionDecorator;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
@@ -66,7 +68,7 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		BiConsumer<String, Throwable> handleAsyncException,
 		Map<String, Accumulator<?, ?>> accumulatorMap
 	) {
-		super(environment, timerService);
+		super(environment, timerService, FatalExitExceptionHandler.INSTANCE, new ExecutionDecorator.SynchronizedExecutionDecorator(checkpointLock));
 		this.name = name;
 		this.checkpointLock = checkpointLock;
 		this.config = config;

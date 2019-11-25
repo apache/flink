@@ -41,10 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.PriorityQueue;
-import java.util.Queue;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -68,15 +65,14 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileReaderOperator.class);
 
 	private FileInputFormat<OUT> format;
+	private Counter completedSplitsCounter;
 	private TypeSerializer<OUT> serializer;
 
-	private transient Object checkpointLock;
-
-	private transient SplitReader<OUT> reader;
 	private transient SourceFunction.SourceContext<OUT> readerContext;
 
 	private transient ListState<TimestampedFileInputSplit> checkpointedState;
-	private transient List<TimestampedFileInputSplit> restoredReaderState;
+	private PriorityQueue<TimestampedFileInputSplit> splits;
+	private Object checkpointLock;
 
 	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
 		this.format = checkNotNull(format);
@@ -91,27 +87,31 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
 
-		checkState(checkpointedState == null,	"The reader state has already been initialized.");
+		checkState(checkpointedState == null, "The reader state has already been initialized.");
 
 		checkpointedState = context.getOperatorStateStore().getSerializableListState("splits");
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-		if (context.isRestored()) {
-			LOG.info("Restoring state for the {} (taskIdx={}).", getClass().getSimpleName(), subtaskIdx);
-
-			// this may not be null in case we migrate from a previous Flink version.
-			if (restoredReaderState == null) {
-				restoredReaderState = new ArrayList<>();
-				for (TimestampedFileInputSplit split : checkpointedState.get()) {
-					restoredReaderState.add(split);
-				}
-
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("{} (taskIdx={}) restored {}.", getClass().getSimpleName(), subtaskIdx, restoredReaderState);
-				}
-			}
-		} else {
+		if (!context.isRestored()) {
 			LOG.info("No state to restore for the {} (taskIdx={}).", getClass().getSimpleName(), subtaskIdx);
+			splits = splits == null ? new PriorityQueue<>() : splits;
+			return;
+		}
+
+		LOG.info("Restoring state for the {} (taskIdx={}).", getClass().getSimpleName(), subtaskIdx);
+
+		// this may not be null in case we migrate from a previous Flink version.
+		if (splits != null) {
+			return;
+		}
+
+		splits = new PriorityQueue<>();
+		for (TimestampedFileInputSplit split : checkpointedState.get()) {
+			splits.add(split);
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("{} (taskIdx={}) restored {}.", getClass().getSimpleName(), subtaskIdx, splits);
 		}
 	}
 
@@ -119,7 +119,6 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	public void open() throws Exception {
 		super.open();
 
-		checkState(this.reader == null, "The reader is already initialized.");
 		checkState(this.serializer != null, "The serializer has not been set. " +
 			"Probably the setOutputType() was not called. Please report it.");
 
@@ -139,15 +138,15 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 			watermarkInterval,
 			-1);
 
-		// and initialize the split reading thread
-		this.reader = new SplitReader<>(format, serializer, readerContext, checkpointLock, restoredReaderState);
-		this.restoredReaderState = null;
-		this.reader.start();
+		this.completedSplitsCounter = getMetricGroup().counter("numSplitsProcessed");
+		this.format.openInputFormat();
+		processSplits();
 	}
 
 	@Override
 	public void processElement(StreamRecord<TimestampedFileInputSplit> element) throws Exception {
-		reader.addSplit(element.getValue());
+		splits.offer(element.getValue());
+		processSplits();
 	}
 
 	@Override
@@ -159,35 +158,8 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	public void dispose() throws Exception {
 		super.dispose();
 
-		// first try to cancel it properly and
-		// give it some time until it finishes
-		reader.cancel();
-		try {
-			reader.join(200);
-		} catch (InterruptedException e) {
-			// we can ignore this
-		}
-
-		// if the above did not work, then interrupt the thread repeatedly
-		while (reader.isAlive()) {
-
-			StringBuilder bld = new StringBuilder();
-			StackTraceElement[] stack = reader.getStackTrace();
-			for (StackTraceElement e : stack) {
-				bld.append(e).append('\n');
-			}
-			LOG.warn("The reader is stuck in method:\n {}", bld.toString());
-
-			reader.interrupt();
-			try {
-				reader.join(50);
-			} catch (InterruptedException e) {
-				// we can ignore this
-			}
-		}
-		reader = null;
 		readerContext = null;
-		restoredReaderState = null;
+		splits = null;
 		format = null;
 		serializer = null;
 	}
@@ -196,203 +168,67 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	public void close() throws Exception {
 		super.close();
 
-		waitSplitReaderFinished();
-
-		output.close();
-	}
-
-	private void waitSplitReaderFinished() throws InterruptedException {
-		// make sure that we hold the checkpointing lock
-		assert Thread.holdsLock(checkpointLock);
-
-		// close the reader to signal that no more splits will come. By doing this,
-		// the reader will exit as soon as it finishes processing the already pending splits.
-		// This method will wait until then. Further cleaning up is handled by the dispose().
-
-		while (reader != null && reader.isAlive() && reader.isRunning()) {
-			reader.close();
-			checkpointLock.wait();
-		}
-
-		// finally if we are operating on event or ingestion time,
-		// emit the long-max watermark indicating the end of the stream,
-		// like a normal source would do.
-
 		if (readerContext != null) {
 			readerContext.emitWatermark(Watermark.MAX_WATERMARK);
 			readerContext.close();
 			readerContext = null;
 		}
+
+		output.close();
 	}
 
-	private class SplitReader<OT> extends Thread {
-
-		private volatile boolean shouldClose;
-
-		private volatile boolean isRunning;
-
-		private final FileInputFormat<OT> format;
-		private final TypeSerializer<OT> serializer;
-
-		private final Object checkpointLock;
-		private final SourceFunction.SourceContext<OT> readerContext;
-
-		private final Queue<TimestampedFileInputSplit> pendingSplits;
-
-		private TimestampedFileInputSplit currentSplit;
-
-		private volatile boolean isSplitOpen;
-
-		private SplitReader(FileInputFormat<OT> format,
-					TypeSerializer<OT> serializer,
-					SourceFunction.SourceContext<OT> readerContext,
-					Object checkpointLock,
-					List<TimestampedFileInputSplit> restoredState) {
-
-			this.format = checkNotNull(format, "Unspecified FileInputFormat.");
-			this.serializer = checkNotNull(serializer, "Unspecified Serializer.");
-			this.readerContext = checkNotNull(readerContext, "Unspecified Reader Context.");
-			this.checkpointLock = checkNotNull(checkpointLock, "Unspecified checkpoint lock.");
-
-			this.shouldClose = false;
-			this.isRunning = true;
-
-			this.pendingSplits = new PriorityQueue<>();
-
-			// this is the case where a task recovers from a previous failed attempt
-			if (restoredState != null) {
-				this.pendingSplits.addAll(restoredState);
-			}
+	private void processSplits() throws Exception {
+		while (!splits.isEmpty()) {
+			processSplit(splits.poll());
 		}
+	}
 
-		private void addSplit(TimestampedFileInputSplit split) {
-			checkNotNull(split, "Cannot insert a null value in the pending splits queue.");
+	private void processSplit(TimestampedFileInputSplit split) throws IOException {
+		load(split);
+		try {
+			readSplit();
+
+		} finally {
 			synchronized (checkpointLock) {
-				this.pendingSplits.add(split);
-			}
-		}
-
-		public boolean isRunning() {
-			return this.isRunning;
-		}
-
-		@Override
-		public void run() {
-			try {
-
-				Counter completedSplitsCounter = getMetricGroup().counter("numSplitsProcessed");
-				this.format.openInputFormat();
-
-				while (this.isRunning) {
-
-					synchronized (checkpointLock) {
-
-						if (currentSplit == null) {
-							currentSplit = this.pendingSplits.poll();
-
-							// if the list of pending splits is empty (currentSplit == null) then:
-							//   1) if close() was called on the operator then exit the while loop
-							//   2) if not wait 50 ms and try again to fetch a new split to read
-
-							if (currentSplit == null) {
-								if (this.shouldClose) {
-									isRunning = false;
-								} else {
-									checkpointLock.wait(50);
-								}
-								continue;
-							}
-						}
-
-						if (this.format instanceof CheckpointableInputFormat && currentSplit.getSplitState() != null) {
-							// recovering after a node failure with an input
-							// format that supports resetting the offset
-							((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).
-								reopen(currentSplit, currentSplit.getSplitState());
-						} else {
-							// we either have a new split, or we recovered from a node
-							// failure but the input format does not support resetting the offset.
-							this.format.open(currentSplit);
-						}
-
-						// reset the restored state to null for the next iteration
-						this.currentSplit.resetSplitState();
-						this.isSplitOpen = true;
-					}
-
-					LOG.debug("Reading split: " + currentSplit);
-
-					try {
-						OT nextElement = serializer.createInstance();
-						while (!format.reachedEnd()) {
-							synchronized (checkpointLock) {
-								nextElement = format.nextRecord(nextElement);
-								if (nextElement != null) {
-									readerContext.collect(nextElement);
-								} else {
-									break;
-								}
-							}
-						}
-						completedSplitsCounter.inc();
-
-					} finally {
-						// close and prepare for the next iteration
-						synchronized (checkpointLock) {
-							this.format.close();
-							this.isSplitOpen = false;
-							this.currentSplit = null;
-						}
-					}
-				}
-
-			} catch (Throwable e) {
-
-				getContainingTask().handleAsyncException("Caught exception when processing split: " + currentSplit, e);
-
-			} finally {
-				synchronized (checkpointLock) {
-					LOG.debug("Reader terminated, and exiting...");
-
-					try {
-						this.format.closeInputFormat();
-					} catch (IOException e) {
-						getContainingTask().handleAsyncException(
-							"Caught exception from " + this.format.getClass().getName() + ".closeInputFormat() : " + e.getMessage(), e);
-					}
-					this.isSplitOpen = false;
-					this.currentSplit = null;
-					this.isRunning = false;
-
-					checkpointLock.notifyAll();
+				if (format != null) {
+					this.format.close();
+					this.format.closeInputFormat();
 				}
 			}
-		}
-
-		private List<TimestampedFileInputSplit> getReaderState() throws IOException {
-			List<TimestampedFileInputSplit> snapshot = new ArrayList<>(this.pendingSplits.size());
-			if (currentSplit != null) {
-				if (this.format instanceof CheckpointableInputFormat && this.isSplitOpen) {
-					Serializable formatState =
-						((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).getCurrentState();
-					this.currentSplit.setSplitState(formatState);
-				}
-				snapshot.add(this.currentSplit);
-			}
-			snapshot.addAll(this.pendingSplits);
-			return snapshot;
-		}
-
-		public void cancel() {
-			this.isRunning = false;
-		}
-
-		public void close() {
-			this.shouldClose = true;
 		}
 	}
 
-	//	---------------------			Checkpointing			--------------------------
+	private void load(TimestampedFileInputSplit split) throws IOException {
+		if (this.format instanceof CheckpointableInputFormat && split.getSplitState() != null) {
+			// recovering after a node failure with an input
+			// format that supports resetting the offset
+			synchronized (checkpointLock) {
+				((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).
+						reopen(split, split.getSplitState());
+			}
+		} else {
+			// we either have a new split, or we recovered from a node
+			// failure but the input format does not support resetting the offset.
+			synchronized (checkpointLock) {
+				this.format.open(split);
+			}
+		}
+	}
+
+	private void readSplit() throws IOException {
+		OUT nextElement = serializer.createInstance();
+		while (!format.reachedEnd()) {
+			synchronized (checkpointLock) {
+				nextElement = format.nextRecord(nextElement);
+				if (nextElement != null) {
+					readerContext.collect(nextElement);
+				} else {
+					break;
+				}
+			}
+		}
+		completedSplitsCounter.inc();
+	}
 
 	@Override
 	public void snapshotState(StateSnapshotContext context) throws Exception {
@@ -405,10 +241,8 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 		checkpointedState.clear();
 
-		List<TimestampedFileInputSplit> readerState = reader.getReaderState();
-
 		try {
-			for (TimestampedFileInputSplit split : readerState) {
+			for (TimestampedFileInputSplit split : splits) {
 				// create a new partition for each entry.
 				checkpointedState.add(split);
 			}
@@ -421,7 +255,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} (taskIdx={}) checkpointed {} splits: {}.",
-				getClass().getSimpleName(), subtaskIdx, readerState.size(), readerState);
+				getClass().getSimpleName(), subtaskIdx, splits.size(), splits);
 		}
 	}
 }

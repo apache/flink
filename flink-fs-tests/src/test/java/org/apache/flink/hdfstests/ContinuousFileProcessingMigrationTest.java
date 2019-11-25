@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -59,6 +60,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -161,15 +165,43 @@ public class ContinuousFileProcessingMigrationTest {
 
 	@Test
 	public void testReaderRestore() throws Exception {
-		File testFolder = tempFolder.newFolder();
 
-		final OneShotLatch latch = new OneShotLatch();
+		List<TimestampedFileInputSplit> expected = Arrays.asList(
+				new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null),
+				new TimestampedFileInputSplit(10, 2, new Path("test/test2"), 101, 200, null),
+				new TimestampedFileInputSplit(10, 1, new Path("test/test2"), 0, 100, null),
+				new TimestampedFileInputSplit(11, 0, new Path("test/test3"), 0, 100, null)
+		);
 
-		BlockingFileInputFormat format = new BlockingFileInputFormat(latch, new Path(testFolder.getAbsolutePath()));
-		TypeInformation<FileInputSplit> typeInfo = TypeExtractor.getInputFormatTypes(format);
+		final OneShotLatch completed = new OneShotLatch();
+		Queue<FileInputSplit> actual = new ConcurrentLinkedQueue<>();
 
-		ContinuousFileReaderOperator<FileInputSplit> initReader = new ContinuousFileReaderOperator<>(format);
-		initReader.setOutputType(typeInfo, new ExecutionConfig());
+		ContinuousFileReaderOperator<FileInputSplit> initReader = new ContinuousFileReaderOperator<>(new FileInputFormat<FileInputSplit>() {
+			@Override
+			public boolean reachedEnd() {
+				return true;
+			}
+
+			@Override
+			public FileInputSplit nextRecord(FileInputSplit reuse) {
+				return null;
+			}
+
+			@Override
+			public void open(FileInputSplit fileSplit) {
+				actual.add(fileSplit);
+				if (actual.size() == expected.size()) {
+					completed.trigger();
+				}
+			}
+
+			@Override
+			public void configure(Configuration parameters) {
+				// just prevent super from failing
+			}
+		});
+
+		initReader.setOutputType(TypeExtractor.getInputFormatTypes(new BlockingFileInputFormat(completed, new Path(tempFolder.newFolder().getAbsolutePath()))), new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness =
 			new OneInputStreamOperatorTestHarness<>(initReader);
@@ -183,33 +215,13 @@ public class ContinuousFileProcessingMigrationTest {
 
 		testHarness.open();
 
-		latch.trigger();
-
 		// ... and wait for the operators to close gracefully
-
+		completed.await();
 		synchronized (testHarness.getCheckpointLock()) {
 			testHarness.close();
 		}
 
-		TimestampedFileInputSplit split1 =
-				new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null);
-
-		TimestampedFileInputSplit split2 =
-				new TimestampedFileInputSplit(10, 2, new Path("test/test2"), 101, 200, null);
-
-		TimestampedFileInputSplit split3 =
-				new TimestampedFileInputSplit(10, 1, new Path("test/test2"), 0, 100, null);
-
-		TimestampedFileInputSplit split4 =
-				new TimestampedFileInputSplit(11, 0, new Path("test/test3"), 0, 100, null);
-
-		// compare if the results contain what they should contain and also if
-		// they are the same, as they should.
-
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
+		Assert.assertTrue(actual.containsAll(expected) && expected.containsAll(actual));
 	}
 
 	/**
