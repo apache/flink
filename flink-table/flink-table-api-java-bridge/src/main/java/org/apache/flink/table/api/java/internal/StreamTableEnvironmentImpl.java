@@ -335,6 +335,12 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		return true;
 	}
 
+	@Override
+	public String explain(boolean extended) {
+		// throw exception directly, because the operations to explain are always empty
+		throw new TableException("'explain' method without any tables is unsupported in StreamTableEnvironment.");
+	}
+
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {
 		try {
 			return TypeExtractor.createTypeInfo(clazz);
