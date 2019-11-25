@@ -197,8 +197,10 @@ class FlinkPlannerImpl(
     equivRel
   }
 
-  override def createRelBuilder(): RelBuilder = {
-    sqlToRelConverterConfig.getRelBuilderFactory.create(cluster, null)
+  override def createRelBuilder(): FlinkRelBuilder = {
+    sqlToRelConverterConfig.getRelBuilderFactory
+      .create(cluster, null)
+      .asInstanceOf[FlinkRelBuilder]
   }
 }
 

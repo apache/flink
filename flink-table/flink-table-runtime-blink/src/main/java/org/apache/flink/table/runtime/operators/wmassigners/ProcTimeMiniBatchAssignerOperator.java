@@ -30,9 +30,17 @@ import org.apache.flink.table.dataformat.BaseRow;
 
 /**
  * A stream operator that emits mini-batch marker in a given period.
- * NOTE: the mini-batch marker uses watermark instead
+ * This mini-batch assigner works in processing time, which means the mini-batch marker is generated
+ * in the given period using the processing time. The downstream operators will trigger mini-batch
+ * once the received mini-batch id advanced.
+ *
+ * <p>NOTE: currently, we use {@link Watermark} to represents the mini-batch marker.
+ *
+ * <p>The difference between this operator and {@link RowTimeMiniBatchAssginerOperator} is that,
+ * this operator generates watermarks by itself using processing time, but the other forwards
+ * watermarks from upstream.
  */
-public class MiniBatchAssignerOperator extends AbstractStreamOperator<BaseRow>
+public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<BaseRow>
 	implements OneInputStreamOperator<BaseRow, BaseRow>, ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
@@ -41,7 +49,7 @@ public class MiniBatchAssignerOperator extends AbstractStreamOperator<BaseRow>
 
 	private transient long currentWatermark;
 
-	public MiniBatchAssignerOperator(long intervalMs) {
+	public ProcTimeMiniBatchAssignerOperator(long intervalMs) {
 		this.intervalMs = intervalMs;
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}

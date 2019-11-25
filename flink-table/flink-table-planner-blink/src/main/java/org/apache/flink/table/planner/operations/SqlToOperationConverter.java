@@ -351,7 +351,7 @@ public class SqlToOperationConverter {
 		// Setup table columns.
 		SqlNodeList columnList = sqlCreateTable.getColumnList();
 		// Collect the physical fields info first.
-		Map<String, RelDataType> nameToType = new HashMap<>();
+		Map<String, RelDataType> physicalFieldNamesToTypes = new HashMap<>();
 		final SqlValidator validator = flinkPlanner.getOrCreateSqlValidator();
 		for (SqlNode node : columnList.getList()) {
 			if (node instanceof SqlTableColumn) {
@@ -359,28 +359,34 @@ public class SqlToOperationConverter {
 				RelDataType relType = column.getType()
 					.deriveType(validator, column.getType().getNullable());
 				String name = column.getName().getSimple();
-				nameToType.put(name, relType);
+				// add field name and field type to physical field list
+				physicalFieldNamesToTypes.put(name, relType);
 			}
 		}
+		// Collect all fields types for watermark expression validation
+		Map<String, RelDataType> allFieldNamesToTypes = new HashMap<>(physicalFieldNamesToTypes);
 		final TableSchema.Builder builder = new TableSchema.Builder();
 		// Build the table schema.
 		for (SqlNode node : columnList) {
 			if (node instanceof SqlTableColumn) {
 				SqlTableColumn column = (SqlTableColumn) node;
 				final String fieldName = column.getName().getSimple();
-				assert nameToType.containsKey(fieldName);
+				assert physicalFieldNamesToTypes.containsKey(fieldName);
 				builder.field(fieldName,
 					TypeConversions.fromLogicalToDataType(
-						FlinkTypeFactory.toLogicalType(nameToType.get(fieldName))));
+						FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(fieldName))));
 			} else if (node instanceof SqlBasicCall) {
 				SqlBasicCall call = (SqlBasicCall) node;
 				SqlNode validatedExpr = validator
-					.validateParameterizedExpression(call.operand(0), nameToType);
+					.validateParameterizedExpression(call.operand(0), physicalFieldNamesToTypes);
 				final RelDataType validatedType = validator.getValidatedNodeType(validatedExpr);
 				builder.field(call.operand(1).toString(),
 					TypeConversions.fromLogicalToDataType(
 						FlinkTypeFactory.toLogicalType(validatedType)),
 					validatedExpr.toString());
+				// add computed column into all field list
+				String fieldName = call.operand(1).toString();
+				allFieldNamesToTypes.put(fieldName, validatedType);
 			} else {
 				throw new TableException("Unexpected table column type!");
 			}
@@ -391,7 +397,7 @@ public class SqlToOperationConverter {
 			String rowtimeAttribute = watermark.getEventTimeColumnName().toString();
 			SqlNode expression = watermark.getWatermarkStrategy();
 			// this will validate and expand function identifiers.
-			SqlNode validated = validator.validateParameterizedExpression(expression, nameToType);
+			SqlNode validated = validator.validateParameterizedExpression(expression, allFieldNamesToTypes);
 			RelDataType validatedType = validator.getValidatedNodeType(validated);
 			DataType exprDataType = TypeConversions.fromLogicalToDataType(
 				FlinkTypeFactory.toLogicalType(validatedType));

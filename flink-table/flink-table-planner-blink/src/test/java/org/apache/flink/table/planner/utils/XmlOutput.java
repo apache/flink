@@ -81,7 +81,7 @@ public class XmlOutput {
 	private boolean ignorePcdata;
 
 	/**
-	 * Private helper function to display a degree of indentation
+	 * Private helper function to display a degree of indentation.
 	 * @param out the PrintWriter to which to display output.
 	 * @param indent the degree of indentation.
 	 */
@@ -449,14 +449,14 @@ public class XmlOutput {
 	}
 
 	/**
-	 * Get the total number of tags written
+	 * Get the total number of tags written.
 	 * @return the total number of tags written to the XML stream.
 	 */
 	public int numTagsWritten() {
 		return tagsWritten;
 	}
 
-	/** Print an XML attribute name and value for string val */
+	/** Print an XML attribute name and value for string val. */
 	private static void printAtt(PrintWriter pw, String name, String val) {
 		if (val != null /* && !val.equals("") */) {
 			pw.print(" ");
@@ -550,14 +550,14 @@ public class XmlOutput {
 		public static final StringEscaper URL_ESCAPER;
 
 		/**
-		 * Identity transform
+		 * Identity transform.
 		 */
 		StringEscaper() {
 			translationVector = new ArrayList<>();
 		}
 
 		/**
-		 * Map character "from" to escape sequence "to"
+		 * Map character "from" to escape sequence "to".
 		 */
 		public void defineEscape(char from, String to) {
 			int i = (int) from;
