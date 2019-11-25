@@ -323,10 +323,9 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 			try {
 				pythonInternalLibs = ResourceUtil.extractBasicDependenciesFromResource(
 					tmpdir,
-					this.getClass().getClassLoader(),
 					prefix,
 					false);
-			} catch (IOException e) {
+			} catch (IOException | InterruptedException e) {
 				throw new RuntimeException(e);
 			}
 			String pythonWorkerCommand = null;
