@@ -24,7 +24,6 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
-import org.apache.flink.table.types.inference.validators.SingleInputTypeValidator;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,18 +35,19 @@ import org.junit.runners.Parameterized.Parameters;
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static java.util.Arrays.asList;
 import static org.apache.flink.table.types.inference.InputTypeValidators.ANY;
 import static org.apache.flink.table.types.inference.InputTypeValidators.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeValidators.LITERAL_OR_NULL;
 import static org.apache.flink.table.types.inference.InputTypeValidators.PASSING;
 import static org.apache.flink.table.types.inference.InputTypeValidators.and;
 import static org.apache.flink.table.types.inference.InputTypeValidators.explicit;
+import static org.apache.flink.table.types.inference.InputTypeValidators.explicitSequence;
 import static org.apache.flink.table.types.inference.InputTypeValidators.or;
 import static org.apache.flink.table.types.inference.InputTypeValidators.sequence;
 import static org.apache.flink.table.types.inference.InputTypeValidators.varyingSequence;
@@ -61,7 +61,7 @@ public class InputTypeValidatorsTest {
 
 	@Parameters
 	public static List<TestSpec> testData() {
-		return Arrays.asList(
+		return asList(
 			// 2 arguments
 			TestSpec
 				.forValidator(PASSING)
@@ -76,31 +76,40 @@ public class InputTypeValidatorsTest {
 
 			// full equivalence
 			TestSpec
-				.forValidator(explicit(DataTypes.INT()))
+				.forValidator(explicitSequence(DataTypes.INT()))
 				.inputTypes(DataTypes.INT())
 				.expectSuccess(),
 
+			// invalid named sequence
+			TestSpec
+				.forValidator(
+					explicitSequence(
+						new String[]{"i", "s"},
+						new DataType[]{DataTypes.INT(), DataTypes.STRING()}))
+				.inputTypes(DataTypes.INT())
+				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(i INT, s STRING)"),
+
 			// incompatible nullability
 			TestSpec
-				.forValidator(explicit(DataTypes.BIGINT().notNull()))
+				.forValidator(explicitSequence(DataTypes.BIGINT().notNull()))
 				.inputTypes(DataTypes.BIGINT())
 				.expectErrorMessage("Unsupported argument type. Expected type 'BIGINT NOT NULL' but actual type was 'BIGINT'."),
 
 			// implicit cast
 			TestSpec
-				.forValidator(explicit(DataTypes.BIGINT()))
+				.forValidator(explicitSequence(DataTypes.BIGINT()))
 				.inputTypes(DataTypes.INT())
 				.expectSuccess(),
 
 			// incompatible types
 			TestSpec
-				.forValidator(explicit(DataTypes.BIGINT()))
+				.forValidator(explicitSequence(DataTypes.BIGINT()))
 				.inputTypes(DataTypes.STRING())
 				.expectErrorMessage("Unsupported argument type. Expected type 'BIGINT' but actual type was 'STRING'."),
 
 			// incompatible number of arguments
 			TestSpec
-				.forValidator(explicit(DataTypes.BIGINT(), DataTypes.BIGINT()))
+				.forValidator(explicitSequence(DataTypes.BIGINT(), DataTypes.BIGINT()))
 				.inputTypes(DataTypes.BIGINT())
 				.expectErrorMessage("Invalid number of arguments. At least 2 arguments expected but 1 passed."),
 
@@ -118,33 +127,21 @@ public class InputTypeValidatorsTest {
 
 			// left of OR
 			TestSpec
-				.forValidator(or(explicit(DataTypes.INT()), explicit(DataTypes.NULL())))
+				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.NULL())))
 				.inputTypes(DataTypes.INT())
 				.expectSuccess(),
 
 			// right of OR
 			TestSpec
-				.forValidator(or(explicit(DataTypes.INT()), explicit(DataTypes.NULL())))
+				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.NULL())))
 				.inputTypes(DataTypes.NULL())
 				.expectSuccess(),
 
 			// invalid type in OR
 			TestSpec
-				.forValidator(or(explicit(DataTypes.INT()), explicit(DataTypes.NULL())))
+				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.NULL())))
 				.inputTypes(DataTypes.BOOLEAN())
 				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(INT)\nf(NULL)"),
-
-			// invalid number of arguments in AND
-			TestSpec
-				.forValidator(and(explicit(DataTypes.INT()), explicit(DataTypes.INT(), DataTypes.STRING())))
-				.inputTypes(DataTypes.INT())
-				.expectErrorMessage("Invalid number of arguments. 1 arguments passed."),
-
-			// accepted combination of AND
-			TestSpec
-				.forValidator(and(explicit(DataTypes.INT()), PASSING))
-				.inputTypes(DataTypes.INT())
-				.expectSuccess(),
 
 			// explicit sequence
 			TestSpec
@@ -166,7 +163,9 @@ public class InputTypeValidatorsTest {
 
 			// invalid named sequence
 			TestSpec
-				.forValidator(sequence(new String[]{"any", "int"}, new SingleInputTypeValidator[]{ANY, explicit(DataTypes.INT())}))
+				.forValidator(sequence(
+					new String[]{"any", "int"},
+					new ArgumentTypeValidator[]{ANY, explicit(DataTypes.INT())}))
 				.inputTypes(DataTypes.STRING(), DataTypes.BOOLEAN())
 				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(any <ANY>, int INT)"),
 
@@ -201,7 +200,7 @@ public class InputTypeValidatorsTest {
 				.forValidator(
 					varyingSequence(
 						new String[]{"i", "s", "var"},
-						new SingleInputTypeValidator[]{
+						new ArgumentTypeValidator[]{
 							explicit(DataTypes.INT()),
 							explicit(DataTypes.STRING()),
 							explicit(DataTypes.BOOLEAN())}))
@@ -213,7 +212,7 @@ public class InputTypeValidatorsTest {
 				.forValidator(
 					varyingSequence(
 						new String[]{"i", "s", "var"},
-						new SingleInputTypeValidator[]{
+						new ArgumentTypeValidator[]{
 							explicit(DataTypes.INT()),
 							explicit(DataTypes.STRING()),
 							explicit(DataTypes.BOOLEAN())}))
@@ -225,7 +224,7 @@ public class InputTypeValidatorsTest {
 				.forValidator(
 					varyingSequence(
 						new String[]{"i", "s", "var"},
-						new SingleInputTypeValidator[]{
+						new ArgumentTypeValidator[]{
 							explicit(DataTypes.INT()),
 							explicit(DataTypes.STRING()),
 							explicit(DataTypes.BOOLEAN())}))
@@ -237,7 +236,7 @@ public class InputTypeValidatorsTest {
 				.forValidator(
 					varyingSequence(
 						new String[]{"i", "s", "var"},
-						new SingleInputTypeValidator[]{
+						new ArgumentTypeValidator[]{
 							explicit(DataTypes.INT()),
 							explicit(DataTypes.STRING()),
 							explicit(DataTypes.BOOLEAN())}))
@@ -249,7 +248,7 @@ public class InputTypeValidatorsTest {
 				.forValidator(
 					varyingSequence(
 						new String[]{"i", "s", "var"},
-						new SingleInputTypeValidator[]{
+						new ArgumentTypeValidator[]{
 							explicit(DataTypes.INT()),
 							explicit(DataTypes.STRING()),
 							or(explicit(DataTypes.BOOLEAN()), explicit(DataTypes.INT()))}))
@@ -261,7 +260,7 @@ public class InputTypeValidatorsTest {
 				.forValidator(
 					varyingSequence(
 						new String[]{"i", "s", "var"},
-						new SingleInputTypeValidator[]{
+						new ArgumentTypeValidator[]{
 							explicit(DataTypes.INT()),
 							explicit(DataTypes.STRING()),
 							or(explicit(DataTypes.BOOLEAN()), explicit(DataTypes.INT()))}))
@@ -329,7 +328,7 @@ public class InputTypeValidatorsTest {
 		}
 
 		TestSpec inputTypes(DataType... dataTypes) {
-			this.inputTypes = Arrays.asList(dataTypes);
+			this.inputTypes = asList(dataTypes);
 			return this;
 		}
 

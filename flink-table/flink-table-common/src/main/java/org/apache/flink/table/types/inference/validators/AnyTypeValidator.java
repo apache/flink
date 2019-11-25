@@ -20,8 +20,10 @@ package org.apache.flink.table.types.inference.validators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
+import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.Signature;
 
 import java.util.Collections;
@@ -31,11 +33,16 @@ import java.util.List;
  * Validator that checks for a single argument that can be of any type.
  */
 @Internal
-public final class AnyTypeValidator implements SingleInputTypeValidator {
+public final class AnyTypeValidator implements ArgumentTypeValidator, InputTypeValidator {
 
 	@Override
-	public boolean validateArgument(CallContext callContext, int argumentPos, int validatorPos, boolean throwOnFailure) {
+	public boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure) {
 		return true;
+	}
+
+	@Override
+	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+		return Signature.Argument.of("<ANY>");
 	}
 
 	@Override
@@ -50,7 +57,7 @@ public final class AnyTypeValidator implements SingleInputTypeValidator {
 
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Signature.Argument.of("<ANY>")));
+		return Collections.singletonList(Signature.of(getExpectedArgument(definition, 0)));
 	}
 
 	@Override

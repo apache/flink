@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference.validators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.CallContext;
@@ -36,48 +37,40 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A varying sequence of {@link ArgumentTypeValidator}s for validating an entire function signature
- * like {@code f(INT, STRING, NUMERIC...)}. The first n - 1 arguments must be constant. The n-th
- * argument can occur 0, 1, or more times.
+ * Validator that checks for a sequence of {@link ArgumentTypeValidator}s for validating an entire
+ * function signature like {@code f(STRING, NUMERIC)} or {@code f(s STRING, n NUMERIC)}.
  */
 @Internal
-public final class VaryingSequenceTypeValidator implements InputTypeValidator {
+public final class SequenceInputValidator implements InputTypeValidator {
 
-	private final int constantArgumentCount;
-
-	private final List<ArgumentTypeValidator> constantValidators;
-
-	private final ArgumentTypeValidator varyingValidator;
+	private final List<? extends ArgumentTypeValidator> validators;
 
 	private final @Nullable List<String> argumentNames;
 
-	public VaryingSequenceTypeValidator(
-			List<ArgumentTypeValidator> validators,
+	public SequenceInputValidator(
+			List<? extends ArgumentTypeValidator> validators,
 			@Nullable List<String> argumentNames) {
 		Preconditions.checkArgument(validators.size() > 0);
 		Preconditions.checkArgument(argumentNames == null || argumentNames.size() == validators.size());
-		constantArgumentCount = validators.size() - 1;
-		constantValidators = validators.subList(0, constantArgumentCount);
-		varyingValidator = validators.get(constantArgumentCount);
+		this.validators = validators;
 		this.argumentNames = argumentNames;
 	}
 
 	@Override
 	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.from(constantArgumentCount); // at least the constant part
+		return ConstantArgumentCount.of(validators.size());
 	}
 
 	@Override
 	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		for (int i = 0; i < callContext.getArgumentDataTypes().size(); i++) {
-			if (i < constantArgumentCount) {
-				if (!constantValidators.get(i).validateArgument(callContext, i, throwOnFailure)) {
-					return false;
-				}
-			} else {
-				if (!varyingValidator.validateArgument(callContext, i, throwOnFailure)) {
-					return false;
-				}
+		final List<DataType> dataTypes = callContext.getArgumentDataTypes();
+		if (dataTypes.size() != validators.size()) {
+			return false;
+		}
+		for (int i = 0; i < validators.size(); i++) {
+			final ArgumentTypeValidator validator = validators.get(i);
+			if (!validator.validateArgument(callContext, i, throwOnFailure)) {
+				return false;
 			}
 		}
 		return true;
@@ -85,29 +78,16 @@ public final class VaryingSequenceTypeValidator implements InputTypeValidator {
 
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		final Signature.Argument varyingArgument = varyingValidator.getExpectedArgument(
-			definition,
-			constantValidators.size());
-		final Signature.Argument newArg;
-		final String type = varyingArgument.getType();
-		if (argumentNames == null) {
-			newArg = Signature.Argument.of(type + "...");
-		} else {
-			newArg = Signature.Argument.of(argumentNames.get(argumentNames.size() - 1), type + "...");
-		}
-
 		final List<Signature.Argument> arguments = new ArrayList<>();
-		for (int i = 0; i < constantValidators.size(); i++) {
+		for (int i = 0; i < validators.size(); i++) {
 			if (argumentNames == null) {
-				arguments.add(constantValidators.get(i).getExpectedArgument(definition, i));
+				arguments.add(validators.get(i).getExpectedArgument(definition, i));
 			} else {
 				arguments.add(Signature.Argument.of(
 					argumentNames.get(i),
-					constantValidators.get(i).getExpectedArgument(definition, i).getType()));
+					validators.get(i).getExpectedArgument(definition, i).getType()));
 			}
 		}
-
-		arguments.add(newArg);
 
 		return Collections.singletonList(Signature.of(arguments));
 	}
@@ -120,15 +100,13 @@ public final class VaryingSequenceTypeValidator implements InputTypeValidator {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		VaryingSequenceTypeValidator that = (VaryingSequenceTypeValidator) o;
-		return constantArgumentCount == that.constantArgumentCount &&
-			Objects.equals(constantValidators, that.constantValidators) &&
-			Objects.equals(varyingValidator, that.varyingValidator) &&
+		SequenceInputValidator that = (SequenceInputValidator) o;
+		return Objects.equals(validators, that.validators) &&
 			Objects.equals(argumentNames, that.argumentNames);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(constantArgumentCount, constantValidators, varyingValidator, argumentNames);
+		return Objects.hash(validators, argumentNames);
 	}
 }

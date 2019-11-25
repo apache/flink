@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference.validators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeValidator;
@@ -34,7 +35,7 @@ import java.util.List;
  * Validator that does not perform any validation and always passes.
  */
 @Internal
-public final class PassingTypeValidator implements InputTypeValidator {
+public final class PassingTypeValidator implements InputTypeValidator, ArgumentTypeValidator {
 
 	private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
 
@@ -61,5 +62,15 @@ public final class PassingTypeValidator implements InputTypeValidator {
 	@Override
 	public int hashCode() {
 		return PassingTypeValidator.class.hashCode();
+	}
+
+	@Override
+	public boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure) {
+		return true;
+	}
+
+	@Override
+	public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+		return Argument.of("*");
 	}
 }
