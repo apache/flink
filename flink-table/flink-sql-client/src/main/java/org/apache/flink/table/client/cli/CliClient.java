@@ -276,6 +276,9 @@ public class CliClient {
 			case SHOW_FUNCTIONS:
 				callShowFunctions();
 				break;
+			case SHOW_MODULES:
+				callShowModules();
+				break;
 			case USE_CATALOG:
 				callUseCatalog(cmdCall);
 				break;
@@ -417,6 +420,23 @@ public class CliClient {
 		} else {
 			Collections.sort(functions);
 			functions.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callShowModules() {
+		final List<String> modules;
+		try {
+			modules = executor.listModules(context);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		if (modules.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			// modules are already in the loaded order
+			modules.forEach((v) -> terminal.writer().println(v));
 		}
 		terminal.flush();
 	}

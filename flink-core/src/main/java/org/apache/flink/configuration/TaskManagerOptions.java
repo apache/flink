@@ -76,6 +76,7 @@ public class TaskManagerOptions {
 	 * shuts down the actor system if it detects that it has quarantined another actor system
 	 * or if it has been quarantined by another actor system.
 	 */
+	@Deprecated
 	public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
 			key("taskmanager.exit-on-fatal-akka-error")
 			.defaultValue(false)
@@ -277,6 +278,16 @@ public class TaskManagerOptions {
 			.defaultValue("128m")
 			.withDescription("Framework Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved"
 				+ " for TaskExecutor framework, which will not be allocated to task slots.");
+
+	/**
+	 * Framework Off-Heap Memory size for TaskExecutors.
+	 */
+	public static final ConfigOption<String> FRAMEWORK_OFF_HEAP_MEMORY =
+		key("taskmanager.memory.framework.off-heap.size")
+			.defaultValue("64m")
+			.withDescription("Framework Off-Heap Memory size for TaskExecutors. This is the size of off-heap memory"
+				+ " (JVM direct memory or native memory) reserved for TaskExecutor framework, which will not be"
+				+ " allocated to task slots. It will be accounted as part of the JVM max direct memory size limit.");
 
 	/**
 	 * Task Heap Memory size for TaskExecutors.

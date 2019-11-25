@@ -184,7 +184,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 		setUpWithCheckpointInterval(10L);
 
 		try {
-			clusterClient.cancelWithSavepoint(jobGraph.getJobID(), null);
+			clusterClient.cancelWithSavepoint(jobGraph.getJobID(), null).get();
 		} catch (Exception e) {
 			if (!ExceptionUtils.findThrowableWithMessage(e, "savepoint directory").isPresent()) {
 				throw e;
@@ -254,7 +254,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 	private String cancelWithSavepoint() throws Exception {
 		return clusterClient.cancelWithSavepoint(
 			jobGraph.getJobID(),
-			savepointDirectory.toAbsolutePath().toString());
+			savepointDirectory.toAbsolutePath().toString()).get();
 	}
 
 }

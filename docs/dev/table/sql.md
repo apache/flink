@@ -54,18 +54,23 @@ Table result = tableEnv.sqlQuery(
   "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
 
 // SQL query with a registered table
-// register the DataStream as table "Orders"
-tableEnv.registerDataStream("Orders", ds, "user, product, amount");
+// register the DataStream as view "Orders"
+tableEnv.createTemporaryView("Orders", ds, "user, product, amount");
 // run a SQL query on the Table and retrieve the result as a new Table
 Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 // SQL update with a registered table
 // create and register a TableSink
-TableSink csvSink = new CsvTableSink("/path/to/file", ...);
-String[] fieldNames = {"product", "amount"};
-TypeInformation[] fieldTypes = {Types.STRING, Types.INT};
-tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink);
+final Schema schema = new Schema()
+    .field("product", DataTypes.STRING())
+    .field("amount", DataTypes.INT());
+
+tableEnv.connect(new FileSystem("/path/to/file"))
+    .withFormat(...)
+    .withSchema(schema)
+    .createTemporaryTable("RubberOrders");
+
 // run a SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
@@ -87,17 +92,22 @@ val result = tableEnv.sqlQuery(
 
 // SQL query with a registered table
 // register the DataStream under the name "Orders"
-tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
+tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount)
 // run a SQL query on the Table and retrieve the result as a new Table
 val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
 // SQL update with a registered table
 // create and register a TableSink
-val csvSink: CsvTableSink = new CsvTableSink("/path/to/file", ...)
-val fieldNames: Array[String] = Array("product", "amount")
-val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT)
-tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink)
+val schema = new Schema()
+    .field("product", DataTypes.STRING())
+    .field("amount", DataTypes.INT())
+
+tableEnv.connect(new FileSystem("/path/to/file"))
+    .withFormat(...)
+    .withSchema(schema)
+    .createTemporaryTable("RubberOrders")
+
 // run a SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -117,11 +127,15 @@ result = table_env \
 
 # SQL update with a registered table
 # create and register a TableSink
-table_env.register_table("Orders", table)
-field_names = ["product", "amount"]
-field_types = [DataTypes.STRING(), DataTypes.BIGINT()]
-csv_sink = CsvTableSink(field_names, field_types, "/path/to/file", ...)
-table_env.register_table_sink("RubberOrders", csv_sink)
+t_env.connect(FileSystem().path("/path/to/file")))
+    .with_format(Csv()
+                 .field_delimiter(',')
+                 .deriveSchema())
+    .with_schema(Schema()
+                 .field("product", DataTypes.STRING())
+                 .field("amount", DataTypes.BIGINT()))
+    .create_temporary_table("RubberOrders")
+
 # run a SQL update query on the Table and emit the result to the TableSink
 table_env \
     .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -372,7 +386,7 @@ SELECT * FROM Orders WHERE a % 2 = 0
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-      <p>UDFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register scalar UDFs.</p>
+      <p>UDFs must be registered in the TableEnvironment. See the <a href="{{ site.baseurl }}/dev/table/functions/udfs.html">UDF documentation</a> for details on how to specify and register scalar UDFs.</p>
 {% highlight sql %}
 SELECT PRETTY_PRINT(user) FROM Orders
 {% endhighlight %}
@@ -494,7 +508,7 @@ HAVING SUM(amount) > 50
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>UDAGGs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDAGGs.</p>
+        <p>UDAGGs must be registered in the TableEnvironment. See the <a href="{{ site.baseurl }}/dev/table/functions/udfs.html">UDF documentation</a> for details on how to specify and register UDAGGs.</p>
 {% highlight sql %}
 SELECT MyAggregate(amount)
 FROM Orders
@@ -603,7 +617,7 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
       </td>
     	<td>
         <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function.</p>
-        <p>User-defined table functions (UDTFs) must be registered before. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
+        <p>User-defined table functions (UDTFs) must be registered before. See the <a href="{{ site.baseurl }}/dev/table/functions/udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
 
         <p><b>Inner Join</b></p>
         <p>A row of the left (outer) table is dropped, if its table function call returns an empty result.</p>
@@ -880,7 +894,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
 // register the DataStream as table "ShopSales"
-tableEnv.registerDataStream("ShopSales", ds, "product_id, category, product_name, sales");
+tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
 
 // select top-5 products per category which have the maximum sales.
 Table result1 = tableEnv.sqlQuery(
@@ -901,7 +915,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // register the DataStream under the name "ShopSales"
-tableEnv.registerDataStream("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
 
 
 // select top-5 products per category which have the maximum sales.
@@ -935,7 +949,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
 // register the DataStream as table "ShopSales"
-tableEnv.registerDataStream("ShopSales", ds, "product_id, category, product_name, sales");
+tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
 
 // select top-5 products per category which have the maximum sales.
 Table result1 = tableEnv.sqlQuery(
@@ -956,7 +970,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // register the DataStream under the name "ShopSales"
-tableEnv.registerDataStream("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
 
 
 // select top-5 products per category which have the maximum sales.
@@ -1015,7 +1029,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Integer>> ds = env.addSource(...);
 // register the DataStream as table "Orders"
-tableEnv.registerDataStream("Orders", ds, "order_id, user, product, number, proctime.proctime");
+tableEnv.createTemporaryView("Orders", ds, "order_id, user, product, number, proctime.proctime");
 
 // remove duplicate rows on order_id and keep the first occurrence row,
 // because there shouldn't be two orders with the same order_id.
@@ -1037,7 +1051,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Int)] = env.addSource(...)
 // register the DataStream under the name "Orders"
-tableEnv.registerDataStream("Orders", ds, 'order_id, 'user, 'product, 'number, 'proctime.proctime)
+tableEnv.createTemporaryView("Orders", ds, 'order_id, 'user, 'product, 'number, 'proctime.proctime)
 
 // remove duplicate rows on order_id and keep the first occurrence row,
 // because there shouldn't be two orders with the same order_id.
@@ -1186,7 +1200,7 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 // register the DataStream as table "Orders"
-tableEnv.registerDataStream("Orders", ds, "user, product, amount, proctime.proctime, rowtime.rowtime");
+tableEnv.createTemporaryView("Orders", ds, "user, product, amount, proctime.proctime, rowtime.rowtime");
 
 // compute SUM(amount) per day (in event-time)
 Table result1 = tableEnv.sqlQuery(
@@ -1223,7 +1237,7 @@ val tableEnv = StreamTableEnvironment.create(env)
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Int)] = env.addSource(...)
 // register the DataStream under the name "Orders"
-tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount, 'proctime.proctime, 'rowtime.rowtime)
+tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount, 'proctime.proctime, 'rowtime.rowtime)
 
 // compute SUM(amount) per day (in event-time)
 val result1 = tableEnv.sqlQuery(
@@ -1426,9 +1440,9 @@ Please see the dedicated page about [data types](types.html).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions](functions.html#value-access-functions).
+Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html#value-access-functions).
 
-Generic types are treated as a black box and can be passed on or processed by [user-defined functions](udfs.html).
+Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{ site.baseurl }}/dev/table/functions/udfs.html).
 
 For DDLs, we support full data types defined in page [Data Types]({{ site.baseurl }}/dev/table/types.html).
 

@@ -102,6 +102,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
@@ -185,17 +186,15 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 				kafkaServer.getVersion().equals("0.10") ||
 				kafkaServer.getVersion().equals("0.11") ||
 				kafkaServer.getVersion().equals("2.0")) {
-				assertTrue(jee.getCause() instanceof TimeoutException);
+				final Optional<TimeoutException> optionalTimeoutException = ExceptionUtils.findThrowable(jee, TimeoutException.class);
+				assertTrue(optionalTimeoutException.isPresent());
 
-				TimeoutException te = (TimeoutException) jee.getCause();
-
-				assertEquals("Timeout expired while fetching topic metadata", te.getMessage());
+				final TimeoutException timeoutException = optionalTimeoutException.get();
+				assertEquals("Timeout expired while fetching topic metadata", timeoutException.getMessage());
 			} else {
-				assertTrue(jee.getCause() instanceof RuntimeException);
-
-				RuntimeException re = (RuntimeException) jee.getCause();
-
-				assertTrue(re.getMessage().contains("Unable to retrieve any partitions"));
+				final Optional<Throwable> optionalThrowable = ExceptionUtils.findThrowableWithMessage(jee, "Unable to retrieve any partitions");
+				assertTrue(optionalThrowable.isPresent());
+				assertTrue(optionalThrowable.get() instanceof RuntimeException);
 			}
 		}
 	}
@@ -253,7 +252,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		while (System.nanoTime() < deadline);
 
 		// cancel the job & wait for the job to finish
-		client.cancel(Iterables.getOnlyElement(getRunningJobs(client)));
+		client.cancel(Iterables.getOnlyElement(getRunningJobs(client))).get();
 		runner.join();
 
 		final Throwable t = errorRef.get();
@@ -338,7 +337,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		while (System.nanoTime() < deadline);
 
 		// cancel the job & wait for the job to finish
-		client.cancel(Iterables.getOnlyElement(getRunningJobs(client)));
+		client.cancel(Iterables.getOnlyElement(getRunningJobs(client))).get();
 		runner.join();
 
 		final Throwable t = errorRef.get();
@@ -504,7 +503,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		// cancel the consume job after all extra records are written
-		client.cancel(consumeJobId);
+		client.cancel(consumeJobId).get();
 		consumeThread.join();
 
 		kafkaOffsetHandler.close();
@@ -1020,7 +1019,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		// cancel
-		client.cancel(jobId);
+		client.cancel(jobId).get();
 
 		// wait for the program to be done and validate that we failed with the right exception
 		runnerThread.join();
@@ -1090,7 +1089,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
 		}
 		// cancel
-		client.cancel(jobId);
+		client.cancel(jobId).get();
 
 		// wait for the program to be done and validate that we failed with the right exception
 		runnerThread.join();
@@ -1643,7 +1642,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			LOG.info("Found all JMX metrics. Cancelling job.");
 		} finally {
 			// cancel
-			client.cancel(jobId);
+			client.cancel(jobId).get();
 			// wait for the job to finish (it should due to the cancel command above)
 			jobThread.join();
 		}
@@ -2055,7 +2054,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			// did not finish in time, maybe the producer dropped one or more records and
 			// the validation did not reach the exit point
 			success = false;
-			client.cancel(jobId);
+			client.cancel(jobId).get();
 		}
 		else {
 			Throwable error = errorRef.get();

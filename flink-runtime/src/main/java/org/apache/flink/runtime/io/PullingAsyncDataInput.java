@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>For the most efficient usage, user of this class is supposed to call {@link #pollNext()}
  * until it returns that no more elements are available. If that happens, he should check if
- * input {@link #isFinished()}. If not, he should wait for {@link #isAvailable()}
+ * input {@link #isFinished()}. If not, he should wait for {@link #getAvailableFuture()}
  * {@link CompletableFuture} to be completed. For example:
  *
  * <pre>
@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
  *			// do something with next
  *		}
  *
- *		input.isAvailable().get();
+ *		input.getAvailableFuture().get();
  *	}
  * }
  * </pre>

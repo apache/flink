@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.catalog.{FunctionCatalog, FunctionLookup}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
 import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
@@ -36,9 +36,9 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
 import org.apache.calcite.util.Util
-import java.util.{TimeZone, List => JList}
 
-import org.apache.flink.table.functions.FunctionIdentifier
+import java.util
+import java.util.{TimeZone, List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -91,6 +91,7 @@ object RexNodeExtractor extends Logging {
       inputFieldNames: JList[String],
       rexBuilder: RexBuilder,
       functionCatalog: FunctionCatalog,
+      catalogManager: CatalogManager,
       timeZone: TimeZone): (Array[Expression], Array[RexNode]) = {
     // converts the expanded expression to conjunctive normal form,
     // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
@@ -101,7 +102,8 @@ object RexNodeExtractor extends Logging {
     val convertedExpressions = new mutable.ArrayBuffer[Expression]
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
     val inputNames = inputFieldNames.asScala.toArray
-    val converter = new RexNodeToExpressionConverter(inputNames, functionCatalog, timeZone)
+    val converter = new RexNodeToExpressionConverter(
+      inputNames, functionCatalog, catalogManager, timeZone)
 
     conjunctions.asScala.foreach(rex => {
       rex.accept(converter) match {
@@ -294,6 +296,7 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
 class RexNodeToExpressionConverter(
     inputNames: Array[String],
     functionCatalog: FunctionCatalog,
+    catalogManager: CatalogManager,
     timeZone: TimeZone)
   extends RexVisitor[Option[ResolvedExpression]] {
 
@@ -403,12 +406,16 @@ class RexNodeToExpressionConverter(
           Option(operands.reduceLeft((l, r) => new CallExpression(AND, Seq(l, r), outputType)))
         case SqlStdOperatorTable.CAST =>
           Option(new CallExpression(CAST, Seq(operands.head, typeLiteral(outputType)), outputType))
-        case function: SqlFunction =>
-          lookupFunction(replace(function.getName), operands, outputType)
-        case postfix: SqlPostfixOperator =>
-          lookupFunction(replace(postfix.getName), operands, outputType)
+        case _: SqlFunction | _: SqlPostfixOperator =>
+          val names = new util.ArrayList[String](rexCall.getOperator.getNameAsId.names)
+          names.set(names.size() - 1, replace(names.get(names.size() - 1)))
+          val id = UnresolvedIdentifier.of(names.asScala.toArray: _*)
+          lookupFunction(id, operands, outputType)
         case operator@_ =>
-          lookupFunction(replace(s"${operator.getKind}"), operands, outputType)
+          lookupFunction(
+            UnresolvedIdentifier.of(replace(s"${operator.getKind}")),
+            operands,
+            outputType)
       }
     }
   }
@@ -430,10 +437,10 @@ class RexNodeToExpressionConverter(
       fieldRef: RexPatternFieldRef): Option[ResolvedExpression] = None
 
   private def lookupFunction(
-      name: String,
+      identifier: UnresolvedIdentifier,
       operands: Seq[ResolvedExpression],
       outputType: DataType): Option[ResolvedExpression] = {
-    Try(functionCatalog.lookupFunction(FunctionIdentifier.of(name))) match {
+    Try(functionCatalog.lookupFunction(identifier)) match {
       case Success(f: java.util.Optional[FunctionLookup.Result]) =>
         if (f.isPresent) {
           Some(new CallExpression(f.get().getFunctionDefinition, operands, outputType))

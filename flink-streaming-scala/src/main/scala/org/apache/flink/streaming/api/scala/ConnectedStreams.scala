@@ -97,7 +97,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
-    asScalaStream(javaStream.map(coMapper).returns(outType).asInstanceOf[JavaStream[R]])
+    asScalaStream(javaStream.map(coMapper, outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -176,7 +176,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(javaStream.flatMap(coFlatMapper).returns(outType).asInstanceOf[JavaStream[R]])
+    asScalaStream(javaStream.flatMap(coFlatMapper, outType).asInstanceOf[JavaStream[R]])
   }
 
   /**

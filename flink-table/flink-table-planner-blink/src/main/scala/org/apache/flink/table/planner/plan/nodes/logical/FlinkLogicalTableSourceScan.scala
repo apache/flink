@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan.isTableSourceScan
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.sources._
 
 import com.google.common.collect.ImmutableList
@@ -32,7 +31,6 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode, RelWriter}
-import org.apache.calcite.schema.Table
 
 import java.util
 import java.util.function.Supplier
@@ -44,7 +42,7 @@ import java.util.function.Supplier
 class FlinkLogicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkRelOptTable)
+    relOptTable: TableSourceTable[_])
   extends TableScan(cluster, traitSet, relOptTable)
   with FlinkLogicalRel {
 
@@ -54,8 +52,8 @@ class FlinkLogicalTableSourceScan(
 
   def copy(
       traitSet: RelTraitSet,
-      relOptTable: FlinkRelOptTable): FlinkLogicalTableSourceScan = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
+      tableSourceTable: TableSourceTable[_]): FlinkLogicalTableSourceScan = {
+    new FlinkLogicalTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
@@ -63,8 +61,9 @@ class FlinkLogicalTableSourceScan(
   }
 
   override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    tableSourceTable.getRowType(flinkTypeFactory)
+    // TableScan row type should always keep same with its
+    // interval RelOptTable's row type.
+    relOptTable.getRowType
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -94,7 +93,7 @@ class FlinkLogicalTableSourceScanConverter
 
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[TableScan]
-    val table = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val table = scan.getTable.asInstanceOf[FlinkPreparingTableBase]
     FlinkLogicalTableSourceScan.create(rel.getCluster, table)
   }
 }
@@ -107,8 +106,9 @@ object FlinkLogicalTableSourceScan {
     tableSourceTable != null
   }
 
-  def create(cluster: RelOptCluster, relOptTable: FlinkRelOptTable): FlinkLogicalTableSourceScan = {
-    val table = relOptTable.unwrap(classOf[Table])
+  def create(cluster: RelOptCluster, relOptTable: FlinkPreparingTableBase)
+      : FlinkLogicalTableSourceScan = {
+    val table = relOptTable.unwrap(classOf[TableSourceTable[_]])
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = {
@@ -119,6 +119,6 @@ object FlinkLogicalTableSourceScan {
           }
         }
       }).simplify()
-    new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
+    new FlinkLogicalTableSourceScan(cluster, traitSet, table)
   }
 }

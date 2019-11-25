@@ -458,4 +458,9 @@ object BuiltInMethods {
     classOf[Long], classOf[Int])
   val TRUNCATE_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Decimal], classOf[Int])
+
+  // TODO: remove if CALCITE-3199 fixed
+  //  https://issues.apache.org/jira/browse/CALCITE-3199
+  val UNIX_DATE_CEIL = Types.lookupMethod(classOf[SqlDateTimeUtils], "unixDateCeil",
+    classOf[TimeUnitRange], classOf[Int])
 }

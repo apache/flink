@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.modules;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.security.DynamicConfiguration;
 import org.apache.flink.runtime.security.KerberosUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -33,9 +34,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
+import static org.apache.flink.configuration.ConfigurationUtils.splitPaths;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Responsible for installing a process-wide JAAS configuration.
@@ -66,19 +71,29 @@ public class JaasModule implements SecurityModule {
 
 	private DynamicConfiguration currentConfig;
 
+	/**
+	 * The working directory that the jaas file will install into.
+	 */
+	private final String workingDir;
+
 	public JaasModule(SecurityConfiguration securityConfig) {
 		this.securityConfig = checkNotNull(securityConfig);
+		String[] dirs = splitPaths(securityConfig.getFlinkConfig().getString(CoreOptions.TMP_DIRS));
+		// should be at least one directory.
+		checkState(dirs.length > 0);
+		this.workingDir = dirs[0];
 	}
 
 	@Override
-	public void install() throws SecurityInstallException {
+	public void install() {
 
 		// ensure that a config file is always defined, for compatibility with
 		// ZK and Kafka which check for the system property and existence of the file
 		priorConfigFile = System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, null);
 		if (priorConfigFile == null) {
-			File configFile = generateDefaultConfigFile();
+			File configFile = generateDefaultConfigFile(workingDir);
 			System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, configFile.getAbsolutePath());
+			LOG.info("Jaas file will be created as {}.", configFile);
 		}
 
 		// read the JAAS configuration file
@@ -140,10 +155,12 @@ public class JaasModule implements SecurityModule {
 	/**
 	 * Generate the default JAAS config file.
 	 */
-	private static File generateDefaultConfigFile() {
+	private static File generateDefaultConfigFile(String workingDir) {
+		checkArgument(workingDir != null, "working directory should not be null.");
 		final File jaasConfFile;
 		try {
-			Path jaasConfPath = Files.createTempFile("jaas-", ".conf");
+			Path path = Paths.get(workingDir);
+			Path jaasConfPath = Files.createTempFile(path, "jaas-", ".conf");
 			try (InputStream resourceStream = JaasModule.class.getClassLoader().getResourceAsStream(JAAS_CONF_RESOURCE_NAME)) {
 				Files.copy(resourceStream, jaasConfPath, StandardCopyOption.REPLACE_EXISTING);
 			}

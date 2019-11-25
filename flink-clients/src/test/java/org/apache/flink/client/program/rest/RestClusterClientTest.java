@@ -28,11 +28,11 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -231,18 +231,15 @@ public class RestClusterClientTest extends TestLogger {
 			submitHandler,
 			terminationHandler,
 			testJobExecutionResultHandler)) {
-			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			try {
+			try (RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
 				Assert.assertFalse(submitHandler.jobSubmitted);
 				ClientUtils.submitJobAndWaitForResult(restClusterClient, jobGraph, ClassLoader.getSystemClassLoader());
 				Assert.assertTrue(submitHandler.jobSubmitted);
 
 				Assert.assertFalse(terminationHandler.jobCanceled);
-				restClusterClient.cancel(jobId);
+				restClusterClient.cancel(jobId).get();
 				Assert.assertTrue(terminationHandler.jobCanceled);
-			} finally {
-				restClusterClient.close();
 			}
 		}
 	}
@@ -521,7 +518,7 @@ public class RestClusterClientTest extends TestLogger {
 				JobID id = new JobID();
 
 				{
-					Map<String, OptionalFailure<Object>> accumulators = restClusterClient.getAccumulators(id);
+					Map<String, OptionalFailure<Object>> accumulators = restClusterClient.getAccumulators(id).get();
 					assertNotNull(accumulators);
 					assertEquals(1, accumulators.size());
 

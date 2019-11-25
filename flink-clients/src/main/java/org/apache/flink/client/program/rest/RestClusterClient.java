@@ -30,7 +30,6 @@ import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -108,7 +107,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -130,16 +128,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
-public class RestClusterClient<T> extends ClusterClient<T> {
+public class RestClusterClient<T> implements ClusterClient<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RestClusterClient.class);
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
 
 	private final Configuration configuration;
-
-	/** Timeout for futures. */
-	private final Duration timeout;
 
 	private final RestClient restClient;
 
@@ -174,7 +169,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		WaitStrategy waitStrategy) throws Exception {
 
 		this.configuration = checkNotNull(configuration);
-		this.timeout = AkkaUtils.getClientTimeout(configuration);
 
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 
@@ -220,12 +214,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			clientHAServices.close();
 		} catch (Exception e) {
 			LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
-		}
-
-		try {
-			super.close();
-		} catch (Exception e) {
-			LOG.error("Error while closing the Cluster Client", e);
 		}
 	}
 
@@ -344,21 +332,21 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public void cancel(JobID jobID) throws Exception {
+	public CompletableFuture<Acknowledge> cancel(JobID jobID) {
 		JobCancellationMessageParameters params = new JobCancellationMessageParameters();
 		params.jobPathParameter.resolve(jobID);
 		params.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.CANCEL));
 		CompletableFuture<EmptyResponseBody> responseFuture = sendRequest(
 			JobCancellationHeaders.getInstance(),
 			params);
-		responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+		return responseFuture.thenApply(ignore -> Acknowledge.get());
 	}
 
 	@Override
-	public String stopWithSavepoint(
+	public CompletableFuture<String> stopWithSavepoint(
 			final JobID jobId,
 			final boolean advanceToEndOfTime,
-			@Nullable final String savepointDirectory) throws Exception {
+			@Nullable final String savepointDirectory) {
 
 		final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders = StopWithSavepointTriggerHeaders.getInstance();
 
@@ -379,12 +367,12 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				throw new CompletionException(savepointInfo.getFailureCause());
 			}
 			return savepointInfo.getLocation();
-		}).get();
+		});
 	}
 
 	@Override
-	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
-		return triggerSavepoint(jobId, savepointDirectory, true).get();
+	public CompletableFuture<String> cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) {
+		return triggerSavepoint(jobId, savepointDirectory, true);
 	}
 
 	@Override
@@ -420,7 +408,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public Map<String, OptionalFailure<Object>> getAccumulators(final JobID jobID, ClassLoader loader) throws Exception {
+	public CompletableFuture<Map<String, OptionalFailure<Object>>> getAccumulators(JobID jobID, ClassLoader loader) {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
 		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
 		accMsgParams.jobPathParameter.resolve(jobID);
@@ -430,26 +418,18 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			accumulatorsHeaders,
 			accMsgParams);
 
-		Map<String, OptionalFailure<Object>> result = Collections.emptyMap();
-
-		try {
-			result = responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
-				try {
-					return AccumulatorHelper.deserializeAccumulators(
-						accumulatorsInfo.getSerializedUserAccumulators(),
-						loader);
-				} catch (Exception e) {
-					throw new CompletionException(
-						new FlinkException(
-							String.format("Deserialization of accumulators for job %s failed.", jobID),
-							e));
-				}
-			}).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-		} catch (ExecutionException ee) {
-			ExceptionUtils.rethrowException(ExceptionUtils.stripExecutionException(ee));
-		}
-
-		return result;
+		return responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
+			try {
+				return AccumulatorHelper.deserializeAccumulators(
+					accumulatorsInfo.getSerializedUserAccumulators(),
+					loader);
+			} catch (Exception e) {
+				throw new CompletionException(
+					new FlinkException(
+						String.format("Deserialization of accumulators for job %s failed.", jobID),
+						e));
+			}
+		});
 	}
 
 	private CompletableFuture<SavepointInfo> pollSavepointAsync(

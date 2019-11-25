@@ -45,11 +45,11 @@ The system then restarts the operators and resets them to the latest successful 
 point of the state snapshot. Any records that are processed as part of the restarted parallel dataflow are guaranteed to not
 have been part of the previously checkpointed state.
 
-*Note:* By default, checkpointing is disabled. See [Checkpointing]({{ site.baseurl }}/dev/stream/state/checkpointing.html) for details on how to enable and configure checkpointing.
+*Note:* By default, checkpointing is disabled. See [Checkpointing]({{ site.baseurl }}/zh/dev/stream/state/checkpointing.html) for details on how to enable and configure checkpointing.
 
 *Note:* For this mechanism to realize its full guarantees, the data stream source (such as message queue or broker) needs to be able
 to rewind the stream to a defined recent point. [Apache Kafka](http://kafka.apache.org) has this ability and Flink's connector to
-Kafka exploits this ability. See [Fault Tolerance Guarantees of Data Sources and Sinks]({{ site.baseurl }}/dev/connectors/guarantees.html) for
+Kafka exploits this ability. See [Fault Tolerance Guarantees of Data Sources and Sinks]({{ site.baseurl }}/zh/dev/connectors/guarantees.html) for
 more information about the guarantees provided by Flink's connectors.
 
 *Note:* Because Flink's checkpoints are realized through distributed snapshots, we use the words *snapshot* and *checkpoint* interchangeably.
@@ -106,10 +106,10 @@ the barrier *n* from the other inputs as well. Otherwise, it would mix records t
 
 When operators contain any form of *state*, this state must be part of the snapshots as well. Operator state comes in different forms:
 
-  - *User-defined state*: This is state that is created and modified directly by the transformation functions (like `map()` or `filter()`). See [State in Streaming Applications]({{ site.baseurl }}/dev/stream/state/index.html) for details.
+  - *User-defined state*: This is state that is created and modified directly by the transformation functions (like `map()` or `filter()`). See [State in Streaming Applications]({{ site.baseurl }}/zh/dev/stream/state/index.html) for details.
   - *System state*: This state refers to data buffers that are part of the operator's computation. A typical example for this state are the *window buffers*, inside which the system collects (and aggregates) records for windows until the window is evaluated and evicted.
 
-Operators snapshot their state at the point in time when they have received all snapshot barriers from their input streams, and before emitting the barriers to their output streams. At that point, all updates to the state from records before the barriers will have been made, and no updates that depend on records from after the barriers have been applied. Because the state of a snapshot may be large, it is stored in a configurable *[state backend]({{ site.baseurl }}/ops/state/state_backends.html)*. By default, this is the JobManager's memory, but for production use a distributed reliable storage should be configured (such as HDFS). After the state has been stored, the operator acknowledges the checkpoint, emits the snapshot barrier into the output streams, and proceeds.
+Operators snapshot their state at the point in time when they have received all snapshot barriers from their input streams, and before emitting the barriers to their output streams. At that point, all updates to the state from records before the barriers will have been made, and no updates that depend on records from after the barriers have been applied. Because the state of a snapshot may be large, it is stored in a configurable *[state backend]({{ site.baseurl }}/zh/ops/state/state_backends.html)*. By default, this is the JobManager's memory, but for production use a distributed reliable storage should be configured (such as HDFS). After the state has been stored, the operator acknowledges the checkpoint, emits the snapshot barrier into the output streams, and proceeds.
 
 The resulting snapshot now contains:
 
@@ -145,7 +145,7 @@ It is possible to let an operator continue processing while it stores its state 
 
 After receiving the checkpoint barriers on its inputs, the operator starts the asynchronous snapshot copying of its state. It immediately emits the barrier to its outputs and continues with the regular stream processing. Once the background copy process has completed, it acknowledges the checkpoint to the checkpoint coordinator (the JobManager). The checkpoint is now only complete after all sinks have received the barriers and all stateful operators have acknowledged their completed backup (which may be after the barriers reach the sinks).
 
-See [State Backends]({{ site.baseurl }}/ops/state/state_backends.html) for details on the state snapshots.
+See [State Backends]({{ site.baseurl }}/zh/ops/state/state_backends.html) for details on the state snapshots.
 
 
 ## Recovery
@@ -156,7 +156,7 @@ stream from position <i>S<sub>k</sub></i>. For example in Apache Kafka, that mea
 
 If state was snapshotted incrementally, the operators start with the state of the latest full snapshot and then apply a series of incremental snapshot updates to that state.
 
-See [Restart Strategies]({{ site.baseurl }}/dev/restart_strategies.html) for more information.
+See [Restart Strategies]({{ site.baseurl }}/zh/dev/restart_strategies.html) for more information.
 
 ## Operator Snapshot Implementation
 

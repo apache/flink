@@ -35,9 +35,13 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.writer.MultipleRecordWriters;
+import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.api.writer.SingleRecordWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
@@ -84,6 +88,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -199,7 +204,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** Thread pool for async snapshot workers. */
 	private ExecutorService asyncOperationsThreadPool;
 
-	private final List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters;
+	private final RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
 
 	protected final MailboxProcessor mailboxProcessor;
 
@@ -248,7 +253,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.uncaughtExceptionHandler = Preconditions.checkNotNull(uncaughtExceptionHandler);
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
-		this.recordWriters = createRecordWriters(configuration, environment);
+		this.recordWriter = createRecordWriterDelegate(configuration, environment);
 		this.mailboxProcessor = new MailboxProcessor(this::processInput);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 	}
@@ -277,12 +282,31 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		InputStatus status = inputProcessor.processInput();
+		if (status == InputStatus.MORE_AVAILABLE && recordWriter.isAvailable()) {
+			return;
+		}
 		if (status == InputStatus.END_OF_INPUT) {
 			controller.allActionsCompleted();
+			return;
 		}
-		else if (status == InputStatus.NOTHING_AVAILABLE) {
-			MailboxDefaultAction.Suspension suspendedDefaultAction = controller.suspendDefaultAction();
-			inputProcessor.isAvailable().thenRun(suspendedDefaultAction::resume);
+		CompletableFuture<?> jointFuture = getInputOutputJointFuture(status);
+		MailboxDefaultAction.Suspension suspendedDefaultAction = controller.suspendDefaultAction();
+		jointFuture.thenRun(suspendedDefaultAction::resume);
+	}
+
+	/**
+	 * Considers three scenarios to combine input and output futures:
+	 * 1. Both input and output are unavailable.
+	 * 2. Only input is unavailable.
+	 * 3. Only output is unavailable.
+	 */
+	private CompletableFuture<?> getInputOutputJointFuture(InputStatus status) {
+		if (status == InputStatus.NOTHING_AVAILABLE && !recordWriter.isAvailable()) {
+			return CompletableFuture.allOf(inputProcessor.getAvailableFuture(), recordWriter.getAvailableFuture());
+		} else if (status == InputStatus.NOTHING_AVAILABLE) {
+			return inputProcessor.getAvailableFuture();
+		} else {
+			return recordWriter.getAvailableFuture();
 		}
 	}
 
@@ -383,7 +407,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					timerThreadFactory);
 			}
 
-			operatorChain = new OperatorChain<>(this, recordWriters);
+			operatorChain = new OperatorChain<>(this, recordWriter);
 			headOperator = operatorChain.getHeadOperator();
 
 			// check environment for selective reading
@@ -408,8 +432,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// so that we avoid race conditions in the case that initializeState()
 				// registers a timer, that fires before the open() is called.
 
-				initializeState();
-				openAllOperators();
+				initializeStateAndOpen();
 			}
 
 			// final check to exit early before starting to run
@@ -514,9 +537,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				}
 			} else {
 				// failed to allocate operatorChain, clean up record writers
-				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> writer: recordWriters) {
-					writer.close();
-				}
+				recordWriter.close();
 			}
 
 			mailboxProcessor.close();
@@ -552,24 +573,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Execute {@link StreamOperator#open()} of each operator in the chain of this
-	 * {@link StreamTask}. Opening happens from <b>tail to head</b> operator in the chain, contrary
-	 * to {@link StreamOperator#close()} which happens <b>head to tail</b>
-	 * (see {@link #closeAllOperators()}.
-	 */
-	private void openAllOperators() throws Exception {
-		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-			if (operator != null) {
-				operator.open();
-			}
-		}
-	}
-
-	/**
 	 * Execute {@link StreamOperator#close()} of each operator in the chain of this
 	 * {@link StreamTask}. Closing happens from <b>head to tail</b> operator in the chain,
 	 * contrary to {@link StreamOperator#open()} which happens <b>tail to head</b>
-	 * (see {@link #openAllOperators()}.
+	 * (see {@link #initializeStateAndOpen()}).
 	 */
 	private void closeAllOperators() throws Exception {
 		// We need to close them first to last, since upstream operators in the chain might emit
@@ -852,21 +859,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// we cannot broadcast the cancellation markers on the 'operator chain', because it may not
 				// yet be created
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
-				Exception exception = null;
-
-				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter : recordWriters) {
-					try {
-						recordWriter.broadcastEvent(message);
-					} catch (Exception e) {
-						exception = ExceptionUtils.firstOrSuppressed(
-							new Exception("Could not send cancel checkpoint marker to downstream tasks.", e),
-							exception);
-					}
-				}
-
-				if (exception != null) {
-					throw exception;
-				}
+				recordWriter.broadcastEvent(message);
 
 				return false;
 			}
@@ -960,13 +953,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		checkpointingOperation.executeCheckpointing();
 	}
 
-	private void initializeState() throws Exception {
+	/**
+	 * Execute {@link StreamOperator#initializeState()} followed by {@link StreamOperator#open()} of each operator in
+	 * the chain of this {@link StreamTask}. State initialization and opening happens from <b>tail to head</b> operator
+	 * in the chain, contrary to {@link StreamOperator#close()} which happens <b>head to tail</b>
+	 * (see {@link #closeAllOperators()}.
+	 */
+	private void initializeStateAndOpen() throws Exception {
 
 		StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
 
 		for (StreamOperator<?> operator : allOperators) {
 			if (null != operator) {
 				operator.initializeState();
+				operator.open();
 			}
 		}
 	}
@@ -1396,7 +1396,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@VisibleForTesting
-	public static <OUT> List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> createRecordWriters(
+	public static <OUT> RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> createRecordWriterDelegate(
+			StreamConfig configuration,
+			Environment environment) {
+		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWrites = createRecordWriters(
+			configuration,
+			environment);
+		if (recordWrites.size() == 1) {
+			return new SingleRecordWriter<>(recordWrites.get(0));
+		} else if (recordWrites.size() == 0) {
+			return new NonRecordWriter<>();
+		} else {
+			return new MultipleRecordWriters<>(recordWrites);
+		}
+	}
+
+	private static <OUT> List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> createRecordWriters(
 			StreamConfig configuration,
 			Environment environment) {
 		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters = new ArrayList<>();

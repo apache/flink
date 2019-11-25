@@ -25,6 +25,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
@@ -40,6 +41,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for allocating slots with co-location constraints with {@link SchedulerImpl}.
+ */
 public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 
 	@Override
@@ -284,7 +288,6 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		assertEquals(12, testingSlotProvider.getNumberOfUnconstrainedAssignments());
 	}
 
-	
 	@Test
 	public void testGetsNonLocalFromSharingGroupFirst() throws Exception {
 		JobVertexID jid1 = new JobVertexID();
@@ -533,6 +536,6 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 	}
 
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation location) {
-		return new SlotProfile(ResourceProfile.UNKNOWN, Collections.singletonList(location), Collections.emptySet());
+		return SlotProfile.preferredLocality(ResourceProfile.UNKNOWN, Collections.singletonList(location));
 	}
 }

@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.FlinkException;
 
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -141,11 +140,6 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void finishTask() throws Exception {
 		isFinished = true;
 		cancelTask();
-	}
-
-	@Override
-	public Optional<Thread> getExecutingThread() {
-		return Optional.of(sourceThread);
 	}
 
 	// ------------------------------------------------------------------------

@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.configuration.ConfigConstants;
 
 import org.junit.Assert;
@@ -28,9 +29,12 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
+import java.util.Collections;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
 
 /**
  * Tests for the {@link PackagedProgram}.
@@ -57,8 +61,15 @@ public class PackagedProgramTest {
 		Assert.assertArrayEquals(nestedJarContent, Files.readAllBytes(files.iterator().next().toPath()));
 	}
 
-	private static final class NullOutputStream extends java.io.OutputStream {
-		@Override
-		public void write(int b) {}
+	@Test
+	public void testNotThrowExceptionWhenJarFileIsNull() throws Exception {
+		PackagedProgram.newBuilder()
+			.setUserClassPaths(Collections.singletonList(new File(CliFrontendTestUtils.getTestJarPath()).toURI().toURL()))
+			.setEntryPointClassName(TEST_JAR_MAIN_CLASS);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testBuilderThrowExceptionIfjarFileAndEntryPointClassNameAreBothNull() throws ProgramInvocationException {
+		PackagedProgram.newBuilder().build();
 	}
 }

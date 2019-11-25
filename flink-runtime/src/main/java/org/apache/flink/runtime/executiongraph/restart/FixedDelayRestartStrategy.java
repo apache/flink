@@ -25,7 +25,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -75,18 +74,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	 */
 	public static FixedDelayRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
 		int maxAttempts = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
-
-		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY);
-
-		long delay;
-
-		try {
-			delay = TimeUtils.parseDuration(delayString).toMillis();
-		} catch (IllegalArgumentException ex) {
-			throw new Exception("Invalid config value for " +
-					RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key() + ": " + delayString +
-					". Value must be a valid duration (such as '100 milli' or '10 s')", ex);
-		}
+		long delay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY).toMillis();
 
 		return new FixedDelayRestartStrategyFactory(maxAttempts, delay);
 	}

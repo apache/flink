@@ -217,7 +217,7 @@ public class RescalingITCase extends TestLogger {
 
 			final String savepointPath = savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-			client.cancel(jobID);
+			client.cancel(jobID).get();
 
 			while (!getRunningJobs(client).isEmpty()) {
 				Thread.sleep(50);
@@ -279,7 +279,7 @@ public class RescalingITCase extends TestLogger {
 
 			final String savepointPath = savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-			client.cancel(jobID);
+			client.cancel(jobID).get();
 
 			while (!getRunningJobs(client).isEmpty()) {
 				Thread.sleep(50);
@@ -361,7 +361,7 @@ public class RescalingITCase extends TestLogger {
 
 			final String savepointPath = savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-			client.cancel(jobID);
+			client.cancel(jobID).get();
 
 			while (!getRunningJobs(client).isEmpty()) {
 				Thread.sleep(50);
@@ -478,7 +478,7 @@ public class RescalingITCase extends TestLogger {
 
 			final String savepointPath = savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-			client.cancel(jobID);
+			client.cancel(jobID).get();
 
 			while (!getRunningJobs(client).isEmpty()) {
 				Thread.sleep(50);

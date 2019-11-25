@@ -107,8 +107,9 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 										executionVertexId.getJobVertexId(),
 										slotSharingGroupId,
 										schedulingRequirements.getCoLocationConstraint()),
-									new SlotProfile(
-										schedulingRequirements.getResourceProfile(),
+									SlotProfile.priorAllocation(
+										schedulingRequirements.getTaskResourceProfile(),
+										schedulingRequirements.getPhysicalSlotResourceProfile(),
 										preferredLocations,
 										Collections.singletonList(schedulingRequirements.getPreviousAllocationId()),
 										allPreviousAllocationIds)));

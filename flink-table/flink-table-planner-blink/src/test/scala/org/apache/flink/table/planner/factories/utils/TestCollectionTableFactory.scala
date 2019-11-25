@@ -116,14 +116,21 @@ object TestCollectionTableFactory {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
     val schema = properties.getTableSchema(Schema.SCHEMA)
-    new CollectionTableSource(emitIntervalMS, schema, isStreaming)
+    new CollectionTableSource(emitIntervalMS, physicalSchema(schema), isStreaming)
   }
 
   def getCollectionSink(props: JMap[String, String]): CollectionTableSink = {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
     val schema = properties.getTableSchema(Schema.SCHEMA)
-    new CollectionTableSink(schema.toRowType.asInstanceOf[RowTypeInfo])
+    new CollectionTableSink(physicalSchema(schema).toRowType.asInstanceOf[RowTypeInfo])
+  }
+
+  def physicalSchema(schema: TableSchema): TableSchema = {
+    val builder = TableSchema.builder()
+    schema.getTableColumns.filter(c => !c.isGenerated)
+      .foreach(c => builder.field(c.getName, c.getType))
+    builder.build()
   }
 
   /**

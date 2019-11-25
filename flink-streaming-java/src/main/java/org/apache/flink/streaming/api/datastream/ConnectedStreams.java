@@ -239,8 +239,22 @@ public class ConnectedStreams<IN1, IN2> {
 			Utils.getCallLocationName(),
 			true);
 
-		return transform("Co-Map", outTypeInfo, new CoStreamMap<>(inputStream1.clean(coMapper)));
+		return map(coMapper, outTypeInfo);
+	}
 
+	/**
+	 * Applies a CoMap transformation on a {@link ConnectedStreams} and maps
+	 * the output to a common type. The transformation calls a
+	 * {@link CoMapFunction#map1} for each element of the first input and
+	 * {@link CoMapFunction#map2} for each element of the second input. Each
+	 * CoMapFunction call returns exactly one element.
+	 *
+	 * @param coMapper The CoMapFunction used to jointly transform the two input DataStreams
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 * @return The transformed {@link DataStream}
+	 */
+	public <R> SingleOutputStreamOperator<R> map(CoMapFunction<IN1, IN2, R> coMapper, TypeInformation<R> outputType) {
+		return transform("Co-Map", outputType, new CoStreamMap<>(inputStream1.clean(coMapper)));
 	}
 
 	/**
@@ -271,7 +285,26 @@ public class ConnectedStreams<IN1, IN2> {
 			Utils.getCallLocationName(),
 			true);
 
-		return transform("Co-Flat Map", outTypeInfo, new CoStreamFlatMap<>(inputStream1.clean(coFlatMapper)));
+		return flatMap(coFlatMapper, outTypeInfo);
+	}
+
+	/**
+	 * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
+	 * maps the output to a common type. The transformation calls a
+	 * {@link CoFlatMapFunction#flatMap1} for each element of the first input
+	 * and {@link CoFlatMapFunction#flatMap2} for each element of the second
+	 * input. Each CoFlatMapFunction call returns any number of elements
+	 * including none.
+	 *
+	 * @param coFlatMapper
+	 *            The CoFlatMapFunction used to jointly transform the two input
+	 *            DataStreams
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @return The transformed {@link DataStream}
+	 */
+	public <R> SingleOutputStreamOperator<R> flatMap(CoFlatMapFunction<IN1, IN2, R> coFlatMapper, TypeInformation<R> outputType) {
+		return transform("Co-Flat Map", outputType, new CoStreamFlatMap<>(inputStream1.clean(coFlatMapper)));
 	}
 
 	/**

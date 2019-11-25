@@ -19,17 +19,41 @@ limitations under the License.
   <TestCase name="testTableSourceScan">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
+
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
+
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLTableScan">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM src WHERE a > 1]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(ts=[$0], a=[$1], b=[$2])
++- LogicalFilter(condition=[>($1, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[ts, a, b], where=[>(a, 1)])
++- TableSourceScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]], fields=[ts, a, b])
+]]>
+
     </Resource>
   </TestCase>
 </Root>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -25,7 +26,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * A buffer-oriented runtime result writer API for producing results.
@@ -35,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
  * In this case {@link ResultPartitionWriter#fail(Throwable)} still needs to be called afterwards to fully release
  * all resources associated the the partition and propagate failure cause to the consumer if possible.
  */
-public interface ResultPartitionWriter extends AutoCloseable {
+public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvider {
 
 	/**
 	 * Setup partition, potentially heavy-weight, blocking operation comparing to just creation.
@@ -93,12 +93,4 @@ public interface ResultPartitionWriter extends AutoCloseable {
 	 * <p>Closing of partition is still needed afterwards.
 	 */
 	void finish() throws IOException;
-
-	/**
-	 * Check whether the writer is available for output or not.
-	 *
-	 * @return a future that is completed if it is available for output.
-	 */
-
-	CompletableFuture<?> isAvailable();
 }

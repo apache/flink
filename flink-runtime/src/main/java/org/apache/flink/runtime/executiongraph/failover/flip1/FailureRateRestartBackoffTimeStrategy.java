@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
-import org.apache.flink.util.TimeUtils;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -110,26 +109,9 @@ public class FailureRateRestartBackoffTimeStrategy implements RestartBackoffTime
 
 	public static FailureRateRestartBackoffTimeStrategyFactory createFactory(final Configuration configuration) {
 		int maxFailuresPerInterval = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL);
-		String failuresIntervalString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL);
-		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY);
-
-		long failuresInterval;
-		try {
-			failuresInterval = TimeUtils.parseDuration(failuresIntervalString).toMillis();
-		} catch (IllegalArgumentException ex) {
-			throw new IllegalArgumentException("Invalid config value for " +
-				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL.key() + ": " + failuresIntervalString +
-				". Value must be a valid duration (such as '100 milli' or '10 s')", ex);
-		}
-
-		long delay;
-		try {
-			delay = TimeUtils.parseDuration(delayString).toMillis();
-		} catch (IllegalArgumentException ex) {
-			throw new IllegalArgumentException("Invalid config value for " +
-				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY.key() + ": " + delayString +
-				". Value must be a valid duration (such as '100 milli' or '10 s')", ex);
-		}
+		long failuresInterval = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL)
+			.toMillis();
+		long delay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY).toMillis();
 
 		return new FailureRateRestartBackoffTimeStrategyFactory(maxFailuresPerInterval, failuresInterval, delay);
 	}

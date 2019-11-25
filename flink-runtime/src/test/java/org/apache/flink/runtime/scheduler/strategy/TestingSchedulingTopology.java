@@ -33,8 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
-
 /**
  * A simple scheduling topology for testing purposes.
  */
@@ -113,7 +111,7 @@ public class TestingSchedulingTopology
 
 		protected ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
 
-		protected SchedulingResultPartition.ResultPartitionState resultPartitionState = DONE;
+		protected ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
 
 		protected ProducerConsumerConnectionBuilder(
 			final List<TestingSchedulingExecutionVertex> producers,
@@ -127,7 +125,7 @@ public class TestingSchedulingTopology
 			return this;
 		}
 
-		public ProducerConsumerConnectionBuilder withResultPartitionState(final SchedulingResultPartition.ResultPartitionState state) {
+		public ProducerConsumerConnectionBuilder withResultPartitionState(final ResultPartitionState state) {
 			this.resultPartitionState = state;
 			return this;
 		}

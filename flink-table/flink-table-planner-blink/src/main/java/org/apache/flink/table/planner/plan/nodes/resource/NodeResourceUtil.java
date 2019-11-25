@@ -34,8 +34,9 @@ public class NodeResourceUtil {
 	 * Build resourceSpec from managedMem.
 	 */
 	public static ResourceSpec fromManagedMem(int managedMem) {
-		ResourceSpec.Builder builder = ResourceSpec.newBuilder();
-		builder.setManagedMemoryInMB(managedMem);
+		ResourceSpec.Builder builder = ResourceSpec.newBuilder(0.0, 0);
+		// TODO: before operators separate on-heap/off-heap managed memory, we use on-heap managed memory to denote total managed memory
+		builder.setOnHeapManagedMemoryMB(managedMem);
 		return builder.build();
 	}
 }

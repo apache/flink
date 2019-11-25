@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable
 
 import com.google.common.collect.Sets
-import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.plan.{RelOptUtil, ViewExpanders}
 import org.apache.calcite.rel.core.{TableFunctionScan, TableScan}
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle, RelShuttleImpl}
@@ -172,7 +172,7 @@ class ExpandTableScanShuttle extends RelShuttleImpl {
       case tableScan: LogicalTableScan =>
         val viewTable = tableScan.getTable.unwrap(classOf[QueryOperationCatalogViewTable])
         if (viewTable != null) {
-          val rel = viewTable.toRel(RelOptUtil.getContext(tableScan.getCluster), tableScan.getTable)
+          val rel = viewTable.toRel(ViewExpanders.simpleContext(tableScan.getCluster))
           rel.accept(this)
         } else {
           tableScan

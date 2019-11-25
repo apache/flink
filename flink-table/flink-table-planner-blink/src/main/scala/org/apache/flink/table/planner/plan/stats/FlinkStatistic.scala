@@ -31,7 +31,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * The class provides statistics for a [[org.apache.flink.table.planner.plan.schema.FlinkTable]].
+  * The class provides statistics for a [[org.apache.calcite.schema.Table]].
   */
 class FlinkStatistic(
     tableStats: TableStats,

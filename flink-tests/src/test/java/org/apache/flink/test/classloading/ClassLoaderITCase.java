@@ -90,6 +90,9 @@ public class ClassLoaderITCase extends TestLogger {
 
 	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
+	private static final String CLASSLOADING_POLICY_JAR_PATH = "classloading_policy-test-jar.jar";
+
+
 	@ClassRule
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
@@ -140,7 +143,9 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testCustomSplitJobWithCustomClassLoaderJar() throws ProgramInvocationException {
 
-		PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
+		PackagedProgram inputSplitTestProg = PackagedProgram.newBuilder()
+			.setJarFile(new File(INPUT_SPLITS_PROG_JAR_FILE))
+			.build();
 
 		TestEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -153,7 +158,9 @@ public class ClassLoaderITCase extends TestLogger {
 
 	@Test
 	public void testStreamingCustomSplitJobWithCustomClassLoader() throws ProgramInvocationException {
-		PackagedProgram streamingInputSplitTestProg = new PackagedProgram(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE));
+		PackagedProgram streamingInputSplitTestProg = PackagedProgram.newBuilder()
+			.setJarFile(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE))
+			.build();
 
 		TestStreamEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -167,7 +174,9 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testCustomSplitJobWithCustomClassLoaderPath() throws IOException, ProgramInvocationException {
 		URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
-		PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
+		PackagedProgram inputSplitTestProg2 = PackagedProgram.newBuilder()
+			.setJarFile(new File(INPUT_SPLITS_PROG_JAR_FILE))
+			.build();
 
 		TestEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -181,7 +190,7 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testStreamingClassloaderJobWithCustomClassLoader() throws ProgramInvocationException {
 		// regular streaming job
-		PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE));
+		PackagedProgram streamingProg = PackagedProgram.newBuilder().setJarFile(new File(STREAMING_PROG_JAR_FILE)).build();
 
 		TestStreamEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -196,7 +205,9 @@ public class ClassLoaderITCase extends TestLogger {
 	public void testCheckpointedStreamingClassloaderJobWithCustomClassLoader() throws ProgramInvocationException {
 		// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
 		// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
-		PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
+		PackagedProgram streamingCheckpointedProg = PackagedProgram.newBuilder()
+			.setJarFile(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE))
+			.build();
 
 		TestStreamEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -230,13 +241,13 @@ public class ClassLoaderITCase extends TestLogger {
 
 	@Test
 	public void testKMeansJobWithCustomClassLoader() throws ProgramInvocationException {
-		PackagedProgram kMeansProg = new PackagedProgram(
-			new File(KMEANS_JAR_PATH),
-			new String[] {
+		PackagedProgram kMeansProg = PackagedProgram.newBuilder()
+			.setJarFile(new File(KMEANS_JAR_PATH))
+			.setArguments(new String[] {
 				KMeansData.DATAPOINTS,
 				KMeansData.INITIAL_CENTERS,
-				"25"
-			});
+				"25"})
+			.build();
 
 		TestEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -249,7 +260,9 @@ public class ClassLoaderITCase extends TestLogger {
 
 	@Test
 	public void testUserCodeTypeJobWithCustomClassLoader() throws ProgramInvocationException {
-		PackagedProgram userCodeTypeProg = new PackagedProgram(new File(USERCODETYPE_JAR_PATH));
+		PackagedProgram userCodeTypeProg = PackagedProgram.newBuilder()
+			.setJarFile(new File(USERCODETYPE_JAR_PATH))
+			.build();
 
 		TestEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -265,12 +278,10 @@ public class ClassLoaderITCase extends TestLogger {
 		File checkpointDir = FOLDER.newFolder();
 		File outputDir = FOLDER.newFolder();
 
-		final PackagedProgram program = new PackagedProgram(
-			new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH),
-			new String[] {
-				checkpointDir.toURI().toString(),
-				outputDir.toURI().toString()
-			});
+		final PackagedProgram program = PackagedProgram.newBuilder()
+			.setJarFile(new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH))
+			.setArguments(new String[] { checkpointDir.toURI().toString(), outputDir.toURI().toString()})
+			.build();
 
 		TestStreamEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -298,14 +309,14 @@ public class ClassLoaderITCase extends TestLogger {
 		File checkpointDir = FOLDER.newFolder();
 		File outputDir = FOLDER.newFolder();
 
-		final PackagedProgram program = new PackagedProgram(
-				new File(CUSTOM_KV_STATE_JAR_PATH),
-				new String[] {
-						String.valueOf(parallelism),
-						checkpointDir.toURI().toString(),
-						"5000",
-						outputDir.toURI().toString()
-				});
+		final PackagedProgram program = PackagedProgram.newBuilder()
+			.setJarFile(new File(CUSTOM_KV_STATE_JAR_PATH))
+			.setArguments(new String[] {
+				String.valueOf(parallelism),
+				checkpointDir.toURI().toString(),
+				"5000",
+				outputDir.toURI().toString()})
+			.build();
 
 		TestStreamEnvironment.setAsContext(
 			miniClusterResource.getMiniCluster(),
@@ -370,10 +381,82 @@ public class ClassLoaderITCase extends TestLogger {
 
 		clusterClient.disposeSavepoint(savepointPath).get();
 
-		clusterClient.cancel(jobId);
+		clusterClient.cancel(jobId).get();
 
 		// make sure, the execution is finished to not influence other test methods
 		invokeThread.join(deadline.timeLeft().toMillis());
 		assertFalse("Program invoke thread still running", invokeThread.isAlive());
+	}
+
+	@Test
+	public void testProgramWithChildFirstClassLoader() throws IOException, ProgramInvocationException {
+		// We have two files named test-resource in src/resource (parent classloader classpath) and
+		// tmp folders (child classloader classpath) respectively.
+		String childResourceDirName = "child0";
+		String testResourceName = "test-resource";
+		File childResourceDir = FOLDER.newFolder(childResourceDirName);
+		File childResource = new File(childResourceDir, testResourceName);
+		assertTrue(childResource.createNewFile());
+
+		TestStreamEnvironment.setAsContext(
+			miniClusterResource.getMiniCluster(),
+			parallelism,
+			Collections.singleton(new Path(CLASSLOADING_POLICY_JAR_PATH)),
+			Collections.emptyList());
+
+		// child-first classloading
+		Configuration childFirstConf = new Configuration();
+		childFirstConf.setString("classloader.resolve-order", "child-first");
+
+		final PackagedProgram childFirstProgram = PackagedProgram.newBuilder()
+			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
+			.setUserClassPaths(Collections.singletonList(childResourceDir.toURI().toURL()))
+			.setConfiguration(childFirstConf)
+			.setArguments(testResourceName, childResourceDirName)
+			.build();
+
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(childFirstProgram.getUserCodeClassLoader());
+		try {
+			childFirstProgram.invokeInteractiveModeForExecution();
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
+	}
+
+	@Test
+	public void testProgramWithParentFirstClassLoader() throws IOException, ProgramInvocationException {
+		// We have two files named test-resource in src/resource (parent classloader classpath) and
+		// tmp folders (child classloader classpath) respectively.
+		String childResourceDirName = "child1";
+		String testResourceName = "test-resource";
+		File childResourceDir = FOLDER.newFolder(childResourceDirName);
+		File childResource = new File(childResourceDir, testResourceName);
+		assertTrue(childResource.createNewFile());
+
+		TestStreamEnvironment.setAsContext(
+			miniClusterResource.getMiniCluster(),
+			parallelism,
+			Collections.singleton(new Path(CLASSLOADING_POLICY_JAR_PATH)),
+			Collections.emptyList());
+
+		// parent-first classloading
+		Configuration parentFirstConf = new Configuration();
+		parentFirstConf.setString("classloader.resolve-order", "parent-first");
+
+		final PackagedProgram parentFirstProgram = PackagedProgram.newBuilder()
+			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
+			.setUserClassPaths(Collections.singletonList(childResourceDir.toURI().toURL()))
+			.setConfiguration(parentFirstConf)
+			.setArguments(testResourceName, "test-classes")
+			.build();
+
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(parentFirstProgram.getUserCodeClassLoader());
+		try {
+			parentFirstProgram.invokeInteractiveModeForExecution();
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
 	}
 }

@@ -54,6 +54,7 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
@@ -63,8 +64,9 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateClientProxy;
@@ -76,6 +78,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -89,7 +92,6 @@ import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskManagerException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskSubmissionException;
-import org.apache.flink.runtime.taskexecutor.partition.PartitionTable;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcGlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcInputSplitProvider;
@@ -137,6 +139,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -163,7 +166,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final BlobCacheService blobCacheService;
 
 	/** The address to metric query service on this Task Manager. */
-	@Nullable
 	private final String metricQueryServiceAddress;
 
 	// --------- TaskManager services --------
@@ -210,7 +212,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	/** The heartbeat manager for resource manager in the task manager. */
 	private final HeartbeatManager<Void, TaskExecutorHeartbeatPayload> resourceManagerHeartbeatManager;
 
-	private final PartitionTable<JobID> partitionTable;
+	private final TaskExecutorPartitionTracker partitionTracker;
+
+	private final BackPressureSampleService backPressureSampleService;
 
 	// --------- resource manager --------
 
@@ -226,8 +230,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Nullable
 	private UUID currentRegistrationTimeoutId;
 
-	private final StackTraceSampleService stackTraceSampleService;
-
 	private Map<JobID, Collection<CompletableFuture<ExecutionState>>> taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
 
 	public TaskExecutor(
@@ -237,10 +239,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			TaskManagerServices taskExecutorServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
-			@Nullable String metricQueryServiceAddress,
+			String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler,
-			PartitionTable<JobID> partitionTable) {
+			TaskExecutorPartitionTracker partitionTracker,
+			BackPressureSampleService backPressureSampleService) {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
 
@@ -250,10 +253,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.taskExecutorServices = checkNotNull(taskExecutorServices);
 		this.haServices = checkNotNull(haServices);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
-		this.partitionTable = partitionTable;
+		this.partitionTracker = partitionTracker;
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.blobCacheService = checkNotNull(blobCacheService);
-		this.metricQueryServiceAddress = metricQueryServiceAddress;
+		this.metricQueryServiceAddress = checkNotNull(metricQueryServiceAddress);
+		this.backPressureSampleService = checkNotNull(backPressureSampleService);
 
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
 		this.jobManagerTable = taskExecutorServices.getJobManagerTable();
@@ -266,14 +270,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		this.jobManagerConnections = new HashMap<>(4);
 
-		this.hardwareDescription = HardwareDescription.extractFromSystem(
-			taskExecutorServices.getMemoryManager().getMemorySize());
+		this.hardwareDescription = HardwareDescription.extractFromSystem(taskExecutorServices.getManagedMemorySize());
 
 		this.resourceManagerAddress = null;
 		this.resourceManagerConnection = null;
 		this.currentRegistrationTimeoutId = null;
-
-		this.stackTraceSampleService = new StackTraceSampleService(rpcService.getScheduledExecutor());
 		this.taskCompletionTracker = new TaskCompletionTracker();
 
 		final ResourceID resourceId = taskExecutorServices.getTaskManagerLocation().getResourceID();
@@ -404,8 +405,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
-		taskSlotTable.stop();
-
 		try {
 			resourceManagerLeaderRetriever.stop();
 		} catch (Exception e) {
@@ -435,29 +434,22 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ======================================================================
 
 	@Override
-	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
-			final ExecutionAttemptID executionAttemptId,
-			final int sampleId,
-			final int numSamples,
-			final Time delayBetweenSamples,
-			final int maxStackTraceDepth,
-			final Time timeout) {
+	public CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
+			ExecutionAttemptID executionAttemptId,
+			int requestId,
+			@RpcTimeout Time timeout) {
 
 		final Task task = taskSlotTable.getTask(executionAttemptId);
 		if (task == null) {
 			return FutureUtils.completedExceptionally(
-				new IllegalStateException(String.format("Cannot sample task %s. " +
+				new IllegalStateException(String.format("Cannot request back pressure of task %s. " +
 					"Task is not known to the task manager.", executionAttemptId)));
 		}
+		final CompletableFuture<Double> backPressureRatioFuture =
+			backPressureSampleService.sampleTaskBackPressure(task);
 
-		final CompletableFuture<List<StackTraceElement[]>> stackTracesFuture = stackTraceSampleService.requestStackTraceSample(
-			TaskStackTraceSampleableTaskAdapter.fromTask(task),
-			numSamples,
-			delayBetweenSamples,
-			maxStackTraceDepth);
-
-		return stackTracesFuture.thenApply(stackTraces ->
-			new StackTraceSampleResponse(sampleId, executionAttemptId, stackTraces));
+		return backPressureRatioFuture.thenApply(backPressureRatio ->
+			new TaskBackPressureResponse(requestId, executionAttemptId, backPressureRatio));
 	}
 
 	// ----------------------------------------------------------------------
@@ -559,6 +551,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskRestore,
 				checkpointResponder);
 
+			MemoryManager memoryManager;
+			try {
+				memoryManager = taskSlotTable.getTaskMemoryManager(tdd.getAllocationId());
+			} catch (SlotNotFoundException e) {
+				throw new TaskSubmissionException("Could not submit task.", e);
+			}
+
 			Task task = new Task(
 				jobInformation,
 				taskInformation,
@@ -569,7 +568,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getProducedPartitions(),
 				tdd.getInputGates(),
 				tdd.getTargetSlotNumber(),
-				taskExecutorServices.getMemoryManager(),
+				memoryManager,
 				taskExecutorServices.getIOManager(),
 				taskExecutorServices.getShuffleEnvironment(),
 				taskExecutorServices.getKvStateService(),
@@ -624,15 +623,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			JobID jobId,
 			Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions,
 			CompletableFuture<ExecutionState> terminationFuture) {
-		final List<ResultPartitionID> partitionsRequiringRelease = filterPartitionsRequiringRelease(producedResultPartitions);
-
-		partitionTable.startTrackingPartitions(jobId, partitionsRequiringRelease);
+		final Set<ResultPartitionID> partitionsRequiringRelease = filterPartitionsRequiringRelease(producedResultPartitions)
+			.peek(rpdd -> partitionTracker.startTrackingPartition(jobId, rpdd.getShuffleDescriptor().getResultPartitionID(), rpdd.getResultId()))
+			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
+			.map(ShuffleDescriptor::getResultPartitionID)
+			.collect(Collectors.toSet());
 
 		final CompletableFuture<ExecutionState> taskTerminationWithResourceCleanupFuture =
 			terminationFuture.thenApplyAsync(
 				executionState -> {
 					if (executionState != ExecutionState.FINISHED) {
-						partitionTable.stopTrackingPartitions(jobId, partitionsRequiringRelease);
+						partitionTracker.stopTrackingPartitions(partitionsRequiringRelease);
 					}
 					return executionState;
 				},
@@ -650,15 +651,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			});
 	}
 
-	private List<ResultPartitionID> filterPartitionsRequiringRelease(Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions) {
+	private Stream<ResultPartitionDeploymentDescriptor> filterPartitionsRequiringRelease(Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions) {
 		return producedResultPartitions.stream()
 			// only blocking partitions require explicit release call
 			.filter(d -> d.getPartitionType().isBlocking())
-			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
 			// partitions without local resources don't store anything on the TaskExecutor
-			.filter(d -> d.storesLocalResourcesOn().isPresent())
-			.map(ShuffleDescriptor::getResultPartitionID)
-			.collect(Collectors.toList());
+			.filter(d -> d.getShuffleDescriptor().storesLocalResourcesOn().isPresent());
 	}
 
 	@Override
@@ -727,8 +725,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Override
 	public void releaseOrPromotePartitions(JobID jobId, Set<ResultPartitionID> partitionToRelease, Set<ResultPartitionID> partitionsToPromote) {
 		try {
-			partitionTable.stopTrackingPartitions(jobId, partitionToRelease);
-			shuffleEnvironment.releasePartitionsLocally(partitionToRelease);
+			partitionTracker.stopTrackingAndReleaseJobPartitions(partitionToRelease);
+			partitionTracker.promoteJobPartitions(partitionsToPromote);
+
 			closeJobManagerConnectionIfNoAllocatedResources(jobId);
 		} catch (Throwable t) {
 			// TODO: Do we still need this catch branch?
@@ -1070,6 +1069,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			resourceManagerGateway.disconnectTaskManager(getResourceID(), cause);
 
 			establishedResourceManagerConnection = null;
+
+			partitionTracker.stopTrackingAndReleaseAllClusterPartitions();
 		}
 
 		if (resourceManagerConnection != null) {
@@ -1369,8 +1370,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		if (taskTerminationFutures != null) {
 			FutureUtils.waitForAll(taskTerminationFutures)
 				.thenRunAsync(() -> {
-					Collection<ResultPartitionID> partitionsForJob = partitionTable.stopTrackingPartitions(jobId);
-					shuffleEnvironment.releasePartitionsLocally(partitionsForJob);
+					partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
 				}, getMainThreadExecutor());
 		}
 	}
@@ -1496,7 +1496,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private void closeJobManagerConnectionIfNoAllocatedResources(JobID jobId) {
 		// check whether we still have allocated slots for the same job
-		if (taskSlotTable.getAllocationIdsPerJob(jobId).isEmpty() && !partitionTable.hasTrackedPartitions(jobId)) {
+		if (taskSlotTable.getAllocationIdsPerJob(jobId).isEmpty() && !partitionTracker.isTrackingPartitionsFor(jobId)) {
 			// we can remove the job from the job leader service
 			try {
 				jobLeaderService.removeJob(jobId);

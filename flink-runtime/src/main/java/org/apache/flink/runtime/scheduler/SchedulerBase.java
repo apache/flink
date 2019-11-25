@@ -69,6 +69,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
@@ -99,7 +100,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.apache.flink.runtime.metrics.MetricNames.NUMBER_OF_RESTARTS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -140,8 +140,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private final BlobWriter blobWriter;
 
-	private final Time slotRequestTimeout;
+	private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
+	private final Time slotRequestTimeout;
 
 	private ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 		"SchedulerBase is not initialized with proper main thread executor. " +
@@ -188,6 +189,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		log.info("Using restart strategy {} for {} ({}).", this.restartStrategy, jobGraph.getName(), jobGraph.getJobID());
 
 		this.blobWriter = checkNotNull(blobWriter);
+		this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
 		this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
 
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
@@ -195,8 +197,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.failoverTopology = executionGraph.getFailoverTopology();
 
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
-
-		jobManagerJobMetricGroup.gauge(NUMBER_OF_RESTARTS, this::getNumberOfRestarts);
 	}
 
 	private ExecutionGraph createAndRestoreExecutionGraph(
@@ -395,7 +395,13 @@ public abstract class SchedulerBase implements SchedulerNG {
 	@Override
 	public final void startScheduling() {
 		mainThreadExecutor.assertRunningInMainThread();
+		registerJobMetrics();
 		startSchedulingInternal();
+	}
+
+	private void registerJobMetrics() {
+		jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, this::getNumberOfRestarts);
+		jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, this::getNumberOfRestarts);
 	}
 
 	protected abstract void startSchedulingInternal();

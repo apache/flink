@@ -19,71 +19,88 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.sources.TableSourceUtil
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
+import org.apache.flink.table.api.{TableException, WatermarkSpec}
+
+import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
+
+import java.util.{List => JList}
+
+import scala.collection.JavaConverters._
 
 /**
-  * Abstract class which define the interfaces required to convert a [[TableSource]] to
-  * a Calcite Table
+  * A [[FlinkPreparingTableBase]] implementation which defines the context variables
+  * required to translate the Calcite [[RelOptTable]] to the Flink specific
+  * relational expression with [[TableSource]].
   *
-  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table.
-  * @param isStreamingMode A flag that tells if the current table is in stream mode.
-  * @param statistic The table statistics.
+  * <p>It also defines the [[copy]] method used for push down rules.
+  *
+  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table
+  * @param isStreamingMode A flag that tells if the current table is in stream mode
+  * @param catalogTable Catalog table where this table source table comes from
   */
 class TableSourceTable[T](
+    relOptSchema: RelOptSchema,
+    names: JList[String],
+    rowType: RelDataType,
+    statistic: FlinkStatistic,
     val tableSource: TableSource[T],
     val isStreamingMode: Boolean,
-    val statistic: FlinkStatistic,
-    val selectedFields: Option[Array[Int]],
     val catalogTable: CatalogTable)
-  extends FlinkTable {
+  extends FlinkPreparingTableBase(relOptSchema, rowType, names, statistic) {
 
-  def this(
-      tableSource: TableSource[T],
-      isStreamingMode: Boolean,
-      statistic: FlinkStatistic,
-      catalogTable: CatalogTable) {
-    this(tableSource, isStreamingMode, statistic, None, catalogTable)
+  Preconditions.checkNotNull(tableSource)
+  Preconditions.checkNotNull(statistic)
+  Preconditions.checkNotNull(catalogTable)
+
+  val watermarkSpec: Option[WatermarkSpec] = catalogTable
+    .getSchema
+    // we only support single watermark currently
+    .getWatermarkSpecs.asScala.headOption
+
+  if (TableSourceValidation.hasRowtimeAttribute(tableSource) && watermarkSpec.isDefined) {
+    throw new TableException(
+        "If watermark is specified in DDL, the underlying TableSource of connector shouldn't" +
+          " return an non-empty list of RowtimeAttributeDescriptor" +
+          " via DefinedRowtimeAttributes interface.")
   }
 
-  // TODO implements this
-  // TableSourceUtil.validateTableSource(tableSource)
-
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    TableSourceUtil.getRelDataType(
-      tableSource,
-      selectedFields,
-      streaming = isStreamingMode,
-      typeFactory.asInstanceOf[FlinkTypeFactory])
-  }
+  override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
 
   /**
-    * Creates a copy of this table, changing statistic.
+    * Creates a copy of this table, changing table source and statistic.
     *
-    * @param statistic A new FlinkStatistic.
-    * @return Copy of this table, substituting statistic.
+    * @param tableSource tableSource to replace
+    * @param statistic New FlinkStatistic to replace
+    * @return New TableSourceTable instance with specified table source and [[FlinkStatistic]]
     */
-  override def copy(statistic: FlinkStatistic): TableSourceTable[T] = {
-    new TableSourceTable(tableSource, isStreamingMode, statistic, catalogTable)
+  def copy(tableSource: TableSource[_], statistic: FlinkStatistic): TableSourceTable[T] = {
+    new TableSourceTable[T](relOptSchema, names, rowType, statistic,
+      tableSource.asInstanceOf[TableSource[T]], isStreamingMode, catalogTable)
   }
 
   /**
-    * Returns statistics of current table.
-    */
-  override def getStatistic: FlinkStatistic = statistic
-
-  /**
-    * Replaces table source with the given one, and create a new table source table.
+    * Creates a copy of this table, changing table source and rowType based on
+    * selected fields.
     *
-    * @param tableSource tableSource to replace.
-    * @return new TableSourceTable
+    * @param tableSource tableSource to replace
+    * @param selectedFields Selected indices of the table source output fields
+    * @return New TableSourceTable instance with specified table source
+    *         and selected fields
     */
-  def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T] = {
-    new TableSourceTable[T](
-      tableSource, isStreamingMode, statistic, catalogTable)
+  def copy(tableSource: TableSource[_], selectedFields: Array[Int]): TableSourceTable[T] = {
+    val newRowType = relOptSchema
+      .getTypeFactory
+      .createStructType(
+        selectedFields
+          .map(idx => rowType.getFieldList.get(idx))
+          .toList
+          .asJava)
+    new TableSourceTable[T](relOptSchema, names, newRowType, statistic,
+      tableSource.asInstanceOf[TableSource[T]], isStreamingMode, catalogTable)
   }
 }

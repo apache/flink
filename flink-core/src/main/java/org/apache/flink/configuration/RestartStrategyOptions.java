@@ -23,6 +23,8 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -69,6 +71,7 @@ public class RestartStrategyOptions {
 
 	public static final ConfigOption<Integer> RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS = ConfigOptions
 		.key("restart-strategy.fixed-delay.attempts")
+		.intType()
 		.defaultValue(1)
 		.withDescription(
 			Description.builder()
@@ -78,9 +81,10 @@ public class RestartStrategyOptions {
 					code("fixed-delay"))
 				.build());
 
-	public static final ConfigOption<String> RESTART_STRATEGY_FIXED_DELAY_DELAY = ConfigOptions
+	public static final ConfigOption<Duration> RESTART_STRATEGY_FIXED_DELAY_DELAY = ConfigOptions
 		.key("restart-strategy.fixed-delay.delay")
-		.defaultValue("1 s")
+		.durationType()
+		.defaultValue(Duration.ofSeconds(1))
 		.withDescription(
 			Description.builder()
 				.text(
@@ -103,9 +107,10 @@ public class RestartStrategyOptions {
 					code("failure-rate"))
 				.build());
 
-	public static final ConfigOption<String> RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL = ConfigOptions
+	public static final ConfigOption<Duration> RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL = ConfigOptions
 		.key("restart-strategy.failure-rate.failure-rate-interval")
-		.defaultValue("1 min")
+		.durationType()
+		.defaultValue(Duration.ofMinutes(1))
 		.withDescription(
 			Description.builder()
 				.text(
@@ -115,9 +120,10 @@ public class RestartStrategyOptions {
 					code("failure-rate"))
 				.build());
 
-	public static final ConfigOption<String> RESTART_STRATEGY_FAILURE_RATE_DELAY = ConfigOptions
+	public static final ConfigOption<Duration> RESTART_STRATEGY_FAILURE_RATE_DELAY = ConfigOptions
 		.key("restart-strategy.failure-rate.delay")
-		.defaultValue("1 s")
+		.durationType()
+		.defaultValue(Duration.ofSeconds(1))
 		.withDescription(
 			Description.builder()
 				.text(

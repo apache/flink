@@ -29,10 +29,9 @@ import org.apache.flink.table.planner.plan.`trait`.{MiniBatchIntervalTraitDef, M
 import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
-import org.apache.flink.table.runtime.operators.wmassigners.{MiniBatchAssignerOperator, MiniBatchedWatermarkAssignerOperator, WatermarkAssignerOperator}
+import org.apache.flink.table.runtime.operators.wmassigners.{BoundedOutOfOrderWatermarkGenerator, MiniBatchAssignerOperator, MiniBatchedWatermarkAssignerOperator, WatermarkAssignerOperator}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 
@@ -126,7 +125,10 @@ class StreamExecWatermarkAssigner(
       // 1. redundant watermark definition in DDL
       // 2. existing window aggregate
       // 3. operator requiring watermark, but minibatch is not enabled
-      new WatermarkAssignerOperator(rowtimeFieldIndex.get, watermarkDelay.get, idleTimeout)
+      new WatermarkAssignerOperator(
+        rowtimeFieldIndex.get,
+        new BoundedOutOfOrderWatermarkGenerator(rowtimeFieldIndex.get, watermarkDelay.get),
+        idleTimeout)
     } else if (inferredInterval.mode == MiniBatchMode.ProcTime) {
       new MiniBatchAssignerOperator(inferredInterval.interval)
     } else {

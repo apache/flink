@@ -62,7 +62,7 @@ public abstract class SchedulerTestBase extends TestLogger {
 
 	protected TestingSlotPoolSlotProvider testingSlotProvider;
 
-	private SlotPool slotPool;
+	private TestingSlotPoolImpl slotPool;
 
 	private Scheduler scheduler;
 
@@ -101,6 +101,9 @@ public abstract class SchedulerTestBase extends TestLogger {
 		CompletableFuture.runAsync(runnable, componentMainThreadExecutor).join();
 	}
 
+	/**
+	 * A test implementation of {@link SlotProvider}.
+	 */
 	protected final class TestingSlotPoolSlotProvider implements SlotProvider {
 
 		private final AtomicInteger numberOfLocalizedAssignments;
@@ -220,6 +223,10 @@ public abstract class SchedulerTestBase extends TestLogger {
 		@Override
 		public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 
+		}
+
+		public TestingSlotPoolImpl getSlotPool() {
+			return slotPool;
 		}
 	}
 

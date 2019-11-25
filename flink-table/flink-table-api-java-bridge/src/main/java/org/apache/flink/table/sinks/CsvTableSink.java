@@ -178,7 +178,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 			StringBuilder builder = new StringBuilder();
 			Object o;
 			for (int i = 0; i < row.getArity(); i++) {
-				if (builder.length() != 0) {
+				if (i > 0) {
 					builder.append(fieldDelim);
 				}
 				if ((o = row.getField(i)) != null) {

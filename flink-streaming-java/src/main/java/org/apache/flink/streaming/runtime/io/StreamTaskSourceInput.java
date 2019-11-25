@@ -46,8 +46,8 @@ public final class StreamTaskSourceInput<T> implements StreamTaskInput<T> {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return operator.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return operator.getAvailableFuture();
 	}
 
 	/**

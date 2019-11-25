@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
+import org.apache.flink.client.deployment.executors.StandaloneSessionClusterExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 
@@ -57,7 +58,7 @@ public class ClusterClientServiceLoaderTest {
 	@Test
 	public void testStandaloneClusterClientFactoryDiscovery() {
 		final Configuration config = new Configuration();
-		config.setString(DeploymentOptions.TARGET, StandaloneClientFactory.ID);
+		config.setString(DeploymentOptions.TARGET, StandaloneSessionClusterExecutor.NAME);
 
 		ClusterClientFactory<StandaloneClusterId> factory = serviceLoaderUnderTest.getClusterClientFactory(config);
 		assertTrue(factory instanceof StandaloneClientFactory);

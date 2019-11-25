@@ -37,10 +37,8 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
@@ -78,6 +76,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -113,23 +112,6 @@ public class HiveShimV100 implements HiveShim {
 			}
 		}
 		return views;
-	}
-
-	@Override
-	public Function getFunction(IMetaStoreClient client, String dbName, String functionName) throws NoSuchObjectException, TException {
-		try {
-			// hive-1.x doesn't throw NoSuchObjectException if function doesn't exist, instead it throws a MetaException
-			return client.getFunction(dbName, functionName);
-		} catch (MetaException e) {
-			// need to check the cause and message of this MetaException to decide whether it should actually be a NoSuchObjectException
-			if (e.getCause() instanceof NoSuchObjectException) {
-				throw (NoSuchObjectException) e.getCause();
-			}
-			if (e.getMessage().startsWith(NoSuchObjectException.class.getSimpleName())) {
-				throw new NoSuchObjectException(e.getMessage());
-			}
-			throw e;
-		}
 	}
 
 	@Override
@@ -351,5 +333,11 @@ public class HiveShimV100 implements HiveShim {
 		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
 		// prior to Hive 1.2.0
 		throw new UnsupportedOperationException("Getting built in functions are not supported until Hive 1.2.0");
+	}
+
+	@Override
+	public Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName) {
+		// NOT NULL constraints not supported until 3.0.0 -- HIVE-16575
+		return Collections.emptySet();
 	}
 }

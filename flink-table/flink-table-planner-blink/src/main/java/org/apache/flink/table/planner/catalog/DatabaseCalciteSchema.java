@@ -18,31 +18,19 @@
 
 package org.apache.flink.table.planner.catalog;
 
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
-import org.apache.flink.table.factories.TableFactory;
-import org.apache.flink.table.factories.TableFactoryUtil;
-import org.apache.flink.table.factories.TableSourceFactory;
-import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.plan.stats.TableStats;
-import org.apache.flink.table.planner.operations.DataStreamQueryOperation;
-import org.apache.flink.table.planner.operations.RichTableSourceQueryOperation;
-import org.apache.flink.table.planner.plan.schema.TableSinkTable;
-import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
-import org.apache.flink.table.sources.LookupableTableSource;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.TableSource;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.schema.Schema;
@@ -50,12 +38,7 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 
-import javax.annotation.Nullable;
-
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
@@ -85,152 +68,47 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		return catalogManager.getTable(identifier)
 			.map(result -> {
 				CatalogBaseTable table = result.getTable();
-				if (result.isTemporary()) {
-					return convertTemporaryTable(new ObjectPath(databaseName, tableName), table);
-				} else {
-					return convertPermanentTable(
-						identifier.toObjectPath(),
-						table,
-						catalogManager.getCatalog(catalogName)
-							.flatMap(Catalog::getTableFactory)
-							.orElse(null)
-					);
-				}
+				Catalog catalog = catalogManager.getCatalog(catalogName).get();
+				FlinkStatistic statistic = getStatistic(result.isTemporary(),
+					catalog, table, identifier);
+				return new CatalogSchemaTable(identifier,
+					table,
+					statistic,
+					catalog.getTableFactory().orElse(null),
+					isStreamingMode,
+					result.isTemporary());
 			})
 			.orElse(null);
 	}
 
-	private Table convertPermanentTable(
-			ObjectPath tablePath,
-			CatalogBaseTable table,
-			@Nullable TableFactory tableFactory) {
-		// TODO supports GenericCatalogView
-		if (table instanceof QueryOperationCatalogView) {
-			return convertQueryOperationView(tablePath, (QueryOperationCatalogView) table);
-		} else if (table instanceof ConnectorCatalogTable) {
-			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
-			if ((connectorTable).getTableSource().isPresent()) {
-				TableStats tableStats = extractTableStats(connectorTable, tablePath);
-				return convertSourceTable(connectorTable, tableStats);
-			} else {
-				return convertSinkTable(connectorTable);
-			}
-		} else if (table instanceof CatalogTable) {
-			return convertCatalogTable(tablePath, (CatalogTable) table, tableFactory);
+	private static FlinkStatistic getStatistic(boolean isTemporary, Catalog catalog,
+			CatalogBaseTable catalogBaseTable, ObjectIdentifier tableIdentifier) {
+		if (isTemporary || catalogBaseTable instanceof QueryOperationCatalogView) {
+			return FlinkStatistic.UNKNOWN();
+		}
+		if (catalogBaseTable instanceof CatalogTable) {
+			return FlinkStatistic.builder()
+				.tableStats(extractTableStats(catalog, tableIdentifier))
+				.build();
 		} else {
-			throw new TableException("Unsupported table type: " + table);
+			return FlinkStatistic.UNKNOWN();
 		}
 	}
 
-	private Table convertTemporaryTable(
-			ObjectPath tablePath,
-			CatalogBaseTable table) {
-		// TODO supports GenericCatalogView
-		if (table instanceof QueryOperationCatalogView) {
-			return convertQueryOperationView(tablePath, (QueryOperationCatalogView) table);
-		} else if (table instanceof ConnectorCatalogTable) {
-			ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
-			if ((connectorTable).getTableSource().isPresent()) {
-				return convertSourceTable(connectorTable, TableStats.UNKNOWN);
-			} else {
-				return convertSinkTable(connectorTable);
-			}
-		} else if (table instanceof CatalogTable) {
-			return convertCatalogTable(tablePath, (CatalogTable) table, null);
-		} else {
-			throw new TableException("Unsupported table type: " + table);
-		}
-	}
-
-	private Table convertQueryOperationView(ObjectPath tablePath, QueryOperationCatalogView table) {
-		QueryOperation operation = table.getQueryOperation();
-		if (operation instanceof DataStreamQueryOperation) {
-			List<String> qualifiedName = Arrays.asList(catalogName, databaseName, tablePath.getObjectName());
-			((DataStreamQueryOperation) operation).setQualifiedName(qualifiedName);
-		} else if (operation instanceof RichTableSourceQueryOperation) {
-			List<String> qualifiedName = Arrays.asList(catalogName, databaseName, tablePath.getObjectName());
-			((RichTableSourceQueryOperation) operation).setQualifiedName(qualifiedName);
-		}
-		return QueryOperationCatalogViewTable.createCalciteTable(table);
-	}
-
-	private Table convertSinkTable(ConnectorCatalogTable<?, ?> table) {
-		Optional<TableSinkTable> tableSinkTable = table.getTableSink()
-			.map(tableSink -> new TableSinkTable<>(
-				tableSink,
-				FlinkStatistic.UNKNOWN()));
-		if (tableSinkTable.isPresent()) {
-			return tableSinkTable.get();
-		} else {
-			throw new TableException("Cannot convert a connector table " +
-				"without either source or sink.");
-		}
-	}
-
-	private Table convertSourceTable(
-			ConnectorCatalogTable<?, ?> table,
-			TableStats tableStats) {
-		TableSource<?> tableSource = table.getTableSource().get();
-		if (!(tableSource instanceof StreamTableSource ||
-				tableSource instanceof LookupableTableSource)) {
-			throw new TableException(
-				"Only StreamTableSource and LookupableTableSource can be used in Blink planner.");
-		}
-		if (!isStreamingMode && tableSource instanceof StreamTableSource &&
-			!((StreamTableSource<?>) tableSource).isBounded()) {
-			throw new TableException("Only bounded StreamTableSource can be used in batch mode.");
-		}
-
-		return new TableSourceTable<>(
-			tableSource,
-			isStreamingMode,
-			FlinkStatistic.builder().tableStats(tableStats).build(),
-			null);
-	}
-
-	private TableStats extractTableStats(ConnectorCatalogTable<?, ?> table, ObjectPath tablePath) {
-		TableStats tableStats = TableStats.UNKNOWN;
+	private static TableStats extractTableStats(Catalog catalog,
+			ObjectIdentifier objectIdentifier) {
+		final ObjectPath tablePath = objectIdentifier.toObjectPath();
 		try {
-			// TODO supports stats for partitionable table
-			if (!table.isPartitioned()) {
-				Catalog catalog = catalogManager.getCatalog(catalogName).get();
-				CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
-				CatalogColumnStatistics columnStatistics = catalog.getTableColumnStatistics(tablePath);
-				tableStats = convertToTableStats(tableStatistics, columnStatistics);
-			}
-			return tableStats;
+			CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
+			CatalogColumnStatistics columnStatistics = catalog.getTableColumnStatistics(tablePath);
+			return convertToTableStats(tableStatistics, columnStatistics);
 		} catch (TableNotExistException e) {
-			throw new TableException(format(
-				"Could not access table partitions for table: [%s, %s, %s]",
-				catalogName,
-				databaseName,
+			throw new ValidationException(format(
+				"Could not get statistic for table: [%s, %s, %s]",
+				objectIdentifier.getCatalogName(),
+				tablePath.getDatabaseName(),
 				tablePath.getObjectName()), e);
 		}
-	}
-
-	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table, @Nullable TableFactory tableFactory) {
-		TableSource<?> tableSource;
-		if (tableFactory != null) {
-			if (tableFactory instanceof TableSourceFactory) {
-				tableSource = ((TableSourceFactory) tableFactory).createTableSource(tablePath, table);
-			} else {
-				throw new TableException(
-					"Cannot query a sink-only table. TableFactory provided by catalog must implement TableSourceFactory");
-			}
-		} else {
-			tableSource = TableFactoryUtil.findAndCreateTableSource(table);
-		}
-
-		if (!(tableSource instanceof StreamTableSource)) {
-			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");
-		}
-
-		return new TableSourceTable<>(
-			tableSource,
-			!((StreamTableSource<?>) tableSource).isBounded(),
-			FlinkStatistic.UNKNOWN(),
-			table
-		);
 	}
 
 	@Override

@@ -26,6 +26,7 @@ function setup_elasticsearch {
     mkdir -p $TEST_DATA_DIR
 
     local downloadUrl=$1
+    local elasticsearch_version=${2-0}
 
     # start downloading Elasticsearch
     echo "Downloading Elasticsearch from $downloadUrl ..."
@@ -34,6 +35,10 @@ function setup_elasticsearch {
     local elasticsearchDir=$TEST_DATA_DIR/elasticsearch
     mkdir -p $elasticsearchDir
     tar xzf $TEST_DATA_DIR/elasticsearch.tar.gz -C $elasticsearchDir --strip-components=1
+
+    if [ `uname -i` == 'aarch64' ] && [ $elasticsearch_version -ge 6 ]; then
+      echo xpack.ml.enabled: false >> $elasticsearchDir/config/elasticsearch.yml
+    fi
 
     # start Elasticsearch cluster
     $elasticsearchDir/bin/elasticsearch &

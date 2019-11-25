@@ -449,17 +449,17 @@ object UserDefinedFunctionUtils {
   /**
     * Create [[SqlFunction]] for a [[ScalarFunction]]
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param function scalar function
     * @param typeFactory type factory
     * @return the ScalarSqlFunction
     */
   def createScalarSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       function: ScalarFunction,
       typeFactory: FlinkTypeFactory): SqlFunction = {
-    new ScalarSqlFunction(name, displayName, function, typeFactory)
+    new ScalarSqlFunction(identifier, displayName, function, typeFactory)
   }
 
   /**
@@ -478,34 +478,34 @@ object UserDefinedFunctionUtils {
     * For all the other cases, please use
     * createTableSqlFunction (String, String, TableFunction, FlinkTypeFactory) instead.
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param tableFunction table function
     * @param implicitResultType the implicit type information of returned table
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
   def createTableSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       tableFunction: TableFunction[_],
       implicitResultType: DataType,
       typeFactory: FlinkTypeFactory): TableSqlFunction = {
     // we don't know the exact result type yet.
     val function = new DeferredTypeFlinkTableFunction(tableFunction, implicitResultType)
-    new TableSqlFunction(name, displayName, tableFunction, implicitResultType,
+    new TableSqlFunction(identifier, displayName, tableFunction, implicitResultType,
       typeFactory, function)
   }
 
   /**
     * Create [[SqlFunction]] for an [[AggregateFunction]]
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param aggFunction aggregate function
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
   def createAggregateSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       aggFunction: AggregateFunction[_, _],
       externalResultType: DataType,
@@ -516,7 +516,7 @@ object UserDefinedFunctionUtils {
     checkAndExtractMethods(aggFunction, "accumulate")
 
     AggSqlFunction(
-      name,
+      identifier,
       displayName,
       aggFunction,
       externalResultType,

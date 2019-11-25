@@ -66,6 +66,11 @@ public interface Executor {
 	List<String> listFunctions(SessionContext session) throws SqlExecutionException;
 
 	/**
+	 * Lists all modules known to the executor in their loaded order.
+	 */
+	List<String> listModules(SessionContext session) throws SqlExecutionException;
+
+	/**
 	 * Sets a catalog with given name as the current catalog.
 	 */
 	void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException;

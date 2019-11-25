@@ -359,6 +359,20 @@ public class TaskMailboxImplTest {
 		assertEquals(Arrays.asList(mailA, mailB), taskMailbox.drain());
 	}
 
+	@Test
+	public void testBatchPriority() throws Exception {
+
+		Mail mailA = new Mail(() -> {}, 1, "mailA");
+		Mail mailB = new Mail(() -> {}, 2, "mailB");
+
+		taskMailbox.put(mailA);
+		Assert.assertTrue(taskMailbox.createBatch());
+		taskMailbox.put(mailB);
+
+		assertEquals(mailB, taskMailbox.take(2));
+		assertEquals(Optional.of(mailA), taskMailbox.tryTakeFromBatch());
+	}
+
 	/**
 	 * Testing that we cannot close while running exclusively.
 	 */

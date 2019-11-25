@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.java.typeutils.MapTypeInfo
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.functions.FunctionIdentifier
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
@@ -123,7 +124,7 @@ class LogicalUnnestRule(
 
           // create sql function
           val explodeSqlFunc = UserDefinedFunctionUtils.createTableSqlFunction(
-            "explode",
+            FunctionIdentifier.of("explode"),
             "explode",
             explodeTableFunc,
             fromLogicalTypeToDataType(toLogicalType(componentType)),

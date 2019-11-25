@@ -18,8 +18,11 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableImpl;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
@@ -50,6 +53,7 @@ import java.util.Map;
 import scala.collection.JavaConverters;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -117,7 +121,7 @@ public class TableEnvHiveConnectorTest {
 	public void testDifferentFormats() throws Exception {
 		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv"};
 		for (String format : formats) {
-			if (format.equals("orc") && hmsClient.getHiveVersion().startsWith("2.0")) {
+			if (format.equals("orc") && HiveShimLoader.getHiveVersion().startsWith("2.0")) {
 				// Ignore orc test for Hive version 2.0.x for now due to FLINK-13998
 				continue;
 			}
@@ -302,6 +306,25 @@ public class TableEnvHiveConnectorTest {
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 			hiveShell.execute("drop function hiveudtf");
+		}
+	}
+
+	@Test
+	public void testNotNullConstraints() throws Exception {
+		Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.tbl (x int,y bigint not null enable rely,z string not null enable norely)");
+			CatalogBaseTable catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl"));
+			TableSchema tableSchema = catalogTable.getSchema();
+			assertTrue("By default columns should be nullable",
+					tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable());
+			assertFalse("NOT NULL columns should be reflected in table schema",
+					tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable());
+			assertTrue("NOT NULL NORELY columns should be considered nullable",
+					tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
 		}
 	}
 

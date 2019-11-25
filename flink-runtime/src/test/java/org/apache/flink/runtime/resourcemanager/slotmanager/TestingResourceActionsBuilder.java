@@ -36,7 +36,7 @@ import java.util.function.Consumer;
  */
 public class TestingResourceActionsBuilder {
 	private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
-	private FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction = (ignored) -> Collections.singleton(ResourceProfile.UNKNOWN);
+	private FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction = (ignored) -> Collections.singleton(ResourceProfile.ANY);
 	private Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer = (ignored) -> {};
 
 	public TestingResourceActionsBuilder setReleaseResourceConsumer(BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
@@ -52,7 +52,7 @@ public class TestingResourceActionsBuilder {
 	public TestingResourceActionsBuilder setAllocateResourceConsumer(Consumer<ResourceProfile> allocateResourceConsumer) {
 		this.allocateResourceFunction = (ResourceProfile resourceProfile) -> {
 			allocateResourceConsumer.accept(resourceProfile);
-			return Collections.singleton(ResourceProfile.UNKNOWN);
+			return Collections.singleton(ResourceProfile.ANY);
 		};
 		return this;
 	}

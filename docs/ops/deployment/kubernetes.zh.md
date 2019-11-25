@@ -34,13 +34,13 @@ Please follow [Kubernetes' setup guide](https://kubernetes.io/docs/setup/) in or
 If you want to run Kubernetes locally, we recommend using [MiniKube](https://kubernetes.io/docs/setup/minikube/).
 
 <div class="alert alert-info" markdown="span">
-  <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster. 
-  Otherwise Flink components are not able to self reference themselves through a Kubernetes service. 
+  <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster.
+  Otherwise Flink components are not able to self reference themselves through a Kubernetes service.
 </div>
 
 ## Flink session cluster on Kubernetes
 
-A Flink session cluster is executed as a long-running Kubernetes Deployment. 
+A Flink session cluster is executed as a long-running Kubernetes Deployment.
 Note that you can run multiple Flink jobs on a session cluster.
 Each job needs to be submitted to the cluster after the cluster has been deployed.
 
@@ -89,15 +89,15 @@ In order to terminate the Flink session cluster, use `kubectl`:
 
 ## Flink job cluster on Kubernetes
 
-A Flink job cluster is a dedicated cluster which runs a single job. 
-The job is part of the image and, thus, there is no extra job submission needed. 
+A Flink job cluster is a dedicated cluster which runs a single job.
+The job is part of the image and, thus, there is no extra job submission needed.
 
 ### Creating the job-specific image
 
 The Flink job cluster image needs to contain the user code jars of the job for which the cluster is started.
 Therefore, one needs to build a dedicated container image for every job.
 Please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/README.md) to build the Docker image.
-    
+
 ### Deploy Flink job cluster on Kubernetes
 
 In order to deploy the a job cluster on Kubernetes please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/kubernetes/README.md#deploy-flink-job-cluster).
@@ -145,12 +145,16 @@ data:
 
 `jobmanager-deployment.yaml`
 {% highlight yaml %}
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flink-jobmanager
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: jobmanager
   template:
     metadata:
       labels:
@@ -183,6 +187,8 @@ spec:
         volumeMounts:
         - name: flink-config-volume
           mountPath: /opt/flink/conf
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
       volumes:
       - name: flink-config-volume
         configMap:
@@ -196,12 +202,16 @@ spec:
 
 `taskmanager-deployment.yaml`
 {% highlight yaml %}
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flink-taskmanager
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
   template:
     metadata:
       labels:
@@ -230,6 +240,8 @@ spec:
         volumeMounts:
         - name: flink-config-volume
           mountPath: /opt/flink/conf/
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
       volumes:
       - name: flink-config-volume
         configMap:

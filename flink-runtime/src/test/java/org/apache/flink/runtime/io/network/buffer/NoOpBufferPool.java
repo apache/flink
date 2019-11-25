@@ -90,7 +90,7 @@ public class NoOpBufferPool implements BufferPool {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
+	public CompletableFuture<?> getAvailableFuture() {
 		return AVAILABLE;
 	}
 }

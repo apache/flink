@@ -60,12 +60,12 @@ public class BatchExecutorTest extends TestLogger {
 			}),
 			BasicTypeInfo.STRING_TYPE_INFO,
 			1);
-
-		streamGraph = batchExecutor.generateStreamGraph(Collections.singletonList(testTransform), "Test Job");
+		batchExecutor.apply(Collections.singletonList(testTransform));
+		streamGraph = batchExecutor.getStreamGraph("Test Job");
 	}
 
 	@Test
 	public void testAllVerticesInSameSlotSharingGroupByDefaultIsDisabled() {
-		assertFalse(streamGraph.getExecutionConfig().isAllVerticesInSameSlotSharingGroupByDefault());
+		assertFalse(streamGraph.isAllVerticesInSameSlotSharingGroupByDefault());
 	}
 }

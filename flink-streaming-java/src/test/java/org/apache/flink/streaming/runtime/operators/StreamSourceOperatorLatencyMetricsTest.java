@@ -68,9 +68,8 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 	 */
 	@Test
 	public void testLatencyMarkEmissionDisabled() throws Exception {
-		testLatencyMarkEmission(0, (operator, timeProvider) -> {
-			setupSourceOperator(operator, new ExecutionConfig(), MockEnvironment.builder().build(), timeProvider);
-		});
+		testLatencyMarkEmission(0,
+			(operator, timeProvider) -> setupSourceOperator(operator, new ExecutionConfig(), MockEnvironment.builder().build(), timeProvider));
 	}
 
 	/**
@@ -168,9 +167,10 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 		// run and wait to be stopped
 		OperatorChain<?, ?> operatorChain = new OperatorChain<>(
 			operator.getContainingTask(),
-			StreamTask.createRecordWriters(operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
+			StreamTask.createRecordWriterDelegate(operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
 		try {
-			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<Long>(output), operatorChain);
+			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<>(output), operatorChain);
+			operator.close();
 		} finally {
 			operatorChain.releaseOutputs();
 		}
@@ -206,6 +206,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
+	@SuppressWarnings("unchecked")
 	private static <T> void setupSourceOperator(
 			StreamSource<T, ?> operator,
 			ExecutionConfig executionConfig,

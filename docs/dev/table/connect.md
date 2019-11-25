@@ -99,7 +99,7 @@ tableEnvironment
   .withFormat(...)
   .withSchema(...)
   .inAppendMode()
-  .registerTableSource("MyTable")
+  .createTemporaryTable("MyTable")
 {% endhighlight %}
 </div>
 
@@ -110,7 +110,7 @@ table_environment \
     .with_format(...) \
     .with_schema(...) \
     .in_append_mode() \
-    .register_table_source("MyTable")
+    .create_temporary_table("MyTable")
 {% endhighlight %}
 </div>
 
@@ -184,8 +184,8 @@ tableEnvironment
   // specify the update-mode for streaming tables
   .inAppendMode()
 
-  // register as source, sink, or both and under a name
-  .registerTableSource("MyUserTable");
+  // create a table with given name
+  .createTemporaryTable("MyUserTable");
 {% endhighlight %}
 </div>
 
@@ -227,7 +227,7 @@ table_environment \
         .field("message", DataTypes.STRING())
     ) \
     .in_append_mode() \
-    .register_table_source("MyUserTable")  
+    .create_temporary_table("MyUserTable")  
     # specify the update-mode for streaming tables and
     # register as source, sink, or both and under a name
 {% endhighlight %}

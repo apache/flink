@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -27,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
 import java.util.ArrayList;
@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -110,7 +109,8 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 				new DefaultResultPartition(
 					irp.getPartitionId(),
 					irp.getIntermediateResult().getId(),
-					irp.getResultType())));
+					irp.getResultType(),
+					() -> irp.isConsumable() ? ResultPartitionState.CONSUMABLE : ResultPartitionState.CREATED)));
 
 		return producedSchedulingPartitions;
 	}
@@ -122,7 +122,7 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 		DefaultExecutionVertex schedulingVertex = new DefaultExecutionVertex(
 			vertex.getID(),
 			producedPartitions,
-			new ExecutionStateSupplier(vertex),
+			() -> vertex.getExecutionState(),
 			vertex.getInputDependencyConstraint());
 
 		producedPartitions.forEach(partition -> partition.setProducer(schedulingVertex));
@@ -145,20 +145,6 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 					partition.addConsumer(schedulingVertex);
 				}
 			}
-		}
-	}
-
-	private static class ExecutionStateSupplier implements Supplier<ExecutionState> {
-
-		private final ExecutionVertex executionVertex;
-
-		ExecutionStateSupplier(ExecutionVertex vertex) {
-			executionVertex = checkNotNull(vertex);
-		}
-
-		@Override
-		public ExecutionState get() {
-			return executionVertex.getExecutionState();
 		}
 	}
 }

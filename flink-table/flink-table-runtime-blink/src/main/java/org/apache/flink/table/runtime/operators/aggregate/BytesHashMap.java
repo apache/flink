@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentSource;
@@ -238,7 +239,8 @@ public class BytesHashMap {
 	 * @return true when BytesHashMap's valueTypeInfos.length == 0.
 	 * Any appended value will be ignored and replaced with a reusedValue as a present tag.
 	 */
-	public boolean isHashSetMode() {
+	@VisibleForTesting
+	boolean isHashSetMode() {
 		return hashSetMode;
 	}
 
@@ -333,7 +335,6 @@ public class BytesHashMap {
 			spillInBytes += recordArea.segments.size() * ((long) segmentSize);
 			throw e;
 		}
-
 	}
 
 	public long getNumSpillFiles() {
@@ -383,7 +384,7 @@ public class BytesHashMap {
 	private void growAndRehash() throws EOFException {
 		// allocate the new data structures
 		int required = 2 * bucketSegments.size();
-		if (required * numBucketsPerSegment > Integer.MAX_VALUE) {
+		if (required * (long) numBucketsPerSegment > Integer.MAX_VALUE) {
 			LOG.warn("We can't handle more than Integer.MAX_VALUE buckets (eg. because hash functions return int)");
 			throw new EOFException();
 		}
@@ -400,14 +401,10 @@ public class BytesHashMap {
 				newBucketSegments.add(freeMemorySegments.remove(freeMemorySegments.size() - 1));
 			}
 
-			int numBuckets = newBucketSegments.size() * numBucketsPerSegment;
-			this.log2NumBuckets = MathUtils.log2strict(numBuckets);
-			this.numBucketsMask = (1 << MathUtils.log2strict(numBuckets)) - 1;
-			this.numBucketsMask2 = (1 << MathUtils.log2strict(numBuckets >> 1)) - 1;
-			this.growthThreshold = (int) (numBuckets * LOAD_FACTOR);
+			setBucketVariables(newBucketSegments);
 		} catch (MemoryAllocationException e) {
 			LOG.warn("BytesHashMap can't allocate {} pages, and now used {} pages",
-					required, reservedNumBuffers, e);
+					required, reservedNumBuffers);
 			throw new EOFException();
 		}
 		long reHashStartTime = System.currentTimeMillis();
@@ -428,7 +425,9 @@ public class BytesHashMap {
 							hashCode2 = calcSecondHashCode(hashCode1);
 						}
 						newPos = (int) ((hashCode1 + step * hashCode2) & numBucketsMask);
+						// which segment contains the bucket
 						bucketSegmentIndex = newPos >>> numBucketsPerSegmentBits;
+						// offset of the bucket in the segment
 						bucketOffset = (newPos & numBucketsPerSegmentMask) << BUCKET_SIZE_BITS;
 						step += STEP_INCREMENT;
 					}
@@ -442,12 +441,21 @@ public class BytesHashMap {
 		this.bucketSegments = newBucketSegments;
 	}
 
+	private void setBucketVariables(List<MemorySegment> bucketSegments) {
+		int numBuckets = bucketSegments.size() * numBucketsPerSegment;
+		this.log2NumBuckets = MathUtils.log2strict(numBuckets);
+		this.numBucketsMask = (1 << MathUtils.log2strict(numBuckets)) - 1;
+		this.numBucketsMask2 = (1 << MathUtils.log2strict(numBuckets >> 1)) - 1;
+		this.growthThreshold = (int) (numBuckets * LOAD_FACTOR);
+	}
+
 	/**
 	 * Returns a destructive iterator for iterating over the entries of this map. It frees each page
 	 * as it moves onto next one. Notice: it is illegal to call any method on the map after
 	 * `destructiveIterator()` has been called.
 	 * @return an entry iterator for iterating the value appended in the hash map.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public MutableObjectIterator<Entry> getEntryIterator() {
 		if (destructiveIterator != null) {
 			throw new IllegalArgumentException("DestructiveIterator is not null, so this method can't be invoke!");
@@ -458,10 +466,12 @@ public class BytesHashMap {
 	/**
 	 * @return the underlying memory segments of the hash map's record area
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public ArrayList<MemorySegment> getRecordAreaMemorySegments() {
 		return recordArea.segments;
 	}
 
+	@SuppressWarnings("WeakerAccess")
 	public List<MemorySegment> getBucketAreaMemorySegments() {
 		return bucketSegments;
 	}
@@ -487,16 +497,11 @@ public class BytesHashMap {
 		destructiveIterator = null;
 	}
 
-
 	/**
 	 * reset the map's record and bucket area's memory segments for reusing.
 	 */
 	public void reset() {
-		int numBuckets = bucketSegments.size() * numBucketsPerSegment;
-		this.log2NumBuckets = MathUtils.log2strict(numBuckets);
-		this.numBucketsMask = (1 << MathUtils.log2strict(numBuckets)) - 1;
-		this.numBucketsMask2 = (1 << MathUtils.log2strict(numBuckets >> 1)) - 1;
-		this.growthThreshold = (int) (numBuckets * LOAD_FACTOR);
+		setBucketVariables(bucketSegments);
 		//reset the record segments.
 		recordArea.reset();
 		resetBucketSegments(bucketSegments);
@@ -586,16 +591,17 @@ public class BytesHashMap {
 
 		// ----------------------- Iterator -----------------------
 
-		MutableObjectIterator<Entry> destructiveEntryIterator() {
+		private MutableObjectIterator<Entry> destructiveEntryIterator() {
 			return new RecordArea.DestructiveEntryIterator();
 		}
 
-		final class DestructiveEntryIterator extends AbstractPagedInputView implements MutableObjectIterator<Entry> {
+		private final class DestructiveEntryIterator extends AbstractPagedInputView
+				implements MutableObjectIterator<Entry> {
 
 			private int count = 0;
 			private int currentSegmentIndex = 0;
 
-			public DestructiveEntryIterator() {
+			private DestructiveEntryIterator() {
 				super(segments.get(0), segmentSize, 0);
 				destructiveIterator = this;
 			}
@@ -618,7 +624,7 @@ public class BytesHashMap {
 			}
 
 			@Override
-			public Entry next() throws IOException {
+			public Entry next() {
 				throw new UnsupportedOperationException("");
 			}
 
@@ -628,7 +634,7 @@ public class BytesHashMap {
 			}
 
 			@Override
-			protected MemorySegment nextSegment(MemorySegment current) throws EOFException, IOException {
+			protected MemorySegment nextSegment(MemorySegment current) {
 				return segments.get(++currentSegmentIndex);
 			}
 		}
