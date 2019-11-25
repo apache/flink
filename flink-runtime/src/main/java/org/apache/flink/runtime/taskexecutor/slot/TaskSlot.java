@@ -72,21 +72,26 @@ public class TaskSlot implements AutoCloseable {
 	private TaskSlotState state;
 
 	/** Job id to which the slot has been allocated; null if not allocated. */
-	private JobID jobId;
+	private final JobID jobId;
 
 	/** Allocation id of this slot; null if not allocated. */
-	private AllocationID allocationId;
+	private final AllocationID allocationId;
 
-	public TaskSlot(final int index, final ResourceProfile resourceProfile, final int memoryPageSize) {
+	public TaskSlot(
+		final int index,
+		final ResourceProfile resourceProfile,
+		final int memoryPageSize,
+		final JobID jobId,
+		final AllocationID allocationId) {
 		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
 		this.index = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
 
 		this.tasks = new HashMap<>(4);
-		this.state = TaskSlotState.FREE;
+		this.state = TaskSlotState.ALLOCATED;
 
-		this.jobId = null;
-		this.allocationId = null;
+		this.jobId = jobId;
+		this.allocationId = allocationId;
 
 		this.memoryManager = createMemoryManager(resourceProfile, memoryPageSize);
 	}
@@ -117,10 +122,6 @@ public class TaskSlot implements AutoCloseable {
 
 	public boolean isEmpty() {
 		return tasks.isEmpty();
-	}
-
-	public boolean isFree() {
-		return TaskSlotState.FREE == state;
 	}
 
 	public boolean isActive(JobID activeJobId, AllocationID activeAllocationId) {
@@ -210,39 +211,6 @@ public class TaskSlot implements AutoCloseable {
 	}
 
 	/**
-	 * Allocate the task slot for the given job and allocation id. If the slot could be allocated,
-	 * or is already allocated/active for the given job and allocation id, then the method returns
-	 * true. Otherwise it returns false.
-	 *
-	 * <p>A slot can only be allocated if it's current state is free.
-	 *
-	 * @param newJobId to allocate the slot for
-	 * @param newAllocationId to identify the slot allocation
-	 * @return True if the slot was allocated for the given job and allocation id; otherwise false
-	 */
-	public boolean allocate(JobID newJobId, AllocationID newAllocationId) {
-		if (TaskSlotState.FREE == state) {
-			// sanity checks
-			Preconditions.checkState(allocationId == null);
-			Preconditions.checkState(jobId == null);
-
-			this.jobId = Preconditions.checkNotNull(newJobId);
-			this.allocationId = Preconditions.checkNotNull(newAllocationId);
-
-			state = TaskSlotState.ALLOCATED;
-
-			return true;
-		} else if (TaskSlotState.ALLOCATED == state || TaskSlotState.ACTIVE == state) {
-			Preconditions.checkNotNull(newJobId);
-			Preconditions.checkNotNull(newAllocationId);
-
-			return newJobId.equals(jobId) && newAllocationId.equals(allocationId);
-		} else {
-			return false;
-		}
-	}
-
-	/**
 	 * Mark this slot as active. A slot can only be marked active if it's in state allocated.
 	 *
 	 * <p>The method returns true if the slot was set to active. Otherwise it returns false.
@@ -268,24 +236,6 @@ public class TaskSlot implements AutoCloseable {
 	public boolean markInactive() {
 		if (TaskSlotState.ACTIVE == state || TaskSlotState.ALLOCATED == state) {
 			state = TaskSlotState.ALLOCATED;
-
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	/**
-	 * Mark the slot as free. A slot can only be marked as free if it's empty.
-	 *
-	 * @return True if the new state is free; otherwise false
-	 */
-	public boolean markFree() {
-		if (isEmpty()) {
-			state = TaskSlotState.FREE;
-			verifyMemoryFreed();
-			this.jobId = null;
-			this.allocationId = null;
 
 			return true;
 		} else {

@@ -88,7 +88,7 @@ public class TaskExecutorResourceUtils {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Generating Default Slot Resource Profiles
+	//  Generating Slot Resource Profiles
 	// ------------------------------------------------------------------------
 
 	public static List<ResourceProfile> createDefaultWorkerSlotProfiles(
@@ -108,6 +108,16 @@ public class TaskExecutorResourceUtils {
 			.setTaskOffHeapMemory(taskExecutorResourceSpec.getTaskOffHeapSize().divide(numberOfSlots))
 			.setManagedMemory(taskExecutorResourceSpec.getManagedMemorySize().divide(numberOfSlots))
 			.setShuffleMemory(taskExecutorResourceSpec.getShuffleMemSize().divide(numberOfSlots))
+			.build();
+	}
+
+	public static ResourceProfile generateTotalAvailableResourceProfile(TaskExecutorResourceSpec taskExecutorResourceSpec) {
+		return ResourceProfile.newBuilder()
+			.setCpuCores(taskExecutorResourceSpec.getCpuCores())
+			.setTaskHeapMemory(taskExecutorResourceSpec.getTaskHeapSize())
+			.setTaskOffHeapMemory(taskExecutorResourceSpec.getTaskOffHeapSize())
+			.setManagedMemory(taskExecutorResourceSpec.getManagedMemorySize())
+			.setShuffleMemory(taskExecutorResourceSpec.getShuffleMemSize())
 			.build();
 	}
 
