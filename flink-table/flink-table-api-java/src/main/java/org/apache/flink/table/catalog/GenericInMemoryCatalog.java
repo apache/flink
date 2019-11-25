@@ -107,6 +107,12 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	}
 
 	@Override
+	public void dropDatabase(String name, boolean ignoreIfNotExists)
+			throws DatabaseNotExistException, DatabaseNotEmptyException, CatalogException {
+		dropDatabase(name, ignoreIfNotExists, true);
+	}
+
+	@Override
 	public void dropDatabase(String databaseName, boolean ignoreIfNotExists, boolean isRestrict)
 			throws DatabaseNotExistException, DatabaseNotEmptyException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));

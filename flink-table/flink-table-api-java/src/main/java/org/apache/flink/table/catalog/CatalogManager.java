@@ -459,9 +459,10 @@ public class CatalogManager {
 
 	/**
 	 * Creates a database in a given fully qualified path.
-	 * @param catalogName
-	 * @param databaseName
-	 * @param database
+	 *
+	 * @param catalogName The catalog where database will be created.S
+	 * @param databaseName Name of database to be created.
+	 * @param database The database to be created.
 	 * @param ignoreIfExists If false exception will be thrown if a database exists in the given path.
 	 */
 	public void createDatabase(String catalogName,
@@ -487,10 +488,13 @@ public class CatalogManager {
 
 	/**
 	 * Drop a database in a given path.
-	 * @param catalogName
-	 * @param databaseName
+	 *
+	 * @param catalogName        The catalog where database will be deleted.
+	 * @param databaseName       Name of database to be deleted.
 	 * @param ignoreIfNotExists  If false exception will be thrown if a database not exists in the given path.
-	 * @param isRestrict
+	 * @param isRestrict         Flag to specify behavior when the database contains table:
+	 *                              if set to false, delete all tables in the database and then delete the database,
+	 *                              if set to true, throw an exception.
 	 */
 	public void dropDatabase(String catalogName,
 					String databaseName,
@@ -514,10 +518,11 @@ public class CatalogManager {
 	}
 
 	/**
-	 * Drop a database in a given path.
-	 * @param catalogName
-	 * @param databaseName
-	 * @param catalogDatabase new catalogDatabase.
+	 * Alter a database in a given path.
+	 *
+	 * @param catalogName     The catalog where database will be deleted.
+	 * @param databaseName    Name of database to be deleted.
+	 * @param catalogDatabase New catalogDatabase.
 	 */
 	public void alterDatabase(String catalogName,
 							String databaseName,

@@ -519,13 +519,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
 		} else if (operation instanceof UseDatabaseOperation) {
 			UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
-			String[] fullDatabaseName = useDatabaseOperation.getFullDatabaseName();
-			if (fullDatabaseName.length == 2) {
-				catalogManager.setCurrentCatalog(fullDatabaseName[0]);
-				catalogManager.setCurrentDatabase(fullDatabaseName[1]);
-			} else {
-				catalogManager.setCurrentDatabase(fullDatabaseName[0]);
-			}
+			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
+			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 		}
 	}
 

@@ -141,6 +141,19 @@ public interface Catalog {
 	 * @param ignoreIfNotExists Flag to specify behavior when the database does not exist:
 	 *                          if set to false, throw an exception,
 	 *                          if set to true, do nothing.
+	 * @throws DatabaseNotExistException if the given database does not exist
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+			DatabaseNotEmptyException, CatalogException;
+
+	/**
+	 * Drop a database.
+	 *
+	 * @param name              Name of the database to be dropped.
+	 * @param ignoreIfNotExists Flag to specify behavior when the database does not exist:
+	 *                          if set to false, throw an exception,
+	 *                          if set to true, do nothing.
 	 * @param isRestrict        Flag to specify behavior when the database contains table:
 	 *                          if set to false, delete all tables in the database and then delete the database,
 	 *                          if set to true, throw an exception.

@@ -131,15 +131,17 @@ public class SqlToOperationConverterTest {
 		final String sql1 = "USE db1";
 		Operation operation1 = parse(sql1, SqlDialect.DEFAULT);
 		assert operation1 instanceof UseDatabaseOperation;
-		assertArrayEquals(new String[]{"db1"}, ((UseDatabaseOperation) operation1).getFullDatabaseName());
+		assertEquals("builtin", ((UseDatabaseOperation) operation1).getCatalogName());
+		assertEquals("db1", ((UseDatabaseOperation) operation1).getDatabaseName());
 
 		final String sql2 = "USE cat1.db1";
 		Operation operation2 = parse(sql2, SqlDialect.DEFAULT);
 		assert operation2 instanceof UseDatabaseOperation;
-		assertArrayEquals(new String[]{"cat1", "db1"}, ((UseDatabaseOperation) operation2).getFullDatabaseName());
+		assertEquals("cat1", ((UseDatabaseOperation) operation2).getCatalogName());
+		assertEquals("db1", ((UseDatabaseOperation) operation2).getDatabaseName());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = SqlConversionException.class)
 	public void testUseDatabaseWithException() {
 		final String sql = "USE cat1.db1.tbl1";
 		Operation operation = parse(sql, SqlDialect.DEFAULT);

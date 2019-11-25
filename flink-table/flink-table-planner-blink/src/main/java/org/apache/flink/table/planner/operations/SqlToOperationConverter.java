@@ -206,7 +206,13 @@ public class SqlToOperationConverter {
 
 	/** Convert use database statement. */
 	private Operation convertUseDatabase(SqlUseDatabase useDatabase) {
-		return new UseDatabaseOperation(useDatabase.fullDatabaseName());
+		String[] fullDatabaseName = useDatabase.fullDatabaseName();
+		if (fullDatabaseName.length > 2) {
+			throw new SqlConversionException("use database identifier format error");
+		}
+		String catalogName = fullDatabaseName.length == 2 ? fullDatabaseName[0] : catalogManager.getCurrentCatalog();
+		String databaseName = fullDatabaseName.length == 2 ? fullDatabaseName[1] : fullDatabaseName[0];
+		return new UseDatabaseOperation(catalogName, databaseName);
 	}
 
 	/** Convert CREATE DATABASE statement. */

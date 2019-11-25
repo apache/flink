@@ -18,33 +18,29 @@
 
 package org.apache.flink.table.operations;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * Operation to describe a USE [catalogName.]dataBaseName statement.
  */
 public class UseDatabaseOperation implements UseOperation {
 
-	private String[] fullDatabaseName;
+	private final String catalogName;
+	private final String databaseName;
 
-	public UseDatabaseOperation(String[] fullDatabaseName) {
-		checkNotNull(fullDatabaseName);
-		checkArgument(fullDatabaseName.length > 0 && fullDatabaseName.length <= 2,
-					"database full path length can not be zero or greater than 2");
-		this.fullDatabaseName = fullDatabaseName;
+	public UseDatabaseOperation(String catalogName, String databaseName) {
+		this.catalogName = catalogName;
+		this.databaseName = databaseName;
 	}
 
-	public String[] getFullDatabaseName() {
-		return fullDatabaseName;
+	public String getCatalogName() {
+		return catalogName;
+	}
+
+	public String getDatabaseName() {
+		return databaseName;
 	}
 
 	@Override
 	public String asSummaryString() {
-		if (fullDatabaseName.length == 1) {
-			return String.format("USE %s", fullDatabaseName[0]);
-		} else {
-			return String.format("USE %s.%s", fullDatabaseName[0], fullDatabaseName[1]);
-		}
+		return String.format("USE %s.%s", catalogName, databaseName);
 	}
 }

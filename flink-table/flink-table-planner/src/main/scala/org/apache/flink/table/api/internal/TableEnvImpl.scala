@@ -518,13 +518,9 @@ abstract class TableEnvImpl(
       useOperation match {
         case useCatalogOperation: UseCatalogOperation =>
           catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
-        case useDatabaseOperation: UseDatabaseOperation => {
-          val fullDatabaseName = useDatabaseOperation.getFullDatabaseName
-          if (fullDatabaseName.length == 2) {
-            catalogManager.setCurrentCatalog(fullDatabaseName(0))
-            catalogManager.setCurrentDatabase(fullDatabaseName(1))
-          } else catalogManager.setCurrentDatabase(fullDatabaseName(0))
-        }
+        case useDatabaseOperation: UseDatabaseOperation =>
+          catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
+          catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
       }
   }
 
