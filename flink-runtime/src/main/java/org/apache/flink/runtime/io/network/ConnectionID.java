@@ -73,11 +73,7 @@ public class ConnectionID implements Serializable {
 		}
 
 		final ConnectionID ra = (ConnectionID) other;
-		if (!ra.getAddress().equals(address) || ra.getConnectionIndex() != connectionIndex) {
-			return false;
-		}
-
-		return true;
+		return ra.getAddress().equals(address) && ra.getConnectionIndex() == connectionIndex;
 	}
 
 	@Override

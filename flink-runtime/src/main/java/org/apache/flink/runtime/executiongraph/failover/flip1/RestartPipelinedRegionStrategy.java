@@ -143,10 +143,8 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 		// so that the failover process will try to recover it
 		Optional<PartitionException> dataConsumptionException = ExceptionUtils.findThrowable(
 			cause, PartitionException.class);
-		if (dataConsumptionException.isPresent()) {
-			resultPartitionAvailabilityChecker.markResultPartitionFailed(
-				dataConsumptionException.get().getPartitionId().getPartitionId());
-		}
+		dataConsumptionException.ifPresent(e -> resultPartitionAvailabilityChecker.markResultPartitionFailed(
+			e.getPartitionId().getPartitionId()));
 
 		// calculate the tasks to restart based on the result of regions to restart
 		Set<ExecutionVertexID> tasksToRestart = new HashSet<>();
@@ -155,10 +153,8 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 		}
 
 		// the previous failed partition will be recovered. remove its failed state from the checker
-		if (dataConsumptionException.isPresent()) {
-			resultPartitionAvailabilityChecker.removeResultPartitionFromFailedState(
-				dataConsumptionException.get().getPartitionId().getPartitionId());
-		}
+		dataConsumptionException.ifPresent(e -> resultPartitionAvailabilityChecker.removeResultPartitionFromFailedState(
+			e.getPartitionId().getPartitionId()));
 
 		LOG.info("{} tasks should be restarted to recover the failed task {}. ", tasksToRestart.size(), executionVertexId);
 		return tasksToRestart;

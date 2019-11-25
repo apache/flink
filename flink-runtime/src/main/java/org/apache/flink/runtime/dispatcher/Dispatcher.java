@@ -812,7 +812,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture = getJobMasterGatewayFuture(jobId);
 
 			final CompletableFuture<Optional<T>> optionalRequest = jobMasterGatewayFuture
-				.thenCompose(queryFunction::apply)
+				.thenCompose(queryFunction)
 				.handle((T value, Throwable throwable) -> Optional.ofNullable(value));
 
 			optionalJobInformation.add(optionalRequest);

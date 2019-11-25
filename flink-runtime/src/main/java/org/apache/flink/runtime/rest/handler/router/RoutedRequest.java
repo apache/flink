@@ -58,57 +58,40 @@ public class RoutedRequest<T> implements ReferenceCounted {
 
 	@Override
 	public int refCnt() {
-		if (requestAsReferenceCounted.isPresent()) {
-			return requestAsReferenceCounted.get().refCnt();
-		}
-		return 0;
+		return requestAsReferenceCounted.map(ReferenceCounted::refCnt).orElse(0);
 	}
 
 	@Override
 	public boolean release() {
-		if (requestAsReferenceCounted.isPresent()) {
-			return requestAsReferenceCounted.get().release();
-		}
-		return true;
+		return requestAsReferenceCounted.map(ReferenceCounted::release).orElse(true);
 	}
 
 	@Override
 	public boolean release(int arg0) {
-		if (requestAsReferenceCounted.isPresent()) {
-			return requestAsReferenceCounted.get().release(arg0);
-		}
-		return true;
+		return requestAsReferenceCounted.map(referenceCounted -> referenceCounted.release(arg0)).orElse(true);
 	}
 
 	@Override
 	public ReferenceCounted retain() {
-		if (requestAsReferenceCounted.isPresent()) {
-			requestAsReferenceCounted.get().retain();
-		}
+		requestAsReferenceCounted.ifPresent(ReferenceCounted::retain);
 		return this;
 	}
 
 	@Override
 	public ReferenceCounted retain(int arg0) {
-		if (requestAsReferenceCounted.isPresent()) {
-			requestAsReferenceCounted.get().retain(arg0);
-		}
+		requestAsReferenceCounted.ifPresent(referenceCounted -> referenceCounted.retain(arg0));
 		return this;
 	}
 
 	@Override
 	public ReferenceCounted touch() {
-		if (requestAsReferenceCounted.isPresent()) {
-			ReferenceCountUtil.touch(requestAsReferenceCounted.get());
-		}
+		requestAsReferenceCounted.ifPresent(ReferenceCountUtil::touch);
 		return this;
 	}
 
 	@Override
 	public ReferenceCounted touch(Object hint) {
-		if (requestAsReferenceCounted.isPresent()) {
-			ReferenceCountUtil.touch(requestAsReferenceCounted.get(), hint);
-		}
+		requestAsReferenceCounted.ifPresent(referenceCounted -> ReferenceCountUtil.touch(referenceCounted, hint));
 		return this;
 	}
 }

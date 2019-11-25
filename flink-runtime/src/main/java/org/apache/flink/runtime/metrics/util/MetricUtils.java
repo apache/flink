@@ -108,9 +108,7 @@ public class MetricUtils {
 
 		MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
 
-		if (systemResourceProbeInterval.isPresent()) {
-			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
-		}
+		systemResourceProbeInterval.ifPresent(time -> instantiateSystemMetrics(taskManagerMetricGroup, time));
 		return Tuple2.of(taskManagerMetricGroup, statusGroup);
 	}
 
