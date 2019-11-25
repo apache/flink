@@ -20,35 +20,29 @@ package org.apache.flink.table.types.inference.validators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.ConstantArgumentCount;
-import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * Validator that checks if each operand corresponds to an explicitly defined logical type.
  */
 @Internal
-public final class ExplicitTypeValidator implements SingleInputTypeValidator {
+public final class ExplicitTypeValidator implements ArgumentTypeValidator {
 
-	private final List<LogicalType> expectedTypes;
+	private final LogicalType expectedType;
 
-	public ExplicitTypeValidator(List<LogicalType> expectedTypes) {
-		this.expectedTypes = Preconditions.checkNotNull(expectedTypes);
+	public ExplicitTypeValidator(LogicalType expectedType) {
+		this.expectedType = Preconditions.checkNotNull(expectedType);
 	}
 
 	@Override
-	public boolean validateArgument(CallContext callContext, int argumentPos, int validatorPos, boolean throwOnFailure) {
-		final LogicalType expectedType = expectedTypes.get(validatorPos);
+	public boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure) {
 		final LogicalType actualType = callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
 		// quick path
 		if (expectedType.equals(actualType)) {
@@ -68,26 +62,8 @@ public final class ExplicitTypeValidator implements SingleInputTypeValidator {
 	}
 
 	@Override
-	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.of(expectedTypes.size());
-	}
-
-	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		for (int i = 0; i < expectedTypes.size(); i++) {
-			if (!validateArgument(callContext, i, i, throwOnFailure)) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		final List<Signature.Argument> args = expectedTypes.stream()
-			.map(expectedDataType -> Argument.of(expectedDataType.toString()))
-			.collect(Collectors.toList());
-		return Collections.singletonList(Signature.of(args));
+	public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+		return Argument.of(expectedType.toString());
 	}
 
 	@Override
@@ -99,11 +75,11 @@ public final class ExplicitTypeValidator implements SingleInputTypeValidator {
 			return false;
 		}
 		ExplicitTypeValidator that = (ExplicitTypeValidator) o;
-		return expectedTypes.equals(that.expectedTypes);
+		return Objects.equals(expectedType, that.expectedType);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(expectedTypes);
+		return Objects.hash(expectedType);
 	}
 }

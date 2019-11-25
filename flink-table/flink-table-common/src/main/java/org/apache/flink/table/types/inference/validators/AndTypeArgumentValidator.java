@@ -20,64 +20,56 @@ package org.apache.flink.table.types.inference.validators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.ConstantArgumentCount;
-import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
- * Validator that checks if a single argument is a literal.
+ * Validator that checks for a conjunction of multiple {@link ArgumentTypeValidator}s into one like
+ * {@code f(NUMERIC & STRING)}.
  */
 @Internal
-public class LiteralTypeValidator implements ArgumentTypeValidator, InputTypeValidator {
+public class AndTypeArgumentValidator implements ArgumentTypeValidator {
 
-	private final boolean allowNull;
+	private final List<? extends ArgumentTypeValidator> validators;
 
-	public LiteralTypeValidator(boolean allowNull) {
-		this.allowNull = allowNull;
+	private final @Nullable List<String> argumentNames;
+
+	public AndTypeArgumentValidator(
+			List<? extends ArgumentTypeValidator> validators,
+			@Nullable List<String> argumentNames) {
+		Preconditions.checkArgument(validators.size() > 0);
+		Preconditions.checkArgument(argumentNames == null || argumentNames.size() == validators.size());
+		this.validators = validators;
+		this.argumentNames = argumentNames;
 	}
 
 	@Override
 	public boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		if (!callContext.isArgumentLiteral(argumentPos)) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError("Literal expected.");
+		for (ArgumentTypeValidator validator : validators) {
+			if (!validator.validateArgument(callContext, argumentPos, throwOnFailure)) {
+				return false;
 			}
-			return false;
-		}
-		if (callContext.isArgumentNull(argumentPos) && !allowNull) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError("Literal must not be NULL.");
-			}
-			return false;
 		}
 		return true;
 	}
 
 	@Override
 	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		return Signature.Argument.of("<LITERAL>");
-	}
-
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.of(1);
-	}
-
-	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		return validateArgument(callContext, 0, throwOnFailure);
-	}
-
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(getExpectedArgument(definition, 0)));
+		final String argument = validators.stream()
+			.map(v -> v.getExpectedArgument(functionDefinition, argumentPos).getType())
+			.collect(Collectors.joining(" & ", "[", "]"));
+		if (argumentNames != null && argumentNames.get(argumentPos) != null) {
+			return Signature.Argument.of(argumentNames.get(argumentPos), argument);
+		}
+		return Signature.Argument.of(argument);
 	}
 
 	@Override
@@ -88,12 +80,13 @@ public class LiteralTypeValidator implements ArgumentTypeValidator, InputTypeVal
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		LiteralTypeValidator that = (LiteralTypeValidator) o;
-		return allowNull == that.allowNull;
+		AndTypeArgumentValidator that = (AndTypeArgumentValidator) o;
+		return Objects.equals(validators, that.validators) &&
+			Objects.equals(argumentNames, that.argumentNames);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(allowNull);
+		return Objects.hash(validators, argumentNames);
 	}
 }

@@ -16,18 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.functions.FunctionDefinition;
 
 /**
- * Validator that checks a single input type of a function call.
+ * Validator that checks a single input argument type of a function call.
  */
-@Internal
-public interface SingleInputTypeValidator extends InputTypeValidator {
+@PublicEvolving
+public interface ArgumentTypeValidator {
 
 	/**
 	 * Main logic for validating a single input type. Returns {@code true} if the argument is valid for the
@@ -35,10 +34,17 @@ public interface SingleInputTypeValidator extends InputTypeValidator {
 	 *
 	 * @param callContext provides details about the function call
 	 * @param argumentPos argument index in the {@link CallContext}
-	 * @param validatorPos logical index that defines the expected validation logic
 	 * @param throwOnFailure whether this function is allowed to throw an {@link ValidationException}
 	 *                       with a meaningful exception in case the validation is not successful or
 	 *                       if this function should simply return {@code false}.
 	 */
-	boolean validateArgument(CallContext callContext, int argumentPos, int validatorPos, boolean throwOnFailure);
+	boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure);
+
+	/**
+	 * Returns a summary of the function's expected argument at {@code argumentPos}.
+	 *
+	 * @param functionDefinition the function definition that defines the function currently being called.
+	 * @param argumentPos the position within the function call for which the signature should be retrieved
+	 */
+	Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos);
 }
