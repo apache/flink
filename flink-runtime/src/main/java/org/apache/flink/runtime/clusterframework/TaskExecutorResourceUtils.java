@@ -85,12 +85,8 @@ public class TaskExecutorResourceUtils {
 	//  Memory Configuration Calculations
 	// ------------------------------------------------------------------------
 
-	public static TaskExecutorResourceSpec resourceSpecFromConfig(
-			final Configuration config,
-			final MemorySize totalProcessMemory) {
-		final Configuration copiedConfig = new Configuration(config);
-		copiedConfig.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcessMemory.toString());
-		return resourceSpecFromConfig(copiedConfig);
+	public static TaskExecutorResourceSpecBuilder newResourceSpecBuilder(final Configuration config) {
+		return TaskExecutorResourceSpecBuilder.newBuilder(config);
 	}
 
 	public static TaskExecutorResourceSpec resourceSpecFromConfig(final Configuration config) {

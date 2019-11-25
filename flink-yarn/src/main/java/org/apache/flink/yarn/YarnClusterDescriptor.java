@@ -446,7 +446,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private void validateClusterSpecification(ClusterSpecification clusterSpecification) throws FlinkException {
 		MemorySize totalProcessMemory = MemorySize.parse(clusterSpecification.getTaskManagerMemoryMB() + "m");
 		try {
-			TaskExecutorResourceUtils.resourceSpecFromConfig(flinkConfiguration, totalProcessMemory);
+			TaskExecutorResourceUtils
+				.newResourceSpecBuilder(flinkConfiguration)
+				.withTotalProcessMemory(totalProcessMemory)
+				.build();
 		} catch (IllegalArgumentException iae) {
 			throw new FlinkException("Inconsistent cluster specification.", iae);
 		}

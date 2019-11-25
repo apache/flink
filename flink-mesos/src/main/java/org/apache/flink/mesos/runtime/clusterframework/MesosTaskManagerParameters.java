@@ -337,8 +337,10 @@ public class MesosTaskManagerParameters {
 
 		List<ConstraintEvaluator> constraints = parseConstraints(flinkConfig.getString(MESOS_CONSTRAINTS_HARD_HOSTATTR));
 		MemorySize totalProcessMemory = MemorySize.parse(flinkConfig.getInteger(MESOS_RM_TASKS_MEMORY_MB) + "m");
-		TaskExecutorResourceSpec taskExecutorResourceSpec =
-			TaskExecutorResourceUtils.resourceSpecFromConfig(flinkConfig, totalProcessMemory);
+		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils
+			.newResourceSpecBuilder(flinkConfig)
+			.withTotalProcessMemory(totalProcessMemory)
+			.build();
 
 		// parse the common parameters
 		ContaineredTaskManagerParameters containeredParameters = ContaineredTaskManagerParameters.create(
