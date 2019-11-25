@@ -440,12 +440,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		return (ignored, throwable) -> {
 			if (executionVertexVersioner.isModified(requiredVertexVersion)) {
-				final boolean slotAlive = deploymentHandle
-					.getLogicalSlot()
-					.map(LogicalSlot::isAlive)
-					.orElse(false);
-				checkState(!slotAlive, "Expected slot to be released");
-
 				log.debug("Refusing to deploy execution vertex {} because this deployment was " +
 					"superseded by another deployment", executionVertexId);
 				return null;
