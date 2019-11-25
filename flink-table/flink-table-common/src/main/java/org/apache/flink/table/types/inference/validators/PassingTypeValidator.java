@@ -22,21 +22,21 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Validator that does not perform any validation and always passes.
  */
 @Internal
-public class PassingTypeValidator implements InputTypeValidator {
+public final class PassingTypeValidator implements InputTypeValidator {
 
-	private static final PassingArgumentCount PASSING_ARGUMENT_COUNT = new PassingArgumentCount();
+	private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
 
 	@Override
 	public ArgumentCount getArgumentCount() {
@@ -53,21 +53,13 @@ public class PassingTypeValidator implements InputTypeValidator {
 		return Collections.singletonList(Signature.of(Argument.of("*")));
 	}
 
-	private static class PassingArgumentCount implements ArgumentCount {
+	@Override
+	public boolean equals(Object o) {
+		return this == o || o instanceof PassingTypeValidator;
+	}
 
-		@Override
-		public boolean isValidCount(int count) {
-			return true;
-		}
-
-		@Override
-		public Optional<Integer> getMinCount() {
-			return Optional.empty();
-		}
-
-		@Override
-		public Optional<Integer> getMaxCount() {
-			return Optional.empty();
-		}
+	@Override
+	public int hashCode() {
+		return PassingTypeValidator.class.hashCode();
 	}
 }
