@@ -36,6 +36,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -48,6 +49,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -504,6 +506,46 @@ public class SqlToOperationConverterTest {
 			expectedEx.expect(TableException.class);
 			expectedEx.expectMessage(item.expectedError);
 			SqlToOperationConverter.convert(planner, catalogManager, node);
+		}
+	}
+
+	@Test
+	public void testAlterTable() throws Exception {
+		Catalog catalog = new GenericInMemoryCatalog("default", "default");
+		catalogManager.registerCatalog("cat1", catalog);
+		catalog.createDatabase("db1",
+				new CatalogDatabaseImpl(new HashMap<>(), null),
+				true);
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder().field("a", DataTypes.STRING()).build(),
+				new HashMap<>(),
+				"tb1");
+		catalogManager.setCurrentCatalog("cat1");
+		catalogManager.setCurrentDatabase("db1");
+		catalogManager.createTable(catalogTable,
+				ObjectIdentifier.of("cat1", "db1", "tb1"),
+				true);
+		final String[] alterTableSqls = new String[] {
+				"alter table cat1.db1.tb1 rename to tb2",
+				"alter table db1.tb1 rename to tb2",
+				"alter table tb1 rename to cat1.db1.tb2",
+				"alter table cat1.db1.tb1 set ('k1' = 'v1', 'k2' = 'v2')"
+		};
+		final ObjectIdentifier expectedIdentifier =
+				ObjectIdentifier.of("cat1", "db1", "tb1");
+
+		final boolean[] expectedIsRename = new boolean[] {true, true, true, false};
+		final int expectedPropertySize = 2;
+
+		for (int i = 0; i < alterTableSqls.length; i++) {
+			Operation operation = parse(alterTableSqls[i], SqlDialect.DEFAULT);
+			assert operation instanceof AlterTableOperation;
+			final AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
+			assertEquals(expectedIdentifier, alterTableOperation.getTableIdentifier());
+			assertEquals(expectedIsRename[i], alterTableOperation.isRename());
+			if (!alterTableOperation.isRename()) {
+				assertEquals(expectedPropertySize, alterTableOperation.getCatalogTable().getProperties().size());
+			}
 		}
 	}
 

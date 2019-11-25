@@ -42,6 +42,8 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Parser;
@@ -64,6 +66,7 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -103,7 +106,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	protected final Parser parser;
 	private static final String UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
 			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-			"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
+			"INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
 			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE";
 
 	/**
@@ -497,6 +500,27 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			catalogManager.dropTable(
 				dropTableOperation.getTableIdentifier(),
 				dropTableOperation.isIfExists());
+		} else if (operation instanceof AlterTableOperation) {
+			AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(alterTableOperation.getTableIdentifier().getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString());
+			try {
+				if (alterTableOperation.isRename()) {
+					catalog.renameTable(
+							alterTableOperation.getTableIdentifier().toObjectPath(),
+							alterTableOperation.getNewTableIdentifier().getObjectName(),
+							false);
+				} else {
+					catalog.alterTable(
+							alterTableOperation.getTableIdentifier().toObjectPath(),
+							alterTableOperation.getCatalogTable(),
+							false);
+				}
+			} catch (TableAlreadyExistException | TableNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof DropDatabaseOperation) {
 			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName());
