@@ -1,0 +1,109 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.types.inference.validators;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
+import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
+import org.apache.flink.util.Preconditions;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+/**
+ * Validator that checks if each operand corresponds to an explicitly defined logical type.
+ */
+@Internal
+public final class ExplicitTypeValidator implements SingleInputTypeValidator {
+
+	private final List<LogicalType> expectedTypes;
+
+	public ExplicitTypeValidator(List<LogicalType> expectedTypes) {
+		this.expectedTypes = Preconditions.checkNotNull(expectedTypes);
+	}
+
+	@Override
+	public boolean validateArgument(CallContext callContext, int argumentPos, int validatorPos, boolean throwOnFailure) {
+		final LogicalType expectedType = expectedTypes.get(validatorPos);
+		final LogicalType actualType = callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
+		// quick path
+		if (expectedType.equals(actualType)) {
+			return true;
+		}
+		// lenient check
+		if (!LogicalTypeCasts.supportsImplicitCast(actualType, expectedType)) {
+			if (throwOnFailure) {
+				throw callContext.newValidationError(
+					"Unsupported argument type. Expected type '%s' but actual type was '%s'.",
+					expectedType,
+					actualType);
+			}
+			return false;
+		}
+		return true;
+	}
+
+	@Override
+	public ArgumentCount getArgumentCount() {
+		return ConstantArgumentCount.of(expectedTypes.size());
+	}
+
+	@Override
+	public boolean validate(CallContext callContext, boolean throwOnFailure) {
+		for (int i = 0; i < expectedTypes.size(); i++) {
+			if (!validateArgument(callContext, i, i, throwOnFailure)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+		final List<Signature.Argument> args = expectedTypes.stream()
+			.map(expectedDataType -> Argument.of(expectedDataType.toString()))
+			.collect(Collectors.toList());
+		return Collections.singletonList(Signature.of(args));
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ExplicitTypeValidator that = (ExplicitTypeValidator) o;
+		return expectedTypes.equals(that.expectedTypes);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(expectedTypes);
+	}
+}

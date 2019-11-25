@@ -72,6 +72,13 @@ public final class TypeInference {
 		this.argumentTypes = argumentTypes;
 	}
 
+	/**
+	 * Builder for configuring and creating instances of {@link TypeInference}.
+	 */
+	public static TypeInference.Builder newBuilder() {
+		return new TypeInference.Builder();
+	}
+
 	public InputTypeValidator getInputTypeValidator() {
 		return inputTypeValidator;
 	}
