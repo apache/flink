@@ -60,7 +60,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
       .getConfiguration
       .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     TestCollectionTableFactory.reset()
-    TestCollectionTableFactory.isStreaming = isStreamingMode
 
     val func = new CatalogFunctionImpl(
       classOf[JavaFunc0].getName)
@@ -94,11 +93,12 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
 
   private def testUdf(funcPrefix: String): Unit = {
     val sinkDDL =
-      """
+      s"""
         |create table sinkT(
         |  a bigint
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = '$isStreamingMode'
         |)
       """.stripMargin
     tableEnv.sqlUpdate(sinkDDL)

@@ -20,11 +20,10 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
+import org.apache.flink.table.sources.TableSource
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
-import org.apache.flink.table.api.{TableException, WatermarkSpec}
 
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 
@@ -65,18 +64,6 @@ class TableSourceTable[T](
   Preconditions.checkNotNull(tableSource)
   Preconditions.checkNotNull(statistic)
   Preconditions.checkNotNull(catalogTable)
-
-  val watermarkSpec: Option[WatermarkSpec] = catalogTable
-    .getSchema
-    // we only support single watermark currently
-    .getWatermarkSpecs.asScala.headOption
-
-  if (TableSourceValidation.hasRowtimeAttribute(tableSource) && watermarkSpec.isDefined) {
-    throw new TableException(
-        "If watermark is specified in DDL, the underlying TableSource of connector shouldn't" +
-          " return an non-empty list of RowtimeAttributeDescriptor" +
-          " via DefinedRowtimeAttributes interface.")
-  }
 
   override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
 

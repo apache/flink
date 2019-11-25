@@ -33,13 +33,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * Tests of {@link MiniBatchAssignerOperator}.
+ * Tests of {@link ProcTimeMiniBatchAssignerOperator}.
  */
-public class MiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
+public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
 
 	@Test
 	public void testMiniBatchAssignerOperator() throws Exception {
-		final MiniBatchAssignerOperator operator = new MiniBatchAssignerOperator(100);
+		final ProcTimeMiniBatchAssignerOperator operator = new ProcTimeMiniBatchAssignerOperator(100);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
 				new OneInputStreamOperatorTestHarness<>(operator);

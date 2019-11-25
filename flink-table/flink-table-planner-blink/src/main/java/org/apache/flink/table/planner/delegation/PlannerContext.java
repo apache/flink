@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.calcite.FlinkRelFactories;
 import org.apache.flink.table.planner.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
@@ -274,6 +275,7 @@ public class PlannerContext {
 						.withConvertTableAccess(true)
 						.withInSubQueryThreshold(Integer.MAX_VALUE)
 						.withExpand(false)
+						.withRelBuilderFactory(FlinkRelFactories.FLINK_REL_BUILDER())
 						.build()
 		);
 	}

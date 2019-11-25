@@ -43,9 +43,9 @@ GlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinc
 +- Exchange(distribution=[hash[a]])
    +- LocalGroupAggregate(groupBy=[a], select=[a, SUM(b) AS sum$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0])
       +- Union(all=[true], union=[a, b, c])
-         :- WatermarkAssigner(fields=[a, b, c], miniBatchInterval=[Proctime, 1000ms])
+         :- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
          :  +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-         +- WatermarkAssigner(fields=[a, b, c], miniBatchInterval=[Proctime, 1000ms])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -133,7 +133,7 @@ GlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinc
 +- Exchange(distribution=[hash[a]])
    +- LocalGroupAggregate(groupBy=[a], select=[a, SUM(b) FILTER $f2 AS sum$0, COUNT(distinct$0 c) FILTER $f4 AS count$1, COUNT(distinct$0 c) FILTER $f5 AS count$2, MAX(b) AS max$3, DISTINCT(c) AS distinct$0])
       +- Calc(select=[a, b, IS TRUE(=(c, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")) AS $f2, c, IS TRUE(d) AS $f4, IS TRUE(=(b, 1:BIGINT)) AS $f5])
-         +- WatermarkAssigner(fields=[a, b, c, d], miniBatchInterval=[Proctime, 1000ms])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -155,7 +155,7 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
 +- Exchange(distribution=[hash[b]])
    +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
       +- Calc(select=[b, a, c])
-         +- WatermarkAssigner(fields=[a, b, c, proctime, rowtime], miniBatchInterval=[Proctime, 1000ms])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime, rowtime)]]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -264,9 +264,9 @@ GlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinc
 +- Exchange(distribution=[hash[a]])
    +- LocalGroupAggregate(groupBy=[a], select=[a, SUM(b) AS sum$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0])
       +- Union(all=[true], union=[a, b, c])
-         :- WatermarkAssigner(fields=[a, b, c], miniBatchInterval=[Proctime, 1000ms])
+         :- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
          :  +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-         +- WatermarkAssigner(fields=[a, b, c], miniBatchInterval=[Proctime, 1000ms])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
