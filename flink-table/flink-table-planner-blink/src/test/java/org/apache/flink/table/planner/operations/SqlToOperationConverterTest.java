@@ -205,7 +205,7 @@ public class SqlToOperationConverterTest {
 									new GenericInMemoryCatalog("default", "default"));
 		catalogManager.createDatabase("cat1",
 									"db1",
-									new CatalogDatabaseImpl(new HashMap<>(), null),
+									new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"),
 									true,
 									true);
 		final String sql = "alter database cat1.db1 set ('k1'='a')";
@@ -213,6 +213,7 @@ public class SqlToOperationConverterTest {
 		assert operation instanceof AlterDatabaseOperation;
 		assertEquals("db1", ((AlterDatabaseOperation) operation).getDatabaseName());
 		assertEquals("cat1", ((AlterDatabaseOperation) operation).getCatalogName());
+		assertEquals("db1_comment", ((AlterDatabaseOperation) operation).getCatalogDatabase().getComment());
 	}
 
 	@Test
