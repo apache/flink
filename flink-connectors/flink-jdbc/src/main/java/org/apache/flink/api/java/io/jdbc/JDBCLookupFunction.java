@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCUtils.getFieldFromResultSet;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link TableFunction} to query fields from JDBC by keys.
@@ -105,8 +104,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 				options.getTableName(), fieldNames, keyNames);
 	}
 
-	public static Builder builder() {
-		return new Builder();
+	public static JDBCLookupBuilder builder() {
+		return new JDBCLookupBuilder();
 	}
 
 	@Override
@@ -227,73 +226,5 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 	@Override
 	public TypeInformation<?>[] getParameterTypes(Class<?>[] signature) {
 		return keyTypes;
-	}
-
-	/**
-	 * Builder for a {@link JDBCLookupFunction}.
-	 */
-	public static class Builder {
-		private JDBCOptions options;
-		private JDBCLookupOptions lookupOptions;
-		private String[] fieldNames;
-		private TypeInformation[] fieldTypes;
-		private String[] keyNames;
-
-		/**
-		 * required, jdbc options.
-		 */
-		public Builder setOptions(JDBCOptions options) {
-			this.options = options;
-			return this;
-		}
-
-		/**
-		 * optional, lookup related options.
-		 */
-		public Builder setLookupOptions(JDBCLookupOptions lookupOptions) {
-			this.lookupOptions = lookupOptions;
-			return this;
-		}
-
-		/**
-		 * required, field names of this jdbc table.
-		 */
-		public Builder setFieldNames(String[] fieldNames) {
-			this.fieldNames = fieldNames;
-			return this;
-		}
-
-		/**
-		 * required, field types of this jdbc table.
-		 */
-		public Builder setFieldTypes(TypeInformation[] fieldTypes) {
-			this.fieldTypes = fieldTypes;
-			return this;
-		}
-
-		/**
-		 * required, key names to query this jdbc table.
-		 */
-		public Builder setKeyNames(String[] keyNames) {
-			this.keyNames = keyNames;
-			return this;
-		}
-
-		/**
-		 * Finalizes the configuration and checks validity.
-		 *
-		 * @return Configured JDBCLookupFunction
-		 */
-		public JDBCLookupFunction build() {
-			checkNotNull(options, "No JDBCOptions supplied.");
-			if (lookupOptions == null) {
-				lookupOptions = JDBCLookupOptions.builder().build();
-			}
-			checkNotNull(fieldNames, "No fieldNames supplied.");
-			checkNotNull(fieldTypes, "No fieldTypes supplied.");
-			checkNotNull(keyNames, "No keyNames supplied.");
-
-			return new JDBCLookupFunction(options, lookupOptions, fieldNames, fieldTypes, keyNames);
-		}
 	}
 }

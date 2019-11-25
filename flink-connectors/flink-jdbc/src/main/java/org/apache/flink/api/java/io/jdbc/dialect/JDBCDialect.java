@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Handle the SQL dialect of jdbc driver.
@@ -128,4 +129,33 @@ public interface JDBCDialect extends Serializable {
 		return "SELECT " + selectExpressions + " FROM " +
 				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
 	}
+
+	/**
+	 * Get batch select fields statement by condition fields. Default use SELECT.
+	 */
+	default String getBatchSelectFromStatement(
+		String tableName, String[] selectFields,
+		String[] conditionFields, int batchSize) {
+		String selectExpressions = Arrays.stream(selectFields)
+			.map(this::quoteIdentifier)
+			.collect(Collectors.joining(", "));
+
+		StringBuffer placeHolder = new StringBuffer();
+		IntStream.range(0, batchSize).forEach(size -> {
+			placeHolder.append("(");
+			String fieldExpressions = Arrays.stream(conditionFields)
+				.map(f -> quoteIdentifier(f) + "=?")
+				.collect(Collectors.joining(" AND "));
+			placeHolder.append(fieldExpressions);
+			placeHolder.append(")");
+
+			if (size != batchSize - 1) {
+				placeHolder.append(" OR ");
+			}
+
+		});
+		return "SELECT " + selectExpressions + " FROM " +
+			quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + placeHolder.toString() : "");
+	}
+
 }

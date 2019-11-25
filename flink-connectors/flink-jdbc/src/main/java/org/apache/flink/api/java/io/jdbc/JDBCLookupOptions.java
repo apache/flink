@@ -24,18 +24,39 @@ import java.util.Objects;
 import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormat.DEFAULT_MAX_RETRY_TIMES;
 
 /**
- * Options for the JDBC lookup.
+ * Options for {@link JDBCLookupFunction} and {@link JDBCAsyncLookupFunction}.
  */
 public class JDBCLookupOptions implements Serializable {
 
+	private final int maxPoolSize;
+	private final int batchQuerySize;
+	private final int threadPoolSize;
 	private final long cacheMaxSize;
 	private final long cacheExpireMs;
 	private final int maxRetryTimes;
 
-	private JDBCLookupOptions(long cacheMaxSize, long cacheExpireMs, int maxRetryTimes) {
+	private JDBCLookupOptions(
+		int maxPoolSize, int batchQuerySize,
+		int threadPoolSize, long cacheMaxSize,
+		long cacheExpireMs, int maxRetryTimes) {
+		this.maxPoolSize = maxPoolSize;
+		this.batchQuerySize = batchQuerySize;
+		this.threadPoolSize = threadPoolSize;
 		this.cacheMaxSize = cacheMaxSize;
 		this.cacheExpireMs = cacheExpireMs;
 		this.maxRetryTimes = maxRetryTimes;
+	}
+
+	public int getMaxPoolSize() {
+		return maxPoolSize;
+	}
+
+	public int getBatchQuerySize() {
+		return batchQuerySize;
+	}
+
+	public int getThreadPoolSize() {
+		return threadPoolSize;
 	}
 
 	public long getCacheMaxSize() {
@@ -58,7 +79,10 @@ public class JDBCLookupOptions implements Serializable {
 	public boolean equals(Object o) {
 		if (o instanceof JDBCLookupOptions) {
 			JDBCLookupOptions options = (JDBCLookupOptions) o;
-			return Objects.equals(cacheMaxSize, options.cacheMaxSize) &&
+			return Objects.equals(maxPoolSize, options.maxPoolSize) &&
+				Objects.equals(batchQuerySize, options.batchQuerySize) &&
+				Objects.equals(threadPoolSize, options.threadPoolSize) &&
+				Objects.equals(cacheMaxSize, options.cacheMaxSize) &&
 				Objects.equals(cacheExpireMs, options.cacheExpireMs) &&
 				Objects.equals(maxRetryTimes, options.maxRetryTimes);
 		} else {
@@ -67,12 +91,40 @@ public class JDBCLookupOptions implements Serializable {
 	}
 
 	/**
-	 * Builder of {@link JDBCLookupOptions}.
+	 * Builder of {@link JDBCLookupFunction} and {@link JDBCAsyncLookupFunction}.
 	 */
 	public static class Builder {
+
+		private int maxPoolSize = 10;
+		private int batchQuerySize = 1;
+		private int threadPoolSize = 10;
 		private long cacheMaxSize = -1L;
 		private long cacheExpireMs = -1L;
 		private int maxRetryTimes = DEFAULT_MAX_RETRY_TIMES;
+
+		/**
+		 * optional, max connection pool size, over this value, the old data will be eliminated.
+		 */
+		public Builder setMaxPoolSize(int maxPoolSize) {
+			this.maxPoolSize = maxPoolSize;
+			return this;
+		}
+
+		/**
+		 * optional, async lookup thread pool size, over this value, the old data will be eliminated.
+		 */
+		public Builder setThreadPoolSize(int threadPoolSize) {
+			this.threadPoolSize = threadPoolSize;
+			return this;
+		}
+
+		/**
+		 * optional, async lookup batch query size, over this value, the old data will be eliminated.
+		 */
+		public Builder setBatchQuerySize(int batchQuerySize) {
+			this.batchQuerySize = batchQuerySize;
+			return this;
+		}
 
 		/**
 		 * optional, lookup cache max size, over this value, the old data will be eliminated.
@@ -99,7 +151,8 @@ public class JDBCLookupOptions implements Serializable {
 		}
 
 		public JDBCLookupOptions build() {
-			return new JDBCLookupOptions(cacheMaxSize, cacheExpireMs, maxRetryTimes);
+			return new JDBCLookupOptions(maxPoolSize, batchQuerySize,
+				threadPoolSize, cacheMaxSize, cacheExpireMs, maxRetryTimes);
 		}
 	}
 }

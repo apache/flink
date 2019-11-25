@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -48,7 +49,7 @@ import java.util.List;
 import static org.apache.flink.api.java.io.jdbc.JDBCTestBase.DRIVER_CLASS;
 
 /**
- * IT case for {@link JDBCLookupFunction}.
+ * IT case for {@link JDBCLookupFunction} and {@link JDBCAsyncLookupFunction}.
  */
 @RunWith(Parameterized.class)
 public class JDBCLookupFunctionITCase extends AbstractTestBase {
@@ -57,14 +58,17 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 	public static final String LOOKUP_TABLE = "lookup_table";
 
 	private final boolean useCache;
+	private final boolean isAsync;
 
-	public JDBCLookupFunctionITCase(boolean useCache) {
+	public JDBCLookupFunctionITCase(boolean useCache, boolean isAsync) {
 		this.useCache = useCache;
+		this.isAsync = isAsync;
 	}
 
-	@Parameterized.Parameters(name = "Table config = {0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(true, false);
+	@Parameterized.Parameters()
+	public static Collection<Boolean[]> parameters() {
+		return Arrays.asList(new Boolean[][] {{true, true}, {true, false},
+			{false, true}, {false, false}});
 	}
 
 	@Before
@@ -134,7 +138,8 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 	@Test
 	public void test() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+		EnvironmentSettings envSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
 		StreamITCase.clear();
 
 		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
@@ -144,7 +149,7 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 					new Tuple2<>(2, 5),
 					new Tuple2<>(3, 5),
 					new Tuple2<>(3, 8)
-				)), "id1, id2");
+				)), "id1, id2, proctime.proctime");
 
 		tEnv.registerTable("T", t);
 
@@ -157,21 +162,31 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 						new String[]{"id1", "id2", "comment1", "comment2"},
 						new DataType[]{DataTypes.INT(), DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()})
 						.build());
+
+		JDBCLookupOptions.Builder optionBuilder = JDBCLookupOptions.builder();
 		if (useCache) {
-			builder.setLookupOptions(JDBCLookupOptions.builder()
-					.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000).build());
+			optionBuilder.setCacheMaxSize(1000)
+				.setCacheExpireMs(1000 * 1000);
 		}
-		tEnv.registerFunction("jdbcLookup",
-				builder.build().getLookupFunction(t.getSchema().getFieldNames()));
+		builder.setLookupOptions(optionBuilder.setBatchQuerySize(2)
+			.setThreadPoolSize(2).build());
 
 		String sqlQuery = "SELECT id1, id2, comment1, comment2 FROM T, " +
-				"LATERAL TABLE(jdbcLookup(id1, id2)) AS S(l_id1, l_id2, comment1, comment2)";
-		Table result = tEnv.sqlQuery(sqlQuery);
+			"LATERAL TABLE(jdbcLookup(id1, id2)) AS S(l_id1, l_id2, comment1, comment2)";
 
+		if (isAsync) {
+			tEnv.registerTableSource("JDBCTable", builder.build());
+			sqlQuery = "SELECT T.id1, T.id2, comment1, comment2 from T join JDBCTable " +
+				"FOR SYSTEM_TIME AS OF T.proctime as J on T.id1 = J.id1 and T.id2 = J.id2";
+		} else {
+			tEnv.registerFunction("jdbcLookup",
+				builder.build().getLookupFunction(new String[]{"id1", "id2"}));
+		}
+
+		Table result = tEnv.sqlQuery(sqlQuery);
 		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink<>());
 		env.execute();
-
 		List<String> expected = new ArrayList<>();
 		expected.add("1,1,11-c1-v1,11-c2-v1");
 		expected.add("1,1,11-c1-v1,11-c2-v1");

@@ -103,7 +103,7 @@ public class JDBCTableSource implements
 				.setFieldTypes(returnType.getFieldTypes())
 				.setFieldNames(returnType.getFieldNames())
 				.setKeyNames(lookupKeys)
-				.build();
+				.buildLookup();
 	}
 
 	@Override
@@ -118,12 +118,18 @@ public class JDBCTableSource implements
 
 	@Override
 	public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
-		throw new UnsupportedOperationException();
+		return JDBCAsyncLookupFunction.builder()
+			.setOptions(options)
+			.setLookupOptions(lookupOptions)
+			.setFieldTypes(returnType.getFieldTypes())
+			.setFieldNames(returnType.getFieldNames())
+			.setKeyNames(lookupKeys)
+			.buildAsyncLookup();
 	}
 
 	@Override
 	public boolean isAsyncEnabled() {
-		return false;
+		return true;
 	}
 
 	@Override

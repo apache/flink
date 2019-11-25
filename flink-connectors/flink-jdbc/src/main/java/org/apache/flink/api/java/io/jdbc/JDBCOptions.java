@@ -27,7 +27,7 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Common options of {@link JDBCScanOptions} and {@link JDBCLookupOptions} for the JDBC connector.
+ * Common options of {@link JDBCOptions} and {@link JDBCLookupOptions} for the JDBC connector.
  */
 public class JDBCOptions {
 
