@@ -90,6 +90,8 @@ function start_hadoop_cluster() {
         docker exec -it master bash -c "kdestroy"
     done
 
+    echo "We now have $nm_running NodeManagers up."
+
     return 0
 }
 
