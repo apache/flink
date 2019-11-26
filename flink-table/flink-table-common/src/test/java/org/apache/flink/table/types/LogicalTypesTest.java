@@ -789,8 +789,8 @@ public class LogicalTypesTest {
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE, "Description.")))
 			.description("Human type desc.")
-			.isFinal(false)
-			.isInstantiable(false)
+			.setFinal(false)
+			.setInstantiable(false)
 			.build();
 	}
 
@@ -809,8 +809,8 @@ public class LogicalTypesTest {
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE)))
 			.description("User type desc.")
-			.isFinal(isFinal)
-			.isInstantiable(true)
+			.setFinal(isFinal)
+			.setInstantiable(true)
 			.superType(createHumanType(false))
 			.build();
 	}

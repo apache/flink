@@ -288,8 +288,8 @@ public class LogicalTypeCompatibleCheckTest {
 					.map(lt -> new StructuredType.StructuredAttribute(UUID.randomUUID().toString(), lt))
 					.collect(Collectors.toList()))
 			.description("User type desc.")
-			.isFinal(true)
-			.isInstantiable(true)
+			.setFinal(true)
+			.setInstantiable(true)
 			.build();
 	}
 

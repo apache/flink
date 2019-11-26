@@ -96,36 +96,11 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 
 	@Override
 	public LogicalType visit(StructuredType structuredType) {
-		final List<StructuredAttribute> attributes = structuredType.getAttributes().stream()
-			.map(a -> {
-				if (a.getDescription().isPresent()) {
-					return new StructuredAttribute(
-						a.getName(),
-						a.getType().accept(this),
-						a.getDescription().get());
-				}
-				return new StructuredAttribute(
-					a.getName(),
-					a.getType().accept(this));
-			})
-			.collect(Collectors.toList());
-		final Optional<ObjectIdentifier> identifier = structuredType.getOptionalObjectIdentifier();
-		final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
-
-		final StructuredType.Builder builder;
-		if (identifier.isPresent() && implementationClass.isPresent()) {
-			builder = StructuredType.newBuilder(identifier.get(), implementationClass.get());
-		} else if (identifier.isPresent()) {
-			builder = StructuredType.newBuilder(identifier.get());
-		} else if (implementationClass.isPresent()) {
-			builder = StructuredType.newBuilder(implementationClass.get());
-		} else {
-			throw new TableException("Invalid structured type.");
-		}
-		builder.attributes(attributes);
-		builder.isNullable(structuredType.isNullable());
-		builder.isFinal(structuredType.isFinal());
-		builder.isInstantiable(structuredType.isInstantiable());
+		final StructuredType.Builder builder = instantiateStructuredBuilder(structuredType);
+		builder.attributes(duplicateStructuredAttributes(structuredType));
+		builder.setNullable(structuredType.isNullable());
+		builder.setFinal(structuredType.isFinal());
+		builder.setInstantiable(structuredType.isInstantiable());
 		builder.comparision(structuredType.getComparision());
 		structuredType.getSuperType().ifPresent(st -> {
 			final LogicalType visited = st.accept(this);
@@ -141,5 +116,37 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 	@Override
 	protected LogicalType defaultMethod(LogicalType logicalType) {
 		return logicalType.copy();
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private StructuredType.Builder instantiateStructuredBuilder(StructuredType structuredType) {
+		final Optional<ObjectIdentifier> identifier = structuredType.getOptionalObjectIdentifier();
+		final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
+		if (identifier.isPresent() && implementationClass.isPresent()) {
+			return StructuredType.newBuilder(identifier.get(), implementationClass.get());
+		} else if (identifier.isPresent()) {
+			return StructuredType.newBuilder(identifier.get());
+		} else if (implementationClass.isPresent()) {
+			return StructuredType.newBuilder(implementationClass.get());
+		} else {
+			throw new TableException("Invalid structured type.");
+		}
+	}
+
+	private List<StructuredAttribute> duplicateStructuredAttributes(StructuredType structuredType) {
+		return structuredType.getAttributes().stream()
+			.map(a -> {
+				if (a.getDescription().isPresent()) {
+					return new StructuredAttribute(
+						a.getName(),
+						a.getType().accept(this),
+						a.getDescription().get());
+				}
+				return new StructuredAttribute(
+					a.getName(),
+					a.getType().accept(this));
+			})
+			.collect(Collectors.toList());
 	}
 }

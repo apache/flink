@@ -185,7 +185,7 @@ public final class StructuredType extends UserDefinedType {
 			return this;
 		}
 
-		public Builder isNullable(boolean isNullable) {
+		public Builder setNullable(boolean isNullable) {
 			this.isNullable = isNullable;
 			return this;
 		}
@@ -195,12 +195,12 @@ public final class StructuredType extends UserDefinedType {
 			return this;
 		}
 
-		public Builder isFinal(boolean isFinal) {
+		public Builder setFinal(boolean isFinal) {
 			this.isFinal = isFinal;
 			return this;
 		}
 
-		public Builder isInstantiable(boolean isInstantiable) {
+		public Builder setInstantiable(boolean isInstantiable) {
 			this.isInstantiable = isInstantiable;
 			return this;
 		}

@@ -132,8 +132,8 @@ public class LogicalTypeDuplicatorTest {
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("name", new VarCharType(), "Description.")))
 			.description("Human type desc.")
-			.isFinal(false)
-			.isInstantiable(false)
+			.setFinal(false)
+			.setInstantiable(false)
 			.build();
 	}
 
@@ -143,8 +143,8 @@ public class LogicalTypeDuplicatorTest {
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("setting", replacedType)))
 			.description("User type desc.")
-			.isFinal(false)
-			.isInstantiable(true)
+			.setFinal(false)
+			.setInstantiable(true)
 			.superType(createHumanType())
 			.build();
 	}
