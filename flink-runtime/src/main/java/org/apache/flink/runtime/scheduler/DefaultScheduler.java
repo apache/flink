@@ -50,6 +50,8 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -139,11 +141,16 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		this.executionVertexOperations = checkNotNull(executionVertexOperations);
 		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 
+		final FailoverStrategy failoverStrategy = failoverStrategyFactory.create(
+			getFailoverTopology(),
+			getResultPartitionAvailabilityChecker());
+		log.info("Using failover strategy {} for {} ({}).", failoverStrategy, jobGraph.getName(), jobGraph.getJobID());
+
 		this.executionFailureHandler = new ExecutionFailureHandler(
 			getFailoverTopology(),
-			failoverStrategyFactory.create(getFailoverTopology(), getResultPartitionAvailabilityChecker()),
+			failoverStrategy,
 			restartBackoffTimeStrategy);
-		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology(), getJobGraph());
+		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology());
 		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getInputsLocationsRetriever());
 	}
 
@@ -385,6 +392,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			if (executionVertexVersioner.isModified(requiredVertexVersion)) {
 				log.debug("Refusing to assign slot to execution vertex {} because this deployment was " +
 					"superseded by another deployment", executionVertexId);
+				releaseSlotIfPresent(logicalSlot);
 				return null;
 			}
 
@@ -396,10 +404,21 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 					.registerProducedPartitions(logicalSlot.getTaskManagerLocation(), sendScheduleOrUpdateConsumerMessage);
 				executionVertex.tryAssignResource(logicalSlot);
 			} else {
-				handleTaskFailure(executionVertexId, maybeWrapWithNoResourceAvailableException(throwable));
+				handleTaskDeploymentFailure(executionVertexId, maybeWrapWithNoResourceAvailableException(throwable));
 			}
 			return null;
 		};
+	}
+
+	private void releaseSlotIfPresent(@Nullable final LogicalSlot logicalSlot) {
+		if (logicalSlot != null) {
+			logicalSlot.releaseSlot(null);
+		}
+	}
+
+	private void handleTaskDeploymentFailure(final ExecutionVertexID executionVertexId, final Throwable error) {
+		log.info("Error while scheduling or deploying task {}.", executionVertexId, error);
+		handleTaskFailure(executionVertexId, error);
 	}
 
 	private static Throwable maybeWrapWithNoResourceAvailableException(final Throwable failure) {
@@ -418,6 +437,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		return (ignored, throwable) -> {
 			if (executionVertexVersioner.isModified(requiredVertexVersion)) {
+				final boolean slotAlive = deploymentHandle
+					.getLogicalSlot()
+					.map(LogicalSlot::isAlive)
+					.orElse(false);
+				checkState(!slotAlive, "Expected slot to be released");
+
 				log.debug("Refusing to deploy execution vertex {} because this deployment was " +
 					"superseded by another deployment", executionVertexId);
 				return null;
@@ -426,7 +451,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			if (throwable == null) {
 				deployTaskSafe(executionVertexId);
 			} else {
-				handleTaskFailure(executionVertexId, throwable);
+				handleTaskDeploymentFailure(executionVertexId, throwable);
 			}
 			return null;
 		};
@@ -437,7 +462,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
 			executionVertexOperations.deploy(executionVertex);
 		} catch (Throwable e) {
-			handleTaskFailure(executionVertexId, e);
+			handleTaskDeploymentFailure(executionVertexId, e);
 		}
 	}
 }

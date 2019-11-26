@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
@@ -80,11 +81,10 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 	@Test
 	public void testNonExistingJarFile() throws Exception {
 		ProgramOptions programOptions = mock(ProgramOptions.class);
-		ExecutionConfigAccessor executionOptions = mock(ExecutionConfigAccessor.class);
-		when(executionOptions.getJarFilePath()).thenReturn("/some/none/existing/path");
+		when(programOptions.getJarFilePath()).thenReturn("/some/none/existing/path");
 
 		try {
-			frontend.buildProgram(programOptions, executionOptions);
+			frontend.buildProgram(programOptions);
 			fail("should throw an exception");
 		}
 		catch (FileNotFoundException e) {
@@ -95,15 +95,14 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 	@Test
 	public void testFileNotJarFile() throws Exception {
 		ProgramOptions programOptions = mock(ProgramOptions.class);
-		ExecutionConfigAccessor executionOptions = mock(ExecutionConfigAccessor.class);
-		when(executionOptions.getJarFilePath()).thenReturn(getNonJarFilePath());
+		when(programOptions.getJarFilePath()).thenReturn(getNonJarFilePath());
 		when(programOptions.getProgramArgs()).thenReturn(new String[0]);
+		when(programOptions.getSavepointRestoreSettings()).thenReturn(SavepointRestoreSettings.none());
 
 		try {
-			frontend.buildProgram(programOptions, executionOptions);
+			frontend.buildProgram(programOptions);
 			fail("should throw an exception");
-		}
-		catch (ProgramInvocationException e) {
+		} catch (ProgramInvocationException e) {
 			// that's what we want
 		}
 	}
@@ -120,13 +119,12 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
 		ProgramOptions programOptions = new ProgramOptions(commandLine);
-		ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
 
-		assertEquals(getTestJarPath(), executionOptions.getJarFilePath());
-		assertArrayEquals(classpath, executionOptions.getClasspaths().toArray());
+		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
+		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
 		assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
-		PackagedProgram prog = frontend.buildProgram(programOptions, executionOptions);
+		PackagedProgram prog = frontend.buildProgram(programOptions);
 
 		Assert.assertArrayEquals(reducedArguments, prog.getArguments());
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
@@ -144,13 +142,12 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
 		ProgramOptions programOptions = new ProgramOptions(commandLine);
-		ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
 
-		assertEquals(getTestJarPath(), executionOptions.getJarFilePath());
-		assertArrayEquals(classpath, executionOptions.getClasspaths().toArray());
+		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
+		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
 		assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
-		PackagedProgram prog = frontend.buildProgram(programOptions, executionOptions);
+		PackagedProgram prog = frontend.buildProgram(programOptions);
 
 		Assert.assertArrayEquals(reducedArguments, prog.getArguments());
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
@@ -168,13 +165,12 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
 		ProgramOptions programOptions = new ProgramOptions(commandLine);
-		ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
 
-		assertEquals(getTestJarPath(), executionOptions.getJarFilePath());
-		assertArrayEquals(classpath, executionOptions.getClasspaths().toArray());
+		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
+		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
 		assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
-		PackagedProgram prog = frontend.buildProgram(programOptions, executionOptions);
+		PackagedProgram prog = frontend.buildProgram(programOptions);
 
 		Assert.assertArrayEquals(reducedArguments, prog.getArguments());
 		Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
@@ -197,14 +193,13 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
 		ProgramOptions programOptions = new ProgramOptions(commandLine);
-		ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
 
-		assertEquals(arguments[4], executionOptions.getJarFilePath());
-		assertArrayEquals(classpath, executionOptions.getClasspaths().toArray());
+		assertEquals(arguments[4], programOptions.getJarFilePath());
+		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
 		assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
 		try {
-			frontend.buildProgram(programOptions, executionOptions);
+			frontend.buildProgram(programOptions);
 			fail("Should fail with an exception");
 		}
 		catch (FileNotFoundException e) {
@@ -218,13 +213,12 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
 		ProgramOptions programOptions = new ProgramOptions(commandLine);
-		ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
 
-		assertEquals(arguments[0], executionOptions.getJarFilePath());
+		assertEquals(arguments[0], programOptions.getJarFilePath());
 		assertArrayEquals(new String[0], programOptions.getProgramArgs());
 
 		try {
-			frontend.buildProgram(programOptions, executionOptions);
+			frontend.buildProgram(programOptions);
 		}
 		catch (FileNotFoundException e) {
 			// that's what we want
@@ -279,14 +273,13 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
 			ProgramOptions programOptions = new ProgramOptions(commandLine);
-			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
 
-			assertEquals(getTestJarPath(), executionOptions.getJarFilePath());
-			assertArrayEquals(classpath, executionOptions.getClasspaths().toArray());
+			assertEquals(getTestJarPath(), programOptions.getJarFilePath());
+			assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
 			assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, programOptions.getEntryPointClassName());
 			assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
 
-			PackagedProgram prog = spy(frontend.buildProgram(programOptions, executionOptions));
+			PackagedProgram prog = spy(frontend.buildProgram(programOptions));
 
 			ClassLoader testClassLoader = new ClassLoader(prog.getUserCodeClassLoader()) {
 				@Override

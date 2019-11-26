@@ -81,9 +81,6 @@ public class MemoryManager {
 	/** Reserved memory per memory owner. */
 	private final Map<Object, Map<MemoryType, Long>> reservedMemory;
 
-	/** Number of slots of the task manager. */
-	private final int numberOfSlots;
-
 	private final KeyedBudgetManager<MemoryType> budgetByType;
 
 	/** Flag whether the close() has already been invoked. */
@@ -93,28 +90,22 @@ public class MemoryManager {
 	 * Creates a memory manager with the given memory types, capacity and given page size.
 	 *
 	 * @param memorySizeByType The total size of the memory to be managed by this memory manager for each type (heap / off-heap).
-	 * @param numberOfSlots The number of slots of the task manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
 	 */
-	public MemoryManager(
-			Map<MemoryType, Long> memorySizeByType,
-			int numberOfSlots,
-			int pageSize) {
+	public MemoryManager(Map<MemoryType, Long> memorySizeByType, int pageSize) {
 		for (Entry<MemoryType, Long> sizeForType : memorySizeByType.entrySet()) {
 			sanityCheck(sizeForType.getValue(), pageSize, sizeForType.getKey());
 		}
 
 		this.allocatedSegments = new ConcurrentHashMap<>();
 		this.reservedMemory = new ConcurrentHashMap<>();
-		this.numberOfSlots = numberOfSlots;
 		this.budgetByType = new KeyedBudgetManager<>(memorySizeByType, pageSize);
 		verifyIntTotalNumberOfPages(memorySizeByType, budgetByType.maxTotalNumberOfPages());
 
 		LOG.debug(
-			"Initialized MemoryManager with total memory size {} ({}), number of slots {}, page size {}.",
+			"Initialized MemoryManager with total memory size {} ({}), page size {}.",
 			budgetByType.totalAvailableBudget(),
 			memorySizeByType,
-			numberOfSlots,
 			pageSize);
 	}
 
@@ -180,7 +171,6 @@ public class MemoryManager {
 	 *
 	 * @return True, if the memory manager is empty and valid, false if it is not empty or corrupted.
 	 */
-	@VisibleForTesting
 	public boolean verifyEmpty() {
 		return budgetByType.totalAvailableBudget() == budgetByType.maxTotalBudget();
 	}
@@ -592,7 +582,7 @@ public class MemoryManager {
 		}
 
 		//noinspection NumericCastThatLosesPrecision
-		return (int) (budgetByType.maxTotalNumberOfPages() * fraction / numberOfSlots);
+		return (int) (budgetByType.maxTotalNumberOfPages() * fraction);
 	}
 
 	private MemorySegment allocateManagedSegment(MemoryType memoryType, Object owner) {

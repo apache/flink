@@ -181,6 +181,28 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 		}
 	}
 
+	@Override
+	public void writeTimestamp(int pos, SqlTimestamp value, int precision) {
+		if (SqlTimestamp.isCompact(precision)) {
+			writeLong(pos, value.getMillisecond());
+		} else {
+			// store the nanoOfMillisecond in fixed-length part as offset and nanoOfMillisecond
+			ensureCapacity(8);
+
+			if (value == null) {
+				setNullBit(pos);
+				// zero-out the bytes
+				segment.putLong(cursor, 0L);
+				setOffsetAndSize(pos, cursor, 0);
+			} else {
+				segment.putLong(cursor, value.getMillisecond());
+				setOffsetAndSize(pos, cursor, value.getNanoOfMillisecond());
+			}
+
+			cursor += 12;
+		}
+	}
+
 	private void zeroBytes(int offset, int size) {
 		for (int i = offset; i < offset + size; i++) {
 			segment.put(i, (byte) 0);

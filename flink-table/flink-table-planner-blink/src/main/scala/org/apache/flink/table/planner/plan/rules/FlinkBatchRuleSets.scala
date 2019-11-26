@@ -257,6 +257,7 @@ object FlinkBatchRuleSets {
 
     // join rules
     FlinkJoinPushExpressionsRule.INSTANCE,
+    SimplifyJoinConditionRule.INSTANCE,
 
     // remove union with only a single child
     UnionEliminatorRule.INSTANCE,
@@ -413,5 +414,13 @@ object FlinkBatchRuleSets {
     BatchExecCorrelateRule.INSTANCE,
     // sink
     BatchExecSinkRule.INSTANCE
+  )
+
+  /**
+    * RuleSet to optimize plans after batch exec execution.
+    */
+  val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
+    EnforceLocalHashAggRule.INSTANCE,
+    EnforceLocalSortAggRule.INSTANCE
   )
 }

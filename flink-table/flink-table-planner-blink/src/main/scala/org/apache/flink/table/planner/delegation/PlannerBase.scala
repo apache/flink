@@ -140,7 +140,10 @@ abstract class PlannerBase(
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
+    // prepare the execEnv before translating
     mergeParameters()
+    overrideEnvParallelism()
+
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
@@ -152,7 +155,7 @@ abstract class PlannerBase(
     val defaultParallelism = getTableConfig.getConfiguration.getInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
     if (defaultParallelism > 0) {
-      getExecEnv.setParallelism(defaultParallelism)
+      getExecEnv.getConfig.setParallelism(defaultParallelism)
     }
   }
 

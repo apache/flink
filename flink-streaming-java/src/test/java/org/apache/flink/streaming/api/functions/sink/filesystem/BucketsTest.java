@@ -318,7 +318,7 @@ public class BucketsTest {
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				DefaultRollingPolicy.builder().build(),
 				2,
-				new PartFileConfig()
+				OutputFileConfig.builder().build()
 		);
 
 		buckets.onElement(
@@ -377,14 +377,14 @@ public class BucketsTest {
 				basePath,
 				rollingPolicy,
 				subtaskIdx,
-				new PartFileConfig());
+				OutputFileConfig.builder().build());
 	}
 
 	private static Buckets<String, String> createBuckets(
 			final Path basePath,
 			final RollingPolicy<String, String> rollingPolicy,
 			final int subtaskIdx,
-			final PartFileConfig partFileConfig) throws IOException {
+			final OutputFileConfig outputFileConfig) throws IOException {
 		return new Buckets<>(
 				basePath,
 				new TestUtils.StringIdentityBucketAssigner(),
@@ -392,7 +392,7 @@ public class BucketsTest {
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicy,
 				subtaskIdx,
-				partFileConfig
+				outputFileConfig
 		);
 	}
 
@@ -408,7 +408,7 @@ public class BucketsTest {
 				subtaskIdx,
 				bucketState,
 				partCounterState,
-				new PartFileConfig());
+				OutputFileConfig.builder().build());
 	}
 
 	private static Buckets<String, String> restoreBuckets(
@@ -417,8 +417,8 @@ public class BucketsTest {
 			final int subtaskIdx,
 			final ListState<byte[]> bucketState,
 			final ListState<Long> partCounterState,
-			final PartFileConfig partFileConfig) throws Exception {
-		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx, partFileConfig);
+			final OutputFileConfig outputFileConfig) throws Exception {
+		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx, outputFileConfig);
 		restoredBuckets.initializeState(bucketState, partCounterState);
 		return restoredBuckets;
 	}

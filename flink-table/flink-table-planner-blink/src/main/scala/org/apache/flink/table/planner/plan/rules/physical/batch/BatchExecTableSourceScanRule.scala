@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecTableSourceScan
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.StreamTableSource
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -59,7 +59,7 @@ class BatchExecTableSourceScanRule
     new BatchExecTableSourceScan(
       rel.getCluster,
       newTrait,
-      scan.getTable.asInstanceOf[FlinkRelOptTable]
+      scan.getTable.asInstanceOf[TableSourceTable[_]]
     )
   }
 }

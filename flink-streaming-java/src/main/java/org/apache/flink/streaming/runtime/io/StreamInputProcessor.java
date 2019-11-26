@@ -31,7 +31,7 @@ public interface StreamInputProcessor extends AvailabilityProvider, Closeable {
 	/**
 	 * @return input status to estimate whether more records can be processed immediately or not.
 	 * If there are no more records available at the moment and the caller should check finished
-	 * state and/or {@link #isAvailable()}.
+	 * state and/or {@link #getAvailableFuture()}.
 	 */
 	InputStatus processInput() throws Exception;
 }

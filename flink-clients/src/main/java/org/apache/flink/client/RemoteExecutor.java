@@ -108,13 +108,14 @@ public class RemoteExecutor extends PlanExecutor {
 				clientConfiguration,
 				getDefaultParallelism());
 
-		ClientUtils.addJarFiles(jobGraph, jarFiles);
+		jobGraph.addJars(jarFiles);
 		jobGraph.setClasspaths(globalClasspaths);
 
 		ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 				jarFiles,
 				globalClasspaths,
-				getClass().getClassLoader());
+				getClass().getClassLoader(),
+				clientConfiguration);
 
 		return executePlanWithJars(jobGraph, userCodeClassLoader);
 	}

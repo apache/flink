@@ -304,8 +304,8 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	 * in this pool.
 	 */
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return availabilityHelper.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return availabilityHelper.getAvailableFuture();
 	}
 
 	// ------------------------------------------------------------------------

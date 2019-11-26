@@ -146,15 +146,20 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </div>
 </div>
 
-If you want to use the `RocksDBStateBackend`, then you have to add the following dependency to your Flink project.
+If you want to use the `RocksDBStateBackend` in your IDE or configure it programmatically in your Flink job, you will have to add the following dependency to your Flink project.
 
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.flink</groupId>
     <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
     <version>{{ site.version }}</version>
+    <scope>provided</scope>
 </dependency>
 {% endhighlight %}
+
+<div class="alert alert-info" markdown="span">
+  <strong>Note:</strong> Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend` and further [checkpointing]({{ site.baseurl }}/ops/config.html#checkpointing) and [RocksDB-specific]({{ site.baseurl }}/ops/config.html#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
+</div>
 
 
 ### Setting Default State Backend

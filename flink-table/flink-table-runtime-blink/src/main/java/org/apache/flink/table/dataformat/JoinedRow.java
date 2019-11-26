@@ -136,6 +136,15 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
+	public SqlTimestamp getTimestamp(int i, int precision) {
+		if (i < row1.getArity()) {
+			return row1.getTimestamp(i, precision);
+		} else {
+			return row2.getTimestamp(i - row1.getArity(), precision);
+		}
+	}
+
+	@Override
 	public <T> BinaryGeneric<T> getGeneric(int i) {
 		if (i < row1.getArity()) {
 			return row1.getGeneric(i);
@@ -267,6 +276,15 @@ public final class JoinedRow implements BaseRow {
 			row1.setDecimal(i, value, precision);
 		} else {
 			row2.setDecimal(i - row1.getArity(), value, precision);
+		}
+	}
+
+	@Override
+	public void setTimestamp(int i, SqlTimestamp value, int precision) {
+		if (i < row1.getArity()) {
+			row1.setTimestamp(i, value, precision);
+		} else {
+			row2.setTimestamp(i - row1.getArity(), value, precision);
 		}
 	}
 

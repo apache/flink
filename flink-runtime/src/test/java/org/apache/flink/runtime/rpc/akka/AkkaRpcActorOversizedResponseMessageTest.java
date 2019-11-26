@@ -84,6 +84,7 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 			fail("Expected the RPC to fail.");
 		} catch (ExecutionException e) {
 			assertThat(ExceptionUtils.findThrowable(e, AkkaRpcException.class).isPresent(), is(true));
+			assertThat(e.getCause().getMessage().contains(String.valueOf(FRAMESIZE)), is(true));
 		}
 	}
 
@@ -107,6 +108,7 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 			fail("Expected the RPC to fail.");
 		} catch (RpcException e) {
 			assertThat(ExceptionUtils.findThrowable(e, AkkaRpcException.class).isPresent(), is(true));
+			assertThat(e.getCause().getMessage().contains(String.valueOf(FRAMESIZE)), is(true));
 		}
 	}
 

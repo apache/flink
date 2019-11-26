@@ -659,6 +659,7 @@ Parameters:
 - `username` - (optional) InfluxDB username used for authentication
 - `password` - (optional) InfluxDB username's password used for authentication
 - `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server for the db
+- `consistency` - (optional) InfluxDB consistency level for metrics. Possible values: [ALL, ANY, ONE, QUORUM], default is ONE
 - `connectTimeout` - (optional) the InfluxDB client connect timeout in milliseconds, default is 10000 ms
 - `writeTimeout` - (optional) the InfluxDB client write timeout in milliseconds, default is 10000 ms
 
@@ -673,6 +674,7 @@ metrics.reporter.influxdb.db: flink
 metrics.reporter.influxdb.username: flink-metrics
 metrics.reporter.influxdb.password: qwerty
 metrics.reporter.influxdb.retentionPolicy: one_hour
+metrics.reporter.influxdb.consistency: ANY
 metrics.reporter.influxdb.connectTimeout: 60000
 metrics.reporter.influxdb.writeTimeout: 60000
 
@@ -1276,7 +1278,7 @@ Metrics related to data exchange between task executors using netty network comm
     </tr>
     <tr>
       <td>fullRestarts</td>
-      <td>The total number of full restarts since this job was submitted.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <b>numRestarts</b>.</td>
       <td>Gauge</td>
     </tr>
     <tr>

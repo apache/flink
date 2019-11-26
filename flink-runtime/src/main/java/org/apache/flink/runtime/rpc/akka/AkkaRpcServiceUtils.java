@@ -41,6 +41,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.apache.flink.util.NetUtils.isValidClientPort;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -192,7 +193,7 @@ public class AkkaRpcServiceUtils {
 
 		checkNotNull(hostname, "hostname is null");
 		checkNotNull(endpointName, "endpointName is null");
-		checkArgument(port > 0 && port <= 65535, "port must be in [1, 65535]");
+		checkArgument(isValidClientPort(port), "port must be in [1, 65535]");
 
 		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
 

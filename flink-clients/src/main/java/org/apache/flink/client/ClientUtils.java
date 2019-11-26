@@ -23,11 +23,14 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.ContextEnvironmentFactory;
-import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -56,20 +59,6 @@ public enum ClientUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
-	/**
-	 * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}. This will
-	 * throw an exception if a jar URL is not valid.
-	 */
-	public static void addJarFiles(JobGraph jobGraph, List<URL> jarFilesToAttach) {
-		for (URL jar : jarFilesToAttach) {
-			try {
-				jobGraph.addJar(new Path(jar.toURI()));
-			} catch (URISyntaxException e) {
-				throw new RuntimeException("URL is invalid. This should not happen.", e);
-			}
-		}
-	}
-
 	public static void checkJarFile(URL jar) throws IOException {
 		File jarFile;
 		try {
@@ -91,7 +80,11 @@ public enum ClientUtils {
 		}
 	}
 
-	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent) {
+	public static ClassLoader buildUserCodeClassLoader(
+			List<URL> jars,
+			List<URL> classpaths,
+			ClassLoader parent,
+			Configuration configuration) {
 		URL[] urls = new URL[jars.size() + classpaths.size()];
 		for (int i = 0; i < jars.size(); i++) {
 			urls[i] = jars.get(i);
@@ -99,7 +92,12 @@ public enum ClientUtils {
 		for (int i = 0; i < classpaths.size(); i++) {
 			urls[i + jars.size()] = classpaths.get(i);
 		}
-		return FlinkUserCodeClassLoaders.parentFirst(urls, parent);
+		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
+		final String classLoaderResolveOrder =
+			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+		FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
+		return FlinkUserCodeClassLoaders.create(resolveOrder, urls, parent, alwaysParentFirstLoaderPatterns);
 	}
 
 	public static JobExecutionResult submitJob(
@@ -148,29 +146,26 @@ public enum ClientUtils {
 	}
 
 	public static JobSubmissionResult executeProgram(
-			ClusterClient<?> client,
-			PackagedProgram program,
-			int parallelism,
-			boolean detached) throws ProgramMissingJobException, ProgramInvocationException {
+			ExecutorServiceLoader executorServiceLoader,
+			Configuration configuration,
+			PackagedProgram program) throws ProgramMissingJobException, ProgramInvocationException {
+
+		checkNotNull(executorServiceLoader);
+		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
+
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		try {
-			Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());
+			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 
-			LOG.info("Starting program (detached: {})", detached);
-
-			final List<URL> libraries = program.getAllLibraries();
+			LOG.info("Starting program (detached: {})", !configuration.getBoolean(DeploymentOptions.ATTACHED));
 
 			final AtomicReference<JobExecutionResult> jobExecutionResult = new AtomicReference<>();
 
 			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
-				client,
-				libraries,
-				program.getClasspaths(),
-				program.getUserCodeClassLoader(),
-				parallelism,
-				detached,
-				program.getSavepointSettings(),
-				jobExecutionResult);
+					executorServiceLoader,
+					configuration,
+					userCodeClassLoader,
+					jobExecutionResult);
 			ContextEnvironment.setAsContext(factory);
 
 			try {

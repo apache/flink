@@ -90,6 +90,9 @@ public class ClassLoaderITCase extends TestLogger {
 
 	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
+	private static final String CLASSLOADING_POLICY_JAR_PATH = "classloading_policy-test-jar.jar";
+
+
 	@ClassRule
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
@@ -383,5 +386,77 @@ public class ClassLoaderITCase extends TestLogger {
 		// make sure, the execution is finished to not influence other test methods
 		invokeThread.join(deadline.timeLeft().toMillis());
 		assertFalse("Program invoke thread still running", invokeThread.isAlive());
+	}
+
+	@Test
+	public void testProgramWithChildFirstClassLoader() throws IOException, ProgramInvocationException {
+		// We have two files named test-resource in src/resource (parent classloader classpath) and
+		// tmp folders (child classloader classpath) respectively.
+		String childResourceDirName = "child0";
+		String testResourceName = "test-resource";
+		File childResourceDir = FOLDER.newFolder(childResourceDirName);
+		File childResource = new File(childResourceDir, testResourceName);
+		assertTrue(childResource.createNewFile());
+
+		TestStreamEnvironment.setAsContext(
+			miniClusterResource.getMiniCluster(),
+			parallelism,
+			Collections.singleton(new Path(CLASSLOADING_POLICY_JAR_PATH)),
+			Collections.emptyList());
+
+		// child-first classloading
+		Configuration childFirstConf = new Configuration();
+		childFirstConf.setString("classloader.resolve-order", "child-first");
+
+		final PackagedProgram childFirstProgram = PackagedProgram.newBuilder()
+			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
+			.setUserClassPaths(Collections.singletonList(childResourceDir.toURI().toURL()))
+			.setConfiguration(childFirstConf)
+			.setArguments(testResourceName, childResourceDirName)
+			.build();
+
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(childFirstProgram.getUserCodeClassLoader());
+		try {
+			childFirstProgram.invokeInteractiveModeForExecution();
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
+	}
+
+	@Test
+	public void testProgramWithParentFirstClassLoader() throws IOException, ProgramInvocationException {
+		// We have two files named test-resource in src/resource (parent classloader classpath) and
+		// tmp folders (child classloader classpath) respectively.
+		String childResourceDirName = "child1";
+		String testResourceName = "test-resource";
+		File childResourceDir = FOLDER.newFolder(childResourceDirName);
+		File childResource = new File(childResourceDir, testResourceName);
+		assertTrue(childResource.createNewFile());
+
+		TestStreamEnvironment.setAsContext(
+			miniClusterResource.getMiniCluster(),
+			parallelism,
+			Collections.singleton(new Path(CLASSLOADING_POLICY_JAR_PATH)),
+			Collections.emptyList());
+
+		// parent-first classloading
+		Configuration parentFirstConf = new Configuration();
+		parentFirstConf.setString("classloader.resolve-order", "parent-first");
+
+		final PackagedProgram parentFirstProgram = PackagedProgram.newBuilder()
+			.setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
+			.setUserClassPaths(Collections.singletonList(childResourceDir.toURI().toURL()))
+			.setConfiguration(parentFirstConf)
+			.setArguments(testResourceName, "test-classes")
+			.build();
+
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(parentFirstProgram.getUserCodeClassLoader());
+		try {
+			parentFirstProgram.invokeInteractiveModeForExecution();
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
 	}
 }

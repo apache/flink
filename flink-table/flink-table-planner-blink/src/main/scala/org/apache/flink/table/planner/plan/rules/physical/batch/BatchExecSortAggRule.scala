@@ -22,10 +22,9 @@ import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalSortAggregate, BatchExecSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSortAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -90,13 +89,6 @@ class BatchExecSortAggRule
 
     // create two-phase agg if possible
     if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
-      val localAggRelType = inferLocalAggType(
-        inputRowType,
-        agg,
-        groupSet,
-        auxGroupSet,
-        aggFunctions,
-        aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
       // create BatchExecLocalSortAggregate
       var localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       if (agg.getGroupCount != 0) {
@@ -105,20 +97,21 @@ class BatchExecSortAggRule
       }
       val newLocalInput = RelOptRule.convert(input, localRequiredTraitSet)
       val providedLocalTraitSet = localRequiredTraitSet
-      val localSortAgg = new BatchExecLocalSortAggregate(
+
+      val localSortAgg = createLocalAgg(
         agg.getCluster,
         call.builder(),
         providedLocalTraitSet,
         newLocalInput,
-        localAggRelType,
-        newLocalInput.getRowType,
+        agg.getRowType,
         groupSet,
         auxGroupSet,
-        aggCallToAggFunction)
+        aggBufferTypes,
+        aggCallToAggFunction,
+        isLocalHashAgg = false)
 
       // create global BatchExecSortAggregate
-      val globalGroupSet = groupSet.indices.toArray
-      val globalAuxGroupSet = (groupSet.length until groupSet.length + auxGroupSet.length).toArray
+      val (globalGroupSet, globalAuxGroupSet) = getGlobalAggGroupSetPair(groupSet, auxGroupSet)
       val (globalDistributions, globalCollation) = if (agg.getGroupCount != 0) {
         // global agg should use groupSet's indices as distribution fields
         val distributionFields = globalGroupSet.map(Integer.valueOf).toList

@@ -103,7 +103,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 		consumer.setInvokableClass(AsyncConsumer.class);
 		consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		SlotSharingGroup slot = new SlotSharingGroup(producer.getID(), consumer.getID());
+		SlotSharingGroup slot = new SlotSharingGroup();
 		producer.setSlotSharingGroup(slot);
 		consumer.setSlotSharingGroup(slot);
 

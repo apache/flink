@@ -30,7 +30,6 @@ public class MemoryManagerBuilder {
 	private static final long DEFAULT_MEMORY_SIZE = 32L * DEFAULT_PAGE_SIZE;
 
 	private final Map<MemoryType, Long> memoryPools = new EnumMap<>(MemoryType.class);
-	private int numberOfSlots = 1;
 	private int pageSize = DEFAULT_PAGE_SIZE;
 
 	private MemoryManagerBuilder() {
@@ -47,18 +46,13 @@ public class MemoryManagerBuilder {
 		return this;
 	}
 
-	public MemoryManagerBuilder setNumberOfSlots(int numberOfSlots) {
-		this.numberOfSlots = numberOfSlots;
-		return this;
-	}
-
 	public MemoryManagerBuilder setPageSize(int pageSize) {
 		this.pageSize = pageSize;
 		return this;
 	}
 
 	public MemoryManager build() {
-		return new MemoryManager(memoryPools, numberOfSlots, pageSize);
+		return new MemoryManager(memoryPools, pageSize);
 	}
 
 	public static MemoryManagerBuilder newBuilder() {

@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.{JArrayList, JDouble, JList}
 
@@ -72,7 +72,7 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
   // --------------- averageColumnSizes ------------------------------------------------------------
 
   def averageColumnSizes(rel: TableScan, mq: RelMetadataQuery): JList[JDouble] = {
-    val statistic = rel.getTable.asInstanceOf[FlinkRelOptTable].getFlinkStatistic
+    val statistic = rel.getTable.asInstanceOf[FlinkPreparingTableBase].getStatistic
     rel.getRowType.getFieldList.map { field =>
       val colStats = statistic.getColumnStats(field.getName)
       if (colStats != null && colStats.getAvgLen != null) {

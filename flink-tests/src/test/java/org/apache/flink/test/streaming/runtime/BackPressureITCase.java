@@ -94,7 +94,7 @@ public class BackPressureITCase extends TestLogger {
 		final Configuration configuration = new Configuration();
 
 		final int memorySegmentSizeKb = 32;
-		final String networkBuffersMemory = (memorySegmentSizeKb * NUM_TASKS) + "kb";
+		final String networkBuffersMemory = memorySegmentSizeKb * (NUM_TASKS + 2) + "kb";
 
 		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, memorySegmentSizeKb + "kb");
 		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN, networkBuffersMemory);

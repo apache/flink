@@ -122,6 +122,7 @@ public class JarHandlerUtils {
 				final PackagedProgram packagedProgram = PackagedProgram.newBuilder()
 					.setJarFile(jarFile.toFile())
 					.setEntryPointClassName(entryClass)
+					.setConfiguration(configuration)
 					.setArguments(programArgs.toArray(new String[0]))
 					.build();
 				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism, jobId);

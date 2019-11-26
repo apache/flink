@@ -101,7 +101,7 @@ echo "Preparing Elasticsearch..."
 ELASTICSEARCH_VERSION=6
 DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
 
-setup_elasticsearch $DOWNLOAD_URL
+setup_elasticsearch $DOWNLOAD_URL $ELASTICSEARCH_VERSION
 wait_elasticsearch_working
 
 ################################################################################

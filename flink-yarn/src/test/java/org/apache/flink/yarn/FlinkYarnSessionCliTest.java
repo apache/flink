@@ -23,6 +23,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -126,23 +127,18 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 	@Test
 	public void testCorrectSettingOfDetachedMode() throws Exception {
-		String[] params =
-			new String[] {"-yd"};
+		final String[] params = new String[] {"-yd"};
 
-		FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
+		final FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
 			new Configuration(),
 			tmp.getRoot().getAbsolutePath(),
 			"y",
 			"yarn");
 
 		final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
-
 		final Configuration executorConfig = yarnCLI.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
-		final YarnClusterDescriptor descriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
-		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
-		assertTrue(descriptor.isDetachedMode());
+		assertThat(executorConfig.get(DeploymentOptions.ATTACHED), is(false));
 	}
 
 	@Test

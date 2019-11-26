@@ -50,7 +50,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -61,7 +60,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
@@ -709,6 +707,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		currentExecution.deploy();
 	}
 
+	@VisibleForTesting
 	public void deployToSlot(LogicalSlot slot) throws JobException {
 		if (currentExecution.tryAssignResource(slot)) {
 			currentExecution.deploy();
@@ -803,13 +802,37 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @return whether the input constraint is satisfied
 	 */
 	boolean checkInputDependencyConstraints() {
-		if (getInputDependencyConstraint() == InputDependencyConstraint.ANY) {
-			// InputDependencyConstraint == ANY
-			return IntStream.range(0, inputEdges.length).anyMatch(this::isInputConsumable);
-		} else {
-			// InputDependencyConstraint == ALL
-			return IntStream.range(0, inputEdges.length).allMatch(this::isInputConsumable);
+		if (inputEdges.length == 0) {
+			return true;
 		}
+
+		final InputDependencyConstraint inputDependencyConstraint = getInputDependencyConstraint();
+		switch (inputDependencyConstraint) {
+			case ANY:
+				return isAnyInputConsumable();
+			case ALL:
+				return areAllInputsConsumable();
+			default:
+				throw new IllegalStateException("Unknown InputDependencyConstraint " + inputDependencyConstraint);
+		}
+	}
+
+	private boolean isAnyInputConsumable() {
+		for (int inputNumber = 0; inputNumber < inputEdges.length; inputNumber++) {
+			if (isInputConsumable(inputNumber)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean areAllInputsConsumable() {
+		for (int inputNumber = 0; inputNumber < inputEdges.length; inputNumber++) {
+			if (!isInputConsumable(inputNumber)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -821,8 +844,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @return whether the input is consumable
 	 */
 	boolean isInputConsumable(int inputNumber) {
-		return Arrays.stream(inputEdges[inputNumber]).map(ExecutionEdge::getSource).anyMatch(
-				IntermediateResultPartition::isConsumable);
+		for (ExecutionEdge executionEdge : inputEdges[inputNumber]) {
+			if (executionEdge.getSource().isConsumable()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// --------------------------------------------------------------------------------------------

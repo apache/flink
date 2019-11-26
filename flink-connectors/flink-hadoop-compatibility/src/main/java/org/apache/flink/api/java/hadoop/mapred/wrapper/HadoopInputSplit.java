@@ -27,6 +27,8 @@ import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -42,18 +44,23 @@ public class HadoopInputSplit extends LocatableInputSplit {
 
 	private final Class<? extends org.apache.hadoop.mapred.InputSplit> splitType;
 
-	private transient JobConf jobConf;
-
 	private transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
 
-	public HadoopInputSplit(int splitNumber, org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
+	@Nullable private transient JobConf jobConf;
+
+	public HadoopInputSplit(
+			int splitNumber,
+			org.apache.hadoop.mapred.InputSplit hInputSplit,
+			@Nullable JobConf jobconf) {
 		super(splitNumber, (String) null);
 
 		if (hInputSplit == null) {
 			throw new NullPointerException("Hadoop input split must not be null");
 		}
-		if (jobconf == null) {
-			throw new NullPointerException("Hadoop JobConf must not be null");
+
+		if (needsJobConf(hInputSplit) && jobconf == null) {
+			throw new NullPointerException(
+					"Hadoop JobConf must not be null when input split is configurable.");
 		}
 
 		this.splitType = hInputSplit.getClass();
@@ -70,18 +77,13 @@ public class HadoopInputSplit extends LocatableInputSplit {
 	public String[] getHostnames() {
 		try {
 			return this.hadoopInputSplit.getLocations();
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			return new String[0];
 		}
 	}
 
 	public org.apache.hadoop.mapred.InputSplit getHadoopInputSplit() {
 		return hadoopInputSplit;
-	}
-
-	public JobConf getJobConf() {
-		return this.jobConf;
 	}
 
 	// ------------------------------------------------------------------------
@@ -92,8 +94,11 @@ public class HadoopInputSplit extends LocatableInputSplit {
 		// serialize the parent fields and the final fields
 		out.defaultWriteObject();
 
-		// the job conf knows how to serialize itself
-		jobConf.write(out);
+		if (needsJobConf(hadoopInputSplit)) {
+			// the job conf knows how to serialize itself
+			// noinspection ConstantConditions
+			jobConf.write(out);
+		}
 
 		// write the input split
 		hadoopInputSplit.write(out);
@@ -103,23 +108,28 @@ public class HadoopInputSplit extends LocatableInputSplit {
 		// read the parent fields and the final fields
 		in.defaultReadObject();
 
-		// the job conf knows how to deserialize itself
-		jobConf = new JobConf();
-		jobConf.readFields(in);
-
 		try {
 			hadoopInputSplit = (org.apache.hadoop.mapred.InputSplit) WritableFactories.newInstance(splitType);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate Hadoop InputSplit", e);
 		}
 
-		if (hadoopInputSplit instanceof Configurable) {
-			((Configurable) hadoopInputSplit).setConf(this.jobConf);
+		if (needsJobConf(hadoopInputSplit)) {
+			// the job conf knows how to deserialize itself
+			jobConf = new JobConf();
+			jobConf.readFields(in);
+
+			if (hadoopInputSplit instanceof Configurable) {
+				((Configurable) hadoopInputSplit).setConf(this.jobConf);
+			} else if (hadoopInputSplit instanceof JobConfigurable) {
+				((JobConfigurable) hadoopInputSplit).configure(this.jobConf);
+			}
 		}
-		else if (hadoopInputSplit instanceof JobConfigurable) {
-			((JobConfigurable) hadoopInputSplit).configure(this.jobConf);
-		}
+
 		hadoopInputSplit.readFields(in);
+	}
+
+	private static boolean needsJobConf(org.apache.hadoop.mapred.InputSplit split) {
+		return split instanceof Configurable || split instanceof JobConfigurable;
 	}
 }

@@ -21,6 +21,7 @@ import java.lang.reflect.Method
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 
+import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.table.runtime.functions.ScalarFunctions
@@ -194,4 +195,9 @@ object BuiltInMethods {
     classOf[Long], classOf[Int])
   val TRUNCATE_DEC = Types.lookupMethod(classOf[SqlFunctions], "struncate",
     classOf[JBigDecimal], classOf[Int])
+
+  // TODO: remove if CALCITE-3199 fixed
+  //  https://issues.apache.org/jira/browse/CALCITE-3199
+  val UNIX_DATE_CEIL = Types.lookupMethod(classOf[ScalarFunctions], "unixDateCeil",
+    classOf[TimeUnitRange], classOf[Int])
 }

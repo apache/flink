@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -57,12 +59,12 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	private final IMetaStoreClient client;
 	private final HiveConf hiveConf;
-	private final String hiveVersion;
+	private final HiveShim hiveShim;
 
 	public HiveMetastoreClientWrapper(HiveConf hiveConf, String hiveVersion) {
 		this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
-		this.hiveVersion = hiveVersion;
+		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		client = createMetastoreClient();
 	}
 
@@ -210,13 +212,15 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	//-------- Start of shimmed methods ----------
 
+	public Set<String> getNotNullColumns(Configuration conf, String dbName, String tableName) {
+		return hiveShim.getNotNullColumns(client, conf, dbName, tableName);
+	}
+
 	public List<String> getViews(String databaseName) throws UnknownDBException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getViews(client, databaseName);
 	}
 
 	private IMetaStoreClient createMetastoreClient() {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getHiveMetastoreClient(hiveConf);
 	}
 
@@ -238,18 +242,12 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	public void alter_table(String databaseName, String tableName, Table table)
 			throws InvalidOperationException, MetaException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		hiveShim.alterTable(client, databaseName, tableName, table);
 	}
 
 	public void alter_partition(String databaseName, String tableName, Partition partition)
 			throws InvalidOperationException, MetaException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		hiveShim.alterPartition(client, databaseName, tableName, partition);
-	}
-
-	public String getHiveVersion() {
-		return hiveVersion;
 	}
 
 }

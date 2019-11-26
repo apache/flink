@@ -19,11 +19,9 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
@@ -114,7 +112,6 @@ public class ExecutionContext<ClusterID> {
 
 	private final SessionContext sessionContext;
 	private final Environment mergedEnv;
-	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
 	private final Map<String, Module> modules;
 	private final Map<String, Catalog> catalogs;
@@ -137,7 +134,6 @@ public class ExecutionContext<ClusterID> {
 			Configuration flinkConfig, ClusterClientServiceLoader clusterClientServiceLoader, Options commandLineOptions, List<CustomCommandLine> availableCommandLines) throws FlinkException {
 		this.sessionContext = sessionContext.copy(); // create internal copy because session context is mutable
 		this.mergedEnv = Environment.merge(defaultEnvironment, sessionContext.getEnvironment());
-		this.dependencies = dependencies;
 		this.flinkConfig = flinkConfig;
 
 		// create class loader
@@ -185,7 +181,7 @@ public class ExecutionContext<ClusterID> {
 		clusterClientFactory = serviceLoader.getClusterClientFactory(executorConfig);
 		checkState(clusterClientFactory != null);
 
-		executionParameters = createExecutionParameterProvider(commandLine);
+		executionParameters = createExecutionParameterProvider(commandLine, dependencies);
 		clusterId = clusterClientFactory.getClusterId(executorConfig);
 		clusterSpec = clusterClientFactory.getClusterSpecification(executorConfig);
 	}
@@ -263,10 +259,10 @@ public class ExecutionContext<ClusterID> {
 		throw new SqlExecutionException("Could not find a matching deployment.");
 	}
 
-	private static ExecutionConfigAccessor createExecutionParameterProvider(CommandLine commandLine) {
+	private static ExecutionConfigAccessor createExecutionParameterProvider(CommandLine commandLine, List<URL> jobJars) {
 		try {
 			final ProgramOptions programOptions = new ProgramOptions(commandLine);
-			return ExecutionConfigAccessor.fromProgramOptions(programOptions);
+			return ExecutionConfigAccessor.fromProgramOptions(programOptions, jobJars);
 		} catch (CliArgsException e) {
 			throw new SqlExecutionException("Invalid deployment run options.", e);
 		}
@@ -488,7 +484,7 @@ public class ExecutionContext<ClusterID> {
 					flinkConfig,
 					parallelism);
 
-			ClientUtils.addJarFiles(jobGraph, dependencies);
+			jobGraph.addJars(executionParameters.getJars());
 			jobGraph.setClasspaths(executionParameters.getClasspaths());
 			jobGraph.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 
@@ -500,14 +496,12 @@ public class ExecutionContext<ClusterID> {
 				// special case for Blink planner to apply batch optimizations
 				// note: it also modifies the ExecutionConfig!
 				if (executor instanceof ExecutorBase) {
-					return ((ExecutorBase) executor).generateStreamGraph(name);
+					return ((ExecutorBase) executor).getStreamGraph(name);
 				}
 				return streamExecEnv.getStreamGraph(name);
 			} else {
 				final int parallelism = execEnv.getParallelism();
-				final Plan unoptimizedPlan = execEnv.createProgramPlan();
-				unoptimizedPlan.setJobName(name);
-				return unoptimizedPlan;
+				return execEnv.createProgramPlan(name);
 			}
 		}
 

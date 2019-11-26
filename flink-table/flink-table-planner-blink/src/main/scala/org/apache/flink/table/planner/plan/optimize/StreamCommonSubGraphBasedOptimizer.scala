@@ -41,6 +41,7 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexBuilder
 
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -134,7 +135,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         val isAccRetract = optimizedPlan.getTraitSet
           .getTrait(AccModeTraitDef.INSTANCE).getAccMode == AccMode.AccRetract
         val name = createUniqueIntermediateRelTableName
-        val intermediateRelTable = createIntermediateRelTable(optimizedPlan, isAccRetract)
+        val intermediateRelTable = createIntermediateRelTable(name, optimizedPlan, isAccRetract)
         val newTableScan = wrapIntermediateRelTableToTableScan(intermediateRelTable, name)
         block.setNewOutputNode(newTableScan)
         block.setOutputTableName(name)
@@ -219,7 +220,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         val optimizedPlan = optimizeTree(
           o, retractionFromRoot, miniBatchInterval, isSinkBlock = isSinkBlock)
         val name = createUniqueIntermediateRelTableName
-        val intermediateRelTable = createIntermediateRelTable(optimizedPlan, isAccRetract = false)
+        val intermediateRelTable = createIntermediateRelTable(name, optimizedPlan,
+          isAccRetract = false)
         val newTableScan = wrapIntermediateRelTableToTableScan(intermediateRelTable, name)
         block.setNewOutputNode(newTableScan)
         block.setOutputTableName(name)
@@ -297,6 +299,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   }
 
   private def createIntermediateRelTable(
+      name: String,
       relNode: RelNode,
       isAccRetract: Boolean): IntermediateRelTable = {
     val uniqueKeys = getUniqueKeys(relNode)
@@ -307,8 +310,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       .uniqueKeys(uniqueKeys)
       .relModifiedMonotonicity(monotonicity)
       .build()
-
-    new IntermediateRelTable(relNode, isAccRetract, statistic)
+    new IntermediateRelTable(Collections.singletonList(name), relNode, isAccRetract, statistic)
   }
 
   private def getUniqueKeys(relNode: RelNode): util.Set[_ <: util.Set[String]] = {

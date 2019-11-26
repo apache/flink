@@ -32,7 +32,7 @@ public interface FlinkToRelContext extends RelOptTable.ToRelContext {
 	 * Creates a new instance of {@link SqlExprToRexConverter} to convert sql statements
 	 * to {@link org.apache.calcite.rex.RexNode}.
 	 *
-	 * <p>See {@link org.apache.flink.table.planner.plan.schema.FlinkRelOptTable#toRel}
+	 * <p>See {@link org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase#toRel}
 	 * for details.
 	 */
 	SqlExprToRexConverter createSqlExprToRexConverter(RelDataType tableRowType);

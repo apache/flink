@@ -54,29 +54,29 @@ public abstract class InputGateTestBase {
 			SingleInputGate inputGateToNotify,
 			TestInputChannel inputChannelWithNewData) throws Exception {
 
-		assertFalse(inputGateToTest.isAvailable().isDone());
+		assertFalse(inputGateToTest.getAvailableFuture().isDone());
 		assertFalse(inputGateToTest.pollNext().isPresent());
 
-		CompletableFuture<?> isAvailable = inputGateToTest.isAvailable();
+		CompletableFuture<?> future = inputGateToTest.getAvailableFuture();
 
-		assertFalse(inputGateToTest.isAvailable().isDone());
+		assertFalse(inputGateToTest.getAvailableFuture().isDone());
 		assertFalse(inputGateToTest.pollNext().isPresent());
 
-		assertEquals(isAvailable, inputGateToTest.isAvailable());
+		assertEquals(future, inputGateToTest.getAvailableFuture());
 
 		inputChannelWithNewData.readBuffer();
 		inputGateToNotify.notifyChannelNonEmpty(inputChannelWithNewData);
 
-		assertTrue(isAvailable.isDone());
-		assertTrue(inputGateToTest.isAvailable().isDone());
-		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
+		assertTrue(future.isDone());
+		assertTrue(inputGateToTest.getAvailableFuture().isDone());
+		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
 	}
 
 	protected void testIsAvailableAfterFinished(
 		InputGate inputGateToTest,
 		Runnable endOfPartitionEvent) throws Exception {
 
-		CompletableFuture<?> available = inputGateToTest.isAvailable();
+		CompletableFuture<?> available = inputGateToTest.getAvailableFuture();
 		assertFalse(available.isDone());
 		assertFalse(inputGateToTest.pollNext().isPresent());
 
@@ -85,8 +85,8 @@ public abstract class InputGateTestBase {
 		assertTrue(inputGateToTest.pollNext().isPresent()); // EndOfPartitionEvent
 
 		assertTrue(available.isDone());
-		assertTrue(inputGateToTest.isAvailable().isDone());
-		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
+		assertTrue(inputGateToTest.getAvailableFuture().isDone());
+		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
 	}
 
 	protected SingleInputGate createInputGate() {

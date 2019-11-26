@@ -386,7 +386,7 @@ SELECT * FROM Orders WHERE a % 2 = 0
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-      <p>UDFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register scalar UDFs.</p>
+      <p>UDFs must be registered in the TableEnvironment. See the <a href="{{ site.baseurl }}/dev/table/functions/udfs.html">UDF documentation</a> for details on how to specify and register scalar UDFs.</p>
 {% highlight sql %}
 SELECT PRETTY_PRINT(user) FROM Orders
 {% endhighlight %}
@@ -508,7 +508,7 @@ HAVING SUM(amount) > 50
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>UDAGGs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDAGGs.</p>
+        <p>UDAGGs must be registered in the TableEnvironment. See the <a href="{{ site.baseurl }}/dev/table/functions/udfs.html">UDF documentation</a> for details on how to specify and register UDAGGs.</p>
 {% highlight sql %}
 SELECT MyAggregate(amount)
 FROM Orders
@@ -617,7 +617,7 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
       </td>
     	<td>
         <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function.</p>
-        <p>User-defined table functions (UDTFs) must be registered before. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
+        <p>User-defined table functions (UDTFs) must be registered before. See the <a href="{{ site.baseurl }}/dev/table/functions/udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
 
         <p><b>Inner Join</b></p>
         <p>A row of the left (outer) table is dropped, if its table function call returns an empty result.</p>
@@ -1440,9 +1440,9 @@ Please see the dedicated page about [data types](types.html).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions](functions.html#value-access-functions).
+Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html#value-access-functions).
 
-Generic types are treated as a black box and can be passed on or processed by [user-defined functions](udfs.html).
+Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{ site.baseurl }}/dev/table/functions/udfs.html).
 
 For DDLs, we support full data types defined in page [Data Types]({{ site.baseurl }}/dev/table/types.html).
 

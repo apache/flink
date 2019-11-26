@@ -6,7 +6,7 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.fasterxml.jackson.core:jackson-core:2.8.10
+- com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.8.10
 - com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.8.10
 - com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.8.10

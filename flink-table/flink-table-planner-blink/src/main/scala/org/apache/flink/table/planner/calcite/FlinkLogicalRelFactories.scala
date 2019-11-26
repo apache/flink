@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
 
@@ -212,9 +212,11 @@ object FlinkLogicalRelFactories {
       val tableScan = LogicalTableScan.create(cluster, table)
       tableScan match {
         case s: LogicalTableScan if FlinkLogicalTableSourceScan.isTableSourceScan(s) =>
-          FlinkLogicalTableSourceScan.create(cluster, s.getTable.asInstanceOf[FlinkRelOptTable])
+          FlinkLogicalTableSourceScan.create(cluster,
+            s.getTable.asInstanceOf[FlinkPreparingTableBase])
         case s: LogicalTableScan if FlinkLogicalDataStreamTableScan.isDataStreamTableScan(s) =>
-          FlinkLogicalDataStreamTableScan.create(cluster, s.getTable.asInstanceOf[FlinkRelOptTable])
+          FlinkLogicalDataStreamTableScan.create(cluster,
+            s.getTable.asInstanceOf[FlinkPreparingTableBase])
       }
     }
   }

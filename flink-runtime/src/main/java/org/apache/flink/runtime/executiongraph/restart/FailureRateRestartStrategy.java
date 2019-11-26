@@ -25,9 +25,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 
-import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
 
@@ -91,13 +89,14 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 
 	public static FailureRateRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
 		int maxFailuresPerInterval = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL);
-		String failuresIntervalString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL);
-		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY);
+		long failuresInterval = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL)
+			.toMillis();
+		long delay = configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY).toMillis();
 
-		Duration failuresInterval = TimeUtils.parseDuration(failuresIntervalString);
-		Duration delay = TimeUtils.parseDuration(delayString);
-
-		return new FailureRateRestartStrategyFactory(maxFailuresPerInterval, Time.milliseconds(failuresInterval.toMillis()), Time.milliseconds(delay.toMillis()));
+		return new FailureRateRestartStrategyFactory(
+			maxFailuresPerInterval,
+			Time.milliseconds(failuresInterval),
+			Time.milliseconds(delay));
 	}
 
 	public static class FailureRateRestartStrategyFactory extends RestartStrategyFactory {

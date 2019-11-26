@@ -64,9 +64,9 @@ public class CsvTableSource
 	 */
 	public CsvTableSource(String path, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		this(path, fieldNames, fieldTypes,
-			IntStream.range(0, fieldNames.length).toArray(),
-			CsvInputFormat.DEFAULT_FIELD_DELIMITER, CsvInputFormat.DEFAULT_LINE_DELIMITER,
-			null, false, null, false);
+				IntStream.range(0, fieldNames.length).toArray(),
+				CsvInputFormat.DEFAULT_FIELD_DELIMITER, CsvInputFormat.DEFAULT_LINE_DELIMITER,
+				null, false, null, false);
 	}
 
 	/**
@@ -85,20 +85,19 @@ public class CsvTableSource
 	 *                        default.
 	 */
 	public CsvTableSource(
-		String path,
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes,
-		String fieldDelim,
-		String lineDelim,
-		Character quoteCharacter,
-		boolean ignoreFirstLine,
-		String ignoreComments,
-		boolean lenient) {
-
+			String path,
+			String[] fieldNames,
+			TypeInformation<?>[] fieldTypes,
+			String fieldDelim,
+			String lineDelim,
+			Character quoteCharacter,
+			boolean ignoreFirstLine,
+			String ignoreComments,
+			boolean lenient) {
 		this(path, fieldNames, fieldTypes,
-			IntStream.range(0, fieldNames.length).toArray(),
-			fieldDelim, lineDelim,
-			quoteCharacter, ignoreFirstLine, ignoreComments, lenient);
+				IntStream.range(0, fieldNames.length).toArray(),
+				fieldDelim, lineDelim, quoteCharacter,
+				ignoreFirstLine, ignoreComments, lenient);
 	}
 
 	/**
@@ -119,18 +118,20 @@ public class CsvTableSource
 	 *                        default.
 	 */
 	public CsvTableSource(
-		String path,
-		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes,
-		int[] selectedFields,
-		String fieldDelim,
-		String lineDelim,
-		Character quoteCharacter,
-		boolean ignoreFirstLine,
-		String ignoreComments,
-		boolean lenient) {
-		this(new CsvInputFormatConfig(path, fieldNames, fieldTypes, selectedFields,
-			fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient));
+			String path,
+			String[] fieldNames,
+			TypeInformation<?>[] fieldTypes,
+			int[] selectedFields,
+			String fieldDelim,
+			String lineDelim,
+			Character quoteCharacter,
+			boolean ignoreFirstLine,
+			String ignoreComments,
+			boolean lenient) {
+		this(new CsvInputFormatConfig(
+				path, fieldNames, fieldTypes, selectedFields,
+				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
+				ignoreComments, lenient, false));
 	}
 
 	private CsvTableSource(CsvInputFormatConfig config) {
@@ -236,6 +237,7 @@ public class CsvTableSource
 		private boolean isIgnoreFirstLine = false;
 		private String commentPrefix;
 		private boolean lenient = false;
+		private boolean emptyColumnAsNull = false;
 
 		/**
 		 * Sets the path to the CSV file. Required.
@@ -320,6 +322,14 @@ public class CsvTableSource
 		}
 
 		/**
+		 * Treat empty column as null, false by default.
+		 */
+		public Builder emptyColumnAsNull() {
+			this.emptyColumnAsNull = true;
+			return this;
+		}
+
+		/**
 		 * Apply the current values and constructs a newly-created CsvTableSource.
 		 *
 		 * @return a newly-created CsvTableSource
@@ -331,18 +341,20 @@ public class CsvTableSource
 			if (schema.isEmpty()) {
 				throw new IllegalArgumentException("Fields can not be empty.");
 			}
-			return new CsvTableSource(
-				path,
-				schema.keySet().toArray(new String[0]),
-				schema.values().toArray(new TypeInformation<?>[0]),
-				fieldDelim,
-				lineDelim,
-				quoteCharacter,
-				isIgnoreFirstLine,
-				commentPrefix,
-				lenient);
-		}
 
+			return new CsvTableSource(new CsvInputFormatConfig(
+					path,
+					schema.keySet().toArray(new String[0]),
+					schema.values().toArray(new TypeInformation<?>[0]),
+					IntStream.range(0, schema.values().size()).toArray(),
+					fieldDelim,
+					lineDelim,
+					quoteCharacter,
+					isIgnoreFirstLine,
+					commentPrefix,
+					lenient,
+					emptyColumnAsNull));
+		}
 	}
 
 	// ------------------------------------------------------------------------------------
@@ -456,6 +468,7 @@ public class CsvTableSource
 		private final boolean ignoreFirstLine;
 		private final String ignoreComments;
 		private final boolean lenient;
+		private final boolean emptyColumnAsNull;
 
 		CsvInputFormatConfig(
 			String path,
@@ -467,7 +480,8 @@ public class CsvTableSource
 			Character quoteCharacter,
 			boolean ignoreFirstLine,
 			String ignoreComments,
-			boolean lenient) {
+			boolean lenient,
+			boolean emptyColumnAsNull) {
 
 			this.path = path;
 			this.fieldNames = fieldNames;
@@ -479,6 +493,7 @@ public class CsvTableSource
 			this.ignoreFirstLine = ignoreFirstLine;
 			this.ignoreComments = ignoreComments;
 			this.lenient = lenient;
+			this.emptyColumnAsNull = emptyColumnAsNull;
 		}
 
 		String[] getSelectedFieldNames() {
@@ -503,7 +518,8 @@ public class CsvTableSource
 				getSelectedFieldTypes(),
 				lineDelim,
 				fieldDelim,
-				selectedFields);
+				selectedFields,
+				emptyColumnAsNull);
 			inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine);
 			inputFormat.setCommentPrefix(ignoreComments);
 			inputFormat.setLenient(lenient);
@@ -515,7 +531,7 @@ public class CsvTableSource
 
 		CsvInputFormatConfig select(int[] fields) {
 			return new CsvInputFormatConfig(path, fieldNames, fieldTypes, fields,
-				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient);
+				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient, emptyColumnAsNull);
 		}
 
 		@Override
@@ -528,21 +544,22 @@ public class CsvTableSource
 			}
 			CsvInputFormatConfig that = (CsvInputFormatConfig) o;
 			return ignoreFirstLine == that.ignoreFirstLine &&
-				lenient == that.lenient &&
-				Objects.equals(path, that.path) &&
-				Arrays.equals(fieldNames, that.fieldNames) &&
-				Arrays.equals(fieldTypes, that.fieldTypes) &&
-				Arrays.equals(selectedFields, that.selectedFields) &&
-				Objects.equals(fieldDelim, that.fieldDelim) &&
-				Objects.equals(lineDelim, that.lineDelim) &&
-				Objects.equals(quoteCharacter, that.quoteCharacter) &&
-				Objects.equals(ignoreComments, that.ignoreComments);
+					lenient == that.lenient &&
+					Objects.equals(path, that.path) &&
+					Arrays.equals(fieldNames, that.fieldNames) &&
+					Arrays.equals(fieldTypes, that.fieldTypes) &&
+					Arrays.equals(selectedFields, that.selectedFields) &&
+					Objects.equals(fieldDelim, that.fieldDelim) &&
+					Objects.equals(lineDelim, that.lineDelim) &&
+					Objects.equals(quoteCharacter, that.quoteCharacter) &&
+					Objects.equals(ignoreComments, that.ignoreComments) &&
+					Objects.equals(emptyColumnAsNull, that.emptyColumnAsNull);
 		}
 
 		@Override
 		public int hashCode() {
 			int result = Objects.hash(path, fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
-				ignoreComments, lenient);
+					ignoreComments, lenient, emptyColumnAsNull);
 			result = 31 * result + Arrays.hashCode(fieldNames);
 			result = 31 * result + Arrays.hashCode(fieldTypes);
 			result = 31 * result + Arrays.hashCode(selectedFields);

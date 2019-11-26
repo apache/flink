@@ -58,6 +58,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
@@ -239,9 +240,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				"Only table API objects that belong to this TableEnvironment can be registered.");
 		}
 
-		CatalogBaseTable tableTable = new QueryOperationCatalogView(view.getQueryOperation());
-
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
+		QueryOperation queryOperation = qualifyQueryOperation(tableIdentifier, view.getQueryOperation());
+		CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
+
 		catalogManager.createTemporaryTable(tableTable, tableIdentifier, false);
 	}
 
@@ -449,7 +451,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		if (operations.size() != 1) {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-					"INSERT, CREATE TABLE, DROP TABLE");
+					"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG");
 		}
 
 		Operation operation = operations.get(0);
@@ -472,10 +474,13 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			catalogManager.dropTable(
 				dropTableOperation.getTableIdentifier(),
 				dropTableOperation.isIfExists());
+		} else if (operation instanceof UseCatalogOperation) {
+			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
+			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
 		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE");
+					"type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG");
 		}
 	}
 
@@ -509,6 +514,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		translate(bufferedModifyOperations);
 		bufferedModifyOperations.clear();
 		return execEnv.execute(jobName);
+	}
+
+	/**
+	 * Subclasses can override this method to transform the given QueryOperation to a new one with
+	 * the qualified object identifier. This is needed for some QueryOperations, e.g. JavaDataStreamQueryOperation,
+	 * which doesn't know the registered identifier when created ({@code fromDataStream(DataStream)}.
+	 * But the identifier is required when converting this QueryOperation to RelNode.
+	 */
+	protected QueryOperation qualifyQueryOperation(ObjectIdentifier identifier, QueryOperation queryOperation) {
+		return queryOperation;
 	}
 
 	/**

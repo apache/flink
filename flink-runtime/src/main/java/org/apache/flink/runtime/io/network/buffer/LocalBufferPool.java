@@ -228,7 +228,7 @@ class LocalBufferPool implements BufferPool {
 		while ((segment = requestMemorySegment()) == null) {
 			try {
 				// wait until available
-				isAvailable().get();
+				getAvailableFuture().get();
 			} catch (ExecutionException e) {
 				LOG.error("The available future is completed exceptionally.", e);
 				ExceptionUtils.rethrow(e);
@@ -345,9 +345,8 @@ class LocalBufferPool implements BufferPool {
 					listener.notifyBufferDestroyed();
 				}
 
-				final CompletableFuture<?> isAvailable = availabilityHelper.isAvailable();
-				if (!isAvailable(isAvailable)) {
-					toNotify = isAvailable;
+				if (!isAvailable()) {
+					toNotify = availabilityHelper.getAvailableFuture();
 				}
 
 				isDestroyed = true;
@@ -393,10 +392,7 @@ class LocalBufferPool implements BufferPool {
 			returnExcessMemorySegments();
 
 			numExcessBuffers = numberOfRequestedMemorySegments - currentPoolSize;
-
-			if (numExcessBuffers < 0
-					&& availableMemorySegments.isEmpty()
-					&& isAvailable(networkBufferPool.isAvailable())) {
+			if (numExcessBuffers < 0 && availableMemorySegments.isEmpty() && networkBufferPool.isAvailable()) {
 				toNotify = availabilityHelper.getUnavailableToResetUnavailable();
 			}
 		}
@@ -411,13 +407,13 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
+	public CompletableFuture<?> getAvailableFuture() {
 		if (numberOfRequestedMemorySegments >= currentPoolSize) {
-			return availabilityHelper.isAvailable();
-		} else if (availabilityHelper.isAvailable() == AVAILABLE || networkBufferPool.isAvailable() == AVAILABLE) {
+			return availabilityHelper.getAvailableFuture();
+		} else if (availabilityHelper.isApproximatelyAvailable() || networkBufferPool.isApproximatelyAvailable()) {
 			return AVAILABLE;
 		} else {
-			return CompletableFuture.anyOf(availabilityHelper.isAvailable(), networkBufferPool.isAvailable());
+			return CompletableFuture.anyOf(availabilityHelper.getAvailableFuture(), networkBufferPool.getAvailableFuture());
 		}
 	}
 
@@ -441,10 +437,6 @@ class LocalBufferPool implements BufferPool {
 		if (toNotify != null) {
 			toNotify.complete(null);
 		}
-	}
-
-	private boolean isAvailable(CompletableFuture<?> isAvailable) {
-		return isAvailable == AVAILABLE || isAvailable.isDone();
 	}
 
 	private void returnMemorySegment(MemorySegment segment) {

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.util.Preconditions;
@@ -231,7 +232,8 @@ public class MailboxProcessor {
 		return suspendedDefaultAction;
 	}
 
-	private boolean isDefaultActionUnavailable() {
+	@VisibleForTesting
+	public boolean isDefaultActionUnavailable() {
 		return suspendedDefaultAction != null;
 	}
 
