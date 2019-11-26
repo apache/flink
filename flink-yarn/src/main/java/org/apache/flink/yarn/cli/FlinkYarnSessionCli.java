@@ -598,7 +598,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 					}
 				}
 
-				if (yarnClusterDescriptor.isDetachedMode()) {
+				if (!configuration.getBoolean(DeploymentOptions.ATTACHED)) {
 					LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
 						"yarn application -kill " + yarnApplicationId);
