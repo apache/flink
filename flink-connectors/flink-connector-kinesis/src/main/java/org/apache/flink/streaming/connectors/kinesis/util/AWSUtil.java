@@ -84,20 +84,14 @@ public class AWSUtil {
 				.withCredentials(AWSUtil.getCredentialsProvider(configProps))
 				.withClientConfiguration(awsClientConfig);
 
-		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT) && configProps.containsKey(AWSConfigConstants.AWS_REGION)) {
-			// Set signingRegion to the value of AWS_REGION for region-specific signing on a custom endpoint
+		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
+			// If an endpoint is specified, we give preference to using an endpoint and use the region property to
+			// sign the request.
 			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
-					configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
-					configProps.getProperty(AWSConfigConstants.AWS_REGION)));
+				configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
+				configProps.getProperty(AWSConfigConstants.AWS_REGION)));
 		} else {
-			if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
-				// Set signingRegion as null, to facilitate mocking Kinesis for local tests
-				builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
-						configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
-						null));
-			} else {
-				builder.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
-			}
+			builder.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
 		}
 		return builder.build();
 	}
