@@ -84,7 +84,7 @@ public final class PythonDriverEnvUtils {
 	 * Prepares PythonEnvironment to start python process.
 	 *
 	 * @param pythonLibFiles The dependent Python files.
-	 * @param tmpDir The temporary directory files copied to.
+	 * @param tmpDir The temporary directory which files will be copied to.
 	 * @return PythonEnvironment the Python environment which will be executed in Python process.
 	 */
 	public static PythonEnvironment preparePythonEnvironment(
@@ -123,14 +123,14 @@ public final class PythonDriverEnvUtils {
 				String.join(File.separator, UUID.randomUUID().toString(), sourceFileName));
 			if (!pythonFile.getFileSystem().isDistributedFS()) {
 				// if the path is local file, try to create symbolic link.
+				new File(targetPath.getParent().toString()).mkdir();
 				createSymbolicLinkForPyflinkLib(
 					Paths.get(new File(pythonFile.getPath()).getAbsolutePath()),
 					Paths.get(targetPath.toString()));
 			} else {
 				FileUtils.copy(pythonFile, targetPath, true);
 			}
-			if (Paths.get(targetPath.toString()).toRealPath().toFile().isFile() &&
-				sourceFileName.endsWith(".py")) {
+			if (Files.isRegularFile(Paths.get(targetPath.toString()).toRealPath()) && sourceFileName.endsWith(".py")) {
 				// add the parent directory of .py file itself to PYTHONPATH
 				pythonPathList.add(targetPath.getParent().toString());
 			} else {
@@ -150,7 +150,6 @@ public final class PythonDriverEnvUtils {
 	 */
 	public static void createSymbolicLinkForPyflinkLib(java.nio.file.Path libPath, java.nio.file.Path symbolicLinkPath)
 			throws IOException {
-		symbolicLinkPath.getParent().toFile().mkdirs();
 		try {
 			Files.createSymbolicLink(symbolicLinkPath, libPath);
 		} catch (IOException e) {

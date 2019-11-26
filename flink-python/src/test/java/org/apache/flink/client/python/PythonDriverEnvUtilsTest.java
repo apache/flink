@@ -112,8 +112,8 @@ public class PythonDriverEnvUtilsTest {
 	@Test
 	public void testStartPythonProcess() {
 		PythonDriverEnvUtils.PythonEnvironment pythonEnv = new PythonDriverEnvUtils.PythonEnvironment();
-		pythonEnv.storageDirectory = tmpDirPath.toString();
-		pythonEnv.pythonPath = tmpDirPath.toString();
+		pythonEnv.storageDirectory = tmpDirPath;
+		pythonEnv.pythonPath = tmpDirPath;
 		List<String> commands = new ArrayList<>();
 		String pyPath = String.join(File.separator, tmpDirPath, "verifier.py");
 		try {
@@ -139,11 +139,11 @@ public class PythonDriverEnvUtilsTest {
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);
 			}
-			String cmdResult = new String(Files.readAllBytes(new File(result.toString()).toPath()));
+			String cmdResult = new String(Files.readAllBytes(new File(result).toPath()));
 			// Check if the working directory of python process is the same as java process.
 			Assert.assertEquals(cmdResult, System.getProperty("user.dir"));
 			pythonProcess.destroyForcibly();
-			new File(pyPath).delete();
+			pyFile.delete();
 			new File(result).delete();
 		} catch (IOException | InterruptedException e) {
 			throw new RuntimeException("test start Python process failed " + e.getMessage());
