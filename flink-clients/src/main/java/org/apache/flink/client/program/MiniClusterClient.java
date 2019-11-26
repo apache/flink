@@ -134,6 +134,17 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 	}
 
 	@Override
+	public void shutDownCluster() {
+		try {
+			miniCluster.closeAsync().get();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		} catch (ExecutionException e) {
+			LOG.error("Error while shutting down cluster", e);
+		}
+	}
+
+	@Override
 	public String getWebInterfaceURL() {
 		try {
 			return miniCluster.getRestAddress().get().toString();

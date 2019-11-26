@@ -65,9 +65,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	/**
 	 * Shut down the cluster that this client communicate with.
 	 */
-	default void shutDownCluster() {
-		throw new UnsupportedOperationException();
-	}
+	void shutDownCluster();
 
 	/**
 	 * Returns an URL (as a string) to the cluster web interface.
