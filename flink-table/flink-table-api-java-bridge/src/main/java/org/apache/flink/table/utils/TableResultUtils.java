@@ -38,6 +38,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -55,7 +56,7 @@ public class TableResultUtils {
 	 * @param table		Flink table to convert
 	 * @return			Converted Java list
 	 */
-	public static List<Row> tableResultToList(Table table) {
+	public static List<Row> tableResultToList(Table table) throws Exception {
 		final TableEnvironment tEnv = ((TableImpl) table).getTableEnvironment();
 
 		final String id = new AbstractID().toString();
@@ -63,20 +64,18 @@ public class TableResultUtils {
 		final Utils.CollectHelper<Row> outputFormat = new Utils.CollectHelper<>(id, serializer);
 		final TableResultSink sink = new TableResultSink(table, outputFormat);
 
-		final String sinkName = "tableResultSink" + id;
-		final String jobName = "tableResultToList" + id;
+		final String sinkName = "tableResultSink_" + id;
+		final String jobName = "tableResultToList_" + id;
 
 		tEnv.registerTableSink(sinkName, sink);
 		tEnv.insertInto(sinkName, table);
 
-		try {
-			JobExecutionResult executionResult = tEnv.execute(jobName);
-			return SerializedListAccumulator.deserializeList(
-				executionResult.getAccumulatorResult(id),
-				serializer);
-		} catch (Exception e) {
-			throw new RuntimeException("Could not fetch table result into list: " + e);
-		}
+		JobExecutionResult executionResult = tEnv.execute(jobName);
+		ArrayList<byte[]> accResult = executionResult.getAccumulatorResult(id);
+		List<Row> deserializedList = SerializedListAccumulator.deserializeList(accResult, serializer);
+
+		tEnv.dropTemporaryTable(sinkName);
+		return deserializedList;
 	}
 
 	/**

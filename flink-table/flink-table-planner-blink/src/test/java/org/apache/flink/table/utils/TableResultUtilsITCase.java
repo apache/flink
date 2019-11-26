@@ -39,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 public class TableResultUtilsITCase extends BatchTestBase {
 
 	@Test
-	public void testTableResultToList() {
+	public void testTableResultToList() throws Exception {
 		final List<Row> sourceData = new ArrayList<>();
 		sourceData.add(row(1, 11L));
 		sourceData.add(row(1, 12L));
