@@ -199,7 +199,7 @@ public class DataTypesTest {
 					new TypeInformationRawType<>(Types.GENERIC(DataTypesTest.class)),
 					DataTypesTest.class},
 
-				{DataTypes.RAW(Void.class, VoidSerializer.INSTANCE),
+				{RAW(Void.class, VoidSerializer.INSTANCE),
 					new RawType<>(Void.class, VoidSerializer.INSTANCE),
 					Void.class}
 			}
