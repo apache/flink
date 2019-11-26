@@ -150,7 +150,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			RelDataType rowType,
 			FlinkStatistic statistic,
 			CatalogView view) {
-		return new SqlCatalogViewTable(relOptSchema, rowType, names, statistic, view, names.subList(0, 1));
+		return new SqlCatalogViewTable(relOptSchema, rowType, names, statistic, view, names.subList(0, 2));
 	}
 
 	private static FlinkPreparingTableBase convertSourceTable(

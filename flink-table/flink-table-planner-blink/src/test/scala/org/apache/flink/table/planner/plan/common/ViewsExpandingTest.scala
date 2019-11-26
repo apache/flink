@@ -32,7 +32,7 @@ import org.junit.runners.Parameterized.Parameters
 import java.util
 
 @RunWith(classOf[Parameterized])
-class ViewsExpanding(tableTestUtil: TableTestBase => TableTestUtil) extends TableTestBase {
+class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends TableTestBase {
 
   @Test
   def testMixedSqlTableViewExpanding(): Unit = {
@@ -107,7 +107,7 @@ class ViewsExpanding(tableTestUtil: TableTestBase => TableTestUtil) extends Tabl
 
 }
 
-object ViewsExpanding {
+object ViewsExpandingTest {
   @Parameters
   def parameters(): Array[TableTestBase => TableTestUtilBase] = {
     Array(

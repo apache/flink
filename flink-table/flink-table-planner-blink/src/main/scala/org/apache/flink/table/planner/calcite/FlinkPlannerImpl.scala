@@ -102,10 +102,10 @@ class FlinkPlannerImpl(
 
   def validate(sqlNode: SqlNode): SqlNode = {
     val validator = getOrCreateSqlValidator()
-    validateInternal(sqlNode, validator)
+    validate(sqlNode, validator)
   }
 
-  private def validateInternal(sqlNode: SqlNode, validator: FlinkCalciteSqlValidator): SqlNode = {
+  private def validate(sqlNode: SqlNode, validator: FlinkCalciteSqlValidator): SqlNode = {
     try {
       sqlNode.accept(new PreValidateReWriter(
         validator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]), typeFactory))
@@ -181,7 +181,7 @@ class FlinkPlannerImpl(
       originalReader.getConfig
     )
     val validator = createSqlValidator(readerWithPathAdjusted)
-    val validated = validateInternal(parsed, validator)
+    val validated = validate(parsed, validator)
     rel(validated, validator)
   }
 
