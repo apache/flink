@@ -18,19 +18,16 @@
 
 package org.apache.flink.python.util;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utils for building the most basic environment for running python udf workers.
- * The basic environment does not include python part of Apache Beam.
- * Users need to prepare it themselves.
+ * Utils for building the most basic environment for running python udf workers. The basic environment does not include
+ * python part of Apache Beam. Users need to prepare it themselves.
  */
 public class ResourceUtil {
 
@@ -40,8 +37,6 @@ public class ResourceUtil {
 		"cloudpickle-1.2.2-src.zip",
 		"pyflink-udf-runner.sh"
 	};
-
-	public static final int BUFF_SIZE = 4096;
 
 	public static List<File> extractBasicDependenciesFromResource(
 			String tmpdir,
@@ -72,9 +67,9 @@ public class ResourceUtil {
 					prefix,
 					fileName).inheritIO().start().waitFor();
 			} else {
-				copyBytes(
-					classLoader.getResourceAsStream(fileName),
-					new BufferedOutputStream(new FileOutputStream(file)));
+				Files.copy(
+					ResourceUtil.class.getClassLoader().getResourceAsStream(fileName),
+					Paths.get(file.getAbsolutePath()));
 			}
 			extractedFiles.add(file);
 		}
@@ -83,7 +78,7 @@ public class ResourceUtil {
 
 	/**
 	 * This main method is used to create the shell script in a subprocess, see the "TODO" hints in method
-	 * { @link ResourceUtil#extractBasicDependenciesFromResource }.
+	 * {@link ResourceUtil#extractBasicDependenciesFromResource}.
 	 * @param args First argument is the directory where shell script will be created. Second argument is the prefix of
 	 *             the shell script. Third argument is the fileName of the shell script.
 	 * @throws IOException
@@ -94,29 +89,9 @@ public class ResourceUtil {
 		String fileName = args[2];
 		File file = new File(tmpdir, prefix + fileName);
 
-		copyBytes(
-			ResourceUtil.class.getClassLoader().getResourceAsStream(fileName),
-			new BufferedOutputStream(new FileOutputStream(file)));
+		Files.copy(
+			ResourceUtil.class.getClassLoader().getResourceAsStream(fileName), Paths.get(file.getAbsolutePath()));
 
 		file.setExecutable(true);
-	}
-
-	/**
-	 * This util class will be executed in a separated java process. So implementing this method here instead of reusing
-	 * flink-core utils to minimize its dependencies, which will make the code much simple.
-	 * simple.
-	 * @param input The input stream.
-	 * @param output The output stream.
-	 * @throws IOException
-	 */
-	public static void copyBytes(InputStream input, OutputStream output) throws IOException {
-		try (InputStream in = input; OutputStream out = output) {
-			final byte[] buf = new byte[BUFF_SIZE];
-			int bytesRead = in.read(buf);
-			while (bytesRead >= 0) {
-				out.write(buf, 0, bytesRead);
-				bytesRead = in.read(buf);
-			}
-		}
 	}
 }
