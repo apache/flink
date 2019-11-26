@@ -130,19 +130,19 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudf"),
-				new CatalogFunctionImpl(TestHiveSimpleUDF.class.getCanonicalName(), false),
+				new CatalogFunctionImpl(TestHiveSimpleUDF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "mygenericudf"),
-				new CatalogFunctionImpl(TestHiveGenericUDF.class.getCanonicalName(), false),
+				new CatalogFunctionImpl(TestHiveGenericUDF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudtf"),
-				new CatalogFunctionImpl(TestHiveUDTF.class.getCanonicalName(), false),
+				new CatalogFunctionImpl(TestHiveUDTF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudaf"),
-				new CatalogFunctionImpl(GenericUDAFSum.class.getCanonicalName(), false),
+				new CatalogFunctionImpl(GenericUDAFSum.class.getCanonicalName()),
 				false);
 
 		testUdf(true);

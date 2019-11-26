@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Optional;
@@ -29,16 +30,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class CatalogFunctionImpl implements CatalogFunction {
 	private final String className; // Fully qualified class name of the function
-	private final boolean isGeneric;
 
 	public CatalogFunctionImpl(String className) {
-		this(className, true);
-	}
-
-	public CatalogFunctionImpl(String className, boolean isGeneric) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
 		this.className = className;
-		this.isGeneric = isGeneric;
 	}
 
 	@Override
@@ -48,7 +43,7 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
 	@Override
 	public CatalogFunction copy() {
-		return new CatalogFunctionImpl(getClassName(), isGeneric);
+		return new CatalogFunctionImpl(getClassName());
 	}
 
 	@Override
@@ -63,14 +58,21 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
 	@Override
 	public boolean isGeneric() {
-		return isGeneric;
+		try {
+			Class c = Class.forName(className);
+			if (UserDefinedFunction.class.isAssignableFrom(c)) {
+				return true;
+			}
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(String.format("Can't resolve udf class %s", className), e);
+		}
+		return false;
 	}
 
 	@Override
 	public String toString() {
 		return "CatalogFunctionImpl{" +
 			"className='" + getClassName() +
-			", isGeneric='" + isGeneric +
 			"'}";
 	}
 }
