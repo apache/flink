@@ -323,7 +323,6 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 			try {
 				pythonInternalLibs = ResourceUtil.extractBasicDependenciesFromResource(
 					tmpdir,
-					this.getClass().getClassLoader(),
 					prefix,
 					false);
 			} catch (IOException | InterruptedException e) {

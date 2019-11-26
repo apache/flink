@@ -110,7 +110,6 @@ public final class PythonDriverEnvUtils {
 
 		List<File> internalLibs = extractBasicDependenciesFromResource(
 			tmpDir,
-			PythonDriverEnvUtils.class.getClassLoader(),
 			UUID.randomUUID().toString(),
 			true);
 

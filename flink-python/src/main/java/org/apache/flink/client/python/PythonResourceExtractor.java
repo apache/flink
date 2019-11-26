@@ -37,7 +37,6 @@ public class PythonResourceExtractor {
 
 		List<File> files = extractBasicDependenciesFromResource(
 			tmpdir,
-			PythonResourceExtractor.class.getClassLoader(),
 			UUID.randomUUID().toString(),
 			true);
 

@@ -40,7 +40,6 @@ public class ResourceUtil {
 
 	public static List<File> extractBasicDependenciesFromResource(
 			String tmpdir,
-			ClassLoader classLoader,
 			String prefix,
 			boolean skipShellScript) throws IOException, InterruptedException {
 		List<File> extractedFiles = new ArrayList<>();
