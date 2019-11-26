@@ -64,6 +64,7 @@ import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.util.StringUtils;
@@ -755,6 +756,12 @@ public class HiveCatalog extends AbstractCatalog {
 			throw new CatalogException(
 				String.format("Failed to list partitions of table %s", tablePath), e);
 		}
+	}
+
+	@Override
+	public List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> filters)
+			throws TableNotExistException, TableNotPartitionedException, CatalogException {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

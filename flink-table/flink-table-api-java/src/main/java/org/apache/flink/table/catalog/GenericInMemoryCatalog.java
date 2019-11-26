@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.util.StringUtils;
 
@@ -548,6 +549,12 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 		return partitions.get(tablePath).keySet().stream()
 			.filter(ps -> ps.getPartitionSpec().entrySet().containsAll(partitionSpec.getPartitionSpec().entrySet()))
 			.collect(Collectors.toList());
+	}
+
+	@Override
+	public List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> filters)
+			throws TableNotExistException, TableNotPartitionedException, CatalogException {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

@@ -21,11 +21,12 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException
 import org.apache.flink.table.catalog.{Catalog, CatalogPartitionSpec, ObjectIdentifier}
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor}
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor, RexNodeToExpressionConverter}
 import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.sources.PartitionableTableSource
@@ -34,11 +35,13 @@ import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle}
+import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle, RexUtil}
 
 import java.util
+import java.util.TimeZone
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
   * Planner rule that tries to push partitions evaluated by filter condition into a
@@ -81,40 +84,84 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
     val inputFields = inputFieldType.getFieldNames.toList.toArray
 
     val relBuilder = call.builder()
+    val rexBuilder = relBuilder.getRexBuilder
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
-    val (partitionPredicate, nonPartitionPredicate) =
-      RexNodeExtractor.extractPartitionPredicates(
+    val (partitionPredicates, nonPartitionPredicates) =
+      RexNodeExtractor.extractPartitionPredicateList(
         filter.getCondition,
         maxCnfNodeCount,
         inputFields,
-        relBuilder.getRexBuilder,
+        rexBuilder,
         partitionFieldNames
       )
 
+    val partitionPredicate = RexUtil.composeConjunction(rexBuilder, partitionPredicates)
     if (partitionPredicate.isAlwaysTrue) {
       // no partition predicates in filter
       return
     }
 
-    val finalPartitionPredicate = adjustPartitionPredicate(
-      inputFieldType.getFieldNames.toList.toArray,
-      partitionFieldNames,
-      partitionPredicate
-    )
     val partitionFieldTypes = partitionFieldNames.map { name =>
       val index = inputFieldType.getFieldNames.indexOf(name)
       require(index >= 0, s"$name is not found in ${inputFieldType.getFieldNames.mkString(", ")}")
       inputFieldType.getFieldList.get(index).getType
     }.map(FlinkTypeFactory.toLogicalType)
 
-    val allPartitions = tableSource.getPartitions
-    val remainingPartitions = PartitionPruner.prunePartitions(
-      config,
-      partitionFieldNames,
-      partitionFieldTypes,
-      allPartitions,
-      finalPartitionPredicate
-    )
+    def getAllPartitions: util.List[util.Map[String, String]] = {
+      catalogOption match {
+        case Some(c) =>
+          c.listPartitions(tableIdentifier.toObjectPath)
+            .map(_.getPartitionSpec).toList
+        case None => tableSource.getPartitions
+      }
+    }
+
+    def internalPartitionPrune(): util.List[util.Map[String, String]] = {
+      val allPartitions = getAllPartitions
+      val finalPartitionPredicate = adjustPartitionPredicate(
+        inputFieldType.getFieldNames.toList.toArray,
+        partitionFieldNames,
+        partitionPredicate
+      )
+      PartitionPruner.prunePartitions(
+        config,
+        partitionFieldNames,
+        partitionFieldTypes,
+        allPartitions,
+        finalPartitionPredicate
+      )
+    }
+
+    val remainingPartitions: util.List[util.Map[String, String]] = catalogOption match {
+      case Some(catalog) =>
+        val converter = new RexNodeToExpressionConverter(
+          inputFields,
+          context.getFunctionCatalog,
+          context.getCatalogManager,
+          TimeZone.getTimeZone(config.getLocalTimeZone))
+        def toExpressions: Option[Seq[Expression]] = {
+          val expressions = new mutable.ArrayBuffer[Expression]()
+          for (predicate <- partitionPredicates) {
+            predicate.accept(converter) match {
+              case Some(expr) => expressions.add(expr)
+              case None => return None
+            }
+          }
+          Some(expressions)
+        }
+        toExpressions match {
+          case Some(expressions) =>
+            try {
+              catalog
+                  .listPartitionsByFilter(tableIdentifier.toObjectPath, expressions)
+                  .map(_.getPartitionSpec)
+            } catch {
+              case _: UnsupportedOperationException => internalPartitionPrune()
+            }
+          case None => internalPartitionPrune()
+        }
+      case None => internalPartitionPrune()
+    }
 
     val newTableSource = tableSource.applyPartitionPruning(remainingPartitions)
 
@@ -152,6 +199,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
 
     val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newTableSourceTable)
     // check whether framework still need to do a filter
+    val nonPartitionPredicate = RexUtil.composeConjunction(rexBuilder, nonPartitionPredicates)
     if (nonPartitionPredicate.isAlwaysTrue) {
       call.transformTo(newScan)
     } else {
