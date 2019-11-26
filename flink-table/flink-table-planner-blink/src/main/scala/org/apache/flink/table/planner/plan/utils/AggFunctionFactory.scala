@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
-import org.apache.flink.table.planner.functions.sql.{SqlListAggFunction, SqlFirstLastValueAggFunction}
+import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
@@ -41,8 +41,9 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
-
 import java.util
+
+import org.apache.flink.table.dataformat.SqlTimestamp
 
 import scala.collection.JavaConversions._
 
@@ -307,7 +308,9 @@ class AggFunctionFactory(
           new TimeMinWithRetractAggFunction
         case DATE =>
           new DateMinWithRetractAggFunction
-        case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        case TIMESTAMP_WITHOUT_TIME_ZONE
+            if SqlTimestamp.isCompact(argTypes(0).asInstanceOf[TimestampType].getPrecision) =>
+          // TODO: support TimestampMinWithRetractAggFunction for high precision timestamp
           new TimestampMinWithRetractAggFunction
         case t =>
           throw new TableException(s"Min with retract aggregate function does not " +
@@ -336,7 +339,8 @@ class AggFunctionFactory(
         case TIME_WITHOUT_TIME_ZONE =>
           new MinAggFunction.TimeMinAggFunction
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
-          new MinAggFunction.TimestampMinAggFunction
+          val d = argTypes(0).asInstanceOf[TimestampType]
+          new MinAggFunction.TimestampMinAggFunction(d)
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
           new MinAggFunction.DecimalMinAggFunction(d)
@@ -371,7 +375,8 @@ class AggFunctionFactory(
       case TIME_WITHOUT_TIME_ZONE =>
         new LeadLagAggFunction.TimeLeadLagAggFunction(argTypes.length)
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        new LeadLagAggFunction.TimestampLeadLagAggFunction(argTypes.length)
+        val d = argTypes(0).asInstanceOf[TimestampType]
+        new LeadLagAggFunction.TimestampLeadLagAggFunction(argTypes.length, d)
       case DECIMAL =>
         val d = argTypes(0).asInstanceOf[DecimalType]
         new LeadLagAggFunction.DecimalLeadLagAggFunction(argTypes.length, d)
@@ -408,7 +413,9 @@ class AggFunctionFactory(
           new TimeMaxWithRetractAggFunction
         case DATE =>
           new DateMaxWithRetractAggFunction
-        case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        case TIMESTAMP_WITHOUT_TIME_ZONE
+            if SqlTimestamp.isCompact(argTypes(0).asInstanceOf[TimestampType].getPrecision) =>
+          // TODO: support TimestampMaxWithRetractAggFunction for high precision timestamp
           new TimestampMaxWithRetractAggFunction
         case t =>
           throw new TableException(s"Max with retract aggregate function does not " +
@@ -437,7 +444,8 @@ class AggFunctionFactory(
         case TIME_WITHOUT_TIME_ZONE =>
           new MaxAggFunction.TimeMaxAggFunction
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
-          new MaxAggFunction.TimestampMaxAggFunction
+          val d = argTypes(0).asInstanceOf[TimestampType]
+          new MaxAggFunction.TimestampMaxAggFunction(d)
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
           new MaxAggFunction.DecimalMaxAggFunction(d)
@@ -479,7 +487,8 @@ class AggFunctionFactory(
       case TIME_WITHOUT_TIME_ZONE =>
         new TimeSingleValueAggFunction
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        new TimestampSingleValueAggFunction
+        val d = argTypes(0).asInstanceOf[TimestampType]
+        new TimestampSingleValueAggFunction(d)
       case DECIMAL =>
         val d = argTypes(0).asInstanceOf[DecimalType]
         new DecimalSingleValueAggFunction(d)

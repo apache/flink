@@ -520,6 +520,8 @@ object CodeGenUtils {
   def binaryRowSetNull(indexTerm: String, rowTerm: String, t: LogicalType): String = t match {
     case d: DecimalType if !Decimal.isCompact(d.getPrecision) =>
       s"$rowTerm.setDecimal($indexTerm, null, ${d.getPrecision})"
+    case d: TimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
     case _ => s"$rowTerm.setNullAt($indexTerm)"
   }
 
@@ -611,6 +613,8 @@ object CodeGenUtils {
       t: LogicalType): String = t match {
     case d: DecimalType if !Decimal.isCompact(d.getPrecision) =>
       s"$writerTerm.writeDecimal($indexTerm, null, ${d.getPrecision})"
+    case d: TimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
     case _ => s"$writerTerm.setNullAt($indexTerm)"
   }
 
