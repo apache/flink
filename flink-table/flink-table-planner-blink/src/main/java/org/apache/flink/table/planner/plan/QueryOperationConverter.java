@@ -115,6 +115,7 @@ import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunc
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
+import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataToLogicalType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -378,7 +379,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				statistic,
 				tableSource,
 				!isBatch,
-				ConnectorCatalogTable.source(tableSource, isBatch));
+				ConnectorCatalogTable.source(tableSource, isBatch),
+				toScala(Optional.empty()));
 			return LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable);
 		}
 

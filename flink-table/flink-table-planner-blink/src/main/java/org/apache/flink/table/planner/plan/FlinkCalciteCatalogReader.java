@@ -179,7 +179,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			statistic,
 			tableSource,
 			isStreamingMode,
-			table);
+			table,
+			new scala.Some<>(tableIdentifier));
 	}
 
 	private static FlinkPreparingTableBase convertCatalogTable(

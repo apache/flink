@@ -75,7 +75,8 @@ class CatalogSourceTable[T](
       statistic,
       tableSource,
       schemaTable.isStreamingMode,
-      catalogTable)
+      catalogTable,
+      Some(schemaTable.getTableIdentifier))
     if (columnExprs.isEmpty) {
       LogicalTableScan.create(cluster, tableSourceTable)
     } else {
