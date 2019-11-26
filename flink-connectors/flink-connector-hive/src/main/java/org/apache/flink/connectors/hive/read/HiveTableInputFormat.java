@@ -75,6 +75,11 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 	// indices of fields to be returned, with projection applied (if any)
 	private int[] selectedFields;
 
+	//We should limit the input read count of this splits, -1 represents no limit.
+	private long limit;
+
+	private transient long currentReadCount = 0L;
+
 	private transient SplitReader reader;
 
 	private transient Configuration parameters;
@@ -84,11 +89,13 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			CatalogTable catalogTable,
 			List<HiveTablePartition> partitions,
 			int[] projectedFields,
+			long limit,
 			String hiveVersion) {
 		super(jobConf.getCredentials());
 		this.partitionKeys = catalogTable.getPartitionKeys();
 		this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
 		this.fieldNames = catalogTable.getSchema().getFieldNames();
+		this.limit = limit;
 		this.hiveVersion = hiveVersion;
 		checkNotNull(catalogTable, "catalogTable can not be null.");
 		this.partitions = checkNotNull(partitions, "partitions can not be null.");
@@ -111,6 +118,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		} else {
 			this.reader = new HiveMapredSplitReader(jobConf, partitionKeys, fieldTypes, selectedFields, split);
 		}
+		currentReadCount = 0L;
 	}
 
 	private boolean useOrcVectorizedRead(HiveTablePartition partition) {
@@ -168,11 +176,16 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		return reader.reachedEnd();
+		if (limit > 0 && currentReadCount >= limit) {
+			return true;
+		} else {
+			return reader.reachedEnd();
+		}
 	}
 
 	@Override
 	public BaseRow nextRecord(BaseRow reuse) throws IOException {
+		currentReadCount++;
 		return reader.nextRecord(reuse);
 	}
 
@@ -233,6 +246,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		out.writeObject(fieldNames);
 		out.writeObject(partitions);
 		out.writeObject(selectedFields);
+		out.writeObject(limit);
 		out.writeObject(hiveVersion);
 	}
 
@@ -253,6 +267,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		fieldNames = (String[]) in.readObject();
 		partitions = (List<HiveTablePartition>) in.readObject();
 		selectedFields = (int[]) in.readObject();
+		limit = (long) in.readObject();
 		hiveVersion = (String) in.readObject();
 	}
 }

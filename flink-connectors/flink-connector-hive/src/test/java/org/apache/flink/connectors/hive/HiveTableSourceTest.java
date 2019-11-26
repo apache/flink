@@ -227,4 +227,38 @@ public class HiveTableSourceTest {
 		}
 	}
 
+	@Test
+	public void testLimitPushDown() throws Exception {
+		hiveShell.execute("create table src (a string)");
+		final String catalogName = "hive";
+		try {
+			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
+						.addRow(new Object[]{"a"})
+						.addRow(new Object[]{"b"})
+						.addRow(new Object[]{"c"})
+						.addRow(new Object[]{"d"})
+						.commit();
+			//Add this to obtain correct stats of table to avoid FLINK-14965 problem
+			hiveShell.execute("analyze table src COMPUTE STATISTICS");
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			tableEnv.registerCatalog(catalogName, hiveCatalog);
+			Table table = tableEnv.sqlQuery("select * from hive.`default`.src limit 1");
+			String[] explain = tableEnv.explain(table).split("==.*==\n");
+			assertEquals(4, explain.length);
+			String logicalPlan = explain[2];
+			String physicalPlan = explain[3];
+			String expectedExplain = "HiveTableSource(a) TablePath: default.src, PartitionPruned: false, " +
+									"PartitionNums: 1, LimitPushDown true, Limit 1";
+			assertTrue(logicalPlan.contains(expectedExplain));
+			assertTrue(physicalPlan.contains(expectedExplain));
+
+			List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
+			assertEquals(1, rows.size());
+			Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
+			assertArrayEquals(new String[]{"a"}, rowStrings);
+		} finally {
+			hiveShell.execute("drop table src");
+		}
+	}
+
 }
