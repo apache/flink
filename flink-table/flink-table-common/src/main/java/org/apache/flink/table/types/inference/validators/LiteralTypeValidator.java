@@ -35,7 +35,7 @@ import java.util.Objects;
  * Validator that checks if a single argument is a literal.
  */
 @Internal
-public class LiteralTypeValidator implements ArgumentTypeValidator, InputTypeValidator {
+public final class LiteralTypeValidator implements ArgumentTypeValidator, InputTypeValidator {
 
 	private final boolean allowNull;
 

@@ -63,7 +63,7 @@ public final class ExplicitTypeValidator implements ArgumentTypeValidator {
 
 	@Override
 	public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		return Argument.of(expectedType.toString());
+		return Argument.of(expectedType.asSummaryString());
 	}
 
 	@Override

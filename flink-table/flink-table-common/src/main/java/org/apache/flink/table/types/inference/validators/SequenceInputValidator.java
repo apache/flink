@@ -38,10 +38,10 @@ import java.util.Objects;
 
 /**
  * Validator that checks for a sequence of {@link ArgumentTypeValidator}s for validating an entire
- * function signature like {@code f(STRING, NUMERIC)}.
+ * function signature like {@code f(STRING, NUMERIC)} or {@code f(s STRING, n NUMERIC)}.
  */
 @Internal
-public class SequenceInputValidator implements InputTypeValidator {
+public final class SequenceInputValidator implements InputTypeValidator {
 
 	private final List<? extends ArgumentTypeValidator> validators;
 
@@ -79,8 +79,6 @@ public class SequenceInputValidator implements InputTypeValidator {
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
 		final List<Signature.Argument> arguments = new ArrayList<>();
-		// according to precondition we can assume single type validators
-		// thus we can pass constant 0s
 		for (int i = 0; i < validators.size(); i++) {
 			if (argumentNames == null) {
 				arguments.add(validators.get(i).getExpectedArgument(definition, i));

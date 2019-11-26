@@ -40,19 +40,13 @@ import java.util.stream.Collectors;
  * {@code f(NUMERIC) || f(STRING)}.
  */
 @Internal
-public class OrTypeInputValidator implements InputTypeValidator {
+public final class OrTypeInputValidator implements InputTypeValidator {
 
 	private final List<? extends InputTypeValidator> validators;
 
-	private final @Nullable List<String> argumentNames;
-
-	public OrTypeInputValidator(
-			List<? extends InputTypeValidator> validators,
-			@Nullable List<String> argumentNames) {
+	public OrTypeInputValidator(List<? extends InputTypeValidator> validators) {
 		Preconditions.checkArgument(validators.size() > 0);
-		Preconditions.checkArgument(argumentNames == null || argumentNames.size() == validators.size());
 		this.validators = validators;
-		this.argumentNames = argumentNames;
 	}
 
 	@Override
@@ -133,13 +127,12 @@ public class OrTypeInputValidator implements InputTypeValidator {
 			return false;
 		}
 		OrTypeInputValidator that = (OrTypeInputValidator) o;
-		return Objects.equals(validators, that.validators) &&
-			Objects.equals(argumentNames, that.argumentNames);
+		return Objects.equals(validators, that.validators);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(validators, argumentNames);
+		return Objects.hash(validators);
 	}
 
 	// --------------------------------------------------------------------------------------------

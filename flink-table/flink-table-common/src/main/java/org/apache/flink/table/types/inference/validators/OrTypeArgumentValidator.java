@@ -25,30 +25,22 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
  * Validator that checks for a disjunction of multiple {@link ArgumentTypeValidator}s into one like
- * {@code f(NUMERIC | STRING)}.
+ * {@code f(NUMERIC || STRING)}.
  */
 @Internal
-public class OrTypeArgumentValidator implements ArgumentTypeValidator {
+public final class OrTypeArgumentValidator implements ArgumentTypeValidator {
 
 	private final List<? extends ArgumentTypeValidator> validators;
 
-	private final @Nullable List<String> argumentNames;
-
-	public OrTypeArgumentValidator(
-			List<? extends ArgumentTypeValidator> validators,
-			@Nullable List<String> argumentNames) {
+	public OrTypeArgumentValidator(List<? extends ArgumentTypeValidator> validators) {
 		Preconditions.checkArgument(validators.size() > 0);
-		Preconditions.checkArgument(argumentNames == null || argumentNames.size() == validators.size());
 		this.validators = validators;
-		this.argumentNames = argumentNames;
 	}
 
 	@Override
@@ -72,9 +64,6 @@ public class OrTypeArgumentValidator implements ArgumentTypeValidator {
 		final String argument = validators.stream()
 			.map(v -> v.getExpectedArgument(functionDefinition, argumentPos).getType())
 			.collect(Collectors.joining(" | ", "[", "]"));
-		if (argumentNames != null && argumentNames.get(argumentPos) != null) {
-			return Signature.Argument.of(argumentNames.get(argumentPos), argument);
-		}
 		return Signature.Argument.of(argument);
 	}
 
@@ -87,12 +76,11 @@ public class OrTypeArgumentValidator implements ArgumentTypeValidator {
 			return false;
 		}
 		OrTypeArgumentValidator that = (OrTypeArgumentValidator) o;
-		return Objects.equals(validators, that.validators) &&
-			Objects.equals(argumentNames, that.argumentNames);
+		return Objects.equals(validators, that.validators);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(validators, argumentNames);
+		return Objects.hash(validators);
 	}
 }

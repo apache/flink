@@ -80,6 +80,15 @@ public class InputTypeValidatorsTest {
 				.inputTypes(DataTypes.INT())
 				.expectSuccess(),
 
+			// invalid named sequence
+			TestSpec
+				.forValidator(
+					explicitSequence(
+						new String[]{"i", "s"},
+						new DataType[]{DataTypes.INT(), DataTypes.STRING()}))
+				.inputTypes(DataTypes.INT())
+				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(i INT, s STRING)"),
+
 			// incompatible nullability
 			TestSpec
 				.forValidator(explicitSequence(DataTypes.BIGINT().notNull()))

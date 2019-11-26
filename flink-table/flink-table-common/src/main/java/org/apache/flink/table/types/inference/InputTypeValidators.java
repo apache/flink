@@ -77,25 +77,26 @@ public final class InputTypeValidators {
 	 * Conjunction of multiple {@link ArgumentTypeValidator}s into one like {@code f(NUMERIC && LITERAL)}.
 	 */
 	public static ArgumentTypeValidator and(ArgumentTypeValidator... validators) {
-		return new AndTypeArgumentValidator(Arrays.asList(validators), null);
+		return new AndTypeArgumentValidator(Arrays.asList(validators));
 	}
 
 	/**
 	 * Conjunction of multiple {@link ArgumentTypeValidator}s into one like {@code f(NUMERIC || STRING)}.
 	 */
 	public static ArgumentTypeValidator or(ArgumentTypeValidator... validators) {
-		return new OrTypeArgumentValidator(Arrays.asList(validators), null);
+		return new OrTypeArgumentValidator(Arrays.asList(validators));
 	}
 
 	/**
 	 * Conjunction of multiple {@link InputTypeValidator}s into one like {@code f(NUMERIC) || f(STRING)}.
 	 */
 	public static InputTypeValidator or(InputTypeValidator... validators) {
-		return new OrTypeInputValidator(Arrays.asList(validators), null);
+		return new OrTypeInputValidator(Arrays.asList(validators));
 	}
 
 	/**
-	 * Validator that checks if each operand corresponds to an explicitly defined logical type.
+	 * Validator that checks if each operand corresponds to an explicitly defined logical type
+	 * like {@code f(STRING, INT)}.
 	 *
 	 * <p>Note: The validation happens on {@link LogicalType} level only.
 	 */
@@ -104,6 +105,19 @@ public final class InputTypeValidators {
 			.map(InputTypeValidators::explicit)
 			.collect(Collectors.toList());
 		return new SequenceInputValidator(validators, null);
+	}
+
+	/**
+	 * Validator that checks if each named operand corresponds to an explicitly defined logical type
+	 * like {@code f(s STRING, i INT)}.
+	 *
+	 * <p>Note: The validation happens on {@link LogicalType} level only.
+	 */
+	public static InputTypeValidator explicitSequence(String[] argumentNames, DataType[] expectedDataTypes) {
+		final List<ArgumentTypeValidator> validators = Arrays.stream(expectedDataTypes)
+			.map(InputTypeValidators::explicit)
+			.collect(Collectors.toList());
+		return new SequenceInputValidator(validators, Arrays.asList(argumentNames));
 	}
 
 	/**
@@ -125,8 +139,8 @@ public final class InputTypeValidators {
 	/**
 	 * A varying sequence of {@link ArgumentTypeValidator}s for validating an entire function signature
 	 * like {@code f(INT, STRING, NUMERIC...)}. The first n - 1 arguments must be constant and are validated
-	 * according to {@link #sequence(String[], ArgumentTypeValidator[])}. The n-th argument can
-	 * occur 0, 1, or more times.
+	 * according to {@link #sequence(ArgumentTypeValidator[])}. The n-th argument can occur 0, 1, or
+	 * more times.
 	 */
 	public static InputTypeValidator varyingSequence(ArgumentTypeValidator... validators) {
 		return new VaryingSequenceTypeValidator(Arrays.asList(validators), null);
@@ -135,8 +149,8 @@ public final class InputTypeValidators {
 	/**
 	 * A varying sequence of {@link ArgumentTypeValidator}s for validating an entire function signature
 	 * like {@code f(i INT, str STRING, n NUMERIC...)}. The first n - 1 arguments must be constant and are validated
-	 * according to {@link #sequence(String[], ArgumentTypeValidator[])}. The n-th argument can
-	 * occur 0, 1, or more times.
+	 * according to {@link #sequence(String[], ArgumentTypeValidator[])}. The n-th argument can occur 0, 1,
+	 * or more times.
 	 */
 	public static InputTypeValidator varyingSequence(String[] argumentNames, ArgumentTypeValidator[] validators) {
 		return new VaryingSequenceTypeValidator(Arrays.asList(validators), Arrays.asList(argumentNames));

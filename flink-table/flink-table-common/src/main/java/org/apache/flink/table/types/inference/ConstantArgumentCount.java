@@ -26,6 +26,8 @@ import java.util.Optional;
 
 /**
  * Helper class for {@link ArgumentCount} with constant boundaries.
+ *
+ * <p>Note: All boundaries of this class are inclusive.
  */
 @Internal
 public final class ConstantArgumentCount implements ArgumentCount {
