@@ -2258,7 +2258,7 @@ object ScalarOperatorGens {
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
         val zone = ctx.addReusableTimeZone()
-        s"$method($operandTerm, 3, $zone)"
+        s"$method($operandTerm.getMillisecond(), 3, $zone)"
     }
 
 }
