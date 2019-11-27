@@ -325,6 +325,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		return port;
 	}
 
+	/** @deprecated This method is going to be removed in the next releases. */
+	@Deprecated
 	public Configuration getClientConfiguration() {
 		return clientConfiguration;
 	}
