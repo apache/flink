@@ -184,7 +184,7 @@ public class SqlTimestamp implements Comparable<SqlTimestamp> {
 	 */
 	public Instant toInstant() {
 		long epochSecond = millisecond / 1000;
-		int milliOfSecond = (int) millisecond % 1000;
+		int milliOfSecond = (int) (millisecond % 1000);
 		if (milliOfSecond < 0) {
 			--epochSecond;
 			milliOfSecond += 1000;

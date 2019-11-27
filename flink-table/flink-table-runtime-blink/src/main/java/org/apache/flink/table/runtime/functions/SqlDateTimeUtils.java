@@ -355,11 +355,16 @@ public class SqlDateTimeUtils {
 	 */
 	public static String dateFormat(SqlTimestamp ts, String format, ZoneId zoneId) {
 		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
-		return ts.toLocalDateTime().atZone(zoneId).format(formatter);
+		Instant instant = ts.toInstant();
+		return LocalDateTime.ofInstant(instant, zoneId.getRules().getOffset(instant)).format(formatter);
 	}
 
 	public static String dateFormat(SqlTimestamp ts, String format) {
 		return dateFormat(ts, format, ZoneId.of("UTC"));
+	}
+
+	public static String dateFormat(SqlTimestamp ts, String format, TimeZone zone) {
+		return dateFormat(ts, format, zone.toZoneId());
 	}
 
 	/**

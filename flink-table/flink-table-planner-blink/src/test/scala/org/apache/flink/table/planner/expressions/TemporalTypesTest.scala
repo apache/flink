@@ -653,6 +653,34 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testDateFormat(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("UTC"))
+
+    testSqlApi(
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+      "2018/03/14 01:02:03")
+
+    testSqlApi(
+      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
+      "2018-03-14 01:02:03")
+  }
+
+  @Test
+  def testDateFormatShanghai(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+
+    testSqlApi(
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+      "2018/03/14 01:02:03")
+
+    testSqlApi(
+      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
+      "2018-03-14 01:02:03")
+  }
+
+  @Test
+  def testDateFormatLosAngeles(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("America/Los_Angeles"))
+
     testSqlApi(
       "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
       "2018/03/14 01:02:03")
