@@ -69,7 +69,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 
 	private JDBCUpsertOutputFormat newFormat() {
 		if (!isAppendOnly && (keyFields == null || keyFields.length == 0)) {
-			throw new UnsupportedOperationException("JDBCUpsertTableSink can not support ");
+			throw new UnsupportedOperationException("JDBCUpsertTableSink doesn't support upsert without key fields.");
 		}
 
 		// sql types
