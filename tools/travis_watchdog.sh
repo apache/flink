@@ -284,8 +284,6 @@ case $TEST in
             printf "==============================================================================\n"
 
             run_with_watchdog "$MVN_E2E"
-
-            EXIT_CODE=$?
         else
             printf "\n==============================================================================\n"
             printf "Previous build failure detected, skipping java end-to-end tests.\n"
