@@ -49,8 +49,6 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private int floatingNetworkBuffersPerGate = 8;
 
-	private boolean isCreditBased = true;
-
 	private ResourceID taskManagerLocation = ResourceID.generate();
 
 	private NettyConfig nettyConfig;
@@ -87,11 +85,6 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
-		this.isCreditBased = isCreditBased;
-		return this;
-	}
-
 	public NettyShuffleEnvironmentBuilder setNettyConfig(NettyConfig nettyConfig) {
 		this.nettyConfig = nettyConfig;
 		return this;
@@ -112,7 +105,6 @@ public class NettyShuffleEnvironmentBuilder {
 				networkBuffersPerChannel,
 				floatingNetworkBuffersPerGate,
 				DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
-				isCreditBased,
 				false,
 				nettyConfig,
 				DEFAULT_TEMP_DIRS,

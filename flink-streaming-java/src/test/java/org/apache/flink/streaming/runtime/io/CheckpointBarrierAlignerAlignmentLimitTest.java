@@ -35,8 +35,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -124,7 +122,7 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		CheckpointNotificationVerifier toNotify = new CheckpointNotificationVerifier();
 		CheckpointedInputGate buffer = new CheckpointedInputGate(
 			gate,
-			new BufferSpiller(ioManager, PAGE_SIZE, 1000),
+			new CachedBufferStorage(PAGE_SIZE, PAGE_SIZE * 2, "Testing"),
 			"Testing",
 			toNotify);
 
@@ -222,7 +220,7 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		CheckpointNotificationVerifier toNotify = new CheckpointNotificationVerifier();
 		CheckpointedInputGate buffer = new CheckpointedInputGate(
 			gate,
-			new BufferSpiller(ioManager, PAGE_SIZE, 500),
+			new CachedBufferStorage(PAGE_SIZE, PAGE_SIZE * 5, "Testing"),
 			"Testing",
 			toNotify);
 

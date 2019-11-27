@@ -226,7 +226,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 				inputGates[counter++] = inputGate;
 			}
 
-			registerInputMetrics(config.isNetworkDetailedMetrics(), config.isCreditBased(), networkInputGroup, inputGates);
+			registerInputMetrics(config.isNetworkDetailedMetrics(), networkInputGroup, inputGates);
 			return Arrays.asList(inputGates);
 		}
 	}
@@ -246,7 +246,6 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			InputGate[] inputGates) {
 		NettyShuffleMetricFactory.registerLegacyNetworkMetrics(
 			config.isNetworkDetailedMetrics(),
-			config.isCreditBased(),
 			metricGroup,
 			producedPartitions,
 			inputGates);

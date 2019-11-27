@@ -64,19 +64,6 @@ public class NettyShuffleEnvironmentOptions {
 			.withDescription("Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
 
 	/**
-	 * Boolean flag to enable/disable network credit-based flow control.
-	 *
-	 * @deprecated Will be removed for Flink 1.6 when the old code will be dropped in favour of
-	 * credit-based flow control.
-	 */
-	@Deprecated
-	public static final ConfigOption<Boolean> NETWORK_CREDIT_MODEL =
-		key("taskmanager.network.credit-model")
-			.defaultValue(true)
-			.withDeprecatedKeys("taskmanager.network.credit-based-flow-control.enabled")
-			.withDescription("Boolean flag to enable/disable network credit-based flow control.");
-
-	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
 	 * shuffles.
 	 *
