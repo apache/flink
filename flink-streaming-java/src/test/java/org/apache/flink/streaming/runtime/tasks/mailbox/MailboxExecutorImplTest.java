@@ -160,15 +160,6 @@ public class MailboxExecutorImplTest {
 		mailboxExecutor.tryYield();
 	}
 
-	@Test
-	public void testExecutorView() throws Exception {
-		CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {}, mailboxExecutor.asExecutor("runAsync"));
-		assertFalse(future.isDone());
-
-		mailboxExecutor.yield();
-		assertTrue(future.isDone());
-	}
-
 	/**
 	 * Test {@link Runnable} that tracks execution.
 	 */
