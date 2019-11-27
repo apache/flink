@@ -238,6 +238,8 @@ public class HiveTableSourceTest {
 						.addRow(new Object[]{"c"})
 						.addRow(new Object[]{"d"})
 						.commit();
+			//Add this to obtain correct stats of table to avoid FLINK-14965 problem
+			hiveShell.execute("analyze table src COMPUTE STATISTICS");
 			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 			tableEnv.registerCatalog(catalogName, hiveCatalog);
 			Table table = tableEnv.sqlQuery("select * from hive.`default`.src limit 1");
@@ -245,7 +247,8 @@ public class HiveTableSourceTest {
 			assertEquals(4, explain.length);
 			String logicalPlan = explain[2];
 			String physicalPlan = explain[3];
-			String expectedExplain = "HiveTableSource(a) TablePath: default.src, PartitionPruned: false, LimitPushDown";
+			String expectedExplain = "HiveTableSource(a) TablePath: default.src, PartitionPruned: false, " +
+									"PartitionNums: 1, LimitPushDown true, Limit 1";
 			assertTrue(logicalPlan.contains(expectedExplain));
 			assertTrue(physicalPlan.contains(expectedExplain));
 
