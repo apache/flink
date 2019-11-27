@@ -26,12 +26,19 @@ public class ReporterScopedSettings {
 
 	private final int reporterIndex;
 
-	public ReporterScopedSettings(int reporterIndex) {
+	private final char delimiter;
+
+	public ReporterScopedSettings(int reporterIndex, char delimiter) {
 		Preconditions.checkArgument(reporterIndex >= 0);
 		this.reporterIndex = reporterIndex;
+		this.delimiter = delimiter;
 	}
 
 	public int getReporterIndex() {
 		return reporterIndex;
+	}
+
+	public char getDelimiter() {
+		return delimiter;
 	}
 }

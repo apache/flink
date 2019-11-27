@@ -266,8 +266,8 @@ public class AbstractMetricGroupTest extends TestLogger {
 			// no caching should occur
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B));
 			// invalid reporter indices do not throw errors
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1));
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
+			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1, '.'));
+			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2, '.'));
 		} finally {
 			testRegistry.shutdown().get();
 		}
@@ -323,11 +323,6 @@ public class AbstractMetricGroupTest extends TestLogger {
 
 		@Override
 		public char getDelimiter() {
-			return 0;
-		}
-
-		@Override
-		public char getDelimiter(int index) {
 			return 0;
 		}
 

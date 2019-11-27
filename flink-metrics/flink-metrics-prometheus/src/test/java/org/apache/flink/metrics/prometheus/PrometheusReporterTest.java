@@ -87,7 +87,7 @@ public class PrometheusReporterTest extends TestLogger {
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
 			Collections.singletonList(createReporterSetup("test1", portRangeProvider.next())));
 		metricGroup = new FrontMetricGroup<>(
-			new ReporterScopedSettings(0),
+			createReporterScopedSettings(),
 			new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
 		reporter = (PrometheusReporter) registry.getReporters().get(0);
 	}
@@ -176,13 +176,13 @@ public class PrometheusReporterTest extends TestLogger {
 
 		Counter metric1 = new SimpleCounter();
 		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup1 = new FrontMetricGroup<>(
-			new ReporterScopedSettings(0),
+			createReporterScopedSettings(),
 			new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_1"));
 		reporter.notifyOfAddedMetric(metric1, metricName, metricGroup1);
 
 		Counter metric2 = new SimpleCounter();
 		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup2 = new FrontMetricGroup<>(
-			new ReporterScopedSettings(0),
+			createReporterScopedSettings(),
 			new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_2"));
 		reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
 
@@ -344,5 +344,9 @@ public class PrometheusReporterTest extends TestLogger {
 			base += 100;
 			return String.valueOf(lowEnd) + "-" + String.valueOf(highEnd);
 		}
+	}
+
+	private static ReporterScopedSettings createReporterScopedSettings() {
+		return new ReporterScopedSettings(0, ',');
 	}
 }

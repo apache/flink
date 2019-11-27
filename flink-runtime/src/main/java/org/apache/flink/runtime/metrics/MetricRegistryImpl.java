@@ -71,7 +71,6 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 	private final ScopeFormats scopeFormats;
 	private final char globalDelimiter;
-	private final List<Character> delimiters;
 
 	private final CompletableFuture<Void> terminationFuture;
 
@@ -98,7 +97,6 @@ public class MetricRegistryImpl implements MetricRegistry {
 		this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
 		this.scopeFormats = config.getScopeFormats();
 		this.globalDelimiter = config.getDelimiter();
-		this.delimiters = new ArrayList<>(10);
 		this.terminationFuture = new CompletableFuture<>();
 		this.isShutdown = false;
 
@@ -147,14 +145,18 @@ public class MetricRegistryImpl implements MetricRegistry {
 					} else {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
-					reporters.add(new ReporterAndSettings(reporterInstance, new ReporterScopedSettings(reporters.size())));
 
 					String delimiterForReporter = reporterSetup.getDelimiter().orElse(String.valueOf(globalDelimiter));
 					if (delimiterForReporter.length() != 1) {
 						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, globalDelimiter);
 						delimiterForReporter = String.valueOf(globalDelimiter);
 					}
-					this.delimiters.add(delimiterForReporter.charAt(0));
+
+					reporters.add(new ReporterAndSettings(
+						reporterInstance,
+						new ReporterScopedSettings(
+							reporters.size(),
+							delimiterForReporter.charAt(0))));
 				}
 				catch (Throwable t) {
 					LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", namedReporter, t);
@@ -223,10 +225,10 @@ public class MetricRegistryImpl implements MetricRegistry {
 		return this.globalDelimiter;
 	}
 
-	@Override
-	public char getDelimiter(int reporterIndex) {
+	@VisibleForTesting
+	char getDelimiter(int reporterIndex) {
 		try {
-			return delimiters.get(reporterIndex);
+			return reporters.get(reporterIndex).getSettings().getDelimiter();
 		} catch (IndexOutOfBoundsException e) {
 			LOG.warn("Delimiter for reporter index {} not found, returning global delimiter.", reporterIndex);
 			return this.globalDelimiter;

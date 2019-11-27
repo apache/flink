@@ -242,7 +242,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 */
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return getMetricIdentifier(metricName, filter, -1);
+		return getMetricIdentifier(metricName, filter, -1, registry.getDelimiter());
 	}
 
 	/**
@@ -252,11 +252,11 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param metricName metric name
 	 * @param filter character filter which is applied to the scope components if not null.
 	 * @param reporterIndex index of the reporter whose delimiter should be used
+	 * @param delimiter delimiter to use
 	 * @return fully qualified metric name
 	 */
-	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex) {
+	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex, char delimiter) {
 		if (scopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= scopeStrings.length)) {
-			char delimiter = registry.getDelimiter();
 			String newScopeString;
 			if (filter != null) {
 				newScopeString = ScopeFormat.concat(filter, delimiter, scopeComponents);
@@ -266,7 +266,6 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 			}
 			return newScopeString + delimiter + metricName;
 		} else {
-			char delimiter = registry.getDelimiter(reporterIndex);
 			if (scopeStrings[reporterIndex] == null) {
 				if (filter != null) {
 					scopeStrings[reporterIndex] = ScopeFormat.concat(filter, delimiter, scopeComponents);
