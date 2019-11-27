@@ -283,7 +283,7 @@ case $TEST in
             printf "Running java end-to-end tests\n"
             printf "==============================================================================\n"
 
-            run_with_watchdog "$MVN_E2E"
+            run_with_watchdog "$MVN_E2E -DdistDir=$(readlink -e build-target)"
         else
             printf "\n==============================================================================\n"
             printf "Previous build failure detected, skipping java end-to-end tests.\n"
