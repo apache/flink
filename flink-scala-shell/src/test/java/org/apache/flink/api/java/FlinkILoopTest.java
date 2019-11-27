@@ -24,7 +24,6 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.TestLogger;
 
@@ -106,9 +105,9 @@ public class FlinkILoopTest extends TestLogger {
 
 		StreamExecutionEnvironment streamEnv = flinkILoop.scalaSenv().getJavaEnv();
 
-		assertTrue(streamEnv instanceof RemoteStreamEnvironment);
+		assertTrue(streamEnv instanceof ScalaShellRemoteStreamEnvironment);
 
-		RemoteStreamEnvironment remoteStreamEnv = (RemoteStreamEnvironment) streamEnv;
+		ScalaShellRemoteStreamEnvironment remoteStreamEnv = (ScalaShellRemoteStreamEnvironment) streamEnv;
 
 		Configuration forwardedConfiguration = remoteStreamEnv.getClientConfiguration();
 
