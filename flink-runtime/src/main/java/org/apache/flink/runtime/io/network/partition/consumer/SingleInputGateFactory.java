@@ -55,8 +55,6 @@ public class SingleInputGateFactory {
 	@Nonnull
 	private final ResourceID taskExecutorResourceId;
 
-	private final boolean isCreditBased;
-
 	private final int partitionRequestInitialBackoff;
 
 	private final int partitionRequestMaxBackoff;
@@ -85,7 +83,6 @@ public class SingleInputGateFactory {
 			@Nonnull TaskEventPublisher taskEventPublisher,
 			@Nonnull NetworkBufferPool networkBufferPool) {
 		this.taskExecutorResourceId = taskExecutorResourceId;
-		this.isCreditBased = networkConfig.isCreditBased();
 		this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
 		this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
 		this.networkBuffersPerChannel = networkConfig.networkBuffersPerChannel();
@@ -106,7 +103,6 @@ public class SingleInputGateFactory {
 			@Nonnull InputChannelMetrics metrics) {
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory = createBufferPoolFactory(
 			networkBufferPool,
-			isCreditBased,
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
 			igdd.getShuffleDescriptors().length,
@@ -119,7 +115,6 @@ public class SingleInputGateFactory {
 			igdd.getConsumedSubpartitionIndex(),
 			igdd.getShuffleDescriptors().length,
 			partitionProducerStateProvider,
-			isCreditBased,
 			bufferPoolFactory);
 
 		createInputChannels(owningTaskName, igdd, inputGate, metrics);
@@ -225,19 +220,12 @@ public class SingleInputGateFactory {
 	@VisibleForTesting
 	static SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
 			BufferPoolFactory bufferPoolFactory,
-			boolean isCreditBased,
 			int networkBuffersPerChannel,
 			int floatingNetworkBuffersPerGate,
 			int size,
 			ResultPartitionType type) {
-		if (isCreditBased) {
-			int maxNumberOfMemorySegments = type.isBounded() ? floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
-			return () -> bufferPoolFactory.createBufferPool(0, maxNumberOfMemorySegments);
-		} else {
-			int maxNumberOfMemorySegments = type.isBounded() ?
-				size * networkBuffersPerChannel + floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
-			return () -> bufferPoolFactory.createBufferPool(size, maxNumberOfMemorySegments);
-		}
+		int maxNumberOfMemorySegments = type.isBounded() ? floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
+		return () -> bufferPoolFactory.createBufferPool(0, maxNumberOfMemorySegments);
 	}
 
 	private static class ChannelStatistics {

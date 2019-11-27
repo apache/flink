@@ -245,7 +245,7 @@ public class NettyClientServerSslTest extends TestLogger {
 	private static final class NoOpProtocol extends NettyProtocol {
 
 		NoOpProtocol() {
-			super(null, null, true);
+			super(null, null);
 		}
 
 		@Override

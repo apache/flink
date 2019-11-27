@@ -49,18 +49,14 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 	private final PartitionRequestQueue outboundQueue;
 
-	private final boolean creditBasedEnabled;
-
 	PartitionRequestServerHandler(
 		ResultPartitionProvider partitionProvider,
 		TaskEventPublisher taskEventPublisher,
-		PartitionRequestQueue outboundQueue,
-		boolean creditBasedEnabled) {
+		PartitionRequestQueue outboundQueue) {
 
 		this.partitionProvider = partitionProvider;
 		this.taskEventPublisher = taskEventPublisher;
 		this.outboundQueue = outboundQueue;
-		this.creditBasedEnabled = creditBasedEnabled;
 	}
 
 	@Override
@@ -88,16 +84,10 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 				try {
 					NetworkSequenceViewReader reader;
-					if (creditBasedEnabled) {
-						reader = new CreditBasedSequenceNumberingViewReader(
-							request.receiverId,
-							request.credit,
-							outboundQueue);
-					} else {
-						reader = new SequenceNumberingViewReader(
-							request.receiverId,
-							outboundQueue);
-					}
+					reader = new CreditBasedSequenceNumberingViewReader(
+						request.receiverId,
+						request.credit,
+						outboundQueue);
 
 					reader.requestSubpartitionView(
 						partitionProvider,
