@@ -187,7 +187,7 @@ public class ChainTaskTest extends TaskTestBase {
 	}
 
 	@Test
-	public void testOutputInCloseMethod_batchTask() {
+	public void testBatchTaskOutputInCloseMethod() {
 		final int numChainedTasks = 10;
 		final int keyCnt = 100;
 		final int valCnt = 10;
@@ -217,7 +217,7 @@ public class ChainTaskTest extends TaskTestBase {
 	}
 
 	@Test
-	public void testOutputInCloseMethod_dataSourceTask() throws IOException {
+	public void testDataSourceTaskOutputInCloseMethod() throws IOException {
 		final int numChainedTasks = 10;
 		final int keyCnt = 100;
 		final int valCnt = 10;

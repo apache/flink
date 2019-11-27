@@ -514,9 +514,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 			// close the output collector
 			this.output.close();
-
 		}
-
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
 			if (stubOpen) {
