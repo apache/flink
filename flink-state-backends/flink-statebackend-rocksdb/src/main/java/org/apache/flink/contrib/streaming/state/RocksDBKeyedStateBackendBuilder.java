@@ -59,6 +59,7 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
@@ -73,6 +74,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Builder class for {@link RocksDBKeyedStateBackend} which handles all necessary initializations and clean ups.
@@ -110,6 +113,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 	private boolean enableTtlCompactionFilter;
 	private RocksDBNativeMetricOptions nativeMetricOptions;
 	private int numberOfTransferingThreads;
+	private final long writeBatchSize;
 
 	private RocksDB injectedTestDB; // for testing
 	private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
@@ -131,7 +135,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
 		StreamCompressionDecorator keyGroupCompressionDecorator,
-		CloseableRegistry cancelStreamRegistry) {
+		CloseableRegistry cancelStreamRegistry,
+		@Nonnegative long writeBatchSize) {
 
 		super(
 			kvStateRegistry,
@@ -157,6 +162,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		this.enableIncrementalCheckpointing = false;
 		this.nativeMetricOptions = new RocksDBNativeMetricOptions();
 		this.numberOfTransferingThreads = RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue();
+		checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative value.");
+		this.writeBatchSize = writeBatchSize;
 	}
 
 	@VisibleForTesting
@@ -197,7 +204,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			metricGroup,
 			stateHandles,
 			keyGroupCompressionDecorator,
-			cancelStreamRegistry
+			cancelStreamRegistry,
+			RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes()
 		);
 		this.injectedTestDB = injectedTestDB;
 		this.injectedDefaultColumnFamilyHandle = injectedDefaultColumnFamilyHandle;
@@ -278,9 +286,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				}
 			}
 
-			// Init after db instantiated thus native library loaded. We disable write ahead logging.
 			writeOptions = new WriteOptions().setDisableWAL(true);
-			writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeOptions);
+			writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeOptions, writeBatchSize);
 			// it is important that we only create the key builder after the restore, and not before;
 			// restore operations may reconfigure the key serializer, so accessing the key serializer
 			// only now we can be certain that the key serializer used in the builder is final.
@@ -355,7 +362,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			sharedRocksKeyBuilder,
 			priorityQueueFactory,
 			ttlCompactFiltersManager,
-			keyContext);
+			keyContext,
+			writeBatchSize);
 	}
 
 	private AbstractRocksDBRestoreOperation<K> getRocksDBRestoreOperation(
@@ -400,7 +408,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager);
+				ttlCompactFiltersManager,
+				writeBatchSize);
 		} else {
 			return new RocksDBFullRestoreOperation<>(
 				keyGroupRange,
@@ -417,7 +426,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager);
+				ttlCompactFiltersManager,
+				writeBatchSize);
 		}
 	}
 

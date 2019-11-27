@@ -77,9 +77,11 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.function.Function;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TTL_COMPACT_FILTER_ENABLED;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -116,6 +118,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private static boolean rocksDbInitialized = false;
 
 	private static final int UNDEFINED_NUMBER_OF_TRANSFER_THREADS = -1;
+	private static final long UNDEFINED_BATCH_SIZE = -1;
 
 	// ------------------------------------------------------------------------
 
@@ -174,6 +177,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** Whether we already lazily initialized our local storage directories. */
 	private transient boolean isInitialized;
+
+	/**
+	 * Max consumed memory size for one batch in {@link RocksDBWriteBatchWrapper}, default value 2mb.
+	 */
+	private long batchSize;
 
 	// ------------------------------------------------------------------------
 
@@ -277,6 +285,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
 		this.memoryConfiguration = new RocksDBMemoryConfiguration();
+		this.batchSize = UNDEFINED_BATCH_SIZE;
 	}
 
 	/**
@@ -319,6 +328,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			this.numberOfTransferThreads = original.numberOfTransferThreads;
 		}
 
+		if (original.batchSize == UNDEFINED_BATCH_SIZE) {
+			this.batchSize = config.get(WRITE_BATCH_SIZE).getBytes();
+		} else {
+			this.batchSize = original.batchSize;
+		}
 		this.enableTtlCompactionFilter = original.enableTtlCompactionFilter
 			.resolveUndefined(config.getBoolean(TTL_COMPACT_FILTER_ENABLED));
 
@@ -556,9 +570,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			metricGroup,
 			stateHandles,
 			keyGroupCompressionDecorator,
-			cancelStreamRegistry
-		)
-			.setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
+			cancelStreamRegistry,
+			getBatchSize()
+		).setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferThreads())
 			.setNativeMetricOptions(resourceContainer.getMemoryWatcherOptions(defaultMetricOptions));
@@ -894,6 +908,24 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		setNumberOfTransferThreads(numberOfTransferingThreads);
 	}
 
+	/**
+	 * Gets the max batch size will be used in {@link RocksDBWriteBatchWrapper}.
+	 */
+	public long getBatchSize() {
+		return batchSize == UNDEFINED_BATCH_SIZE ?
+			WRITE_BATCH_SIZE.defaultValue().getBytes() : batchSize;
+	}
+
+	/**
+	 * Sets the max batch size will be used in {@link RocksDBWriteBatchWrapper},
+	 * no positive value will disable memory size controller, just use item count controller.
+	 * @param batchSize The size will used to be used in {@link RocksDBWriteBatchWrapper}.
+	 */
+	public void setBatchSize(long batchSize) {
+		checkArgument(batchSize >= 0, "Write batch size have to be no negative.");
+		this.batchSize = batchSize;
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
@@ -920,6 +952,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				", localRocksDbDirectories=" + Arrays.toString(localRocksDbDirectories) +
 				", enableIncrementalCheckpointing=" + enableIncrementalCheckpointing +
 				", numberOfTransferThreads=" + numberOfTransferThreads +
+				", batchSize=" + batchSize +
 				'}';
 	}
 
