@@ -151,7 +151,8 @@ function copy_and_show_logs {
 
     echo "Flink logs:"
     docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
-    application_id=`docker exec -it master bash -c "yarn application -list -appStates ALL" | grep "Flink session cluster" | awk '{print \$1}'`
+    docker exec -it master bash -c "yarn application -list -appStates ALL"
+    application_id=`docker exec -it master bash -c "yarn application -list -appStates ALL" | grep "Flink" | grep "cluster" | awk '{print \$1}'`
     echo "Application ID: $application_id"
     docker exec -it master bash -c "yarn logs -applicationId $application_id"
     docker exec -it master bash -c "kdestroy"
