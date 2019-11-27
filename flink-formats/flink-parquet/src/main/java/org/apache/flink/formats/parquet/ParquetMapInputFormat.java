@@ -84,7 +84,7 @@ public class ParquetMapInputFormat extends ParquetInputFormat<Map> {
 	private void convert(Map<String, Object> target, Map<String, Object> source, MapTypeInfo mapTypeInfo) {
 		TypeInformation valueTypeInfp = mapTypeInfo.getValueTypeInfo();
 
-		for(Map.Entry<String, Object> entry : source.entrySet()) {
+		for (Map.Entry<String, Object> entry : source.entrySet()) {
 			String key = entry.getKey();
 			Object value = entry.getValue();
 			if (valueTypeInfp instanceof RowTypeInfo) {

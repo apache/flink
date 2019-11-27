@@ -146,7 +146,7 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 				// find the label with the highest score from the ones received
 				double maxScore = -Double.MAX_VALUE;
 				long maxScoreLabel = vertex.getValue().f0;
-				for(Map.Entry<Long, Double> entry : receivedLabelsWithScores.entrySet()) {
+				for (Map.Entry<Long, Double> entry : receivedLabelsWithScores.entrySet()) {
 					long curLabel = entry.getKey();
 					double curValue = entry.getValue();
 

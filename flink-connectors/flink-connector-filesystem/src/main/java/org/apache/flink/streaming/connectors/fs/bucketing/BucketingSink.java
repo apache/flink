@@ -61,7 +61,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -893,10 +892,10 @@ public class BucketingSink<T>
 
 		LOG.debug("Moving pending files to final location on restore.");
 
-		for(Map.Entry<Long, List<String>> entry : pendingFilesPerCheckpoint.entrySet()) {
+		for (Map.Entry<Long, List<String>> entry : pendingFilesPerCheckpoint.entrySet()) {
 			Long pastCheckpointId = entry.getKey();
 			List<String> pendingFiles = entry.getValue();
-			for(String filename : pendingFiles) {
+			for (String filename : pendingFiles) {
 				Path finalPath = new Path(filename);
 				Path pendingPath = getPendingPathFor(finalPath);
 
