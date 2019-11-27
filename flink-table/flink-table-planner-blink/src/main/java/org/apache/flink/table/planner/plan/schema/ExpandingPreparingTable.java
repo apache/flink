@@ -43,12 +43,12 @@ public abstract class ExpandingPreparingTable extends FlinkPreparingTableBase {
 	}
 
 	/**
-	 * Expands at least the most outer level of a relational tree. Does not need to expand
+	 * Converts the table to a {@link RelNode}. Does not need to expand
 	 * any nested scans of an {@link ExpandingPreparingTable}. Those will be expanded recursively.
 	 *
-	 * @return expanded relational tree
+	 * @return a relational tree
 	 */
-	protected abstract RelNode expandTopLevel(ToRelContext context);
+	protected abstract RelNode convertToRel(ToRelContext context);
 
 	@Override
 	public final RelNode toRel(RelOptTable.ToRelContext context) {
@@ -56,7 +56,7 @@ public abstract class ExpandingPreparingTable extends FlinkPreparingTableBase {
 	}
 
 	private RelNode expand(RelOptTable.ToRelContext context) {
-		final RelNode rel = expandTopLevel(context);
+		final RelNode rel = convertToRel(context);
 		// Expand any views
 		return rel.accept(
 			new RelShuttleImpl() {

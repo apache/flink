@@ -23,9 +23,7 @@ import org.apache.flink.table.planner.plan.schema.ExpandingPreparingTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.plan.RelOptSchema;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 
 import javax.annotation.Nullable;
@@ -54,8 +52,7 @@ public class SqlCatalogViewTable extends ExpandingPreparingTable {
 	}
 
 	@Override
-	public RelNode expandTopLevel(ToRelContext context) {
-		RelRoot root = context.expandView(rowType, view.getExpandedQuery(), viewPath, names);
-		return RelOptUtil.createCastRel(root.rel, rowType, true);
+	public RelNode convertToRel(ToRelContext context) {
+		return context.expandView(rowType, view.getExpandedQuery(), viewPath, names).project();
 	}
 }
