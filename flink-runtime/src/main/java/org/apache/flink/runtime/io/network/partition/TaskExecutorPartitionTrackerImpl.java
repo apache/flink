@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
@@ -42,12 +41,11 @@ public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<J
 	}
 
 	@Override
-	public void startTrackingPartition(JobID producingJobId, ResultPartitionID resultPartitionId, IntermediateDataSetID intermediateDataSetId) {
+	public void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
 		Preconditions.checkNotNull(producingJobId);
-		Preconditions.checkNotNull(resultPartitionId);
-		Preconditions.checkNotNull(intermediateDataSetId);
+		Preconditions.checkNotNull(partitionInfo);
 
-		startTrackingPartition(producingJobId, resultPartitionId, new TaskExecutorPartitionInfo(intermediateDataSetId));
+		startTrackingPartition(producingJobId, partitionInfo.getResultPartitionId(), partitionInfo);
 	}
 
 	@Override
