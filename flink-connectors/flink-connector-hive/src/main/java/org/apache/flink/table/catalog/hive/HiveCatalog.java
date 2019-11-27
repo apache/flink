@@ -36,6 +36,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -1080,6 +1081,11 @@ public class HiveCatalog extends AbstractCatalog {
 		String functionClassName = isGeneric ?
 			FLINK_FUNCTION_PREFIX + function.getClassName() :
 			function.getClassName();
+
+		if (!function.getFunctionLanguage().equals(FunctionLanguage.JAVA)) {
+			throw new UnsupportedOperationException("HiveCatalog supports only creating" +
+				" JAVA based function for now");
+		}
 
 		return new Function(
 			// due to https://issues.apache.org/jira/browse/HIVE-22053, we have to normalize function name ourselves
