@@ -47,19 +47,19 @@ import java.util.List;
 public class RemoteEnvironment extends ExecutionEnvironment {
 
 	/** The hostname of the JobManager. */
-	protected final String host;
+	private final String host;
 
 	/** The port of the JobManager main actor system. */
-	protected final int port;
+	private final int port;
 
 	/** The jar files that need to be attached to each job. */
-	protected final List<URL> jarFiles;
+	private final List<URL> jarFiles;
 
 	/** The configuration used by the client that connects to the cluster. */
-	protected Configuration clientConfiguration;
+	private Configuration clientConfiguration;
 
 	/** The classpaths that need to be attached to each job. */
-	protected final List<URL> globalClasspaths;
+	private final List<URL> globalClasspaths;
 
 	/**
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
