@@ -299,6 +299,10 @@ jobs:
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - hadoop 2.8
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_tpcds.sh
+      name: e2e - tpcds - hadoop 2.8
       # E2E profiles - Scala 2.12
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
@@ -324,6 +328,10 @@ jobs:
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - scala 2.12
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_tpcds.sh
+      name: e2e - tpcds - scala 2.12
       # E2E profiles - Hadoop-free
     - if: type = cron
       env: PROFILE="-De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
@@ -349,6 +357,10 @@ jobs:
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy
+    - if: type = cron
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_tpcds.sh
+      name: e2e - tpcds
     # E2E profiles - Java 11
     - if: type = cron
       stage: test
@@ -372,3 +384,7 @@ jobs:
       env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - jdk 11
+    - if: type = cron
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_tpcds.sh
+      name: e2e - tpcds - jdk 11
