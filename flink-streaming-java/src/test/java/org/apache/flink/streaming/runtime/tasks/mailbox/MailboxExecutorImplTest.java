@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -154,7 +155,9 @@ public class MailboxExecutorImplTest {
 	public void testPrettyExceptionMessage() {
 		final String description = "Pretty command description";
 		mailboxExecutor.execute(
-			() -> { throw new RuntimeException("Some random exception"); },
+			() -> {
+				throw new RuntimeException("Some random exception");
+			},
 			description);
 		expectedException.expectMessage(containsString(description));
 		mailboxExecutor.tryYield();
@@ -163,7 +166,7 @@ public class MailboxExecutorImplTest {
 	/**
 	 * Test {@link Runnable} that tracks execution.
 	 */
-	static class TestRunnable implements Runnable {
+	static class TestRunnable implements RunnableWithException {
 
 		private Thread executedByThread = null;
 

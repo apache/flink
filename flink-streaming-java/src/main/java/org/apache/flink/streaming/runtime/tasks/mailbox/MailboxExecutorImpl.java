@@ -19,6 +19,8 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.function.RunnableWithException;
 
 import javax.annotation.Nonnull;
 
@@ -44,7 +46,7 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	@Override
 	public void execute(
-		@Nonnull final Runnable command,
+		@Nonnull final RunnableWithException command,
 		final String descriptionFormat,
 		final Object... descriptionArgs) {
 		try {
@@ -56,7 +58,7 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	@Override
 	public void executeFirst(
-		@Nonnull final Runnable command,
+		@Nonnull final RunnableWithException command,
 		final String descriptionFormat,
 		final Object... descriptionArgs) {
 		try {
@@ -68,14 +70,23 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	@Override
 	public void yield() throws InterruptedException {
-		mailbox.take(priority).run();
+		Mail mail = mailbox.take(priority);
+		try {
+			mail.run();
+		} catch (Exception ex) {
+			throw WrappingRuntimeException.wrapIfNecessary(ex);
+		}
 	}
 
 	@Override
 	public boolean tryYield() {
 		Optional<Mail> optionalMail = mailbox.tryTake(priority);
 		if (optionalMail.isPresent()) {
-			optionalMail.get().run();
+			try {
+				optionalMail.get().run();
+			} catch (Exception ex) {
+				throw WrappingRuntimeException.wrapIfNecessary(ex);
+			}
 			return true;
 		} else {
 			return false;

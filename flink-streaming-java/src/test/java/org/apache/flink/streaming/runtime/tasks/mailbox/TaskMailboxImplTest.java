@@ -46,8 +46,8 @@ import static org.junit.Assert.assertEquals;
  */
 public class TaskMailboxImplTest {
 
-	private static final Runnable NO_OP = () -> {};
-	private static final Runnable POISON_MAIL = NO_OP;
+	private static final RunnableWithException NO_OP = () -> {};
+	private static final RunnableWithException POISON_MAIL = NO_OP;
 	private static final int DEFAULT_PRIORITY = 0;
 	/**
 	 * Object under test.
@@ -107,7 +107,7 @@ public class TaskMailboxImplTest {
 	 * Test the producer-consumer pattern using the blocking methods on the mailbox.
 	 */
 	@Test
-	public void testConcurrentPutTakeBlocking() throws InterruptedException {
+	public void testConcurrentPutTakeBlocking() throws Exception {
 		testPutTake(mailbox -> mailbox.take(DEFAULT_PRIORITY));
 	}
 
@@ -115,7 +115,7 @@ public class TaskMailboxImplTest {
 	 * Test the producer-consumer pattern using the non-blocking methods & waits on the mailbox.
 	 */
 	@Test
-	public void testConcurrentPutTakeNonBlockingAndWait() throws InterruptedException {
+	public void testConcurrentPutTakeNonBlockingAndWait() throws Exception {
 		testPutTake((mailbox -> {
 				Optional<Mail> optionalMail = mailbox.tryTake(DEFAULT_PRIORITY);
 				while (!optionalMail.isPresent()) {
@@ -233,8 +233,7 @@ public class TaskMailboxImplTest {
 	/**
 	 * Test producer-consumer pattern through the mailbox in a concurrent setting (n-writer / 1-reader).
 	 */
-	private void testPutTake(FunctionWithException<TaskMailbox, Mail, InterruptedException> takeMethod)
-			throws InterruptedException {
+	private void testPutTake(FunctionWithException<TaskMailbox, Mail, InterruptedException> takeMethod) throws Exception {
 		final int numThreads = 10;
 		final int numMailsPerThread = 1000;
 		final int[] results = new int[numThreads];

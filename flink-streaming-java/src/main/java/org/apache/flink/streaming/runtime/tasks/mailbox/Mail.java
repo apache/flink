@@ -18,7 +18,9 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.RunnableWithException;
 
 /**
  * An executable bound to a specific operator in the chain, such that it can be picked for downstream mailbox.
@@ -28,7 +30,7 @@ public class Mail {
 	/**
 	 * The action to execute.
 	 */
-	private final Runnable runnable;
+	private final RunnableWithException runnable;
 	/**
 	 * The priority of the mail. The priority does not determine the order, but helps to hide upstream mails from
 	 * downstream processors to avoid live/deadlocks.
@@ -41,7 +43,7 @@ public class Mail {
 
 	private final Object[] descriptionArgs;
 
-	public Mail(Runnable runnable, int priority, String descriptionFormat, Object... descriptionArgs) {
+	public Mail(RunnableWithException runnable, int priority, String descriptionFormat, Object... descriptionArgs) {
 		this.runnable = Preconditions.checkNotNull(runnable);
 		this.priority = priority;
 		this.descriptionFormat = descriptionFormat == null ? runnable.toString() : descriptionFormat;
@@ -52,7 +54,7 @@ public class Mail {
 		return priority;
 	}
 
-	public Runnable getRunnable() {
+	public RunnableWithException getRunnable() {
 		return runnable;
 	}
 
@@ -61,11 +63,12 @@ public class Mail {
 		return String.format(descriptionFormat, descriptionArgs);
 	}
 
-	public void run() {
+	public void run() throws Exception {
 		try {
 			runnable.run();
-		} catch (Exception e) {
-			throw new IllegalStateException("Cannot process mail " + toString(), e);
+		}
+		catch (Exception e) {
+			throw new FlinkException("Cannot process mail " + toString(), e);
 		}
 	}
 }
