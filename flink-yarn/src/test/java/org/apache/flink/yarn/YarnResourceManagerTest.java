@@ -40,6 +40,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
@@ -407,14 +408,14 @@ public class YarnResourceManagerTest extends TestLogger {
 				final SlotReport slotReport = new SlotReport(
 					new SlotStatus(new SlotID(taskManagerResourceId, 1), resourceProfile));
 
+				TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
+					taskHost,
+					taskManagerResourceId,
+					dataPort,
+					hardwareDescription,
+					ResourceProfile.ZERO);
 				CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway
-					.registerTaskExecutor(
-						taskHost,
-						taskManagerResourceId,
-						dataPort,
-						hardwareDescription,
-						ResourceProfile.ZERO,
-						Time.seconds(10L))
+					.registerTaskExecutor(taskExecutorRegistration, Time.seconds(10L))
 					.thenCompose(
 						(RegistrationResponse response) -> {
 							assertThat(response, instanceOf(TaskExecutorRegistrationSuccess.class));

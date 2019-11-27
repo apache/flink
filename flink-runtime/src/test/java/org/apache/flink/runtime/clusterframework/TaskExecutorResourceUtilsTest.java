@@ -33,6 +33,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -511,6 +512,13 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		conf.setString(TaskManagerOptions.JVM_OVERHEAD_MAX, jvmOverhead.getMebiBytes() + "m");
 
 		validateFail(conf);
+	}
+
+	@Test
+	public void testCreateDefaultWorkerSlotProfiles() {
+		assertThat(
+			TaskExecutorResourceUtils.createDefaultWorkerSlotProfiles(TM_RESOURCE_SPEC, NUMBER_OF_SLOTS),
+			is(Arrays.asList(DEFAULT_RESOURCE_PROFILE, DEFAULT_RESOURCE_PROFILE)));
 	}
 
 	@Test

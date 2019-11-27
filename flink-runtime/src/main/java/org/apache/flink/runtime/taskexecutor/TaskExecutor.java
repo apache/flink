@@ -77,6 +77,7 @@ import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -993,20 +994,24 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		log.info("Connecting to ResourceManager {}.", resourceManagerAddress);
 
+		final TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
+			getAddress(),
+			getResourceID(),
+			taskManagerLocation.dataPort(),
+			hardwareDescription,
+			taskManagerConfiguration.getDefaultSlotResourceProfile()
+		);
+
 		resourceManagerConnection =
 			new TaskExecutorToResourceManagerConnection(
 				log,
 				getRpcService(),
-				getAddress(),
-				getResourceID(),
 				taskManagerConfiguration.getRetryingRegistrationConfiguration(),
-				taskManagerLocation.dataPort(),
-				hardwareDescription,
 				resourceManagerAddress.getAddress(),
 				resourceManagerAddress.getResourceManagerId(),
 				getMainThreadExecutor(),
 				new ResourceManagerRegistrationListener(),
-				taskManagerConfiguration.getDefaultSlotResourceProfile());
+				taskExecutorRegistration);
 		resourceManagerConnection.start();
 	}
 

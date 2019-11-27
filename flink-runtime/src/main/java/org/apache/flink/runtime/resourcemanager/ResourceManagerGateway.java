@@ -26,9 +26,7 @@ import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -92,21 +90,13 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	/**
 	 * Register a {@link TaskExecutor} at the resource manager.
 	 *
-	 * @param taskExecutorAddress The address of the TaskExecutor that registers
-	 * @param resourceId The resource ID of the TaskExecutor that registers
-	 * @param dataPort port used for data communication between TaskExecutors
-	 * @param hardwareDescription of the registering TaskExecutor
-	 * @param defaultResourceProfile of the registering TaskExecutor
+	 * @param taskExecutorRegistration the task executor registration.
 	 * @param timeout The timeout for the response.
 	 *
 	 * @return The future to the response by the ResourceManager.
 	 */
 	CompletableFuture<RegistrationResponse> registerTaskExecutor(
-		String taskExecutorAddress,
-		ResourceID resourceId,
-		int dataPort,
-		HardwareDescription hardwareDescription,
-		ResourceProfile defaultResourceProfile,
+		TaskExecutorRegistration taskExecutorRegistration,
 		@RpcTimeout Time timeout);
 
 	/**
