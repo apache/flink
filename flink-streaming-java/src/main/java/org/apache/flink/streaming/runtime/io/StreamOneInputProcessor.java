@@ -22,9 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
@@ -38,24 +35,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
-
 	private final StreamTaskInput<IN> input;
 	private final DataOutput<IN> output;
-
-	private final Object lock;
 
 	private final OperatorChain<?, ?> operatorChain;
 
 	public StreamOneInputProcessor(
 			StreamTaskInput<IN> input,
 			DataOutput<IN> output,
-			Object lock,
 			OperatorChain<?, ?> operatorChain) {
 
 		this.input = checkNotNull(input);
 		this.output = checkNotNull(output);
-		this.lock = checkNotNull(lock);
 		this.operatorChain = checkNotNull(operatorChain);
 	}
 
@@ -69,9 +60,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		InputStatus status = input.emitNext(output);
 
 		if (status == InputStatus.END_OF_INPUT) {
-			synchronized (lock) {
-				operatorChain.endHeadOperatorInput(1);
-			}
+			operatorChain.endHeadOperatorInput(1);
 		}
 
 		return status;

@@ -101,7 +101,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		return name;
 	}
 
-	@Override
 	public Object getCheckpointLock() {
 		return checkpointLock;
 	}

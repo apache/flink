@@ -72,7 +72,6 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 	private transient ListState<TimestampedFileInputSplit> checkpointedState;
 	private PriorityQueue<TimestampedFileInputSplit> splits;
-	private Object checkpointLock;
 
 	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
 		this.format = checkNotNull(format);
@@ -124,7 +123,6 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 		this.format.setRuntimeContext(getRuntimeContext());
 		this.format.configure(new Configuration());
-		this.checkpointLock = getContainingTask().getCheckpointLock();
 
 		// set the reader context based on the time characteristic
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
@@ -132,7 +130,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		this.readerContext = StreamSourceContexts.getSourceContext(
 			timeCharacteristic,
 			getProcessingTimeService(),
-			checkpointLock,
+			new Object(),
 			getContainingTask().getStreamStatusMaintainer(),
 			output,
 			watermarkInterval,
@@ -189,11 +187,9 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 			readSplit();
 
 		} finally {
-			synchronized (checkpointLock) {
-				if (format != null) {
-					this.format.close();
-					this.format.closeInputFormat();
-				}
+			if (format != null) {
+				this.format.close();
+				this.format.closeInputFormat();
 			}
 		}
 	}
@@ -202,29 +198,23 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		if (this.format instanceof CheckpointableInputFormat && split.getSplitState() != null) {
 			// recovering after a node failure with an input
 			// format that supports resetting the offset
-			synchronized (checkpointLock) {
-				((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).
-						reopen(split, split.getSplitState());
-			}
+			((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).
+					reopen(split, split.getSplitState());
 		} else {
 			// we either have a new split, or we recovered from a node
 			// failure but the input format does not support resetting the offset.
-			synchronized (checkpointLock) {
-				this.format.open(split);
-			}
+			this.format.open(split);
 		}
 	}
 
 	private void readSplit() throws IOException {
 		OUT nextElement = serializer.createInstance();
 		while (!format.reachedEnd()) {
-			synchronized (checkpointLock) {
-				nextElement = format.nextRecord(nextElement);
-				if (nextElement != null) {
-					readerContext.collect(nextElement);
-				} else {
-					break;
-				}
+			nextElement = format.nextRecord(nextElement);
+			if (nextElement != null) {
+				readerContext.collect(nextElement);
+			} else {
+				break;
 			}
 		}
 		completedSplitsCounter.inc();

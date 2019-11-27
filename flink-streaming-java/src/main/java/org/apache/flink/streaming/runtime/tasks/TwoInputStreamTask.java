@@ -73,7 +73,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			checkpointedInputGates,
 			inputDeserializer1,
 			inputDeserializer2,
-			getCheckpointLock(),
 			getEnvironment().getIOManager(),
 			getStreamStatusMaintainer(),
 			headOperator,

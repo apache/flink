@@ -233,11 +233,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		@Override
 		public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
-			assertTrue(Thread.currentThread().holdsLock(lock));
-
-			outputLatch.trigger();
-			while (!closingLatch.isTriggered()) {
-				lock.wait(1);
+			synchronized (lock) {
+				outputLatch.trigger();
+				while (!closingLatch.isTriggered()) {
+					lock.wait(1);
+				}
 			}
 		}
 	}
@@ -734,8 +734,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
-		Object checkpointLock = testHarness.getTask().getCheckpointLock();
-		EmitterBlockingFunction.setLock(checkpointLock);
+		EmitterBlockingFunction.setLock(new Object()); // todo: add jira issue to rewrite this test
 
 		testHarness.processElement(new StreamRecord<>(42, 1L));
 

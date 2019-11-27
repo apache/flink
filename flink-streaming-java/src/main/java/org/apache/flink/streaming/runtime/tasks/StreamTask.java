@@ -148,7 +148,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	// ------------------------------------------------------------------------
 
-	private final ExecutionDecorator.SynchronizedExecutionDecorator executionDecorator;
+	private final ExecutionDecorator executionDecorator;
 
 	/**
 	 * The input processor. Initialized in {@link #init()} method.
@@ -233,8 +233,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			Environment environment,
 			@Nullable TimerService timerService,
 			Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
-		this(environment, timerService, uncaughtExceptionHandler,
-				ExecutionDecorator.SynchronizedExecutionDecorator.newInstance());
+		this(environment, timerService, uncaughtExceptionHandler, ExecutionDecorator.NOP);
 	}
 
 	/**
@@ -247,13 +246,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @param environment The task environment for this task.
 	 * @param timerService Optionally, a specific timer service to use.
 	 * @param uncaughtExceptionHandler to handle uncaught exceptions in the async operations thread pool
-	 * @param executionDecorator a mean to wrap all actions performed by this task thread. Currently, only SynchronizedExecutionDecorator can be used to preserve locking semantics.
+	 * @param executionDecorator a mean to wrap all actions performed by this task thread
 	 */
 	protected StreamTask(
 			Environment environment,
 			@Nullable TimerService timerService,
 			Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
-			ExecutionDecorator.SynchronizedExecutionDecorator executionDecorator) {
+			ExecutionDecorator executionDecorator) {
 
 		super(environment);
 
@@ -726,14 +725,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	String getTaskNameWithSubtaskAndId() {
 		return getEnvironment().getTaskInfo().getTaskNameWithSubtasks() +
 				" (" + getEnvironment().getExecutionId() + ')';
-	}
-
-	/**
-	 * Gets the lock object on which all operations that involve data and state mutation have to lock.
-	 * @return The checkpoint lock object.
-	 */
-	public Object getCheckpointLock() {
-		return executionDecorator.getMutex();
 	}
 
 	public CheckpointStorageWorkerView getCheckpointStorage() {
@@ -1500,12 +1491,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private void invokeProcessingTimeCallback(ProcessingTimeCallback callback, long timestamp) {
-		synchronized (getCheckpointLock()) {
-			try {
-				callback.onProcessingTime(timestamp);
-			} catch (Throwable t) {
-				handleAsyncException("Caught exception while processing timer.", new TimerException(t));
-			}
+		try {
+			callback.onProcessingTime(timestamp);
+		} catch (Throwable t) {
+			handleAsyncException("Caught exception while processing timer.", new TimerException(t));
 		}
 	}
 }

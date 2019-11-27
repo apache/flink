@@ -147,7 +147,7 @@ public class StreamSourceOperatorWatermarksTest {
 		StreamSourceContexts.getSourceContext(
 			TimeCharacteristic.IngestionTime,
 			processingTimeService,
-			operator.getContainingTask().getCheckpointLock(),
+			new Object(), // no synchronization is required as all actions are performed through the Mailbox
 			operator.getContainingTask().getStreamStatusMaintainer(),
 			new CollectorOutput<String>(output),
 			operator.getExecutionConfig().getAutoWatermarkInterval(),
