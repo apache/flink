@@ -129,8 +129,8 @@ public class JMXReporterTest extends TestLogger {
 			}
 		};
 
-		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(new ReporterScopedSettings(0), mg));
-		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(new ReporterScopedSettings(0), mg));
+		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
+		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
 
 		MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
@@ -183,9 +183,9 @@ public class JMXReporterTest extends TestLogger {
 			}
 		};
 
-		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(new ReporterScopedSettings(0), mg));
+		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(createReporterScopedSettings(0), mg));
 
-		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(new ReporterScopedSettings(1), mg));
+		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(createReporterScopedSettings(1), mg));
 
 		ObjectName objectName1 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep1", JMXReporter.generateJmxTable(mg.getAllVariables()));
 		ObjectName objectName2 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep2", JMXReporter.generateJmxTable(mg.getAllVariables()));
@@ -303,5 +303,9 @@ public class JMXReporterTest extends TestLogger {
 				registry.shutdown().get();
 			}
 		}
+	}
+
+	private static ReporterScopedSettings createReporterScopedSettings(int reporterIndex) {
+		return new ReporterScopedSettings(reporterIndex, ',');
 	}
 }

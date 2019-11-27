@@ -41,11 +41,6 @@ public class NoOpMetricRegistry implements MetricRegistry {
 	}
 
 	@Override
-	public char getDelimiter(int index) {
-		return delimiter;
-	}
-
-	@Override
 	public int getNumberReporters() {
 		return 0;
 	}
