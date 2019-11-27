@@ -70,10 +70,12 @@ public enum JavaGcCleanerWrapper {
 		return CLEANER_FACTORY.create(owner, cleanOperation);
 	}
 
+	@FunctionalInterface
 	private interface CleanerProvider {
 		CleanerFactory createCleanerFactory() throws ClassNotFoundException;
 	}
 
+	@FunctionalInterface
 	private interface CleanerFactory {
 		Runnable create(Object owner, Runnable cleanOperation);
 	}
