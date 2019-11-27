@@ -131,7 +131,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 		final ListenableFuture<V> result;
 		try {
 			result = send(value);
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			semaphore.release();
 			throw e;
 		}
