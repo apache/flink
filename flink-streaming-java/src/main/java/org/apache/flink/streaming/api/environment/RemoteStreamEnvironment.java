@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.PlanExecutor;
@@ -204,48 +203,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		this.savepointRestoreSettings = savepointRestoreSettings;
 	}
 
-	/**
-	 * Executes the job remotely.
-	 *
-	 * <p>This method can be used independent of the {@link StreamExecutionEnvironment} type.
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
-	@PublicEvolving
-	public static JobExecutionResult executeRemotely(StreamExecutionEnvironment streamExecutionEnvironment,
-		List<URL> jarFiles,
-		String host,
-		int port,
-		Configuration clientConfiguration,
-		List<URL> globalClasspaths,
-		String jobName,
-		SavepointRestoreSettings savepointRestoreSettings
-	) throws ProgramInvocationException {
-		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph(jobName);
-		return executeRemotely(streamGraph,
-			streamExecutionEnvironment.getConfig(),
-			jarFiles,
-			host,
-			port,
-			clientConfiguration,
-			globalClasspaths,
-			savepointRestoreSettings);
-	}
-
-	/**
-	 * Execute the given stream graph remotely.
-	 *
-	 * <p>Method for internal use since it exposes stream graph and other implementation details that are subject to change.
-	 * @throws ProgramInvocationException
-	 */
-	private static JobExecutionResult executeRemotely(StreamGraph streamGraph,
-		ExecutionConfig executionConfig,
-		List<URL> jarFiles,
-		String host,
-		int port,
-		Configuration clientConfiguration,
-		List<URL> globalClasspaths,
-		SavepointRestoreSettings savepointRestoreSettings
-	) throws ProgramInvocationException {
+	@Override
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		transformations.clear();
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -269,34 +229,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
 			throw new ProgramInvocationException("The program execution failed" + term, e);
 		}
-	}
-
-	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		transformations.clear();
-		return executeRemotely(streamGraph, jarFiles);
-	}
-
-	/**
-	 * Executes the remote job.
-	 *
-	 * <p>Note: This method exposes stream graph internal in the public API, but cannot be removed for backward compatibility.
-	 * @param streamGraph
-	 *            Stream Graph to execute
-	 * @param jarFiles
-	 * 			  List of jar file URLs to ship to the cluster
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
-	@Deprecated
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
-		return executeRemotely(streamGraph,
-			getConfig(),
-			jarFiles,
-			host,
-			port,
-			clientConfiguration,
-			globalClasspaths,
-			savepointRestoreSettings);
 	}
 
 	@Override
