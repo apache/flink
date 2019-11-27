@@ -150,7 +150,10 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 		}
 	}
 
-	enum MiniClusterId {
+	/**
+	 * The type of the Cluster ID for the local {@link MiniCluster}.
+	 */
+	public enum MiniClusterId {
 		INSTANCE
 	}
 }
