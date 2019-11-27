@@ -30,21 +30,21 @@ import org.apache.flink.metrics.CharacterFilter;
  */
 public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMetricGroup<P> {
 
-	protected int reporterIndex;
+	private final ReporterScopedSettings settings;
 
-	public FrontMetricGroup(int reporterIndex, P reference) {
+	public FrontMetricGroup(ReporterScopedSettings settings, P reference) {
 		super(reference);
-		this.reporterIndex = reporterIndex;
+		this.settings = settings;
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName) {
-		return parentMetricGroup.getMetricIdentifier(metricName, null, this.reporterIndex);
+		return parentMetricGroup.getMetricIdentifier(metricName, null, this.settings.getReporterIndex());
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, filter, this.reporterIndex);
+		return parentMetricGroup.getMetricIdentifier(metricName, filter, this.settings.getReporterIndex());
 	}
 
 	public String getLogicalScope(CharacterFilter filter) {
@@ -52,6 +52,6 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
 	}
 
 	public String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return parentMetricGroup.getLogicalScope(filter, delimiter, this.reporterIndex);
+		return parentMetricGroup.getLogicalScope(filter, delimiter, this.settings.getReporterIndex());
 	}
 }
