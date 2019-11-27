@@ -386,10 +386,16 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, fieldTerm, literalType)
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val fieldTerm = newName("timestampWithLocalZone")
         val millis = unixTimestampToLocalDateTime(literalValue.asInstanceOf[Long])
             .atZone(ctx.tableConfig.getLocalTimeZone)
             .toInstant.toEpochMilli
-        generateNonNullLiteral(literalType, millis + "L", literalValue)
+        val fieldTimestampWithLocalZone =
+          s"""
+             |$SQL_TIMESTAMP $fieldTerm = $SQL_TIMESTAMP.fromEpochMillis(${millis}L);
+           """.stripMargin
+        ctx.addReusableMember(fieldTimestampWithLocalZone)
+        generateNonNullLiteral(literalType, fieldTerm, literalValue)
 
       case INTERVAL_YEAR_MONTH =>
         val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])

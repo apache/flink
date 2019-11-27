@@ -154,7 +154,7 @@ class ExpressionReducer(
             reducedIdx += 1
           case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
             val value = if (!reduced.isNullAt(reducedIdx)) {
-              val mills = reduced.getField(reducedIdx).asInstanceOf[Long]
+              val mills = reduced.getField(reducedIdx).asInstanceOf[SqlTimestamp].getMillisecond
               Long.box(SqlDateTimeUtils.timestampWithLocalZoneToTimestamp(
                 mills, TimeZone.getTimeZone(config.getLocalTimeZone)))
             } else {
