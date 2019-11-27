@@ -155,6 +155,10 @@ public class TaskManagerServicesConfiguration {
 		return pageSize;
 	}
 
+	public TaskExecutorResourceSpec getTaskExecutorResourceSpec() {
+		return taskExecutorResourceSpec;
+	}
+
 	public MemorySize getShuffleMemorySize() {
 		return taskExecutorResourceSpec.getShuffleMemSize();
 	}

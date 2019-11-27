@@ -30,7 +30,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -89,6 +91,14 @@ public class TaskExecutorResourceUtils {
 	// ------------------------------------------------------------------------
 	//  Generating Default Slot Resource Profiles
 	// ------------------------------------------------------------------------
+
+	public static List<ResourceProfile> createDefaultWorkerSlotProfiles(
+			TaskExecutorResourceSpec taskExecutorResourceSpec,
+			int numberOfSlots) {
+		final ResourceProfile resourceProfile =
+			generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots);
+		return Collections.nCopies(numberOfSlots, resourceProfile);
+	}
 
 	@VisibleForTesting
 	public static ResourceProfile generateDefaultSlotResourceProfile(Configuration configuration) {
