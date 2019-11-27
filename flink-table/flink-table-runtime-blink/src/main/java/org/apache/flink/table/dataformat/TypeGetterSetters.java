@@ -18,6 +18,7 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -189,13 +190,15 @@ public interface TypeGetterSetters {
 			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return row.getInt(ordinal);
+			case BIGINT:
+			case INTERVAL_DAY_TIME:
+				return row.getLong(ordinal);
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				TimestampType timestampType = (TimestampType) type;
 				return row.getTimestamp(ordinal, timestampType.getPrecision());
-			case BIGINT:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-			case INTERVAL_DAY_TIME:
-				return row.getLong(ordinal);
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
+				return row.getTimestamp(ordinal, lzTs.getPrecision());
 			case FLOAT:
 				return row.getFloat(ordinal);
 			case DOUBLE:

@@ -355,11 +355,16 @@ public class SqlDateTimeUtils {
 	 */
 	public static String dateFormat(SqlTimestamp ts, String format, ZoneId zoneId) {
 		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
-		return ts.toLocalDateTime().atZone(zoneId).format(formatter);
+		Instant instant = ts.toInstant();
+		return LocalDateTime.ofInstant(instant, zoneId.getRules().getOffset(instant)).format(formatter);
 	}
 
 	public static String dateFormat(SqlTimestamp ts, String format) {
 		return dateFormat(ts, format, ZoneId.of("UTC"));
+	}
+
+	public static String dateFormat(SqlTimestamp ts, String format, TimeZone zone) {
+		return dateFormat(ts, format, zone.toZoneId());
 	}
 
 	/**
@@ -1144,12 +1149,12 @@ public class SqlDateTimeUtils {
 				LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), tz.toZoneId()));
 	}
 
-	public static long timestampWithLocalZoneToDate(long ts, TimeZone tz) {
+	public static int timestampWithLocalZoneToDate(long ts, TimeZone tz) {
 		return localDateToUnixDate(LocalDateTime.ofInstant(
 				Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalDate());
 	}
 
-	public static long timestampWithLocalZoneToTime(long ts, TimeZone tz) {
+	public static int timestampWithLocalZoneToTime(long ts, TimeZone tz) {
 		return localTimeToUnixDate(LocalDateTime.ofInstant(
 				Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalTime());
 	}
