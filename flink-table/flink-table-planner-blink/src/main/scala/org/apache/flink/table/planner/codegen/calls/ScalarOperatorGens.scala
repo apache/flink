@@ -846,7 +846,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
           val timeZone = ctx.addReusableTimeZone()
-          s"$method($operandTerm.getMillisecond(), $timeZone)"
+          s"$SQL_TIMESTAMP.fromEpochMillis($method($operandTerm.getMillisecond(), $timeZone))"
       }
 
     case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
@@ -854,7 +854,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
           val zone = ctx.addReusableTimeZone()
-          s"$SQL_TIMESTAMP.fromEpochMillis($method($operandTerm, $zone))"
+          s"$SQL_TIMESTAMP.fromEpochMillis($method($operandTerm.getMillisecond(), $zone))"
       }
 
     // identity casting
