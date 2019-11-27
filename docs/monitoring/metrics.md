@@ -1117,7 +1117,7 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="9">Task</th>
+      <th rowspan="17">Task</th>
       <td rowspan="2">Shuffle.Netty.Input.Buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
@@ -1140,7 +1140,7 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <td rowspan="1">Shuffle.Netty.BackPressure</td>
+      <td rowspan="1">Shuffle.BackPressure</td>
       <td>isBackPressured</td>
       <td>whether the task is back-pressured</td>
       <td>Gauge</td>

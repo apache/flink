@@ -71,7 +71,7 @@ public class NettyShuffleMetricFactory {
 	private static final String METRIC_INPUT_FLOATING_BUFFERS_USAGE = "inputFloatingBuffersUsage";
 	private static final String METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE = "inputExclusiveBuffersUsage";
 
-	// task level backpressure metric: Shuffle.Netty.BackPressure.isBackPressured;
+	// task level backpressure metric: Shuffle.BackPressure.isBackPressured;
 	private static final String METRIC_BACKPRESSURE_IS_BACKPRESSURED = "isBackPressured";
 
 	private NettyShuffleMetricFactory() {
@@ -101,6 +101,10 @@ public class NettyShuffleMetricFactory {
 
 	public static MetricGroup createShuffleIOOwnerMetricGroup(MetricGroup parentGroup) {
 		return parentGroup.addGroup(METRIC_GROUP_SHUFFLE).addGroup(METRIC_GROUP_NETTY);
+	}
+
+	public static MetricGroup createShuffleBackPressureMetricGroup(MetricGroup parentGroup) {
+		return parentGroup.addGroup(METRIC_GROUP_SHUFFLE).addGroup(METRIC_GROUP_BACKPRESSURE);
 	}
 
 	/**

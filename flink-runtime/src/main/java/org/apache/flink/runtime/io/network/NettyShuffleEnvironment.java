@@ -58,9 +58,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_BACKPRESSURE;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
+import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.createShuffleBackPressureMetricGroup;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.createShuffleIOOwnerMetricGroup;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerInputMetrics;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerOutputMetrics;
@@ -176,13 +176,14 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			ExecutionAttemptID executionAttemptID,
 			MetricGroup parentGroup) {
 		MetricGroup nettyGroup = createShuffleIOOwnerMetricGroup(checkNotNull(parentGroup));
+		MetricGroup backPressureGroup = createShuffleBackPressureMetricGroup(checkNotNull(parentGroup));
 		return new ShuffleIOOwnerContext(
 			checkNotNull(ownerName),
 			checkNotNull(executionAttemptID),
 			parentGroup,
 			nettyGroup.addGroup(METRIC_GROUP_INPUT),
 			nettyGroup.addGroup(METRIC_GROUP_OUTPUT),
-			nettyGroup.addGroup(METRIC_GROUP_BACKPRESSURE));
+			backPressureGroup);
 	}
 
 	@Override
