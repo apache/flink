@@ -128,6 +128,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Assert;
@@ -913,7 +914,7 @@ public class StreamTaskTest extends TestLogger {
 			final AvailabilityTestStreamTask task = new AvailabilityTestStreamTask<>(environment, inputProcessor);
 			final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
 
-			final Runnable completeFutureTask = () -> {
+			final RunnableWithException completeFutureTask = () -> {
 				assertEquals(1, inputProcessor.currentNumProcessCalls);
 				assertTrue(task.mailboxProcessor.isDefaultActionUnavailable());
 				environment.getWriter(1).getAvailableFuture().complete(null);

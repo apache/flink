@@ -1061,9 +1061,9 @@ public class FutureUtils {
 	 *
 	 * @param runnables list of {@link Runnable} candidates to cancel.
 	 */
-	public static void cancelRunnableFutures(@Nonnull List<Runnable> runnables) {
+	public static void cancelRunnableFutures(@Nonnull List<RunnableWithException> runnables) {
 		RuntimeException suppressedExceptions = null;
-		for (Runnable runnable : runnables) {
+		for (RunnableWithException runnable : runnables) {
 			if (runnable instanceof java.util.concurrent.Future) {
 				try {
 					((java.util.concurrent.Future<?>) runnable).cancel(false);

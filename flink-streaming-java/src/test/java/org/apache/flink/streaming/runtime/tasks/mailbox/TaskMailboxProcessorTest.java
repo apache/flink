@@ -18,16 +18,23 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.concurrent.FutureTaskWithException;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /**
  * Unit tests for {@link MailboxProcessor}.
@@ -35,6 +42,9 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TaskMailboxProcessorTest {
 
 	public static final int DEFAULT_PRIORITY = 0;
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
 	public void testRejectIfNotOpen() {
@@ -48,9 +58,29 @@ public class TaskMailboxProcessorTest {
 	}
 
 	@Test
+	public void testSubmittingRunnableWithException() throws Exception {
+		expectedException.expectCause(hasMessage(containsString("Expected")));
+		try (MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {})) {
+			final Thread submitThread = new Thread(() -> {
+				mailboxProcessor.getMainMailboxExecutor().execute(
+					this::throwFlinkException,
+					"testSubmittingRunnableWithException");
+			});
+
+			submitThread.start();
+			mailboxProcessor.runMailboxLoop();
+			submitThread.join();
+		}
+	}
+
+	private void throwFlinkException() throws FlinkException {
+		throw new FlinkException("Expected");
+	}
+
+	@Test
 	public void testShutdown() {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
-		FutureTask<Void> testRunnableFuture = new FutureTask<>(() -> {}, null);
+		FutureTaskWithException<Void> testRunnableFuture = new FutureTaskWithException<>(() -> {});
 		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(testRunnableFuture, "testRunnableFuture");
 		mailboxProcessor.prepareClose();
 
@@ -238,7 +268,7 @@ public class TaskMailboxProcessorTest {
 		final MailboxExecutor mailboxExecutor = mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY);
 		AtomicInteger index = new AtomicInteger();
 		mailboxExecutor.execute(
-			new Runnable() {
+			new RunnableWithException() {
 				@Override
 				public void run() {
 					mailboxExecutor.execute(this, "Blocking mail" + index.incrementAndGet());

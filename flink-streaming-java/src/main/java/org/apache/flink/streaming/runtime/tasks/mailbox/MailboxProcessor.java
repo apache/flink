@@ -23,6 +23,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,9 +120,9 @@ public class MailboxProcessor implements Closeable {
 		List<Mail> droppedMails = mailbox.close();
 		if (!droppedMails.isEmpty()) {
 			LOG.debug("Closing the mailbox dropped mails {}.", droppedMails);
-			List<Runnable> runnables = new ArrayList<>();
+			List<RunnableWithException> runnables = new ArrayList<>();
 			for (Mail droppedMail : droppedMails) {
-				Runnable runnable = droppedMail.getRunnable();
+				RunnableWithException runnable = droppedMail.getRunnable();
 				runnables.add(runnable);
 			}
 			FutureUtils.cancelRunnableFutures(runnables);
@@ -132,7 +133,7 @@ public class MailboxProcessor implements Closeable {
 	 * Finishes running all mails in the mailbox. If no concurrent write operations occurred, the mailbox must be
 	 * empty after this method.
 	 */
-	public void drain() {
+	public void drain() throws Exception {
 		for (final Mail mail : mailbox.drain()) {
 			mail.run();
 		}
@@ -183,7 +184,7 @@ public class MailboxProcessor implements Closeable {
 		});
 	}
 
-	private void sendPriorityMail(Runnable priorityMail, String descriptionFormat, Object... descriptionArgs) {
+	private void sendPriorityMail(RunnableWithException priorityMail, String descriptionFormat, Object... descriptionArgs) {
 		mainMailboxExecutor.executeFirst(priorityMail, descriptionFormat, descriptionArgs);
 	}
 
@@ -193,7 +194,7 @@ public class MailboxProcessor implements Closeable {
 	 * changes. This keeps the hot path in {@link #runMailboxLoop()} free from any other flag checking, at the cost
 	 * that all flag changes must make sure that the mailbox signals mailbox#hasMail.
 	 */
-	private boolean processMail(TaskMailbox mailbox) throws InterruptedException {
+	private boolean processMail(TaskMailbox mailbox) throws Exception {
 
 		// Doing this check is an optimization to only have a volatile read in the expected hot path, locks are only
 		// acquired after this point.
