@@ -23,22 +23,20 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -81,7 +79,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer;
 
-	private volatile Function<Tuple5<String, ResourceID, Integer, HardwareDescription, ResourceProfile>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
+	private volatile Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
 
 	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
 
@@ -139,7 +137,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.disconnectJobManagerConsumer = disconnectJobManagerConsumer;
 	}
 
-	public void setRegisterTaskExecutorFunction(Function<Tuple5<String, ResourceID, Integer, HardwareDescription, ResourceProfile>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
+	public void setRegisterTaskExecutorFunction(Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
 		this.registerTaskExecutorFunction = registerTaskExecutorFunction;
 	}
 
@@ -215,17 +213,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<RegistrationResponse> registerTaskExecutor(
-			String taskExecutorAddress,
-			ResourceID resourceId,
-			int dataPort,
-			HardwareDescription hardwareDescription,
-			ResourceProfile defaultResourceProfile,
-			Time timeout) {
-		final Function<Tuple5<String, ResourceID, Integer, HardwareDescription, ResourceProfile>, CompletableFuture<RegistrationResponse>> currentFunction = registerTaskExecutorFunction;
+	public CompletableFuture<RegistrationResponse> registerTaskExecutor(TaskExecutorRegistration taskExecutorRegistration, Time timeout) {
+		final Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> currentFunction = registerTaskExecutorFunction;
 
 		if (currentFunction != null) {
-			return currentFunction.apply(Tuple5.of(taskExecutorAddress, resourceId, dataPort, hardwareDescription, defaultResourceProfile));
+			return currentFunction.apply(taskExecutorRegistration);
 		} else {
 			return CompletableFuture.completedFuture(
 				new TaskExecutorRegistrationSuccess(

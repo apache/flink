@@ -37,7 +37,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.heartbeat.NoOpHeartbeatManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -356,29 +355,21 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	@Override
 	public CompletableFuture<RegistrationResponse> registerTaskExecutor(
-			final String taskExecutorAddress,
-			final ResourceID taskExecutorResourceId,
-			final int dataPort,
-			final HardwareDescription hardwareDescription,
-			final ResourceProfile defaultResourceProfile,
+			final TaskExecutorRegistration taskExecutorRegistration,
 			final Time timeout) {
 
-		CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
-		taskExecutorGatewayFutures.put(taskExecutorResourceId, taskExecutorGatewayFuture);
+		CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorRegistration.getTaskExecutorAddress(), TaskExecutorGateway.class);
+		taskExecutorGatewayFutures.put(taskExecutorRegistration.getResourceId(), taskExecutorGatewayFuture);
 
 		return taskExecutorGatewayFuture.handleAsync(
 			(TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
-				if (taskExecutorGatewayFuture == taskExecutorGatewayFutures.get(taskExecutorResourceId)) {
-					taskExecutorGatewayFutures.remove(taskExecutorResourceId);
+				final ResourceID resourceId = taskExecutorRegistration.getResourceId();
+				if (taskExecutorGatewayFuture == taskExecutorGatewayFutures.get(resourceId)) {
+					taskExecutorGatewayFutures.remove(resourceId);
 					if (throwable != null) {
 						return new RegistrationResponse.Decline(throwable.getMessage());
 					} else {
-						return registerTaskExecutorInternal(
-							taskExecutorGateway,
-							taskExecutorAddress,
-							taskExecutorResourceId,
-							dataPort,
-							hardwareDescription);
+						return registerTaskExecutorInternal(taskExecutorGateway, taskExecutorRegistration);
 					}
 				} else {
 					log.info("Ignoring outdated TaskExecutorGateway connection.");
@@ -673,19 +664,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/**
 	 * Registers a new TaskExecutor.
 	 *
-	 * @param taskExecutorGateway to communicate with the registering TaskExecutor
-	 * @param taskExecutorAddress address of the TaskExecutor
-	 * @param taskExecutorResourceId ResourceID of the TaskExecutor
-	 * @param dataPort port used for data transfer
-	 * @param hardwareDescription of the registering TaskExecutor
+	 * @param taskExecutorRegistration task executor registration parameters
 	 * @return RegistrationResponse
 	 */
 	private RegistrationResponse registerTaskExecutorInternal(
 			TaskExecutorGateway taskExecutorGateway,
-			String taskExecutorAddress,
-			ResourceID taskExecutorResourceId,
-			int dataPort,
-			HardwareDescription hardwareDescription) {
+			TaskExecutorRegistration taskExecutorRegistration) {
+		ResourceID taskExecutorResourceId = taskExecutorRegistration.getResourceId();
 		WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
 		if (oldRegistration != null) {
 			// TODO :: suggest old taskExecutor to stop itself
@@ -699,13 +684,17 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		final WorkerType newWorker = workerStarted(taskExecutorResourceId);
 
+		String taskExecutorAddress = taskExecutorRegistration.getTaskExecutorAddress();
 		if (newWorker == null) {
 			log.warn("Discard registration from TaskExecutor {} at ({}) because the framework did " +
 				"not recognize it", taskExecutorResourceId, taskExecutorAddress);
 			return new RegistrationResponse.Decline("unrecognized TaskExecutor");
 		} else {
-			WorkerRegistration<WorkerType> registration =
-				new WorkerRegistration<>(taskExecutorGateway, newWorker, dataPort, hardwareDescription);
+			WorkerRegistration<WorkerType> registration = new WorkerRegistration<>(
+				taskExecutorGateway,
+				newWorker,
+				taskExecutorRegistration.getDataPort(),
+				taskExecutorRegistration.getHardwareDescription());
 
 			log.info("Registering TaskManager with ResourceID {} ({}) at ResourceManager", taskExecutorResourceId, taskExecutorAddress);
 			taskExecutors.put(taskExecutorResourceId, registration);

@@ -42,6 +42,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -326,12 +327,16 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 		final SlotReport slotReport = new SlotReport(new SlotStatus(new SlotID(resourceID, 1), ResourceProfile.ZERO));
 
+		TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
+			resourceID.toString(),
+			resourceID,
+			1234,
+			new HardwareDescription(1, 2L, 3L, 4L),
+			ResourceProfile.ZERO,
+			ResourceProfile.ZERO);
 		CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway
 			.registerTaskExecutor(
-				resourceID.toString(),
-				resourceID,
-				1234,
-				new HardwareDescription(1, 2L, 3L, 4L),
+				taskExecutorRegistration,
 				TIMEOUT)
 			.thenCompose(
 				(RegistrationResponse response) -> {
