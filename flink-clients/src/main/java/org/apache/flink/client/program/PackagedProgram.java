@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.JarUtils;
 
 import javax.annotation.Nullable;
 
@@ -525,7 +526,7 @@ public class PackagedProgram {
 
 	private static void checkJarFile(URL jarfile) throws ProgramInvocationException {
 		try {
-			ClientUtils.checkJarFile(jarfile);
+			JarUtils.checkJarFile(jarfile);
 		} catch (IOException e) {
 			throw new ProgramInvocationException(e.getMessage(), e);
 		} catch (Throwable t) {

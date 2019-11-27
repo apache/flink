@@ -24,11 +24,11 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.JarUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,7 +188,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			try {
 				URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
 				this.jarFiles.add(jarFileUrl);
-				ClientUtils.checkJarFile(jarFileUrl);
+				JarUtils.checkJarFile(jarFileUrl);
 			} catch (MalformedURLException e) {
 				throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
 			} catch (IOException e) {
