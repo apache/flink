@@ -24,15 +24,14 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * Interface for an {@link Executor} build around a mailbox-based execution model (see {@link TaskMailbox}). {@code
- * MailboxExecutor} can also execute downstream messages of a mailbox by yielding control from the task thread.
+ * {@link java.util.concurrent.Executor} like interface for an  build around a mailbox-based execution model (see {@link TaskMailbox}).
+ * {@code MailboxExecutor} can also execute downstream messages of a mailbox by yielding control from the task thread.
  *
  * <p>All submission functions can be called from any thread and will enqueue the action for further processing in a
  * FIFO fashion.
@@ -227,21 +226,4 @@ public interface MailboxExecutor {
 	 * @throws IllegalStateException if the mailbox is closed and can no longer supply runnables for yielding.
 	 */
 	boolean tryYield();
-
-	/**
-	 * Provides an {@link Executor} view on this {@code MailboxExecutor}, where submitted tasks will receive the
-	 * given description. The {@link Executor} can be used with {@link java.util.concurrent.CompletableFuture}.
-	 *
-	 * <p>An optional description can (and should) be added to ease debugging and error-reporting. The description
-	 * may contain placeholder that refer to the provided description arguments using {@link java.util.Formatter}
-	 * syntax. The actual description is only formatted on demand.
-	 *
-	 * @param descriptionFormat the optional description for all commands that is used for debugging and
-	 * error-reporting.
-	 * @param descriptionArgs the parameters used to format the final description string.
-	 * @return an {@code Executor} view on this {@code MailboxExecutor}
-	 */
-	default Executor asExecutor(String descriptionFormat, Object... descriptionArgs) {
-		return command -> execute(command, descriptionFormat, descriptionArgs);
-	}
 }
