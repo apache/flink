@@ -19,27 +19,16 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.util.JarUtils;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An {@link ExecutionEnvironment} that sends programs to a cluster for execution. The environment
@@ -114,24 +103,13 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 			final int port,
 			final String[] jarFiles,
 			final URL[] globalClasspaths) {
-		validate(host, port);
+		RemoteEnvironmentConfigUtils.validate(host, port);
 		return getEffectiveConfiguration(
 				getClientConfiguration(configuration),
 				host,
 				port,
-				getJarFiles(jarFiles),
+				jarFiles,
 				getClasspathURLs(globalClasspaths));
-	}
-
-	private static void validate(final String host, final int port) {
-		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
-			throw new InvalidProgramException(
-					"The RemoteEnvironment cannot be instantiated when running in a pre-defined context " +
-							"(such as Command Line Client, Scala Shell, or TestEnvironment)");
-		}
-
-		checkNotNull(host);
-		checkArgument(port > 0 && port < 0xffff);
 	}
 
 	private static Configuration getClientConfiguration(final Configuration configuration) {
@@ -142,48 +120,24 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		return classpaths == null ? Collections.emptyList() : Arrays.asList(classpaths);
 	}
 
-	private static List<URL> getJarFiles(final String[] jars) {
-		return jars == null
-				? Collections.emptyList()
-				: Arrays.stream(jars).map(jarPath -> {
-					try {
-						final URL fileURL = new File(jarPath).getAbsoluteFile().toURI().toURL();
-						JarUtils.checkJarFile(fileURL);
-						return fileURL;
-					} catch (MalformedURLException e) {
-						throw new IllegalArgumentException("JAR file path invalid", e);
-					} catch (IOException e) {
-						throw new RuntimeException("Problem with jar file " + jarPath, e);
-					}
-				}).collect(Collectors.toList());
-	}
-
 	private static Configuration getEffectiveConfiguration(
 			final Configuration baseConfiguration,
 			final String host,
 			final int port,
-			final List<URL> jars,
+			final String[] jars,
 			final List<URL> classpaths) {
 
 		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
 
-		setJobManagerAddressToConfig(host, port, effectiveConfiguration);
+		RemoteEnvironmentConfigUtils.setJobManagerAddressToConfig(host, port, effectiveConfiguration);
+		RemoteEnvironmentConfigUtils.setJarURLsToConfig(jars, effectiveConfiguration);
 		ConfigUtils.encodeCollectionToConfig(effectiveConfiguration, PipelineOptions.CLASSPATHS, classpaths, URL::toString);
-		ConfigUtils.encodeCollectionToConfig(effectiveConfiguration, PipelineOptions.JARS, jars, URL::toString);
 
 		// these should be set in the end to overwrite any values from the client config provided in the constructor.
 		effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote-cluster");
 		effectiveConfiguration.setBoolean(DeploymentOptions.ATTACHED, true);
 
 		return effectiveConfiguration;
-	}
-
-	private static void setJobManagerAddressToConfig(final String host, final int port, final Configuration effectiveConfiguration) {
-		final InetSocketAddress address = new InetSocketAddress(host, port);
-		effectiveConfiguration.setString(JobManagerOptions.ADDRESS, address.getHostString());
-		effectiveConfiguration.setInteger(JobManagerOptions.PORT, address.getPort());
-		effectiveConfiguration.setString(RestOptions.ADDRESS, address.getHostString());
-		effectiveConfiguration.setInteger(RestOptions.PORT, address.getPort());
 	}
 
 	@Override
