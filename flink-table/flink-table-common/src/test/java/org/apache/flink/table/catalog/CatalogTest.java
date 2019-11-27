@@ -1323,6 +1323,7 @@ public abstract class CatalogTest {
 	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
 		assertEquals(f1.getClassName(), f2.getClassName());
 		assertEquals(f1.isGeneric(), f2.isGeneric());
+		assertEquals(f1.getFunctionLanguage(), f2.getFunctionLanguage());
 	}
 
 	protected void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {

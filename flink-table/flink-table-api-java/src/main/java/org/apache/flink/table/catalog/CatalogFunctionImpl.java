@@ -24,16 +24,23 @@ import org.apache.flink.util.StringUtils;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A catalog function implementation.
  */
 public class CatalogFunctionImpl implements CatalogFunction {
 	private final String className; // Fully qualified class name of the function
+	private final FunctionLanguage functionLanguage;
 
 	public CatalogFunctionImpl(String className) {
+		this(className, FunctionLanguage.JAVA);
+	}
+
+	public CatalogFunctionImpl(String className, FunctionLanguage functionLanguage) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
 		this.className = className;
+		this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
 	}
 
 	@Override
@@ -43,7 +50,7 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
 	@Override
 	public CatalogFunction copy() {
-		return new CatalogFunctionImpl(getClassName());
+		return new CatalogFunctionImpl(getClassName(), functionLanguage);
 	}
 
 	@Override
@@ -70,9 +77,15 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	}
 
 	@Override
+	public FunctionLanguage getFunctionLanguage() {
+		return functionLanguage;
+	}
+
+	@Override
 	public String toString() {
 		return "CatalogFunctionImpl{" +
-			"className='" + getClassName() +
+			"className='" + getClassName() + "', " +
+			"functionLanguage='" + getFunctionLanguage() +
 			"'}";
 	}
 }

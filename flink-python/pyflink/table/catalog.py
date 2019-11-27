@@ -797,6 +797,14 @@ class CatalogFunction(object):
         """
         return self._j_catalog_function.isGeneric()
 
+    def get_function_language(self):
+        """
+        Get the language used for the function definition.
+
+        :return: the language type of the function definition
+        """
+        return self._j_catalog_function.getFunctionLanguage()
+
 
 class ObjectPath(object):
     """
