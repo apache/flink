@@ -103,7 +103,8 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 			.build();
 		this.defaultMemoryMB = taskExecutorResourceSpec.getTotalProcessMemorySize().getMebiBytes();
 
-		this.resourceProfilesPerWorker = createWorkerSlotProfiles(flinkConfig);
+		this.resourceProfilesPerWorker = TaskExecutorResourceUtils
+			.createDefaultWorkerSlotProfiles(taskExecutorResourceSpec, numSlotsPerTaskManager);
 
 		// Load the flink config uploaded by flink client
 		this.flinkClientConfig = loadClientConfiguration();
