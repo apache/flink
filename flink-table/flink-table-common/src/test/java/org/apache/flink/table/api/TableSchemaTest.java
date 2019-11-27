@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 
@@ -28,11 +29,14 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -192,4 +196,134 @@ public class TableSchemaTest {
 		});
 	}
 
+	/*
+		CONSTRAINTS TESTS
+	 */
+	@Test
+	public void testPrimaryKeyPrinting() {
+		TableSchema schema = TableSchema.builder()
+			.field("f0", DataTypes.BIGINT().notNull())
+			.field("f1", DataTypes.STRING().notNull())
+			.field("f2", DataTypes.DOUBLE().notNull())
+			.primaryKey("pk", new String[]{"f0", "f2"})
+			.build();
+
+		assertThat(schema.toString(), equalTo(
+			"root\n" +
+				" |-- f0: BIGINT NOT NULL\n" +
+				" |-- f1: STRING NOT NULL\n" +
+				" |-- f2: DOUBLE NOT NULL\n" +
+				" |-- CONSTRAINT pk PRIMARY KEY (f0, f2)"
+		));
+	}
+
+	@Test
+	public void testPrimaryKeyColumnsIndices() {
+		TableSchema schema = TableSchema.builder()
+			.field("f0", DataTypes.BIGINT().notNull())
+			.field("f1", DataTypes.STRING().notNull())
+			.field("f2", DataTypes.DOUBLE().notNull())
+			.primaryKey("pk", new String[]{"f0", "f2"})
+			.build();
+
+		UniqueConstraint expectedKey = UniqueConstraint.primaryKey(
+			"pk",
+			Arrays.asList(
+				"f0",
+				"f2"
+			));
+
+		assertThat(
+			schema.getPrimaryKey().get(),
+			equalTo(expectedKey)
+		);
+	}
+
+	@Test
+	public void testPrimaryKeyLazilyDefinedColumns() {
+		TableSchema schema = TableSchema.builder()
+			.field("f0", DataTypes.BIGINT().notNull())
+			.primaryKey("pk", new String[]{"f0", "f2"})
+			.field("f1", DataTypes.STRING().notNull())
+			.field("f2", DataTypes.DOUBLE().notNull())
+			.build();
+
+		UniqueConstraint expectedKey = UniqueConstraint.primaryKey(
+			"pk",
+			Arrays.asList(
+				"f0",
+				"f2"
+			));
+
+		assertThat(
+			schema.getPrimaryKey().get(),
+			equalTo(expectedKey)
+		);
+	}
+
+	@Test
+	public void testPrimaryKeyNoColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Could not create a PRIMARY KEY 'pk'. Column 'f2' does not exist.");
+
+		TableSchema.builder()
+			.field("f0", DataTypes.BIGINT().notNull())
+			.primaryKey("pk", new String[]{"f0", "f2"})
+			.build();
+	}
+
+	@Test
+	public void testPrimaryKeyNullableColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Could not create a PRIMARY KEY 'pk'. Column 'f0' is nullable.");
+
+		TableSchema.builder()
+			.field("f0", DataTypes.BIGINT())
+			.primaryKey("pk", new String[]{"f0"})
+			.build();
+	}
+
+	@Test
+	public void testPrimaryKeyGeneratedColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Could not create a PRIMARY KEY 'pk' with a generated column 'f0'.");
+
+		TableSchema.builder()
+			.field("f0", DataTypes.BIGINT().notNull(), "123")
+			.primaryKey("pk", new String[]{"f0", "f2"})
+			.build();
+	}
+
+	@Test
+	public void testPrimaryKeyNameMustNotBeNull() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("PRIMARY KEY's name can not be null or empty.");
+
+		TableSchema.builder()
+			.field("f0", DataTypes.BIGINT())
+			.primaryKey(null, new String[]{"f0", "f2"})
+			.build();
+	}
+
+	@Test
+	public void testPrimaryKeyNameMustNotBeEmpty() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("PRIMARY KEY's name can not be null or empty.");
+
+		TableSchema.builder()
+			.field("f0", DataTypes.BIGINT())
+			.primaryKey("", new String[]{"f0", "f2"})
+			.build();
+	}
+
+	@Test
+	public void testPrimaryKeyNoColumns() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("PRIMARY KEY constraint must be defined for at least a single column.");
+
+		TableSchema.builder()
+			.field("f0", DataTypes.BIGINT())
+			.primaryKey("pk", new String[]{})
+			.build();
+	}
 }
