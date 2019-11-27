@@ -74,7 +74,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -442,11 +441,7 @@ public class CheckpointCoordinatorTestingUtils {
 		));
 		if (slot != null) {
 			// is there a better way to do this?
-			//noinspection unchecked
-			AtomicReferenceFieldUpdater<Execution, LogicalSlot> slotUpdater =
-				(AtomicReferenceFieldUpdater<Execution, LogicalSlot>)
-					Whitebox.getInternalState(exec, "ASSIGNED_SLOT_UPDATER");
-			slotUpdater.compareAndSet(exec, null, slot);
+			Whitebox.setInternalState(exec, "assignedResource", slot);
 		}
 
 		when(exec.getAttemptId()).thenReturn(attemptID);
