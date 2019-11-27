@@ -21,12 +21,17 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.constraints.KeyConstraint;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -57,10 +64,12 @@ public class TableSchema {
 	private final List<TableColumn> columns;
 
 	private final List<WatermarkSpec> watermarkSpecs;
+	private final @Nullable KeyConstraint primaryKey;
 
-	private TableSchema(List<TableColumn> columns, List<WatermarkSpec> watermarkSpecs) {
+	private TableSchema(List<TableColumn> columns, List<WatermarkSpec> watermarkSpecs, @Nullable KeyConstraint primaryKey) {
 		this.columns = Preconditions.checkNotNull(columns);
 		this.watermarkSpecs = Preconditions.checkNotNull(watermarkSpecs);
+		this.primaryKey = primaryKey;
 	}
 
 	/**
@@ -77,13 +86,14 @@ public class TableSchema {
 		validateColumnsAndWatermarkSpecs(columns, Collections.emptyList());
 		this.columns = columns;
 		this.watermarkSpecs = Collections.emptyList();
+		this.primaryKey = null;
 	}
 
 	/**
 	 * Returns a deep copy of the table schema.
 	 */
 	public TableSchema copy() {
-		return new TableSchema(new ArrayList<>(columns), new ArrayList<>(watermarkSpecs));
+		return new TableSchema(new ArrayList<>(columns), new ArrayList<>(watermarkSpecs), primaryKey);
 	}
 
 	/**
@@ -249,6 +259,10 @@ public class TableSchema {
 		return watermarkSpecs;
 	}
 
+	public Optional<KeyConstraint> getPrimaryKey() {
+		return Optional.ofNullable(primaryKey);
+	}
+
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
@@ -270,6 +284,10 @@ public class TableSchema {
 					.append(watermark.getWatermarkExpressionString());
 			}
 		}
+
+		if (primaryKey != null) {
+			sb.append(" |-- ").append(primaryKey.asSummaryString());
+		}
 		return sb.toString();
 	}
 
@@ -281,16 +299,15 @@ public class TableSchema {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		TableSchema schema = (TableSchema) o;
-		return Objects.equals(columns, schema.columns)
-			&& Objects.equals(watermarkSpecs, schema.getWatermarkSpecs());
+		TableSchema that = (TableSchema) o;
+		return Objects.equals(columns, that.columns) &&
+			Objects.equals(watermarkSpecs, that.watermarkSpecs) &&
+			Objects.equals(primaryKey, that.primaryKey);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = Objects.hash(columns);
-		result = 31 * result + watermarkSpecs.hashCode();
-		return result;
+		return Objects.hash(columns, watermarkSpecs, primaryKey);
 	}
 
 	/**
@@ -431,6 +448,8 @@ public class TableSchema {
 
 		private final List<WatermarkSpec> watermarkSpecs;
 
+		private KeyConstraintInfo primaryKeyInfo;
+
 		public Builder() {
 			columns = new ArrayList<>();
 			watermarkSpecs = new ArrayList<>();
@@ -531,11 +550,89 @@ public class TableSchema {
 		}
 
 		/**
+		 * Creates a primary key constraint for a set of given columns. The primary key is informational only.
+		 * It will not be enforced. It can be used for optimizations. It is the owner's of the data responsibility
+		 * to ensure uniqueness of the data.
+		 *
+		 * <p>The primary key will be assigned a random name.
+		 *
+		 * @param columns array of columns that form a unique primary key
+		 */
+		public Builder primaryKey(String... columns) {
+			return primaryKey(UUID.randomUUID().toString(), columns);
+		}
+
+		/**
+		 * Creates a primary key constraint for a set of given columns. The primary key is informational only.
+		 * It will not be enforced. It can be used for optimizations. It is the owner's of the data responsibility
+		 * to ensure
+		 *
+		 * @param columns array of columns that form a unique primary key
+		 * @param name name for the primary key, can be used to reference the constraint
+		 */
+		public Builder primaryKey(String name, String[] columns) {
+			if (this.primaryKeyInfo != null) {
+				throw new ValidationException("Can not create multiple PRIMARY keys.");
+			}
+			if (StringUtils.isNullOrWhitespaceOnly(name)) {
+				throw new ValidationException("PRIMARY KEY's name can not be null or empty.");
+			}
+			if (columns == null || columns.length == 0) {
+				throw new ValidationException("PRIMARY KEY constraint must be defined for at least a single column.");
+			}
+			this.primaryKeyInfo = new KeyConstraintInfo(name, Arrays.asList(columns));
+			return this;
+		}
+
+		private static final class KeyConstraintInfo {
+			final String name;
+			final List<String> columnNames;
+
+			private KeyConstraintInfo(String name, List<String> columnNames) {
+				this.name = name;
+				this.columnNames = columnNames;
+			}
+		}
+
+		/**
 		 * Returns a {@link TableSchema} instance.
 		 */
 		public TableSchema build() {
 			validateColumnsAndWatermarkSpecs(this.columns, this.watermarkSpecs);
-			return new TableSchema(columns, watermarkSpecs);
+
+			final KeyConstraint primaryKey;
+			if (primaryKeyInfo != null) {
+				primaryKey = buildPrimaryKey();
+			} else {
+				primaryKey = null;
+			}
+
+			return new TableSchema(columns, watermarkSpecs, primaryKey);
+		}
+
+		private KeyConstraint buildPrimaryKey() {
+			List<FieldReferenceExpression> keyColumns = primaryKeyInfo.columnNames.stream()
+				.map(n -> mapColumnNameToFieldReference(n, () -> new ValidationException(String.format(
+					"Could not create a PRIMARY KEY '%s'. Column '%s' does not exist.",
+					primaryKeyInfo.name,
+					n))))
+				.collect(Collectors.toList());
+			return KeyConstraint.primaryKey(primaryKeyInfo.name, keyColumns);
+		}
+
+		private FieldReferenceExpression mapColumnNameToFieldReference(
+				String n,
+				Supplier<ValidationException> errorMessage) {
+			TableColumn tableColumn = columns.stream()
+				.filter(col -> col.getName().equals(n))
+				.findFirst()
+				.orElseThrow(errorMessage);
+
+			return new FieldReferenceExpression(
+				tableColumn.getName(),
+				tableColumn.getType(),
+				0,
+				columns.indexOf(tableColumn));
 		}
 	}
 }
