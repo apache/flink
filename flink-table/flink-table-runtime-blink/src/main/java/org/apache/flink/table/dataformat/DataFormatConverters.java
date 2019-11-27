@@ -122,7 +122,7 @@ public class DataFormatConverters {
 		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), new LocalDateTimeConverter(3));
 
 		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Long.class), LongConverter.INSTANCE);
-		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Instant.class), InstantConverter.INSTANCE);
+		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Instant.class), new InstantConverter(3));
 
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(int.class), IntConverter.INSTANCE);
@@ -728,27 +728,29 @@ public class DataFormatConverters {
 	/**
 	 * Converter for Instant.
 	 */
-	public static final class InstantConverter extends DataFormatConverter<Long, Instant> {
+	public static final class InstantConverter extends DataFormatConverter<SqlTimestamp, Instant> {
 
 		private static final long serialVersionUID = 1L;
 
-		public static final InstantConverter INSTANCE = new InstantConverter();
+		private final int precision;
 
-		private InstantConverter() {}
-
-		@Override
-		Long toInternalImpl(Instant value) {
-			return value.toEpochMilli();
+		public InstantConverter(int precision) {
+			this.precision = precision;
 		}
 
 		@Override
-		Instant toExternalImpl(Long value) {
-			return Instant.ofEpochMilli(value);
+		SqlTimestamp toInternalImpl(Instant value) {
+			return SqlTimestamp.fromInstant(value);
+		}
+
+		@Override
+		Instant toExternalImpl(SqlTimestamp value) {
+			return value.toInstant();
 		}
 
 		@Override
 		Instant toExternalImpl(BaseRow row, int column) {
-			return toExternalImpl(row.getLong(column));
+			return toExternalImpl(row.getTimestamp(column, precision));
 		}
 	}
 
