@@ -60,8 +60,7 @@ import java.util.concurrent.RunnableFuture;
  * Base class for the snapshots of the heap backend that outlines the algorithm and offers some hooks to realize
  * the concrete strategies. Subclasses must be threadsafe.
  */
-class HeapSnapshotStrategy<K>
-	extends AbstractSnapshotStrategy<KeyedStateHandle> implements SnapshotStrategySynchronicityBehavior<K> {
+class HeapSnapshotStrategy<K> extends AbstractSnapshotStrategy<KeyedStateHandle> {
 
 	private final SnapshotStrategySynchronicityBehavior<K> snapshotStrategySynchronicityTrait;
 	private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
@@ -225,17 +224,14 @@ class HeapSnapshotStrategy<K>
 		return task;
 	}
 
-	@Override
 	public void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
 		snapshotStrategySynchronicityTrait.finalizeSnapshotBeforeReturnHook(runnable);
 	}
 
-	@Override
 	public boolean isAsynchronous() {
 		return snapshotStrategySynchronicityTrait.isAsynchronous();
 	}
 
-	@Override
 	public <N, V> StateTable<K, N, V> newStateTable(
 		InternalKeyContext<K> keyContext,
 		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
