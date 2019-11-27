@@ -308,33 +308,17 @@ public final class Utils {
 	}
 
 	/**
-	 * Creates a YARN resource with resource description. The resource description may contains multiple parts.
-	 * For example, RemotePath;[resourceSize;resourceModificationTime;LocalResourceVisibility]
-	 * @param resourceDesStr resource info string
-	 * @param yarnConfig yarn configuration
-	 * @return local resource tuple, f0 is filename, f1 is local resource.
+	 * Creates a YARN resource with the local resource description.
+	 * @param localResourceDescription local resource description
+	 * @return YARN resource
 	 */
-	private static Tuple2<String, LocalResource> registerLocalResource(
-		String resourceDesStr,
-		Configuration yarnConfig) throws IOException {
-
-		LocalResource localResource;
-		String[] resourceDesc = resourceDesStr.split(";");
-		Path remoteJarPath = new Path(resourceDesc[0]);
-		if (resourceDesc.length == 4) {
-			long resourceSize = Long.parseLong(resourceDesc[1]);
-			long resourceModificationTime = Long.parseLong(resourceDesc[2]);
-			LocalResourceVisibility resourceVisibility = LocalResourceVisibility.valueOf(resourceDesc[3]);
-			localResource = registerLocalResource(
-				remoteJarPath,
-				resourceSize,
-				resourceModificationTime,
-				resourceVisibility);
-		} else {
-			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
-			localResource = registerLocalResource(fs, remoteJarPath);
-		}
-		return new Tuple2<>(remoteJarPath.getName(), localResource);
+	private static LocalResource registerLocalResource(YarnLocalResourceDescription localResourceDescription) {
+		return registerLocalResource(
+			localResourceDescription.getPath(),
+			localResourceDescription.getSize(),
+			localResourceDescription.getModificationTime(),
+			localResourceDescription.getVisibility()
+		);
 	}
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
@@ -556,11 +540,12 @@ public final class Utils {
 		}
 
 		// register Flink Jar with remote HDFS
-		final Tuple2<String, LocalResource> flinkJarResource = registerLocalResource(remoteFlinkJarPath, yarnConfig);
+		final YarnLocalResourceDescription localResourceDescFlinkJar = YarnLocalResourceDescription.fromString(remoteFlinkJarPath);
+		final LocalResource flinkJarResource = registerLocalResource(localResourceDescFlinkJar);
 
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
 
-		taskManagerLocalResources.put(flinkJarResource.f0, flinkJarResource.f1);
+		taskManagerLocalResources.put(localResourceDescFlinkJar.getResourceKey(), flinkJarResource);
 
 		//To support Yarn Secure Integration Test Scenario
 		if (yarnConfResource != null) {
@@ -574,12 +559,10 @@ public final class Utils {
 		}
 
 		// prepare additional files to be shipped
-		for (String shipResourceDescStr : shipListString.split(",")) {
+		for (String shipResourceDescStr : shipListString.split(";")) {
 			if (!shipResourceDescStr.isEmpty()) {
-				String[] keyAndResourceDesc = shipResourceDescStr.split("=");
-				require(keyAndResourceDesc.length == 2, "Invalid entry in ship file list: %s", keyAndResourceDesc);
-				Tuple2<String, LocalResource> localResource = registerLocalResource(keyAndResourceDesc[1], yarnConfig);
-				taskManagerLocalResources.put(keyAndResourceDesc[0], localResource.f1);
+				YarnLocalResourceDescription resourceDesc = YarnLocalResourceDescription.fromString(shipResourceDescStr);
+				taskManagerLocalResources.put(resourceDesc.getResourceKey(), registerLocalResource(resourceDesc));
 			}
 		}
 

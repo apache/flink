@@ -199,7 +199,7 @@ public class YarnFileStageTest extends TestLogger {
 				remotePaths,
 				localResources,
 				localResourceDirectory,
-				new StringBuilder(),
+				new ArrayList<>(),
 				new HashMap<>());
 
 			final Path basePath = new Path(localResourceDirectory, srcDir.getName());
@@ -262,7 +262,7 @@ public class YarnFileStageTest extends TestLogger {
 				remotePaths,
 				localResources,
 				localResourceDirectory,
-				new StringBuilder(),
+				new ArrayList<>(),
 				new HashMap<>());
 
 			assertThat(classpath, containsInAnyOrder(new Path(localResourceDirectory, localFile).toString()));
