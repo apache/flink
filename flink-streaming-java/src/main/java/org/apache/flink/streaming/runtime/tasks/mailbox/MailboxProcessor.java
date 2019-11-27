@@ -27,6 +27,7 @@ import org.apache.flink.util.WrappingRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -55,7 +56,7 @@ import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MIN_P
  * encapsulated {@link TaskMailbox} (which is open-quiesce-close).
  */
 @Internal
-public class MailboxProcessor {
+public class MailboxProcessor implements Closeable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MailboxProcessor.class);
 
@@ -113,6 +114,7 @@ public class MailboxProcessor {
 	 * Lifecycle method to close the mailbox for action submission/retrieval. This will cancel all instances of
 	 * {@link java.util.concurrent.RunnableFuture} that are still contained in the mailbox.
 	 */
+	@Override
 	public void close() {
 		List<Mail> droppedMails = mailbox.close();
 		if (!droppedMails.isEmpty()) {
