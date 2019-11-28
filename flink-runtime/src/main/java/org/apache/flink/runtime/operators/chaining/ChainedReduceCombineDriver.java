@@ -274,7 +274,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 		}
 
 		outputCollector.close();
-		dispose(true);
+		dispose(false);
 	}
 
 	@Override
@@ -287,7 +287,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 	@Override
 	public void cancelTask() {
 		running = false;
-		dispose(false);
+		dispose(true);
 	}
 
 	private void dispose(boolean ignoreException) {
