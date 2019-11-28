@@ -45,8 +45,13 @@ echo "Flink distribution directory: $FLINK_DIR"
 
 run_test "TPC-H end-to-end test (Blink planner)" "$END_TO_END_DIR/test-scripts/test_tpch.sh"
 
-run_test "Heavy deployment end-to-end test" "$END_TO_END_DIR/test-scripts/test_heavy_deployment.sh" "skip_check_exceptions"
-
+timeout 9m run_test "Heavy deployment end-to-end test" "$END_TO_END_DIR/test-scripts/test_heavy_deployment.sh" "skip_check_exceptions"
+HD_EXIT_CODE=$?
+if [ $HD_EXIT_CODE -ne 0]; then
+  echo "HD E2E test failed"
+  cat "$FLINK_DIR/build-target/log/*standalonesession*"
+  exit 1
+fi
 run_test "ConnectedComponents iterations with high parallelism end-to-end test" "$END_TO_END_DIR/test-scripts/test_high_parallelism_iterations.sh 25"
 
 printf "\n[PASS] All tests passed\n"
