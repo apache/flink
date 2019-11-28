@@ -67,6 +67,7 @@ import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -565,6 +566,11 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		@Override
 		public boolean updatePartitionInfo(ExecutionAttemptID consumerID, PartitionInfo partitionInfo) throws IOException, InterruptedException {
 			return backingShuffleEnvironment.updatePartitionInfo(consumerID, partitionInfo);
+		}
+
+		@Override
+		public void registgerBackPressureMetric(ShuffleIOOwnerContext ownerContext, Task task) {
+			backingShuffleEnvironment.registgerBackPressureMetric(ownerContext, task);
 		}
 
 		@Override
