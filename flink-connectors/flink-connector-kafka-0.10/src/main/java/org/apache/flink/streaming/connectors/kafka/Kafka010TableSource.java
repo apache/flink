@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Collections;
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.10.
  */
