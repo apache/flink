@@ -50,7 +50,7 @@ timeout 9m $FLINK_DIR/bin/flink run ${TEST_PROGRAM_JAR} \
 --heavy_deployment_test.num_list_states_per_op 40 --heavy_deployment_test.num_partitions_per_list_state 40
 
 HD_EXIT_CODE=$?
-if [ $HD_EXIT_CODE -ne 0]; then
+if [ $HD_EXIT_CODE -ne 0 ]; then
   echo "HD E2E test failed"
   cat "$FLINK_DIR/build-target/log/*standalonesession*"
   exit 1
