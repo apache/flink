@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,7 +41,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class TestingSchedulingTopology
 	implements SchedulingTopology<TestingSchedulingExecutionVertex, TestingSchedulingResultPartition> {
 
-	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> schedulingExecutionVertices = new HashMap<>();
+	// Use linked map here to so we can get the values in inserted order
+	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> schedulingExecutionVertices = new LinkedHashMap<>();
 
 	private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition> schedulingResultPartitions = new HashMap<>();
 
@@ -83,7 +85,7 @@ public class TestingSchedulingTopology
 		}
 	}
 
-	private void addSchedulingExecutionVertices(List<TestingSchedulingExecutionVertex> vertices) {
+	void addSchedulingExecutionVertices(List<TestingSchedulingExecutionVertex> vertices) {
 		for (TestingSchedulingExecutionVertex vertex : vertices) {
 			addSchedulingExecutionVertex(vertex);
 		}

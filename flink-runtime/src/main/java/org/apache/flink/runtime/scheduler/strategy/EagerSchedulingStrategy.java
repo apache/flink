@@ -23,9 +23,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.scheduler.DeploymentOption;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
+import org.apache.flink.util.IterableUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -74,7 +73,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 
 	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesToDeploy) {
 		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
-				createExecutionVertexDeploymentOptions(verticesToDeploy);
+				createExecutionVertexDeploymentOptionsInTopologicalOrder(verticesToDeploy);
 		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
 	}
 
@@ -85,14 +84,16 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 				.collect(Collectors.toSet());
 	}
 
-	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
-			final Collection<ExecutionVertexID> vertices) {
-		List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>(vertices.size());
-		for (ExecutionVertexID executionVertexID : vertices) {
-			executionVertexDeploymentOptions.add(
-					new ExecutionVertexDeploymentOption(executionVertexID, deploymentOption));
-		}
-		return executionVertexDeploymentOptions;
+	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptionsInTopologicalOrder(
+			final Set<ExecutionVertexID> verticesToDeploy) {
+
+		return IterableUtils.toStream(schedulingTopology.getVertices())
+			.map(SchedulingExecutionVertex::getId)
+			.filter(verticesToDeploy::contains)
+			.map(executionVertexID -> new ExecutionVertexDeploymentOption(
+				executionVertexID,
+				deploymentOption))
+			.collect(Collectors.toList());
 	}
 
 	/**
