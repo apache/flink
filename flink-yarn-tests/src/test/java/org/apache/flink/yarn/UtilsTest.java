@@ -27,11 +27,13 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.log4j.AppenderSkeleton;
@@ -178,7 +180,12 @@ public class UtilsTest extends TestLogger {
 		env.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, "");
 		env.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, "");
 		env.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, "foo");
-		env.put(YarnConfigKeys.FLINK_JAR_PATH, root.toURI().toString());
+		env.put(YarnConfigKeys.FLINK_JAR_PATH, new YarnLocalResourceDescriptor(
+			"flink.jar",
+			new Path("/tmp/flink.jar"),
+			0,
+			System.currentTimeMillis(),
+			LocalResourceVisibility.APPLICATION).toString());
 		env = Collections.unmodifiableMap(env);
 
 		File credentialFile = temporaryFolder.newFile("container_tokens");

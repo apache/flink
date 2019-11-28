@@ -22,22 +22,28 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link YarnLocalResourceDescription}.
+ * Tests for {@link YarnLocalResourceDescriptor}.
  */
 public class YarnLocalResourceDescriptionTest extends TestLogger {
 
+	@Rule
+	public final ExpectedException exception = ExpectedException.none();
+
+	private final String key = "flink.jar";
+	private final Path path = new Path("hdfs://nn/tmp/flink.jar");
+	private final long size = 100 * 1024 * 1024;
+	private final long ts = System.currentTimeMillis();
+
 	@Test
 	public void testFromString() throws Exception {
-		final String key = "flink.jar";
-		final Path path = new Path("hdfs://nn/tmp/flink.jar");
-		final long size = 100 * 1024 * 1024;
-		final long ts = System.currentTimeMillis();
-		YarnLocalResourceDescription localResourceDesc = new YarnLocalResourceDescription(
+		YarnLocalResourceDescriptor localResourceDesc = new YarnLocalResourceDescriptor(
 			key,
 			path,
 			size,
@@ -45,11 +51,20 @@ public class YarnLocalResourceDescriptionTest extends TestLogger {
 			LocalResourceVisibility.PUBLIC);
 
 		String desc = localResourceDesc.toString();
-		YarnLocalResourceDescription newLocalResourceDesc = YarnLocalResourceDescription.fromString(desc);
+		YarnLocalResourceDescriptor newLocalResourceDesc = YarnLocalResourceDescriptor.fromString(desc);
 		assertEquals(key, newLocalResourceDesc.getResourceKey());
 		assertEquals(path, newLocalResourceDesc.getPath());
 		assertEquals(size, newLocalResourceDesc.getSize());
 		assertEquals(ts, newLocalResourceDesc.getModificationTime());
 		assertEquals(LocalResourceVisibility.PUBLIC, newLocalResourceDesc.getVisibility());
+	}
+
+	@Test
+	public void testFromStringMalformed() throws Exception {
+		String desc = String.format("YarnLocalResourceDescriptor{key=%s path=%s size=%d modTime=%d visibility=%s}",
+			key, path.toString(), size, ts, LocalResourceVisibility.PUBLIC);
+		exception.expect(Exception.class);
+		exception.expectMessage("Error to parse YarnLocalResourceDescriptor from " + desc);
+		YarnLocalResourceDescriptor.fromString(desc);
 	}
 }

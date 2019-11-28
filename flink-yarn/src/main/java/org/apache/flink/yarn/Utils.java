@@ -308,16 +308,16 @@ public final class Utils {
 	}
 
 	/**
-	 * Creates a YARN resource with the local resource description.
-	 * @param localResourceDescription local resource description
+	 * Creates a YARN resource with the local resource descriptor.
+	 * @param localResourceDescriptor local resource descriptor
 	 * @return YARN resource
 	 */
-	private static LocalResource registerLocalResource(YarnLocalResourceDescription localResourceDescription) {
+	private static LocalResource registerLocalResource(YarnLocalResourceDescriptor localResourceDescriptor) {
 		return registerLocalResource(
-			localResourceDescription.getPath(),
-			localResourceDescription.getSize(),
-			localResourceDescription.getModificationTime(),
-			localResourceDescription.getVisibility()
+			localResourceDescriptor.getPath(),
+			localResourceDescriptor.getSize(),
+			localResourceDescriptor.getModificationTime(),
+			localResourceDescriptor.getVisibility()
 		);
 	}
 
@@ -540,7 +540,7 @@ public final class Utils {
 		}
 
 		// register Flink Jar with remote HDFS
-		final YarnLocalResourceDescription localResourceDescFlinkJar = YarnLocalResourceDescription.fromString(remoteFlinkJarPath);
+		final YarnLocalResourceDescriptor localResourceDescFlinkJar = YarnLocalResourceDescriptor.fromString(remoteFlinkJarPath);
 		final LocalResource flinkJarResource = registerLocalResource(localResourceDescFlinkJar);
 
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
@@ -561,7 +561,7 @@ public final class Utils {
 		// prepare additional files to be shipped
 		for (String shipResourceDescStr : shipListString.split(";")) {
 			if (!shipResourceDescStr.isEmpty()) {
-				YarnLocalResourceDescription resourceDesc = YarnLocalResourceDescription.fromString(shipResourceDescStr);
+				YarnLocalResourceDescriptor resourceDesc = YarnLocalResourceDescriptor.fromString(shipResourceDescStr);
 				taskManagerLocalResources.put(resourceDesc.getResourceKey(), registerLocalResource(resourceDesc));
 			}
 		}
