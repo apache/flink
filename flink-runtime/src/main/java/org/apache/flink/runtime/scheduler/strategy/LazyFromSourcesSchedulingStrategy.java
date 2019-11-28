@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
@@ -80,7 +79,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 			deploymentOptions.put(schedulingVertex.getId(), option);
 		}
 
-		allocateSlotsAndDeployExecutionVertexIds(getAllVerticesFromTopology());
+		allocateSlotsAndDeployExecutionVertices(schedulingTopology.getVertices());
 	}
 
 	@Override
@@ -92,7 +91,8 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 			.flatMap(vertex -> IterableUtils.toStream(vertex.getProducedResults()))
 			.forEach(inputConstraintChecker::resetSchedulingResultPartition);
 
-		allocateSlotsAndDeployExecutionVertexIds(verticesToRestart);
+		allocateSlotsAndDeployExecutionVertices(
+			SchedulingStrategyUtils.getVerticesFromIds(schedulingTopology, verticesToRestart));
 	}
 
 	@Override
@@ -129,14 +129,6 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 		allocateSlotsAndDeployExecutionVertices(resultPartition.getConsumers());
 	}
 
-	private void allocateSlotsAndDeployExecutionVertexIds(Set<ExecutionVertexID> verticesToSchedule) {
-		allocateSlotsAndDeployExecutionVertices(
-			verticesToSchedule
-				.stream()
-				.map(schedulingTopology::getVertexOrThrow)
-				.collect(Collectors.toList()));
-	}
-
 	private void allocateSlotsAndDeployExecutionVertices(
 			final Iterable<? extends SchedulingExecutionVertex<?, ?>> vertices) {
 
@@ -146,32 +138,16 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 			.collect(Collectors.toSet());
 
 		final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
-			createExecutionVertexDeploymentOptionsInTopologicalOrder(verticesToDeploy);
+			SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
+				schedulingTopology,
+				verticesToDeploy,
+				deploymentOptions::get);
 
 		schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
 	}
 
-	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptionsInTopologicalOrder(
-		final Set<ExecutionVertexID> verticesToDeploy) {
-
-		return IterableUtils.toStream(schedulingTopology.getVertices())
-			.map(SchedulingExecutionVertex::getId)
-			.filter(verticesToDeploy::contains)
-			.map(executionVertexID -> new ExecutionVertexDeploymentOption(
-				executionVertexID,
-				deploymentOptions.get(executionVertexID)))
-			.collect(Collectors.toList());
-	}
-
 	private Predicate<SchedulingExecutionVertex<?, ?>> isInputConstraintSatisfied() {
 		return inputConstraintChecker::check;
-	}
-
-	private Set<ExecutionVertexID> getAllVerticesFromTopology() {
-		return StreamSupport
-			.stream(schedulingTopology.getVertices().spliterator(), false)
-			.map(SchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
 	}
 
 	/**
