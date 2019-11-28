@@ -134,12 +134,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	private final Option zookeeperNamespace;
 	private final Option nodeLabel;
 	private final Option help;
-
-	/**
-	 * @deprecated Streaming mode has been deprecated without replacement.
-	 */
-	@Deprecated
-	private final Option streaming;
 	private final Option name;
 	private final Option applicationType;
 
@@ -208,7 +202,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			.valueSeparator()
 			.desc("use value for given property")
 			.build();
-		streaming = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 		applicationType = new Option(shortPrefix + "at", longPrefix + "applicationType", true, "Set a custom application type for the application on YARN");
 		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
@@ -227,7 +220,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		allOptions.addOption(DETACHED_OPTION);
 		allOptions.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		allOptions.addOption(YARN_DETACHED_OPTION);
-		allOptions.addOption(streaming);
 		allOptions.addOption(name);
 		allOptions.addOption(applicationId);
 		allOptions.addOption(applicationType);
