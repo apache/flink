@@ -146,7 +146,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 				.map(executionVertexID -> new ExecutionVertexDeploymentOption(
 					executionVertexID,
 					deploymentOptions.get(executionVertexID)))
-				.collect(Collectors.toSet()));
+				.collect(Collectors.toList()));
 	}
 
 	private Predicate<SchedulingExecutionVertex<?, ?>> isInputConstraintSatisfied() {
