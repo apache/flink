@@ -263,6 +263,7 @@ function start_taskmanagers {
     echo "Start ${tmnum} more task managers"
     for (( c=0; c<tmnum; c++ ))
     do
+        free -h
         $FLINK_DIR/bin/taskmanager.sh start
     done
 }
