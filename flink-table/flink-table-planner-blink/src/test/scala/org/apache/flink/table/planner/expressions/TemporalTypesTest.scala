@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
 import org.junit.Test
+
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.time.{Instant, ZoneId}
@@ -289,6 +290,22 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       "CAST(TIMESTAMP '1970-01-01 00:02:03' AS INT)",
       "123")
+
+    testSqlApi(
+      "CAST(f0 AS TIMESTAMP(3) WITH LOCAL TIME ZONE)",
+      "1990-10-14 00:00:00.000")
+
+    testSqlApi(
+      "CAST(f1 AS TIMESTAMP(3) WITH LOCAL TIME ZONE)",
+      "1970-01-01 10:20:45.000")
+
+    testSqlApi(
+      s"CAST(${timestampTz("2018-03-14 01:02:03")} AS TIME)",
+      "01:02:03")
+
+    testSqlApi(
+      s"CAST(${timestampTz("2018-03-14 01:02:03")} AS DATE)",
+      "2018-03-14")
 
   }
 
@@ -1074,7 +1091,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
-    val testData = new Row(24)
+    val testData = new Row(23)
     testData.setField(0, localDate("1990-10-14"))
     testData.setField(1, DateTimeTestUtil.localTime("10:20:45"))
     testData.setField(2, localDateTime("1990-10-14 10:20:45.123"))

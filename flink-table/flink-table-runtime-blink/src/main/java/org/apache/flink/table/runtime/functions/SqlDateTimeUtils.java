@@ -1149,12 +1149,12 @@ public class SqlDateTimeUtils {
 				LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), tz.toZoneId()));
 	}
 
-	public static long timestampWithLocalZoneToDate(long ts, TimeZone tz) {
+	public static int timestampWithLocalZoneToDate(long ts, TimeZone tz) {
 		return localDateToUnixDate(LocalDateTime.ofInstant(
 				Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalDate());
 	}
 
-	public static long timestampWithLocalZoneToTime(long ts, TimeZone tz) {
+	public static int timestampWithLocalZoneToTime(long ts, TimeZone tz) {
 		return localTimeToUnixDate(LocalDateTime.ofInstant(
 				Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalTime());
 	}

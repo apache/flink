@@ -999,7 +999,7 @@ object ScalarOperatorGens {
         ctx, targetType, operand, resultNullable = true) { operandTerm =>
         val zone = ctx.addReusableTimeZone()
         val method = qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP_TIME_ZONE)
-        s"$method($operandTerm.toString(), $zone)"
+        s"$SQL_TIMESTAMP.fromEpochMillis($method($operandTerm.toString(), $zone))"
       }
 
     // String -> binary
@@ -1092,7 +1092,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
         val zone = ctx.addReusableTimeZone()
         val method = qualifyMethod(BuiltInMethods.DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-        s"$method($operandTerm, $zone)"
+        s"$SQL_TIMESTAMP.fromEpochMillis($method($operandTerm, $zone))"
       }
 
     // Timestamp with local time zone -> Date
@@ -1100,7 +1100,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
         val zone = ctx.addReusableTimeZone()
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE)
-        s"$method($operandTerm, $zone)"
+        s"$method($operandTerm.getMillisecond(), $zone)"
       }
 
     // Time -> Timestamp with local time zone
@@ -1108,7 +1108,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
         val zone = ctx.addReusableTimeZone()
         val method = qualifyMethod(BuiltInMethods.TIME_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-        s"$method($operandTerm, $zone)"
+        s"$SQL_TIMESTAMP.fromEpochMillis($method($operandTerm, $zone))"
       }
 
     // Timestamp with local time zone -> Time
@@ -1116,7 +1116,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
         val zone = ctx.addReusableTimeZone()
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME)
-        s"$method($operandTerm, $zone)"
+        s"$method($operandTerm.getMillisecond(), $zone)"
       }
 
     // Timestamp -> Decimal
