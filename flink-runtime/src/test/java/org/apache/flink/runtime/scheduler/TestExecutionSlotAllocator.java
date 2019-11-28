@@ -46,7 +46,7 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 	private final List<LogicalSlot> returnedSlots = new ArrayList<>();
 
 	@Override
-	public Collection<SlotExecutionVertexAssignment> allocateSlotsFor(final Collection<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {
+	public List<SlotExecutionVertexAssignment> allocateSlotsFor(final List<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {
 		final List<SlotExecutionVertexAssignment> slotVertexAssignments = createSlotVertexAssignments(schedulingRequirementsCollection);
 		registerPendingRequests(slotVertexAssignments);
 		maybeCompletePendingRequests();

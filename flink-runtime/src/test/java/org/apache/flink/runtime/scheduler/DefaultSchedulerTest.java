@@ -77,6 +77,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -93,6 +94,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -165,6 +167,29 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
 		assertThat(deployedExecutionVertices, contains(executionVertexId));
+	}
+
+	@Test
+	public void scheduledVertexOrderFromSchedulingStrategyIsRespected() throws Exception {
+		final JobGraph jobGraph = singleJobVertexJobGraph(10);
+		final JobVertexID onlyJobVertexId = getOnlyJobVertex(jobGraph).getID();
+
+		final List<ExecutionVertexID> desiredScheduleOrder = Arrays.asList(
+			new ExecutionVertexID(onlyJobVertexId, 4),
+			new ExecutionVertexID(onlyJobVertexId, 0),
+			new ExecutionVertexID(onlyJobVertexId, 3),
+			new ExecutionVertexID(onlyJobVertexId, 1),
+			new ExecutionVertexID(onlyJobVertexId, 2));
+
+		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
+		createScheduler(jobGraph, schedulingStrategyFactory);
+		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
+
+		schedulingStrategy.schedule(desiredScheduleOrder);
+
+		final List<ExecutionVertexID> deployedExecutionVertices = testExecutionVertexOperations.getDeployedVertices();
+
+		assertEquals(desiredScheduleOrder, deployedExecutionVertices);
 	}
 
 	@Test
@@ -327,7 +352,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		startScheduling(scheduler);
 
 		final SchedulingExecutionVertex<?, ?> onlySchedulingVertex = Iterables.getOnlyElement(topology.getVertices());
-		schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertex.getId()));
+		schedulingStrategy.schedule(Collections.singletonList(onlySchedulingVertex.getId()));
 
 		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
 		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
@@ -353,11 +378,11 @@ public class DefaultSchedulerTest extends TestLogger {
 		final ExecutionVertexID onlySchedulingVertexId = Iterables.getOnlyElement(topology.getVertices()).getId();
 
 		// Schedule the vertex to get it to a non-CREATED state
-		schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertexId));
+		schedulingStrategy.schedule(Collections.singletonList(onlySchedulingVertexId));
 
 		// The scheduling of a non-CREATED vertex will result in IllegalStateException
 		try {
-			schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertexId));
+			schedulingStrategy.schedule(Collections.singletonList(onlySchedulingVertexId));
 			fail("IllegalStateException should happen");
 		} catch (IllegalStateException e) {
 			// expected exception
