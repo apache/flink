@@ -52,7 +52,6 @@ timeout -s 9 9m $FLINK_DIR/bin/flink run ${TEST_PROGRAM_JAR} \
 HD_EXIT_CODE=$?
 if [ $HD_EXIT_CODE -ne 0 ]; then
   echo "HD E2E test failed"
-  jps
   ls "$FLINK_DIR/log"
   cat "$FLINK_DIR/log/*"
   exit 1
