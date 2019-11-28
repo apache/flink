@@ -27,10 +27,7 @@ import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.11.
