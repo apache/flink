@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 
-import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -45,7 +44,7 @@ public class LinkedBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public void add(BufferOrEvent boe) throws IOException {
+	public void add(BufferOrEvent boe) {
 		mainStorage.add(boe);
 	}
 
@@ -55,7 +54,7 @@ public class LinkedBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public void rollOver() throws IOException {
+	public void rollOver() {
 		mainStorage.rollOver();
 		linkedStorage.rollOver();
 	}
@@ -76,7 +75,7 @@ public class LinkedBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNext() throws IOException {
+	public Optional<BufferOrEvent> pollNext() {
 		return mainStorage.pollNext();
 	}
 
@@ -86,7 +85,7 @@ public class LinkedBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		mainStorage.close();
 	}
 }
