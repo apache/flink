@@ -1119,7 +1119,7 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="16">Task</th>
+      <th rowspan="8">Task</th>
       <td rowspan="2">Shuffle.Netty.Input.Buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
@@ -1164,6 +1164,7 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
+      <th rowspan="8"><strong>Task</strong></th>
       <td rowspan="8">Shuffle.Netty.Input</td>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
@@ -1203,28 +1204,6 @@ Metrics related to data exchange between task executors using netty network comm
       <td>numBuffersInRemotePerSecond</td>
       <td>The number of network buffers this task reads from a remote source per second.</td>
       <td>Meter</td>
-    </tr>
-  </tbody>
-</table>
-
-### Common shuffle service metrics
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 18%">Scope</th>
-      <th class="text-left" style="width: 22%">Infix</th>
-      <th class="text-left" style="width: 22%">Metrics</th>
-      <th class="text-left" style="width: 30%">Description</th>
-      <th class="text-left" style="width: 8%">Type</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th rowspan="1"><strong>Task</strong></th>
-      <td rowspan="1">Shuffle.BackPressure</td>
-      <td>isBackPressured</td>
-      <td>whether the task is back-pressured</td>
-      <td>Gauge</td>
     </tr>
   </tbody>
 </table>

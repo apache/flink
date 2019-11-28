@@ -45,7 +45,6 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
-import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -60,7 +59,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
-import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.createShuffleBackPressureMetricGroup;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.createShuffleIOOwnerMetricGroup;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerInputMetrics;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerOutputMetrics;
@@ -176,14 +174,12 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			ExecutionAttemptID executionAttemptID,
 			MetricGroup parentGroup) {
 		MetricGroup nettyGroup = createShuffleIOOwnerMetricGroup(checkNotNull(parentGroup));
-		MetricGroup backPressureGroup = createShuffleBackPressureMetricGroup(checkNotNull(parentGroup));
 		return new ShuffleIOOwnerContext(
 			checkNotNull(ownerName),
 			checkNotNull(executionAttemptID),
 			parentGroup,
 			nettyGroup.addGroup(METRIC_GROUP_INPUT),
-			nettyGroup.addGroup(METRIC_GROUP_OUTPUT),
-			backPressureGroup);
+			nettyGroup.addGroup(METRIC_GROUP_OUTPUT));
 	}
 
 	@Override
@@ -293,11 +289,6 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 				throw new IOException("Failed to instantiate network connection manager.", t);
 			}
 		}
-	}
-
-	@Override
-	public void registgerBackPressureMetric(ShuffleIOOwnerContext ownerContext, Task task) {
-		NettyShuffleMetricFactory.registerBackPressureMetrics(ownerContext.getBackPreessureGroup(), task);
 	}
 
 	/**
