@@ -28,6 +28,7 @@ import org.apache.flink.util.IterableUtils;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -139,14 +140,27 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 	private void allocateSlotsAndDeployExecutionVertices(
 			final Iterable<? extends SchedulingExecutionVertex<?, ?>> vertices) {
 
-		schedulerOperations.allocateSlotsAndDeploy(
-			IterableUtils.toStream(vertices)
-				.filter(IS_IN_CREATED_EXECUTION_STATE.and(isInputConstraintSatisfied()))
-				.map(SchedulingExecutionVertex::getId)
-				.map(executionVertexID -> new ExecutionVertexDeploymentOption(
-					executionVertexID,
-					deploymentOptions.get(executionVertexID)))
-				.collect(Collectors.toList()));
+		final Set<ExecutionVertexID> verticesToDeploy = IterableUtils.toStream(vertices)
+			.filter(IS_IN_CREATED_EXECUTION_STATE.and(isInputConstraintSatisfied()))
+			.map(SchedulingExecutionVertex::getId)
+			.collect(Collectors.toSet());
+
+		final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
+			createExecutionVertexDeploymentOptionsInTopologicalOrder(verticesToDeploy);
+
+		schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
+	}
+
+	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptionsInTopologicalOrder(
+		final Set<ExecutionVertexID> verticesToDeploy) {
+
+		return IterableUtils.toStream(schedulingTopology.getVertices())
+			.map(SchedulingExecutionVertex::getId)
+			.filter(verticesToDeploy::contains)
+			.map(executionVertexID -> new ExecutionVertexDeploymentOption(
+				executionVertexID,
+				deploymentOptions.get(executionVertexID)))
+			.collect(Collectors.toList());
 	}
 
 	private Predicate<SchedulingExecutionVertex<?, ?>> isInputConstraintSatisfied() {
