@@ -48,7 +48,7 @@ import java.util.Properties;
  * A version-agnostic Kafka {@link StreamTableSource}.
  *
  * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
+ * overrid{@link #createKafkaConsumer(List, Properties, DeserializationSchema)}}.
  */
 @Internal
 public abstract class KafkaTableSourceBase implements
@@ -73,8 +73,8 @@ public abstract class KafkaTableSourceBase implements
 
 	// Kafka-specific attributes
 
-	/** The Kafka topic to consume. */
-	private final String topic;
+	/** The Kafka topics to consume. */
+	private final List<String> topics;
 
 	/** Properties for the Kafka consumer. */
 	private final Properties properties;
@@ -96,7 +96,7 @@ public abstract class KafkaTableSourceBase implements
 	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
 	 * @param fieldMapping                Mapping for the fields of the table schema to
 	 *                                    fields of the physical returned type.
-	 * @param topic                       Kafka topic to consume.
+	 * @param topics                      Kafka topics to consume.
 	 * @param properties                  Properties for the Kafka consumer.
 	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
 	 * @param startupMode                 Startup mode for the contained consumer.
@@ -108,7 +108,7 @@ public abstract class KafkaTableSourceBase implements
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 			Optional<Map<String, String>> fieldMapping,
-			String topic,
+			List<String> topics,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
 			StartupMode startupMode,
@@ -117,7 +117,7 @@ public abstract class KafkaTableSourceBase implements
 		this.proctimeAttribute = validateProctimeAttribute(proctimeAttribute);
 		this.rowtimeAttributeDescriptors = validateRowtimeAttributeDescriptors(rowtimeAttributeDescriptors);
 		this.fieldMapping = fieldMapping;
-		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
+		this.topics = Preconditions.checkNotNull(topics, "Topics must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.deserializationSchema = Preconditions.checkNotNull(
 			deserializationSchema, "Deserialization schema must not be null.");
@@ -130,13 +130,13 @@ public abstract class KafkaTableSourceBase implements
 	 * Creates a generic Kafka {@link StreamTableSource}.
 	 *
 	 * @param schema                Schema of the produced table.
-	 * @param topic                 Kafka topic to consume.
+	 * @param topics                Kafka topics to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema for decoding records from Kafka.
 	 */
 	protected KafkaTableSourceBase(
 			TableSchema schema,
-			String topic,
+			List<String> topics,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema) {
 		this(
@@ -144,7 +144,7 @@ public abstract class KafkaTableSourceBase implements
 			Optional.empty(),
 			Collections.emptyList(),
 			Optional.empty(),
-			topic, properties,
+			topics, properties,
 			deserializationSchema,
 			StartupMode.GROUP_OFFSETS,
 			Collections.emptyMap());
@@ -159,7 +159,7 @@ public abstract class KafkaTableSourceBase implements
 
 		DeserializationSchema<Row> deserializationSchema = getDeserializationSchema();
 		// Version-specific Kafka consumer
-		FlinkKafkaConsumerBase<Row> kafkaConsumer = getKafkaConsumer(topic, properties, deserializationSchema);
+		FlinkKafkaConsumerBase<Row> kafkaConsumer = getKafkaConsumer(topics, properties, deserializationSchema);
 		return env.addSource(kafkaConsumer).name(explainSource());
 	}
 
@@ -224,7 +224,7 @@ public abstract class KafkaTableSourceBase implements
 			Objects.equals(proctimeAttribute, that.proctimeAttribute) &&
 			Objects.equals(rowtimeAttributeDescriptors, that.rowtimeAttributeDescriptors) &&
 			Objects.equals(fieldMapping, that.fieldMapping) &&
-			Objects.equals(topic, that.topic) &&
+			Objects.equals(topics, that.topics) &&
 			Objects.equals(properties, that.properties) &&
 			Objects.equals(deserializationSchema, that.deserializationSchema) &&
 			startupMode == that.startupMode &&
@@ -238,7 +238,7 @@ public abstract class KafkaTableSourceBase implements
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
 			fieldMapping,
-			topic,
+			topics,
 			properties,
 			deserializationSchema,
 			startupMode,
@@ -248,17 +248,17 @@ public abstract class KafkaTableSourceBase implements
 	/**
 	 * Returns a version-specific Kafka consumer with the start position configured.
 	 *
-	 * @param topic                 Kafka topic to consume.
+	 * @param topics                Kafka topics to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema to use for Kafka records.
 	 * @return The version-specific Kafka consumer
 	 */
 	protected FlinkKafkaConsumerBase<Row> getKafkaConsumer(
-			String topic,
+			List<String> topics,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema) {
 		FlinkKafkaConsumerBase<Row> kafkaConsumer =
-				createKafkaConsumer(topic, properties, deserializationSchema);
+				createKafkaConsumer(topics, properties, deserializationSchema);
 		switch (startupMode) {
 			case EARLIEST:
 				kafkaConsumer.setStartFromEarliest();
@@ -321,13 +321,13 @@ public abstract class KafkaTableSourceBase implements
 	/**
 	 * Creates a version-specific Kafka consumer.
 	 *
-	 * @param topic                 Kafka topic to consume.
+	 * @param topics                Kafka topics to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema to use for Kafka records.
 	 * @return The version-specific Kafka consumer
 	 */
 	protected abstract FlinkKafkaConsumerBase<Row> createKafkaConsumer(
-			String topic,
+			List<String> topics,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema);
 

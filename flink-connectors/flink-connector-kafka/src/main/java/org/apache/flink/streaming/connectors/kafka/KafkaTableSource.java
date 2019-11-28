@@ -26,10 +26,7 @@ import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * Kafka {@link StreamTableSource}.
@@ -63,12 +60,50 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 		StartupMode startupMode,
 		Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
+		this(
+			schema,
+			proctimeAttribute,
+			rowtimeAttributeDescriptors,
+			fieldMapping,
+			Collections.singletonList(topic),
+			properties,
+			deserializationSchema,
+			startupMode,
+			specificStartupOffsets);
+	}
+
+	/**
+	 * Creates a generic Kafka {@link StreamTableSource}.
+	 *
+	 * @param schema                      Schema of the produced table.
+	 * @param proctimeAttribute           Field name of the processing time attribute.
+	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
+	 * @param fieldMapping                Mapping for the fields of the table schema to
+	 *                                    fields of the physical returned type.
+	 * @param topics                      Kafkas topic to consume.
+	 * @param properties                  Properties for the Kafka consumer.
+	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
+	 * @param startupMode                 Startup mode for the contained consumer.
+	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
+	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
+	 */
+	public KafkaTableSource(
+		TableSchema schema,
+		Optional<String> proctimeAttribute,
+		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
+		Optional<Map<String, String>> fieldMapping,
+		List<String> topics,
+		Properties properties,
+		DeserializationSchema<Row> deserializationSchema,
+		StartupMode startupMode,
+		Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+
 		super(
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
 			fieldMapping,
-			topic,
+			topics,
 			properties,
 			deserializationSchema,
 			startupMode,
@@ -89,15 +124,32 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema) {
 
-		super(schema, topic, properties, deserializationSchema);
+		this(schema, Collections.singletonList(topic), properties, deserializationSchema);
+	}
+
+	/**
+	 * Creates a generic Kafka {@link StreamTableSource}.
+	 *
+	 * @param schema                Schema of the produced table.
+	 * @param topics                Kafka topics to consume.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param deserializationSchema Deserialization schema for decoding records from Kafka.
+	 */
+	public KafkaTableSource(
+		TableSchema schema,
+		List<String> topics,
+		Properties properties,
+		DeserializationSchema<Row> deserializationSchema) {
+
+		super(schema, topics, properties, deserializationSchema);
 	}
 
 	@Override
 	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(
-		String topic,
+		List<String> topics,
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema) {
 
-		return new FlinkKafkaConsumer<Row>(topic, deserializationSchema, properties);
+		return new FlinkKafkaConsumer<Row>(topics, deserializationSchema, properties);
 	}
 }
