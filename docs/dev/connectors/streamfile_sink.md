@@ -236,10 +236,11 @@ specifying an `Encoder` we have to specify [BulkWriter.Factory]({{ site.javadocs
 The `BulkWriter` logic defines how new elements added, flushed and how the bulk of records
 are finalized for further encoding purposes.
 
-Flink comes with two built-in BulkWriter factories:
+Flink comes with three built-in BulkWriter factories:
 
  - [ParquetWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/ParquetWriterFactory.html)
  - [SequenceFileWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/sequencefile/SequenceFileWriterFactory.html)
+ - [CompressWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/compress/CompressWriterFactory.html)
 
 #### Parquet format
 
