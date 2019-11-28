@@ -23,12 +23,9 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.scheduler.DeploymentOption;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
-import org.apache.flink.util.IterableUtils;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -52,8 +49,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 
 	@Override
 	public void startScheduling() {
-		final Set<ExecutionVertexID> allVertices = getAllVerticesFromTopology();
-		allocateSlotsAndDeploy(allVertices);
+		allocateSlotsAndDeploy(SchedulingStrategyUtils.getAllVertexIdsFromTopology(schedulingTopology));
 	}
 
 	@Override
@@ -73,27 +69,11 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 
 	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesToDeploy) {
 		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
-				createExecutionVertexDeploymentOptionsInTopologicalOrder(verticesToDeploy);
+			SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
+				schedulingTopology,
+				verticesToDeploy,
+				id -> deploymentOption);
 		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
-	}
-
-	private Set<ExecutionVertexID> getAllVerticesFromTopology() {
-		return StreamSupport
-				.stream(schedulingTopology.getVertices().spliterator(), false)
-				.map(SchedulingExecutionVertex::getId)
-				.collect(Collectors.toSet());
-	}
-
-	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptionsInTopologicalOrder(
-			final Set<ExecutionVertexID> verticesToDeploy) {
-
-		return IterableUtils.toStream(schedulingTopology.getVertices())
-			.map(SchedulingExecutionVertex::getId)
-			.filter(verticesToDeploy::contains)
-			.map(executionVertexID -> new ExecutionVertexDeploymentOption(
-				executionVertexID,
-				deploymentOption))
-			.collect(Collectors.toList());
 	}
 
 	/**
