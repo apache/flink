@@ -43,7 +43,11 @@ echo "Flink distribution directory: $FLINK_DIR"
 
 # run_test "<description>" "$END_TO_END_DIR/test-scripts/<script_name>"
 
+jps
+
 run_test "TPC-H end-to-end test (Blink planner)" "$END_TO_END_DIR/test-scripts/test_tpch.sh"
+
+jps
 
 timeout 9m run_test "Heavy deployment end-to-end test" "$END_TO_END_DIR/test-scripts/test_heavy_deployment.sh" "skip_check_exceptions"
 HD_EXIT_CODE=$?

@@ -17,6 +17,8 @@
 # limitations under the License.
 ################################################################################
 
+jps
+
 HERE="`dirname \"$0\"`"				# relative
 HERE="`( cd \"${HERE}\" && pwd -P)`" 	# absolutized and normalized
 if [ -z "${HERE}" ] ; then
