@@ -139,6 +139,10 @@ public class TwoPhaseCommitSinkFunctionTest {
 		harness.close();
 	}
 
+	/**
+	 * This can happen if savepoint and checkpoint are triggered one after another and checkpoints completes first.
+	 * See FLINK-10377 and FLINK-14979 for more details.
+	 **/
 	@Test
 	public void testSubsumedNotificationOfPreviousCheckpoint() throws Exception {
 		harness.open();
