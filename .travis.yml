@@ -69,102 +69,18 @@ jdk: "openjdk8"
 jobs:
   include:
     - if: type in (pull_request, push)
-      stage: test
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
+      name: e2e - heavy - hadoop 2.8
     - if: type in (pull_request, push)
-      stage: test
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
+      name: e2e - heavy - hadoop 2.8
     - if: type in (pull_request, push)
-      stage: test
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
+      name: e2e - heavy - hadoop 2.8
     - if: type in (pull_request, push)
-      stage: test
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
-    - if: type in (pull_request, push)
-      stage: test
-      script: ./tools/travis/nightly.sh split_heavy.sh
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      name: split_heavy
+      name: e2e - heavy - hadoop 2.8
