@@ -220,7 +220,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-ys", "2", //test that the job is executed with a DOP of 2
 					"-yjm", "768m",
 					"-ytm", taskManagerMemoryMB + "m",
-					"-yD", "taskmanager.memory.off-heap=true",
 					"-yD", "taskmanager.memory.size=" + offHeapMemory + "m", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 				"Program execution finished",

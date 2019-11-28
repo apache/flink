@@ -497,8 +497,8 @@ public class TaskManagerServices {
 	}
 
 	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
-		// TODO: before operators separate on-heap/off-heap managed memory, we use on-heap managed memory to denote total managed memory
-		return computeSlotResourceProfile(numOfSlots, Collections.singletonMap(MemoryType.HEAP, managedMemorySize));
+		// TODO: before operators separate on-heap/off-heap managed memory, we use off-heap managed memory to denote total managed memory
+		return computeSlotResourceProfile(numOfSlots, Collections.singletonMap(MemoryType.OFF_HEAP, managedMemorySize));
 	}
 
 	private static ResourceProfile computeSlotResourceProfile(int numOfSlots, Map<MemoryType, Long> memorySizeByType) {
