@@ -224,7 +224,7 @@ public class TaskManagerOptions {
 	@Deprecated
 	public static final ConfigOption<Boolean> MEMORY_OFF_HEAP =
 			key("taskmanager.memory.off-heap")
-			.defaultValue(false)
+			.defaultValue(true)
 				.withDescription("Memory allocation method (JVM heap or off-heap), used for managed memory of the" +
 						" TaskManager. For setups with larger quantities of memory, this can" +
 						" improve the efficiency of the operations performed on the memory.");
