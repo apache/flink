@@ -1,9 +1,8 @@
 ---
-title: "API Tutorials"
-nav-id: apitutorials
-nav-title: 'API Tutorials'
-nav-parent_id: tutorials
-nav-pos: 10
+title: "Python API Tutoria"
+layout: redirect
+redirect: /getting-started/walkthroughs/python_table_api.html
+permalink: /tutorials/python_table_api.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
