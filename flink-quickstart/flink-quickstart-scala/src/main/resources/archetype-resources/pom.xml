@@ -108,7 +108,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.0.0</version>
+				<version>3.1.1</version>
 				<executions>
 					<!-- Run shade goal on package phase -->
 					<execution>
@@ -171,6 +171,11 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<args>
+						<arg>-nobootcp</arg>
+					</args>
+				</configuration>
 			</plugin>
 
 			<!-- Eclipse Scala Integration -->

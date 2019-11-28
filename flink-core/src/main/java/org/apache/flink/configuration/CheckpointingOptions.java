@@ -71,17 +71,31 @@ public class CheckpointingOptions {
 
 	/**
 	 * This option configures local recovery for this state backend. By default, local recovery is deactivated.
+	 *
+	 * <p>Local recovery currently only covers keyed state backends.
+	 * Currently, MemoryStateBackend does not support local recovery and ignore
+	 * this option.
 	 */
 	public static final ConfigOption<Boolean> LOCAL_RECOVERY = ConfigOptions
-		.key("state.backend.local-recovery")
-		.defaultValue(false);
+			.key("state.backend.local-recovery")
+			.defaultValue(false)
+			.withDescription("This option configures local recovery for this state backend. By default, local recovery is " +
+				"deactivated. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does " +
+				"not support local recovery and ignore this option.");
 
 	/**
 	 * The config parameter defining the root directories for storing file-based state for local recovery.
+	 *
+	 * <p>Local recovery currently only covers keyed state backends.
+	 * Currently, MemoryStateBackend does not support local recovery and ignore
+	 * this option.
 	 */
 	public static final ConfigOption<String> LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS = ConfigOptions
-		.key("taskmanager.state.local.root-dirs")
-		.noDefaultValue();
+			.key("taskmanager.state.local.root-dirs")
+			.noDefaultValue()
+			.withDescription("The config parameter defining the root directories for storing file-based state for local " +
+				"recovery. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does " +
+				"not support local recovery and ignore this option");
 
 	// ------------------------------------------------------------------------
 	//  Options specific to the file-system-based state backends
@@ -115,4 +129,14 @@ public class CheckpointingOptions {
 			.defaultValue(1024)
 			.withDescription("The minimum size of state data files. All state chunks smaller than that are stored" +
 				" inline in the root checkpoint metadata file.");
+
+	/**
+	 * The default size of the write buffer for the checkpoint streams that write to file systems.
+	 */
+	public static final ConfigOption<Integer> FS_WRITE_BUFFER_SIZE = ConfigOptions
+		.key("state.backend.fs.write-buffer-size")
+		.defaultValue(4 * 1024)
+		.withDescription(String.format("The default size of the write buffer for the checkpoint streams that write to file systems. " +
+			"The actual write buffer size is determined to be the maximum of the value of this option and option '%s'.", FS_SMALL_FILE_THRESHOLD.key()));
+
 }

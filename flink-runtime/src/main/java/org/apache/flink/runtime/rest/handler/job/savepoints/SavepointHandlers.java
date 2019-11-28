@@ -24,9 +24,12 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.async.AbstractAsynchronousOperationHandlers;
+import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
@@ -35,6 +38,8 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMess
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointRequestBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointTriggerHeaders;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -101,17 +106,66 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 		this.defaultSavepointDir = defaultSavepointDir;
 	}
 
-	/**
-	 * HTTP handler to trigger savepoints.
-	 */
-	public class SavepointTriggerHandler extends TriggerHandler<RestfulGateway, SavepointTriggerRequestBody, SavepointTriggerMessageParameters> {
+	private abstract class SavepointHandlerBase<T extends RequestBody> extends TriggerHandler<RestfulGateway, T, SavepointTriggerMessageParameters> {
 
-		public SavepointTriggerHandler(
-				final CompletableFuture<String> localRestAddress,
+		SavepointHandlerBase(
+				final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+				final Time timeout, Map<String, String> responseHeaders,
+				final MessageHeaders<T, TriggerResponse, SavepointTriggerMessageParameters> messageHeaders) {
+			super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		}
+
+		@Override
+		protected AsynchronousJobOperationKey createOperationKey(final HandlerRequest<T, SavepointTriggerMessageParameters> request) {
+			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+			return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
+		}
+	}
+
+	/**
+	 * HTTP handler to stop a job with a savepoint.
+	 */
+	public class StopWithSavepointHandler extends SavepointHandlerBase<StopWithSavepointRequestBody> {
+
+		public StopWithSavepointHandler(
 				final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				final Time timeout,
 				final Map<String, String> responseHeaders) {
-			super(localRestAddress, leaderRetriever, timeout, responseHeaders, SavepointTriggerHeaders.getInstance());
+			super(leaderRetriever, timeout, responseHeaders, StopWithSavepointTriggerHeaders.getInstance());
+		}
+
+		@Override
+		protected CompletableFuture<String> triggerOperation(
+				final HandlerRequest<StopWithSavepointRequestBody, SavepointTriggerMessageParameters> request,
+				final RestfulGateway gateway) throws RestHandlerException {
+
+			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+			final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+
+			if (requestedTargetDirectory == null && defaultSavepointDir == null) {
+				throw new RestHandlerException(
+						String.format("Config key [%s] is not set. Property [%s] must be provided.",
+								CheckpointingOptions.SAVEPOINT_DIRECTORY.key(),
+								StopWithSavepointRequestBody.FIELD_NAME_TARGET_DIRECTORY),
+						HttpResponseStatus.BAD_REQUEST);
+			}
+
+			final boolean advanceToEndOfEventTime = request.getRequestBody().shouldDrain();
+			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
+			return gateway.stopWithSavepoint(jobId, targetDirectory, advanceToEndOfEventTime, RpcUtils.INF_TIMEOUT);
+		}
+	}
+
+	/**
+	 * HTTP handler to trigger savepoints.
+	 */
+	public class SavepointTriggerHandler extends SavepointHandlerBase<SavepointTriggerRequestBody> {
+
+		public SavepointTriggerHandler(
+				final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+				final Time timeout,
+				final Map<String, String> responseHeaders) {
+			super(leaderRetriever, timeout, responseHeaders, SavepointTriggerHeaders.getInstance());
 		}
 
 		@Override
@@ -131,12 +185,6 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
 			return gateway.triggerSavepoint(jobId, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT);
 		}
-
-		@Override
-		protected AsynchronousJobOperationKey createOperationKey(HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request) {
-			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-			return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
-		}
 	}
 
 	/**
@@ -145,11 +193,10 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 	public class SavepointStatusHandler extends StatusHandler<RestfulGateway, SavepointInfo, SavepointStatusMessageParameters> {
 
 		public SavepointStatusHandler(
-				final CompletableFuture<String> localRestAddress,
 				final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				final Time timeout,
 				final Map<String, String> responseHeaders) {
-			super(localRestAddress, leaderRetriever, timeout, responseHeaders, SavepointStatusHeaders.getInstance());
+			super(leaderRetriever, timeout, responseHeaders, SavepointStatusHeaders.getInstance());
 		}
 
 		@Override

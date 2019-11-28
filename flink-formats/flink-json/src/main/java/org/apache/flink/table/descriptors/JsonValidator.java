@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 
 /**
   * Validator for {@link Json}.
   */
+@Internal
 public class JsonValidator extends FormatDescriptorValidator {
 
 	public static final String FORMAT_TYPE_VALUE = "json";
@@ -33,8 +35,8 @@ public class JsonValidator extends FormatDescriptorValidator {
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
-		properties.validateBoolean(FORMAT_DERIVE_SCHEMA(), true);
-		final boolean deriveSchema = properties.getOptionalBoolean(FORMAT_DERIVE_SCHEMA()).orElse(false);
+		properties.validateBoolean(FORMAT_DERIVE_SCHEMA, true);
+		final boolean deriveSchema = properties.getOptionalBoolean(FORMAT_DERIVE_SCHEMA).orElse(false);
 		final boolean hasSchema = properties.containsKey(FORMAT_SCHEMA);
 		final boolean hasSchemaString = properties.containsKey(FORMAT_JSON_SCHEMA);
 		if (deriveSchema && (hasSchema || hasSchemaString)) {
@@ -45,7 +47,7 @@ public class JsonValidator extends FormatDescriptorValidator {
 		} else if (!deriveSchema && !hasSchema && !hasSchemaString) {
 			throw new ValidationException("A definition of a schema or JSON schema is required.");
 		} else if (hasSchema) {
-			properties.validateType(FORMAT_SCHEMA, true, false);
+			properties.validateType(FORMAT_SCHEMA, false, true);
 		} else if (hasSchemaString) {
 			properties.validateString(FORMAT_JSON_SCHEMA, false, 1);
 		}

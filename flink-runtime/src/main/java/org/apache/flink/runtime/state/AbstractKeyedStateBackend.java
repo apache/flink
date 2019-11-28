@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -34,7 +35,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.stream.Stream;
 
@@ -48,18 +49,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class AbstractKeyedStateBackend<K> implements
 	KeyedStateBackend<K>,
-	Snapshotable<SnapshotResult<KeyedStateHandle>, Collection<KeyedStateHandle>>,
+	SnapshotStrategy<SnapshotResult<KeyedStateHandle>>,
 	Closeable,
 	CheckpointListener {
 
-	/** {@link TypeSerializer} for our key. */
+	/** The key serializer. */
 	protected final TypeSerializer<K> keySerializer;
 
-	/** The currently active key. */
-	private K currentKey;
-
-	/** The key group of the currently active key. */
-	private int currentKeyGroup;
+	/** Listeners to changes of ({@link #keyContext}). */
+	private final ArrayList<KeySelectionListener<K>> keySelectionListeners;
 
 	/** So that we can give out state when the user uses the same key. */
 	private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
@@ -86,36 +84,61 @@ public abstract class AbstractKeyedStateBackend<K> implements
 
 	private final ExecutionConfig executionConfig;
 
-	private final TtlTimeProvider ttlTimeProvider;
+	protected final TtlTimeProvider ttlTimeProvider;
 
 	/** Decorates the input and output streams to write key-groups compressed. */
 	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
+
+	/** The key context for this backend. */
+	protected final InternalKeyContext<K> keyContext;
 
 	public AbstractKeyedStateBackend(
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
 		ClassLoader userCodeClassLoader,
-		int numberOfKeyGroups,
-		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
-		TtlTimeProvider ttlTimeProvider) {
+		TtlTimeProvider ttlTimeProvider,
+		CloseableRegistry cancelStreamRegistry,
+		InternalKeyContext<K> keyContext) {
+		this(
+			kvStateRegistry,
+			keySerializer,
+			userCodeClassLoader,
+			executionConfig,
+			ttlTimeProvider,
+			cancelStreamRegistry,
+			determineStreamCompression(executionConfig),
+			keyContext
+		);
+	}
 
+	public AbstractKeyedStateBackend(
+		TaskKvStateRegistry kvStateRegistry,
+		TypeSerializer<K> keySerializer,
+		ClassLoader userCodeClassLoader,
+		ExecutionConfig executionConfig,
+		TtlTimeProvider ttlTimeProvider,
+		CloseableRegistry cancelStreamRegistry,
+		StreamCompressionDecorator keyGroupCompressionDecorator,
+		InternalKeyContext<K> keyContext) {
+		this.keyContext = Preconditions.checkNotNull(keyContext);
+		this.numberOfKeyGroups = keyContext.getNumberOfKeyGroups();
+		this.keyGroupRange = Preconditions.checkNotNull(keyContext.getKeyGroupRange());
 		Preconditions.checkArgument(numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
 		Preconditions.checkArgument(numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(), "The total number of key groups must be at least the number in the key group range assigned to this backend");
 
 		this.kvStateRegistry = kvStateRegistry;
-		this.keySerializer = Preconditions.checkNotNull(keySerializer);
-		this.numberOfKeyGroups = numberOfKeyGroups;
+		this.keySerializer = keySerializer;
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
-		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
-		this.cancelStreamRegistry = new CloseableRegistry();
+		this.cancelStreamRegistry = cancelStreamRegistry;
 		this.keyValueStatesByName = new HashMap<>();
 		this.executionConfig = executionConfig;
-		this.keyGroupCompressionDecorator = determineStreamCompression(executionConfig);
+		this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
 		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
+		this.keySelectionListeners = new ArrayList<>(1);
 	}
 
-	private StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
+	private static StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
 		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
 			return SnappyStreamCompressionDecorator.INSTANCE;
 		} else {
@@ -147,8 +170,26 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 */
 	@Override
 	public void setCurrentKey(K newKey) {
-		this.currentKey = newKey;
-		this.currentKeyGroup = KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups);
+		notifyKeySelected(newKey);
+		this.keyContext.setCurrentKey(newKey);
+		this.keyContext.setCurrentKeyGroupIndex(KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups));
+	}
+
+	private void notifyKeySelected(K newKey) {
+		// we prefer a for-loop over other iteration schemes for performance reasons here.
+		for (int i = 0; i < keySelectionListeners.size(); ++i) {
+			keySelectionListeners.get(i).keySelected(newKey);
+		}
+	}
+
+	@Override
+	public void registerKeySelectionListener(KeySelectionListener<K> listener) {
+		keySelectionListeners.add(listener);
+	}
+
+	@Override
+	public boolean deregisterKeySelectionListener(KeySelectionListener<K> listener) {
+		return keySelectionListeners.remove(listener);
 	}
 
 	/**
@@ -164,21 +205,19 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 */
 	@Override
 	public K getCurrentKey() {
-		return currentKey;
+		return this.keyContext.getCurrentKey();
 	}
 
 	/**
 	 * @see KeyedStateBackend
 	 */
-	@Override
 	public int getCurrentKeyGroupIndex() {
-		return currentKeyGroup;
+		return this.keyContext.getCurrentKeyGroupIndex();
 	}
 
 	/**
 	 * @see KeyedStateBackend
 	 */
-	@Override
 	public int getNumberOfKeyGroups() {
 		return numberOfKeyGroups;
 	}
@@ -186,7 +225,6 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	/**
 	 * @see KeyedStateBackend
 	 */
-	@Override
 	public KeyGroupRange getKeyGroupRange() {
 		return keyGroupRange;
 	}
@@ -308,7 +346,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	}
 
 	@VisibleForTesting
-	StreamCompressionDecorator getKeyGroupCompressionDecorator() {
+	public StreamCompressionDecorator getKeyGroupCompressionDecorator() {
 		return keyGroupCompressionDecorator;
 	}
 

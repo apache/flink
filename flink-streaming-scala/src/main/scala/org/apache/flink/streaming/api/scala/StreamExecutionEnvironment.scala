@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
@@ -241,7 +241,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * In contrast, the [[org.apache.flink.runtime.state.filesystem.FsStateBackend]]
    * stores checkpoints of the state (also maintained as heap objects) in files.
-   * When using a replicated file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee
+   * When using a replicated file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee
    * that state is not lost upon failures of individual nodes and that streaming program can be
    * executed highly available and strongly consistent.
    */
@@ -403,6 +403,25 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def getStreamTimeCharacteristic = javaEnv.getStreamTimeCharacteristic()
+
+  /**
+   * Sets all relevant options contained in the [[ReadableConfig]] such as e.g.
+   * [[org.apache.flink.streaming.api.environment.StreamPipelineOptions#TIME_CHARACTERISTIC]].
+   * It will reconfigure [[StreamExecutionEnvironment]],
+   * [[org.apache.flink.api.common.ExecutionConfig]] and
+   * [[org.apache.flink.streaming.api.environment.CheckpointConfig]].
+   *
+   * It will change the value of a setting only if a corresponding option was set in the
+   * `configuration`. If a key is not present, the current value of a field will remain
+   * untouched.
+   *
+   * @param configuration a configuration to read the values from
+   * @param classLoader   a class loader to use when loading classes
+   */
+  @PublicEvolving
+  def configure(configuration: ReadableConfig, classLoader: ClassLoader): Unit = {
+    javaEnv.configure(configuration, classLoader)
+  }
 
   // --------------------------------------------------------------------------------------------
   // Data stream creations
@@ -615,7 +634,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     
     val cleanFun = scalaClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    asScalaStream(javaEnv.addSource(cleanFun).returns(typeInfo))
+    asScalaStream(javaEnv.addSource(cleanFun, typeInfo))
   }
 
   /**
@@ -683,7 +702,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   private[flink] def scalaClean[F <: AnyRef](f: F): F = {
     if (getConfig.isClosureCleanerEnabled) {
-      ClosureCleaner.clean(f, true)
+      ClosureCleaner.clean(f, true, getConfig.getClosureCleanerLevel)
     } else {
       ClosureCleaner.ensureSerializable(f)
     }
@@ -696,10 +715,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * may be local files (which will be distributed via BlobServer), or files in a distributed file
     * system. The runtime will copy the files temporarily to a local cache, if needed.
     *
-    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
-    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
-    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
-    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    * The [[org.apache.flink.api.common.functions.RuntimeContext]] can be obtained inside UDFs
+    * via [[org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()]] and
+    * provides access [[org.apache.flink.api.common.cache.DistributedCache]] via
+    * [[org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()]].
     *
     * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or
     *                 "hdfs://host:port/and/path")
@@ -715,10 +734,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * may be local files (which will be distributed via BlobServer), or files in a distributed file
     * system. The runtime will copy the files temporarily to a local cache, if needed.
     *
-    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
-    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
-    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
-    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    * The [[org.apache.flink.api.common.functions.RuntimeContext]] can be obtained inside UDFs
+    * via [[org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()]] and
+    * provides access [[org.apache.flink.api.common.cache.DistributedCache]] via
+    * [[org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()]].
     *
     * @param filePath   The path of the file, as a URI (e.g. "file:///some/path" or
     *                   "hdfs://host:port/and/path")

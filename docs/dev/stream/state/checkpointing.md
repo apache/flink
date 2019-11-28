@@ -76,6 +76,8 @@ Other parameters for checkpointing include:
 
   - *fail/continue task on checkpoint errors*: This determines if a task will be failed if an error occurs in the execution of the task's checkpoint procedure. This is the default behaviour. Alternatively, when this is disabled, the task will simply decline the checkpoint to the checkpoint coordinator and continue running.
 
+  - *prefer checkpoint for recovery*: This determines if a job will fallback to latest checkpoint even when there are more recent savepoints available to potentially reduce recovery time.
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -100,6 +102,9 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // enable externalized checkpoints which are retained after job cancellation
 env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+
+// allow job recovery fallback to checkpoint when there is a more recent savepoint
+env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -125,6 +130,34 @@ env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
 
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
+{% endhighlight %}
+</div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# start a checkpoint every 1000 ms
+env.enable_checkpointing(1000)
+
+# advanced options:
+
+# set mode to exactly-once (this is the default)
+env.get_checkpoint_config().set_checkpointing_mode(CheckpointingMode.EXACTLY_ONCE)
+
+# make sure 500 ms of progress happen between checkpoints
+env.get_checkpoint_config().set_min_pause_between_checkpoints(500)
+
+# checkpoints have to complete within one minute, or are discarded
+env.get_checkpoint_config().set_checkpoint_timeout(60000)
+
+# allow only one checkpoint to be in progress at the same time
+env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
+
+# enable externalized checkpoints which are retained after job cancellation
+env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+
+# allow job recovery fallback to checkpoint when there is a more recent savepoint
+env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 {% endhighlight %}
 </div>
 </div>
@@ -153,7 +186,7 @@ See [state backends]({{ site.baseurl }}/ops/state/state_backends.html) for more 
 
 ## State Checkpoints in Iterative Jobs
 
-Flink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, force = true)`.
+Flink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE, force = true)`.
 
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 

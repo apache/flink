@@ -125,14 +125,10 @@ public class KinesisConfigUtilTest {
 		assertEquals("incorrect region", region, kpc.getRegion());
 	}
 
-	// ----------------------------------------------------------------------
-	// validateAwsConfiguration() tests
-	// ----------------------------------------------------------------------
-
 	@Test
-	public void testMissingAwsRegionInConfig() {
-		String expectedMessage = String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
-			AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION);
+	public void testMissingAwsRegionInProducerConfig() {
+		String expectedMessage = String.format("For FlinkKinesisProducer AWS region ('%s') must be set in the config.",
+				AWSConfigConstants.AWS_REGION);
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(expectedMessage);
 
@@ -140,8 +136,12 @@ public class KinesisConfigUtilTest {
 		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
 		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
-		KinesisConfigUtil.validateAwsConfiguration(testConfig);
+		KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 	}
+
+	// ----------------------------------------------------------------------
+	// validateAwsConfiguration() tests
+	// ----------------------------------------------------------------------
 
 	@Test
 	public void testUnrecognizableAwsRegionInConfig() {
@@ -151,22 +151,6 @@ public class KinesisConfigUtilTest {
 		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "wrongRegionId");
 		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		KinesisConfigUtil.validateAwsConfiguration(testConfig);
-	}
-
-	@Test
-	public void testAwsRegionOrEndpointInConfig() {
-		String expectedMessage = String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
-			AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION);
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(expectedMessage);
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east");
-		testConfig.setProperty(AWSConfigConstants.AWS_ENDPOINT, "fake");
-		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
 		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
 		KinesisConfigUtil.validateAwsConfiguration(testConfig);
@@ -199,6 +183,22 @@ public class KinesisConfigUtilTest {
 	// ----------------------------------------------------------------------
 	// validateConsumerConfiguration() tests
 	// ----------------------------------------------------------------------
+
+	@Test
+	public void testAwsRegionOrEndpointInConsumerConfig() {
+		String expectedMessage = String.format("For FlinkKinesisConsumer either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+				AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT);
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(expectedMessage);
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(AWSConfigConstants.AWS_ENDPOINT, "fake");
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
 
 	@Test
 	public void testUnrecognizableStreamInitPositionTypeInConfig() {

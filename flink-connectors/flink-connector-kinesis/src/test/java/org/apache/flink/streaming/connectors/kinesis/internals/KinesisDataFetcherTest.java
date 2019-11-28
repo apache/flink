@@ -21,28 +21,38 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kinesis.testutils.AlwaysThrowsDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcherForShardConsumerException;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableLong;
+import org.junit.Assert;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -52,12 +62,16 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -710,4 +724,161 @@ public class KinesisDataFetcherTest extends TestLogger {
 		assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(2, 2, 1));
 	}
 
+	private static BoundedOutOfOrdernessTimestampExtractor<String> watermarkAssigner =
+		new BoundedOutOfOrdernessTimestampExtractor<String>(Time.milliseconds(0)) {
+			@Override
+			public long extractTimestamp(String element) {
+				return Long.parseLong(element);
+			}
+		};
+
+	@Test
+	public void testPeriodicWatermark() {
+		final MutableLong clock = new MutableLong();
+		final MutableBoolean isTemporaryIdle = new MutableBoolean();
+		final List<Watermark> watermarks = new ArrayList<>();
+
+		String fakeStream1 = "fakeStream1";
+		StreamShardHandle shardHandle =
+			new StreamShardHandle(
+				fakeStream1,
+				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0)));
+
+		TestSourceContext<String> sourceContext =
+			new TestSourceContext<String>() {
+				@Override
+				public void emitWatermark(Watermark mark) {
+					watermarks.add(mark);
+				}
+
+				@Override
+				public void markAsTemporarilyIdle() {
+					isTemporaryIdle.setTrue();
+				}
+			};
+
+		HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest = new HashMap<>();
+
+		final KinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<String>(
+				Collections.singletonList(fakeStream1),
+				sourceContext,
+				new java.util.Properties(),
+				new KinesisDeserializationSchemaWrapper<>(new org.apache.flink.streaming.util.serialization.SimpleStringSchema()),
+				1,
+				1,
+				new AtomicReference<>(),
+				new LinkedList<>(),
+				subscribedStreamsToLastSeenShardIdsUnderTest,
+				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(new HashMap<>())) {
+
+				@Override
+				protected long getCurrentTimeMillis() {
+					return clock.getValue();
+				}
+			};
+		Whitebox.setInternalState(fetcher, "periodicWatermarkAssigner", watermarkAssigner);
+
+		SequenceNumber seq = new SequenceNumber("fakeSequenceNumber");
+		// register shards to subsequently emit records
+		int shardIndex =
+			fetcher.registerNewSubscribedShardState(
+				new KinesisStreamShardState(
+					KinesisDataFetcher.convertToStreamShardMetadata(shardHandle), shardHandle, seq));
+
+		StreamRecord<String> record1 =
+			new StreamRecord<>(String.valueOf(Long.MIN_VALUE), Long.MIN_VALUE);
+		fetcher.emitRecordAndUpdateState(record1.getValue(), record1.getTimestamp(), shardIndex, seq);
+		Assert.assertEquals(record1, sourceContext.getCollectedOutputs().poll());
+
+		fetcher.emitWatermark();
+		Assert.assertTrue("potential watermark equals previous watermark", watermarks.isEmpty());
+
+		StreamRecord<String> record2 = new StreamRecord<>(String.valueOf(1), 1);
+		fetcher.emitRecordAndUpdateState(record2.getValue(), record2.getTimestamp(), shardIndex, seq);
+		Assert.assertEquals(record2, sourceContext.getCollectedOutputs().poll());
+
+		fetcher.emitWatermark();
+		Assert.assertFalse("watermark advanced", watermarks.isEmpty());
+		Assert.assertEquals(new Watermark(record2.getTimestamp()), watermarks.remove(0));
+		Assert.assertFalse("not idle", isTemporaryIdle.booleanValue());
+
+		// test idle timeout
+		long idleTimeout = 10;
+		// advance clock idleTimeout
+		clock.add(idleTimeout + 1);
+		fetcher.emitWatermark();
+		Assert.assertFalse("not idle", isTemporaryIdle.booleanValue());
+		Assert.assertTrue("not idle, no new watermark", watermarks.isEmpty());
+
+		// activate idle timeout
+		Whitebox.setInternalState(fetcher, "shardIdleIntervalMillis", idleTimeout);
+		fetcher.emitWatermark();
+		Assert.assertTrue("idle", isTemporaryIdle.booleanValue());
+		Assert.assertTrue("idle, no watermark", watermarks.isEmpty());
+	}
+
+	@Test
+	public void testOriginalExceptionIsPreservedWhenInterruptedDuringShutdown() throws Exception {
+		String stream = "fakeStream";
+
+		Map<String, List<BlockingQueue<String>>> streamsToShardQueues = new HashMap<>();
+		LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(10);
+		queue.put("item1");
+		streamsToShardQueues.put(stream, Collections.singletonList(queue));
+
+		AlwaysThrowsDeserializationSchema deserializationSchema = new AlwaysThrowsDeserializationSchema();
+		KinesisProxyInterface fakeKinesis =
+			FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamsToShardQueues);
+
+		TestableKinesisDataFetcherForShardConsumerException<String> fetcher = new TestableKinesisDataFetcherForShardConsumerException<>(
+			Collections.singletonList(stream),
+			new TestSourceContext<>(),
+			TestUtils.getStandardProperties(),
+			new KinesisDeserializationSchemaWrapper<>(deserializationSchema),
+			10,
+			2,
+			new AtomicReference<>(),
+			new LinkedList<>(),
+			new HashMap<>(),
+			fakeKinesis);
+
+		DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(
+			TestUtils.getStandardProperties(), fetcher, 1, 0);
+
+		CheckedThread consumerThread = new CheckedThread("FlinkKinesisConsumer") {
+			@Override
+			public void go() throws Exception {
+				consumer.run(new TestSourceContext<>());
+			}
+		};
+		consumerThread.start();
+		fetcher.waitUntilRun();
+
+		// ShardConsumer exception (from deserializer) will result in fetcher being shut down.
+		fetcher.waitUntilShutdown(20, TimeUnit.SECONDS);
+
+		// Ensure that KinesisDataFetcher has exited its while(running) loop and is inside its awaitTermination()
+		// method before we interrupt its thread, so that our interrupt doesn't get absorbed by any other mechanism.
+		fetcher.waitUntilAwaitTermination(20, TimeUnit.SECONDS);
+
+		// Interrupt the thread so that KinesisDataFetcher#awaitTermination() will throw InterruptedException.
+		consumerThread.interrupt();
+
+		try {
+			consumerThread.sync();
+		} catch (InterruptedException e) {
+			fail("Expected exception from deserializer, but got InterruptedException, probably from " +
+				"KinesisDataFetcher, which obscures the cause of the failure. " + e);
+		} catch (RuntimeException e) {
+			if (!e.getMessage().equals(AlwaysThrowsDeserializationSchema.EXCEPTION_MESSAGE)) {
+				fail("Expected exception from deserializer, but got: " + e);
+			}
+		} catch (Exception e) {
+			fail("Expected exception from deserializer, but got: " + e);
+		}
+
+		assertTrue("Expected Fetcher to have been interrupted. This test didn't accomplish its goal.",
+			fetcher.wasInterrupted);
+	}
 }

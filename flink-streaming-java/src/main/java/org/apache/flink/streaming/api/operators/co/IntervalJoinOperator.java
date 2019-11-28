@@ -22,17 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -361,7 +359,9 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	 * This will contain the element itself along with a flag indicating
 	 * if it has been joined or not.
 	 */
-	private static class BufferEntry<T> {
+	@Internal
+	@VisibleForTesting
+	static class BufferEntry<T> {
 
 		private final T element;
 		private final boolean hasBeenJoined;
@@ -375,13 +375,15 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	/**
 	 * A {@link TypeSerializer serializer} for the {@link BufferEntry}.
 	 */
-	private static class BufferEntrySerializer<T> extends TypeSerializer<BufferEntry<T>> {
+	@Internal
+	@VisibleForTesting
+	static class BufferEntrySerializer<T> extends TypeSerializer<BufferEntry<T>> {
 
 		private static final long serialVersionUID = -20197698803836236L;
 
 		private final TypeSerializer<T> elementSerializer;
 
-		private BufferEntrySerializer(TypeSerializer<T> elementSerializer) {
+		BufferEntrySerializer(TypeSerializer<T> elementSerializer) {
 			this.elementSerializer = Preconditions.checkNotNull(elementSerializer);
 		}
 
@@ -459,45 +461,19 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(BufferEntrySerializer.class);
-		}
-
-		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return new BufferSerializerConfigSnapshot<>(elementSerializer);
-		}
-
-		@Override
-		public CompatibilityResult<BufferEntry<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			if (configSnapshot instanceof BufferSerializerConfigSnapshot) {
-				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousSerializerAndConfig =
-						((BufferSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
-
-				CompatibilityResult<T> compatResult =
-						CompatibilityUtil.resolveCompatibilityResult(
-								previousSerializerAndConfig.f0,
-								UnloadableDummyTypeSerializer.class,
-								previousSerializerAndConfig.f1,
-								elementSerializer);
-
-				if (!compatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
-				} else if (compatResult.getConvertDeserializer() != null) {
-					return CompatibilityResult.requiresMigration(
-							new BufferEntrySerializer<>(
-									new TypeDeserializerAdapter<>(
-											compatResult.getConvertDeserializer())));
-				}
-			}
-			return CompatibilityResult.requiresMigration();
+		public TypeSerializerSnapshot<BufferEntry<T>> snapshotConfiguration() {
+			return new BufferEntrySerializerSnapshot<>(this);
 		}
 	}
 
 	/**
 	 * The {@link CompositeTypeSerializerConfigSnapshot configuration} of our serializer.
+	 *
+	 * @deprecated this snapshot class is no longer in use, and is maintained only for backwards compatibility.
+	 *             It is fully replaced by {@link BufferEntrySerializerSnapshot}.
 	 */
-	public static class BufferSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
+	@Deprecated
+	public static class BufferSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<BufferEntry<T>> {
 
 		private static final int VERSION = 1;
 
@@ -511,6 +487,49 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<BufferEntry<T>> resolveSchemaCompatibility(TypeSerializer<BufferEntry<T>> newSerializer) {
+
+			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+				newSerializer,
+				new BufferEntrySerializerSnapshot<>(),
+				getSingleNestedSerializerAndConfig().f1);
+		}
+	}
+
+	/**
+	 * A {@link TypeSerializerSnapshot} for {@link BufferEntrySerializer}.
+	 */
+	public static final class BufferEntrySerializerSnapshot<T>
+		extends CompositeTypeSerializerSnapshot<BufferEntry<T>, BufferEntrySerializer<T>> {
+
+		private static final int VERSION = 2;
+
+		@SuppressWarnings({"unused", "WeakerAccess"})
+		public BufferEntrySerializerSnapshot() {
+			super(BufferEntrySerializer.class);
+		}
+
+		BufferEntrySerializerSnapshot(BufferEntrySerializer<T> serializerInstance) {
+			super(serializerInstance);
+		}
+
+		@Override
+		protected int getCurrentOuterSnapshotVersion() {
+			return VERSION;
+		}
+
+		@Override
+		protected TypeSerializer<?>[] getNestedSerializers(BufferEntrySerializer<T> outerSerializer) {
+			return new TypeSerializer[]{outerSerializer.elementSerializer};
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		protected BufferEntrySerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+			return new BufferEntrySerializer<>((TypeSerializer<T>) nestedSerializers[0]);
 		}
 	}
 

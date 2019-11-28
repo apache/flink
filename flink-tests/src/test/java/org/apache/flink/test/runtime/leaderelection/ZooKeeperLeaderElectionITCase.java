@@ -18,60 +18,49 @@
 
 package org.apache.flink.test.runtime.leaderelection;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.Tasks;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.runtime.testingUtils.TestingCluster;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.minicluster.TestingMiniCluster;
+import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
-import akka.actor.Kill;
-import akka.actor.PoisonPill;
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.util.UUID;
+import javax.annotation.Nullable;
 
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.impl.Promise;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * Test the election of a new JobManager leader.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
-	private static final FiniteDuration timeout = TestingUtils.TESTING_DURATION();
+	private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5L);
+
+	private static final Time RPC_TIMEOUT = Time.minutes(1L);
 
 	private static TestingServer zkServer;
 
@@ -92,209 +81,99 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests that the TaskManagers successfully register at the new leader once the old leader
-	 * is terminated.
-	 */
-	@Test
-	public void testTaskManagerRegistrationAtReelectedLeader() throws Exception {
-		File rootFolder = tempFolder.getRoot();
-
-		Configuration configuration = ZooKeeperTestUtils.createZooKeeperHAConfig(
-			zkServer.getConnectString(),
-			rootFolder.getPath());
-		configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, UUID.randomUUID().toString());
-
-		int numJMs = 10;
-		int numTMs = 3;
-
-		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
-		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
-
-		TestingCluster cluster = new TestingCluster(configuration);
-
-		try {
-			cluster.start();
-
-			for (int i = 0; i < numJMs; i++) {
-				ActorGateway leadingJM = cluster.getLeaderGateway(timeout);
-
-				cluster.waitForTaskManagersToBeRegisteredAtJobManager(leadingJM.actor());
-
-				Future<Object> registeredTMs = leadingJM.ask(
-					JobManagerMessages.getRequestNumberRegisteredTaskManager(),
-					timeout);
-
-				int numRegisteredTMs = (Integer) Await.result(registeredTMs, timeout);
-
-				assertEquals(numTMs, numRegisteredTMs);
-
-				cluster.clearLeader();
-				leadingJM.tell(PoisonPill.getInstance());
-			}
-		} finally {
-			cluster.stop();
-		}
-	}
-
-	/**
 	 * Tests that a job can be executed after a new leader has been elected. For all except for the
 	 * last leader, the job is blocking. The JobManager will be terminated while executing the
 	 * blocking job. Once only one JobManager is left, it is checked that a non-blocking can be
 	 * successfully executed.
 	 */
 	@Test
-	public void testJobExecutionOnClusterWithLeaderReelection() throws Exception {
-		int numJMs = 10;
-		int numTMs = 2;
-		int numSlotsPerTM = 3;
-		int parallelism = numTMs * numSlotsPerTM;
+	public void testJobExecutionOnClusterWithLeaderChange() throws Exception {
+		final int numDispatchers = 3;
+		final int numTMs = 2;
+		final int numSlotsPerTM = 2;
 
-		File rootFolder = tempFolder.getRoot();
-
-		Configuration configuration = ZooKeeperTestUtils.createZooKeeperHAConfig(
+		final Configuration configuration = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zkServer.getConnectString(),
-			rootFolder.getPath());
-		configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, UUID.randomUUID().toString());
+			tempFolder.newFolder().getAbsolutePath());
 
-		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
-		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
-		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTM);
+		// speed up refused registration retries
+		configuration.setLong(ClusterOptions.REFUSED_REGISTRATION_DELAY, 50L);
 
-		// we "effectively" disable the automatic RecoverAllJobs message and sent it manually to make
-		// sure that all TMs have registered to the JM prior to issuing the RecoverAllJobs message
-		configuration.setString(AkkaOptions.ASK_TIMEOUT, AkkaUtils.INF_TIMEOUT().toString());
+		final TestingMiniClusterConfiguration miniClusterConfiguration = new TestingMiniClusterConfiguration.Builder()
+			.setConfiguration(configuration)
+			.setNumberDispatcherResourceManagerComponents(numDispatchers)
+			.setNumTaskManagers(numTMs)
+			.setNumSlotsPerTaskManager(numSlotsPerTM)
+			.build();
 
-		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
+		Deadline timeout = Deadline.fromNow(TEST_TIMEOUT);
 
-		JobVertex sender = new JobVertex("sender");
-		JobVertex receiver = new JobVertex("receiver");
+		try (TestingMiniCluster miniCluster = new TestingMiniCluster(miniClusterConfiguration)) {
+			miniCluster.start();
 
-		sender.setInvokableClass(Tasks.Sender.class);
-		receiver.setInvokableClass(Tasks.BlockingOnceReceiver.class);
+			final int parallelism = numTMs * numSlotsPerTM;
+			JobGraph jobGraph = createJobGraph(parallelism);
 
-		sender.setParallelism(parallelism);
-		receiver.setParallelism(parallelism);
+			miniCluster.submitJob(jobGraph).get();
 
-		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
-			ResultPartitionType.PIPELINED);
+			String previousLeaderAddress = null;
 
-		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-		sender.setSlotSharingGroup(slotSharingGroup);
-		receiver.setSlotSharingGroup(slotSharingGroup);
+			for (int i = 0; i < numDispatchers - 1; i++) {
+				final DispatcherGateway leaderDispatcherGateway = getNextLeadingDispatcherGateway(miniCluster, previousLeaderAddress, timeout);
+				previousLeaderAddress = leaderDispatcherGateway.getAddress();
 
-		final JobGraph graph = new JobGraph("Blocking test job", sender, receiver);
+				CommonTestUtils.waitUntilCondition(() -> leaderDispatcherGateway.requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT).get() == JobStatus.RUNNING, timeout, 50L);
 
-		final TestingCluster cluster = new TestingCluster(configuration);
-
-		ActorSystem clientActorSystem = null;
-
-		Thread thread = null;
-
-		JobSubmitterRunnable jobSubmission = null;
-
-		try {
-			cluster.start();
-
-			clientActorSystem = cluster.startJobClientActorSystem(graph.getJobID());
-
-			final ActorSystem clientAS = clientActorSystem;
-
-			jobSubmission = new JobSubmitterRunnable(clientAS, cluster, graph);
-
-			thread = new Thread(jobSubmission);
-
-			thread.start();
-
-			Deadline deadline = timeout.$times(3).fromNow();
-
-			// Kill all JobManager except for two
-			for (int i = 0; i < numJMs; i++) {
-				ActorGateway jm = cluster.getLeaderGateway(deadline.timeLeft());
-
-				cluster.waitForTaskManagersToBeRegisteredAtJobManager(jm.actor());
-
-				// recover all jobs, sent manually
-				log.info("Sent recover all jobs manually to job manager {}.", jm.path());
-				jm.tell(JobManagerMessages.getRecoverAllJobs());
-
-				if (i < numJMs - 1) {
-					Future<Object> future = jm.ask(new WaitForAllVerticesToBeRunningOrFinished(graph.getJobID()), deadline.timeLeft());
-
-					Await.ready(future, deadline.timeLeft());
-
-					cluster.clearLeader();
-
-					if (i == numJMs - 2) {
-						Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(false);
-					}
-
-					log.info("Kill job manager {}.", jm.path());
-
-					jm.tell(TestingJobManagerMessages.getDisablePostStop());
-					jm.tell(Kill.getInstance());
-				}
+				leaderDispatcherGateway.shutDownCluster();
 			}
 
-			log.info("Waiting for submitter thread to terminate.");
+			final DispatcherGateway leaderDispatcherGateway = getNextLeadingDispatcherGateway(miniCluster, previousLeaderAddress, timeout);
+			CommonTestUtils.waitUntilCondition(() -> leaderDispatcherGateway.requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT).get() == JobStatus.RUNNING, timeout, 50L);
+			CompletableFuture<JobResult> jobResultFuture = leaderDispatcherGateway.requestJobResult(jobGraph.getJobID(), RPC_TIMEOUT);
+			BlockingOperator.unblock();
 
-			thread.join(deadline.timeLeft().toMillis());
-
-			log.info("Submitter thread has terminated.");
-
-			if (thread.isAlive()) {
-				fail("The job submission thread did not stop (meaning it did not succeeded in" +
-						"executing the test job.");
-			}
-
-			Await.result(jobSubmission.resultPromise.future(), deadline.timeLeft());
-		}
-		finally {
-			if (clientActorSystem != null) {
-				cluster.shutdownJobClientActorSystem(clientActorSystem);
-			}
-
-			if (thread != null && thread.isAlive()) {
-				jobSubmission.finished = true;
-			}
-			cluster.stop();
+			assertThat(jobResultFuture.get().isSuccess(), is(true));
 		}
 	}
 
-	private static class JobSubmitterRunnable implements Runnable {
-		private static final Logger LOG = LoggerFactory.getLogger(JobSubmitterRunnable.class);
-		boolean finished = false;
+	private DispatcherGateway getNextLeadingDispatcherGateway(TestingMiniCluster miniCluster, @Nullable String previousLeaderAddress, Deadline timeout) throws Exception {
+		CommonTestUtils.waitUntilCondition(() -> !miniCluster.getDispatcherGatewayFuture().get().getAddress().equals(previousLeaderAddress), timeout, 20L);
+		return miniCluster.getDispatcherGatewayFuture().get();
+	}
 
-		final ActorSystem clientActorSystem;
-		final LocalFlinkMiniCluster cluster;
-		final JobGraph graph;
+	private JobGraph createJobGraph(int parallelism) {
+		BlockingOperator.isBlocking = true;
+		final JobVertex vertex = new JobVertex("blocking operator");
+		vertex.setParallelism(parallelism);
+		vertex.setInvokableClass(BlockingOperator.class);
 
-		final Promise<JobExecutionResult> resultPromise = new Promise.DefaultPromise<>();
+		return new JobGraph("Blocking test job", vertex);
+	}
 
-		public JobSubmitterRunnable(
-				ActorSystem actorSystem,
-				LocalFlinkMiniCluster cluster,
-				JobGraph graph) {
-			this.clientActorSystem = actorSystem;
-			this.cluster = cluster;
-			this.graph = graph;
+	/**
+	 * Blocking invokable which is controlled by a static field.
+	 */
+	public static class BlockingOperator extends AbstractInvokable {
+		private static final Object lock = new Object();
+		private static volatile boolean isBlocking = true;
+
+		public BlockingOperator(Environment environment) {
+			super(environment);
 		}
 
 		@Override
-		public void run() {
-			try {
-				JobExecutionResult result = JobClient.submitJobAndWait(
-						clientActorSystem,
-						cluster.configuration(),
-						cluster.highAvailabilityServices(),
-						graph,
-						timeout,
-						false,
-						getClass().getClassLoader());
+		public void invoke() throws Exception {
+			synchronized (lock) {
+				while (isBlocking) {
+					lock.wait();
+				}
+			}
+		}
 
-				resultPromise.success(result);
-			} catch (Exception e) {
-				// This was not expected... fail the test case
-				resultPromise.failure(e);
+		public static void unblock() {
+			synchronized (lock) {
+				isBlocking = false;
+				lock.notifyAll();
 			}
 		}
 	}

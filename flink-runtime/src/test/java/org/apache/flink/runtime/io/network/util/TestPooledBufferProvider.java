@@ -31,6 +31,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
@@ -65,8 +66,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 		return bufferFactory.create();
 	}
 
-	@Override
-	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
+	private Buffer requestBufferBlocking() throws IOException, InterruptedException {
 		Buffer buffer = buffers.poll();
 		if (buffer != null) {
 			return buffer;
@@ -97,8 +97,8 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public int getMemorySegmentSize() {
-		return bufferFactory.getBufferSize();
+	public CompletableFuture<?> getAvailableFuture() {
+		return AVAILABLE;
 	}
 
 	public int getNumberOfAvailableBuffers() {

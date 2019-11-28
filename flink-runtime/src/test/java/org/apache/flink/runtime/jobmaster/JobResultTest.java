@@ -19,12 +19,19 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.client.JobCancellationException;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -66,4 +73,62 @@ public class JobResultTest extends TestLogger {
 		assertThat(jobResult.isSuccess(), equalTo(true));
 	}
 
+	@Test
+	public void testCancelledJobIsFailureResult() {
+		final JobResult jobResult = JobResult.createFrom(
+			new ArchivedExecutionGraphBuilder()
+				.setJobID(new JobID())
+				.setState(JobStatus.CANCELED)
+				.build());
+
+		assertThat(jobResult.isSuccess(), is(false));
+	}
+
+	@Test
+	public void testFailedJobIsFailureResult() {
+		final JobResult jobResult = JobResult.createFrom(
+			new ArchivedExecutionGraphBuilder()
+				.setJobID(new JobID())
+				.setState(JobStatus.FAILED)
+				.setFailureCause(new ErrorInfo(new FlinkException("Test exception"), 42L))
+				.build());
+
+		assertThat(jobResult.isSuccess(), is(false));
+	}
+
+	@Test
+	public void testCancelledJobThrowsJobCancellationException() throws Exception {
+		final FlinkException cause = new FlinkException("Test exception");
+		final JobResult jobResult = JobResult.createFrom(
+			new ArchivedExecutionGraphBuilder()
+				.setJobID(new JobID())
+				.setState(JobStatus.CANCELED)
+				.setFailureCause(new ErrorInfo(cause, 42L))
+				.build());
+
+		try {
+			jobResult.toJobExecutionResult(getClass().getClassLoader());
+			fail("Job should fail with an JobCancellationException.");
+		} catch (JobCancellationException expected) {
+			assertThat(expected.getCause(), is(equalTo(cause)));
+		}
+	}
+
+	@Test
+	public void testFailedJobThrowsJobExecutionException() throws Exception {
+		final FlinkException cause = new FlinkException("Test exception");
+		final JobResult jobResult = JobResult.createFrom(
+			new ArchivedExecutionGraphBuilder()
+				.setJobID(new JobID())
+				.setState(JobStatus.FAILED)
+				.setFailureCause(new ErrorInfo(cause, 42L))
+				.build());
+
+		try {
+			jobResult.toJobExecutionResult(getClass().getClassLoader());
+			fail("Job should fail with JobExecutionException.");
+		} catch (JobExecutionException expected) {
+			assertThat(expected.getCause(), is(equalTo(cause)));
+		}
+	}
 }

@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -77,6 +78,28 @@ public class DistributedCache {
 		/** Server-side constructor used during job-submission for files. */
 		public DistributedCacheEntry(String filePath, Boolean isExecutable, byte[] blobKey){
 			this(filePath, isExecutable, blobKey, false);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			DistributedCacheEntry that = (DistributedCacheEntry) o;
+			return isZipped == that.isZipped &&
+				Objects.equals(filePath, that.filePath) &&
+				Objects.equals(isExecutable, that.isExecutable) &&
+				Arrays.equals(blobKey, that.blobKey);
+		}
+
+		@Override
+		public int hashCode() {
+			int result = Objects.hash(filePath, isExecutable, isZipped);
+			result = 31 * result + Arrays.hashCode(blobKey);
+			return result;
 		}
 
 		@Override

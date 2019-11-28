@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -30,6 +32,8 @@ import org.apache.flink.util.IOUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.util.Collections;
 
 import static org.junit.Assert.assertTrue;
 
@@ -72,7 +76,10 @@ public class HeapKeyedStateBackendAsyncByDefaultTest {
 			1,
 			new KeyGroupRange(0, 0),
 			null,
-			TtlTimeProvider.DEFAULT
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			new CloseableRegistry()
 		);
 
 		assertTrue(keyedStateBackend.supportsAsynchronousSnapshots());

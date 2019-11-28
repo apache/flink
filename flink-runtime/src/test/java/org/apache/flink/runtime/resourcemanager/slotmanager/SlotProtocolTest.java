@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -33,13 +33,12 @@ import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnect
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -47,12 +46,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
+/**
+ * Tests for the slot allocation protocol.
+ */
 public class SlotProtocolTest extends TestLogger {
 
 	private static final long timeout = 10000L;
@@ -71,9 +71,9 @@ public class SlotProtocolTest extends TestLogger {
 
 	/**
 	 * Tests whether
-	 * 1) SlotManager accepts a slot request
-	 * 2) SlotRequest leads to a container allocation
-	 * 3) Slot becomes available and TaskExecutor gets a SlotRequest
+	 * 1) SlotManager accepts a slot request.
+	 * 2) SlotRequest leads to a container allocation.
+	 * 3) Slot becomes available and TaskExecutor gets a SlotRequest.
 	 */
 	@Test
 	public void testSlotsUnavailableRequest() throws Exception {
@@ -81,32 +81,35 @@ public class SlotProtocolTest extends TestLogger {
 
 		final ResourceManagerId rmLeaderID = ResourceManagerId.generate();
 
-		try (SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(scheduledExecutor)
+			.build()) {
 
-			ResourceActions resourceManagerActions = mock(ResourceActions.class);
+			final CompletableFuture<ResourceProfile> resourceProfileFuture = new CompletableFuture<>();
+			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+				.setAllocateResourceConsumer(resourceProfileFuture::complete)
+				.build();
 
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
 			final AllocationID allocationID = new AllocationID();
-			final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+			final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 			final String targetAddress = "foobar";
 
 			SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile, targetAddress);
 
 			slotManager.registerSlotRequest(slotRequest);
 
-			verify(resourceManagerActions).allocateResource(eq(slotRequest.getResourceProfile()));
+			assertThat(resourceProfileFuture.get(), is(equalTo(slotRequest.getResourceProfile())));
 
 			// slot becomes available
-			TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
-			Mockito.when(
-				taskExecutorGateway
-					.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(ResourceManagerId.class), any(Time.class)))
-				.thenReturn(mock(CompletableFuture.class));
+			final CompletableFuture<Tuple3<SlotID, JobID, AllocationID>> requestFuture = new CompletableFuture<>();
+			TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+				.setRequestSlotFunction(tuple5 -> {
+					requestFuture.complete(Tuple3.of(tuple5.f0, tuple5.f1, tuple5.f2));
+					return new CompletableFuture<>();
+				})
+				.createTestingTaskExecutorGateway();
 
 			final ResourceID resourceID = ResourceID.generate();
 			final SlotID slotID = new SlotID(resourceID, 0);
@@ -119,17 +122,16 @@ public class SlotProtocolTest extends TestLogger {
 			slotManager.registerTaskManager(new TaskExecutorConnection(resourceID, taskExecutorGateway), slotReport);
 
 			// 4) Slot becomes available and TaskExecutor gets a SlotRequest
-			verify(taskExecutorGateway, timeout(5000L))
-				.requestSlot(eq(slotID), eq(jobID), eq(allocationID), any(String.class), any(ResourceManagerId.class), any(Time.class));
+			assertThat(requestFuture.get(), is(equalTo(Tuple3.of(slotID, jobID, allocationID))));
 		}
 	}
 
 	/**
 	 * Tests whether
-	 * 1) a SlotRequest is routed to the SlotManager
-	 * 2) a SlotRequest is confirmed
-	 * 3) a SlotRequest leads to an allocation of a registered slot
-	 * 4) a SlotRequest is routed to the TaskExecutor
+	 * 1) a SlotRequest is routed to the SlotManager.
+	 * 2) a SlotRequest is confirmed.
+	 * 3) a SlotRequest leads to an allocation of a registered slot.
+	 * 4) a SlotRequest is routed to the TaskExecutor.
 	 */
 	@Test
 	public void testSlotAvailableRequest() throws Exception {
@@ -137,25 +139,25 @@ public class SlotProtocolTest extends TestLogger {
 
 		final ResourceManagerId rmLeaderID = ResourceManagerId.generate();
 
-		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
-		Mockito.when(
-			taskExecutorGateway
-				.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(ResourceManagerId.class), any(Time.class)))
-			.thenReturn(mock(CompletableFuture.class));
+		final CompletableFuture<Tuple3<SlotID, JobID, AllocationID>> requestFuture = new CompletableFuture<>();
+		TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setRequestSlotFunction(tuple5 -> {
+				requestFuture.complete(Tuple3.of(tuple5.f0, tuple5.f1, tuple5.f2));
+				return new CompletableFuture<>();
+			})
+			.createTestingTaskExecutorGateway();
 
-		try (SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(scheduledExecutor)
+			.build()) {
 
-			ResourceActions resourceManagerActions = mock(ResourceActions.class);
+			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder().build();
 
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
 			final ResourceID resourceID = ResourceID.generate();
 			final AllocationID allocationID = new AllocationID();
-			final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+			final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 			final SlotID slotID = new SlotID(resourceID, 0);
 
 			final SlotStatus slotStatus =
@@ -172,8 +174,7 @@ public class SlotProtocolTest extends TestLogger {
 			slotManager.registerSlotRequest(slotRequest);
 
 			// a SlotRequest is routed to the TaskExecutor
-			verify(taskExecutorGateway, timeout(5000))
-				.requestSlot(eq(slotID), eq(jobID), eq(allocationID), any(String.class), any(ResourceManagerId.class), any(Time.class));
+			assertThat(requestFuture.get(), is(equalTo(Tuple3.of(slotID, jobID, allocationID))));
 		}
 	}
 }

@@ -13,15 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
-
-# send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/trusty-ci-environment/
+# send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/reference/xenial/
 sudo: required
-dist: trusty
+dist: xenial
 
 cache:
+  # default timeout is too low
+  timeout: 600
   directories:
   - $HOME/.m2
+  - $HOME/flink_cache
+  # keep in sync with tools/travis/setup_maven.sh
+  - $HOME/maven_cache
+  # keep in sync with tools/travis/docs.sh
+  - $HOME/gem_cache
+  - $HOME/flink_download_cache
 
 # do not cache our own artifacts
 before_cache:
@@ -31,94 +37,354 @@ install: true
 
 language: java
 
-# - define unique cache names in case the auto-generated ones are not unique
-#  (see https://docs.travis-ci.com/user/caching/#Caches-and-build-matrices)
-# - See https://issues.apache.org/jira/browse/FLINK-1072
-matrix:
-  include:
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="core"
-        - PROFILE="-Dhadoop.version=2.8.3"
-        - CACHE_NAME=JDK8_H280_CO
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="libraries"
-        - PROFILE="-Dhadoop.version=2.8.3"
-        - CACHE_NAME=JDK8_H280_L
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="connectors"
-        - PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis"
-        - CACHE_NAME=JDK8_H280_CN
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.8.3"
-        - CACHE_NAME=JDK8_H280_T
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws"
-        - CACHE_NAME=JDK8_H280_M
-    - jdk: "openjdk8"
-      env:
-        - TEST="core"
-        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
-        - CACHE_NAME=JDK8_H241_CO
-    - jdk: "openjdk8"
-      env:
-        - TEST="libraries"
-        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
-        - CACHE_NAME=JDK8_H241_L
-    - jdk: "openjdk8"
-      env:
-        - TEST="connectors"
-        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode -Pinclude-kinesis"
-        - CACHE_NAME=JDK8_H241_CN
-    - jdk: "openjdk8"
-      env:
-        - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
-        - CACHE_NAME=JDK8_H241_T
-    - jdk: "openjdk8"
-      env:
-        - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
-        - CACHE_NAME=JDK8_H241_M
-
 git:
   depth: 100
 
 env:
   global:
+    - cache-dir: $HOME/flink_download_cache
+    - cache-btl: 30
     # Global variable to avoid hanging travis builds when downloading cache archives.
     - MALLOC_ARENA_MAX=2
-    # Build artifacts like logs (variables for apache/flink repo)
-    - secure: "gL3QRn6/XyVK+Em9RmVqpM6nbTwlhjK4/JiRYZGGCkBgTq4ZnG+Eq2qKAO22TAsqRSi7g7WAoAhUulPt0SJqH7hjMe0LetbO0izbVXDefwf2PJlsNgBbuFG6604++VUaUEyfPYYw9ADjV59LWG7+B/fjbRsevqRBZ30b1gv/tQQ="
-    - secure: "eM9r8IglvnUKctxz/ga6hwGnCpdOvGyYdGj0H/UiNDEx3Lq1A6yp3gChEIXGJqRUXDI5TaIuidunUGY7KHml8urm8eG2Yk2ttxXehZqLpEaOU2jdNJCdLX8tlVfh14T9bxG5AYHQEV3qJUqDFtfXD3whvzuinrm1oEIA3qUxiA8="
-    - secure: "EQYDWgJM5ANJ/sAFwmSEwSTOe9CDN/ENyQAr5/ntM67XanhTZj2Amgt9LthCRUU4EEPl/OFUTwNHMpv/+wa3q7dwVFldSIg5wyCndzJSATPyPBVjYgsXIQZVIjsq4TwTyrTteT55V6Oz2+l27Fvung2FPuN83ovswsJePFzMBxI="
     - DOCKER_COMPOSE_VERSION=1.22.0
+    - CHANGE_MINIKUBE_NONE_USER=true
 
 before_script:
-   - "gem install --no-document --version 0.8.9 faraday "
+   - "export -f travis_nanoseconds"
+   - "export -f travis_time_start"
+   - "export -f travis_time_finish"
 
-# Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
+# Install maven 3.2.5 since xenial uses 3.3.9 for which shading is broken
 before_install:
-   - "wget https://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.zip"
-   - "unzip -qq apache-maven-3.2.5-bin.zip"
-   - "rm apache-maven-3.2.5-bin.zip"
-   - "export M2_HOME=$PWD/apache-maven-3.2.5"
-   - "export PATH=$M2_HOME/bin:$PATH"
-   - "export MAVEN_OPTS=\"-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS\""
-# just in case: clean up the .m2 home and remove invalid jar files
-   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm -f {} ; fi'' \;'
-# Installing the specified docker compose version
-   - sudo rm /usr/local/bin/docker-compose
-   - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-   - chmod +x docker-compose
-   - sudo mv docker-compose /usr/local/bin
+   - source ./tools/travis/setup_maven.sh
 
-# We run mvn and monitor its output. If there is no output for the specified number of seconds, we
-# print the stack traces of all running Java processes.
-script: "./tools/travis_mvn_watchdog.sh 300"
+notifications:
+  slack:
+    rooms:
+      - secure: ikPQn5JTpkyzxVyOPm/jIl3FPm6hY8xAdG4pSwxGWjBqF+NmmNTp9YZsJ6fD8xPql6T5n1hNDbZSC14jVUw/vvXGvibDXLN+06f25ZQl+4LJBXaiR7gTG6y3nO8G90Vw7XpvCme6n5Md9tvjygb17a4FEgRJFfwzWnnyPA1yvK0=
+    on_success: never
+    on_pull_requests: false
+  webhooks:
+    urls:
+      secure: gOR0ayYgTHvx2QsFxxH07KzI8fgrDk2vqp/6q2eN/RuWHJa6kHecXz/9F0JOXNI1siXrSJ1FwCKOxiMmTbnImJP4015L9VGMS++us6AYtnFp6SIRorRqA1QS5tHNrpBIM38ANxQvuPhFj8S6216BsonQOqBu9sp0jQCOZGKwBLg=
+    on_success: change
+    on_pull_requests: false
+
+stages:
+  - name: compile
+  - name: test
+  - name: E2E
+    if: type = cron
+  - name: cleanup
+
+jdk: "openjdk8"
+jobs:
+  include:
+    # main profile
+    - if: type in (pull_request, push)
+      stage: compile
+      script: ./tools/travis_controller.sh compile
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: compile
+    - if: type in (pull_request, push)
+      stage: test
+      script: ./tools/travis_controller.sh core
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: core
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh python
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: python
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh libraries
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: libraries
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh blink_planner
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: blink_planner
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh connectors
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: connectors
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh kafka/gelly
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: kafka/gelly
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh tests
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: tests
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh scheduler_ng_core
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: core - scheduler_ng
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh scheduler_ng_tests
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: tests - scheduler_ng
+    - if: type in (pull_request, push)
+      script: ./tools/travis_controller.sh misc
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: misc
+    - if: type in (pull_request, push)
+      stage: cleanup
+      script: ./tools/travis_controller.sh cleanup
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+      name: cleanup
+    # hadoop 2.4.1 profile
+    - if: type = cron
+      stage: compile
+      script: ./tools/travis_controller.sh compile
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: compile - hadoop 2.4.1
+    - if: type = cron
+      stage: test
+      script: ./tools/travis_controller.sh core
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: core - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh libraries
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: libraries - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh blink_planner
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: blink_planner - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh connectors
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: connectors - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh kafka/gelly
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: kafka/gelly - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh tests
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: tests - hadoop 2.4.1
+    - if: type = cron
+      script: ./tools/travis_controller.sh misc
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: misc - hadoop 2.4.1
+    - if: type = cron
+      stage: cleanup
+      script: ./tools/travis_controller.sh cleanup
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+      name: cleanup - hadoop 2.4.1
+    # scala 2.12 profile
+    - if: type = cron
+      stage: compile
+      script: ./tools/travis_controller.sh compile
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: compile - scala 2.12
+    - if: type = cron
+      stage: test
+      script: ./tools/travis_controller.sh core
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: core - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh libraries
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: libraries - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh blink_planner
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: blink_planner - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh connectors
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: connectors - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh kafka/gelly
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: kafka/gelly - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh tests
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: tests - scala 2.12
+    - if: type = cron
+      script: ./tools/travis_controller.sh misc
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: misc - scala 2.12
+    - if: type = cron
+      stage: cleanup
+      script: ./tools/travis_controller.sh cleanup
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
+      name: cleanup - scala 2.12
+    # JDK11 profile
+    - if: type = cron
+      jdk: "openjdk11"
+      stage: compile
+      script: ./tools/travis_controller.sh compile
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: compile - jdk 11
+    - if: type = cron
+      jdk: "openjdk11"
+      stage: test
+      script: ./tools/travis_controller.sh core
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: core - jdk 11
+    - if: type = cron
+      jdk: "openjdk11"
+      script: ./tools/travis_controller.sh python
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: python - jdk 11
+    - if: type = cron
+      jdk: "openjdk11"
+      script: ./tools/travis_controller.sh libraries
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: libraries - jdk 11
+    - if: type = cron
+      jdk: "openjdk11"
+      script: ./tools/travis_controller.sh blink_planner
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: blink_planner - jdk 11
+    - if: type = cron
+      jdk: "openjdk11"
+      script: ./tools/travis_controller.sh connectors
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: connectors - jdk 11
+    - if: type = cron
+      jdk: "openjdk11"
+      script: ./tools/travis_controller.sh kafka/gelly
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: kafka/gelly - jdk 11
+    - if: type = cron
+      jdk: "openjdk11"
+      script: ./tools/travis_controller.sh tests
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: tests - jdk 11
+    - if: type = cron
+      jdk: "openjdk11"
+      script: ./tools/travis_controller.sh misc
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: misc
+    - if: type = cron
+      jdk: "openjdk11"
+      stage: cleanup
+      script: ./tools/travis_controller.sh cleanup
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+      name: cleanup - jdk 11
+    # Documentation 404 check
+    - if: type = cron
+      stage: test
+      script: ./tools/travis/docs.sh
+      language: ruby
+      rvm: 2.4.0
+      name: Documentation links check
+    # E2E profiles - Hadoop 2.8
+    - if: type = cron
+      stage: test
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
+      script: ./tools/travis/nightly.sh split_misc.sh
+      name: e2e - misc - hadoop 2.8
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
+      script: ./tools/travis/nightly.sh split_ha.sh
+      name: e2e - ha - hadoop 2.8
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
+      script: ./tools/travis/nightly.sh split_sticky.sh
+      name: e2e - sticky - hadoop 2.8
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
+      script: ./tools/travis/nightly.sh split_checkpoints.sh
+      name: e2e - checkpoints - hadoop 2.8
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
+      script: ./tools/travis/nightly.sh split_container.sh
+      name: e2e - container - hadoop 2.8
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_heavy.sh
+      name: e2e - heavy - hadoop 2.8
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_tpcds.sh
+      name: e2e - tpcds - hadoop 2.8
+      # E2E profiles - Scala 2.12
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
+      script: ./tools/travis/nightly.sh split_misc.sh
+      name: e2e - misc - scala 2.12
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
+      script: ./tools/travis/nightly.sh split_ha.sh
+      name: e2e - ha - scala 2.12
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
+      script: ./tools/travis/nightly.sh split_sticky.sh
+      name: e2e - sticky - scala 2.12
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
+      script: ./tools/travis/nightly.sh split_checkpoints.sh
+      name: e2e - checkpoints - scala 2.12
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
+      script: ./tools/travis/nightly.sh split_container.sh
+      name: e2e - container - scala 2.12
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_heavy.sh
+      name: e2e - heavy - scala 2.12
+    - if: type = cron
+      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_tpcds.sh
+      name: e2e - tpcds - scala 2.12
+      # E2E profiles - Hadoop-free
+    - if: type = cron
+      env: PROFILE="-De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
+      script: ./tools/travis/nightly.sh split_misc_hadoopfree.sh
+      name: e2e - misc
+    - if: type = cron
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
+      script: ./tools/travis/nightly.sh split_ha.sh
+      name: e2e - ha
+    - if: type = cron
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
+      script: ./tools/travis/nightly.sh split_sticky.sh
+      name: e2e - sticky
+    - if: type = cron
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
+      script: ./tools/travis/nightly.sh split_checkpoints.sh
+      name: e2e - checkpoints
+    - if: type = cron
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
+      script: ./tools/travis/nightly.sh split_container.sh
+      name: e2e - container
+    - if: type = cron
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_heavy.sh
+      name: e2e - heavy
+    - if: type = cron
+      env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_tpcds.sh
+      name: e2e - tpcds
+    # E2E profiles - Java 11
+    - if: type = cron
+      stage: test
+      jdk: "openjdk11"
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
+      script: ./tools/travis/nightly.sh split_misc.sh
+      name: e2e - misc - jdk11
+    - if: type = cron
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
+      script: ./tools/travis/nightly.sh split_ha.sh
+      name: e2e - ha - jdk11
+    - if: type = cron
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
+      script: ./tools/travis/nightly.sh split_sticky.sh
+      name: e2e - sticky - jdk 11
+    - if: type = cron
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
+      script: ./tools/travis/nightly.sh split_checkpoints.sh
+      name: e2e - checkpoints - jdk 11
+    - if: type = cron
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_heavy.sh
+      name: e2e - heavy - jdk 11
+    - if: type = cron
+      env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
+      script: ./tools/travis/nightly.sh split_tpcds.sh
+      name: e2e - tpcds - jdk 11

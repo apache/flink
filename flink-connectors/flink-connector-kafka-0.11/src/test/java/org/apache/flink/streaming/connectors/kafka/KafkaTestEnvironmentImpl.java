@@ -21,10 +21,8 @@ import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
 
@@ -74,10 +72,10 @@ import static org.junit.Assert.fail;
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(KafkaTestEnvironmentImpl.class);
+	private final List<KafkaServer> brokers = new ArrayList<>();
 	private File tmpZkDir;
 	private File tmpKafkaParent;
 	private List<File> tmpKafkaDirs;
-	private List<KafkaServer> brokers;
 	private TestingServer zookeeper;
 	private String zookeeperConnectionString;
 	private String brokerConnectionString = "";
@@ -86,156 +84,14 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	// 6 seconds is default. Seems to be too small for travis. 30 seconds
 	private int zkTimeout = 30000;
 	private Config config;
-
-	public String getBrokerConnectionString() {
-		return brokerConnectionString;
-	}
+	private static final int DELETE_TIMEOUT_SECONDS = 30;
 
 	public void setProducerSemantic(FlinkKafkaProducer011.Semantic producerSemantic) {
 		this.producerSemantic = producerSemantic;
 	}
 
 	@Override
-	public Properties getStandardProperties() {
-		return standardProps;
-	}
-
-	@Override
-	public Properties getSecureProperties() {
-		Properties prop = new Properties();
-		if (config.isSecureMode()) {
-			prop.put("security.inter.broker.protocol", "SASL_PLAINTEXT");
-			prop.put("security.protocol", "SASL_PLAINTEXT");
-			prop.put("sasl.kerberos.service.name", "kafka");
-
-			//add special timeout for Travis
-			prop.setProperty("zookeeper.session.timeout.ms", String.valueOf(zkTimeout));
-			prop.setProperty("zookeeper.connection.timeout.ms", String.valueOf(zkTimeout));
-			prop.setProperty("metadata.fetch.timeout.ms", "120000");
-		}
-		return prop;
-	}
-
-	@Override
-	public String getVersion() {
-		return "0.11";
-	}
-
-	@Override
-	public List<KafkaServer> getBrokers() {
-		return brokers;
-	}
-
-	@Override
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
-		return new FlinkKafkaConsumer011<>(topics, readSchema, props);
-	}
-
-	@Override
-	public <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(Properties properties, String topic, int partition, long timeout) {
-		List<ConsumerRecord<K, V>> result = new ArrayList<>();
-
-		try (KafkaConsumer<K, V> consumer = new KafkaConsumer<>(properties)) {
-			consumer.assign(Arrays.asList(new TopicPartition(topic, partition)));
-
-			while (true) {
-				boolean processedAtLeastOneRecord = false;
-
-				// wait for new records with timeout and break the loop if we didn't get any
-				Iterator<ConsumerRecord<K, V>> iterator = consumer.poll(timeout).iterator();
-				while (iterator.hasNext()) {
-					ConsumerRecord<K, V> record = iterator.next();
-					result.add(record);
-					processedAtLeastOneRecord = true;
-				}
-
-				if (!processedAtLeastOneRecord) {
-					break;
-				}
-			}
-			consumer.commitSync();
-		}
-
-		return UnmodifiableList.decorate(result);
-	}
-
-	@Override
-	public <T> StreamSink<T> getProducerSink(String topic, KeyedSerializationSchema<T> serSchema, Properties props, FlinkKafkaPartitioner<T> partitioner) {
-		return new StreamSink<>(new FlinkKafkaProducer011<>(
-			topic,
-			serSchema,
-			props,
-			Optional.ofNullable(partitioner),
-			producerSemantic,
-			FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
-	}
-
-	@Override
-	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props, FlinkKafkaPartitioner<T> partitioner) {
-		return stream.addSink(new FlinkKafkaProducer011<>(
-			topic,
-			serSchema,
-			props,
-			Optional.ofNullable(partitioner),
-			producerSemantic,
-			FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
-	}
-
-	@Override
-	public <T> DataStreamSink<T> writeToKafkaWithTimestamps(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props) {
-		FlinkKafkaProducer011<T> prod = new FlinkKafkaProducer011<>(
-			topic, serSchema, props, Optional.of(new FlinkFixedPartitioner<>()), producerSemantic, FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
-
-		prod.setWriteTimestampToKafka(true);
-
-		return stream.addSink(prod);
-	}
-
-	@Override
-	public KafkaOffsetHandler createOffsetHandler() {
-		return new KafkaOffsetHandlerImpl();
-	}
-
-	@Override
-	public void restartBroker(int leaderId) throws Exception {
-		brokers.set(leaderId, getKafkaServer(leaderId, tmpKafkaDirs.get(leaderId)));
-	}
-
-	@Override
-	public int getLeaderToShutDown(String topic) throws Exception {
-		ZkUtils zkUtils = getZkUtils();
-		try {
-			MetadataResponse.PartitionMetadata firstPart = null;
-			do {
-				if (firstPart != null) {
-					LOG.info("Unable to find leader. error code {}", firstPart.error().code());
-					// not the first try. Sleep a bit
-					Thread.sleep(150);
-				}
-
-				List<MetadataResponse.PartitionMetadata> partitionMetadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkUtils).partitionMetadata();
-				firstPart = partitionMetadata.get(0);
-			}
-			while (firstPart.error().code() != 0);
-
-			return firstPart.leader().id();
-		} finally {
-			zkUtils.close();
-		}
-	}
-
-	@Override
-	public int getBrokerId(KafkaServer server) {
-		return server.config().brokerId();
-	}
-
-	@Override
-	public boolean isSecureRunSupported() {
-		return true;
-	}
-
-	@Override
-	public void prepare(Config config) {
+	public void prepare(Config config) throws Exception {
 		//increase the timeout since in Travis ZK connection takes long time for secure connection.
 		if (config.isSecureMode()) {
 			//run only one kafka server to avoid multiple ZK connections from many instances - Travis timeout
@@ -259,30 +115,23 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		}
 
 		zookeeper = null;
-		brokers = null;
+		brokers.clear();
 
-		try {
-			zookeeper = new TestingServer(-1, tmpZkDir);
-			zookeeperConnectionString = zookeeper.getConnectString();
-			LOG.info("Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
+		zookeeper = new TestingServer(-1, tmpZkDir);
+		zookeeperConnectionString = zookeeper.getConnectString();
+		LOG.info("Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
 
-			LOG.info("Starting KafkaServer");
-			brokers = new ArrayList<>(config.getKafkaServersNumber());
+		LOG.info("Starting KafkaServer");
 
-			ListenerName listenerName = ListenerName.forSecurityProtocol(config.isSecureMode() ? SecurityProtocol.SASL_PLAINTEXT : SecurityProtocol.PLAINTEXT);
-			for (int i = 0; i < config.getKafkaServersNumber(); i++) {
-				KafkaServer kafkaServer = getKafkaServer(i, tmpKafkaDirs.get(i));
-				brokers.add(kafkaServer);
-				brokerConnectionString += hostAndPortToUrlString(KAFKA_HOST, kafkaServer.socketServer().boundPort(listenerName));
-				brokerConnectionString +=  ",";
-			}
-
-			LOG.info("ZK and KafkaServer started.");
+		ListenerName listenerName = ListenerName.forSecurityProtocol(config.isSecureMode() ? SecurityProtocol.SASL_PLAINTEXT : SecurityProtocol.PLAINTEXT);
+		for (int i = 0; i < config.getKafkaServersNumber(); i++) {
+			KafkaServer kafkaServer = getKafkaServer(i, tmpKafkaDirs.get(i));
+			brokers.add(kafkaServer);
+			brokerConnectionString += hostAndPortToUrlString(KAFKA_HOST, kafkaServer.socketServer().boundPort(listenerName));
+			brokerConnectionString +=  ",";
 		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail("Test setup failed: " + t.getMessage());
-		}
+
+		LOG.info("ZK and KafkaServer started.");
 
 		standardProps = new Properties();
 		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);
@@ -291,53 +140,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		standardProps.setProperty("enable.auto.commit", "false");
 		standardProps.setProperty("zookeeper.session.timeout.ms", String.valueOf(zkTimeout));
 		standardProps.setProperty("zookeeper.connection.timeout.ms", String.valueOf(zkTimeout));
-		standardProps.setProperty("auto.offset.reset", "earliest"); // read from the beginning. (earliest is kafka 0.11 value)
+		standardProps.setProperty("auto.offset.reset", "earliest"); // read from the beginning.
 		standardProps.setProperty("max.partition.fetch.bytes", "256"); // make a lot of fetches (MESSAGES MUST BE SMALLER!)
-	}
-
-	@Override
-	public void shutdown() {
-		for (KafkaServer broker : brokers) {
-			if (broker != null) {
-				broker.shutdown();
-			}
-		}
-		brokers.clear();
-
-		if (zookeeper != null) {
-			try {
-				zookeeper.stop();
-			}
-			catch (Exception e) {
-				LOG.warn("ZK.stop() failed", e);
-			}
-			zookeeper = null;
-		}
-
-		// clean up the temp spaces
-
-		if (tmpKafkaParent != null && tmpKafkaParent.exists()) {
-			try {
-				FileUtils.deleteDirectory(tmpKafkaParent);
-			}
-			catch (Exception e) {
-				// ignore
-			}
-		}
-		if (tmpZkDir != null && tmpZkDir.exists()) {
-			try {
-				FileUtils.deleteDirectory(tmpZkDir);
-			}
-			catch (Exception e) {
-				// ignore
-			}
-		}
-	}
-
-	public ZkUtils getZkUtils() {
-		ZkClient creator = new ZkClient(zookeeperConnectionString, Integer.valueOf(standardProps.getProperty("zookeeper.session.timeout.ms")),
-				Integer.valueOf(standardProps.getProperty("zookeeper.connection.timeout.ms")), new ZooKeeperStringSerializer());
-		return ZkUtils.apply(creator, false);
 	}
 
 	@Override
@@ -397,6 +201,186 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		} finally {
 			zkUtils.close();
 		}
+	}
+
+	@Override
+	public Properties getStandardProperties() {
+		return standardProps;
+	}
+
+	@Override
+	public Properties getSecureProperties() {
+		Properties prop = new Properties();
+		if (config.isSecureMode()) {
+			prop.put("security.inter.broker.protocol", "SASL_PLAINTEXT");
+			prop.put("security.protocol", "SASL_PLAINTEXT");
+			prop.put("sasl.kerberos.service.name", "kafka");
+
+			//add special timeout for Travis
+			prop.setProperty("zookeeper.session.timeout.ms", String.valueOf(zkTimeout));
+			prop.setProperty("zookeeper.connection.timeout.ms", String.valueOf(zkTimeout));
+			prop.setProperty("metadata.fetch.timeout.ms", "120000");
+		}
+		return prop;
+	}
+
+	@Override
+	public String getBrokerConnectionString() {
+		return brokerConnectionString;
+	}
+
+	@Override
+	public String getVersion() {
+		return "0.11";
+	}
+
+	@Override
+	public List<KafkaServer> getBrokers() {
+		return brokers;
+	}
+
+	@Override
+	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props) {
+		return new FlinkKafkaConsumer011<>(topics, readSchema, props);
+	}
+
+	@Override
+	public <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(Properties properties, String topic, int partition, long timeout) {
+		List<ConsumerRecord<K, V>> result = new ArrayList<>();
+
+		try (KafkaConsumer<K, V> consumer = new KafkaConsumer<>(properties)) {
+			consumer.assign(Arrays.asList(new TopicPartition(topic, partition)));
+
+			while (true) {
+				boolean processedAtLeastOneRecord = false;
+
+				// wait for new records with timeout and break the loop if we didn't get any
+				Iterator<ConsumerRecord<K, V>> iterator = consumer.poll(timeout).iterator();
+				while (iterator.hasNext()) {
+					ConsumerRecord<K, V> record = iterator.next();
+					result.add(record);
+					processedAtLeastOneRecord = true;
+				}
+
+				if (!processedAtLeastOneRecord) {
+					break;
+				}
+			}
+			consumer.commitSync();
+		}
+
+		return UnmodifiableList.decorate(result);
+	}
+
+	@Override
+	public <T> StreamSink<T> getProducerSink(String topic, KeyedSerializationSchema<T> serSchema, Properties props, FlinkKafkaPartitioner<T> partitioner) {
+		return new StreamSink<>(new FlinkKafkaProducer011<>(
+			topic,
+			serSchema,
+			props,
+			Optional.ofNullable(partitioner),
+			producerSemantic,
+			FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
+	}
+
+	@Override
+	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props, FlinkKafkaPartitioner<T> partitioner) {
+		return stream.addSink(new FlinkKafkaProducer011<>(
+			topic,
+			serSchema,
+			props,
+			Optional.ofNullable(partitioner),
+			producerSemantic,
+			FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
+	}
+
+	@Override
+	public KafkaOffsetHandler createOffsetHandler() {
+		return new KafkaOffsetHandlerImpl();
+	}
+
+	@Override
+	public void restartBroker(int leaderId) throws Exception {
+		brokers.set(leaderId, getKafkaServer(leaderId, tmpKafkaDirs.get(leaderId)));
+	}
+
+	@Override
+	public int getLeaderToShutDown(String topic) throws Exception {
+		ZkUtils zkUtils = getZkUtils();
+		try {
+			MetadataResponse.PartitionMetadata firstPart = null;
+			do {
+				if (firstPart != null) {
+					LOG.info("Unable to find leader. error code {}", firstPart.error().code());
+					// not the first try. Sleep a bit
+					Thread.sleep(150);
+				}
+
+				List<MetadataResponse.PartitionMetadata> partitionMetadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkUtils).partitionMetadata();
+				firstPart = partitionMetadata.get(0);
+			}
+			while (firstPart.error().code() != 0);
+
+			return firstPart.leader().id();
+		} finally {
+			zkUtils.close();
+		}
+	}
+
+	@Override
+	public int getBrokerId(KafkaServer server) {
+		return server.config().brokerId();
+	}
+
+	@Override
+	public boolean isSecureRunSupported() {
+		return true;
+	}
+
+	@Override
+	public void shutdown() throws Exception {
+		for (KafkaServer broker : brokers) {
+			if (broker != null) {
+				broker.shutdown();
+			}
+		}
+		brokers.clear();
+
+		if (zookeeper != null) {
+			try {
+				zookeeper.stop();
+			}
+			catch (Exception e) {
+				LOG.warn("ZK.stop() failed", e);
+			}
+			zookeeper = null;
+		}
+
+		// clean up the temp spaces
+
+		if (tmpKafkaParent != null && tmpKafkaParent.exists()) {
+			try {
+				FileUtils.deleteDirectory(tmpKafkaParent);
+			}
+			catch (Exception e) {
+				// ignore
+			}
+		}
+		if (tmpZkDir != null && tmpZkDir.exists()) {
+			try {
+				FileUtils.deleteDirectory(tmpZkDir);
+			}
+			catch (Exception e) {
+				// ignore
+			}
+		}
+		super.shutdown();
+	}
+
+	public ZkUtils getZkUtils() {
+		ZkClient creator = new ZkClient(zookeeperConnectionString, Integer.valueOf(standardProps.getProperty("zookeeper.session.timeout.ms")),
+				Integer.valueOf(standardProps.getProperty("zookeeper.connection.timeout.ms")), new ZooKeeperStringSerializer());
+		return ZkUtils.apply(creator, false);
 	}
 
 	/**
@@ -493,5 +477,4 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			offsetClient.close();
 		}
 	}
-
 }

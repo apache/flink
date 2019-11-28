@@ -122,7 +122,9 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
     if (set.getExecutionEnvironment.getConfig.isClosureCleanerEnabled) {
-      ClosureCleaner.clean(f, checkSerializable)
+      ClosureCleaner.clean(f,
+        checkSerializable,
+        set.getExecutionEnvironment.getConfig.getClosureCleanerLevel)
     }
     ClosureCleaner.ensureSerializable(f)
     f
@@ -282,6 +284,49 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     this
   }
 
+  /**
+    * Adds semantic information about forwarded fields of the user-defined function.
+    * The forwarded fields information declares fields which are never modified by the function and
+    * which are forwarded to the same position in the output or copied unchanged to another position
+    * in the output.
+    *
+    * <p>Fields that are forwarded to the same position are specified just by their position.
+    * The specified position must be valid for the input and output data type and have
+    * the same type.
+    * For example <code>withForwardedFields("_3")</code> declares that the third field of
+    * an input tuple is copied to the third field of an output tuple.
+    *
+    * <p>Fields which are copied to another position in the output unchanged are declared by
+    * specifying the source field reference in the input and the target field reference
+    * in the output.
+    * {@code withForwardedFields("_1->_3")} denotes that the first field of the input tuple is
+    * copied to the third field of the output tuple unchanged. When using a wildcard ("*") ensure
+    * that the number of declared fields and their types in input and output type match.
+    *
+    * <p>Multiple forwarded fields can be annotated in one
+    * ({@code withForwardedFields("_2; _3->_1; _4")})
+    * or separate Strings ({@code withForwardedFields("_2", "_3->_1", "_4")}).
+    * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function}
+    * or Flink's documentation for details on field references such as nested fields and wildcard.
+    *
+    * <p>It is not possible to override existing semantic information about forwarded fields
+    * which was for example added by a
+    * {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields} class
+    * annotation.
+    *
+    * <p><b>NOTE: Adding semantic information for functions is optional!
+    * If used correctly, semantic information can help the Flink optimizer to generate more
+    * efficient execution plans.
+    * However, incorrect semantic information can cause the optimizer to generate incorrect
+    * execution plans which compute wrong results!
+    * So be careful when adding semantic information.
+    * </b>
+    *
+    * @param forwardedFields A list of field forward expressions.
+    * @return This operator with annotated forwarded field information.
+    * @see org.apache.flink.api.java.functions.FunctionAnnotation
+    * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
+    */
   def withForwardedFields(forwardedFields: String*) = {
     javaSet match {
       case op: SingleInputUdfOperator[_, _, _] => op.withForwardedFields(forwardedFields: _*)
@@ -292,6 +337,52 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     this
   }
 
+  /**
+    * Adds semantic information about forwarded fields of the first input
+    * of the user-defined function.
+    * The forwarded fields information declares fields which are never modified by the function and
+    * which are forwarded to the same position in the output or copied unchanged
+    * to another position in the output.
+    *
+    * <p>Fields that are forwarded to the same position are specified just by their position.
+    * The specified position must be valid for the input and output data type
+    * and have the same type.
+    * For example <code>withForwardedFieldsFirst("_3")</code> declares that the third field
+    * of an input tuple from the first input is copied to the third field of an output tuple.
+    *
+    * <p>Fields which are copied from the first input to another position in the output unchanged
+    * are declared by specifying the source field reference in the first input and the target field
+    * reference in the output. {@code withForwardedFieldsFirst("_1->_3")} denotes that the first
+    * field of the first input tuple is copied to the third field of the output tuple unchanged.
+    * When using a wildcard ("*") ensure that the number of declared fields and their types
+    * in the first input and output type match.
+    *
+    * <p>Multiple forwarded fields can be annotated in one
+    * ({@code withForwardedFieldsFirst("_2; _3->_0; _4")})
+    * or separate Strings ({@code withForwardedFieldsFirst("_2", "_3->_0", "_4")}).
+    * Please refer to the JavaDoc of
+    * {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+    * details on field references such as nested fields and wildcard.
+    *
+    * <p>It is not possible to override existing semantic information about forwarded fields
+    * of the first input which was for example added by a
+    * {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst}
+    * class annotation.
+    *
+    * <p><b>NOTE: Adding semantic information for functions is optional!
+    * If used correctly, semantic information can help the Flink optimizer to generate more
+    * efficient execution plans.
+    * However, incorrect semantic information can cause the optimizer to generate incorrect
+    * execution plans which compute wrong results!
+    * So be careful when adding semantic information.
+    * </b>
+    *
+    * @param forwardedFields A list of forwarded field expressions for the first input
+    *                        of the function.
+    * @return This operator with annotated forwarded field information.
+    * @see org.apache.flink.api.java.functions.FunctionAnnotation
+    * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst
+    */
   def withForwardedFieldsFirst(forwardedFields: String*) = {
     javaSet match {
       case op: TwoInputUdfOperator[_, _, _, _] => op.withForwardedFieldsFirst(forwardedFields: _*)
@@ -302,6 +393,53 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     this
   }
 
+  /**
+    * Adds semantic information about forwarded fields of the second input
+    * of the user-defined function.
+    * The forwarded fields information declares fields which are never modified by the function and
+    * which are forwarded to the same position in the output or copied unchanged
+    * to another position in the output.
+    *
+    * <p>Fields that are forwarded to the same position are specified just by their position.
+    * The specified position must be valid for the input and output data type
+    * and have the same type.
+    * For example <code>withForwardedFieldsFirst("_3")</code> declares that the third field
+    * of an input tuple from the second input is copied to the third field of an output tuple.
+    *
+    * <p>Fields which are copied from the second input to another position
+    * in the output unchanged are declared by specifying the source field reference
+    * in the second input and the target field reference in the output.
+    * {@code withForwardedFieldsFirst("_1->_3")} denotes that the first field of the second input
+    * tuple is copied to the third field of the output tuple unchanged. When using a wildcard ("*")
+    * ensure that the number of declared fields and their types in the second input and
+    * output type match.
+    *
+    * <p>Multiple forwarded fields can be annotated in one
+    * ({@code withForwardedFieldsFirst("_2; _3->_0; _4")})
+    * or separate Strings ({@code withForwardedFieldsFirst("_2", "_3->_0", "_4")}).
+    * Please refer to the JavaDoc of
+    * {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+    * details on field references such as nested fields and wildcard.
+    *
+    * <p>It is not possible to override existing semantic information about forwarded fields
+    * of the second input which was for example added by a
+    * {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst}
+    * class annotation.
+    *
+    * <p><b>NOTE: Adding semantic information for functions is optional!
+    * If used correctly, semantic information can help the Flink optimizer to generate more
+    * efficient execution plans.
+    * However, incorrect semantic information can cause the optimizer to generate incorrect
+    * execution plans which compute wrong results!
+    * So be careful when adding semantic information.
+    * </b>
+    *
+    * @param forwardedFields A list of forwarded field expressions for the second input
+    *                        of the function.
+    * @return This operator with annotated forwarded field information.
+    * @see org.apache.flink.api.java.functions.FunctionAnnotation
+    * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst
+    */
   def withForwardedFieldsSecond(forwardedFields: String*) = {
     javaSet match {
       case op: TwoInputUdfOperator[_, _, _, _] => op.withForwardedFieldsSecond(forwardedFields: _*)

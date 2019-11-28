@@ -86,6 +86,11 @@ public class MockInternalMapState<K, N, UK, UV>
 		return entries().iterator();
 	}
 
+	@Override
+	public boolean isEmpty() {
+		return getInternal().isEmpty();
+	}
+
 	@SuppressWarnings({"unchecked", "unused"})
 	static <N, T, S extends State, IS extends S> IS createState(
 		TypeSerializer<N> namespaceSerializer,

@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.operators.StreamOperatorChainingTest;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain.BroadcastingOutputCollector;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain.ChainingOutput;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain.WatermarkGaugeExposingOutput;
+import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.Test;
 
@@ -71,14 +73,13 @@ public class OperatorChainTest {
 
 	@SafeVarargs
 	private static <T, OP extends StreamOperator<T>> OperatorChain<T, OP> setupOperatorChain(
-			OneInputStreamOperator<T, T>... operators) {
+			OneInputStreamOperator<T, T>... operators) throws Exception {
 
 		checkNotNull(operators);
 		checkArgument(operators.length > 0);
 
 		try (MockEnvironment env = MockEnvironment.builder().build()) {
-
-		final StreamTask<?, ?> containingTask = new OneInputStreamTask<T, OneInputStreamOperator<T, T>>(env);
+			final StreamTask<?, ?> containingTask = new MockStreamTaskBuilder(env).build();
 
 			final StreamStatusProvider statusProvider = mock(StreamStatusProvider.class);
 			final StreamConfig cfg = new StreamConfig(new Configuration());
@@ -93,7 +94,9 @@ public class OperatorChainTest {
 			// build the reverse operators array
 			for (int i = 0; i < ops.length; i++) {
 				OneInputStreamOperator<T, T> op = operators[ops.length - i - 1];
-				op.setup(containingTask, cfg, lastWriter);
+				if (op instanceof SetupableStreamOperator) {
+					((SetupableStreamOperator) op).setup(containingTask, cfg, lastWriter);
+				}
 				lastWriter = new ChainingOutput<>(op, statusProvider, null);
 				ops[i] = op;
 			}

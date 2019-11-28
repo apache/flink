@@ -101,7 +101,7 @@ public class LeaderElectionTest extends TestLogger {
 			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
 			assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
 
-			leaderElectionService.confirmLeaderSessionID(leaderSessionId);
+			leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
 
 			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
 
@@ -132,7 +132,7 @@ public class LeaderElectionTest extends TestLogger {
 		}
 
 		@Override
-		public String getAddress() {
+		public String getDescription() {
 			return "foobar";
 		}
 

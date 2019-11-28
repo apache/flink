@@ -23,9 +23,9 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemBehaviorTestSuite;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 
 import java.io.IOException;
@@ -36,24 +36,17 @@ import java.util.UUID;
  */
 public class HadoopS3FileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
-
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
-
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
 
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials exist
-		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+		S3TestCredentials.assumeCredentialsAvailable();
 
 		// initialize configuration with valid credentials
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
+		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 		FileSystem.initialize(conf);
 	}
 
@@ -69,7 +62,7 @@ public class HadoopS3FileSystemBehaviorITCase extends FileSystemBehaviorTestSuit
 
 	@Override
 	public Path getBasePath() throws Exception {
-		return new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+		return new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
 	}
 
 	@Override

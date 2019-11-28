@@ -31,8 +31,10 @@ class StreamingOperatorsITCase extends AbstractTestBase {
 
   var resultPath1: String = _
   var resultPath2: String = _
+  var resultPath3: String = _
   var expected1: String = _
   var expected2: String = _
+  var expected3: String = _
 
   val _tempFolder = new TemporaryFolder()
 
@@ -44,14 +46,17 @@ class StreamingOperatorsITCase extends AbstractTestBase {
     val temp = tempFolder
     resultPath1 = temp.newFile.toURI.toString
     resultPath2 = temp.newFile.toURI.toString
+    resultPath3 = temp.newFile.toURI.toString
     expected1 = ""
     expected2 = ""
+    expected3 = ""
   }
 
   @After
   def after(): Unit = {
     TestBaseUtils.compareResultsByLinesInMemory(expected1, resultPath1)
     TestBaseUtils.compareResultsByLinesInMemory(expected2, resultPath2)
+    TestBaseUtils.compareResultsByLinesInMemory(expected3, resultPath3)
   }
 
   /** Tests the streaming fold operation. For this purpose a stream of Tuple[Int, Int] is created.
@@ -122,4 +127,38 @@ class StreamingOperatorsITCase extends AbstractTestBase {
 
     env.execute()
   }
+
+  @Test
+  def testKeyedAggregation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(1)
+    env.getConfig.setMaxParallelism(1)
+
+    val inp = env.fromElements(
+      StreamingOperatorsITCase.Outer(1, StreamingOperatorsITCase.Inner(3, "alma"), true),
+      StreamingOperatorsITCase.Outer(1, StreamingOperatorsITCase.Inner(6, "alma"), true),
+      StreamingOperatorsITCase.Outer(2, StreamingOperatorsITCase.Inner(7, "alma"), true),
+      StreamingOperatorsITCase.Outer(2, StreamingOperatorsITCase.Inner(8, "alma"), true)
+    )
+
+    inp
+      .keyBy("a")
+      .sum("i.c")
+        .writeAsText(resultPath3, FileSystem.WriteMode.OVERWRITE)
+
+    expected3 =
+      "Outer(1,Inner(3,alma),true)\n" +
+      "Outer(1,Inner(9,alma),true)\n" +
+      "Outer(2,Inner(15,alma),true)\n" +
+      "Outer(2,Inner(7,alma),true)"
+
+    env.execute()
+  }
 }
+
+object StreamingOperatorsITCase {
+  case class Inner(c: Short, d: String)
+  case class Outer(a: Int, i: StreamingOperatorsITCase.Inner, b: Boolean)
+}
+

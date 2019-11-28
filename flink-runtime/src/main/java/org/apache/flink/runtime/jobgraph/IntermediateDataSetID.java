@@ -18,11 +18,15 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import java.util.UUID;
-
+import org.apache.flink.runtime.topology.ResultID;
 import org.apache.flink.util.AbstractID;
 
-public class IntermediateDataSetID extends AbstractID {
+import java.util.UUID;
+
+/**
+ * Id identifying {@link IntermediateDataSet}.
+ */
+public class IntermediateDataSetID extends AbstractID implements ResultID {
 
 	private static final long serialVersionUID = 1L;
 
@@ -32,19 +36,19 @@ public class IntermediateDataSetID extends AbstractID {
 	public IntermediateDataSetID() {
 		super();
 	}
-	
+
 	/**
 	 * Creates a new intermediate data set ID with the bytes of the given ID.
-	 * 
+	 *
 	 * @param from The ID to create this ID from.
 	 */
 	public IntermediateDataSetID(AbstractID from) {
 		super(from);
 	}
-	
+
 	/**
 	 * Creates a new intermediate data set ID with the bytes of the given UUID.
-	 * 
+	 *
 	 * @param from The UUID to create this ID from.
 	 */
 	public IntermediateDataSetID(UUID from) {

@@ -33,6 +33,9 @@ package org.apache.flink.metrics;
  * <p>The events are counted by a {@link Counter}.
  */
 public class MeterView implements Meter, View {
+
+	private static final int DEFAULT_TIME_SPAN_IN_SECONDS = 60;
+
 	/** The underlying counter maintaining the count. */
 	private final Counter counter;
 	/** The time-span over which the average is calculated. */
@@ -48,9 +51,17 @@ public class MeterView implements Meter, View {
 		this(new SimpleCounter(), timeSpanInSeconds);
 	}
 
+	public MeterView(Counter counter) {
+		this(counter, DEFAULT_TIME_SPAN_IN_SECONDS);
+	}
+
 	public MeterView(Counter counter, int timeSpanInSeconds) {
 		this.counter = counter;
-		this.timeSpanInSeconds = timeSpanInSeconds - (timeSpanInSeconds % UPDATE_INTERVAL_SECONDS);
+		// the time-span must be larger than the update-interval as otherwise the array has a size of 1,
+		// for which no rate can be computed as no distinct before/after measurement exists.
+		this.timeSpanInSeconds = Math.max(
+			timeSpanInSeconds - (timeSpanInSeconds % UPDATE_INTERVAL_SECONDS),
+			UPDATE_INTERVAL_SECONDS);
 		this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS + 1];
 	}
 

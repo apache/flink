@@ -31,7 +31,7 @@ import java.util.List;
 class TtlValueStateVerifier
 	extends AbstractTtlStateVerifier<ValueStateDescriptor<String>, ValueState<String>, String, String, String> {
 	TtlValueStateVerifier() {
-		super(new ValueStateDescriptor<>("TtlValueStateVerifier", StringSerializer.INSTANCE));
+		super(new ValueStateDescriptor<>(TtlValueStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE));
 	}
 
 	@Override
@@ -61,6 +61,6 @@ class TtlValueStateVerifier
 			return null;
 		}
 		ValueWithTs<String> lastUpdate = updates.get(updates.size() - 1);
-		return expired(lastUpdate.getTimestampAfterUpdate(), currentTimestamp) ? null : lastUpdate.getValue();
+		return expired(lastUpdate.getTimestamp(), currentTimestamp) ? null : lastUpdate.getValue();
 	}
 }

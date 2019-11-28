@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.configuration.Configuration;
+
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -30,10 +32,10 @@ public class SavepointRestoreSettings implements Serializable {
 	private static final long serialVersionUID = 87377506900849777L;
 
 	/** No restore should happen. */
-	private final static SavepointRestoreSettings NONE = new SavepointRestoreSettings(null, false);
+	private static final SavepointRestoreSettings NONE = new SavepointRestoreSettings(null, false);
 
 	/** By default, be strict when restoring from a savepoint.  */
-	private final static boolean DEFAULT_ALLOW_NON_RESTORED_STATE = false;
+	private static final boolean DEFAULT_ALLOW_NON_RESTORED_STATE = false;
 
 	/** Savepoint restore path. */
 	private final String restorePath;
@@ -85,8 +87,12 @@ public class SavepointRestoreSettings implements Serializable {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) { return true; }
-		if (o == null || getClass() != o.getClass()) { return false; }
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
 
 		SavepointRestoreSettings that = (SavepointRestoreSettings) o;
 		return allowNonRestoredState == that.allowNonRestoredState &&
@@ -127,4 +133,19 @@ public class SavepointRestoreSettings implements Serializable {
 		return new SavepointRestoreSettings(savepointPath, allowNonRestoredState);
 	}
 
+	// -------------------------- Parsing to and from a configuration object ------------------------------------
+
+	public static void toConfiguration(final SavepointRestoreSettings savepointRestoreSettings, final Configuration configuration) {
+		configuration.setBoolean(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, savepointRestoreSettings.allowNonRestoredState());
+		final String savepointPath = savepointRestoreSettings.getRestorePath();
+		if (savepointPath != null) {
+			configuration.setString(SavepointConfigOptions.SAVEPOINT_PATH, savepointPath);
+		}
+	}
+
+	public static SavepointRestoreSettings fromConfiguration(final Configuration configuration) {
+		final String savepointPath = configuration.getString(SavepointConfigOptions.SAVEPOINT_PATH);
+		final boolean allowNonRestored = configuration.getBoolean(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE);
+		return savepointPath == null ? SavepointRestoreSettings.none() : SavepointRestoreSettings.forPath(savepointPath, allowNonRestored);
+	}
 }

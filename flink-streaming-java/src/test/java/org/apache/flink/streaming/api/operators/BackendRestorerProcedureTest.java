@@ -26,7 +26,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -34,12 +34,13 @@ import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingFSDataInputStream;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.SupplierWithException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -57,11 +58,13 @@ import static org.powermock.api.mockito.PowerMockito.when;
  */
 public class BackendRestorerProcedureTest extends TestLogger {
 
-	private final SupplierWithException<OperatorStateBackend, Exception> backendSupplier =
-		() -> new DefaultOperatorStateBackend(
+	private final FunctionWithException<Collection<OperatorStateHandle>, OperatorStateBackend, Exception> backendSupplier =
+		(stateHandles) -> new DefaultOperatorStateBackendBuilder(
 			getClass().getClassLoader(),
 			new ExecutionConfig(),
-			true);
+			true,
+			stateHandles,
+			new CloseableRegistry()).build();
 
 	/**
 	 * Tests that the restore procedure follows the order of the iterator and will retries failed attempts if there are
@@ -74,7 +77,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
 		CheckpointStreamFactory checkpointStreamFactory = new MemCheckpointStreamFactory(1024);
 
 		ListStateDescriptor<Integer> stateDescriptor = new ListStateDescriptor<>("test-state", Integer.class);
-		OperatorStateBackend originalBackend = backendSupplier.get();
+		OperatorStateBackend originalBackend = backendSupplier.apply(Collections.emptyList());
 		SnapshotResult<OperatorStateHandle> snapshotResult;
 
 		try {

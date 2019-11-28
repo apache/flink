@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -25,7 +26,11 @@ import org.apache.flink.util.Preconditions;
  * {@code OR} and returns {@code true} if at least one is {@code true}.
  *
  * @param <T> Type of the element to filter
+ * @deprecated Please use {@link RichOrCondition} instead. This class exists just for
+ * backwards compatibility and will be removed in FLINK-10113.
  */
+@Internal
+@Deprecated
 public class OrCondition<T> extends IterativeCondition<T> {
 
 	private static final long serialVersionUID = 2554610954278485106L;

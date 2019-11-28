@@ -34,7 +34,7 @@ import java.util.stream.StreamSupport;
 class TtlListStateVerifier extends AbstractTtlStateVerifier<
 	ListStateDescriptor<String>, ListState<String>, List<String>, String, List<String>> {
 	TtlListStateVerifier() {
-		super(new ListStateDescriptor<>("TtlListStateVerifier", StringSerializer.INSTANCE));
+		super(new ListStateDescriptor<>(TtlListStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE));
 	}
 
 	@Override
@@ -71,7 +71,7 @@ class TtlListStateVerifier extends AbstractTtlStateVerifier<
 	@Nonnull
 	List<String> expected(@Nonnull List<ValueWithTs<String>> updates, long currentTimestamp) {
 		return updates.stream()
-			.filter(u -> !expired(u.getTimestampAfterUpdate(), currentTimestamp))
+			.filter(u -> !expired(u.getTimestamp(), currentTimestamp))
 			.map(ValueWithTs::getValue)
 			.collect(Collectors.toList());
 	}

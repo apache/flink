@@ -22,7 +22,6 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGateListener;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -32,55 +31,52 @@ import java.util.Queue;
 /**
  * Mock {@link InputGate}.
  */
-public class MockInputGate implements InputGate {
+public class MockInputGate extends InputGate {
 
-	private final int pageSize;
-
-	private final int numChannels;
+	private final int numberOfChannels;
 
 	private final Queue<BufferOrEvent> bufferOrEvents;
 
 	private final boolean[] closed;
 
-	private int closedChannels;
+	private final boolean finishAfterLastBuffer;
 
-	private final String owningTaskName;
-
-	public MockInputGate(int pageSize, int numChannels, List<BufferOrEvent> bufferOrEvents) {
-		this(pageSize, numChannels, bufferOrEvents, "MockTask");
+	public MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
+		this(numberOfChannels, bufferOrEvents, true);
 	}
 
-	public MockInputGate(int pageSize, int numChannels, List<BufferOrEvent> bufferOrEvents, String owningTaskName) {
-		this.pageSize = pageSize;
-		this.numChannels = numChannels;
+	public MockInputGate(
+			int numberOfChannels,
+			List<BufferOrEvent> bufferOrEvents,
+			boolean finishAfterLastBuffer) {
+		this.numberOfChannels = numberOfChannels;
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
-		this.closed = new boolean[numChannels];
-		this.owningTaskName = owningTaskName;
+		this.closed = new boolean[numberOfChannels];
+		this.finishAfterLastBuffer = finishAfterLastBuffer;
+
+		availabilityHelper.resetAvailable();
 	}
 
 	@Override
-	public int getPageSize() {
-		return pageSize;
+	public void setup() {
 	}
 
 	@Override
 	public int getNumberOfInputChannels() {
-		return numChannels;
-	}
-
-	@Override
-	public String getOwningTaskName() {
-		return owningTaskName;
+		return numberOfChannels;
 	}
 
 	@Override
 	public boolean isFinished() {
-		return bufferOrEvents.isEmpty();
+		return finishAfterLastBuffer && bufferOrEvents.isEmpty();
 	}
 
 	@Override
-	public Optional<BufferOrEvent> getNextBufferOrEvent() {
+	public Optional<BufferOrEvent> getNext() {
 		BufferOrEvent next = bufferOrEvents.poll();
+		if (!finishAfterLastBuffer && bufferOrEvents.isEmpty()) {
+			availabilityHelper.resetUnavailable();
+		}
 		if (next == null) {
 			return Optional.empty();
 		}
@@ -92,18 +88,13 @@ public class MockInputGate implements InputGate {
 		}
 		if (next.isEvent() && next.getEvent() instanceof EndOfPartitionEvent) {
 			closed[channelIdx] = true;
-			closedChannels++;
 		}
 		return Optional.of(next);
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() {
-		return getNextBufferOrEvent();
-	}
-
-	@Override
-	public void requestPartitions() {
+	public Optional<BufferOrEvent> pollNext() {
+		return getNext();
 	}
 
 	@Override
@@ -111,7 +102,6 @@ public class MockInputGate implements InputGate {
 	}
 
 	@Override
-	public void registerListener(InputGateListener listener) {
+	public void close() {
 	}
-
 }

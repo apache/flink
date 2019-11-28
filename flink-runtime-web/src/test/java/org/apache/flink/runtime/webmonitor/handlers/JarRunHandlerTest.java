@@ -26,25 +26,30 @@ import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link JarRunHandler}.
  */
-public class JarRunHandlerTest {
+@Category(AlsoRunWithSchedulerNG.class)
+public class JarRunHandlerTest extends TestLogger {
 
 	@ClassRule
 	public static final TemporaryFolder TMP = new TemporaryFolder();
@@ -67,7 +72,6 @@ public class JarRunHandlerTest {
 				.setConfiguration(config)
 				.setNumberTaskManagers(1)
 				.setNumberSlotsPerTaskManager(1)
-				.setCodebaseType(TestBaseUtils.CodebaseType.NEW)
 				.build());
 		clusterResource.before();
 
@@ -91,9 +95,11 @@ public class JarRunHandlerTest {
 					if (expected.isPresent()) {
 						// implies the job was actually submitted
 						assertTrue(expected.get().getMessage().contains("ProgramInvocationException"));
+						// original cause is preserved in stack trace
+						assertThat(expected.get().getMessage(), containsString("ZipException: zip file is empty"));
 						// implies the jar was registered for the job graph (otherwise the jar name would not occur in the exception)
 						// implies the jar was uploaded (otherwise the file would not be found at all)
-						assertTrue(expected.get().getMessage().contains("empty.jar'. zip file is empty"));
+						assertTrue(expected.get().getMessage().contains("empty.jar"));
 					} else {
 						throw e;
 					}

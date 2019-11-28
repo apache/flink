@@ -22,7 +22,12 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.Test;
 
+import java.io.InputStream;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -99,6 +104,31 @@ public class AbstractIDTest extends TestLogger {
 		assertCompare(id7, id10, 1);
 		assertCompare(id8, id9, -1);
 		assertCompare(id8, id10, -1);
+	}
+
+	/**
+	 * FLINK-10412 marks the {@link AbstractID#toString} field as transient. This tests ensures
+	 * that {@link AbstractID} which have been serialized with the toString field can still
+	 * be deserialized. For that purpose the files abstractID-with-toString-field and
+	 * abstractID-with-toString-field-set have been created with the serialized data.
+	 */
+	@Test
+	public void testOldAbstractIDDeserialization() throws Exception {
+		final long lowerPart = 42L;
+		final long upperPart = 1337L;
+		final AbstractID expectedAbstractId = new AbstractID(lowerPart, upperPart);
+
+		final String resourceName1 = "abstractID-with-toString-field";
+		try (final InputStream resourceAsStream = getClass().getClassLoader().getResourceAsStream(resourceName1)) {
+			final AbstractID deserializedAbstractId = InstantiationUtil.deserializeObject(resourceAsStream, getClass().getClassLoader());
+			assertThat(deserializedAbstractId, is(equalTo(expectedAbstractId)));
+		}
+
+		final String resourceName2 = "abstractID-with-toString-field-set";
+		try (final InputStream resourceAsStream = getClass().getClassLoader().getResourceAsStream(resourceName2)) {
+			final AbstractID deserializedAbstractId = InstantiationUtil.deserializeObject(resourceAsStream, getClass().getClassLoader());
+			assertThat(deserializedAbstractId, is(equalTo(expectedAbstractId)));
+		}
 	}
 
 	private static void assertCompare(AbstractID a, AbstractID b, int signum) {

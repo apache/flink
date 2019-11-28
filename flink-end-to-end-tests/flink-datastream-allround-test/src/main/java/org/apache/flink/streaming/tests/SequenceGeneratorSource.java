@@ -28,9 +28,6 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,8 +39,6 @@ import java.util.Random;
 public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = -3986989644799442178L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(SequenceGeneratorSource.class);
 
 	/** Length of the artificial payload string generated for each event. */
 	private final int payloadLength;
@@ -145,7 +140,7 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 		}
 	}
 
-	private void runIdle(SourceContext<Event> ctx) throws Exception {
+	private void runIdle(SourceContext<Event> ctx) {
 		ctx.markAsTemporarilyIdle();
 
 		// just wait until this source is canceled

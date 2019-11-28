@@ -71,23 +71,36 @@ public class LeaderRetriever implements LeaderRetrievalListener {
 
 	@Override
 	public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
-		if (leaderAddress != null && !leaderAddress.equals("")) {
-			try {
-				final CompletableFuture<Tuple2<String, UUID>> newLeaderFuture = CompletableFuture.completedFuture(Tuple2.of(leaderAddress, leaderSessionID));
+		final CompletableFuture<Tuple2<String, UUID>> newLeaderFuture;
 
-				final CompletableFuture<Tuple2<String, UUID>> oldLeaderFuture = atomicLeaderFuture.getAndSet(newLeaderFuture);
-
-				if (!oldLeaderFuture.isDone()) {
-					// initial leader future
-					oldLeaderFuture.complete(Tuple2.of(leaderAddress, leaderSessionID));
-				}
-
-				notifyNewLeaderAddress(newLeaderFuture);
-			}
-			catch (Exception e) {
-				handleError(e);
-			}
+		if (isEmptyAddress(leaderAddress)) {
+			newLeaderFuture = new CompletableFuture<>();
+		} else {
+			newLeaderFuture = CompletableFuture.completedFuture(Tuple2.of(leaderAddress, leaderSessionID));
 		}
+
+		try {
+			final CompletableFuture<Tuple2<String, UUID>> oldLeaderFuture = atomicLeaderFuture.getAndSet(newLeaderFuture);
+
+			if (!oldLeaderFuture.isDone()) {
+				newLeaderFuture.whenComplete((stringUUIDTuple2, throwable) -> {
+					if (throwable != null) {
+						oldLeaderFuture.completeExceptionally(throwable);
+					} else {
+						oldLeaderFuture.complete(stringUUIDTuple2);
+					}
+				});
+			}
+
+			notifyNewLeaderAddress(newLeaderFuture);
+		}
+		catch (Exception e) {
+			handleError(e);
+		}
+	}
+
+	private boolean isEmptyAddress(String leaderAddress) {
+		return leaderAddress == null || leaderAddress.equals("");
 	}
 
 	@Override

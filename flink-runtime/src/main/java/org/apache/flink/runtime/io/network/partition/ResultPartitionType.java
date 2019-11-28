@@ -23,9 +23,42 @@ package org.apache.flink.runtime.io.network.partition;
  */
 public enum ResultPartitionType {
 
-	BLOCKING(false, false, false),
+	/**
+	 * Blocking partitions represent blocking data exchanges, where the data stream is first
+	 * fully produced and then consumed. This is an option that is only applicable to bounded
+	 * streams and can be used in bounded stream runtime and recovery.
+	 *
+	 * <p>Blocking partitions can be consumed multiple times and concurrently.
+	 *
+	 * <p>The partition is not automatically released after being consumed (like for example the
+	 * {@link #PIPELINED} partitions), but only released through the scheduler, when it determines
+	 * that the partition is no longer needed.
+	 */
+	BLOCKING(false, false, false, false),
 
-	PIPELINED(true, true, false),
+	/**
+	 * BLOCKING_PERSISTENT partitions are similar to {@link #BLOCKING} partitions, but have
+	 * a user-specified life cycle.
+	 *
+	 * <p>BLOCKING_PERSISTENT partitions are dropped upon explicit API calls to the
+	 * JobManager or ResourceManager, rather than by the scheduler.
+	 *
+	 * <p>Otherwise, the partition may only be dropped by safety-nets during failure handling
+	 * scenarios, like when the TaskManager exits or when the TaskManager looses connection
+	 * to JobManager / ResourceManager for too long.
+	 */
+	BLOCKING_PERSISTENT(false, false, false, true),
+
+	/**
+	 * A pipelined streaming data exchange. This is applicable to both bounded and unbounded streams.
+	 *
+	 * <p>Pipelined results can be consumed only once by a single consumer and are automatically
+	 * disposed when the stream has been consumed.
+	 *
+	 * <p>This result partition type may keep an arbitrary amount of data in-flight, in contrast to
+	 * the {@link #PIPELINED_BOUNDED} variant.
+	 */
+	PIPELINED(true, true, false, false),
 
 	/**
 	 * Pipelined partitions with a bounded (local) buffer pool.
@@ -38,7 +71,7 @@ public enum ResultPartitionType {
 	 * <p>For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there are
 	 * no checkpoint barriers.
 	 */
-	PIPELINED_BOUNDED(true, true, true);
+	PIPELINED_BOUNDED(true, true, true, false);
 
 	/** Can the partition be consumed while being produced? */
 	private final boolean isPipelined;
@@ -49,13 +82,17 @@ public enum ResultPartitionType {
 	/** Does this partition use a limited number of (network) buffers? */
 	private final boolean isBounded;
 
+	/** This partition will not be released after consuming if 'isPersistent' is true. */
+	private final boolean isPersistent;
+
 	/**
 	 * Specifies the behaviour of an intermediate result partition at runtime.
 	 */
-	ResultPartitionType(boolean isPipelined, boolean hasBackPressure, boolean isBounded) {
+	ResultPartitionType(boolean isPipelined, boolean hasBackPressure, boolean isBounded, boolean isPersistent) {
 		this.isPipelined = isPipelined;
 		this.hasBackPressure = hasBackPressure;
 		this.isBounded = isBounded;
+		this.isPersistent = isPersistent;
 	}
 
 	public boolean hasBackPressure() {
@@ -77,5 +114,9 @@ public enum ResultPartitionType {
 	 */
 	public boolean isBounded() {
 		return isBounded;
+	}
+
+	public boolean isPersistent() {
+		return isPersistent;
 	}
 }

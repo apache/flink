@@ -115,7 +115,7 @@ public class IterateExample {
 	// *************************************************************************
 
 	/**
-	 * Generate BOUND number of random integer pairs from the range from 0 to BOUND/2.
+	 * Generate BOUND number of random integer pairs from the range from 1 to BOUND/2.
 	 */
 	private static class RandomFibonacciSource implements SourceFunction<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;

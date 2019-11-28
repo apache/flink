@@ -36,7 +36,6 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.AfterClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -131,8 +130,7 @@ public class HashTablePerformanceComparison {
 	
 	@Test
 	public void testMutableHashMapPerformance() {
-		final IOManager ioManager = new IOManagerAsync();
-		try {
+		try (IOManager ioManager = new IOManagerAsync()) {
 			final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
 			
 			MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
@@ -207,8 +205,6 @@ public class HashTablePerformanceComparison {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
-		} finally {
-			ioManager.shutdown();
 		}
 	}
 

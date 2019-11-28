@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rpc.exceptions;
 
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
-import org.apache.flink.runtime.rpc.exceptions.RpcException;
 
 /**
  * Exception which is thrown if the fencing tokens of a {@link FencedRpcEndpoint} do

@@ -74,7 +74,7 @@ The **table mode** materializes results in memory and visualizes them in a regul
 SET execution.result-mode=table;
 {% endhighlight %}
 
-The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming.html#dynamic-tables--continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming/dynamic_tables.html#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
 
 {% highlight text %}
 SET execution.result-mode=changelog;
@@ -157,16 +157,16 @@ Mode "embedded" submits Flink jobs from the local machine.
 
 ### Environment Files
 
-A SQL query needs a configuration environment in which it is executed. The so-called *environment files* define available table sources and sinks, external catalogs, user-defined functions, and other properties required for execution and deployment.
+A SQL query needs a configuration environment in which it is executed. The so-called *environment files* define available catalogs, table sources and sinks, user-defined functions, and other properties required for execution and deployment.
 
 Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
 
 {% highlight yaml %}
-# Define table sources and sinks here.
+# Define tables here such as sources, sinks, views, or temporal tables.
 
 tables:
   - name: MyTableSource
-    type: source
+    type: source-table
     update-mode: append
     connector:
       type: filesystem
@@ -185,11 +185,8 @@ tables:
         type: INT
       - name: MyField2
         type: VARCHAR
-
-# Define table views here.
-
-views:
   - name: MyCustomView
+    type: view
     query: "SELECT MyField2 FROM MyTableSource"
 
 # Define user-defined functions here.
@@ -202,9 +199,24 @@ functions:
       - 7.6
       - false
 
-# Execution properties allow for changing the behavior of a table program.
+# Define available catalogs
+
+catalogs:
+   - name: catalog_1
+     type: hive
+     property-version: 1
+     hive-conf-dir: ...
+   - name: catalog_2
+     type: hive
+     property-version: 1
+     default-database: mydb2
+     hive-conf-dir: ...
+     hive-version: 1.2.1
+
+# Properties that change the fundamental execution behavior of a table program.
 
 execution:
+  planner: old                      # optional: either 'old' (default) or 'blink'
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
   result-mode: table                # required: either 'table' or 'changelog'
   max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
@@ -215,10 +227,22 @@ execution:
   max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default)
   min-idle-state-retention: 0       # optional: table program's minimum idle state time
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
+  current-catalog: catalog_1        # optional: name of the current catalog of the session ('default_catalog' by default)
+  current-database: mydb1           # optional: name of the current database of the current catalog
+                                    #   (default database of the current catalog by default)
   restart-strategy:                 # optional: restart strategy
     type: fallback                  #   "fallback" to global restart strategy by default
 
-# Deployment properties allow for describing the cluster to which table programs are submitted to.
+# Configuration options for adjusting and tuning table programs.
+
+# A full list of options and their default values can be found
+# on the dedicated "Configuration" page.
+configuration:
+  table.optimizer.join-reorder-enabled: true
+  table.exec.spill-compression.enabled: true
+  table.exec.spill-compression.block-size: 128kb
+
+# Properties that describe the cluster to which table programs are submitted to.
 
 deployment:
   response-timeout: 5000
@@ -229,9 +253,10 @@ This configuration:
 - defines an environment with a table source `MyTableSource` that reads from a CSV file,
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
-- specifies a parallelism of 1 for queries executed in this streaming environment,
-- specifies an event-time characteristic, and
-- runs queries in the `table` result mode.
+- connects to two Hive catalogs and uses `catalog_1` as the current catalog with `mydb1` as the current database of the catalog,
+- uses the old planner in streaming mode for running statements with event-time characteristic and a parallelism of 1,
+- runs exploratory queries in the `table` result mode,
+- and makes some planner adjustments around join reordering and spilling via configuration options.
 
 Depending on the use case, a configuration can be split into multiple files. Therefore, environment files can be created for general purposes (*defaults environment file* using `--defaults`) as well as on a per-session basis (*session environment file* using `--environment`). Every CLI session is initialized with the default properties followed by the session properties. For example, the defaults environment file could specify all table sources that should be available for querying in every session whereas the session environment file only declares a specific state retention time and parallelism. Both default and session environment files can be passed when starting the CLI application. If no default environment file has been specified, the SQL Client searches for `./conf/sql-client-defaults.yaml` in Flink's configuration directory.
 
@@ -275,7 +300,7 @@ execution:
 
 ### Dependencies
 
-The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON), Flink provides **ready-to-use JAR bundles**. These JAR files are suffixed with `sql-jar` and can be downloaded for each release from the Maven central repository.
+The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON), Flink provides **ready-to-use JAR bundles**. These JAR files can be downloaded for each release from the Maven central repository.
 
 The full list of offered SQL JARs and documentation about how to use them can be found on the [connection to external systems page](connect.html).
 
@@ -284,12 +309,12 @@ The following example shows an environment file that defines a table source read
 {% highlight yaml %}
 tables:
   - name: TaxiRides
-    type: source
+    type: source-table
     update-mode: append
     connector:
       property-version: 1
       type: kafka
-      version: 0.11
+      version: "0.11"
       topic: TaxiRides
       startup-mode: earliest-offset
       properties:
@@ -334,7 +359,7 @@ Both `connector` and `format` allow to define a property version (which is curre
 
 The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes.
 
-In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
 
 All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
 
@@ -347,12 +372,12 @@ functions:
   - name: ...               # required: name of the function
     from: class             # required: source of the function (can only be "class" for now)
     class: ...              # required: fully qualified class name of the function
-    constructor:            # optimal: constructor parameters of the function class
-      - ...                 # optimal: a literal parameter with implicit type
-      - class: ...          # optimal: full class name of the parameter
-        constructor:        # optimal: constructor parameters of the parameter's class
-          - type: ...       # optimal: type of the literal parameter
-            value: ...      # optimal: value of the literal parameter
+    constructor:            # optional: constructor parameters of the function class
+      - ...                 # optional: a literal parameter with implicit type
+      - class: ...          # optional: full class name of the parameter
+        constructor:        # optional: constructor parameters of the parameter's class
+          - type: ...       # optional: type of the literal parameter
+            value: ...      # optional: value of the literal parameter
 {% endhighlight %}
 
 Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
@@ -413,6 +438,34 @@ This process can be recursively performed until all the constructor parameters a
 
 {% top %}
 
+Catalogs
+--------
+
+Catalogs can be defined as a set of YAML properties and are automatically registered to the environment upon starting SQL Client.
+
+Users can specify which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database.
+
+{% highlight yaml %}
+catalogs:
+   - name: catalog_1
+     type: hive
+     property-version: 1
+     default-database: mydb2
+     hive-version: 1.2.1
+     hive-conf-dir: <path of Hive conf directory>
+   - name: catalog_2
+     type: hive
+     property-version: 1
+     hive-conf-dir: <path of Hive conf directory>
+
+execution:
+   ...
+   current-catalog: catalog_1
+   current-database: mydb1
+{% endhighlight %}
+
+For more information about catalogs, see [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
+
 Detached SQL Queries
 --------------------
 
@@ -427,12 +480,12 @@ The table sink `MyTableSink` has to be declared in the environment file. See the
 {% highlight yaml %}
 tables:
   - name: MyTableSink
-    type: sink
+    type: sink-table
     update-mode: append
     connector:
       property-version: 1
       type: kafka
-      version: 0.11
+      version: "0.11"
       topic: OutputTopic
       properties:
         - key: zookeeper.connect
@@ -476,20 +529,24 @@ Views allow to define virtual tables from SQL queries. The view definition is pa
 
 Views can either be defined in [environment files](sqlClient.html#environment-files) or within the CLI session.
 
-The following example shows how to define multiple views in a file:
+The following example shows how to define multiple views in a file. The views are registered in the order in which they are defined in the environment file. Reference chains such as _view A depends on view B depends on view C_ are supported.
 
 {% highlight yaml %}
-views:
+tables:
+  - name: MyTableSource
+    # ...
   - name: MyRestrictedView
+    type: view
     query: "SELECT MyField2 FROM MyTableSource"
   - name: MyComplexView
+    type: view
     query: >
       SELECT MyField2 + 42, CAST(MyField1 AS VARCHAR)
       FROM MyTableSource
       WHERE MyField2 > 200
 {% endhighlight %}
 
-Similar to table sources and sinks, views defined in a session environment file have highest precendence.
+Similar to table sources and sinks, views defined in a session environment file have highest precedence.
 
 Views can also be created within a CLI session using the `CREATE VIEW` statement:
 
@@ -503,7 +560,49 @@ Views created within a CLI session can also be removed again using the `DROP VIE
 DROP VIEW MyNewView;
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The definition of views is limited to the mentioned syntax above. Defining a schema for views or escape whitespaces in table names will be supported in future versions.
+<span class="label label-danger">Attention</span> The definition of views in the CLI is limited to the mentioned syntax above. Defining a schema for views or escaping whitespaces in table names will be supported in future versions.
+
+{% top %}
+
+Temporal Tables
+---------------
+
+A [temporal table](./streaming/temporal_tables.html) allows for a (parameterized) view on a changing history table that returns the content of a table at a specific point in time. This is especially useful for joining a table with the content of another table at a particular timestamp. More information can be found in the [temporal table joins](./streaming/joins.html#join-with-a-temporal-table) page.
+
+The following example shows how to define a temporal table `SourceTemporalTable`:
+
+{% highlight yaml %}
+tables:
+
+  # Define the table source (or view) that contains updates to a temporal table
+  - name: HistorySource
+    type: source-table
+    update-mode: append
+    connector: # ...
+    format: # ...
+    schema:
+      - name: integerField
+        type: INT
+      - name: stringField
+        type: VARCHAR
+      - name: rowtimeField
+        type: TIMESTAMP
+        rowtime:
+          timestamps:
+            type: from-field
+            from: rowtimeField
+          watermarks:
+            type: from-source
+
+  # Define a temporal table over the changing history table with time attribute and primary key
+  - name: SourceTemporalTable
+    type: temporal-table
+    history-table: HistorySource
+    primary-key: integerField
+    time-attribute: rowtimeField  # could also be a proctime field
+{% endhighlight %}
+
+As shown in the example, definitions of table sources, views, and temporal tables can be mixed with each other. They are registered in the order in which they are defined in the environment file. For example, a temporal table can reference a view which can depend on another view or table source.
 
 {% top %}
 

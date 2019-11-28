@@ -22,7 +22,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -33,7 +35,9 @@ import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -69,8 +73,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attr
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.MemoryAttribute;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateEvent;
+import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +91,7 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
@@ -93,7 +99,7 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRes
 /**
  * This client is the counter-part to the {@link RestServerEndpoint}.
  */
-public class RestClient {
+public class RestClient implements AutoCloseableAsync {
 	private static final Logger LOG = LoggerFactory.getLogger(RestClient.class);
 
 	private static final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
@@ -103,24 +109,35 @@ public class RestClient {
 
 	private final Bootstrap bootstrap;
 
+	private final CompletableFuture<Void> terminationFuture;
+
+	private final AtomicBoolean isRunning = new AtomicBoolean(true);
+
 	public RestClient(RestClientConfiguration configuration, Executor executor) {
 		Preconditions.checkNotNull(configuration);
 		this.executor = Preconditions.checkNotNull(executor);
+		this.terminationFuture = new CompletableFuture<>();
 
-		final SSLEngineFactory sslEngineFactory = configuration.getSslEngineFactory();
+		final SSLHandlerFactory sslHandlerFactory = configuration.getSslHandlerFactory();
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 			@Override
 			protected void initChannel(SocketChannel socketChannel) {
-				// SSL should be the first handler in the pipeline
-				if (sslEngineFactory != null) {
-					socketChannel.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
-				}
+				try {
+					// SSL should be the first handler in the pipeline
+					if (sslHandlerFactory != null) {
+						socketChannel.pipeline().addLast("ssl", sslHandlerFactory.createNettySSLHandler(socketChannel.alloc()));
+					}
 
-				socketChannel.pipeline()
-					.addLast(new HttpClientCodec())
-					.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
-					.addLast(new ChunkedWriteHandler()) // required for multipart-requests
-					.addLast(new ClientHandler());
+					socketChannel.pipeline()
+						.addLast(new HttpClientCodec())
+						.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
+						.addLast(new ChunkedWriteHandler()) // required for multipart-requests
+						.addLast(new IdleStateHandler(configuration.getIdlenessTimeout(), configuration.getIdlenessTimeout(), configuration.getIdlenessTimeout(), TimeUnit.MILLISECONDS))
+						.addLast(new ClientHandler());
+				} catch (Throwable t) {
+					t.printStackTrace();
+					ExceptionUtils.rethrow(t);
+				}
 			}
 		};
 		NioEventLoopGroup group = new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-client-netty"));
@@ -135,28 +152,47 @@ public class RestClient {
 		LOG.info("Rest client endpoint started.");
 	}
 
+	@Override
+	public CompletableFuture<Void> closeAsync() {
+		return shutdownInternally(Time.seconds(10L));
+	}
+
 	public void shutdown(Time timeout) {
-		LOG.info("Shutting down rest endpoint.");
-		CompletableFuture<?> groupFuture = new CompletableFuture<>();
-		if (bootstrap != null) {
-			if (bootstrap.group() != null) {
-				bootstrap.group().shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
-					.addListener(finished -> {
-						if (finished.isSuccess()) {
-							groupFuture.complete(null);
-						} else {
-							groupFuture.completeExceptionally(finished.cause());
-						}
-					});
-			}
-		}
+		final CompletableFuture<Void> shutDownFuture = shutdownInternally(timeout);
 
 		try {
-			groupFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			shutDownFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			LOG.info("Rest endpoint shutdown complete.");
 		} catch (Exception e) {
 			LOG.warn("Rest endpoint shutdown failed.", e);
 		}
+	}
+
+	private CompletableFuture<Void> shutdownInternally(Time timeout) {
+		if (isRunning.compareAndSet(true, false)) {
+			LOG.info("Shutting down rest endpoint.");
+
+			if (bootstrap != null) {
+				if (bootstrap.group() != null) {
+					bootstrap.group().shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+						.addListener(finished -> {
+							if (finished.isSuccess()) {
+								terminationFuture.complete(null);
+							} else {
+								terminationFuture.completeExceptionally(finished.cause());
+							}
+						});
+				}
+			}
+		}
+		return terminationFuture;
+	}
+
+	public <M extends MessageHeaders<EmptyRequestBody, P, EmptyMessageParameters>, P extends ResponseBody> CompletableFuture<P> sendRequest(
+			String targetAddress,
+			int targetPort,
+			M messageHeaders) throws IOException {
+		return sendRequest(targetAddress, targetPort, messageHeaders, EmptyMessageParameters.getInstance(), EmptyRequestBody.getInstance());
 	}
 
 	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(
@@ -194,7 +230,7 @@ public class RestClient {
 			Collection<FileUpload> fileUploads,
 			RestAPIVersion apiVersion) throws IOException {
 		Preconditions.checkNotNull(targetAddress);
-		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
+		Preconditions.checkArgument(NetUtils.isValidHostPort(targetPort), "The target port " + targetPort + " is not in the range [0, 65535].");
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(messageParameters);
@@ -311,12 +347,26 @@ public class RestClient {
 			.thenComposeAsync(
 				channel -> {
 					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
+
+					CompletableFuture<JsonResponse> future;
+					boolean success = false;
+
 					try {
-						httpRequest.writeTo(channel);
+						if (handler == null) {
+							throw new IOException("Netty pipeline was not properly initialized.");
+						} else {
+							httpRequest.writeTo(channel);
+							future = handler.getJsonFuture();
+							success = true;
+						}
 					} catch (IOException e) {
-						return FutureUtils.completedExceptionally(new FlinkException("Could not write request.", e));
+						future = FutureUtils.completedExceptionally(new ConnectionException("Could not write request.", e));
+					} finally {
+						if (!success) {
+							channel.close();
+						}
 					}
+
 					return future;
 				},
 				executor)
@@ -426,6 +476,22 @@ public class RestClient {
 
 			}
 			ctx.close();
+		}
+
+		@Override
+		public void channelInactive(ChannelHandlerContext ctx) {
+			jsonFuture.completeExceptionally(new ConnectionClosedException("Channel became inactive."));
+			ctx.close();
+		}
+
+		@Override
+		public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+			if (evt instanceof IdleStateEvent) {
+				jsonFuture.completeExceptionally(new ConnectionIdleException("Channel became idle."));
+				ctx.close();
+			} else {
+				super.userEventTriggered(ctx, evt);
+			}
 		}
 
 		@Override

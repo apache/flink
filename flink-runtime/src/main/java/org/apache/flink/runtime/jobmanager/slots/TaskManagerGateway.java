@@ -20,19 +20,17 @@ package org.apache.flink.runtime.jobmanager.slots;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
-import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTrace;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -48,47 +46,17 @@ public interface TaskManagerGateway {
 	String getAddress();
 
 	/**
-	 * Disconnect the task manager from the job manager.
+	 * Request the back pressure ratio for the given task.
 	 *
-	 * @param instanceId identifying the task manager
-	 * @param cause of the disconnection
+	 * @param executionAttemptID identifying the task to request.
+	 * @param requestId id of the request.
+	 * @param timeout rpc request timeout.
+	 * @return A future of the task back pressure result.
 	 */
-	void disconnectFromJobManager(InstanceID instanceId, Exception cause);
-
-	/**
-	 * Stop the cluster.
-	 *
-	 * @param applicationStatus to stop the cluster with
-	 * @param message to deliver
-	 */
-	void stopCluster(final ApplicationStatus applicationStatus, final String message);
-
-	/**
-	 * Request the stack trace from the task manager.
-	 *
-	 * @param timeout for the stack trace request
-	 * @return Future for a stack trace
-	 */
-	CompletableFuture<StackTrace> requestStackTrace(final Time timeout);
-
-	/**
-	 * Request a stack trace sample from the given task.
-	 *
-	 * @param executionAttemptID identifying the task to sample
-	 * @param sampleId of the sample
-	 * @param numSamples to take from the given task
-	 * @param delayBetweenSamples to wait for
-	 * @param maxStackTraceDepth of the returned sample
-	 * @param timeout of the request
-	 * @return Future of stack trace sample response
-	 */
-	CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
-		final ExecutionAttemptID executionAttemptID,
-		final int sampleId,
-		final int numSamples,
-		final Time delayBetweenSamples,
-		final int maxStackTraceDepth,
-		final Time timeout);
+	CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
+		ExecutionAttemptID executionAttemptID,
+		int requestId,
+		Time timeout);
 
 	/**
 	 * Submit a task to the task manager.
@@ -99,17 +67,6 @@ public interface TaskManagerGateway {
 	 */
 	CompletableFuture<Acknowledge> submitTask(
 		TaskDeploymentDescriptor tdd,
-		Time timeout);
-
-	/**
-	 * Stop the given task.
-	 *
-	 * @param executionAttemptID identifying the task
-	 * @param timeout of the submit operation
-	 * @return Future acknowledge if the task is successfully stopped
-	 */
-	CompletableFuture<Acknowledge> stopTask(
-		ExecutionAttemptID executionAttemptID,
 		Time timeout);
 
 	/**
@@ -137,11 +94,12 @@ public interface TaskManagerGateway {
 		Time timeout);
 
 	/**
-	 * Fail all intermediate result partitions of the given task.
+	 * Batch release intermediate result partitions.
 	 *
-	 * @param executionAttemptID identifying the task
+	 * @param jobId id of the job that the partitions belong to
+	 * @param partitionIds partition ids to release
 	 */
-	void failPartition(ExecutionAttemptID executionAttemptID);
+	void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds);
 
 	/**
 	 * Notify the given task about a completed checkpoint.
@@ -165,29 +123,16 @@ public interface TaskManagerGateway {
 	 * @param checkpointId of the checkpoint to trigger
 	 * @param timestamp of the checkpoint to trigger
 	 * @param checkpointOptions of the checkpoint to trigger
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers
 	 */
 	void triggerCheckpoint(
 		ExecutionAttemptID executionAttemptID,
 		JobID jobId,
 		long checkpointId,
 		long timestamp,
-		CheckpointOptions checkpointOptions);
-
-	/**
-	 * Request the task manager log from the task manager.
-	 *
-	 * @param timeout for the request
-	 * @return Future blob key under which the task manager log has been stored
-	 */
-	CompletableFuture<TransientBlobKey> requestTaskManagerLog(final Time timeout);
-
-	/**
-	 * Request the task manager stdout from the task manager.
-	 *
-	 * @param timeout for the request
-	 * @return Future blob key under which the task manager stdout file has been stored
-	 */
-	CompletableFuture<TransientBlobKey> requestTaskManagerStdout(final Time timeout);
+		CheckpointOptions checkpointOptions,
+		boolean advanceToEndOfEventTime);
 
 	/**
 	 * Frees the slot with the given allocation ID.

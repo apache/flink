@@ -26,15 +26,18 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
+import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -47,6 +50,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
@@ -57,16 +61,23 @@ public class ConfigOptionsDocGenerator {
 
 	static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
 		new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
-		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.io.network.netty"),
+		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.shuffle"),
+		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.jobgraph"),
+		new OptionsClassLocation("flink-streaming-java", "org.apache.flink.streaming.api.environment"),
 		new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
 		new OptionsClassLocation("flink-metrics/flink-metrics-prometheus", "org.apache.flink.metrics.prometheus"),
-		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state")
+		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state"),
+		new OptionsClassLocation("flink-table/flink-table-api-java", "org.apache.flink.table.api.config"),
+		new OptionsClassLocation("flink-python", "org.apache.flink.python")
 	};
 
 	static final Set<String> EXCLUSIONS = new HashSet<>(Arrays.asList(
+		"org.apache.flink.configuration.ReadableConfig",
+		"org.apache.flink.configuration.WritableConfig",
 		"org.apache.flink.configuration.ConfigOptions",
+		"org.apache.flink.streaming.api.environment.CheckpointConfig",
 		"org.apache.flink.contrib.streaming.state.PredefinedOptions"));
 
 	static final String DEFAULT_PATH_PREFIX = "src/main/java";
@@ -153,6 +164,7 @@ public class ConfigOptionsDocGenerator {
 		});
 	}
 
+	@VisibleForTesting
 	static void processConfigOptions(String rootDir, String module, String packageName, String pathPrefix, ThrowingConsumer<Class<?>, IOException> classConsumer) throws IOException, ClassNotFoundException {
 		Path configDir = Paths.get(rootDir, module, pathPrefix, packageName.replaceAll("\\.", "/"));
 
@@ -197,12 +209,13 @@ public class ConfigOptionsDocGenerator {
 		return tables;
 	}
 
+	@VisibleForTesting
 	static List<OptionWithMetaInfo> extractConfigOptions(Class<?> clazz) {
 		try {
 			List<OptionWithMetaInfo> configOptions = new ArrayList<>(8);
 			Field[] fields = clazz.getFields();
 			for (Field field : fields) {
-				if (field.getType().equals(ConfigOption.class) && field.getAnnotation(Deprecated.class) == null) {
+				if (isConfigOption(field) && shouldBeDocumented(field)) {
 					configOptions.add(new OptionWithMetaInfo((ConfigOption<?>) field.get(null), field));
 				}
 			}
@@ -211,6 +224,15 @@ public class ConfigOptionsDocGenerator {
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to extract config options from class " + clazz + '.', e);
 		}
+	}
+
+	private static boolean isConfigOption(Field field) {
+		return field.getType().equals(ConfigOption.class);
+	}
+
+	private static boolean shouldBeDocumented(Field field) {
+		return field.getAnnotation(Deprecated.class) == null &&
+			field.getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
 	}
 
 	/**
@@ -227,7 +249,8 @@ public class ConfigOptionsDocGenerator {
 		htmlTable.append("        <tr>\n");
 		htmlTable.append("            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n");
 		htmlTable.append("            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n");
-		htmlTable.append("            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n");
+		htmlTable.append("            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n");
+		htmlTable.append("            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n");
 		htmlTable.append("        </tr>\n");
 		htmlTable.append("    </thead>\n");
 		htmlTable.append("    <tbody>\n");
@@ -251,15 +274,98 @@ public class ConfigOptionsDocGenerator {
 	private static String toHtmlString(final OptionWithMetaInfo optionWithMetaInfo) {
 		ConfigOption<?> option = optionWithMetaInfo.option;
 		String defaultValue = stringifyDefault(optionWithMetaInfo);
+		String type = typeToHtml(optionWithMetaInfo);
+		Documentation.TableOption tableOption = optionWithMetaInfo.field.getAnnotation(Documentation.TableOption.class);
+		StringBuilder execModeStringBuilder = new StringBuilder();
+		if (tableOption != null) {
+			Documentation.ExecMode execMode = tableOption.execMode();
+			if (Documentation.ExecMode.BATCH_STREAMING.equals(execMode)) {
+				execModeStringBuilder.append("<br> <span class=\"label label-primary\">")
+						.append(Documentation.ExecMode.BATCH.toString())
+						.append("</span> <span class=\"label label-primary\">")
+						.append(Documentation.ExecMode.STREAMING.toString())
+						.append("</span>");
+			} else {
+				execModeStringBuilder.append("<br> <span class=\"label label-primary\">")
+						.append(execMode.toString())
+						.append("</span>");
+			}
+		}
 
 		return "" +
 			"        <tr>\n" +
-			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
+			"            <td><h5>" + escapeCharacters(option.key()) + "</h5>" + execModeStringBuilder.toString() + "</td>\n" +
 			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(addWordBreakOpportunities(defaultValue)) + "</td>\n" +
+			"            <td>" + type + "</td>\n" +
 			"            <td>" + formatter.format(option.description()) + "</td>\n" +
 			"        </tr>\n";
 	}
 
+	private static Class<?> getClazz(ConfigOption<?> option) {
+		try {
+			Method getClazzMethod = ConfigOption.class.getDeclaredMethod("getClazz");
+			getClazzMethod.setAccessible(true);
+			Class clazz = (Class) getClazzMethod.invoke(option);
+			getClazzMethod.setAccessible(false);
+			return clazz;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private static boolean isList(ConfigOption<?> option) {
+		try {
+			Method getClazzMethod = ConfigOption.class.getDeclaredMethod("isList");
+			getClazzMethod.setAccessible(true);
+			boolean isList = (boolean) getClazzMethod.invoke(option);
+			getClazzMethod.setAccessible(false);
+			return isList;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@VisibleForTesting
+	static String typeToHtml(OptionWithMetaInfo optionWithMetaInfo) {
+		ConfigOption<?> option = optionWithMetaInfo.option;
+		Class<?> clazz = getClazz(option);
+		boolean isList = isList(option);
+
+		if (clazz.isEnum()) {
+			return enumTypeToHtml(clazz, isList);
+		}
+
+		return atomicTypeToHtml(clazz, isList);
+	}
+
+	private static String atomicTypeToHtml(Class<?> clazz, boolean isList) {
+		String typeName = clazz.getSimpleName();
+
+		final String type;
+		if (isList) {
+			type = String.format("List<%s>", typeName);
+		} else {
+			type = typeName;
+		}
+
+		return escapeCharacters(type);
+	}
+
+	private static String enumTypeToHtml(Class<?> enumClazz, boolean isList) {
+		final String type;
+		if (isList) {
+			type = "List<Enum>";
+		} else {
+			type = "Enum";
+		}
+
+		return String.format(
+			"<p>%s</p>Possible values: %s",
+			escapeCharacters(type),
+			escapeCharacters(Arrays.toString(enumClazz.getEnumConstants())));
+	}
+
+	@VisibleForTesting
 	static String stringifyDefault(OptionWithMetaInfo optionWithMetaInfo) {
 		ConfigOption<?> option = optionWithMetaInfo.option;
 		Documentation.OverrideDefault overrideDocumentedDefault = optionWithMetaInfo.field.getAnnotation(Documentation.OverrideDefault.class);
@@ -267,14 +373,31 @@ public class ConfigOptionsDocGenerator {
 			return overrideDocumentedDefault.value();
 		} else {
 			Object value = option.defaultValue();
-			if (value instanceof String) {
-				if (((String) value).isEmpty()) {
-					return "(none)";
-				}
-				return "\"" + value + "\"";
-			}
-			return value == null ? "(none)" : value.toString();
+			return stringifyObject(value);
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static String stringifyObject(Object value) {
+		if (value instanceof String) {
+			if (((String) value).isEmpty()) {
+				return "(none)";
+			}
+			return "\"" + value + "\"";
+		} else if (value instanceof Duration) {
+			return TimeUtils.getStringInMillis((Duration) value);
+		} else if (value instanceof List) {
+			return ((List<Object>) value).stream()
+				.map(ConfigOptionsDocGenerator::stringifyObject)
+				.collect(Collectors.joining(";"));
+		} else if (value instanceof Map) {
+			return ((Map<String, String>) value)
+				.entrySet()
+				.stream()
+				.map(e -> String.format("%s:%s", e.getKey(), e.getValue()))
+				.collect(Collectors.joining(","));
+		}
+		return value == null ? "(none)" : value.toString();
 	}
 
 	private static String addWordBreakOpportunities(String value) {
@@ -323,11 +446,20 @@ public class ConfigOptionsDocGenerator {
 
 		private Node findGroupRoot(String key) {
 			String[] keyComponents = key.split("\\.");
+			Node lastRootNode = root;
 			Node currentNode = root;
 			for (String keyComponent : keyComponents) {
-				currentNode = currentNode.findChild(keyComponent);
+				final Node childNode = currentNode.getChild(keyComponent);
+				if (childNode == null) {
+					break;
+				} else {
+					currentNode = childNode;
+					if (currentNode.isGroupRoot()) {
+						lastRootNode = currentNode;
+					}
+				}
 			}
-			return currentNode.isGroupRoot() ? currentNode : root;
+			return lastRootNode;
 		}
 
 		private static class Node {
@@ -344,12 +476,8 @@ public class ConfigOptionsDocGenerator {
 				return child;
 			}
 
-			private Node findChild(String keyComponent) {
-				Node child = children.get(keyComponent);
-				if (child == null) {
-					return this;
-				}
-				return child;
+			private Node getChild(String keyComponent) {
+				return children.get(keyComponent);
 			}
 
 			private void assignOption(OptionWithMetaInfo option) {

@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -108,11 +110,6 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 		}
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof BigDecSerializer;
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//                           Static Helpers for BigInteger Serialization
 	// --------------------------------------------------------------------------------------------
@@ -137,5 +134,23 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 		}
 		// default
 		return new BigDecimal(unscaledValue, scale);
+	}
+
+	@Override
+	public TypeSerializerSnapshot<BigDecimal> snapshotConfiguration() {
+		return new BigDecSerializerSnapshot();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class BigDecSerializerSnapshot extends SimpleTypeSerializerSnapshot<BigDecimal> {
+
+		public BigDecSerializerSnapshot() {
+			super(() -> INSTANCE);
+		}
 	}
 }

@@ -33,7 +33,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Special type information to generate a special AvroTypeInfo for Avro POJOs (implementing SpecificRecordBase, the typed Avro POJOs)
@@ -50,52 +49,22 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 
 	private static final long serialVersionUID = 1L;
 
-	private static final ConcurrentHashMap<Thread, Boolean> IN_BACKWARDS_COMPATIBLE_MODE = new ConcurrentHashMap<>();
-
-	private final boolean useBackwardsCompatibleSerializer;
-
 	/**
 	 * Creates a new Avro type info for the given class.
 	 */
 	public AvroTypeInfo(Class<T> typeClass) {
-		this(typeClass, false);
-	}
-
-	/**
-	 * Creates a new Avro type info for the given class.
-	 *
-	 * <p>This constructor takes a flag to specify whether a serializer
-	 * that is backwards compatible with PoJo-style serialization of Avro types should be used.
-	 * That is only necessary, if one has a Flink 1.3 (or earlier) savepoint where Avro types
-	 * were stored in the checkpointed state. New Flink programs will never need this.
-	 */
-	public AvroTypeInfo(Class<T> typeClass, boolean useBackwardsCompatibleSerializer) {
-		super(typeClass, generateFieldsFromAvroSchema(typeClass, useBackwardsCompatibleSerializer));
-
-		final Boolean modeOnStack = IN_BACKWARDS_COMPATIBLE_MODE.get(Thread.currentThread());
-		this.useBackwardsCompatibleSerializer = modeOnStack == null ?
-				useBackwardsCompatibleSerializer : modeOnStack;
+		super(typeClass, generateFieldsFromAvroSchema(typeClass));
 	}
 
 	@Override
 	@SuppressWarnings("deprecation")
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-		return useBackwardsCompatibleSerializer ?
-				new BackwardsCompatibleAvroSerializer<>(getTypeClass()) :
-				new AvroSerializer<>(getTypeClass());
+		return new AvroSerializer<>(getTypeClass());
 	}
 
 	@SuppressWarnings("unchecked")
 	@Internal
-	public static <T extends SpecificRecordBase> List<PojoField> generateFieldsFromAvroSchema(
-			Class<T> typeClass,
-			boolean useBackwardsCompatibleSerializer) {
-
-		final Thread currentThread = Thread.currentThread();
-		final boolean entryPoint =
-				IN_BACKWARDS_COMPATIBLE_MODE.putIfAbsent(currentThread, useBackwardsCompatibleSerializer) == null;
-
-		try {
+	private static <T extends SpecificRecordBase> List<PojoField> generateFieldsFromAvroSchema(Class<T> typeClass) {
 			PojoTypeExtractor pte = new PojoTypeExtractor();
 			ArrayList<Type> typeHierarchy = new ArrayList<>();
 			typeHierarchy.add(typeClass);
@@ -121,12 +90,6 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 				newFields.add(newField);
 			}
 			return newFields;
-		}
-		finally {
-			if (entryPoint) {
-				IN_BACKWARDS_COMPATIBLE_MODE.remove(currentThread);
-			}
-		}
 	}
 
 	private static class PojoTypeExtractor extends TypeExtractor {

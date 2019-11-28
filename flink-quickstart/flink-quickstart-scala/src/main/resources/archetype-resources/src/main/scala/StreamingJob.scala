@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.scala._
  * Skeleton for a Flink Streaming Job.
  *
  * For a tutorial how to write a Flink streaming application, check the
- * tutorials and examples on the <a href="http://flink.apache.org/docs/stable/">Flink Website</a>.
+ * tutorials and examples on the <a href="https://flink.apache.org/docs/stable/">Flink Website</a>.
  *
  * To package your application into a JAR file for execution, run
  * 'mvn clean package' on the command line.
@@ -53,7 +53,7 @@ object StreamingJob {
      * and many more.
      * Have a look at the programming guide:
      *
-     * http://flink.apache.org/docs/latest/apis/streaming/index.html
+     * https://flink.apache.org/docs/latest/apis/streaming/index.html
      *
      */
 

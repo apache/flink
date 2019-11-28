@@ -2,7 +2,7 @@ This README gives an overview of how to build and contribute to the documentatio
 
 The documentation is included with the source of Apache Flink in order to ensure that you always
 have docs corresponding to your checked out version. The online documentation at
-http://flink.apache.org/ is also generated from the files found here.
+https://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
@@ -12,11 +12,11 @@ dependencies are installed locally when you build the documentation through the
 `build_docs.sh` script. If you want to install the software manually, use Ruby's
 Bundler Gem to install all dependencies:
 
-    gem install bundler
+    gem install bundler -v 1.16.1
     bundle install
 
-Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev`
-via apt to build native code.
+Note that in Ubuntu based systems, it may be necessary to install the following
+packages: `rubygems ruby-dev libssl-dev build-essential`.
 
 # Using Dockerized Jekyll
 
@@ -29,7 +29,8 @@ cd flink/docs/docker
 ```
 
 It takes a few moment to build the image for the first time, but will be a second from the second time.
-The run.sh command brings you in a bash session where you can run following doc commands.
+The run.sh command brings you in a bash session where you run the `./build_docs.sh` script mentioned above.
+
 
 # Build
 
@@ -41,13 +42,19 @@ If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
 start a web server at `localhost:4000` and watch the docs directory for
 updates. Use this mode to preview changes locally. 
 
-If you have ruby 2.0 or greater, 
-you can call the script with the incremental flag `build_docs.sh -i`.
+You can call the script with the incremental flag `build_docs.sh -i`.
 Jekyll will then serve a live preview at `localhost:4000`,
 and it will be much faster because it will only rebuild the pages corresponding
 to files that are modified. Note that if you are making changes that affect
 the sidebar navigation, you'll have to build the entire site to see
 those changes reflected on every page.
+
+| Flag | Action | 
+| -----| -------| 
+| -p   | Run interactive preview | 
+| -i   | Incremental builds | 
+| -e   | Build only English docs |
+| -z   | Build only Chinese docs |
 
 ## Generate configuration tables
 
@@ -57,7 +64,7 @@ Configuration descriptions are auto generated from code. To trigger the generati
 mvn -Pgenerate-config-docs install
 ```
 
-The resulting html files will be written to `_include/generated`. Tables are regenerated each time the command is invoked.
+The resulting html files will be written to `_includes/generated`. Tables are regenerated each time the command is invoked.
 These tables can be directly included into the documentation:
 
 ```

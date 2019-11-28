@@ -24,7 +24,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -50,9 +49,16 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.Executor;
+import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
@@ -73,6 +79,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -95,13 +102,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see RemoteEnvironment
  */
 @Public
-public abstract class ExecutionEnvironment {
+public class ExecutionEnvironment {
 
 	/** The logger used by the environment and its subclasses. */
 	protected static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
 	/** The environment of the context (local by default, cluster if invoked through command line). */
-	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
+	private static ExecutionEnvironmentFactory contextEnvironmentFactory = null;
+
+	/** The ThreadLocal used to store {@link ExecutionEnvironmentFactory}. */
+	private static final ThreadLocal<ExecutionEnvironmentFactory> threadLocalContextEnvironmentFactory = new ThreadLocal<>();
 
 	/** The default parallelism used by local environments. */
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
@@ -117,21 +127,48 @@ public abstract class ExecutionEnvironment {
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
 	protected JobExecutionResult lastJobExecutionResult;
 
-	/** The ID of the session, defined by this execution environment. Sessions and Jobs are same in
-	 *  Flink, as Jobs can consist of multiple parts that are attached to the growing dataflow graph. */
-	protected JobID jobID;
-
-	/** The session timeout in seconds. */
-	protected long sessionTimeout;
-
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
+
+	private final ExecutorServiceLoader executorServiceLoader;
+
+	private final Configuration configuration;
+
+	private final ClassLoader userClassloader;
 
 	/**
 	 * Creates a new Execution Environment.
 	 */
 	protected ExecutionEnvironment() {
-		jobID = JobID.generate();
+		this(new Configuration());
+	}
+
+	protected ExecutionEnvironment(final Configuration configuration) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
+	}
+
+	protected ExecutionEnvironment(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
+		this.executorServiceLoader = checkNotNull(executorServiceLoader);
+		this.configuration = checkNotNull(configuration);
+		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+	}
+
+	@Internal
+	public ClassLoader getUserCodeClassLoader() {
+		return userClassloader;
+	}
+
+	@Internal
+	public ExecutorServiceLoader getExecutorServiceLoader() {
+		return executorServiceLoader;
+	}
+
+	@Internal
+	public Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -243,68 +280,6 @@ public abstract class ExecutionEnvironment {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Session Management
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Gets the JobID by which this environment is identified. The JobID sets the execution context
-	 * in the cluster or local environment.
-	 *
-	 * @return The JobID of this environment.
-	 * @see #getIdString()
-	 */
-	@PublicEvolving
-	public JobID getId() {
-		return this.jobID;
-	}
-
-	/**
-	 * Gets the JobID by which this environment is identified, as a string.
-	 *
-	 * @return The JobID as a string.
-	 * @see #getId()
-	 */
-	@PublicEvolving
-	public String getIdString() {
-		return this.jobID.toString();
-	}
-
-	/**
-	 * Sets the session timeout to hold the intermediate results of a job. This only
-	 * applies the updated timeout in future executions.
-	 *
-	 * @param timeout The timeout, in seconds.
-	 */
-	@PublicEvolving
-	public void setSessionTimeout(long timeout) {
-		throw new IllegalStateException("Support for sessions is currently disabled. " +
-				"It will be enabled in future Flink versions.");
-		// Session management is disabled, revert this commit to enable
-		//if (timeout < 0) {
-		//	throw new IllegalArgumentException("The session timeout must not be less than zero.");
-		//}
-		//this.sessionTimeout = timeout;
-	}
-
-	/**
-	 * Gets the session timeout for this environment. The session timeout defines for how long
-	 * after an execution, the job and its intermediate results will be kept for future
-	 * interactions.
-	 *
-	 * @return The session timeout, in seconds.
-	 */
-	@PublicEvolving
-	public long getSessionTimeout() {
-		return sessionTimeout;
-	}
-
-	/**
-	 * Starts a new session, discarding the previous data flow and all of its intermediate results.
-	 */
-	@PublicEvolving
-	public abstract void startNewSession() throws Exception;
-
-	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
 
@@ -384,7 +359,7 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Creates a {@link DataSet} that represents the Strings produced by reading the given file line wise.
-	 * The file will be read with the system's default character set.
+	 * The file will be read with the UTF-8 character set.
 	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return A {@link DataSet} that represents the data read from the given file as text lines.
@@ -419,7 +394,7 @@ public abstract class ExecutionEnvironment {
 	 * {@link StringValue} objects, rather than Java Strings. StringValues can be used to tune implementations
 	 * to be less object and garbage collection heavy.
 	 *
-	 * <p>The file will be read with the system's default character set.
+	 * <p>The file will be read with the UTF-8 character set.
 	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return A {@link DataSet} that represents the data read from the given file as text lines.
@@ -828,18 +803,46 @@ public abstract class ExecutionEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		if (configuration.get(DeploymentOptions.TARGET) == null) {
+			throw new RuntimeException("No execution.target specified in your configuration file.");
+		}
+
+		consolidateParallelismDefinitionsInConfiguration();
+
+		final Plan plan = createProgramPlan(jobName);
+		final ExecutorFactory executorFactory =
+				executorServiceLoader.getExecutorFactory(configuration);
+
+		final Executor executor = executorFactory.getExecutor(configuration);
+
+		try (final JobClient jobClient = executor.execute(plan, configuration).get()) {
+
+			lastJobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
+					? jobClient.getJobExecutionResult(userClassloader).get()
+					: new DetachedJobExecutionResult(jobClient.getJobID());
+
+			return lastJobExecutionResult;
+		}
+	}
+
+	private void consolidateParallelismDefinitionsInConfiguration() {
+		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
+		}
+	}
 
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
 	 * a String using a JSON representation of the execution data flow graph.
-	 * Note that this needs to be called, before the plan is executed.
 	 *
 	 * @return The execution plan of the program, as a JSON String.
-	 * @throws Exception Thrown, if the compiler could not be instantiated, or the master could not
-	 *                   be contacted to retrieve information relevant to the execution planning.
+	 * @throws Exception Thrown, if the compiler could not be instantiated.
 	 */
-	public abstract String getExecutionPlan() throws Exception;
+	public String getExecutionPlan() throws Exception {
+		Plan p = createProgramPlan(getDefaultName(), false);
+		return ExecutionPlanUtil.getExecutionPlanAsJSON(p);
+	}
 
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
@@ -903,7 +906,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan() {
-		return createProgramPlan(null);
+		return createProgramPlan(getDefaultName());
 	}
 
 	/**
@@ -935,6 +938,8 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan(String jobName, boolean clearSinks) {
+		checkNotNull(jobName);
+
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -945,10 +950,6 @@ public abstract class ExecutionEnvironment {
 						"A program needs at least one sink that consumes data. " +
 						"Examples are writing the data set or printing it.");
 			}
-		}
-
-		if (jobName == null) {
-			jobName = getDefaultName();
 		}
 
 		OperatorTranslation translator = new OperatorTranslation();
@@ -963,12 +964,16 @@ public abstract class ExecutionEnvironment {
 		if (!config.isAutoTypeRegistrationDisabled()) {
 			plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
 
-				private final HashSet<Class<?>> deduplicator = new HashSet<>();
+				private final Set<Class<?>> registeredTypes = new HashSet<>();
+				private final Set<org.apache.flink.api.common.operators.Operator<?>> visitedOperators = new HashSet<>();
 
 				@Override
 				public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
+					if (!visitedOperators.add(visitable)) {
+						return false;
+					}
 					OperatorInformation<?> opInfo = visitable.getOperatorInfo();
-					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, deduplicator);
+					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, registeredTypes);
 					return true;
 				}
 
@@ -1056,8 +1061,9 @@ public abstract class ExecutionEnvironment {
 	 * @return The execution environment of the context in which the program is executed.
 	 */
 	public static ExecutionEnvironment getExecutionEnvironment() {
-		return contextEnvironmentFactory == null ?
-				createLocalEnvironment() : contextEnvironmentFactory.createExecutionEnvironment();
+		return Utils.resolveFactory(threadLocalContextEnvironmentFactory, contextEnvironmentFactory)
+			.map(ExecutionEnvironmentFactory::createExecutionEnvironment)
+			.orElseGet(ExecutionEnvironment::createLocalEnvironment);
 	}
 
 	/**
@@ -1123,8 +1129,6 @@ public abstract class ExecutionEnvironment {
 	@PublicEvolving
 	public static ExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
 		checkNotNull(conf, "conf");
-
-		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
 		if (!conf.contains(RestOptions.PORT)) {
 			// explicitly set this option so that it's not set to 0 later
@@ -1248,6 +1252,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
+		threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
 	}
 
 	/**
@@ -1257,6 +1262,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
+		threadLocalContextEnvironmentFactory.remove();
 	}
 
 	/**
@@ -1268,6 +1274,6 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public static boolean areExplicitEnvironmentsAllowed() {
-		return contextEnvironmentFactory == null;
+		return contextEnvironmentFactory == null && threadLocalContextEnvironmentFactory.get() == null;
 	}
 }

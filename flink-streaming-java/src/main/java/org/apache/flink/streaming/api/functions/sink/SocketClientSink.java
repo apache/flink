@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import static org.apache.flink.util.NetUtils.isValidClientPort;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -104,7 +105,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	 */
 	public SocketClientSink(String hostName, int port, SerializationSchema<IN> schema,
 							int maxNumRetries, boolean autoflush) {
-		checkArgument(port > 0 && port < 65536, "port is out of range");
+		checkArgument(isValidClientPort(port), "port is out of range");
 		checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
 
 		this.hostName = checkNotNull(hostName, "hostname must not be null");

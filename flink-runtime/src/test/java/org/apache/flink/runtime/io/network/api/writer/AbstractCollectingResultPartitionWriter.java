@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -44,8 +48,7 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
-	public BufferProvider getBufferProvider() {
-		return bufferProvider;
+	public void setup() {
 	}
 
 	@Override
@@ -64,10 +67,16 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
-	public synchronized void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+		return bufferProvider.requestBufferBuilderBlocking();
+	}
+
+	@Override
+	public synchronized boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 		checkState(targetChannel < getNumberOfSubpartitions());
 		bufferConsumers.add(bufferConsumer);
 		processBufferConsumers();
+		return true;
 	}
 
 	private void processBufferConsumers() throws IOException {
@@ -99,6 +108,25 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	@Override
 	public void flush(int subpartitionIndex) {
 		flushAll();
+	}
+
+	@Override
+	public void close() {
+	}
+
+	@Override
+	public void fail(@Nullable Throwable throwable) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void finish() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<?> getAvailableFuture() {
+		return AvailabilityProvider.AVAILABLE;
 	}
 
 	protected abstract void deserializeBuffer(Buffer buffer) throws IOException;

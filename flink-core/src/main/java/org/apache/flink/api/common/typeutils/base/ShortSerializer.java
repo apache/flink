@@ -18,20 +18,26 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+
+/**
+ * Type serializer for {@code Byte}.
+ */
 @Internal
 public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 
 	private static final long serialVersionUID = 1L;
-	
+
+	/** Sharable instance of the ShortSerializer. */
 	public static final ShortSerializer INSTANCE = new ShortSerializer();
-	
-	private static final Short ZERO = Short.valueOf((short)0);
+
+	private static final Short ZERO = (short) 0;
 
 	@Override
 	public boolean isImmutableType() {
@@ -47,7 +53,7 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	public Short copy(Short from) {
 		return from;
 	}
-	
+
 	@Override
 	public Short copy(Short from, Short reuse) {
 		return from;
@@ -60,14 +66,14 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 
 	@Override
 	public void serialize(Short record, DataOutputView target) throws IOException {
-		target.writeShort(record.shortValue());
+		target.writeShort(record);
 	}
 
 	@Override
 	public Short deserialize(DataInputView source) throws IOException {
-		return Short.valueOf(source.readShort());
+		return source.readShort();
 	}
-	
+
 	@Override
 	public Short deserialize(Short reuse, DataInputView source) throws IOException {
 		return deserialize(source);
@@ -79,13 +85,20 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ShortSerializer;
+	public TypeSerializerSnapshot<Short> snapshotConfiguration() {
+		return new ShortSerializerSnapshot();
 	}
 
-	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(ShortValueSerializer.class.getCanonicalName());
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class ShortSerializerSnapshot extends SimpleTypeSerializerSnapshot<Short> {
+
+		public ShortSerializerSnapshot() {
+			super(() -> INSTANCE);
+		}
 	}
 }

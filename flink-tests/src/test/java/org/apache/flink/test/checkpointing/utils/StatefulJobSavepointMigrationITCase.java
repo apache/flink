@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -72,6 +72,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 	}
 
 	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
+	// TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
 
 	@Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
@@ -82,7 +83,13 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 			Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+			Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
 	}
 
 	private final MigrationVersion testMigrateVersion;

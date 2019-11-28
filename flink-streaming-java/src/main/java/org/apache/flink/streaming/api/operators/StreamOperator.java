@@ -23,9 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Disposable;
 
 import java.io.Serializable;
@@ -53,13 +51,12 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Initializes the operator. Sets access to the context and the output.
-	 */
-	void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
-
-	/**
 	 * This method is called immediately before any elements are processed, it should contain the
 	 * operator's initialization logic.
+	 *
+	 * @implSpec In case of recovery, this method needs to ensure that all recovered data is processed before passing
+	 * back control, so that the order of elements is ensured during the recovery of an operator chain (operators
+	 * are opened from the tail operator to the head operator).
 	 *
 	 * @throws java.lang.Exception An exception in this method causes the operator to fail.
 	 */

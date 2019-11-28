@@ -65,31 +65,13 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
-	/**
-	 * Deprecated key.
-	 *
-	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_BASE} instead
-	 **/
-	@Deprecated
-	/** The base backoff time between each describeStream attempt. */
+	/** The base backoff time between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";
 
-	/**
-	 * Deprecated key.
-	 *
-	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_MAX} instead
-	 **/
-	@Deprecated
-	/** The maximum backoff time between each describeStream attempt. */
+	/** The maximum backoff time between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_MAX = "flink.stream.describe.backoff.max";
 
-	/**
-	 * Deprecated key.
-	 *
-	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT} instead
-	 **/
-	@Deprecated
-	/** The power constant for exponential backoff between each describeStream attempt. */
+	/** The power constant for exponential backoff between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.describe.backoff.expconst";
 
 	/** The maximum number of listShards attempts if we get a recoverable exception. */
@@ -140,6 +122,17 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The config to turn on adaptive reads from a shard. */
 	public static final String SHARD_USE_ADAPTIVE_READS = "flink.shard.adaptivereads";
 
+	/** The interval after which to consider a shard idle for purposes of watermark generation. */
+	public static final String SHARD_IDLE_INTERVAL_MILLIS = "flink.shard.idle.interval";
+
+	/** The interval for periodically synchronizing the shared watermark state. */
+	public static final String WATERMARK_SYNC_MILLIS = "flink.watermark.sync.interval";
+
+	/** The maximum delta allowed for the reader to advance ahead of the shared global watermark. */
+	public static final String WATERMARK_LOOKAHEAD_MILLIS = "flink.watermark.lookahead.millis";
+
+	/** The maximum number of records that will be buffered before suspending consumption of a shard. */
+	public static final String WATERMARK_SYNC_QUEUE_CAPACITY = "flink.watermark.sync.queue.capacity";
 
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
@@ -149,13 +142,10 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final String DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 
-	@Deprecated
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 1000L;
 
-	@Deprecated
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX = 5000L;
 
-	@Deprecated
 	public static final double DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final long DEFAULT_LIST_SHARDS_BACKOFF_BASE = 1000L;
@@ -189,6 +179,10 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final long DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS = 10000L;
 
 	public static final boolean DEFAULT_SHARD_USE_ADAPTIVE_READS = false;
+
+	public static final long DEFAULT_SHARD_IDLE_INTERVAL_MILLIS = -1;
+
+	public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
 
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured

@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
@@ -329,6 +331,11 @@ public class KvStateServerHandlerTest extends TestLogger {
 							final TypeSerializer<VoidNamespace> safeNamespaceSerializer,
 							final TypeSerializer<Long> safeValueSerializer) throws Exception {
 						throw new RuntimeException("Expected test Exception");
+					}
+
+					@Override
+					public StateIncrementalVisitor<Integer, VoidNamespace, Long> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+						throw new UnsupportedOperationException();
 					}
 
 					@Override
@@ -763,6 +770,9 @@ public class KvStateServerHandlerTest extends TestLogger {
 			numKeyGroups,
 			new KeyGroupRange(0, 0),
 			registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()),
-			TtlTimeProvider.DEFAULT);
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			new CloseableRegistry());
 	}
 }

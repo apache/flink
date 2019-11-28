@@ -76,10 +76,12 @@ public interface MetricRegistry {
 	ScopeFormats getScopeFormats();
 
 	/**
-	 * Returns the path of the {@link MetricQueryService} or null, if none is started.
+	 * Returns the gateway of the {@link MetricQueryService} or null, if none is started.
 	 *
-	 * @return Path of the MetricQueryService or null, if none is started
+	 * @return Gateway of the MetricQueryService or null, if none is started
 	 */
 	@Nullable
-	String getMetricQueryServicePath();
+	default String getMetricQueryServiceGatewayRpcAddress() {
+		return null;
+	}
 }

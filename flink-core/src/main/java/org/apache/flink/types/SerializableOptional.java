@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Serializable {@link Optional}.
@@ -58,8 +59,28 @@ public final class SerializableOptional<T extends Serializable> implements Seria
 		}
 	}
 
+	public <R extends Serializable> SerializableOptional<R> map(Function<? super T, ? extends R> mapper) {
+		if (value == null) {
+			return empty();
+		} else {
+			return ofNullable(mapper.apply(value));
+		}
+	}
+
+	public Optional<T> toOptional() {
+		return Optional.ofNullable(value);
+	}
+
 	public static <T extends Serializable> SerializableOptional<T> of(@Nonnull T value) {
 		return new SerializableOptional<>(value);
+	}
+
+	public static <T extends Serializable> SerializableOptional<T> ofNullable(@Nullable T value) {
+		if (value == null) {
+			return empty();
+		} else {
+			return of(value);
+		}
 	}
 
 	@SuppressWarnings("unchecked")

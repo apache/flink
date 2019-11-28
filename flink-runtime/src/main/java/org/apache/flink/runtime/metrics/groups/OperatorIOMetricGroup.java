@@ -39,8 +39,8 @@ public class OperatorIOMetricGroup extends ProxyMetricGroup<OperatorMetricGroup>
 		super(parentMetricGroup);
 		numRecordsIn = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_IN);
 		numRecordsOut = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_OUT);
-		numRecordsInRate = parentMetricGroup.meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn, 60));
-		numRecordsOutRate = parentMetricGroup.meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut, 60));
+		numRecordsInRate = parentMetricGroup.meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
+		numRecordsOutRate = parentMetricGroup.meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
 	}
 
 	public Counter getNumRecordsInCounter() {

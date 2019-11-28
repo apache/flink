@@ -1,0 +1,201 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testFilterMinusTranspose">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$1], b=[$0], c=[$2])
++- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)], EXPR$1=[COUNT($2)])
+   +- LogicalFilter(condition=[>($0, 0)])
+      +- LogicalMinus(all=[true])
+         :- LogicalTableScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
++- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) AS sum$0, Partial_COUNT(c) AS count$1])
+         +- Calc(select=[a0 AS a, b0 AS b, c0 AS c])
+            +- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$6c050a89d06b92467327f90624300f38($0, $1, $2, $3)], correlate=[table(ReplicateRows(sum_vcol_marker,a,b,c))], select=[sum_vcol_marker,a,b,c,a0,b0,c0], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER a0, BIGINT b0, VARCHAR(2147483647) c0)], joinType=[INNER])
+               +- Calc(select=[sum_vcol_marker, a, b, c], where=[>(sum_vcol_marker, 0)])
+                  +- HashAggregate(isMerge=[true], groupBy=[a, b, c], select=[a, b, c, Final_SUM(sum$0) AS sum_vcol_marker])
+                     +- Exchange(distribution=[hash[a, b, c]])
+                        +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c, Partial_SUM(vcol_marker) AS sum$0])
+                           +- Union(all=[true], union=[a, b, c, vcol_marker])
+                              :- Calc(select=[a, b, c, 1:BIGINT AS vcol_marker], where=[>(a, 0)])
+                              :  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                              +- Calc(select=[a, b, c, -1:BIGINT AS vcol_marker], where=[>(a, 0)])
+                                 +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterUnionTranspose">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$1], b=[$0], c=[$2])
++- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)], EXPR$1=[COUNT($2)])
+   +- LogicalFilter(condition=[>($0, 0)])
+      +- LogicalUnion(all=[true])
+         :- LogicalTableScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
++- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) AS sum$0, Partial_COUNT(c) AS count$1])
+         +- Union(all=[true], union=[a, b, c])
+            :- Calc(select=[a, b, c], where=[>(a, 0)])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- Calc(select=[a, b, c], where=[>(a, 0)])
+               +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithFilter">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[IN($2, {
+LogicalProject(a1=[AS($0, _UTF-16LE'a1')])
+  LogicalFilter(condition=[=($1, _UTF-16LE'two')])
+    LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
+})])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(c, a1)], select=[a, b, c], build=[right], tryDistinctBuildRow=[true])
+:- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
++- Exchange(distribution=[hash[a1]])
+   +- LocalHashAggregate(groupBy=[a1], select=[a1])
+      +- Calc(select=[a AS a1], where=[=(b, _UTF-16LE'two')])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithProject">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b2=[AS(IN($1, 1972-02-22 07:12:00.333:TIMESTAMP(3)), _UTF-16LE'b2')])
++- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[IN(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2])
++- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectMinusTranspose">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], c=[$2])
++- LogicalMinus(all=[true])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b0 AS b, c0 AS c])
++- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$09d68b7d20d39288dd29d7717e994e68($0, $1, $2)], correlate=[table(ReplicateRows(sum_vcol_marker,b,c))], select=[sum_vcol_marker,b,c,b0,c0], rowType=[RecordType(BIGINT sum_vcol_marker, BIGINT b, VARCHAR(2147483647) c, BIGINT b0, VARCHAR(2147483647) c0)], joinType=[INNER])
+   +- Calc(select=[sum_vcol_marker, b, c], where=[>(sum_vcol_marker, 0)])
+      +- HashAggregate(isMerge=[true], groupBy=[b, c], select=[b, c, Final_SUM(sum$0) AS sum_vcol_marker])
+         +- Exchange(distribution=[hash[b, c]])
+            +- LocalHashAggregate(groupBy=[b, c], select=[b, c, Partial_SUM(vcol_marker) AS sum$0])
+               +- Union(all=[true], union=[b, c, vcol_marker])
+                  :- Calc(select=[b, c, 1:BIGINT AS vcol_marker])
+                  :  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- Calc(select=[b, c, -1:BIGINT AS vcol_marker])
+                     +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionNullableTypes">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(_c0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
++- Calc(select=[CASE(>(c, 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS _c0])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectUnionTranspose">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], c=[$2])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[b, c])
+:- Calc(select=[b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionAnyType">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]])
++- LogicalProject(b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]], fields=[a, b], reuse_id=[1])
++- Calc(select=[b])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

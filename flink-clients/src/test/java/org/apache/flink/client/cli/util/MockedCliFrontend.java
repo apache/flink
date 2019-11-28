@@ -31,9 +31,10 @@ import java.util.Collections;
  */
 public class MockedCliFrontend extends CliFrontend {
 
-	public MockedCliFrontend(ClusterClient clusterClient) throws Exception {
+	public MockedCliFrontend(ClusterClient<?> clusterClient) {
 		super(
 			new Configuration(),
-			Collections.singletonList(new DummyCustomCommandLine(clusterClient)));
+			new DummyClusterClientServiceLoader<>(clusterClient),
+			Collections.singletonList(new DummyCustomCommandLine()));
 	}
 }

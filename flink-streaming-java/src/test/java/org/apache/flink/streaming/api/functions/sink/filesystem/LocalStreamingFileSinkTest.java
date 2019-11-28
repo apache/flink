@@ -18,11 +18,10 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
-import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.Tuple2Encoder;
+import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.TupleToIntegerBucketer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
@@ -35,7 +34,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -56,6 +54,16 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 		) {
 			testHarness.setup();
 			testHarness.open();
+		}
+	}
+
+	@Test
+	public void testClosingWithoutInitializingStateShouldNotFail() throws Exception {
+		final File outDir = TEMP_FOLDER.newFolder();
+
+		try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
+					TestUtils.createRescalingTestSink(outDir, 1, 0, 100L, 124L)) {
+			testHarness.setup();
 		}
 	}
 
@@ -399,6 +407,65 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 	}
 
 	@Test
+	public void testClosingWithCustomizedBucketer() throws Exception {
+		final File outDir = TEMP_FOLDER.newFolder();
+		final long partMaxSize = 2L;
+		final long inactivityInterval = 100L;
+		final RollingPolicy<Tuple2<String, Integer>, Integer> rollingPolicy =
+				DefaultRollingPolicy
+						.builder()
+						.withMaxPartSize(partMaxSize)
+						.withRolloverInterval(inactivityInterval)
+						.withInactivityInterval(inactivityInterval)
+						.build();
+
+		try (
+				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
+						TestUtils.createCustomizedRescalingTestSink(outDir, 1, 0, 100L, new TupleToIntegerBucketer(), new Tuple2Encoder(), rollingPolicy, new DefaultBucketFactoryImpl<>());
+		) {
+			testHarness.setup();
+			testHarness.open();
+
+			testHarness.setProcessingTime(0L);
+
+			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
+			testHarness.processElement(new StreamRecord<>(Tuple2.of("test2", 2), 1L));
+			TestUtils.checkLocalFs(outDir, 2, 0);
+
+			// this is to check the inactivity threshold
+			testHarness.setProcessingTime(101L);
+			TestUtils.checkLocalFs(outDir, 2, 0);
+
+			testHarness.processElement(new StreamRecord<>(Tuple2.of("test3", 3), 1L));
+			TestUtils.checkLocalFs(outDir, 3, 0);
+
+			testHarness.snapshot(0L, 1L);
+			TestUtils.checkLocalFs(outDir, 3, 0);
+
+			testHarness.notifyOfCompletedCheckpoint(0L);
+			TestUtils.checkLocalFs(outDir, 0, 3);
+
+			testHarness.processElement(new StreamRecord<>(Tuple2.of("test4", 4), 10L));
+			TestUtils.checkLocalFs(outDir, 1, 3);
+
+			testHarness.snapshot(1L, 0L);
+			testHarness.notifyOfCompletedCheckpoint(1L);
+		}
+
+		// at close all files moved to final.
+		TestUtils.checkLocalFs(outDir, 0, 4);
+
+		// check file content and bucket ID.
+		Map<File, String> contents = TestUtils.getFileContentByPath(outDir);
+		for (Map.Entry<File, String> fileContents : contents.entrySet()) {
+			Integer bucketId = Integer.parseInt(fileContents.getKey().getParentFile().getName());
+
+			Assert.assertTrue(bucketId >= 1 && bucketId <= 4);
+			Assert.assertEquals(String.format("test%d@%d\n", bucketId, bucketId), fileContents.getValue());
+		}
+	}
+
+	@Test
 	public void testScalingDownAndMergingOfStates() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
 
@@ -451,12 +518,15 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 			);
 		}
 
+		final OperatorSubtaskState initState = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, TestUtils.MAX_PARALLELISM, 2, 1, 0);
+
 		try (
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness = TestUtils.createRescalingTestSink(
 						outDir, 1, 0, 100L, 10L)
 		) {
 			testHarness.setup();
-			testHarness.initializeState(mergedSnapshot);
+			testHarness.initializeState(initState);
 			testHarness.open();
 
 			// still everything in-progress but the in-progress for prev task 1 should be put in pending now
@@ -482,133 +552,6 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 				}
 			}
 			Assert.assertEquals(3L, counter);
-		}
-	}
-
-	@Test
-	public void testMaxCounterUponRecovery() throws Exception {
-		final File outDir = TEMP_FOLDER.newFolder();
-
-		OperatorSubtaskState mergedSnapshot;
-
-		final TestBucketFactoryImpl first = new TestBucketFactoryImpl();
-		final TestBucketFactoryImpl second = new TestBucketFactoryImpl();
-
-		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = DefaultRollingPolicy
-				.create()
-				.withMaxPartSize(2L)
-				.withRolloverInterval(100L)
-				.withInactivityInterval(100L)
-				.build();
-
-		try (
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness1 = TestUtils.createCustomRescalingTestSink(
-						outDir, 2, 0, 10L, new TestUtils.TupleToStringBucketer(), new SimpleStringEncoder<>(), rollingPolicy, first);
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness2 = TestUtils.createCustomRescalingTestSink(
-						outDir, 2, 1, 10L, new TestUtils.TupleToStringBucketer(), new SimpleStringEncoder<>(), rollingPolicy, second)
-		) {
-			testHarness1.setup();
-			testHarness1.open();
-
-			testHarness2.setup();
-			testHarness2.open();
-
-			// we only put elements in one task.
-			testHarness1.processElement(new StreamRecord<>(Tuple2.of("test1", 0), 0L));
-			testHarness1.processElement(new StreamRecord<>(Tuple2.of("test1", 0), 0L));
-			testHarness1.processElement(new StreamRecord<>(Tuple2.of("test1", 0), 0L));
-			TestUtils.checkLocalFs(outDir, 3, 0);
-
-			// intentionally we snapshot them in the reverse order so that the states are shuffled
-			mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
-					testHarness2.snapshot(0L, 0L),
-					testHarness1.snapshot(0L, 0L)
-			);
-		}
-
-		final TestBucketFactoryImpl firstRecovered = new TestBucketFactoryImpl();
-		final TestBucketFactoryImpl secondRecovered = new TestBucketFactoryImpl();
-
-		try (
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness1 = TestUtils.createCustomRescalingTestSink(
-						outDir, 2, 0, 10L, new TestUtils.TupleToStringBucketer(), new SimpleStringEncoder<>(), rollingPolicy, firstRecovered);
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness2 = TestUtils.createCustomRescalingTestSink(
-						outDir, 2, 1, 10L, new TestUtils.TupleToStringBucketer(), new SimpleStringEncoder<>(), rollingPolicy, secondRecovered)
-		) {
-			testHarness1.setup();
-			testHarness1.initializeState(mergedSnapshot);
-			testHarness1.open();
-
-			// we have to send an element so that the factory updates its counter.
-			testHarness1.processElement(new StreamRecord<>(Tuple2.of("test4", 0), 0L));
-
-			Assert.assertEquals(3L, firstRecovered.getInitialCounter());
-			TestUtils.checkLocalFs(outDir, 1, 3);
-
-			testHarness2.setup();
-			testHarness2.initializeState(mergedSnapshot);
-			testHarness2.open();
-
-			// we have to send an element so that the factory updates its counter.
-			testHarness2.processElement(new StreamRecord<>(Tuple2.of("test2", 0), 0L));
-
-			Assert.assertEquals(3L, secondRecovered.getInitialCounter());
-			TestUtils.checkLocalFs(outDir, 2, 3);
-		}
-	}
-
-	//////////////////////			Helper Methods			//////////////////////
-
-	static class TestBucketFactoryImpl extends DefaultBucketFactoryImpl<Tuple2<String, Integer>, String> {
-
-		private static final long serialVersionUID = 2794824980604027930L;
-
-		private long initialCounter = -1L;
-
-		@Override
-		public Bucket<Tuple2<String, Integer>, String> getNewBucket(
-				final RecoverableWriter fsWriter,
-				final int subtaskIndex,
-				final String bucketId,
-				final Path bucketPath,
-				final long initialPartCounter,
-				final PartFileWriter.PartFileFactory<Tuple2<String, Integer>, String> partFileWriterFactory,
-				final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy) {
-
-			this.initialCounter = initialPartCounter;
-
-			return super.getNewBucket(
-					fsWriter,
-					subtaskIndex,
-					bucketId,
-					bucketPath,
-					initialPartCounter,
-					partFileWriterFactory,
-					rollingPolicy);
-		}
-
-		@Override
-		public Bucket<Tuple2<String, Integer>, String> restoreBucket(
-				final RecoverableWriter fsWriter,
-				final int subtaskIndex,
-				final long initialPartCounter,
-				final PartFileWriter.PartFileFactory<Tuple2<String, Integer>, String> partFileWriterFactory,
-				final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy,
-				final BucketState<String> bucketState) throws IOException {
-
-			this.initialCounter = initialPartCounter;
-
-			return super.restoreBucket(
-					fsWriter,
-					subtaskIndex,
-					initialPartCounter,
-					partFileWriterFactory,
-					rollingPolicy,
-					bucketState);
-		}
-
-		public long getInitialCounter() {
-			return initialCounter;
 		}
 	}
 }

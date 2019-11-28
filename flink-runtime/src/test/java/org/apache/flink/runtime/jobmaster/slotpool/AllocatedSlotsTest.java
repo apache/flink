@@ -38,7 +38,7 @@ public class AllocatedSlotsTest extends TestLogger {
 
 	@Test
 	public void testOperations() throws Exception {
-		SlotPool.AllocatedSlots allocatedSlots = new SlotPool.AllocatedSlots();
+		SlotPoolImpl.AllocatedSlots allocatedSlots = new SlotPoolImpl.AllocatedSlots();
 
 		final AllocationID allocation1 = new AllocationID();
 		final SlotRequestId slotRequestID = new SlotRequestId();
@@ -142,7 +142,7 @@ public class AllocatedSlotsTest extends TestLogger {
 			allocationId,
 			taskManagerLocation,
 			0,
-			ResourceProfile.UNKNOWN,
+			ResourceProfile.ANY,
 			new SimpleAckingTaskManagerGateway());
 	}
 }

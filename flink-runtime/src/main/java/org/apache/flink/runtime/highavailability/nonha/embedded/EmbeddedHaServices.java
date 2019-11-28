@@ -25,6 +25,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.HashMap;
@@ -50,14 +51,14 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 
 	private final HashMap<JobID, EmbeddedLeaderService> jobManagerLeaderServices;
 
-	private final EmbeddedLeaderService webMonitorLeaderService;
+	private final EmbeddedLeaderService clusterRestEndpointLeaderService;
 
 	public EmbeddedHaServices(Executor executor) {
 		this.executor = Preconditions.checkNotNull(executor);
-		this.resourceManagerLeaderService = new EmbeddedLeaderService(executor);
-		this.dispatcherLeaderService = new EmbeddedLeaderService(executor);
+		this.resourceManagerLeaderService = createEmbeddedLeaderService(executor);
+		this.dispatcherLeaderService = createEmbeddedLeaderService(executor);
 		this.jobManagerLeaderServices = new HashMap<>();
-		this.webMonitorLeaderService = new EmbeddedLeaderService(executor);
+		this.clusterRestEndpointLeaderService = createEmbeddedLeaderService(executor);
 	}
 
 	// ------------------------------------------------------------------------
@@ -101,8 +102,8 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
-		return webMonitorLeaderService.createLeaderRetrievalService();
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+		return clusterRestEndpointLeaderService.createLeaderRetrievalService();
 	}
 
 	@Override
@@ -117,19 +118,36 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
-		return webMonitorLeaderService.createLeaderElectionService();
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+		return clusterRestEndpointLeaderService.createLeaderElectionService();
 	}
 
 	// ------------------------------------------------------------------------
 	// internal
 	// ------------------------------------------------------------------------
 
+	EmbeddedLeaderService getDispatcherLeaderService() {
+		return dispatcherLeaderService;
+	}
+
+	EmbeddedLeaderService getJobManagerLeaderService(JobID jobId) {
+		return jobManagerLeaderServices.get(jobId);
+	}
+
+	EmbeddedLeaderService getResourceManagerLeaderService() {
+		return resourceManagerLeaderService;
+	}
+
+	@Nonnull
+	private EmbeddedLeaderService createEmbeddedLeaderService(Executor executor) {
+		return new EmbeddedLeaderService(executor);
+	}
+
 	@GuardedBy("lock")
 	private EmbeddedLeaderService getOrCreateJobManagerService(JobID jobID) {
 		EmbeddedLeaderService service = jobManagerLeaderServices.get(jobID);
 		if (service == null) {
-			service = new EmbeddedLeaderService(executor);
+			service = createEmbeddedLeaderService(executor);
 			jobManagerLeaderServices.put(jobID, service);
 		}
 		return service;
@@ -151,7 +169,7 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 
 				resourceManagerLeaderService.shutdown();
 
-				webMonitorLeaderService.shutdown();
+				clusterRestEndpointLeaderService.shutdown();
 			}
 
 			super.close();

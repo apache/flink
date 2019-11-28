@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
@@ -39,8 +40,7 @@ import java.util.concurrent.ScheduledFuture;
  * @param <SRC> Type of the source function of this stream source operator
  */
 @Internal
-public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
-		extends AbstractUdfStreamOperator<OUT, SRC> implements StreamOperator<OUT> {
+public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends AbstractUdfStreamOperator<OUT, SRC> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -48,19 +48,25 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 	private transient volatile boolean canceledOrStopped = false;
 
+	private transient volatile boolean hasSentMaxWatermark = false;
+
 	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(final Object lockingObject, final StreamStatusMaintainer streamStatusMaintainer) throws Exception {
-		run(lockingObject, streamStatusMaintainer, output);
+	public void run(final Object lockingObject,
+			final StreamStatusMaintainer streamStatusMaintainer,
+			final OperatorChain<?, ?> operatorChain) throws Exception {
+
+		run(lockingObject, streamStatusMaintainer, output, operatorChain);
 	}
 
 	public void run(final Object lockingObject,
 			final StreamStatusMaintainer streamStatusMaintainer,
-			final Output<StreamRecord<OUT>> collector) throws Exception {
+			final Output<StreamRecord<OUT>> collector,
+			final OperatorChain<?, ?> operatorChain) throws Exception {
 
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 
@@ -95,15 +101,40 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 			// if we get here, then the user function either exited after being done (finite source)
 			// or the function was canceled or stopped. For the finite source case, we should emit
-			// a final watermark that indicates that we reached the end of event-time
+			// a final watermark that indicates that we reached the end of event-time, and end inputs
+			// of the operator chain
 			if (!isCanceledOrStopped()) {
-				ctx.emitWatermark(Watermark.MAX_WATERMARK);
+				// in theory, the subclasses of StreamSource may implement the BoundedOneInput interface,
+				// so we still need the following call to end the input
+				synchronized (lockingObject) {
+					operatorChain.endHeadOperatorInput(1);
+				}
+			}
+		} finally {
+			if (latencyEmitter != null) {
+				latencyEmitter.close();
+			}
+		}
+	}
+
+	public void advanceToEndOfEventTime() {
+		if (!hasSentMaxWatermark) {
+			ctx.emitWatermark(Watermark.MAX_WATERMARK);
+			hasSentMaxWatermark = true;
+		}
+	}
+
+	@Override
+	public void close() throws Exception {
+		try {
+			super.close();
+			if (!isCanceledOrStopped() && ctx != null) {
+				advanceToEndOfEventTime();
 			}
 		} finally {
 			// make sure that the context is closed in any case
-			ctx.close();
-			if (latencyEmitter != null) {
-				latencyEmitter.close();
+			if (ctx != null) {
+				ctx.close();
 			}
 		}
 	}
@@ -155,7 +186,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 					public void onProcessingTime(long timestamp) throws Exception {
 						try {
 							// ProcessingTimeService callbacks are executed under the checkpointing lock
-							output.emitLatencyMarker(new LatencyMarker(timestamp, operatorId, subtaskIndex));
+							output.emitLatencyMarker(new LatencyMarker(processingTimeService.getCurrentProcessingTime(), operatorId, subtaskIndex));
 						} catch (Throwable t) {
 							// we catch the Throwables here so that we don't trigger the processing
 							// timer services async exception handler

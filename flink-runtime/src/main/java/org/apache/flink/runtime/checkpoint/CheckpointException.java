@@ -18,18 +18,47 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
+
 /**
  * Base class for checkpoint related exceptions.
  */
 public class CheckpointException extends Exception {
 
-	private static final long serialVersionUID = -4341865597039002540L;
+	private static final long serialVersionUID = 3257526119022486948L;
 
-	public CheckpointException(String message, Throwable cause) {
-		super(message, cause);
+	private final CheckpointFailureReason checkpointFailureReason;
+
+	public CheckpointException(CheckpointFailureReason failureReason) {
+		super(failureReason.message());
+		this.checkpointFailureReason = Preconditions.checkNotNull(failureReason);
 	}
 
-	public CheckpointException(String message) {
-		super(message);
+	public CheckpointException(String message, CheckpointFailureReason failureReason) {
+		super(message + " Failure reason: " + failureReason.message());
+		this.checkpointFailureReason = Preconditions.checkNotNull(failureReason);
+	}
+
+	public CheckpointException(CheckpointFailureReason failureReason, Throwable cause) {
+		// Defensively replace the cause with a SerializedThrowable in case it's a user-defined exception
+		// that doesn't exist on the JobManager's default classpath.
+		super(
+			failureReason.message(),
+			cause == null ? null : new SerializedThrowable(cause));
+		this.checkpointFailureReason = Preconditions.checkNotNull(failureReason);
+	}
+
+	public CheckpointException(String message, CheckpointFailureReason failureReason, Throwable cause) {
+		// Defensively replace the cause with a SerializedThrowable in case it's a user-defined exception
+		// that doesn't exist on the JobManager's default classpath.
+		super(
+			message + " Failure reason: " + failureReason.message(),
+			cause == null ? null : new SerializedThrowable(cause));
+		this.checkpointFailureReason = Preconditions.checkNotNull(failureReason);
+	}
+
+	public CheckpointFailureReason getCheckpointFailureReason() {
+		return checkpointFailureReason;
 	}
 }

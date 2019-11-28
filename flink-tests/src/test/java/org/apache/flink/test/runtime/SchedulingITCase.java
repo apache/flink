@@ -38,11 +38,12 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nonnull;
 
@@ -50,12 +51,14 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
  * IT case for testing Flink's scheduling strategies.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class SchedulingITCase extends TestLogger {
 
 	/**
@@ -72,19 +75,32 @@ public class SchedulingITCase extends TestLogger {
 
 	/**
 	 * Tests that if local recovery is enabled we won't spread
-	 * out tasks when recovering.
+	 * out tasks when recovering for global failover.
 	 */
 	@Test
-	@Ignore("The test should not pass until FLINK-9635 has been fixed")
-	public void testLocalRecovery() throws Exception {
+	public void testLocalRecoveryFull() throws Exception {
+		testLocalRecoveryInternal("full");
+	}
+
+	/**
+	 * Tests that if local recovery is enabled we won't spread
+	 * out tasks when recovering for regional failover.
+	 */
+	@Test
+	public void testLocalRecoveryRegion() throws Exception {
+		testLocalRecoveryInternal("region");
+	}
+
+	private void testLocalRecoveryInternal(String failoverStrategyValue) throws Exception {
 		final Configuration configuration = new Configuration();
 		configuration.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
+		configuration.setString(EXECUTION_FAILOVER_STRATEGY.key(), failoverStrategyValue);
 
 		executeSchedulingTest(configuration);
 	}
 
 	private void executeSchedulingTest(Configuration configuration) throws Exception {
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		final long slotIdleTimeout = 50L;
 		configuration.setLong(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -59,7 +58,6 @@ public class AsynchronousFileIOChannelTest {
 		final int numberOfRequests = 100;
 
 		// -- Setup -----------------------------------------------------------
-		final IOManagerAsync ioManager = new IOManagerAsync();
 
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
@@ -72,7 +70,7 @@ public class AsynchronousFileIOChannelTest {
 		final TestNotificationListener listener = new TestNotificationListener();
 
 		// -- The Test --------------------------------------------------------
-		try {
+		try (final IOManagerAsync ioManager = new IOManagerAsync()) {
 			// Repeatedly add requests and process them and have one thread try to register as a
 			// listener until the channel is closed and all requests are processed.
 
@@ -178,7 +176,6 @@ public class AsynchronousFileIOChannelTest {
 			}
 		}
 		finally {
-			ioManager.shutdown();
 			executor.shutdown();
 		}
 	}
@@ -189,7 +186,6 @@ public class AsynchronousFileIOChannelTest {
 		final int numberOfRuns = 1024;
 
 		// -- Setup -----------------------------------------------------------
-		final IOManagerAsync ioManager = new IOManagerAsync();
 
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
@@ -201,7 +197,7 @@ public class AsynchronousFileIOChannelTest {
 		final TestNotificationListener listener = new TestNotificationListener();
 
 		// -- The Test --------------------------------------------------------
-		try {
+		try (final IOManagerAsync ioManager = new IOManagerAsync()) {
 			// Repeatedly close the channel and add a request.
 			for (int i = 0; i < numberOfRuns; i++) {
 				final TestAsyncFileIOChannel ioChannel = new TestAsyncFileIOChannel(
@@ -265,15 +261,13 @@ public class AsynchronousFileIOChannelTest {
 			}
 		}
 		finally {
-			ioManager.shutdown();
 			executor.shutdown();
 		}
 	}
 
 	@Test
 	public void testClosingWaits() {
-		IOManagerAsync ioMan = new IOManagerAsync();
-		try {
+		try (final IOManagerAsync ioMan = new IOManagerAsync()) {
 
 			final int NUM_BLOCKS = 100;
 			final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
@@ -319,20 +313,14 @@ public class AsynchronousFileIOChannelTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 
 	@Test
-	public void testExceptionForwardsToClose() {
-		IOManagerAsync ioMan = new IOManagerAsync();
-		try {
+	public void testExceptionForwardsToClose() throws Exception {
+		try (IOManagerAsync ioMan = new IOManagerAsync()) {
 			testExceptionForwardsToClose(ioMan, 100, 1);
 			testExceptionForwardsToClose(ioMan, 100, 50);
 			testExceptionForwardsToClose(ioMan, 100, 100);
-		} finally {
-			ioMan.shutdown();
 		}
 	}
 

@@ -17,11 +17,16 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import java.lang.{Boolean => JBoolean}
+import java.util.function.BiFunction
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
+import org.apache.flink.testutils.DeeplyEqualsChecker
+import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
 import org.junit.Assert._
 import org.junit.{Assert, Test}
 
@@ -143,12 +148,67 @@ class ScalaSpecialTypesSerializerTest {
   }
 }
 
+object ScalaSpecialTypesSerializerTestInstance {
+
+  val isTraversable: BiFunction[AnyRef, AnyRef, JBoolean] =
+    new BiFunction[AnyRef, AnyRef, JBoolean] {
+      override def apply(o1: scala.AnyRef, o2: scala.AnyRef): JBoolean =
+        o1.isInstanceOf[TraversableOnce[_]] && o2.isInstanceOf[TraversableOnce[_]]
+    }
+
+  val isFailure: BiFunction[AnyRef, AnyRef, JBoolean] =
+    new BiFunction[AnyRef, AnyRef, JBoolean] {
+      override def apply(o1: scala.AnyRef, o2: scala.AnyRef): JBoolean =
+        o1.isInstanceOf[Failure[_]] && o2.isInstanceOf[Failure[_]]
+    }
+
+  val compareTraversable: CustomEqualityChecker =
+    new CustomEqualityChecker {
+      override def check(
+          o1: AnyRef,
+          o2: AnyRef,
+          checker: DeeplyEqualsChecker): Boolean = {
+        val s1 = o1.asInstanceOf[TraversableOnce[_]].toIterator
+        val s2 = o2.asInstanceOf[TraversableOnce[_]].toIterator
+
+        while (s1.hasNext && s2.hasNext) {
+          val l = s1.next
+          val r = s2.next
+          if (!checker.deepEquals(l, r)) {
+            return false
+          }
+        }
+        !s1.hasNext && !s2.hasNext
+      }
+    }
+
+  val compareFailure: CustomEqualityChecker =
+    new CustomEqualityChecker {
+      override def check(
+          o1: AnyRef,
+          o2: AnyRef,
+          checker: DeeplyEqualsChecker): Boolean = {
+        o1.asInstanceOf[Failure[_]].exception.getMessage
+          .equals(o2.asInstanceOf[Failure[_]].exception.getMessage)
+      }
+    }
+}
+
 class ScalaSpecialTypesSerializerTestInstance[T](
     serializer: TypeSerializer[T],
     typeClass: Class[T],
     length: Int,
     testData: Array[T])
-  extends SerializerTestInstance[T](serializer, typeClass, length, testData: _*) {
+  extends SerializerTestInstance[T](
+    new DeeplyEqualsChecker()
+      .withCustomCheck(ScalaSpecialTypesSerializerTestInstance.isTraversable,
+        ScalaSpecialTypesSerializerTestInstance.compareTraversable)
+      .withCustomCheck(ScalaSpecialTypesSerializerTestInstance.isFailure,
+        ScalaSpecialTypesSerializerTestInstance.compareFailure),
+    serializer,
+    typeClass,
+    length,
+    testData: _*) {
 
   @Test
   override def testInstantiate(): Unit = {
@@ -171,27 +231,6 @@ class ScalaSpecialTypesSerializerTestInstance[T](
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
       }
-    }
-  }
-
-  override protected def deepEquals(message: String, should: T, is: T) {
-    should match {
-      case trav: TraversableOnce[_] =>
-        val isTrav = is.asInstanceOf[TraversableOnce[_]]
-        assertEquals(message, trav.size, isTrav.size)
-        val it = trav.toIterator
-        val isIt = isTrav.toIterator
-        while (it.hasNext) {
-          val should = it.next()
-          val is = isIt.next()
-          assertEquals(message, should, is)
-        }
-
-      case Failure(t) =>
-        is.asInstanceOf[Failure[_]].exception.equals(t)
-
-      case _ =>
-        super.deepEquals(message, should, is)
     }
   }
 }

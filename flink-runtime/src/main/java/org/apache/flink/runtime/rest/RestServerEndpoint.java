@@ -21,8 +21,10 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.net.RedirectingSslHandler;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.router.Router;
@@ -30,6 +32,7 @@ import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -43,7 +46,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.slf4j.Logger;
@@ -53,16 +55,20 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * An abstract class for netty-based REST server endpoints.
@@ -75,9 +81,9 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	private final String restAddress;
 	private final String restBindAddress;
-	private final int restBindPort;
+	private final String restBindPortRange;
 	@Nullable
-	private final SSLEngineFactory sslEngineFactory;
+	private final SSLHandlerFactory sslHandlerFactory;
 	private final int maxContentLength;
 
 	protected final Path uploadDir;
@@ -85,6 +91,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
 	private String restBaseUrl;
@@ -96,11 +103,11 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 		this.restAddress = configuration.getRestAddress();
 		this.restBindAddress = configuration.getRestBindAddress();
-		this.restBindPort = configuration.getRestBindPort();
-		this.sslEngineFactory = configuration.getSslEngineFactory();
+		this.restBindPortRange = configuration.getRestBindPortRange();
+		this.sslHandlerFactory = configuration.getSslHandlerFactory();
 
 		this.uploadDir = configuration.getUploadDir();
-		createUploadDir(uploadDir, log);
+		createUploadDir(uploadDir, log, true);
 
 		this.maxContentLength = configuration.getMaxContentLength();
 		this.responseHeaders = configuration.getResponseHeaders();
@@ -112,10 +119,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 	 * This method is called at the beginning of {@link #start()} to setup all handlers that the REST server endpoint
 	 * implementation requires.
 	 *
-	 * @param restAddressFuture future rest address of the RestServerEndpoint
+	 * @param localAddressFuture future rest address of the RestServerEndpoint
 	 * @return Collection of AbstractRestHandler which are added to the server endpoint
 	 */
-	protected abstract List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture);
+	protected abstract List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture);
 
 	/**
 	 * Starts this REST server endpoint.
@@ -131,7 +138,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			final Router router = new Router();
 			final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
 
-			List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = initializeHandlers(restAddressFuture);
+			handlers = initializeHandlers(restAddressFuture);
 
 			/* sort the handlers such that they are ordered the following:
 			 * /jobs
@@ -155,8 +162,9 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 					RouterHandler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
-					if (sslEngineFactory != null) {
-						ch.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
+					if (isHttpsEnabled()) {
+						ch.pipeline().addLast("ssl",
+							new RedirectingSslHandler(restAddress, restAddressFuture, sslHandlerFactory));
 					}
 
 					ch.pipeline()
@@ -178,14 +186,40 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-			log.debug("Binding rest endpoint to {}:{}.", restBindAddress, restBindPort);
-			final ChannelFuture channel;
-			if (restBindAddress == null) {
-				channel = bootstrap.bind(restBindPort);
-			} else {
-				channel = bootstrap.bind(restBindAddress, restBindPort);
+			Iterator<Integer> portsIterator;
+			try {
+				portsIterator = NetUtils.getPortRangeFromString(restBindPortRange);
+			} catch (IllegalConfigurationException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IllegalArgumentException("Invalid port range definition: " + restBindPortRange);
 			}
-			serverChannel = channel.syncUninterruptibly().channel();
+
+			int chosenPort = 0;
+			while (portsIterator.hasNext()) {
+				try {
+					chosenPort = portsIterator.next();
+					final ChannelFuture channel;
+					if (restBindAddress == null) {
+						channel = bootstrap.bind(chosenPort);
+					} else {
+						channel = bootstrap.bind(restBindAddress, chosenPort);
+					}
+					serverChannel = channel.syncUninterruptibly().channel();
+					break;
+				} catch (final Exception e) {
+					// continue if the exception is due to the port being in use, fail early otherwise
+					if (!(e instanceof org.jboss.netty.channel.ChannelException || e instanceof java.net.BindException)) {
+						throw e;
+					}
+				}
+			}
+
+			if (serverChannel == null) {
+				throw new BindException("Could not start rest endpoint on any port in port range " + restBindPortRange);
+			}
+
+			log.debug("Binding rest endpoint to {}:{}.", restBindAddress, chosenPort);
 
 			final InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
 			final String advertisedAddress;
@@ -198,15 +232,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			log.info("Rest endpoint listening at {}:{}", advertisedAddress, port);
 
-			final String protocol;
-
-			if (sslEngineFactory != null) {
-				protocol = "https://";
-			} else {
-				protocol = "http://";
-			}
-
-			restBaseUrl = protocol + advertisedAddress + ':' + port;
+			restBaseUrl = new URL(determineProtocol(), advertisedAddress, port, "").toString();
 
 			restAddressFuture.complete(restBaseUrl);
 
@@ -264,10 +290,13 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			log.info("Shutting down rest endpoint.");
 
 			if (state == State.RUNNING) {
-				final CompletableFuture<Void> shutDownFuture = shutDownInternal();
+				final CompletableFuture<Void> shutDownFuture = FutureUtils.composeAfterwards(
+					closeHandlersAsync(),
+					this::shutDownInternal);
 
 				shutDownFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
+						log.info("Shut down complete.");
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(throwable);
 						} else {
@@ -282,6 +311,14 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			return terminationFuture;
 		}
+	}
+
+	private FutureUtils.ConjunctFuture<Void> closeHandlersAsync() {
+		return FutureUtils.waitForAll(handlers.stream()
+			.map(tuple -> tuple.f1)
+			.filter(handler -> handler instanceof AutoCloseableAsync)
+			.map(handler -> ((AutoCloseableAsync) handler).closeAsync())
+			.collect(Collectors.toList()));
 	}
 
 	/**
@@ -365,6 +402,14 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 		}
 	}
 
+	private boolean isHttpsEnabled() {
+		return sslHandlerFactory != null;
+	}
+
+	private String determineProtocol() {
+		return isHttpsEnabled() ? "https" : "http";
+	}
+
 	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler, Logger log) {
 		final String handlerURL = specificationHandler.f0.getTargetRestEndpointURL();
 		// setup versioned urls
@@ -403,10 +448,14 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 	 * Creates the upload dir if needed.
 	 */
 	@VisibleForTesting
-	static void createUploadDir(final Path uploadDir, final Logger log) throws IOException {
+	static void createUploadDir(final Path uploadDir, final Logger log, final boolean initialCreation) throws IOException {
 		if (!Files.exists(uploadDir)) {
-			log.warn("Upload directory {} does not exist, or has been deleted externally. " +
-				"Previously uploaded files are no longer available.", uploadDir);
+			if (initialCreation) {
+				log.info("Upload directory {} does not exist. ", uploadDir);
+			} else {
+				log.warn("Upload directory {} has been deleted externally. " +
+					"Previously uploaded files are no longer available.", uploadDir);
+			}
 			checkAndCreateUploadDir(uploadDir, log);
 		}
 	}

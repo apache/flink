@@ -150,7 +150,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 		}
 
 		if (LOG.isTraceEnabled()) {
-			LOG.debug(
+			LOG.trace(
 				"Stored local state for checkpoint {} in subtask ({} - {} - {}) : {}.",
 				checkpointId, jobID, jobVertexID, subtaskIndex, localState);
 		} else if (LOG.isDebugEnabled()) {
@@ -357,7 +357,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 		return "TaskLocalStateStore{" +
 			"jobID=" + jobID +
 			", jobVertexID=" + jobVertexID +
-			", allocationID=" + allocationID +
+			", allocationID=" + allocationID.toHexString() +
 			", subtaskIndex=" + subtaskIndex +
 			", localRecoveryConfig=" + localRecoveryConfig +
 			", storedCheckpointIDs=" + storedTaskStateByCheckpointID.keySet() +

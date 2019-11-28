@@ -40,11 +40,15 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.InputSelectable;
+import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.util.TestBoundedTwoInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.Assert;
@@ -58,13 +62,13 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}. Theses tests
- * implicitly also test the {@link org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor}.
+ * Tests for {@link TwoInputStreamTask}. Theses tests implicitly also test the
+ * {@link StreamTwoInputProcessor}.
  *
  * <p>Note:<br>
  * We only use a {@link CoStreamMap} operator here. We also test the individual operators but Map is
- * used as a representative to test TwoInputStreamTask, since TwoInputStreamTask is used for all
- * TwoInputStreamOperators.
+ * used as a representative to test {@link TwoInputStreamTask}, since {@link TwoInputStreamTask}
+ * is used for all {@link TwoInputStreamOperator}s.
  */
 public class TwoInputStreamTaskTest {
 
@@ -74,7 +78,6 @@ public class TwoInputStreamTaskTest {
 	 * timestamp to emitted elements.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
@@ -83,31 +86,33 @@ public class TwoInputStreamTaskTest {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<String, Integer, String>(new TestOpenCloseMapFunction());
+		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<>(new TestOpenCloseMapFunction());
 		streamConfig.setStreamOperator(coMapOperator);
 		streamConfig.setOperatorID(new OperatorID());
 
 		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processElement(new StreamRecord<String>("Hello", initialTime + 1), 0, 0);
-		expectedOutput.add(new StreamRecord<String>("Hello", initialTime + 1));
+		testHarness.processElement(new StreamRecord<>("Hello", initialTime + 1), 0, 0);
+		expectedOutput.add(new StreamRecord<>("Hello", initialTime + 1));
 
 		// wait until the input is processed to ensure ordering of the output
 		testHarness.waitForInputProcessing();
 
-		testHarness.processElement(new StreamRecord<Integer>(1337, initialTime + 2), 1, 0);
+		testHarness.processElement(new StreamRecord<>(1337, initialTime + 2), 1, 0);
 
-		expectedOutput.add(new StreamRecord<String>("1337", initialTime + 2));
+		expectedOutput.add(new StreamRecord<>("1337", initialTime + 2));
+
+		testHarness.waitForInputProcessing();
 
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
 
-		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
+		Assert.assertTrue("RichFunction methods were not called.", TestOpenCloseMapFunction.closeCalled);
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -118,11 +123,10 @@ public class TwoInputStreamTaskTest {
 	 * forwarded watermark must be the minimum of the watermarks of all active inputs.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testWatermarkAndStreamStatusForwarding() throws Exception {
 
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
-			new TwoInputStreamTaskTestHarness<String, Integer, String>(
+			new TwoInputStreamTaskTestHarness<>(
 				TwoInputStreamTask::new,
 				2, 2, new int[] {1, 2},
 				BasicTypeInfo.STRING_TYPE_INFO,
@@ -131,11 +135,11 @@ public class TwoInputStreamTaskTest {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<String, Integer, String>(new IdentityMap());
+		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<>(new IdentityMap());
 		streamConfig.setStreamOperator(coMapOperator);
 		streamConfig.setOperatorID(new OperatorID());
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 		long initialTime = 0L;
 
 		testHarness.invoke();
@@ -158,10 +162,10 @@ public class TwoInputStreamTaskTest {
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// contrary to checkpoint barriers these elements are not blocked by watermarks
-		testHarness.processElement(new StreamRecord<String>("Hello", initialTime), 0, 0);
-		testHarness.processElement(new StreamRecord<Integer>(42, initialTime), 1, 1);
-		expectedOutput.add(new StreamRecord<String>("Hello", initialTime));
-		expectedOutput.add(new StreamRecord<String>("42", initialTime));
+		testHarness.processElement(new StreamRecord<>("Hello", initialTime), 0, 0);
+		testHarness.processElement(new StreamRecord<>(42, initialTime), 1, 1);
+		expectedOutput.add(new StreamRecord<>("Hello", initialTime));
+		expectedOutput.add(new StreamRecord<>("42", initialTime));
 
 		testHarness.waitForInputProcessing();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -231,21 +235,21 @@ public class TwoInputStreamTaskTest {
 	 * This test verifies that checkpoint barriers are correctly forwarded.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testCheckpointBarriers() throws Exception {
+
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
-				new TwoInputStreamTaskTestHarness<String, Integer, String>(
+				new TwoInputStreamTaskTestHarness<>(
 						TwoInputStreamTask::new,
 						2, 2, new int[] {1, 2},
 						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<String, Integer, String>(new IdentityMap());
+		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<>(new IdentityMap());
 		streamConfig.setStreamOperator(coMapOperator);
 		streamConfig.setOperatorID(new OperatorID());
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 		long initialTime = 0L;
 
 		testHarness.invoke();
@@ -255,21 +259,21 @@ public class TwoInputStreamTaskTest {
 
 		// This element should be buffered since we received a checkpoint barrier on
 		// this input
-		testHarness.processElement(new StreamRecord<String>("Hello-0-0", initialTime), 0, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-0-0", initialTime), 0, 0);
 
 		// This one should go through
-		testHarness.processElement(new StreamRecord<String>("Ciao-0-0", initialTime), 0, 1);
-		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
+		testHarness.processElement(new StreamRecord<>("Ciao-0-0", initialTime), 0, 1);
+		expectedOutput.add(new StreamRecord<>("Ciao-0-0", initialTime));
 
 		testHarness.waitForInputProcessing();
 
 		// These elements should be forwarded, since we did not yet receive a checkpoint barrier
 		// on that input, only add to same input, otherwise we would not know the ordering
 		// of the output since the Task might read the inputs in any order
-		testHarness.processElement(new StreamRecord<Integer>(11, initialTime), 1, 1);
-		testHarness.processElement(new StreamRecord<Integer>(111, initialTime), 1, 1);
-		expectedOutput.add(new StreamRecord<String>("11", initialTime));
-		expectedOutput.add(new StreamRecord<String>("111", initialTime));
+		testHarness.processElement(new StreamRecord<>(11, initialTime), 1, 1);
+		testHarness.processElement(new StreamRecord<>(111, initialTime), 1, 1);
+		expectedOutput.add(new StreamRecord<>("11", initialTime));
+		expectedOutput.add(new StreamRecord<>("111", initialTime));
 
 		testHarness.waitForInputProcessing();
 
@@ -298,7 +302,7 @@ public class TwoInputStreamTaskTest {
 
 		// now we should see the barrier and after that the buffered elements
 		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()));
-		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
+		expectedOutput.add(new StreamRecord<>("Hello-0-0", initialTime));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
 				expectedOutput,
@@ -315,8 +319,8 @@ public class TwoInputStreamTaskTest {
 	 * then all inputs receive barriers from a later checkpoint.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testOvertakingCheckpointBarriers() throws Exception {
+
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
 						TwoInputStreamTask::new,
@@ -326,11 +330,11 @@ public class TwoInputStreamTaskTest {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<String, Integer, String>(new IdentityMap());
+		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<>(new IdentityMap());
 		streamConfig.setStreamOperator(coMapOperator);
 		streamConfig.setOperatorID(new OperatorID());
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 		long initialTime = 0L;
 
 		testHarness.invoke();
@@ -340,16 +344,16 @@ public class TwoInputStreamTaskTest {
 
 		// These elements should be buffered until we receive barriers from
 		// all inputs
-		testHarness.processElement(new StreamRecord<String>("Hello-0-0", initialTime), 0, 0);
-		testHarness.processElement(new StreamRecord<String>("Ciao-0-0", initialTime), 0, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-0-0", initialTime), 0, 0);
+		testHarness.processElement(new StreamRecord<>("Ciao-0-0", initialTime), 0, 0);
 
 		// These elements should be forwarded, since we did not yet receive a checkpoint barrier
 		// on that input, only add to same input, otherwise we would not know the ordering
 		// of the output since the Task might read the inputs in any order
-		testHarness.processElement(new StreamRecord<Integer>(42, initialTime), 1, 1);
-		testHarness.processElement(new StreamRecord<Integer>(1337, initialTime), 1, 1);
-		expectedOutput.add(new StreamRecord<String>("42", initialTime));
-		expectedOutput.add(new StreamRecord<String>("1337", initialTime));
+		testHarness.processElement(new StreamRecord<>(42, initialTime), 1, 1);
+		testHarness.processElement(new StreamRecord<>(1337, initialTime), 1, 1);
+		expectedOutput.add(new StreamRecord<>("42", initialTime));
+		expectedOutput.add(new StreamRecord<>("1337", initialTime));
 
 		testHarness.waitForInputProcessing();
 		// we should not yet see the barrier, only the two elements from non-blocked input
@@ -365,8 +369,8 @@ public class TwoInputStreamTaskTest {
 		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 1);
 
 		expectedOutput.add(new CancelCheckpointMarker(0));
-		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
-		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
+		expectedOutput.add(new StreamRecord<>("Hello-0-0", initialTime));
+		expectedOutput.add(new StreamRecord<>("Ciao-0-0", initialTime));
 		expectedOutput.add(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()));
 
 		testHarness.waitForInputProcessing();
@@ -393,7 +397,9 @@ public class TwoInputStreamTaskTest {
 
 	@Test
 	public void testOperatorMetricReuse() throws Exception {
-		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			TwoInputStreamTask::new,
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setupOperatorChain(new OperatorID(), new DuplicatingOperator())
 			.chain(new OperatorID(), new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
@@ -435,9 +441,13 @@ public class TwoInputStreamTaskTest {
 
 		assertEquals(numRecords1 + numRecords2, numRecordsInCounter.getCount());
 		assertEquals((numRecords1 + numRecords2) * 2 * 2 * 2, numRecordsOutCounter.getCount());
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
 	}
 
-	static class DuplicatingOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String> {
+	static class DuplicatingOperator extends AbstractStreamOperator<String>
+		implements TwoInputStreamOperator<String, String, String>, InputSelectable {
 
 		@Override
 		public void processElement1(StreamRecord<String> element) {
@@ -450,11 +460,19 @@ public class TwoInputStreamTaskTest {
 			output.collect(element);
 			output.collect(element);
 		}
+
+		@Override
+		public InputSelection nextSelection() {
+			return InputSelection.ALL;
+		}
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testWatermarkMetrics() throws Exception {
-		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			TwoInputStreamTask::new,
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		CoStreamMap<String, Integer, String> headOperator = new CoStreamMap<>(new IdentityMap());
 		final OperatorID headOperatorId = new OperatorID();
@@ -554,6 +572,52 @@ public class TwoInputStreamTaskTest {
 		testHarness.waitForTaskCompletion();
 	}
 
+	@Test
+	public void testHandlingEndOfInput() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			TwoInputStreamTask::new,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness
+			.setupOperatorChain(
+				new OperatorID(),
+				new TestBoundedTwoInputOperator("Operator0"))
+			.chain(
+				new OperatorID(),
+				new TestBoundedOneInputStreamOperator("Operator1"),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		testHarness.processElement(new StreamRecord<>("Hello-1"), 0, 0);
+		testHarness.endInput(0,  0);
+
+		testHarness.waitForInputProcessing();
+
+		testHarness.processElement(new StreamRecord<>("Hello-2"), 1, 0);
+		testHarness.endInput(1,  0);
+
+		testHarness.waitForTaskCompletion();
+
+		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-1]: EndOfInput"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Hello-2"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-2]: EndOfInput"));
+		expectedOutput.add(new StreamRecord<>("[Operator0]: Bye"));
+		expectedOutput.add(new StreamRecord<>("[Operator1]: EndOfInput"));
+		expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
+	}
+
 	// This must only be used in one test, otherwise the static fields will be changed
 	// by several tests concurrently
 	private static class TestOpenCloseMapFunction extends RichCoMapFunction<String, Integer, String> {
@@ -561,6 +625,11 @@ public class TwoInputStreamTaskTest {
 
 		public static boolean openCalled = false;
 		public static boolean closeCalled = false;
+
+		TestOpenCloseMapFunction() {
+			openCalled = false;
+			closeCalled = false;
+		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -581,7 +650,7 @@ public class TwoInputStreamTaskTest {
 		}
 
 		@Override
-		public String map1(String value) throws Exception {
+		public String map1(String value) {
 			if (!openCalled) {
 				Assert.fail("Open was not called before run.");
 			}
@@ -589,7 +658,7 @@ public class TwoInputStreamTaskTest {
 		}
 
 		@Override
-		public String map2(Integer value) throws Exception {
+		public String map2(Integer value) {
 			if (!openCalled) {
 				Assert.fail("Open was not called before run.");
 			}
@@ -601,12 +670,12 @@ public class TwoInputStreamTaskTest {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public String map1(String value) throws Exception {
+		public String map1(String value) {
 			return value;
 		}
 
 		@Override
-		public String map2(Integer value) throws Exception {
+		public String map2(Integer value) {
 
 			return value.toString();
 		}

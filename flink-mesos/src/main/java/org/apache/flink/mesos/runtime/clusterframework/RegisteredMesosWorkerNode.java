@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 
 /**
- * A representation of a registered Mesos task managed by the {@link MesosFlinkResourceManager}.
+ * A representation of a registered Mesos task managed by the {@link MesosResourceManager}.
  */
 public class RegisteredMesosWorkerNode implements Serializable, ResourceIDRetrievable {
 

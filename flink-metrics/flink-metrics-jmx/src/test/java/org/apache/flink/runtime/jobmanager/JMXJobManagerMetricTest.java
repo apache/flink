@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -37,8 +38,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -62,7 +63,7 @@ import static org.junit.Assert.assertEquals;
 public class JMXJobManagerMetricTest extends TestLogger {
 
 	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setConfiguration(getConfiguration())
 			.setNumberSlotsPerTaskManager(1)
@@ -100,14 +101,15 @@ public class JMXJobManagerMetricTest extends TestLogger {
 					50,
 					5,
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-					true),
+					true,
+					false,
+					0),
 				null));
 
 			ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
-			client.setDetached(true);
-			client.submitJob(jobGraph, JMXJobManagerMetricTest.class.getClassLoader());
+			ClientUtils.submitJob(client, jobGraph);
 
-			FutureUtils.retrySuccesfulWithDelay(
+			FutureUtils.retrySuccessfulWithDelay(
 				() -> client.getJobStatus(jobGraph.getJobID()),
 				Time.milliseconds(10),
 				deadline,

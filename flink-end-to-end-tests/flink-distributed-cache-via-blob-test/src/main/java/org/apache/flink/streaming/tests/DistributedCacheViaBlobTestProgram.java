@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * End-to-end test program for verifying that files are distributed via BlobServer and later accessible through
@@ -47,8 +48,10 @@ public class DistributedCacheViaBlobTestProgram {
 		env.registerCachedFile(inputFile.toString(), "test_data", false);
 		env.registerCachedFile(inputDir.toString(), "test_dir", false);
 
-		Path containedFile = Files.list(inputDir).findAny()
-			.orElseThrow(() -> new RuntimeException("Input directory must not be empty."));
+		final Path containedFile;
+		try (Stream<Path> files = Files.list(inputDir)) {
+			containedFile = files.findAny().orElseThrow(() -> new RuntimeException("Input directory must not be empty."));
+		}
 
 		env.fromElements(1)
 			.map(new TestMapFunction(
@@ -96,8 +99,10 @@ public class DistributedCacheViaBlobTestProgram {
 					"initial dir. Input dir path: %s. Cache dir path: %s", initialDirPath, testDir));
 			}
 
-			if (Files.list(testDir).map(Path::getFileName).map(Path::toString).noneMatch(path -> path.equals(containedFileName))) {
-				throw new RuntimeException(String.format("Cached directory %s should not be empty.", testDir));
+			try (Stream<Path> files = Files.list(testDir)) {
+				if (files.map(Path::getFileName).map(Path::toString).noneMatch(path -> path.equals(containedFileName))) {
+					throw new RuntimeException(String.format("Cached directory %s should not be empty.", testDir));
+				}
 			}
 
 			return Files.readAllLines(testFile)

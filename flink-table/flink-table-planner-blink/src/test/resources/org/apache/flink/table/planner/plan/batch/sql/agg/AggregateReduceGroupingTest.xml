@@ -1,0 +1,975 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggOnFullJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, a2, b2, COUNT(c1) FROM (SELECT * FROM T1 FULL OUTER JOIN T2 ON a1 = b2) t GROUP BY a1, b1, a2, b2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], c1=[$2])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[full])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, a2, b2, EXPR$4])
++- HashAggregate(isMerge=[false], groupBy=[a1, b2], auxGrouping=[b1, a2], select=[a1, b2, b1, a2, COUNT(c1) AS EXPR$4])
+   +- Exchange(distribution=[hash[a1, b2]])
+      +- HashJoin(joinType=[FullOuterJoin], where=[=(a1, b2)], select=[a1, b1, c1, a2, b2], build=[right])
+         :- Exchange(distribution=[hash[a1]])
+         :  +- Calc(select=[a1, b1, c1])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+         +- Exchange(distribution=[hash[b2]])
+            +- Calc(select=[a2, b2])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnFullJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, a3, b3, COUNT(c1) FROM (SELECT * FROM T1 FULL OUTER JOIN T3 ON a1 = a3) t GROUP BY a1, b1, a3, b3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a1=[$0], b1=[$1], a3=[$4], b3=[$5], c1=[$2])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[full])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, a3, b3, EXPR$4])
++- HashAggregate(isMerge=[true], groupBy=[a1, a3, b3], auxGrouping=[b1], select=[a1, a3, b3, b1, Final_COUNT(count$0) AS EXPR$4])
+   +- Exchange(distribution=[hash[a1, a3, b3]])
+      +- LocalHashAggregate(groupBy=[a1, a3, b3], auxGrouping=[b1], select=[a1, a3, b3, b1, Partial_COUNT(c1) AS count$0])
+         +- HashJoin(joinType=[FullOuterJoin], where=[=(a1, a3)], select=[a1, b1, c1, a3, b3], build=[right])
+            :- Exchange(distribution=[hash[a1]])
+            :  +- Calc(select=[a1, b1, c1])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+            +- Exchange(distribution=[hash[a3]])
+               +- Calc(select=[a3, b3])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnInnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, a2, b2, COUNT(c1) FROM (SELECT * FROM T1, T2 WHERE a1 = b2) t GROUP BY a1, b1, a2, b2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], c1=[$2])
+   +- LogicalFilter(condition=[=($0, $5)])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1, a2, b2], select=[a1, b1, a2, b2, COUNT(c1) AS EXPR$4])
++- HashJoin(joinType=[InnerJoin], where=[=(a1, b2)], select=[a1, b1, c1, a2, b2], build=[right])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1, b1, c1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+   +- Exchange(distribution=[hash[b2]])
+      +- Calc(select=[a2, b2])
+         +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnInnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a2, b2, a3, b3, COUNT(c2), AVG(d3) FROM (SELECT * FROM T2, T3 WHERE b2 = a3) t GROUP BY a2, b2, a3, b3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)], EXPR$5=[AVG($5)])
++- LogicalProject(a2=[$0], b2=[$1], a3=[$3], b3=[$4], c2=[$2], d3=[$6])
+   +- LogicalFilter(condition=[=($1, $3)])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a2, b2, a3, b3, EXPR$4, EXPR$5])
++- HashAggregate(isMerge=[true], groupBy=[a3, b3], auxGrouping=[a2, b2], select=[a3, b3, a2, b2, Final_COUNT(count$0) AS EXPR$4, Final_AVG(sum$1, count$2) AS EXPR$5])
+   +- Exchange(distribution=[hash[a3, b3]])
+      +- LocalHashAggregate(groupBy=[a3, b3], auxGrouping=[a2, b2], select=[a3, b3, a2, b2, Partial_COUNT(c2) AS count$0, Partial_AVG(d3) AS (sum$1, count$2)])
+         +- HashJoin(joinType=[InnerJoin], where=[=(b2, a3)], select=[a2, b2, c2, a3, b3, d3], isBroadcast=[true], build=[right])
+            :- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+            +- Exchange(distribution=[broadcast])
+               +- Calc(select=[a3, b3, d3])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnInnerJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, a2, b2, a3, b3, COUNT(c1) FROM (SELECT * FROM T1, T2, T3 WHERE a1 = b2 AND a1 = a3) t GROUP BY a1, b1, a2, b2, a3, b3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3, 4, 5}], EXPR$6=[COUNT($6)])
++- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], a3=[$7], b3=[$8], c1=[$2])
+   +- LogicalFilter(condition=[AND(=($0, $5), =($0, $7))])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalJoin(condition=[true], joinType=[inner])
+         :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, a2, b2, a3, b3, *($f4, $f2) AS EXPR$6])
++- HashJoin(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, a2, b2, $f4, a3, b3, $f2], isBroadcast=[true], build=[right])
+   :- Calc(select=[a1, b1, a2, b2, CASE(IS NOT NULL(c1), 1:BIGINT, 0:BIGINT) AS $f4])
+   :  +- HashJoin(joinType=[InnerJoin], where=[=(a1, b2)], select=[a1, b1, c1, a2, b2], build=[right])
+   :     :- Exchange(distribution=[hash[a1]])
+   :     :  +- Calc(select=[a1, b1, c1])
+   :     :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+   :     +- Exchange(distribution=[hash[b2]])
+   :        +- Calc(select=[a2, b2])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], groupBy=[a3, b3], select=[a3, b3, Final_COUNT(count1$0) AS $f2])
+         +- Exchange(distribution=[hash[a3, b3]])
+            +- LocalHashAggregate(groupBy=[a3, b3], select=[a3, b3, Partial_COUNT(*) AS count1$0])
+               +- Calc(select=[a3, b3])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnLeftJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, a2, b2, COUNT(c1) FROM (SELECT * FROM T1 LEFT JOIN T2 ON a1 = b2) t GROUP BY a1, b1, a2, b2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], c1=[$2])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1, a2, b2], select=[a1, b1, a2, b2, COUNT(c1) AS EXPR$4])
++- HashJoin(joinType=[LeftOuterJoin], where=[=(a1, b2)], select=[a1, b1, c1, a2, b2], build=[right])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1, b1, c1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+   +- Exchange(distribution=[hash[b2]])
+      +- Calc(select=[a2, b2])
+         +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnLeftJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, a3, b3, COUNT(c1) FROM (SELECT * FROM T1 LEFT JOIN T3 ON a1 = a3) t GROUP BY a1, b1, a3, b3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a1=[$0], b1=[$1], a3=[$4], b3=[$5], c1=[$2])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, a3, b3, EXPR$4])
++- HashAggregate(isMerge=[true], groupBy=[a1, a3, b3], auxGrouping=[b1], select=[a1, a3, b3, b1, Final_COUNT(count$0) AS EXPR$4])
+   +- Exchange(distribution=[hash[a1, a3, b3]])
+      +- LocalHashAggregate(groupBy=[a1, a3, b3], auxGrouping=[b1], select=[a1, a3, b3, b1, Partial_COUNT(c1) AS count$0])
+         +- HashJoin(joinType=[LeftOuterJoin], where=[=(a1, a3)], select=[a1, b1, c1, a3, b3], isBroadcast=[true], build=[right])
+            :- Calc(select=[a1, b1, c1])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+            +- Exchange(distribution=[broadcast])
+               +- Calc(select=[a3, b3])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnLeftJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a3, b3, a1, b1, COUNT(c1) FROM (SELECT * FROM T3 LEFT JOIN T1 ON a1 = a3) t GROUP BY a3, b3, a1, b1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a3=[$0], b3=[$1], a1=[$4], b1=[$5], c1=[$6])
+   +- LogicalJoin(condition=[=($4, $0)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a3, b3], auxGrouping=[a1, b1], select=[a3, b3, a1, b1, COUNT(c1) AS EXPR$4])
++- HashJoin(joinType=[LeftOuterJoin], where=[=(a1, a3)], select=[a3, b3, a1, b1, c1], build=[left])
+   :- Exchange(distribution=[hash[a3]])
+   :  +- Calc(select=[a3, b3])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, b1, c1])
+         +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnOver">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, c, COUNT(d1) FROM (SELECT a1, b1, d1, COUNT(*) OVER (PARTITION BY c1) AS c FROM T1) t GROUP BY a1, b1, c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
++- LogicalProject(a1=[$0], b1=[$1], c=[COUNT() OVER (PARTITION BY $2 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)], d1=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, c, EXPR$3])
++- HashAggregate(isMerge=[true], groupBy=[a1, c], auxGrouping=[b1], select=[a1, c, b1, Final_COUNT(count$0) AS EXPR$3])
+   +- Exchange(distribution=[hash[a1, c]])
+      +- LocalHashAggregate(groupBy=[a1, c], auxGrouping=[b1], select=[a1, c, b1, Partial_COUNT(d1) AS count$0])
+         +- Calc(select=[a1, b1, w0$o0 AS c, d1])
+            +- OverAggregate(partitionBy=[c1], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a1, b1, c1, d1, w0$o0])
+               +- Sort(orderBy=[c1 ASC])
+                  +- Exchange(distribution=[hash[c1]])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnRightJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, a2, b2, COUNT(c1) FROM (SELECT * FROM T1 RIGHT JOIN T2 ON a1 = b2) t GROUP BY a1, b1, a2, b2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a1=[$0], b1=[$1], a2=[$4], b2=[$5], c1=[$2])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, a2, b2, EXPR$4])
++- HashAggregate(isMerge=[false], groupBy=[b2], auxGrouping=[a1, b1, a2], select=[b2, a1, b1, a2, COUNT(c1) AS EXPR$4])
+   +- HashJoin(joinType=[RightOuterJoin], where=[=(a1, b2)], select=[a1, b1, c1, a2, b2], build=[right])
+      :- Exchange(distribution=[hash[a1]])
+      :  +- Calc(select=[a1, b1, c1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+      +- Exchange(distribution=[hash[b2]])
+         +- Calc(select=[a2, b2])
+            +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnRightJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, a3, b3, COUNT(c1) FROM (SELECT * FROM T1 RIGHT JOIN T3 ON a1 = a3) t GROUP BY a1, b1, a3, b3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a1=[$0], b1=[$1], a3=[$4], b3=[$5], c1=[$2])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, a3, b3, EXPR$4])
++- HashAggregate(isMerge=[false], groupBy=[a3, b3], auxGrouping=[a1, b1], select=[a3, b3, a1, b1, COUNT(c1) AS EXPR$4])
+   +- HashJoin(joinType=[RightOuterJoin], where=[=(a1, a3)], select=[a1, b1, c1, a3, b3], build=[right])
+      :- Exchange(distribution=[hash[a1]])
+      :  +- Calc(select=[a1, b1, c1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+      +- Exchange(distribution=[hash[a3]])
+         +- Calc(select=[a3, b3])
+            +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnRightJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT a3, b3, a1, b1, COUNT(c1) FROM (SELECT * FROM T3 RIGHT JOIN T1 ON a1 = a3) t GROUP BY a3, b3, a1, b1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$4=[COUNT($4)])
++- LogicalProject(a3=[$0], b3=[$1], a1=[$4], b1=[$5], c1=[$6])
+   +- LogicalJoin(condition=[=($4, $0)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a3, b3, a1], auxGrouping=[b1], select=[a3, b3, a1, b1, Final_COUNT(count$0) AS EXPR$4])
++- Exchange(distribution=[hash[a3, b3, a1]])
+   +- LocalHashAggregate(groupBy=[a3, b3, a1], auxGrouping=[b1], select=[a3, b3, a1, b1, Partial_COUNT(c1) AS count$0])
+      +- HashJoin(joinType=[RightOuterJoin], where=[=(a1, a3)], select=[a3, b3, a1, b1, c1], isBroadcast=[true], build=[left])
+         :- Exchange(distribution=[broadcast])
+         :  +- Calc(select=[a3, b3])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+         +- Calc(select=[a1, b1, c1])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnWindow1">
+    <Resource name="sql">
+      <![CDATA[SELECT a4, b4, COUNT(c4) FROM T4 GROUP BY a4, b4, TUMBLE(d4, INTERVAL '15' MINUTE)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a4=[$0], b4=[$1], EXPR$2=[$3])
++- LogicalAggregate(group=[{0, 1, 2}], EXPR$2=[COUNT($3)])
+   +- LogicalProject(a4=[$0], b4=[$1], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], c4=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(groupBy=[a4], auxGrouping=[b4], window=[TumblingGroupWindow('w$, d4, 900000)], select=[a4, b4 AS EXPR$2, COUNT(c4) AS EXPR$2])
++- Exchange(distribution=[hash[a4]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnWindow2">
+    <Resource name="sql">
+      <![CDATA[SELECT a4, c4, COUNT(b4), AVG(b4) FROM T4 GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a4=[$0], c4=[$1], EXPR$2=[$3], EXPR$3=[$4])
++- LogicalAggregate(group=[{0, 1, 2}], EXPR$2=[COUNT($3)], EXPR$3=[AVG($3)])
+   +- LogicalProject(a4=[$0], c4=[$2], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], select=[a4, c4 AS EXPR$2, COUNT(b4) AS EXPR$2, AVG(b4) AS EXPR$3])
++- Exchange(distribution=[hash[a4]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnWindow3">
+    <Resource name="sql">
+      <![CDATA[SELECT a4, c4, s, COUNT(b4) FROM (SELECT a4, c4, VAR_POP(b4) AS b4, TUMBLE_START(d4, INTERVAL '15' MINUTE) AS s, TUMBLE_END(d4, INTERVAL '15' MINUTE) AS e FROM T4 GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, c4, s]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
++- LogicalProject(a4=[$0], c4=[$1], s=[TUMBLE_START($2)], b4=[$3])
+   +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
+      +- LogicalProject(a4=[$0], c4=[$2], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a4, c4, s, EXPR$3])
++- HashAggregate(isMerge=[true], groupBy=[a4, s], auxGrouping=[c4], select=[a4, s, c4, Final_COUNT(count$0) AS EXPR$3])
+   +- Exchange(distribution=[hash[a4, s]])
+      +- LocalHashAggregate(groupBy=[a4, s], auxGrouping=[c4], select=[a4, s, c4, Partial_COUNT(b4) AS count$0])
+         +- Calc(select=[a4, c4, w$start AS s, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4)) AS b4])
+            +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
+               +- Calc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
+                  +- Exchange(distribution=[hash[a4]])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnWindow4">
+    <Resource name="sql">
+      <![CDATA[SELECT a4, c4, e, COUNT(b4) FROM (SELECT a4, c4, VAR_POP(b4) AS b4, TUMBLE_START(d4, INTERVAL '15' MINUTE) AS s, TUMBLE_END(d4, INTERVAL '15' MINUTE) AS e FROM T4 GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, c4, e]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
++- LogicalProject(a4=[$0], c4=[$1], e=[TUMBLE_END($2)], b4=[$3])
+   +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
+      +- LogicalProject(a4=[$0], c4=[$2], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a4, c4, e, EXPR$3])
++- HashAggregate(isMerge=[true], groupBy=[a4, e], auxGrouping=[c4], select=[a4, e, c4, Final_COUNT(count$0) AS EXPR$3])
+   +- Exchange(distribution=[hash[a4, e]])
+      +- LocalHashAggregate(groupBy=[a4, e], auxGrouping=[c4], select=[a4, e, c4, Partial_COUNT(b4) AS count$0])
+         +- Calc(select=[a4, c4, w$end AS e, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4)) AS b4])
+            +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
+               +- Calc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
+                  +- Exchange(distribution=[hash[a4]])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggOnWindow5">
+    <Resource name="sql">
+      <![CDATA[SELECT a4, b4, c4, COUNT(*) FROM (SELECT a4, c4, VAR_POP(b4) AS b4, TUMBLE_START(d4, INTERVAL '15' MINUTE) AS s, TUMBLE_END(d4, INTERVAL '15' MINUTE) AS e FROM T4 GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, b4, c4]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()])
++- LogicalProject(a4=[$0], b4=[$3], c4=[$1])
+   +- LogicalAggregate(group=[{0, 1, 2}], b4=[VAR_POP($3)])
+      +- LogicalProject(a4=[$0], c4=[$2], $f2=[TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a4, b4], auxGrouping=[c4], select=[a4, b4, c4, Final_COUNT(count1$0) AS EXPR$3])
++- Exchange(distribution=[hash[a4, b4]])
+   +- LocalHashAggregate(groupBy=[a4, b4], auxGrouping=[c4], select=[a4, b4, c4, Partial_COUNT(*) AS count1$0])
+      +- Calc(select=[a4, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4)) AS b4, c4])
+         +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
+            +- Calc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
+               +- Exchange(distribution=[hash[a4]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithCube">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, c1, COUNT(d1) FROM T1 GROUP BY CUBE (a1, b1, c1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}, {0, 2}, {0}, {1, 2}, {1}, {2}, {}]], EXPR$3=[COUNT($3)])
++- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, c1, EXPR$3])
++- HashAggregate(isMerge=[true], groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, Final_COUNT(count$0) AS EXPR$3])
+   +- Exchange(distribution=[hash[a1, b1, c1, $e]])
+      +- LocalHashAggregate(groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, Partial_COUNT(d1) AS count$0])
+         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[2]}, {a1=[$0], b1=[null], c1=[null], d1=[$3], $e=[3]}, {a1=[null], b1=[$1], c1=[$2], d1=[$3], $e=[4]}, {a1=[null], b1=[$1], c1=[null], d1=[$3], $e=[5]}, {a1=[null], b1=[null], c1=[$2], d1=[$3], $e=[6]}, {a1=[null], b1=[null], c1=[null], d1=[$3], $e=[7]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, c1, d1, 2 AS $e}, {a1, null AS b1, null AS c1, d1, 3 AS $e}, {null AS a1, b1, c1, d1, 4 AS $e}, {null AS a1, b1, null AS c1, d1, 5 AS $e}, {null AS a1, null AS b1, c1, d1, 6 AS $e}, {null AS a1, null AS b1, null AS c1, d1, 7 AS $e}])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithGroupingSets1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, c1, COUNT(d1) FROM T1 GROUP BY GROUPING SETS ((a1, b1), (a1, c1))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$3=[COUNT($3)])
++- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, c1, EXPR$3])
++- HashAggregate(isMerge=[false], groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, COUNT(d1) AS EXPR$3])
+   +- Exchange(distribution=[hash[a1, b1, c1, $e]])
+      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[2]}], projects=[{a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, c1, d1, 2 AS $e}])
+         +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithGroupingSets2">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, SUM(b1) AS s FROM T1 GROUP BY GROUPING SETS((a1, c1), (a1), ())]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], s=[$2])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], s=[SUM($2)])
+   +- LogicalProject(a1=[$0], c1=[$2], b1=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, s])
++- HashAggregate(isMerge=[true], groupBy=[a1, c1, $e], select=[a1, c1, $e, Final_SUM(sum$0) AS s])
+   +- Exchange(distribution=[hash[a1, c1, $e]])
+      +- LocalHashAggregate(groupBy=[a1, c1, $e], select=[a1, c1, $e, Partial_SUM(b1) AS sum$0])
+         +- Expand(projects=[{a1=[$0], c1=[$1], b1=[$2], $e=[0]}, {a1=[$0], c1=[null], b1=[$2], $e=[1]}, {a1=[null], c1=[null], b1=[$2], $e=[3]}], projects=[{a1, c1, b1, 0 AS $e}, {a1, null AS c1, b1, 1 AS $e}, {null AS a1, null AS c1, b1, 3 AS $e}])
+            +- Calc(select=[a1, c1, b1])
+               +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithGroupingSets3">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, c1, COUNT(d1) FROM T1 GROUP BY GROUPING SETS ((a1, b1, c1), (a1, b1, d1))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], EXPR$3=[$4])
++- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1, 2}, {0, 1, 3}]], EXPR$3=[COUNT($3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, c1, EXPR$3])
++- HashAggregate(isMerge=[false], groupBy=[a1, c1, d1, $e], auxGrouping=[b1], select=[a1, c1, d1, $e, b1, COUNT(d1_0) AS EXPR$3])
+   +- Exchange(distribution=[hash[a1, c1, d1, $e]])
+      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[null], $e=[1], d1_0=[$3]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[2], d1_0=[$3]}], projects=[{a1, b1, c1, null AS d1, 1 AS $e, d1 AS d1_0}, {a1, b1, null AS c1, d1, 2 AS $e, d1 AS d1_0}])
+         +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithoutAggCall">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, c1 FROM T1 GROUP BY a1, b1, c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}])
++- LogicalProject(a1=[$0], b1=[$1], c1=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1, c1], select=[a1, b1, c1])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, b1, c1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithoutReduceGrouping">
+    <Resource name="sql">
+      <![CDATA[SELECT a3, b3, count(c3) FROM T3 GROUP BY a3, b3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- LogicalProject(a3=[$0], b3=[$1], c3=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a3, b3], select=[a3, b3, Final_COUNT(count$0) AS EXPR$2])
++- Exchange(distribution=[hash[a3, b3]])
+   +- LocalHashAggregate(groupBy=[a3, b3], select=[a3, b3, Partial_COUNT(c3) AS count$0])
+      +- Calc(select=[a3, b3, c3])
+         +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithRollup">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, c1, COUNT(d1) FROM T1 GROUP BY ROLLUP (a1, b1, c1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}, {0}, {}]], EXPR$3=[COUNT($3)])
++- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, c1, EXPR$3])
++- HashAggregate(isMerge=[true], groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, Final_COUNT(count$0) AS EXPR$3])
+   +- Exchange(distribution=[hash[a1, b1, c1, $e]])
+      +- LocalHashAggregate(groupBy=[a1, b1, c1, $e], select=[a1, b1, c1, $e, Partial_COUNT(d1) AS count$0])
+         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}, {a1=[$0], b1=[null], c1=[null], d1=[$3], $e=[3]}, {a1=[null], b1=[null], c1=[null], d1=[$3], $e=[7]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, null AS c1, d1, 3 AS $e}, {null AS a1, null AS b1, null AS c1, d1, 7 AS $e}])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiAggs1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, c1, d1, m, COUNT(*) FROM (SELECT a1, b1, c1, COUNT(d1) AS d1, MAX(d1) AS m FROM T1 GROUP BY a1, b1, c1) t GROUP BY a1, b1, c1, d1, m]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3, 4}], EXPR$5=[COUNT()])
++- LogicalAggregate(group=[{0, 1, 2}], d1=[COUNT($3)], m=[MAX($3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1, c1, d1, m], select=[a1, b1, c1, d1, m, COUNT(*) AS EXPR$5])
++- SortAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1, c1], select=[a1, b1, c1, COUNT(d1) AS d1, MAX(d1) AS m])
+   +- Sort(orderBy=[a1 ASC])
+      +- Exchange(distribution=[hash[a1]])
+         +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiAggs2">
+    <Resource name="sql">
+      <![CDATA[SELECT a3, b3, c, s, a, COUNT(*) FROM (SELECT a3, b3, COUNT(c3) AS c, SUM(d3) AS s, AVG(d3) AS a FROM T3 GROUP BY a3, b3) t GROUP BY a3, b3, c, s, a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2, 3, 4}], EXPR$5=[COUNT()])
++- LogicalAggregate(group=[{0, 1}], c=[COUNT($2)], s=[SUM($3)], a=[AVG($3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a3, b3], auxGrouping=[c, s, a], select=[a3, b3, c, s, a, COUNT(*) AS EXPR$5])
++- HashAggregate(isMerge=[true], groupBy=[a3, b3], select=[a3, b3, Final_COUNT(count$0) AS c, Final_SUM(sum$1) AS s, Final_AVG(sum$2, count$3) AS a])
+   +- Exchange(distribution=[hash[a3, b3]])
+      +- LocalHashAggregate(groupBy=[a3, b3], select=[a3, b3, Partial_COUNT(c3) AS count$0, Partial_SUM(d3) AS sum$1, Partial_AVG(d3) AS (sum$2, count$3)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiDistinctAggs1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, COUNT(DISTINCT b1), SUM(DISTINCT b1) FROM T1 GROUP BY a1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM(DISTINCT $1)])
++- LogicalProject(a1=[$0], b1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(b1) AS EXPR$1, SUM(b1) AS EXPR$2])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, b1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiDistinctAggs2">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, d1, COUNT(DISTINCT c1), SUM(DISTINCT b1) FROM T1 GROUP BY a1, d1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM(DISTINCT $3)])
++- LogicalProject(a1=[$0], d1=[$3], c1=[$2], b1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, COUNT(c1) FILTER $g_4 AS EXPR$2, SUM(b1) FILTER $g_2 AS EXPR$3])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, b1, c1, d1, =(CASE(=($e, 2:BIGINT), 2:BIGINT, 4:BIGINT), 2) AS $g_2, =(CASE(=($e, 2:BIGINT), 2:BIGINT, 4:BIGINT), 4) AS $g_4])
+      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[2]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[4]}], projects=[{a1, b1, null AS c1, d1, 2 AS $e}, {a1, null AS b1, c1, d1, 4 AS $e}])
+         +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiDistinctAggs3">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, SUM(DISTINCT b1), MAX(DISTINCT b1), MIN(DISTINCT c1) FROM T1 GROUP BY a1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MAX($1)], EXPR$3=[MIN($2)])
++- LogicalProject(a1=[$0], b1=[$1], c1=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, b1, b1 AS b10, c1])
++- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiDistinctAggs_WithNonDistinctAgg1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, d1, COUNT(DISTINCT c1), MAX(DISTINCT b1), SUM(b1) FROM T1 GROUP BY a1, d1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[MAX($3)], EXPR$4=[SUM($3)])
++- LogicalProject(a1=[$0], d1=[$3], c1=[$2], b1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, MIN(d1) FILTER $g_1 AS d1, COUNT(c1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_1 AS EXPR$3, MIN(EXPR$4) FILTER $g_1 AS EXPR$4])
++- Calc(select=[a1, c1, d1, b1 AS EXPR$3, b1 AS EXPR$4, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
+   +- Sort(orderBy=[a1 ASC])
+      +- Exchange(distribution=[hash[a1]])
+         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleAggOnlyConstantGroupKey">
+    <Resource name="sql">
+      <![CDATA[SELECT count(c1) FROM T1 GROUP BY 1, true]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
+   +- LogicalProject($f0=[1], $f1=[true], c1=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[$f0], select=[$f0, Final_COUNT(count$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[$f0]])
+      +- LocalHashAggregate(groupBy=[$f0], select=[$f0, Partial_COUNT(c1) AS count$0])
+         +- Calc(select=[1 AS $f0, true AS $f1, c1])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleAggOnTableWithoutUniqueKey">
+    <Resource name="sql">
+      <![CDATA[SELECT a3, b3, count(c3) FROM T3 GROUP BY a3, b3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- LogicalProject(a3=[$0], b3=[$1], c3=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a3, b3], select=[a3, b3, Final_COUNT(count$0) AS EXPR$2])
++- Exchange(distribution=[hash[a3, b3]])
+   +- LocalHashAggregate(groupBy=[a3, b3], select=[a3, b3, Partial_COUNT(c3) AS count$0])
+      +- Calc(select=[a3, b3, c3])
+         +- TableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleAggOnTableWithUniqueKey">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- LogicalProject(a1=[$0], b1=[$1], c1=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1], select=[a1, b1, COUNT(c1) AS EXPR$2])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, b1, c1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleAggOnTableWithUniqueKeys">
+    <Resource name="sql">
+      <![CDATA[SELECT  b2, c2, avg(a2) FROM T2 GROUP BY b2, c2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[AVG($2)])
++- LogicalProject(b2=[$1], c2=[$2], a2=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[b2], auxGrouping=[c2], select=[b2, c2, AVG(a2) AS EXPR$2])
++- Exchange(distribution=[hash[b2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleAggWithConstantGroupKey">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, 1, true]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], EXPR$2=[$4])
++- LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$2=[COUNT($4)])
+   +- LogicalProject(a1=[$0], b1=[$1], $f2=[1], $f3=[true], c1=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1], select=[a1, b1, COUNT(c1) AS EXPR$2])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, b1, 1 AS $f2, true AS $f3, c1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, COUNT(DISTINCT c1) FROM T1 GROUP BY a1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalProject(a1=[$0], c1=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(c1) AS EXPR$1])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, c1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg2">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, COUNT(DISTINCT c1) FROM T1 GROUP BY a1, b1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)])
++- LogicalProject(a1=[$0], b1=[$1], c1=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1], select=[a1, b1, COUNT(c1) AS EXPR$2])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, b1, c1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg_WithNonDistinctAgg1">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, COUNT(DISTINCT b1), SUM(b1) FROM T1 GROUP BY a1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)])
++- LogicalProject(a1=[$0], b1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(b1) FILTER $g_0 AS EXPR$1, MIN(EXPR$2) FILTER $g_1 AS EXPR$2])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, b1, b1_0 AS EXPR$2, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
+      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0], b1_0=[$1]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[1], b1_0=[$1]}], projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 1 AS $e, b1 AS b1_0}])
+         +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg_WithNonDistinctAgg2">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, c1, COUNT(DISTINCT b1), SUM(b1) FROM T1 GROUP BY a1, c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM($2)])
++- LogicalProject(a1=[$0], c1=[$2], b1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, MIN(c1) FILTER $g_1 AS c1, COUNT(b1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_1 AS EXPR$3])
++- Sort(orderBy=[a1 ASC])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, b1, c1, b1_0 AS EXPR$3, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
+         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0], b1_0=[$1]}, {a1=[$0], b1=[null], c1=[$2], d1=[$3], $e=[1], b1_0=[$1]}], projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 1 AS $e, b1 AS b1_0}])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg_WithNonDistinctAgg3">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, COUNT(DISTINCT c1), SUM(b1) FROM T1 GROUP BY a1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)])
++- LogicalProject(a1=[$0], c1=[$2], b1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(c1) FILTER $g_0 AS EXPR$1, MIN(EXPR$2) FILTER $g_1 AS EXPR$2])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, c1, b1 AS EXPR$2, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
+      +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
+         +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg_WithNonDistinctAgg4">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, d1, COUNT(DISTINCT c1), SUM(b1) FROM T1 GROUP BY a1, d1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM($3)])
++- LogicalProject(a1=[$0], d1=[$3], c1=[$2], b1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, MIN(d1) FILTER $g_1 AS d1, COUNT(c1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_1 AS EXPR$3])
++- Sort(orderBy=[a1 ASC])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, c1, d1, b1 AS EXPR$3, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
+         +- Expand(projects=[{a1=[$0], b1=[$1], c1=[$2], d1=[$3], $e=[0]}, {a1=[$0], b1=[$1], c1=[null], d1=[$3], $e=[1]}], projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

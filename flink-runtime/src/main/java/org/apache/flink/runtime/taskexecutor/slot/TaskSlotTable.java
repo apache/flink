@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -35,8 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,27 +80,18 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	private SlotActions slotActions;
 
 	/** Whether the table has been started. */
-	private boolean started;
+	private volatile boolean started;
 
 	public TaskSlotTable(
-		final Collection<ResourceProfile> resourceProfiles,
+		final List<TaskSlot> taskSlots,
 		final TimerService<AllocationID> timerService) {
 
-		int numberSlots = resourceProfiles.size();
+		int numberSlots = taskSlots.size();
 
 		Preconditions.checkArgument(0 < numberSlots, "The number of task slots must be greater than 0.");
 
+		this.taskSlots = new ArrayList<>(taskSlots);
 		this.timerService = Preconditions.checkNotNull(timerService);
-
-		taskSlots = Arrays.asList(new TaskSlot[numberSlots]);
-
-		int index = 0;
-
-		// create the task slots for the given resource profiles
-		for (ResourceProfile resourceProfile: resourceProfiles) {
-			taskSlots.set(index, new TaskSlot(index, resourceProfile));
-			++index;
-		}
 
 		allocationIDTaskSlotMap = new HashMap<>(numberSlots);
 
@@ -112,7 +104,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	}
 
 	/**
-	 * Start the task slot table with the given slot actions and slot timeout value.
+	 * Start the task slot table with the given slot actions.
 	 *
 	 * @param initialSlotActions to use for slot actions
 	 */
@@ -130,7 +122,13 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	public void stop() {
 		started = false;
 		timerService.stop();
+		taskSlots.forEach(TaskSlot::close);
 		slotActions = null;
+	}
+
+	@VisibleForTesting
+	public boolean isStopped() {
+		return !started && taskSlots.stream().allMatch(slot -> slot.getMemoryManager().isShutdown());
 	}
 
 	/**
@@ -182,7 +180,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	/**
 	 * Allocate the slot with the given index for the given job and allocation id. Returns true if
-	 * the slot could be allocated. Otherwise it returns false;
+	 * the slot could be allocated. Otherwise it returns false.
 	 *
 	 * @param index of the task slot to allocate
 	 * @param jobId to allocate the task slot for
@@ -193,7 +191,12 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
 		checkInit();
 
-		TaskSlot taskSlot = taskSlots.get(index);
+		TaskSlot taskSlot = allocationIDTaskSlotMap.get(allocationId);
+		if (taskSlot != null) {
+			LOG.info("Allocation ID {} is already allocated in {}.", allocationId, taskSlot);
+			return false;
+		}
+		taskSlot = taskSlots.get(index);
 
 		boolean result = taskSlot.allocate(jobId, allocationId);
 
@@ -379,17 +382,17 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	}
 
 	/**
-	 * Check whether there exists an active slot for the given job and allocation id.
+	 * Try to mark the specified slot as active if it has been allocated by the given job.
 	 *
 	 * @param jobId of the allocated slot
 	 * @param allocationId identifying the allocation
-	 * @return True if there exists a task slot which is active for the given job and allocation id.
+	 * @return True if the task slot could be marked active.
 	 */
-	public boolean existsActiveSlot(JobID jobId, AllocationID allocationId) {
+	public boolean tryMarkSlotActive(JobID jobId, AllocationID allocationId) {
 		TaskSlot taskSlot = getTaskSlot(allocationId);
 
-		if (taskSlot != null) {
-			return taskSlot.isActive(jobId, allocationId);
+		if (taskSlot != null && taskSlot.isAllocated(jobId, allocationId)) {
+			return taskSlot.markActive();
 		} else {
 			return false;
 		}
@@ -555,6 +558,21 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		return taskSlots.get(index).getAllocationId();
 	}
 
+	/**
+	 * Get the memory manager of the slot allocated for the task.
+	 *
+	 * @param allocationID allocation id of the slot allocated for the task
+	 * @return the memory manager of the slot allocated for the task
+	 */
+	public MemoryManager getTaskMemoryManager(AllocationID allocationID) throws SlotNotFoundException {
+		TaskSlot taskSlot = getTaskSlot(allocationID);
+		if (taskSlot != null) {
+			return taskSlot.getMemoryManager();
+		} else {
+			throw new SlotNotFoundException(allocationID);
+		}
+	}
+
 	// ---------------------------------------------------------------------
 	// TimeoutListener methods
 	// ---------------------------------------------------------------------
@@ -616,7 +634,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		private final Iterator<TaskSlot> iterator;
 
 		private AllocationIDIterator(JobID jobId, TaskSlotState state) {
-				iterator = new TaskSlotIterator(jobId, state);
+			iterator = new TaskSlotIterator(jobId, state);
 		}
 
 		@Override

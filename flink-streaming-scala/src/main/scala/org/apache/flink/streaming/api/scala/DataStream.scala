@@ -415,6 +415,18 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
+   * Groups the elements of a DataStream by the given K key to
+   * be used with grouped operators like grouped reduce or grouped aggregations.
+   */
+  def keyBy[K: TypeInformation](fun: KeySelector[T, K]): KeyedStream[T, K] = {
+
+    val cleanFun = clean(fun)
+    val keyType: TypeInformation[K] = implicitly[TypeInformation[K]]
+
+    asScalaStream(new JavaKeyedStream(stream, cleanFun, keyType))
+  }
+
+  /**
    * Partitions a tuple DataStream on the specified key fields using a custom partitioner.
    * This method takes the key position to partition on, and a partitioner that accepts the key
    * type.
@@ -619,7 +631,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(stream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]])
+    asScalaStream(stream.map(mapper, outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -632,7 +644,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(stream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]])
+    asScalaStream(stream.flatMap(flatMapper, outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -903,13 +915,19 @@ class DataStream[T](stream: JavaStream[T]) {
    * Operator used for directing tuples to specific named outputs using an
    * OutputSelector. Calling this method on an operator creates a new
    * [[SplitStream]].
+   *
+   * @deprecated Please use side output instead.
    */
+  @deprecated
   def split(selector: OutputSelector[T]): SplitStream[T] = asScalaStream(stream.split(selector))
 
   /**
    * Creates a new [[SplitStream]] that contains only the elements satisfying the
    *  given output selector predicate.
+   *
+   * @deprecated Please use side output instead.
    */
+  @deprecated
   def split(fun: T => TraversableOnce[String]): SplitStream[T] = {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
@@ -1112,7 +1130,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
     val cleanFun = clean(fun)
     val sinkFunction = new SinkFunction[T] {
-      def invoke(in: T) = cleanFun(in)
+      override def invoke(in: T) = cleanFun(in)
     }
     this.addSink(sinkFunction)
   }

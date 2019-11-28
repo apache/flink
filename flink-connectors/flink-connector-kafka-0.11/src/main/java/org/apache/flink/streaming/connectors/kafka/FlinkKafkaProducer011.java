@@ -20,12 +20,15 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
@@ -38,13 +41,14 @@ import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internal.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.internal.TransactionalIdsGenerator;
-import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMuttableWrapper;
+import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMutableWrapper;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -149,7 +153,7 @@ public class FlinkKafkaProducer011<IN>
 	 * <p>The range of available to use transactional ids is:
 	 * {@code [0, getNumberOfParallelSubtasks() * kafkaProducersPoolSize) }
 	 *
-	 * <p>This means that if we decrease {@code getNumberOfParallelSubtasks()} by a factor larger then
+	 * <p>This means that if we decrease {@code getNumberOfParallelSubtasks()} by a factor larger than
 	 * {@code SAFE_SCALE_DOWN_FACTOR} we can have a left some lingering transaction.
 	 */
 	public static final int SAFE_SCALE_DOWN_FACTOR = 5;
@@ -171,9 +175,15 @@ public class FlinkKafkaProducer011<IN>
 
 	/**
 	 * Descriptor of the transactional IDs list.
+	 * Note: This state is serialized by Kryo Serializer and it has compatibility problem that will be removed later.
+	 * Please use NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR_V2.
 	 */
+	@Deprecated
 	private static final ListStateDescriptor<NextTransactionalIdHint> NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR =
 		new ListStateDescriptor<>("next-transactional-id-hint", TypeInformation.of(NextTransactionalIdHint.class));
+
+	private static final ListStateDescriptor<NextTransactionalIdHint> NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR_V2 =
+		new ListStateDescriptor<>("next-transactional-id-hint-v2", new NextTransactionalIdHintSerializer());
 
 	/**
 	 * State for nextTransactionalIdHint.
@@ -255,7 +265,7 @@ public class FlinkKafkaProducer011<IN>
 	private final AtomicLong pendingRecords = new AtomicLong();
 
 	/** Cache of metrics to replace already registered metrics instead of overwriting existing ones. */
-	private final Map<String, KafkaMetricMuttableWrapper> previouslyCreatedMetrics = new HashMap<>();
+	private final Map<String, KafkaMetricMutableWrapper> previouslyCreatedMetrics = new HashMap<>();
 
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
@@ -487,7 +497,7 @@ public class FlinkKafkaProducer011<IN>
 		this.kafkaProducersPoolSize = kafkaProducersPoolSize;
 		checkState(kafkaProducersPoolSize > 0, "kafkaProducersPoolSize must be non empty");
 
-		ClosureCleaner.clean(this.flinkKafkaPartitioner, true);
+		ClosureCleaner.clean(this.flinkKafkaPartitioner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 		ClosureCleaner.ensureSerializable(serializationSchema);
 
 		// set the producer configuration properties for kafka record key value serializers.
@@ -647,30 +657,39 @@ public class FlinkKafkaProducer011<IN>
 
 	@Override
 	public void close() throws FlinkKafka011Exception {
-		final KafkaTransactionState currentTransaction = currentTransaction();
-		if (currentTransaction != null) {
-			// to avoid exceptions on aborting transactions with some pending records
-			flush(currentTransaction);
-
-			// normal abort for AT_LEAST_ONCE and NONE do not clean up resources because of producer reusing, thus
-			// we need to close it manually
-			switch (semantic) {
-				case EXACTLY_ONCE:
-					break;
-				case AT_LEAST_ONCE:
-				case NONE:
-					currentTransaction.producer.close();
-					break;
-			}
-		}
+		// First close the producer for current transaction.
 		try {
+			final KafkaTransactionState currentTransaction = currentTransaction();
+			if (currentTransaction != null) {
+				// to avoid exceptions on aborting transactions with some pending records
+				flush(currentTransaction);
+
+				// normal abort for AT_LEAST_ONCE and NONE do not clean up resources because of producer reusing, thus
+				// we need to close it manually
+				switch (semantic) {
+					case EXACTLY_ONCE:
+						break;
+					case AT_LEAST_ONCE:
+					case NONE:
+						currentTransaction.producer.close();
+						break;
+				}
+			}
 			super.close();
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			asyncException = ExceptionUtils.firstOrSuppressed(e, asyncException);
+		} finally {
+			// We may have to close producer of the current transaction in case some exception was thrown before
+			// the normal close routine finishes.
+			if (currentTransaction() != null) {
+				IOUtils.closeQuietly(currentTransaction().producer);
+			}
+			// Make sure all the producers for pending transactions are closed.
+			pendingTransactions().forEach(transaction -> IOUtils.closeQuietly(transaction.getValue().producer)
+			);
+			// make sure we propagate pending errors
+			checkErroneous();
 		}
-		// make sure we propagate pending errors
-		checkErroneous();
 	}
 
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //
@@ -689,7 +708,7 @@ public class FlinkKafkaProducer011<IN>
 				if (currentTransaction != null && currentTransaction.producer != null) {
 					return new KafkaTransactionState(currentTransaction.producer);
 				}
-				return new KafkaTransactionState(initProducer(true));
+				return new KafkaTransactionState(initNonTransactionalProducer(true));
 			default:
 				throw new UnsupportedOperationException("Not implemented semantic");
 		}
@@ -712,73 +731,49 @@ public class FlinkKafkaProducer011<IN>
 
 	@Override
 	protected void commit(KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
+		if (transaction.isTransactional()) {
+			try {
 				transaction.producer.commitTransaction();
+			} finally {
 				recycleTransactionalProducer(transaction.producer);
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+			}
 		}
 	}
 
 	@Override
 	protected void recoverAndCommit(KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				try (FlinkKafkaProducer<byte[], byte[]> producer =
-						initTransactionalProducer(transaction.transactionalId, false)) {
-					producer.resumeTransaction(transaction.producerId, transaction.epoch);
-					producer.commitTransaction();
-				}
-				catch (InvalidTxnStateException | ProducerFencedException ex) {
-					// That means we have committed this transaction before.
-					LOG.warn("Encountered error {} while recovering transaction {}. " +
+		if (transaction.isTransactional()) {
+			try (
+				FlinkKafkaProducer<byte[], byte[]> producer =
+					initTransactionalProducer(transaction.transactionalId, false)) {
+				producer.resumeTransaction(transaction.producerId, transaction.epoch);
+				producer.commitTransaction();
+			} catch (InvalidTxnStateException | ProducerFencedException ex) {
+				// That means we have committed this transaction before.
+				LOG.warn("Encountered error {} while recovering transaction {}. " +
 						"Presumably this transaction has been already committed before",
-						ex,
-						transaction);
-				}
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+					ex,
+					transaction);
+			}
 		}
 	}
 
 	@Override
 	protected void abort(KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				transaction.producer.abortTransaction();
-				recycleTransactionalProducer(transaction.producer);
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+		if (transaction.isTransactional()) {
+			transaction.producer.abortTransaction();
+			recycleTransactionalProducer(transaction.producer);
 		}
 	}
 
 	@Override
 	protected void recoverAndAbort(KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				try (FlinkKafkaProducer<byte[], byte[]> producer =
-						initTransactionalProducer(transaction.transactionalId, false)) {
-					producer.initTransactions();
-				}
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+		if (transaction.isTransactional()) {
+			try (
+				FlinkKafkaProducer<byte[], byte[]> producer =
+					initTransactionalProducer(transaction.transactionalId, false)) {
+				producer.initTransactions();
+			}
 		}
 	}
 
@@ -834,8 +829,8 @@ public class FlinkKafkaProducer011<IN>
 			semantic = Semantic.NONE;
 		}
 
-		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
-			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
+		migrateNextTransactionalIdHindState(context);
+
 		transactionalIdsGenerator = new TransactionalIdsGenerator(
 			getRuntimeContext().getTaskName() + "-" + ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID(),
 			getRuntimeContext().getIndexOfThisSubtask(),
@@ -887,39 +882,50 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	@Override
-	protected void finishRecoveringContext() {
-		cleanUpUserContext();
+	protected void finishRecoveringContext(Collection<FlinkKafkaProducer011.KafkaTransactionState> handledTransactions) {
+		cleanUpUserContext(handledTransactions);
 		resetAvailableTransactionalIdsPool(getUserContext().get().transactionalIds);
 		LOG.info("Recovered transactionalIds {}", getUserContext().get().transactionalIds);
 	}
 
 	/**
 	 * After initialization make sure that all previous transactions from the current user context have been completed.
+	 *
+	 * @param handledTransactions
+	 * 		transactions which were already committed or aborted and do not need further handling
 	 */
-	private void cleanUpUserContext() {
+	private void cleanUpUserContext(Collection<KafkaTransactionState> handledTransactions) {
 		if (!getUserContext().isPresent()) {
 			return;
 		}
-		abortTransactions(getUserContext().get().transactionalIds);
+		HashSet<String> abortTransactions = new HashSet<>(getUserContext().get().transactionalIds);
+		handledTransactions.forEach(
+			kafkaTransactionState -> abortTransactions.remove(kafkaTransactionState.transactionalId));
+		abortTransactions(abortTransactions);
 	}
 
 	private void resetAvailableTransactionalIdsPool(Collection<String> transactionalIds) {
 		availableTransactionalIds.clear();
-		for (String transactionalId : transactionalIds) {
-			availableTransactionalIds.add(transactionalId);
-		}
+		availableTransactionalIds.addAll(transactionalIds);
 	}
 
 	// ----------------------------------- Utilities --------------------------
 
 	private void abortTransactions(Set<String> transactionalIds) {
-		for (String transactionalId : transactionalIds) {
+		transactionalIds.parallelStream().forEach(transactionalId -> {
+			// don't mess with the original configuration or any other properties of the
+			// original object
+			// -> create an internal kafka producer on our own and do not rely on
+			//    initTransactionalProducer().
+			final Properties myConfig = new Properties();
+			myConfig.putAll(producerConfig);
+			initTransactionalProducerConfig(myConfig, transactionalId);
 			try (FlinkKafkaProducer<byte[], byte[]> kafkaProducer =
-					initTransactionalProducer(transactionalId, false)) {
-				// it suffice to call initTransactions - this will abort any lingering transactions
+					new FlinkKafkaProducer<>(myConfig)) {
+				// it suffices to call initTransactions - this will abort any lingering transactions
 				kafkaProducer.initTransactions();
 			}
-		}
+		});
 	}
 
 	int getTransactionCoordinatorId() {
@@ -953,7 +959,16 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	private FlinkKafkaProducer<byte[], byte[]> initTransactionalProducer(String transactionalId, boolean registerMetrics) {
-		producerConfig.put("transactional.id", transactionalId);
+		initTransactionalProducerConfig(producerConfig, transactionalId);
+		return initProducer(registerMetrics);
+	}
+
+	private static void initTransactionalProducerConfig(Properties producerConfig, String transactionalId) {
+		producerConfig.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
+	}
+
+	private FlinkKafkaProducer<byte[], byte[]> initNonTransactionalProducer(boolean registerMetrics) {
+		producerConfig.remove(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
 		return initProducer(registerMetrics);
 	}
 
@@ -986,12 +1001,12 @@ public class FlinkKafkaProducer011<IN>
 					String name = entry.getKey().name();
 					Metric metric = entry.getValue();
 
-					KafkaMetricMuttableWrapper wrapper = previouslyCreatedMetrics.get(name);
+					KafkaMetricMutableWrapper wrapper = previouslyCreatedMetrics.get(name);
 					if (wrapper != null) {
 						wrapper.setKafkaMetric(metric);
 					} else {
 						// TODO: somehow merge metrics from all active producers?
-						wrapper = new KafkaMetricMuttableWrapper(metric);
+						wrapper = new KafkaMetricMutableWrapper(metric);
 						previouslyCreatedMetrics.put(name, wrapper);
 						kafkaMetricGroup.gauge(name, wrapper);
 					}
@@ -1015,6 +1030,19 @@ public class FlinkKafkaProducer011<IN>
 
 	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
+	}
+
+	private void migrateNextTransactionalIdHindState(FunctionInitializationContext context) throws Exception {
+		ListState<NextTransactionalIdHint> oldNextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
+			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
+		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR_V2);
+
+		ArrayList<NextTransactionalIdHint> oldTransactionalIdHints = Lists.newArrayList(oldNextTransactionalIdHintState.get());
+		if (!oldTransactionalIdHints.isEmpty()) {
+			nextTransactionalIdHintState.addAll(oldTransactionalIdHints);
+			//clear old state
+			oldNextTransactionalIdHintState.clear();
+		}
 	}
 
 	private static Properties getPropertiesFromBrokerList(String brokerList) {
@@ -1075,7 +1103,7 @@ public class FlinkKafkaProducer011<IN>
 		}
 
 		KafkaTransactionState(
-				String transactionalId,
+				@Nullable String transactionalId,
 				long producerId,
 				short epoch,
 				FlinkKafkaProducer<byte[], byte[]> producer) {
@@ -1083,6 +1111,10 @@ public class FlinkKafkaProducer011<IN>
 			this.producerId = producerId;
 			this.epoch = epoch;
 			this.producer = producer;
+		}
+
+		boolean isTransactional() {
+			return transactionalId != null;
 		}
 
 		@Override
@@ -1239,9 +1271,21 @@ public class FlinkKafkaProducer011<IN>
 			target.writeShort(source.readShort());
 		}
 
+		// ------------------------------------------------------------------------
+
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof TransactionStateSerializer;
+		public TypeSerializerSnapshot<KafkaTransactionState> snapshotConfiguration() {
+			return new TransactionStateSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class TransactionStateSerializerSnapshot extends SimpleTypeSerializerSnapshot<KafkaTransactionState> {
+			public TransactionStateSerializerSnapshot() {
+				super(TransactionStateSerializer::new);
+			}
 		}
 	}
 
@@ -1321,9 +1365,21 @@ public class FlinkKafkaProducer011<IN>
 			}
 		}
 
+		// ------------------------------------------------------------------------
+
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof ContextStateSerializer;
+		public TypeSerializerSnapshot<KafkaTransactionContext> snapshotConfiguration() {
+			return new ContextStateSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class ContextStateSerializerSnapshot extends SimpleTypeSerializerSnapshot<KafkaTransactionContext> {
+			public ContextStateSerializerSnapshot() {
+				super(ContextStateSerializer::new);
+			}
 		}
 	}
 
@@ -1342,5 +1398,114 @@ public class FlinkKafkaProducer011<IN>
 			this.lastParallelism = parallelism;
 			this.nextFreeTransactionalId = nextFreeTransactionalId;
 		}
+
+		@Override
+		public String toString() {
+			return "NextTransactionalIdHint[" +
+				"lastParallelism=" + lastParallelism +
+				", nextFreeTransactionalId=" + nextFreeTransactionalId +
+				']';
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+
+			NextTransactionalIdHint that = (NextTransactionalIdHint) o;
+
+			if (lastParallelism != that.lastParallelism) {
+				return false;
+			}
+			return nextFreeTransactionalId == that.nextFreeTransactionalId;
+		}
+
+		@Override
+		public int hashCode() {
+			int result = lastParallelism;
+			result = 31 * result + (int) (nextFreeTransactionalId ^ (nextFreeTransactionalId >>> 32));
+			return result;
+		}
 	}
+
+	/**
+	 * {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
+	 * {@link NextTransactionalIdHint}.
+	 */
+	@VisibleForTesting
+	@Internal
+	public static class NextTransactionalIdHintSerializer extends TypeSerializerSingleton<NextTransactionalIdHint> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean isImmutableType() {
+			return true;
+		}
+
+		@Override
+		public NextTransactionalIdHint createInstance() {
+			return new NextTransactionalIdHint();
+		}
+
+		@Override
+		public NextTransactionalIdHint copy(NextTransactionalIdHint from) {
+			return from;
+		}
+
+		@Override
+		public NextTransactionalIdHint copy(NextTransactionalIdHint from, NextTransactionalIdHint reuse) {
+			return from;
+		}
+
+		@Override
+		public int getLength() {
+			return Long.BYTES + Integer.BYTES;
+		}
+
+		@Override
+		public void serialize(NextTransactionalIdHint record, DataOutputView target) throws IOException {
+			target.writeLong(record.nextFreeTransactionalId);
+			target.writeInt(record.lastParallelism);
+		}
+
+		@Override
+		public NextTransactionalIdHint deserialize(DataInputView source) throws IOException {
+			long nextFreeTransactionalId = source.readLong();
+			int lastParallelism = source.readInt();
+			return new NextTransactionalIdHint(lastParallelism, nextFreeTransactionalId);
+		}
+
+		@Override
+		public NextTransactionalIdHint deserialize(NextTransactionalIdHint reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			target.writeLong(source.readLong());
+			target.writeInt(source.readInt());
+		}
+
+		@Override
+		public TypeSerializerSnapshot<NextTransactionalIdHint> snapshotConfiguration() {
+			return new NextTransactionalIdHintSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class NextTransactionalIdHintSerializerSnapshot extends SimpleTypeSerializerSnapshot<NextTransactionalIdHint> {
+
+			public NextTransactionalIdHintSerializerSnapshot() {
+				super(NextTransactionalIdHintSerializer::new);
+			}
+		}
+	}
+
 }

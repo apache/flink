@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -47,8 +48,6 @@ import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for stream operator chaining behaviour.
@@ -81,6 +80,9 @@ public class StreamOperatorChainingTest {
 	 * Verify that multi-chaining works.
 	 */
 	private void testMultiChaining(StreamExecutionEnvironment env) throws Exception {
+
+		// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
+		env.setParallelism(2);
 
 		// the actual elements will not be used
 		DataStream<Integer> input = env.fromElements(1, 2, 3);
@@ -176,6 +178,9 @@ public class StreamOperatorChainingTest {
 	 */
 	private void testMultiChainingWithSplit(StreamExecutionEnvironment env) throws Exception {
 
+		// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
+		env.setParallelism(2);
+
 		// the actual elements will not be used
 		DataStream<Integer> input = env.fromElements(1, 2, 3);
 
@@ -269,23 +274,18 @@ public class StreamOperatorChainingTest {
 			StreamConfig streamConfig,
 			Environment environment,
 			StreamTask<IN, OT> task) {
-		return new OperatorChain<>(task, StreamTask.createStreamRecordWriters(streamConfig, environment));
+		return new OperatorChain<>(task, StreamTask.createRecordWriterDelegate(streamConfig, environment));
 	}
 
 	private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(
 			StreamConfig streamConfig,
-			Environment environment) {
-		final Object checkpointLock = new Object();
+			Environment environment) throws Exception {
 
-		@SuppressWarnings("unchecked")
-		StreamTask<IN, OT> mockTask = mock(StreamTask.class);
-		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
-		when(mockTask.getConfiguration()).thenReturn(streamConfig);
-		when(mockTask.getEnvironment()).thenReturn(environment);
-		when(mockTask.getExecutionConfig()).thenReturn(new ExecutionConfig().enableObjectReuse());
-
-		return mockTask;
+		//noinspection unchecked
+		return new MockStreamTaskBuilder(environment)
+			.setConfig(streamConfig)
+			.setExecutionConfig(new ExecutionConfig().enableObjectReuse())
+			.build();
 	}
 
 }

@@ -183,7 +183,7 @@ public abstract class DataSet<T> {
 
 	public <F> F clean(F f) {
 		if (getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
-			ClosureCleaner.clean(f, true);
+			ClosureCleaner.clean(f, getExecutionEnvironment().getConfig().getClosureCleanerLevel(), true);
 		} else {
 			ClosureCleaner.ensureSerializable(f);
 		}

@@ -72,7 +72,7 @@ public class LocalFileSystem extends FileSystem {
 	 * Because Paths are not immutable, we cannot cache the proper path here */
 	private final URI workingDir;
 
-	/** Path pointing to the current working directory.
+	/** Path pointing to the current user home directory.
 	 * Because Paths are not immutable, we cannot cache the proper path here. */
 	private final URI homeDir;
 

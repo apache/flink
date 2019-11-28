@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
@@ -28,6 +29,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -81,7 +83,7 @@ public class KafkaConsumerThread extends Thread {
 	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue;
 
 	/** The indirections on KafkaConsumer methods, for cases where KafkaConsumer compatibility is broken. */
-	private final KafkaConsumerCallBridge consumerCallBridge;
+	private final KafkaConsumerCallBridge09 consumerCallBridge;
 
 	/** The maximum number of milliseconds to wait for a fetch batch. */
 	private final long pollTimeout;
@@ -120,17 +122,21 @@ public class KafkaConsumerThread extends Thread {
 	/** Flag tracking whether the latest commit request has completed. */
 	private volatile boolean commitInProgress;
 
+	/** Ratelimiter. */
+	private FlinkConnectorRateLimiter rateLimiter;
+
 	public KafkaConsumerThread(
 			Logger log,
 			Handover handover,
 			Properties kafkaProperties,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
-			KafkaConsumerCallBridge consumerCallBridge,
+			KafkaConsumerCallBridge09 consumerCallBridge,
 			String threadName,
 			long pollTimeout,
 			boolean useMetrics,
 			MetricGroup consumerMetricGroup,
-			MetricGroup subtaskMetricGroup) {
+			MetricGroup subtaskMetricGroup,
+			FlinkConnectorRateLimiter rateLimiter) {
 
 		super(threadName);
 		setDaemon(true);
@@ -150,6 +156,10 @@ public class KafkaConsumerThread extends Thread {
 		this.consumerReassignmentLock = new Object();
 		this.nextOffsetsToCommit = new AtomicReference<>();
 		this.running = true;
+
+		if (rateLimiter != null) {
+			this.rateLimiter = rateLimiter;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -254,7 +264,7 @@ public class KafkaConsumerThread extends Thread {
 				// get the next batch of records, unless we did not manage to hand the old batch over
 				if (records == null) {
 					try {
-						records = consumer.poll(pollTimeout);
+						records = getRecordsFromKafka();
 					}
 					catch (WakeupException we) {
 						continue;
@@ -280,6 +290,11 @@ public class KafkaConsumerThread extends Thread {
 		finally {
 			// make sure the handover is closed if it is not already closed or has an error
 			handover.close();
+
+			// If a ratelimiter was created, make sure it's closed.
+			if (rateLimiter != null) {
+				rateLimiter.close();
+			}
 
 			// make sure the KafkaConsumer is closed
 			try {
@@ -315,6 +330,11 @@ public class KafkaConsumerThread extends Thread {
 				// set this flag so that the wakeup state is restored once the reassignment is complete
 				hasBufferedWakeup = true;
 			}
+		}
+
+		// If a ratelimiter was created, make sure it's closed.
+		if (rateLimiter != null) {
+			rateLimiter.close();
 		}
 	}
 
@@ -481,6 +501,49 @@ public class KafkaConsumerThread extends Thread {
 	KafkaConsumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
 		return new KafkaConsumer<>(kafkaProperties);
 	}
+
+	@VisibleForTesting
+	FlinkConnectorRateLimiter getRateLimiter() {
+		return rateLimiter;
+	}
+
+	// -----------------------------------------------------------------------
+	// Rate limiting methods
+	// -----------------------------------------------------------------------
+
+	/**
+	 *
+	 * @param records List of ConsumerRecords.
+	 * @return Total batch size in bytes, including key and value.
+	 */
+	private int getRecordBatchSize(ConsumerRecords<byte[], byte[]> records) {
+		int recordBatchSizeBytes = 0;
+		for (ConsumerRecord<byte[], byte[]> record: records) {
+			// Null is an allowed value for the key
+			if (record.key() != null) {
+				recordBatchSizeBytes += record.key().length;
+			}
+			recordBatchSizeBytes += record.value().length;
+
+		}
+		return recordBatchSizeBytes;
+	}
+
+	/**
+	 * Get records from Kafka. If the rate-limiting feature is turned on, this method is called at
+	 * a rate specified by the {@link #rateLimiter}.
+	 * @return ConsumerRecords
+	 */
+	@VisibleForTesting
+	protected ConsumerRecords<byte[], byte[]> getRecordsFromKafka() {
+		ConsumerRecords<byte[], byte[]> records = consumer.poll(pollTimeout);
+		if (rateLimiter != null) {
+			int bytesRead = getRecordBatchSize(records);
+			rateLimiter.acquire(bytesRead);
+		}
+		return records;
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Utilities

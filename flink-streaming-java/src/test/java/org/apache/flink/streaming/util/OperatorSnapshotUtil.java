@@ -20,7 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1Serializer;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2Serializer;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 
@@ -55,13 +55,13 @@ public class OperatorSnapshotUtil {
 			dos.writeInt(0);
 
 			// still required for compatibility
-			SavepointV1Serializer.serializeStreamStateHandle(null, dos);
+			SavepointV2Serializer.serializeStreamStateHandle(null, dos);
 
 			Collection<OperatorStateHandle> rawOperatorState = state.getRawOperatorState();
 			if (rawOperatorState != null) {
 				dos.writeInt(rawOperatorState.size());
 				for (OperatorStateHandle operatorStateHandle : rawOperatorState) {
-					SavepointV1Serializer.serializeOperatorStateHandle(operatorStateHandle, dos);
+					SavepointV2Serializer.serializeOperatorStateHandle(operatorStateHandle, dos);
 				}
 			} else {
 				// this means no states, not even an empty list
@@ -72,7 +72,7 @@ public class OperatorSnapshotUtil {
 			if (managedOperatorState != null) {
 				dos.writeInt(managedOperatorState.size());
 				for (OperatorStateHandle operatorStateHandle : managedOperatorState) {
-					SavepointV1Serializer.serializeOperatorStateHandle(operatorStateHandle, dos);
+					SavepointV2Serializer.serializeOperatorStateHandle(operatorStateHandle, dos);
 				}
 			} else {
 				// this means no states, not even an empty list
@@ -83,7 +83,7 @@ public class OperatorSnapshotUtil {
 			if (rawKeyedState != null) {
 				dos.writeInt(rawKeyedState.size());
 				for (KeyedStateHandle keyedStateHandle : rawKeyedState) {
-					SavepointV1Serializer.serializeKeyedStateHandle(keyedStateHandle, dos);
+					SavepointV2Serializer.serializeKeyedStateHandle(keyedStateHandle, dos);
 				}
 			} else {
 				// this means no operator states, not even an empty list
@@ -94,7 +94,7 @@ public class OperatorSnapshotUtil {
 			if (managedKeyedState != null) {
 				dos.writeInt(managedKeyedState.size());
 				for (KeyedStateHandle keyedStateHandle : managedKeyedState) {
-					SavepointV1Serializer.serializeKeyedStateHandle(keyedStateHandle, dos);
+					SavepointV2Serializer.serializeKeyedStateHandle(keyedStateHandle, dos);
 				}
 			} else {
 				// this means no operator states, not even an empty list
@@ -113,14 +113,14 @@ public class OperatorSnapshotUtil {
 			dis.readInt();
 
 			// still required for compatibility to consume the bytes.
-			SavepointV1Serializer.deserializeStreamStateHandle(dis);
+			SavepointV2Serializer.deserializeStreamStateHandle(dis);
 
 			List<OperatorStateHandle> rawOperatorState = null;
 			int numRawOperatorStates = dis.readInt();
 			if (numRawOperatorStates >= 0) {
 				rawOperatorState = new ArrayList<>();
 				for (int i = 0; i < numRawOperatorStates; i++) {
-					OperatorStateHandle operatorState = SavepointV1Serializer.deserializeOperatorStateHandle(
+					OperatorStateHandle operatorState = SavepointV2Serializer.deserializeOperatorStateHandle(
 						dis);
 					rawOperatorState.add(operatorState);
 				}
@@ -131,7 +131,7 @@ public class OperatorSnapshotUtil {
 			if (numManagedOperatorStates >= 0) {
 				managedOperatorState = new ArrayList<>();
 				for (int i = 0; i < numManagedOperatorStates; i++) {
-					OperatorStateHandle operatorState = SavepointV1Serializer.deserializeOperatorStateHandle(
+					OperatorStateHandle operatorState = SavepointV2Serializer.deserializeOperatorStateHandle(
 						dis);
 					managedOperatorState.add(operatorState);
 				}
@@ -142,7 +142,7 @@ public class OperatorSnapshotUtil {
 			if (numRawKeyedStates >= 0) {
 				rawKeyedState = new ArrayList<>();
 				for (int i = 0; i < numRawKeyedStates; i++) {
-					KeyedStateHandle keyedState = SavepointV1Serializer.deserializeKeyedStateHandle(
+					KeyedStateHandle keyedState = SavepointV2Serializer.deserializeKeyedStateHandle(
 						dis);
 					rawKeyedState.add(keyedState);
 				}
@@ -153,7 +153,7 @@ public class OperatorSnapshotUtil {
 			if (numManagedKeyedStates >= 0) {
 				managedKeyedState = new ArrayList<>();
 				for (int i = 0; i < numManagedKeyedStates; i++) {
-					KeyedStateHandle keyedState = SavepointV1Serializer.deserializeKeyedStateHandle(
+					KeyedStateHandle keyedState = SavepointV2Serializer.deserializeKeyedStateHandle(
 						dis);
 					managedKeyedState.add(keyedState);
 				}

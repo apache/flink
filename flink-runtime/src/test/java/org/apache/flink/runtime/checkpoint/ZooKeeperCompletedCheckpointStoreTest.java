@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.framework.CuratorFramework;
@@ -117,11 +118,14 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
 	@Nonnull
 	private ZooKeeperCompletedCheckpointStore createZooKeeperCheckpointStore(CuratorFramework client) throws Exception {
-		return new ZooKeeperCompletedCheckpointStore(
-			1,
+		final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper = ZooKeeperUtils.createZooKeeperStateHandleStore(
 			client,
 			"/checkpoints",
-			new TestingRetrievableStateStorageHelper<>(),
+			new TestingRetrievableStateStorageHelper<>());
+
+		return new ZooKeeperCompletedCheckpointStore(
+			1,
+			checkpointsInZooKeeper,
 			Executors.directExecutor());
 	}
 

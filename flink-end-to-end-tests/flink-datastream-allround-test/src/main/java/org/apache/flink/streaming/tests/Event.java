@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.tests;
 
+import java.util.Objects;
+
 /**
  * The event type of records used in the {@link DataStreamAllroundTestProgram}.
  */
@@ -49,6 +51,26 @@ public class Event {
 
 	public String getPayload() {
 		return payload;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		Event event = (Event) o;
+		return key == event.key &&
+			eventTime == event.eventTime &&
+			sequenceNumber == event.sequenceNumber &&
+			Objects.equals(payload, event.payload);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(key, eventTime, sequenceNumber, payload);
 	}
 
 	@Override

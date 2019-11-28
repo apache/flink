@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -27,7 +26,6 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
-import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.Test;
 
@@ -45,35 +43,6 @@ import static org.junit.Assert.fail;
  * Tests for the {@link EventSerializer}.
  */
 public class EventSerializerTest {
-
-	@Test
-	public void testCheckpointBarrierSerialization() throws Exception {
-		long id = Integer.MAX_VALUE + 123123L;
-		long timestamp = Integer.MAX_VALUE + 1228L;
-
-		CheckpointOptions checkpoint = CheckpointOptions.forCheckpointWithDefaultLocation();
-		testCheckpointBarrierSerialization(id, timestamp, checkpoint);
-
-		final byte[] reference = new byte[] { 15, 52, 52, 11, 0, 0, 0, 0, -1, -23, -19, 35 };
-
-		CheckpointOptions savepoint = new CheckpointOptions(
-				CheckpointType.SAVEPOINT, new CheckpointStorageLocationReference(reference));
-		testCheckpointBarrierSerialization(id, timestamp, savepoint);
-	}
-
-	private void testCheckpointBarrierSerialization(long id, long timestamp, CheckpointOptions options) throws IOException {
-		ClassLoader cl = Thread.currentThread().getContextClassLoader();
-
-		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, options);
-		ByteBuffer serialized = EventSerializer.toSerializedEvent(barrier);
-		CheckpointBarrier deserialized = (CheckpointBarrier) EventSerializer.fromSerializedEvent(serialized, cl);
-		assertFalse(serialized.hasRemaining());
-
-		assertEquals(id, deserialized.getId());
-		assertEquals(timestamp, deserialized.getTimestamp());
-		assertEquals(options.getCheckpointType(), deserialized.getCheckpointOptions().getCheckpointType());
-		assertEquals(options.getTargetLocation(), deserialized.getCheckpointOptions().getTargetLocation());
-	}
 
 	@Test
 	public void testSerializeDeserializeEvent() throws Exception {

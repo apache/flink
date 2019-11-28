@@ -40,7 +40,7 @@ public class HeartbeatServices {
 
 	public HeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
 		Preconditions.checkArgument(0L < heartbeatInterval, "The heartbeat interval must be larger than 0.");
-		Preconditions.checkArgument(heartbeatInterval <= heartbeatTimeout, "The heartbeat timeout should be larger or equal than the heartbeat timeout.");
+		Preconditions.checkArgument(heartbeatInterval <= heartbeatTimeout, "The heartbeat timeout should be larger or equal than the heartbeat interval.");
 
 		this.heartbeatInterval = heartbeatInterval;
 		this.heartbeatTimeout = heartbeatTimeout;
@@ -52,7 +52,7 @@ public class HeartbeatServices {
 	 * @param resourceId Resource Id which identifies the owner of the heartbeat manager
 	 * @param heartbeatListener Listener which will be notified upon heartbeat timeouts for registered
 	 *                          targets
-	 * @param scheduledExecutor Scheduled executor to be used for scheduling heartbeat timeouts
+	 * @param mainThreadExecutor Scheduled executor to be used for scheduling heartbeat timeouts
 	 * @param log Logger to be used for the logging
 	 * @param <I> Type of the incoming payload
 	 * @param <O> Type of the outgoing payload
@@ -61,15 +61,14 @@ public class HeartbeatServices {
 	public <I, O> HeartbeatManager<I, O> createHeartbeatManager(
 		ResourceID resourceId,
 		HeartbeatListener<I, O> heartbeatListener,
-		ScheduledExecutor scheduledExecutor,
+		ScheduledExecutor mainThreadExecutor,
 		Logger log) {
 
 		return new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
 			resourceId,
 			heartbeatListener,
-			scheduledExecutor,
-			scheduledExecutor,
+			mainThreadExecutor,
 			log);
 	}
 
@@ -79,7 +78,8 @@ public class HeartbeatServices {
 	 * @param resourceId Resource Id which identifies the owner of the heartbeat manager
 	 * @param heartbeatListener Listener which will be notified upon heartbeat timeouts for registered
 	 *                          targets
-	 * @param scheduledExecutor Scheduled executor to be used for scheduling heartbeat timeouts
+	 * @param mainThreadExecutor Scheduled executor to be used for scheduling heartbeat timeouts and
+	 *                           periodically send heartbeat requests
 	 * @param log Logger to be used for the logging
 	 * @param <I> Type of the incoming payload
 	 * @param <O> Type of the outgoing payload
@@ -88,7 +88,7 @@ public class HeartbeatServices {
 	public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
 		ResourceID resourceId,
 		HeartbeatListener<I, O> heartbeatListener,
-		ScheduledExecutor scheduledExecutor,
+		ScheduledExecutor mainThreadExecutor,
 		Logger log) {
 
 		return new HeartbeatManagerSenderImpl<>(
@@ -96,8 +96,7 @@ public class HeartbeatServices {
 			heartbeatTimeout,
 			resourceId,
 			heartbeatListener,
-			scheduledExecutor,
-			scheduledExecutor,
+			mainThreadExecutor,
 			log);
 	}
 

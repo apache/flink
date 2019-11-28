@@ -23,6 +23,8 @@ import org.apache.flink.api.common.time.Time;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -52,7 +54,7 @@ public class ConfigurationUtils {
 			return MemorySize.parse(configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB) + "m");
 		} else {
 			//use default value
-			return MemorySize.parse(configuration.getString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY));
+			return MemorySize.parse(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue());
 		}
 	}
 
@@ -71,7 +73,7 @@ public class ConfigurationUtils {
 			return MemorySize.parse(configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB) + "m");
 		} else {
 			//use default value
-			return MemorySize.parse(configuration.getString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY));
+			return MemorySize.parse(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.defaultValue());
 		}
 	}
 
@@ -113,6 +115,17 @@ public class ConfigurationUtils {
 		return splitPaths(configValue);
 	}
 
+	public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
+		final Time timeout;
+		long standaloneClusterStartupPeriodTime = configuration.getLong(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
+		if (standaloneClusterStartupPeriodTime >= 0) {
+			timeout = Time.milliseconds(standaloneClusterStartupPeriodTime);
+		} else {
+			timeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+		}
+		return timeout;
+	}
+
 	/**
 	 * Creates a new {@link Configuration} from the given {@link Properties}.
 	 *
@@ -132,8 +145,32 @@ public class ConfigurationUtils {
 		return configuration;
 	}
 
+	/**
+	 * Replaces values whose keys are sensitive according to {@link GlobalConfiguration#isSensitive(String)}
+	 * with {@link GlobalConfiguration#HIDDEN_CONTENT}.
+	 *
+	 * <p>This can be useful when displaying configuration values.
+	 *
+	 * @param keyValuePairs for which to hide sensitive values
+	 * @return A map where all sensitive value are hidden
+	 */
 	@Nonnull
-	private static String[] splitPaths(@Nonnull String separatedPaths) {
+	public static Map<String, String> hideSensitiveValues(Map<String, String> keyValuePairs) {
+		final HashMap<String, String> result = new HashMap<>();
+
+		for (Map.Entry<String, String> keyValuePair : keyValuePairs.entrySet()) {
+			if (GlobalConfiguration.isSensitive(keyValuePair.getKey())) {
+				result.put(keyValuePair.getKey(), GlobalConfiguration.HIDDEN_CONTENT);
+			} else {
+				result.put(keyValuePair.getKey(), keyValuePair.getValue());
+			}
+		}
+
+		return result;
+	}
+
+	@Nonnull
+	public static String[] splitPaths(@Nonnull String separatedPaths) {
 		return separatedPaths.length() > 0 ? separatedPaths.split(",|" + File.pathSeparator) : EMPTY;
 	}
 

@@ -19,8 +19,7 @@
 package org.apache.flink.api.java.utils;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
@@ -34,7 +33,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,18 +40,15 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class provides simple utility methods for reading and parsing program arguments from different sources.
+ * Only single value parameter could be supported in args.
  */
 @Public
-public class ParameterTool extends ExecutionConfig.GlobalJobParameters implements Serializable, Cloneable {
+public class ParameterTool extends AbstractParameterTool {
 	private static final long serialVersionUID = 1L;
-
-	protected static final String NO_VALUE_KEY = "__NO_VALUE_KEY";
-	protected static final String DEFAULT_UNDEFINED = "<undefined>";
 
 	// ------------------ Constructors ------------------------
 
@@ -68,80 +63,32 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @return A {@link ParameterTool}
 	 */
 	public static ParameterTool fromArgs(String[] args) {
-		Map<String, String> map = new HashMap<String, String>(args.length / 2);
+		final Map<String, String> map = new HashMap<>(args.length / 2);
 
-		String key = null;
-		String value = null;
-		boolean expectValue = false;
-		for (String arg : args) {
-			// check for -- argument
-			if (arg.startsWith("--")) {
-				if (expectValue) {
-					// we got into a new key, even though we were a value --> current key is one without value
-					if (value != null) {
-						throw new IllegalStateException("Unexpected state");
-					}
-					map.put(key, NO_VALUE_KEY);
-					// key will be overwritten in the next step
-				}
-				key = arg.substring(2);
-				expectValue = true;
-			} // check for - argument
-			else if (arg.startsWith("-")) {
-				// we are waiting for a value, so this is a - prefixed value (negative number)
-				if (expectValue) {
+		int i = 0;
+		while (i < args.length) {
+			final String key = Utils.getKeyFromArgs(args, i);
 
-					if (NumberUtils.isNumber(arg)) {
-						// negative number
-						value = arg;
-						expectValue = false;
-					} else {
-						if (value != null) {
-							throw new IllegalStateException("Unexpected state");
-						}
-						// We waited for a value but found a new key. So the previous key doesnt have a value.
-						map.put(key, NO_VALUE_KEY);
-						key = arg.substring(1);
-						expectValue = true;
-					}
-				} else {
-					// we are not waiting for a value, so its an argument
-					key = arg.substring(1);
-					expectValue = true;
-				}
-			} else {
-				if (expectValue) {
-					value = arg;
-					expectValue = false;
-				} else {
-					throw new RuntimeException("Error parsing arguments '" + Arrays.toString(args) + "' on '" + arg + "'. Unexpected value. Please prefix values with -- or -.");
-				}
+			if (key.isEmpty()) {
+				throw new IllegalArgumentException(
+					"The input " + Arrays.toString(args) + " contains an empty argument");
 			}
 
-			if (value == null && key == null) {
-				throw new IllegalStateException("Value and key can not be null at the same time");
-			}
-			if (key != null && value == null && !expectValue) {
-				throw new IllegalStateException("Value expected but flag not set");
-			}
-			if (key != null && value != null) {
-				map.put(key, value);
-				key = null;
-				value = null;
-				expectValue = false;
-			}
-			if (key != null && key.length() == 0) {
-				throw new IllegalArgumentException("The input " + Arrays.toString(args) + " contains an empty argument");
-			}
+			i += 1; // try to find the value
 
-			if (key != null && !expectValue) {
+			if (i >= args.length) {
 				map.put(key, NO_VALUE_KEY);
-				key = null;
-				expectValue = false;
+			} else if (NumberUtils.isNumber(args[i])) {
+				map.put(key, args[i]);
+				i += 1;
+			} else if (args[i].startsWith("--") || args[i].startsWith("-")) {
+				// the argument cannot be a negative number because we checked earlier
+				// -> the next argument is a parameter name
+				map.put(key, NO_VALUE_KEY);
+			} else {
+				map.put(key, args[i]);
+				i += 1;
 			}
-		}
-		if (key != null) {
-			map.put(key, NO_VALUE_KEY);
 		}
 
 		return fromMap(map);
@@ -216,10 +163,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	// ------------------ ParameterUtil  ------------------------
 	protected final Map<String, String> data;
 
-	// data which is only used on the client and does not need to be transmitted
-	protected transient Map<String, String> defaultData;
-	protected transient Set<String> unrequestedParameters;
-
 	private ParameterTool(Map<String, String> data) {
 		this.data = Collections.unmodifiableMap(new HashMap<>(data));
 
@@ -249,21 +192,12 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return Objects.hash(data, defaultData, unrequestedParameters);
 	}
 
-	/**
-	 * Returns the set of parameter names which have not been requested with
-	 * {@link #has(String)} or one of the {@code get} methods. Access to the
-	 * map returned by {@link #toMap()} is not tracked.
-	 */
-	@PublicEvolving
-	public Set<String> getUnrequestedParameters() {
-		return Collections.unmodifiableSet(unrequestedParameters);
-	}
-
 	// ------------------ Get data from the util ----------------
 
 	/**
 	 * Returns number of parameters in {@link ParameterTool}.
 	 */
+	@Override
 	public int getNumberOfParameters() {
 		return data.size();
 	}
@@ -272,6 +206,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * Returns the String value for the given key.
 	 * If the key does not exist it will return null.
 	 */
+	@Override
 	public String get(String key) {
 		addToDefaults(key, null);
 		unrequestedParameters.remove(key);
@@ -279,237 +214,13 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	/**
-	 * Returns the String value for the given key.
-	 * If the key does not exist it will throw a {@link RuntimeException}.
-	 */
-	public String getRequired(String key) {
-		addToDefaults(key, null);
-		String value = get(key);
-		if (value == null) {
-			throw new RuntimeException("No data for required key '" + key + "'");
-		}
-		return value;
-	}
-
-	/**
-	 * Returns the String value for the given key.
-	 * If the key does not exist it will return the given default value.
-	 */
-	public String get(String key, String defaultValue) {
-		addToDefaults(key, defaultValue);
-		String value = get(key);
-		if (value == null) {
-			return defaultValue;
-		} else {
-			return value;
-		}
-	}
-
-	/**
 	 * Check if value is set.
 	 */
+	@Override
 	public boolean has(String value) {
 		addToDefaults(value, null);
 		unrequestedParameters.remove(value);
 		return data.containsKey(value);
-	}
-
-	// -------------- Integer
-
-	/**
-	 * Returns the Integer value for the given key.
-	 * The method fails if the key does not exist or the value is not an Integer.
-	 */
-	public int getInt(String key) {
-		addToDefaults(key, null);
-		String value = getRequired(key);
-		return Integer.parseInt(value);
-	}
-
-	/**
-	 * Returns the Integer value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not an Integer.
-	 */
-	public int getInt(String key, int defaultValue) {
-		addToDefaults(key, Integer.toString(defaultValue));
-		String value = get(key);
-		if (value == null) {
-			return defaultValue;
-		}
-		return Integer.parseInt(value);
-	}
-
-	// -------------- LONG
-
-	/**
-	 * Returns the Long value for the given key.
-	 * The method fails if the key does not exist.
-	 */
-	public long getLong(String key) {
-		addToDefaults(key, null);
-		String value = getRequired(key);
-		return Long.parseLong(value);
-	}
-
-	/**
-	 * Returns the Long value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not a Long.
-	 */
-	public long getLong(String key, long defaultValue) {
-		addToDefaults(key, Long.toString(defaultValue));
-		String value = get(key);
-		if (value == null) {
-			return defaultValue;
-		}
-		return Long.parseLong(value);
-	}
-
-	// -------------- FLOAT
-
-	/**
-	 * Returns the Float value for the given key.
-	 * The method fails if the key does not exist.
-	 */
-	public float getFloat(String key) {
-		addToDefaults(key, null);
-		String value = getRequired(key);
-		return Float.valueOf(value);
-	}
-
-	/**
-	 * Returns the Float value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not a Float.
-	 */
-	public float getFloat(String key, float defaultValue) {
-		addToDefaults(key, Float.toString(defaultValue));
-		String value = get(key);
-		if (value == null) {
-			return defaultValue;
-		} else {
-			return Float.valueOf(value);
-		}
-	}
-
-	// -------------- DOUBLE
-
-	/**
-	 * Returns the Double value for the given key.
-	 * The method fails if the key does not exist.
-	 */
-	public double getDouble(String key) {
-		addToDefaults(key, null);
-		String value = getRequired(key);
-		return Double.valueOf(value);
-	}
-
-	/**
-	 * Returns the Double value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not a Double.
-	 */
-	public double getDouble(String key, double defaultValue) {
-		addToDefaults(key, Double.toString(defaultValue));
-		String value = get(key);
-		if (value == null) {
-			return defaultValue;
-		} else {
-			return Double.valueOf(value);
-		}
-	}
-
-	// -------------- BOOLEAN
-
-	/**
-	 * Returns the Boolean value for the given key.
-	 * The method fails if the key does not exist.
-	 */
-	public boolean getBoolean(String key) {
-		addToDefaults(key, null);
-		String value = getRequired(key);
-		return Boolean.valueOf(value);
-	}
-
-	/**
-	 * Returns the Boolean value for the given key. If the key does not exists it will return the default value given.
-	 * The method returns whether the string of the value is "true" ignoring cases.
-	 */
-	public boolean getBoolean(String key, boolean defaultValue) {
-		addToDefaults(key, Boolean.toString(defaultValue));
-		String value = get(key);
-		if (value == null) {
-			return defaultValue;
-		} else {
-			return Boolean.valueOf(value);
-		}
-	}
-
-	// -------------- SHORT
-
-	/**
-	 * Returns the Short value for the given key.
-	 * The method fails if the key does not exist.
-	 */
-	public short getShort(String key) {
-		addToDefaults(key, null);
-		String value = getRequired(key);
-		return Short.valueOf(value);
-	}
-
-	/**
-	 * Returns the Short value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not a Short.
-	 */
-	public short getShort(String key, short defaultValue) {
-		addToDefaults(key, Short.toString(defaultValue));
-		String value = get(key);
-		if (value == null) {
-			return defaultValue;
-		} else {
-			return Short.valueOf(value);
-		}
-	}
-
-	// -------------- BYTE
-
-	/**
-	 * Returns the Byte value for the given key.
-	 * The method fails if the key does not exist.
-	 */
-	public byte getByte(String key) {
-		addToDefaults(key, null);
-		String value = getRequired(key);
-		return Byte.valueOf(value);
-	}
-
-	/**
-	 * Returns the Byte value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not a Byte.
-	 */
-	public byte getByte(String key, byte defaultValue) {
-		addToDefaults(key, Byte.toString(defaultValue));
-		String value = get(key);
-		if (value == null) {
-			return defaultValue;
-		} else {
-			return Byte.valueOf(value);
-		}
-	}
-
-	// --------------- Internals
-
-	protected void addToDefaults(String key, String value) {
-		String currentValue = defaultData.get(key);
-		if (currentValue == null) {
-			if (value == null) {
-				value = DEFAULT_UNDEFINED;
-			}
-			defaultData.put(key, value);
-		} else {
-			// there is already an entry for this key. Check if the value is the undefined
-			if (currentValue.equals(DEFAULT_UNDEFINED) && value != null) {
-				// update key with better default value
-				defaultData.put(key, value);
-			}
-		}
 	}
 
 	// ------------------------- Export to different targets -------------------------
@@ -520,7 +231,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @return A {@link Configuration}
 	 */
 	public Configuration getConfiguration() {
-		Configuration conf = new Configuration();
+		final Configuration conf = new Configuration();
 		for (Map.Entry<String, String> entry : data.entrySet()) {
 			conf.setString(entry.getKey(), entry.getValue());
 		}
@@ -559,7 +270,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @throws IOException If overwrite is not allowed and the file exists
 	 */
 	public void createPropertiesFile(String pathToFile, boolean overwrite) throws IOException {
-		File file = new File(pathToFile);
+		final File file = new File(pathToFile);
 		if (file.exists()) {
 			if (overwrite) {
 				file.delete();
@@ -567,7 +278,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 				throw new RuntimeException("File " + pathToFile + " exists and overwriting is not allowed");
 			}
 		}
-		Properties defaultProps = new Properties();
+		final Properties defaultProps = new Properties();
 		defaultProps.putAll(this.defaultData);
 		try (final OutputStream out = new FileOutputStream(file)) {
 			defaultProps.store(out, "Default file created by Flink's ParameterUtil.createPropertiesFile()");
@@ -588,11 +299,11 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @return The Merged {@link ParameterTool}
 	 */
 	public ParameterTool mergeWith(ParameterTool other) {
-		Map<String, String> resultData = new HashMap<>(data.size() + other.data.size());
+		final Map<String, String> resultData = new HashMap<>(data.size() + other.data.size());
 		resultData.putAll(data);
 		resultData.putAll(other.data);
 
-		ParameterTool ret = new ParameterTool(resultData);
+		final ParameterTool ret = new ParameterTool(resultData);
 
 		final HashSet<String> requestedParametersLeft = new HashSet<>(data.keySet());
 		requestedParametersLeft.removeAll(unrequestedParameters);

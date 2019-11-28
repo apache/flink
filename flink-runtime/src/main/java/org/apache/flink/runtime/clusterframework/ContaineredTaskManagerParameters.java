@@ -103,7 +103,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Calcuate cutoff memory size used by container, it will throw an {@link IllegalArgumentException}
+	 * Calculates cutoff memory size used by container, it will throw an {@link IllegalArgumentException}
 	 * if the config is invalid or return the cutoff value if valid.
 	 *
 	 * @param config The Flink configuration.

@@ -18,11 +18,13 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.deployment.executors.StandaloneSessionClusterExecutor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
@@ -38,7 +40,7 @@ import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConf
  * a ZooKeeper namespace.
  *
  */
-public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<T> {
+public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 
 	protected final Option zookeeperNamespaceOption = new Option("z", "zookeeperNamespace", true,
 		"Namespace to create the Zookeeper sub-paths for high availability mode");
@@ -69,18 +71,14 @@ public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<
 		baseOptions.addOption(zookeeperNamespaceOption);
 	}
 
-	/**
-	 * Override configuration settings by specified command line options.
-	 *
-	 * @param commandLine containing the overriding values
-	 * @return Effective configuration with the overridden configuration settings
-	 */
-	protected Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+	@Override
+	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
 		final Configuration resultingConfiguration = new Configuration(configuration);
+		resultingConfiguration.setString(DeploymentOptions.TARGET, StandaloneSessionClusterExecutor.NAME);
 
 		if (commandLine.hasOption(addressOption.getOpt())) {
 			String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
-			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(addressWithPort);
+			InetSocketAddress jobManagerAddress = NetUtils.parseHostPortAddress(addressWithPort);
 			setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
 		}
 

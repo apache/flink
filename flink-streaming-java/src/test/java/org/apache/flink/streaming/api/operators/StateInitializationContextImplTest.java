@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
@@ -170,13 +171,13 @@ public class StateInitializationContextImplTest {
 		StateBackend stateBackend = new MemoryStateBackend(1024);
 		StreamTaskStateInitializer streamTaskStateManager = new StreamTaskStateInitializerImpl(
 			environment,
-			stateBackend,
-			mock(ProcessingTimeService.class)) {
+			stateBackend) {
 
 			@Override
 			protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 				AbstractKeyedStateBackend<K> keyedStatedBackend,
 				KeyContext keyContext,
+				ProcessingTimeService processingTimeService,
 				Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
 
 				// We do not initialize a timer service manager here, because it would already consume the raw keyed
@@ -192,11 +193,13 @@ public class StateInitializationContextImplTest {
 		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
 			operatorID,
 			"TestOperatorClass",
+			mock(ProcessingTimeService.class),
 			mockOperator,
 			// notice that this essentially disables the previous test of the keyed stream because it was and is always
 			// consumed by the timer service.
 			IntSerializer.INSTANCE,
-			closableRegistry);
+			closableRegistry,
+			new UnregisteredMetricsGroup());
 
 		this.initializationContext =
 				new StateInitializationContextImpl(

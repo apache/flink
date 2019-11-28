@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -34,13 +35,14 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -59,6 +61,7 @@ import static org.junit.Assert.fail;
  * serializability is handled correctly.
  */
 @SuppressWarnings("serial")
+@Category(AlsoRunWithSchedulerNG.class)
 @RunWith(Parameterized.class)
 public class WindowCheckpointingITCase extends TestLogger {
 
@@ -71,7 +74,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 	private static final int PARALLELISM = 4;
 
 	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setConfiguration(getConfiguration())
 			.setNumberTaskManagers(2)
@@ -80,7 +83,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
+		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "48m");
 		return config;
 	}
 
@@ -97,7 +100,6 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 1);
@@ -155,8 +157,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			SinkValidatorUpdaterAndChecker updaterAndChecker =
+						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 3);
 			env
 					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))
@@ -211,8 +212,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			SinkValidatorUpdaterAndChecker updaterAndChecker =
+						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 1);
 			env
 					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))
@@ -257,8 +257,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			SinkValidatorUpdaterAndChecker updaterAndChecker =
+						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 3);
 			env
 					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))

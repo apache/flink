@@ -22,6 +22,7 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
@@ -33,8 +34,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
-import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
+import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
 
@@ -141,8 +142,9 @@ public void testClearingBuffer() throws Exception {
 	NFA<Event> nfa = compile(pattern, false);
 
 	NFAState nfaState = nfa.createInitialNFAState();
+	NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+	List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 		Lists.newArrayList(a1, b1, c1, d)
 	));
@@ -186,8 +188,9 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 	NFA<Event> nfa = compile(pattern, false);
 
 	NFAState nfaState = nfa.createInitialNFAState();
+	NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+	List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 		Lists.newArrayList(a1, d1, d2, d3),
 		Lists.newArrayList(a1, d1, d2),

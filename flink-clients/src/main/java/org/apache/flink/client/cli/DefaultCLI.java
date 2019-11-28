@@ -18,21 +18,17 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
-import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
-import javax.annotation.Nullable;
-
 /**
  * The default CLI which is used for interaction with standalone clusters.
  */
-public class DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterId> {
+public class DefaultCLI extends AbstractCustomCommandLine {
+
+	public static final String ID = "default";
 
 	public DefaultCLI(Configuration configuration) {
 		super(configuration);
@@ -46,30 +42,11 @@ public class DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterId> {
 
 	@Override
 	public String getId() {
-		return "default";
+		return ID;
 	}
 
 	@Override
 	public void addGeneralOptions(Options baseOptions) {
 		super.addGeneralOptions(baseOptions);
-	}
-
-	@Override
-	public StandaloneClusterDescriptor createClusterDescriptor(
-			CommandLine commandLine) throws FlinkException {
-		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
-
-		return new StandaloneClusterDescriptor(effectiveConfiguration);
-	}
-
-	@Override
-	@Nullable
-	public StandaloneClusterId getClusterId(CommandLine commandLine) {
-		return StandaloneClusterId.getInstance();
-	}
-
-	@Override
-	public ClusterSpecification getClusterSpecification(CommandLine commandLine) {
-		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
 	}
 }

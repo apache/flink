@@ -154,7 +154,9 @@ If set to 'docker', specify the image name:
     mesos.resourcemanager.tasks.container.image.name: image_name
 
 
-### Standalone
+### Flink session cluster on Mesos
+
+A Flink session cluster is executed as a long-running Mesos Deployment. Note that you can run multiple Flink jobs on a session cluster. Each job needs to be submitted to the cluster after the cluster has been deployed.
 
 In the `/bin` directory of the Flink distribution, you find two startup scripts
 which manage the Flink processes in a Mesos cluster:
@@ -173,6 +175,35 @@ In order to run the `mesos-appmaster.sh` script you have to define `mesos.master
 When executing `mesos-appmaster.sh`, it will create a job manager on the machine where you executed the script.
 In contrast to that, the task managers will be run as Mesos tasks in the Mesos cluster.
 
+### Flink job cluster on Mesos
+
+A Flink job cluster is a dedicated cluster which runs a single job. 
+There is no extra job submission needed.
+
+In the `/bin` directory of the Flink distribution, you find one startup script 
+which manage the Flink processes in a Mesos cluster:
+
+1. `mesos-appmaster-job.sh`
+   This starts the Mesos application master which will register the Mesos scheduler, retrieve the job graph and then launch the task managers accordingly. 
+
+In order to run the `mesos-appmaster-job.sh` script you have to define `mesos.master` and `internal.jobgraph-path` in the `flink-conf.yaml` 
+or pass it via `-Dmesos.master=... -Dinterval.jobgraph-path=...` to the Java process.
+
+The job graph file may be generated like this way:
+
+{% highlight java %}
+final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+final String jobGraphFilename = "job.graph";
+File jobGraphFile = new File(jobGraphFilename);
+try (FileOutputStream output = new FileOutputStream(jobGraphFile);
+	ObjectOutputStream obOutput = new ObjectOutputStream(output)){
+	obOutput.writeObject(jobGraph);
+}
+{% endhighlight %}
+
+Note: 
+1. Make sure that all Mesos processes have the user code jar on the classpath (e.g. putting them in the lib directory)
+
 #### General configuration
 
 It is possible to completely parameterize a Mesos application through Java properties passed to the Mesos application master.
@@ -181,19 +212,13 @@ For example:
 
     bin/mesos-appmaster.sh \
         -Dmesos.master=master.foobar.org:5050 \
-        -Djobmanager.heap.mb=1024 \
+        -Djobmanager.heap.size=1024m \
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
         -Dmesos.resourcemanager.tasks.mem=4096 \
-        -Dtaskmanager.heap.mb=3500 \
+        -Dtaskmanager.heap.size=3500m \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
-
-<div class="alert alert-info">
-  <strong>Note:</strong> If Flink is in <a href="{{ site.baseurl }}/ops/config.html#legacy">legacy mode</a>,
-  you should additionally define the number of task managers that are started by Mesos via
-  <a href="{{ site.baseurl }}/ops/config.html#mesos-initial-tasks"><code>mesos.initial-tasks</code></a>.
-</div>
 
 ### High Availability
 
@@ -209,7 +234,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }

@@ -19,10 +19,13 @@ package org.apache.flink.api.java;
  * limitations under the License.
  */
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,30 +58,21 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 	}
 
 	@Override
-	protected PlanExecutor getExecutor() throws Exception {
-		// check if we had already started a PlanExecutor. If true, then stop it, because there will
-		// be a new jar file available for the user code classes
-		if (this.executor != null) {
-			this.executor.stop();
-		}
+	public JobExecutionResult execute(String jobName) throws Exception {
+		final Plan p = createProgramPlan(jobName);
+		final List<URL> allJarFiles = getUpdatedJarFiles();
 
+		final PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration);
+		lastJobExecutionResult = executor.executePlan(p, allJarFiles, globalClasspaths);
+		return lastJobExecutionResult;
+	}
+
+	private List<URL> getUpdatedJarFiles() throws MalformedURLException {
 		// write generated classes to disk so that they can be shipped to the cluster
 		URL jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
-
 		List<URL> allJarFiles = new ArrayList<>(jarFiles);
 		allJarFiles.add(jarUrl);
-
-		this.executor = PlanExecutor.createRemoteExecutor(
-			host,
-			port,
-			clientConfiguration,
-			allJarFiles,
-			globalClasspaths
-		);
-
-		executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
-
-		return executor;
+		return allJarFiles;
 	}
 
 	public static void disableAllContextAndOtherEnvironments() {

@@ -18,10 +18,16 @@
 ################################################################################
 
 # This can be used to run a single test in the context of a test runnner
-# Usage: ./run-single-test.sh test-scripts/my-test-case.sh
+# Usage: ./run-single-test.sh [skip] test-scripts/my-test-case.sh
+
+# IMPORTANT:
+# With the "skip" flag one can disable default exceptions and errors checking in log files. This should be done carefully though.
+# A valid reasons for doing so could be e.g killing TMs randomly as we cannot predict what exception could be thrown. Whenever
+# those checks are disabled, one should take care that a proper checks are performed in the tests itself that ensure that the test finished
+# in an expected state.
 
 if [ $# -eq 0 ]; then
-    echo "Usage: ./run-single-test.sh <path-to-test-script> [<arg1> <arg2> ...]"
+    echo "Usage: ./run-single-test.sh [skip] <path-to-test-script> [<arg1> <arg2> ...]"
     exit 1
 fi
 
@@ -47,6 +53,10 @@ FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P )`" # absolutized and normalized
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
 echo "Flink distribution directory: $FLINK_DIR"
 
-run_test "$*" "$*"
+if [[ "$1" = "skip" ]]; then
+    run_test "${*:2}" "${*:2}" "skip_check_exceptions"
+else
+    run_test "$*" "$*"
+fi
 
 exit 0

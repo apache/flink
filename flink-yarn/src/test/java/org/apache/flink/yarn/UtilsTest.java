@@ -18,6 +18,9 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -25,14 +28,16 @@ import org.junit.rules.TemporaryFolder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link Utils}.
  */
-public class UtilsTest {
+public class UtilsTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -41,12 +46,32 @@ public class UtilsTest {
 	public void testDeleteApplicationFiles() throws Exception {
 		final Path applicationFilesDir = temporaryFolder.newFolder(".flink").toPath();
 		Files.createFile(applicationFilesDir.resolve("flink.jar"));
-		assertThat(Files.list(temporaryFolder.getRoot().toPath()).count(), equalTo(1L));
-		assertThat(Files.list(applicationFilesDir).count(), equalTo(1L));
+		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+			assertThat(files.count(), equalTo(1L));
+		}
+		try (Stream<Path> files = Files.list(applicationFilesDir)) {
+			assertThat(files.count(), equalTo(1L));
+		}
 
 		Utils.deleteApplicationFiles(Collections.singletonMap(
 			YarnConfigKeys.FLINK_YARN_FILES,
 			applicationFilesDir.toString()));
-		assertThat(Files.list(temporaryFolder.getRoot().toPath()).count(), equalTo(0L));
+		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+			assertThat(files.count(), equalTo(0L));
+		}
+	}
+
+	@Test
+	public void testGetDynamicProperties() {
+		Configuration baseConfig = new Configuration();
+		baseConfig.setString("key.a", "a");
+		baseConfig.setString("key.b", "b1");
+
+		Configuration targetConfig = new Configuration();
+		targetConfig.setString("key.b", "b2");
+		targetConfig.setString("key.c", "c");
+
+		String dynamicProperties = Utils.getDynamicProperties(baseConfig, targetConfig);
+		assertEquals("-Dkey.b=b2 -Dkey.c=c", dynamicProperties);
 	}
 }

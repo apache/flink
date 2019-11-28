@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
@@ -46,7 +48,6 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Handle request for listing uploaded jars.
@@ -55,28 +56,35 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 
 	private static final File[] EMPTY_FILES_ARRAY = new File[0];
 
+	private final CompletableFuture<String> localAddressFuture;
+
 	private final File jarDir;
+
+	private final Configuration configuration;
 
 	private final Executor executor;
 
 	public JarListHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> messageHeaders,
+			CompletableFuture<String> localAddressFuture,
 			File jarDir,
+			Configuration configuration,
 			Executor executor) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
+		this.localAddressFuture = localAddressFuture;
 		this.jarDir = requireNonNull(jarDir);
+		this.configuration = configuration;
 		this.executor = requireNonNull(executor);
 	}
 
 	@Override
 	protected CompletableFuture<JarListInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
 		final String localAddress;
-		checkState(localAddressFuture.isDone());
+		Preconditions.checkState(localAddressFuture.isDone());
 
 		try {
 			localAddress = localAddressFuture.get();
@@ -126,7 +134,11 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 
 						PackagedProgram program = null;
 						try {
-							program = new PackagedProgram(f, clazz, new String[0]);
+							program = PackagedProgram.newBuilder()
+								.setJarFile(f)
+								.setEntryPointClassName(clazz)
+								.setConfiguration(configuration)
+								.build();
 						} catch (Exception ignored) {
 							// ignore jar files which throw an error upon creating a PackagedProgram
 						}

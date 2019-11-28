@@ -25,8 +25,8 @@ DOWNLOAD_URL=$2
 
 mkdir -p $TEST_DATA_DIR
 
-setup_elasticsearch $DOWNLOAD_URL
-verify_elasticsearch_process_exist
+setup_elasticsearch $DOWNLOAD_URL $ELASTICSEARCH_VERSION
+wait_elasticsearch_working
 
 start_cluster
 
@@ -34,8 +34,7 @@ function test_cleanup {
   shutdown_elasticsearch_cluster index
 }
 
-trap test_cleanup INT
-trap test_cleanup EXIT
+on_exit test_cleanup
 
 TEST_ES_JAR=${END_TO_END_DIR}/flink-elasticsearch${ELASTICSEARCH_VERSION}-test/target/Elasticsearch${ELASTICSEARCH_VERSION}SinkExample.jar
 
@@ -46,4 +45,4 @@ $FLINK_DIR/bin/flink run -p 1 $TEST_ES_JAR \
   --type type
 
 # 40 index requests and 20 final update requests
-verify_result 60 index
+verify_result_line_number 60 index

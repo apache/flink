@@ -22,15 +22,14 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.descriptors.AvroValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
+import org.apache.flink.table.factories.TableFormatFactoryBase;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.specific.SpecificRecord;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,23 +37,15 @@ import java.util.Map;
  * Table format factory for providing configured instances of Avro-to-row {@link SerializationSchema}
  * and {@link DeserializationSchema}.
  */
-public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, DeserializationSchemaFactory<Row> {
+public class AvroRowFormatFactory extends TableFormatFactoryBase<Row>
+		implements SerializationSchemaFactory<Row>, DeserializationSchemaFactory<Row> {
 
-	@Override
-	public Map<String, String> requiredContext() {
-		final Map<String, String> context = new HashMap<>();
-		context.put(FormatDescriptorValidator.FORMAT_TYPE(), AvroValidator.FORMAT_TYPE_VALUE);
-		context.put(FormatDescriptorValidator.FORMAT_PROPERTY_VERSION(), "1");
-		return context;
+	public AvroRowFormatFactory() {
+		super(AvroValidator.FORMAT_TYPE_VALUE, 1, false);
 	}
 
 	@Override
-	public boolean supportsSchemaDerivation() {
-		return false;
-	}
-
-	@Override
-	public List<String> supportedProperties() {
+	protected List<String> supportedFormatProperties() {
 		final List<String> properties = new ArrayList<>();
 		properties.add(AvroValidator.FORMAT_RECORD_CLASS);
 		properties.add(AvroValidator.FORMAT_AVRO_SCHEMA);
@@ -63,7 +54,7 @@ public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
+		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
 		// create and configure
 		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
@@ -76,7 +67,7 @@ public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
+		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
 		// create and configure
 		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
@@ -87,8 +78,8 @@ public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, De
 		}
 	}
 
-	private static DescriptorProperties validateAndGetProperties(Map<String, String> propertiesMap) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+	private static DescriptorProperties getValidatedProperties(Map<String, String> propertiesMap) {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties();
 		descriptorProperties.putProperties(propertiesMap);
 
 		// validate

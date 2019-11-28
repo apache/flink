@@ -35,8 +35,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -47,6 +50,7 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 
 	private OneShotLatch runWaiter;
 	private OneShotLatch initialDiscoveryWaiter;
+	private OneShotLatch shutdownWaiter;
 
 	private volatile boolean running;
 
@@ -69,6 +73,8 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 			fakeConfiguration,
 			deserializationSchema,
 			DEFAULT_SHARD_ASSIGNER,
+			null,
+			null,
 			thrownErrorUnderTest,
 			subscribedShardsStateUnderTest,
 			subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
@@ -76,6 +82,7 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 
 		this.runWaiter = new OneShotLatch();
 		this.initialDiscoveryWaiter = new OneShotLatch();
+		this.shutdownWaiter = new OneShotLatch();
 
 		this.running = true;
 	}
@@ -90,11 +97,20 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 		runWaiter.await();
 	}
 
+	public void waitUntilShutdown(long timeout, TimeUnit timeUnit) throws Exception {
+		shutdownWaiter.await(timeout, timeUnit);
+	}
+
 	@Override
 	protected ExecutorService createShardConsumersThreadPool(String subtaskName) {
 		// this is just a dummy fetcher, so no need to create a thread pool for shard consumers
 		ExecutorService mockExecutor = mock(ExecutorService.class);
 		when(mockExecutor.isTerminated()).thenAnswer((InvocationOnMock invocation) -> !running);
+		try {
+			when(mockExecutor.awaitTermination(anyLong(), any())).thenReturn(!running);
+		} catch (InterruptedException e) {
+			// We're just trying to stub the method. Must acknowledge the checked exception.
+		}
 		return mockExecutor;
 	}
 
@@ -102,6 +118,12 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 	public void awaitTermination() throws InterruptedException {
 		this.running = false;
 		super.awaitTermination();
+	}
+
+	@Override
+	public void shutdownFetcher() {
+		super.shutdownFetcher();
+		shutdownWaiter.trigger();
 	}
 
 	@Override

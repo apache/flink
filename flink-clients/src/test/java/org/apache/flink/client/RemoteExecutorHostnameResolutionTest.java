@@ -29,7 +29,6 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Collections;
 
@@ -54,7 +53,7 @@ public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 
 		RemoteExecutor exec = new RemoteExecutor(nonExistingHostname, port);
 		try {
-			exec.executePlan(getProgram());
+			exec.executePlan(getProgram(), Collections.emptyList(), Collections.emptyList());
 			fail("This should fail with an ProgramInvocationException");
 		}
 		catch (UnknownHostException ignored) {
@@ -66,10 +65,9 @@ public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 	public void testUnresolvableHostname2() throws Exception {
 
 		InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
-		RemoteExecutor exec = new RemoteExecutor(add, new Configuration(),
-				Collections.<URL>emptyList(), Collections.<URL>emptyList());
+		RemoteExecutor exec = new RemoteExecutor(add, new Configuration());
 		try {
-			exec.executePlan(getProgram());
+			exec.executePlan(getProgram(), Collections.emptyList(), Collections.emptyList());
 			fail("This should fail with an ProgramInvocationException");
 		}
 		catch (UnknownHostException ignored) {

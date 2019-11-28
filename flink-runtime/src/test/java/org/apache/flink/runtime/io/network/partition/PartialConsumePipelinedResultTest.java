@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -31,18 +31,20 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Test for consuming a pipelined result only partially.
  */
+@Category(AlsoRunWithSchedulerNG.class)
 public class PartialConsumePipelinedResultTest extends TestLogger {
 
 	// Test configuration
@@ -52,30 +54,20 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 
 	private static final int NUMBER_OF_NETWORK_BUFFERS = 128;
 
-	private static MiniCluster flink;
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getFlinkConfiguration())
+			.setNumberTaskManagers(NUMBER_OF_TMS)
+			.setNumberSlotsPerTaskManager(NUMBER_OF_SLOTS_PER_TM)
+			.build());
 
-	@BeforeClass
-	public static void setUp() throws Exception {
+	private static Configuration getFlinkConfiguration() {
 		final Configuration config = new Configuration();
 		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
+		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setNumTaskManagers(NUMBER_OF_TMS)
-			.setNumSlotsPerTaskManager(NUMBER_OF_SLOTS_PER_TM)
-			.build();
-
-		flink = new MiniCluster(miniClusterConfiguration);
-
-		flink.start();
-	}
-
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (flink != null) {
-			flink.close();
-		}
+		return config;
 	}
 
 	/**
@@ -105,13 +97,12 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 
 		final JobGraph jobGraph = new JobGraph("Partial Consume of Pipelined Result", sender, receiver);
 
-		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
-			sender.getID(), receiver.getID());
+		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		flink.executeJobBlocking(jobGraph);
+		MINI_CLUSTER_RESOURCE.getMiniCluster().executeJobBlocking(jobGraph);
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -130,7 +121,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
 
 			for (int i = 0; i < 8; i++) {
-				final BufferBuilder bufferBuilder = writer.getBufferProvider().requestBufferBuilderBlocking();
+				final BufferBuilder bufferBuilder = writer.getBufferBuilder();
 				writer.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
 				Thread.sleep(50);
 				bufferBuilder.finish();
@@ -150,7 +141,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			InputGate gate = getEnvironment().getInputGate(0);
-			Buffer buffer = gate.getNextBufferOrEvent().orElseThrow(IllegalStateException::new).getBuffer();
+			Buffer buffer = gate.getNext().orElseThrow(IllegalStateException::new).getBuffer();
 			if (buffer != null) {
 				buffer.recycleBuffer();
 			}

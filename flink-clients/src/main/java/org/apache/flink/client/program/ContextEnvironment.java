@@ -19,98 +19,76 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
 
-import java.net.URL;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Execution Environment for remote execution with the Client.
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	protected final ClusterClient<?> client;
+	private final AtomicReference<JobExecutionResult> jobExecutionResult;
 
-	protected final List<URL> jarFilesToAttach;
+	private boolean alreadyCalled;
 
-	protected final List<URL> classpathsToAttach;
+	ContextEnvironment(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader,
+			final AtomicReference<JobExecutionResult> jobExecutionResult) {
+		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.jobExecutionResult = checkNotNull(jobExecutionResult);
 
-	protected final ClassLoader userCodeClassLoader;
+		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+		if (parallelism > 0) {
+			setParallelism(parallelism);
+		}
 
-	protected final SavepointRestoreSettings savepointSettings;
-
-	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings) {
-		this.client = remoteConnection;
-		this.jarFilesToAttach = jarFiles;
-		this.classpathsToAttach = classpaths;
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.savepointSettings = savepointSettings;
+		this.alreadyCalled = false;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
-		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
-				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointSettings).getJobExecutionResult();
-		return this.lastJobExecutionResult;
+		verifyExecuteIsCalledOnceWhenInDetachedMode();
+
+		final JobExecutionResult jobExecutionResult = super.execute(jobName);
+		setJobExecutionResult(jobExecutionResult);
+		return jobExecutionResult;
 	}
 
-	@Override
-	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan("unnamed job");
-
-		OptimizedPlan op = ClusterClient.getOptimizedPlan(client.compiler, plan, getParallelism());
-		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
-		return gen.getOptimizerPlanAsJSON(op);
+	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
+		if (alreadyCalled && !getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
+		}
+		alreadyCalled = true;
 	}
 
-	@Override
-	public void startNewSession() throws Exception {
-		client.endSession(jobID);
-		jobID = JobID.generate();
+	public void setJobExecutionResult(JobExecutionResult jobExecutionResult) {
+		this.jobExecutionResult.set(jobExecutionResult);
 	}
 
 	@Override
 	public String toString() {
-		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
-				+ ") : " + getIdString();
-	}
-
-	public ClusterClient<?> getClient() {
-		return this.client;
-	}
-
-	public List<URL> getJars(){
-		return jarFilesToAttach;
-	}
-
-	public List<URL> getClasspaths(){
-		return classpathsToAttach;
-	}
-
-	public ClassLoader getUserCodeClassLoader() {
-		return userCodeClassLoader;
-	}
-
-	public SavepointRestoreSettings getSavepointRestoreSettings() {
-		return savepointSettings;
+		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ")";
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(ContextEnvironmentFactory factory) {
 		initializeContextEnvironment(factory);
 	}
 
-	static void unsetContext() {
+	public static void unsetContext() {
 		resetContextEnvironment();
 	}
 }
