@@ -173,8 +173,8 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 	@Test
 	public void testConfigShuffleMemoryRange() {
-		final MemorySize shuffleMin = MemorySize.parse("50m");
-		final MemorySize shuffleMax = MemorySize.parse("200m");
+		final MemorySize shuffleMin = MemorySize.parse("200m");
+		final MemorySize shuffleMax = MemorySize.parse("500m");
 
 		Configuration conf = new Configuration();
 		conf.setString(TaskManagerOptions.SHUFFLE_MEMORY_MAX, shuffleMax.getMebiBytes() + "m");
@@ -227,8 +227,9 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 	@Test
 	public void testConfigShuffleMemoryLegacyRangeFraction() {
-		final MemorySize shuffleMin = MemorySize.parse("50m");
-		final MemorySize shuffleMax = MemorySize.parse("200m");
+		final MemorySize shuffleMin = MemorySize.parse("200m");
+		final MemorySize shuffleMax = MemorySize.parse("500m");
+
 		final float fraction = 0.2f;
 
 		@SuppressWarnings("deprecation")
