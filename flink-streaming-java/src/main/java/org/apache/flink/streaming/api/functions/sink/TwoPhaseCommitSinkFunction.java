@@ -271,6 +271,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		//
 
 		Iterator<Map.Entry<Long, TransactionHolder<TXN>>> pendingTransactionIterator = pendingCommitTransactions.entrySet().iterator();
+		Throwable firstError = null;
 
 		while (pendingTransactionIterator.hasNext()) {
 			Map.Entry<Long, TransactionHolder<TXN>> entry = pendingTransactionIterator.next();
