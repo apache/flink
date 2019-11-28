@@ -21,7 +21,8 @@ package org.apache.flink.formats.compress.extractor;
 import java.io.Serializable;
 
 /**
- * Interface for extract nested value from record.
+ * An {@link Extractor} turns a record into a byte array for writing data. For use with {@link
+ * org.apache.flink.formats.compress.CompressWriters}.
  */
 public interface Extractor<T> extends Serializable {
 

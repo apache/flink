@@ -28,7 +28,7 @@ import org.apache.hadoop.io.compress.CompressionOutputStream;
 import java.io.IOException;
 
 /**
- * A {@link BulkWriter} implementation that compress file using Hadoop codecs.
+ * A {@link BulkWriter} implementation that compresses data using Hadoop codecs.
  *
  * @param <T> The type of element to write.
  */
@@ -38,7 +38,10 @@ public class HadoopCompressionBulkWriter<T> implements BulkWriter<T> {
 	private FSDataOutputStream outputStream;
 	private CompressionOutputStream compressor;
 
-	public HadoopCompressionBulkWriter(FSDataOutputStream outputStream, Extractor<T> extractor, CompressionCodec compressionCodec) throws Exception {
+	public HadoopCompressionBulkWriter(
+			FSDataOutputStream outputStream,
+			Extractor<T> extractor,
+			CompressionCodec compressionCodec) throws Exception {
 		this.outputStream = outputStream;
 		this.extractor = extractor;
 		this.compressor = compressionCodec.createOutputStream(outputStream);

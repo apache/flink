@@ -21,7 +21,7 @@ package org.apache.flink.formats.compress;
 import org.apache.flink.formats.compress.extractor.Extractor;
 
 /**
- * Convenience builder to create {@link CompressWriterFactory} instances.
+ * Convenience builder for creating {@link CompressWriterFactory} instances.
  */
 public class CompressWriters {
 

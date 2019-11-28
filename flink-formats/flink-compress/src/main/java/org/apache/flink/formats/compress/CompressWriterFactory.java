@@ -33,7 +33,7 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import java.io.IOException;
 
 /**
- * A factory that creates a {@link BulkWriter} implementation that compress file.
+ * A factory that creates a {@link BulkWriter} implementation that compresses the written data.
  *
  * @param <IN> The type of element to write.
  */

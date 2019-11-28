@@ -53,7 +53,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test class for {@link CompressWriterFactory}.
+ * Tests for {@link CompressWriterFactory}.
  */
 public class CompressWriterFactoryTest extends TestLogger {
 
@@ -150,9 +150,8 @@ public class CompressWriterFactoryTest extends TestLogger {
 
 			testHarness.snapshot(1, ++time);
 			testHarness.notifyOfCompletedCheckpoint(1);
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
+
 		return outDir;
 	}
 

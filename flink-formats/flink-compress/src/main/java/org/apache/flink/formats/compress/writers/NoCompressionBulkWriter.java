@@ -25,7 +25,9 @@ import org.apache.flink.formats.compress.extractor.Extractor;
 import java.io.IOException;
 
 /**
- * A {@link BulkWriter} implementation that dont compress the file.
+ * A {@link BulkWriter} implementation that does not compress data. This is essentially a no-op
+ * writer for use with {@link org.apache.flink.formats.compress.CompressWriterFactory} for the case
+ * that no compression codec is specified.
  *
  * @param <T> The type of element to write.
  */

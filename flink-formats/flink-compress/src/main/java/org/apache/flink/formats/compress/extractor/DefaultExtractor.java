@@ -19,7 +19,7 @@
 package org.apache.flink.formats.compress.extractor;
 
 /**
- * A {@link Extractor} implementation that extract element to string with line separator.
+ * A {@link Extractor} implementation that extracts element to string with line separator.
  *
  * @param <T> The type of element to extract from.
  */
