@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_STRING, qualifyMethod, SQL_TIMESTAMP}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_STRING, qualifyMethod}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
+import org.apache.flink.table.types.logical.LogicalType
 import java.lang.reflect.Method
 import java.util.TimeZone
 
@@ -33,19 +33,13 @@ class MethodCallGen(method: Method) extends CallGenerator {
       returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, operands, !method.getReturnType.isPrimitive) {
       originalTerms => {
-        val terms = originalTerms.zipWithIndex.zip(method.getParameterTypes).map {
-          case ((term, i), clazz) =>
-            // convert the BinaryString parameter to String if the method parameter accept String
-            if (clazz == classOf[String]) {
-              s"$term.toString()"
-            } else if ((clazz == classOf[Long] || clazz == classOf[java.lang.Long]) &&
-                operands(i).resultType.getTypeRoot
-                  == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
-              // convert the SqlTimestamp parameter to Long if the method parameter accept Long
-              s"$term.getMillisecond()"
-            } else {
-              term
-            }
+        val terms = originalTerms.zip(method.getParameterTypes).map { case (term, clazz) =>
+          // convert the BinaryString parameter to String if the method parameter accept String
+          if (clazz == classOf[String]) {
+            s"$term.toString()"
+          } else {
+            term
+          }
         }
 
         // generate method invoke code and adapt when it's a time zone related function
@@ -65,11 +59,6 @@ class MethodCallGen(method: Method) extends CallGenerator {
         // convert String to BinaryString if the return type is String
         if (method.getReturnType == classOf[String]) {
           s"$BINARY_STRING.fromString($call)"
-        } else if ((method.getReturnType == classOf[Long]
-            || method.getReturnType == classOf[java.lang.Long]) &&
-            returnType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
-          // convert Long to SqlTimestamp if the return type is Timestamp with local time zone
-          s"$SQL_TIMESTAMP.fromEpochMillis($call)"
         } else {
           call
         }

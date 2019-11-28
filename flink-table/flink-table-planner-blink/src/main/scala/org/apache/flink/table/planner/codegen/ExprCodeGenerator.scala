@@ -389,7 +389,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(literal.getType)
     val value = resultType.getTypeRoot match {
-      case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
+      case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE |
+           LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         literal.getValueAs(classOf[TimestampString])
       case _ =>
         literal.getValue3
