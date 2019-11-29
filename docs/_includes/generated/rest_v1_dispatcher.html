@@ -1894,14 +1894,14 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       </td>
     </tr>
     <tr>
-        <td colspan="2">Query parameters</td>
+      <td colspan="2">Query parameters</td>
     </tr>
     <tr>
-        <td colspan="2">
-            <ul>
-                <li><code>maxExceptions</code> (optional): Comma-separated list of integer values that specifies the upper limit of exceptions to return.</li>
-            </ul>
-        </td>
+      <td colspan="2">
+        <ul>
+<li><code>maxExceptions</code> (optional): Comma-separated list of integer values that specifies the upper limit of exceptions to return.</li>
+        </ul>
+      </td>
     </tr>
     <tr>
       <td colspan="2">
@@ -2526,7 +2526,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "array",
       "items" : {
         "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:SubtaskExecutionAttemptDetailsInfo",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo",
         "properties" : {
           "subtask" : {
             "type" : "integer"
@@ -2580,11 +2580,11 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               }
             }
           },
-          "start_time" : {
-            "type" : "integer"
-          },
           "taskmanager-id" : {
             "type" : "string"
+          },
+          "start_time" : {
+            "type" : "integer"
           }
         }
       }
@@ -3065,6 +3065,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "taskmanager-id" : {
       "type" : "string"
+    },
+    "start_time" : {
+      "type" : "integer"
     }
   }
 }            </code>
@@ -3174,6 +3177,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "taskmanager-id" : {
       "type" : "string"
+    },
+    "start_time" : {
+      "type" : "integer"
     }
   }
 }            </code>
