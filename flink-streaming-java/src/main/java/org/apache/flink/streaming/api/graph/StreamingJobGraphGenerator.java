@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -91,6 +92,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class StreamingJobGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
+
+	private static final int MANAGED_MEMORY_FRACTION_SCALE = 16;
 
 	// ------------------------------------------------------------------------
 
@@ -780,23 +783,30 @@ public class StreamingJobGraphGenerator {
 		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
 			checkArgument(groupOperatorCount > 0, "A slot sharing group must contain at least 1 operator");
 
-			managedMemoryFractionOnHeap = 1.0 / groupOperatorCount;
-			managedMemoryFractionOffHeap = 1.0 / groupOperatorCount;
+			final double fraction = getFractionRoundedDown(1, groupOperatorCount);
+			managedMemoryFractionOnHeap = fraction;
+			managedMemoryFractionOffHeap = fraction;
 		} else {
 			final long groupOnHeapManagedMemoryBytes = groupResourceSpec.getOnHeapManagedMemory().getBytes();
 			final long groupOffHeapManagedMemoryBytes = groupResourceSpec.getOffHeapManagedMemory().getBytes();
 
 			managedMemoryFractionOnHeap = groupOnHeapManagedMemoryBytes > 0
-				? (double) operatorResourceSpec.getOnHeapManagedMemory().getBytes() / groupOnHeapManagedMemoryBytes
+				? getFractionRoundedDown(operatorResourceSpec.getOnHeapManagedMemory().getBytes(), groupOnHeapManagedMemoryBytes)
 				: 0.0;
 
 			managedMemoryFractionOffHeap = groupOffHeapManagedMemoryBytes > 0
-				? (double) operatorResourceSpec.getOffHeapManagedMemory().getBytes() / groupOffHeapManagedMemoryBytes
+				? getFractionRoundedDown(operatorResourceSpec.getOffHeapManagedMemory().getBytes(), groupOffHeapManagedMemoryBytes)
 				: 0.0;
 		}
 
 		operatorConfig.setManagedMemoryFractionOnHeap(managedMemoryFractionOnHeap);
 		operatorConfig.setManagedMemoryFractionOffHeap(managedMemoryFractionOffHeap);
+	}
+
+	private static double getFractionRoundedDown(final long dividend, final long divisor) {
+		return BigDecimal.valueOf(dividend)
+			.divide(BigDecimal.valueOf(divisor), MANAGED_MEMORY_FRACTION_SCALE, BigDecimal.ROUND_DOWN)
+			.doubleValue();
 	}
 
 	private void configureCheckpointing() {
