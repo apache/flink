@@ -36,7 +36,6 @@ import org.junit.runners.Parameterized.Parameters;
 import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -127,21 +126,21 @@ public class InputTypeValidatorsTest {
 
 			// left of OR
 			TestSpec
-				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.NULL())))
+				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.BOOLEAN())))
 				.inputTypes(DataTypes.INT())
 				.expectSuccess(),
 
 			// right of OR
 			TestSpec
-				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.NULL())))
-				.inputTypes(DataTypes.NULL())
+				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.BOOLEAN())))
+				.inputTypes(DataTypes.BOOLEAN())
 				.expectSuccess(),
 
 			// invalid type in OR
 			TestSpec
-				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.NULL())))
+				.forValidator(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.STRING())))
 				.inputTypes(DataTypes.BOOLEAN())
-				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(INT)\nf(NULL)"),
+				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(INT)\nf(STRING)"),
 
 			// explicit sequence
 			TestSpec
@@ -302,9 +301,9 @@ public class InputTypeValidatorsTest {
 
 		final TypeInference typeInference = TypeInference.newBuilder()
 			.inputTypeValidator(testSpec.validator)
-			.outputTypeStrategy(callContext -> Optional.of(DataTypes.NULL()))
+			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN()))
 			.build();
-		TypeInferenceUtil.runTypeInference(typeInference, callContextMock);
+		TypeInferenceUtil.runTypeInference(typeInference, callContextMock, null);
 	}
 
 	// --------------------------------------------------------------------------------------------
