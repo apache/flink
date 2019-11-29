@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.api.common;
+
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Possible states of a job once it has been accepted by the job manager.
  */
+@PublicEvolving
 public enum JobStatus {
 
 	/** Job is newly created, no task has started to run. */

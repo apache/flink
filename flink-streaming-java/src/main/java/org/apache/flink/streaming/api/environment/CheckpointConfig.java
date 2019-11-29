@@ -20,8 +20,8 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.slf4j.Logger;
