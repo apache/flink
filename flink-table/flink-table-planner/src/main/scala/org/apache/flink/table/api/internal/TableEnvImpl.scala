@@ -23,13 +23,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.catalog.exceptions.{DatabaseAlreadyExistException, DatabaseNotEmptyException, DatabaseNotExistException, FunctionAlreadyExistException, FunctionNotExistException}
 import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
-import org.apache.flink.table.operations.ddl.{CreateTableOperation, DropTableOperation}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
@@ -42,8 +42,6 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
 import _root_.java.util.function.{Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
-
-import org.apache.flink.table.catalog.exceptions.{DatabaseAlreadyExistException, DatabaseNotEmptyException, DatabaseNotExistException}
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.JavaConversions._
@@ -526,6 +524,12 @@ abstract class TableEnvImpl(
           case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
           case ex: Exception => throw new TableException(exMsg, ex)
         }
+      case createFunctionOperation: CreateFunctionOperation =>
+        createCatalogFunction(createFunctionOperation)
+      case alterFunctionOperation: AlterFunctionOperation =>
+        alterCatalogFunction(alterFunctionOperation)
+      case dropFunctionOperation: DropFunctionOperation =>
+        dropCatalogFunction(dropFunctionOperation)
       case useCatalogOperation: UseCatalogOperation =>
         catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
       case useDatabaseOperation: UseDatabaseOperation =>
@@ -667,6 +671,52 @@ abstract class TableEnvImpl(
     JavaScalaConversionUtil.toScala(catalogManager.getTable(identifier))
       .filter(_.isTemporary)
       .map(_.getTable)
+  }
+
+  private def createCatalogFunction(createFunctionOperation: CreateFunctionOperation)= {
+    val catalog = getCatalogOrThrowException(
+      createFunctionOperation.getFunctionIdentifier.getCatalogName)
+    val exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString)
+    try {
+      catalog.createFunction(
+        createFunctionOperation.getFunctionIdentifier.toObjectPath,
+        createFunctionOperation.getCatalogFunction,
+        createFunctionOperation.isIgnoreIfExists)
+    } catch {
+      case ex: FunctionAlreadyExistException => throw new ValidationException(exMsg, ex)
+      case ex: Exception => throw new TableException(exMsg, ex)
+    }
+  }
+
+  private def alterCatalogFunction(alterFunctionOperation: AlterFunctionOperation) = {
+    val catalog = getCatalogOrThrowException(
+      alterFunctionOperation.getFunctionIdentifier.getCatalogName)
+    val exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString)
+
+    try {
+      catalog.alterFunction(
+        alterFunctionOperation.getFunctionIdentifier.toObjectPath,
+        alterFunctionOperation.getCatalogFunction,
+        alterFunctionOperation.isIfExists)
+    } catch {
+      case ex: FunctionNotExistException => throw new ValidationException(exMsg, ex)
+      case ex: Exception => throw new TableException(exMsg, ex)
+    }
+  }
+
+  private def dropCatalogFunction(dropFunctionOperation: DropFunctionOperation) = {
+    val catalog = getCatalogOrThrowException(
+      dropFunctionOperation.getFunctionIdentifier.getCatalogName)
+    val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
+
+    try {
+      catalog.dropFunction(
+        dropFunctionOperation.getFunctionIdentifier.toObjectPath,
+        dropFunctionOperation.isIfExists)
+    } catch {
+      case ex: FunctionNotExistException => throw new ValidationException(exMsg, ex)
+      case ex: Exception => throw new TableException(exMsg, ex)
+    }
   }
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */

@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class SqlAlterFunction extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER);
+	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER_DDL);
 
 	private final SqlIdentifier functionIdentifier;
 
@@ -106,8 +106,16 @@ public class SqlAlterFunction extends SqlCall {
 		return ImmutableNullableList.of(functionIdentifier, functionClassName);
 	}
 
-	public String getLanguage() {
+	public String getFunctionLanguage() {
 		return functionLanguage;
+	}
+
+	public SqlCharStringLiteral getFunctionClassName() {
+		return this.functionClassName;
+	}
+
+	public boolean isIfExists() {
+		return this.ifExists;
 	}
 
 	public String[] getFunctionIdentifier() {
