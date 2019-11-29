@@ -88,6 +88,15 @@ public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<J
 	}
 
 	@Override
+	public void stopTrackingAndReleaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease) {
+		for (IntermediateDataSetID dataSetID : dataSetsToRelease) {
+			final DataSetEntry dataSetEntry = clusterPartitions.remove(dataSetID);
+			final Set<ResultPartitionID> partitionIds = dataSetEntry.getPartitionIds();
+			shuffleEnvironment.releasePartitionsLocally(partitionIds);
+		}
+	}
+
+	@Override
 	public void stopTrackingAndReleaseAllClusterPartitions() {
 		clusterPartitions.values().stream().map(DataSetEntry::getPartitionIds).forEach(shuffleEnvironment::releasePartitionsLocally);
 		clusterPartitions.clear();

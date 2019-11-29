@@ -32,6 +32,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -140,6 +141,10 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	@Override
 	public void releaseOrPromotePartitions(JobID jobId, Set<ResultPartitionID> partitionToRelease, Set<ResultPartitionID> partitionsToPromote) {
 		releaseOrPromotePartitionsConsumer.accept(jobId, partitionToRelease, partitionsToPromote);
+	}
+
+	@Override
+	public void releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, Time timeout) {
 	}
 
 	@Override
