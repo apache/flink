@@ -66,8 +66,8 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 	}
 
 	@Override
-	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
-		return miniCluster.submitJob(jobGraph);
+	public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
+		return miniCluster.submitJob(jobGraph).thenApply(JobSubmissionResult::getJobID);
 	}
 
 	@Override

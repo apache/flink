@@ -19,7 +19,6 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -29,7 +28,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
@@ -92,9 +90,9 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * Submit the given {@link JobGraph} to the cluster.
 	 *
 	 * @param jobGraph to submit
-	 * @return Future which is completed with the {@link JobSubmissionResult}
+	 * @return {@link JobID} of the submitted job
 	 */
-	CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph);
+	CompletableFuture<JobID> submitJob(JobGraph jobGraph);
 
 	/**
 	 * Requests the {@link JobStatus} of the job with the given {@link JobID}.
@@ -107,7 +105,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @param jobId for which to request the {@link JobResult}
 	 * @return Future which is completed with the {@link JobResult}
 	 */
-	CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId);
+	CompletableFuture<JobResult> requestJobResult(JobID jobId);
 
 	/**
 	 * Requests and returns the accumulators for the given job identifier. Accumulators can be
