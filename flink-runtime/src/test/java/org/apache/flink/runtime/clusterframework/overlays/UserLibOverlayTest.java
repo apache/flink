@@ -52,7 +52,7 @@ public class UserLibOverlayTest extends ContainerOverlayTestBase {
 		overlay.configure(containerSpecification);
 
 		for (Path file : files) {
-			checkArtifact(containerSpecification, new Path(FlinkDistributionOverlay.getTargetRoot().getName(), file.toString()));
+			checkArtifact(containerSpecification, new Path(FlinkDistributionOverlay.TARGET_ROOT, file.toString()));
 		}
 	}
 }

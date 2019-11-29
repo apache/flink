@@ -177,16 +177,16 @@ In contrast to that, the task managers will be run as Mesos tasks in the Mesos c
 
 ### Flink job cluster on Mesos
 
-A Flink job cluster is a dedicated cluster which runs a single job. 
+A Flink job cluster is a dedicated cluster which runs a single job.
 There is no extra job submission needed.
 
-In the `/bin` directory of the Flink distribution, you find one startup script 
+In the `/bin` directory of the Flink distribution, you find one startup script
 which manage the Flink processes in a Mesos cluster:
 
 1. `mesos-appmaster-job.sh`
-   This starts the Mesos application master which will register the Mesos scheduler, retrieve the job graph and then launch the task managers accordingly. 
+   This starts the Mesos application master which will register the Mesos scheduler, retrieve the job graph and then launch the task managers accordingly.
 
-In order to run the `mesos-appmaster-job.sh` script you have to define `mesos.master` and `internal.jobgraph-path` in the `flink-conf.yaml` 
+In order to run the `mesos-appmaster-job.sh` script you have to define `mesos.master` and `internal.jobgraph-path` in the `flink-conf.yaml`
 or pass it via `-Dmesos.master=... -Dinterval.jobgraph-path=...` to the Java process.
 
 The job graph file may be generated like this way:
@@ -237,7 +237,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }

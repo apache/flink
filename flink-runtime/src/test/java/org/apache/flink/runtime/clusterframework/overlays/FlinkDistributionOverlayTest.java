@@ -34,6 +34,7 @@ import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_BIN_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
+import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_HOME_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_PLUGINS_DIR;
 import static org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay.TARGET_ROOT;
@@ -86,7 +87,7 @@ public class FlinkDistributionOverlayTest extends ContainerOverlayTestBase {
 		overlay.configure(containerSpecification);
 
 		for (Path file : files) {
-			checkArtifact(containerSpecification, new Path(TARGET_ROOT.getName(), file.toString()));
+			checkArtifact(containerSpecification, new Path(TARGET_ROOT, file.toString()));
 		}
 	}
 
@@ -115,6 +116,30 @@ public class FlinkDistributionOverlayTest extends ContainerOverlayTestBase {
 		assertNotNull(flinkPluginsPath);
 		assertEquals(pluginsFolder.getAbsolutePath(), flinkPluginsPath.getAbsolutePath());
 		assertEquals(confFolder.getAbsolutePath(), builder.flinkConfPath.getAbsolutePath());
+	}
+
+	@Test
+	public void testSettingFlinkHomeEnv() throws IOException {
+		final ContainerSpecification containerSpecification = new ContainerSpecification();
+		final Configuration conf = new Configuration();
+		final File binFolder = tempFolder.newFolder("bin");
+		final File libFolder = tempFolder.newFolder("lib");
+		final File confFolder = tempFolder.newFolder("conf");
+
+		// adjust the test environment for the purposes of this test
+		final Map<String, String> map = new HashMap<String, String>(System.getenv());
+		map.put(ENV_FLINK_BIN_DIR, binFolder.getAbsolutePath());
+		map.put(ENV_FLINK_LIB_DIR, libFolder.getAbsolutePath());
+		map.put(ENV_FLINK_CONF_DIR, confFolder.getAbsolutePath());
+
+		CommonTestUtils.setEnv(map);
+
+		final FlinkDistributionOverlay flinkDistributionOverlay =
+			FlinkDistributionOverlay.newBuilder().fromEnvironment(conf).build();
+
+		flinkDistributionOverlay.configure(containerSpecification);
+
+		assertEquals(FlinkDistributionOverlay.TARGET_ROOT_STR, containerSpecification.getEnvironmentVariables().get(ENV_FLINK_HOME_DIR));
 	}
 
 	@Test

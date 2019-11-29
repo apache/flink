@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.clusterframework.overlays;
 
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 
 import javax.annotation.Nullable;
@@ -44,7 +43,7 @@ public class UserLibOverlay extends AbstractContainerOverlay {
 	@Override
 	public void configure(ContainerSpecification container) throws IOException {
 		if (usrLibDirectory != null) {
-			addPathRecursively(usrLibDirectory, new Path(FlinkDistributionOverlay.getTargetRoot().getName()), container);
+			addPathRecursively(usrLibDirectory, FlinkDistributionOverlay.TARGET_ROOT, container);
 		}
 	}
 
@@ -58,7 +57,7 @@ public class UserLibOverlay extends AbstractContainerOverlay {
 	public static class Builder {
 
 		@Nullable
-		File usrLibDirectory;
+		private File usrLibDirectory;
 
 		public UserLibOverlay.Builder setUsrLibDirectory(@Nullable File usrLibDirectory) {
 			this.usrLibDirectory = usrLibDirectory;

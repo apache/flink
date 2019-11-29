@@ -50,7 +50,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 
-	static final File TARGET_ROOT = new File(Path.CUR_DIR);
+	static final String TARGET_ROOT_STR = Path.CUR_DIR;
+
+	static final Path TARGET_ROOT = new Path(TARGET_ROOT_STR);
 
 	private final File flinkBinPath;
 	private final File flinkConfPath;
@@ -68,19 +70,15 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 	@Override
 	public void configure(ContainerSpecification container) throws IOException {
 
-		container.getEnvironmentVariables().put(ENV_FLINK_HOME_DIR, TARGET_ROOT.getName());
+		container.getEnvironmentVariables().put(ENV_FLINK_HOME_DIR, TARGET_ROOT_STR);
 
 		// add the paths to the container specification.
-		addPathRecursively(flinkBinPath, new Path(TARGET_ROOT.getName()), container);
-		addPathRecursively(flinkConfPath, new Path(TARGET_ROOT.getName()), container);
-		addPathRecursively(flinkLibPath, new Path(TARGET_ROOT.getName()), container);
+		addPathRecursively(flinkBinPath, TARGET_ROOT, container);
+		addPathRecursively(flinkConfPath, TARGET_ROOT, container);
+		addPathRecursively(flinkLibPath, TARGET_ROOT, container);
 		if (flinkPluginsPath != null) {
-			addPathRecursively(flinkPluginsPath, new Path(TARGET_ROOT.getName()), container);
+			addPathRecursively(flinkPluginsPath, TARGET_ROOT, container);
 		}
-	}
-
-	public static File getTargetRoot() {
-		return TARGET_ROOT;
 	}
 
 	public static Builder newBuilder() {
@@ -96,6 +94,7 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		File flinkLibPath;
 		@Nullable
 		File flinkPluginsPath;
+
 		/**
 		 * Configures the overlay using the current environment.
 		 *
