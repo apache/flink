@@ -353,6 +353,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
 		this.metrics = metricGroup;
+		metricGroup.gauge(MetricNames.IS_BACKPRESSURED, new BackPressureGauge(this));
 
 		this.partitionProducerStateChecker = Preconditions.checkNotNull(partitionProducerStateChecker);
 		this.executor = Preconditions.checkNotNull(executor);
@@ -396,7 +397,6 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 		invokableHasBeenCanceled = new AtomicBoolean(false);
 
-		metricGroup.gauge(MetricNames.IS_BACKPRESSURED, new BackPressureGauge(this));
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
 	}
