@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.JobClient;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -43,6 +45,11 @@ public class TestingJobClient implements JobClient {
 	@Override
 	public CompletableFuture<Void> cancel() {
 		return CompletableFuture.completedFuture(null);
+	}
+
+	@Override
+	public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+		return CompletableFuture.completedFuture("null");
 	}
 
 }

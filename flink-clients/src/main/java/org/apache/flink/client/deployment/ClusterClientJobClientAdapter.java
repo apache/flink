@@ -28,6 +28,8 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -59,6 +61,11 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	@Override
 	public CompletableFuture<Void> cancel() {
 		return clusterClient.cancel(jobID).thenApply(FunctionUtils.nullFn());
+	}
+
+	@Override
+	public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+		return clusterClient.stopWithSavepoint(jobID, advanceToEndOfEventTime, savepointDirectory);
 	}
 
 	@Override
