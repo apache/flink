@@ -70,6 +70,7 @@ under the License.
 		<module>flink-container</module>
 		<module>flink-queryable-state</module>
 		<module>flink-tests</module>
+		<module>flink-end-to-end-perf-tests</module>
 		<module>flink-end-to-end-tests</module>
 		<module>flink-test-utils-parent</module>
 		<module>flink-state-backends</module>
@@ -87,6 +88,7 @@ under the License.
 		<module>flink-python</module>
 		<module>flink-ml-parent</module>
 		<module>flink-walkthroughs</module>
+		<module>flink-kubernetes</module>
 	</modules>
 
 	<properties>
@@ -381,6 +383,24 @@ under the License.
 				<groupId>commons-logging</groupId>
 				<artifactId>commons-logging</artifactId>
 				<version>1.1.3</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>2.10.1</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>2.10.1</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>2.10.1</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -1366,6 +1386,8 @@ under the License.
 						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-0.11/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
+						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
+						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/*-snapshot</exclude>
