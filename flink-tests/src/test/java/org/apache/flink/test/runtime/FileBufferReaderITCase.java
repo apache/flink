@@ -18,7 +18,7 @@
 
 package org.apache.flink.test.runtime;
 
-import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -99,11 +99,10 @@ public class FileBufferReaderITCase extends TestLogger {
 
 			final MiniClusterClient client = new MiniClusterClient(configuration, miniCluster);
 			final JobGraph jobGraph = createJobGraph();
-			final CompletableFuture<JobSubmissionResult> submitFuture = client.submitJob(jobGraph);
 			// wait for the submission to succeed
-			final JobSubmissionResult result = submitFuture.get();
+			final JobID jobID = client.submitJob(jobGraph).get();
 
-			final CompletableFuture<JobResult> resultFuture = client.requestJobResult(result.getJobID());
+			final CompletableFuture<JobResult> resultFuture = client.requestJobResult(jobID);
 			final JobResult jobResult = resultFuture.get();
 
 			assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));

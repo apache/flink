@@ -20,7 +20,6 @@ package org.apache.flink.client.program.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
@@ -263,14 +262,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			});
 	}
 
-	/**
-	 * Submits the given {@link JobGraph} to the dispatcher.
-	 *
-	 * @param jobGraph to submit
-	 * @return Future which is completed with the submission response
-	 */
 	@Override
-	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
+	public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
 		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
 			try {
 				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
@@ -328,8 +321,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 		});
 
 		return submissionFuture
-			.thenApply(
-				(JobSubmitResponseBody jobSubmitResponseBody) -> new JobSubmissionResult(jobGraph.getJobID()))
+			.thenApply(ignore -> jobGraph.getJobID())
 			.exceptionally(
 				(Throwable throwable) -> {
 					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", ExceptionUtils.stripCompletionException(throwable)));
