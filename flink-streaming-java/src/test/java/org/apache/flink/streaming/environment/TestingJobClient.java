@@ -25,6 +25,7 @@ import org.apache.flink.core.execution.JobClient;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -55,6 +56,11 @@ public class TestingJobClient implements JobClient {
 	@Override
 	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
 		return CompletableFuture.completedFuture("null");
+	}
+
+	@Override
+	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
+		return CompletableFuture.completedFuture(Collections.emptyMap());
 	}
 
 }

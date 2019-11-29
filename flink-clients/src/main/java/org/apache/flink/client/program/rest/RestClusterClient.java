@@ -88,7 +88,6 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
@@ -405,7 +404,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	}
 
 	@Override
-	public CompletableFuture<Map<String, OptionalFailure<Object>>> getAccumulators(JobID jobID, ClassLoader loader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators(JobID jobID, ClassLoader loader) {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
 		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
 		accMsgParams.jobPathParameter.resolve(jobID);
@@ -415,18 +414,15 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			accumulatorsHeaders,
 			accMsgParams);
 
-		return responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
-			try {
-				return AccumulatorHelper.deserializeAccumulators(
-					accumulatorsInfo.getSerializedUserAccumulators(),
-					loader);
-			} catch (Exception e) {
-				throw new CompletionException(
-					new FlinkException(
-						String.format("Deserialization of accumulators for job %s failed.", jobID),
-						e));
-			}
-		});
+		return responseFuture
+			.thenApply(JobAccumulatorsInfo::getSerializedUserAccumulators)
+			.thenApply(accumulators -> {
+				try {
+					return AccumulatorHelper.deserializeAndUnwrapAccumulators(accumulators, loader);
+				} catch (Exception e) {
+					throw new CompletionException("Cannot deserialize and unwrap accumulators properly.", e);
+				}
+			});
 	}
 
 	private CompletableFuture<SavepointInfo> pollSavepointAsync(

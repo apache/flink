@@ -31,6 +31,7 @@ import org.apache.flink.util.function.FunctionUtils;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,6 +72,11 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	@Override
 	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
 		return clusterClient.triggerSavepoint(jobID, savepointDirectory);
+	}
+
+	@Override
+	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
+		return clusterClient.getAccumulators(jobID, classLoader);
 	}
 
 	@Override

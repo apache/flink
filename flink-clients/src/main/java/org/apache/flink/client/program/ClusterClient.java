@@ -26,7 +26,6 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.OptionalFailure;
 
 import javax.annotation.Nullable;
 
@@ -114,7 +113,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @param jobID The job identifier of a job.
 	 * @return A Map containing the accumulator's name and its value.
 	 */
-	default CompletableFuture<Map<String, OptionalFailure<Object>>> getAccumulators(JobID jobID) {
+	default CompletableFuture<Map<String, Object>> getAccumulators(JobID jobID) {
 		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
 	}
 
@@ -125,7 +124,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @param loader The class loader for deserializing the accumulator results.
 	 * @return A Map containing the accumulator's name and its value.
 	 */
-	CompletableFuture<Map<String, OptionalFailure<Object>>> getAccumulators(JobID jobID, ClassLoader loader);
+	CompletableFuture<Map<String, Object>> getAccumulators(JobID jobID, ClassLoader loader);
 
 	/**
 	 * Cancels a job identified by the job id.
