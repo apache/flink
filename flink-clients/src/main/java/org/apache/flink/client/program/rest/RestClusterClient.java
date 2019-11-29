@@ -119,6 +119,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -149,6 +150,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	private final LeaderRetrievalService webMonitorRetrievalService;
 
 	private final LeaderRetriever webMonitorLeaderRetriever = new LeaderRetriever();
+
+	private final AtomicBoolean running = new AtomicBoolean(true);
 
 	/** ExecutorService to run operations that can be retried on exceptions. */
 	private ScheduledExecutorService retryExecutorService;
@@ -199,21 +202,23 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
 	@Override
 	public void close() {
-		ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
+		if (running.compareAndSet(true, false)) {
+			ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
 
-		this.restClient.shutdown(Time.seconds(5));
-		ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
+			this.restClient.shutdown(Time.seconds(5));
+			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
 
-		try {
-			webMonitorRetrievalService.stop();
-		} catch (Exception e) {
-			LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
-		}
+			try {
+				webMonitorRetrievalService.stop();
+			} catch (Exception e) {
+				LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
+			}
 
-		try {
-			clientHAServices.close();
-		} catch (Exception e) {
-			LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+			try {
+				clientHAServices.close();
+			} catch (Exception e) {
+				LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+			}
 		}
 	}
 

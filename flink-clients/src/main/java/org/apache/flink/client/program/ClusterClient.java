@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
 public interface ClusterClient<T> extends AutoCloseable {
 
 	@Override
-	default void close() throws Exception {
+	default void close() {
 
 	}
 

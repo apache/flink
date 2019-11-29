@@ -41,4 +41,9 @@ public interface JobClient extends AutoCloseable {
 	 * @param userClassloader the classloader used to de-serialize the accumulators of the job.
 	 */
 	CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader);
+
+	@Override
+	default void close() {
+
+	}
 }

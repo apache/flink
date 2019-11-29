@@ -26,14 +26,11 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.ShutdownHookUtil;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -42,24 +39,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClusterClientJobClientAdapter.class);
-
 	private final ClusterClient<ClusterID> clusterClient;
 
 	private final JobID jobID;
 
-	private final Thread shutdownHook;
+	private final AtomicBoolean running = new AtomicBoolean(true);
 
-	public ClusterClientJobClientAdapter(final ClusterClient<ClusterID> clusterClient, final JobID jobID, final boolean withShutdownHook) {
+	public ClusterClientJobClientAdapter(final ClusterClient<ClusterID> clusterClient, final JobID jobID) {
 		this.jobID = checkNotNull(jobID);
 		this.clusterClient = checkNotNull(clusterClient);
-
-		if (withShutdownHook) {
-			shutdownHook = ShutdownHookUtil.addShutdownHook(
-					clusterClient::shutDownCluster, clusterClient.getClass().getSimpleName(), LOG);
-		} else {
-			shutdownHook = null;
-		}
 	}
 
 	@Override
@@ -87,10 +75,19 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	}
 
 	@Override
-	public void close() throws Exception {
-		if (shutdownHook != null) {
-			ShutdownHookUtil.removeShutdownHook(shutdownHook, clusterClient.getClass().getSimpleName(), LOG);
+	public final void close() {
+		if (running.compareAndSet(true, false)) {
+			doClose();
 		}
-		this.clusterClient.close();
+	}
+
+	/**
+	 * Method to be overridden by subclass which contains actual close actions.
+	 *
+	 * <p>We do close in this way to ensure multiple calls to {@link #close()}
+	 * are executed at most once guarded by {@link #running} flag.
+	 */
+	protected void doClose() {
+
 	}
 }

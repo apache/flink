@@ -92,11 +92,6 @@ public class ExecutorDiscoveryAndJobClientTest {
 				public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader userClassloader) {
 					return CompletableFuture.completedFuture(new JobExecutionResult(new JobID(), 0L, Collections.emptyMap()));
 				}
-
-				@Override
-				public void close() {
-
-				}
 			});
 		}
 	}
