@@ -56,6 +56,27 @@ public class StringSerializationTest {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
+
+	@Test
+	public void testUnicodeValues() {
+		try {
+			String[] testStrings = new String[] {
+				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 127),
+				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 16383),
+				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 16384, (char) 65535),
+				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 16383),
+				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 65535),
+				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 65535)
+			};
+
+			testSerialization(testStrings);
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Exception in test: " + e.getMessage());
+		}
+	}
 	
 	@Test
 	public void testNullValues() {
