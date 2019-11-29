@@ -56,7 +56,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -463,13 +462,7 @@ public class RescalingITCase extends TestLogger {
 			StateSourceBase.workStartedLatch.await();
 
 			CompletableFuture<String> savepointPathFuture = FutureUtils.retryWithDelay(
-				() -> {
-					try {
-						return client.triggerSavepoint(jobID, null);
-					} catch (FlinkException e) {
-						return FutureUtils.completedExceptionally(e);
-					}
-				},
+				() -> client.triggerSavepoint(jobID, null),
 				(int) deadline.timeLeft().getSeconds() / 10,
 				Time.seconds(10),
 				(throwable) -> true,

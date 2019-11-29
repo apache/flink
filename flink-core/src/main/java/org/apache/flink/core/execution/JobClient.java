@@ -56,6 +56,15 @@ public interface JobClient extends AutoCloseable {
 	CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory);
 
 	/**
+	 * Triggers a savepoint for the associated job. The savepoint will be written to the given savepoint directory,
+	 * or {@link org.apache.flink.configuration.CheckpointingOptions#SAVEPOINT_DIRECTORY} if it is null.
+	 *
+	 * @param savepointDirectory directory the savepoint should be written to
+	 * @return a {@link CompletableFuture} containing the path where the savepoint is located
+	 */
+	CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory);
+
+	/**
 	 * Returns the {@link JobExecutionResult result of the job execution} of the submitted job.
 	 *
 	 * @param userClassloader the classloader used to de-serialize the accumulators of the job.
