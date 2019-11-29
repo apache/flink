@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
-import org.apache.flink.util.OptionalFailure;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.BeforeClass;
@@ -58,8 +57,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static junit.framework.Assert.fail;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Test savepoint migration.
@@ -146,21 +145,17 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		boolean done = false;
 		while (deadLine.hasTimeLeft()) {
 			Thread.sleep(100);
-			Map<String, OptionalFailure<Object>> accumulators = client.getAccumulators(jobSubmissionResult.getJobID()).get();
+			Map<String, Object> accumulators = client.getAccumulators(jobSubmissionResult.getJobID()).get();
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
-				OptionalFailure<Object> accumOpt = accumulators.get(acc.f0);
+				Object accumOpt = accumulators.get(acc.f0);
 				if (accumOpt == null) {
 					allDone = false;
 					break;
 				}
 
-				Integer numFinished = (Integer) accumOpt.get();
-				if (numFinished == null) {
-					allDone = false;
-					break;
-				}
+				Integer numFinished = (Integer) accumOpt;
 				if (!numFinished.equals(acc.f1)) {
 					allDone = false;
 					break;
@@ -226,16 +221,16 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 			}
 
 			Thread.sleep(100);
-			Map<String, OptionalFailure<Object>> accumulators = client.getAccumulators(jobId).get();
+			Map<String, Object> accumulators = client.getAccumulators(jobId).get();
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
-				OptionalFailure<Object> numFinished = accumulators.get(acc.f0);
+				Object numFinished = accumulators.get(acc.f0);
 				if (numFinished == null) {
 					allDone = false;
 					break;
 				}
-				if (!numFinished.get().equals(acc.f1)) {
+				if (!numFinished.equals(acc.f1)) {
 					allDone = false;
 					break;
 				}

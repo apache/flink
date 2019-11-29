@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 
 import javax.annotation.Nullable;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -63,6 +64,12 @@ public interface JobClient extends AutoCloseable {
 	 * @return a {@link CompletableFuture} containing the path where the savepoint is located
 	 */
 	CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory);
+
+	/**
+	 * Requests the accumulators of the associated job. Accumulators can be requested while it is running
+	 * or after it has finished. The class loader is used to deserialize the incoming accumulator results.
+	 */
+	CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader);
 
 	/**
 	 * Returns the {@link JobExecutionResult result of the job execution} of the submitted job.
