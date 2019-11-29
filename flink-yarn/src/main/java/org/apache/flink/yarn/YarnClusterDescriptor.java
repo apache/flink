@@ -78,6 +78,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -383,16 +384,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				throw new RuntimeException("The Yarn application " + applicationId + " doesn't run anymore.");
 			}
 
-			final String host = report.getHost();
-			final int port = report.getRpcPort();
-
-			LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, applicationId);
-
-			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
-
-			flinkConfiguration.setString(RestOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.PORT, port);
+			setClusterEntrypointInfoToConfig(report);
 
 			return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
 		} catch (Exception e) {
@@ -561,14 +553,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				"temporary files of the YARN session in the home directory will not be removed.");
 		}
 
-		final String host = report.getHost();
-		final int port = report.getRpcPort();
-
-		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
-
-		flinkConfiguration.setString(RestOptions.ADDRESS, host);
-		flinkConfiguration.setInteger(RestOptions.PORT, port);
+		setClusterEntrypointInfoToConfig(report);
 
 		return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
 	}
@@ -1685,6 +1670,24 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			.filter(File::isDirectory)
 			.map(File::getName)
 			.noneMatch(name -> name.equals(DEFAULT_FLINK_USR_LIB_DIR));
+	}
+
+	private void setClusterEntrypointInfoToConfig(final ApplicationReport report) {
+		checkNotNull(report);
+
+		final ApplicationId clusterId = report.getApplicationId();
+		final String host = report.getHost();
+		final int port = report.getRpcPort();
+
+		LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, clusterId);
+
+		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
+
+		flinkConfiguration.setString(RestOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(RestOptions.PORT, port);
+
+		flinkConfiguration.set(YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(clusterId));
 	}
 }
 
