@@ -753,6 +753,85 @@ object FunctionGenerator {
     Seq(FLOAT, INTEGER),
     BuiltInMethods.TRUNCATE_FLOAT)
 
+  addSqlFunctionMethod(
+    BITAND,
+    Seq(TINYINT, TINYINT),
+    BuiltInMethods.BITAND_BYTE)
+
+  addSqlFunctionMethod(
+    BITAND,
+    Seq(SMALLINT, SMALLINT),
+    BuiltInMethods.BITAND_SHORT)
+
+  addSqlFunctionMethod(
+    BITAND,
+    Seq(INTEGER, INTEGER),
+    BuiltInMethods.BITAND_INTEGER)
+
+  addSqlFunctionMethod(
+    BITAND,
+    Seq(BIGINT, BIGINT),
+    BuiltInMethods.BITAND_LONG)
+
+  addSqlFunctionMethod(
+    BITNOT,
+    Seq(TINYINT),
+    BuiltInMethods.BITNOT_BYTE)
+
+  addSqlFunctionMethod(
+    BITNOT,
+    Seq(SMALLINT),
+    BuiltInMethods.BITNOT_SHORT)
+
+  addSqlFunctionMethod(
+    BITNOT,
+    Seq(INTEGER),
+    BuiltInMethods.BITNOT_INTEGER)
+
+  addSqlFunctionMethod(
+    BITNOT,
+    Seq(BIGINT),
+    BuiltInMethods.BITNOT_LONG)
+
+  addSqlFunctionMethod(
+    BITOR,
+    Seq(TINYINT, TINYINT),
+    BuiltInMethods.BITOR_BYTE)
+
+  addSqlFunctionMethod(
+    BITOR,
+    Seq(SMALLINT, SMALLINT),
+    BuiltInMethods.BITOR_SHORT)
+
+  addSqlFunctionMethod(
+    BITOR,
+    Seq(INTEGER, INTEGER),
+    BuiltInMethods.BITOR_INTEGER)
+
+  addSqlFunctionMethod(
+    BITOR,
+    Seq(BIGINT, BIGINT),
+    BuiltInMethods.BITOR_LONG)
+
+  addSqlFunctionMethod(
+    BITXOR,
+    Seq(TINYINT, TINYINT),
+    BuiltInMethods.BITXOR_BYTE)
+
+  addSqlFunctionMethod(
+    BITXOR,
+    Seq(SMALLINT, SMALLINT),
+    BuiltInMethods.BITXOR_SHORT)
+
+  addSqlFunctionMethod(
+    BITXOR,
+    Seq(INTEGER, INTEGER),
+    BuiltInMethods.BITXOR_INTEGER)
+
+  addSqlFunctionMethod(
+    BITXOR,
+    Seq(BIGINT, BIGINT),
+    BuiltInMethods.BITXOR_LONG)
 
   // ----------------------------------------------------------------------------------------------
 

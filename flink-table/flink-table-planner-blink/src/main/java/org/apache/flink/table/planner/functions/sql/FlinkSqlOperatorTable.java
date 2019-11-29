@@ -741,6 +741,38 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.STRING);
 
+	public static final SqlFunction BITAND = new SqlFunction(
+		"BITAND",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG0,
+		null,
+		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction BITNOT = new SqlFunction(
+		"BITNOT",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG0,
+		null,
+		OperandTypes.family(SqlTypeFamily.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction BITOR = new SqlFunction(
+		"BITOR",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG0,
+		null,
+		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
+	public static final SqlFunction BITXOR = new SqlFunction(
+		"BITXOR",
+		SqlKind.OTHER_FUNCTION,
+		ReturnTypes.ARG0,
+		null,
+		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+		SqlFunctionCategory.NUMERIC);
+
 	/**
 	 * <code>AUXILIARY_GROUP</code> aggregate function.
 	 * Only be used in internally.

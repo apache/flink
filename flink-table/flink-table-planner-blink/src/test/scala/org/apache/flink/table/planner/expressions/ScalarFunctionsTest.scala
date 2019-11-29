@@ -4121,4 +4121,23 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "IS_ALPHA(f33)",
       "false")
   }
+
+  @Test
+  def testBitFunction(): Unit = {
+    testSqlApi(
+      "BITAND(3, 1)",
+      "1")
+
+    testSqlApi(
+      "BITOR(3, 1)",
+      "3")
+
+    testSqlApi(
+      "BITXOR(3, 1)",
+      "2")
+
+    testSqlApi(
+      "BITNOT(3)",
+      "-4")
+  }
 }
