@@ -36,6 +36,11 @@ public interface JobClient extends AutoCloseable {
 	JobID getJobID();
 
 	/**
+	 * Cancels the associated job.
+	 */
+	CompletableFuture<Void> cancel();
+
+	/**
 	 * Returns the {@link JobExecutionResult result of the job execution} of the submitted job.
 	 *
 	 * @param userClassloader the classloader used to de-serialize the accumulators of the job.

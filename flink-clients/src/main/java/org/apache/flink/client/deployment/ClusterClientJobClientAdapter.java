@@ -26,6 +26,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.FunctionUtils;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +54,11 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	@Override
 	public JobID getJobID() {
 		return jobID;
+	}
+
+	@Override
+	public CompletableFuture<Void> cancel() {
+		return clusterClient.cancel(jobID).thenApply(FunctionUtils.nullFn());
 	}
 
 	@Override
