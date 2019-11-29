@@ -52,6 +52,10 @@ public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<J
 
 	@Override
 	public void stopTrackingAndReleaseJobPartitions(Collection<ResultPartitionID> partitionsToRelease) {
+		if (partitionsToRelease.isEmpty()) {
+			return;
+		}
+
 		stopTrackingPartitions(partitionsToRelease);
 		shuffleEnvironment.releasePartitionsLocally(partitionsToRelease);
 	}
@@ -66,6 +70,10 @@ public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<J
 
 	@Override
 	public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
+		if (partitionsToPromote.isEmpty()) {
+			return;
+		}
+
 		final Collection<PartitionTrackerEntry<JobID, TaskExecutorPartitionInfo>> partitionTrackerEntries = stopTrackingPartitions(partitionsToPromote);
 
 		final Map<TaskExecutorPartitionInfo, Set<ResultPartitionID>> newClusterPartitions = partitionTrackerEntries.stream()
