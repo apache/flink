@@ -21,6 +21,7 @@ package org.apache.flink.core.execution;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +38,11 @@ public interface JobClient extends AutoCloseable {
 	 * Returns the {@link JobID} that uniquely identifies the job this client is scoped to.
 	 */
 	JobID getJobID();
+
+	/**
+	 * Requests the {@link JobStatus} of the associated job.
+	 */
+	CompletableFuture<JobStatus> getJobStatus();
 
 	/**
 	 * Cancels the associated job.
