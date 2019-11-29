@@ -29,10 +29,9 @@ import java.util.List;
  * A PlanExecutor executes a Flink program's dataflow plan. All Flink programs are translated to
  * dataflow plans prior to execution.
  *
- * <p>The specific implementation (such as the org.apache.flink.client.LocalExecutor
- * and org.apache.flink.client.RemoteExecutor) determines where and how to run the dataflow. The
- * concrete implementations of the executors are loaded dynamically, because they depend on the full
- * set of all runtime classes.</p>
+ * <p>The specific implementation (such as the org.apache.flink.client.RemoteExecutor) determines
+ * where and how to run the dataflow. The concrete implementations of the executors are loaded dynamically,
+ * because they depend on the full set of all runtime classes.</p>
  *
  * <p>PlanExecutors can be started explicitly, in which case they keep running until stopped. If
  * a program is submitted to a plan executor that is not running, it will start up for that program,
@@ -41,7 +40,6 @@ import java.util.List;
 @Internal
 public abstract class PlanExecutor {
 
-	private static final String LOCAL_EXECUTOR_CLASS = "org.apache.flink.client.LocalExecutor";
 	private static final String REMOTE_EXECUTOR_CLASS = "org.apache.flink.client.RemoteExecutor";
 
 	// ------------------------------------------------------------------------
@@ -78,23 +76,6 @@ public abstract class PlanExecutor {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates an executor that runs the plan locally in a multi-threaded environment.
-	 *
-	 * @return A local executor.
-	 */
-	public static PlanExecutor createLocalExecutor(Configuration configuration) {
-		Class<? extends PlanExecutor> leClass = loadExecutorClass(LOCAL_EXECUTOR_CLASS);
-
-		try {
-			return leClass.getConstructor(Configuration.class).newInstance(configuration);
-		} catch (Throwable t) {
-			throw new RuntimeException(
-					"An error occurred while loading the local executor (" + LOCAL_EXECUTOR_CLASS + ").",
-					t);
-		}
-	}
-
-	/**
 	 * Creates an executor that runs the plan on a remote environment. The remote executor is
 	 * typically used to send the program to a cluster for execution.
 	 *
@@ -112,7 +93,7 @@ public abstract class PlanExecutor {
 			throw new IllegalArgumentException("The port value is out of range.");
 		}
 
-		Class<? extends PlanExecutor> reClass = loadExecutorClass(REMOTE_EXECUTOR_CLASS);
+		Class<? extends PlanExecutor> reClass = loadExecutorClass();
 
 		try {
 			if (clientConfiguration == null) {
@@ -129,16 +110,16 @@ public abstract class PlanExecutor {
 		}
 	}
 
-	private static Class<? extends PlanExecutor> loadExecutorClass(String className) {
+	private static Class<? extends PlanExecutor> loadExecutorClass() {
 		try {
-			Class<?> leClass = Class.forName(className);
+			Class<?> leClass = Class.forName(PlanExecutor.REMOTE_EXECUTOR_CLASS);
 			return leClass.asSubclass(PlanExecutor.class);
 		} catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException("Could not load the executor class (" + className + "). Do " +
+			throw new RuntimeException("Could not load the executor class (" + PlanExecutor.REMOTE_EXECUTOR_CLASS + "). Do " +
 					"you have the 'flink-clients' project in your dependencies?");
 		} catch (Throwable t) {
 			throw new RuntimeException(
-					"An error occurred while loading the executor (" + className + ").",
+					"An error occurred while loading the executor (" + PlanExecutor.REMOTE_EXECUTOR_CLASS + ").",
 					t);
 		}
 	}
