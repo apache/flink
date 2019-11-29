@@ -6,9 +6,13 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt) 
 
+- com.amazonaws:amazon-kinesis-producer:jar:0.13.1
 - com.amazonaws:aws-java-sdk-core:1.11.319
+- com.amazonaws:aws-java-sdk-dynamodb:jar:1.11.272
 - com.amazonaws:aws-java-sdk-kinesis:1.11.319
+- com.amazonaws:aws-java-sdk-kms:jar:1.11.272
 - com.amazonaws:aws-java-sdk-sts:1.11.319
+- com.amazonaws:aws-java-sdk-s3:jar:1.11.272
 - com.amazonaws:jmespath-java:1.11.319
 - org.apache.httpcomponents:httpclient:4.5.3
 - org.apache.httpcomponents:httpcore:4.4.6
@@ -18,9 +22,9 @@ See bundled license files for details.
 
 - com.google.protobuf:protobuf-java:2.6.1
 
-This project bundles the following dependencies under the Amazon Softward License.
+This project bundles the following dependencies under the Amazon Software License.
 See bundled license files for details.
 
 - com.amazonaws:amazon-kinesis-client:1.9.0
-- com.amazonaws:amazon-kinesis-producer:0.12.9
+- com.amazonaws:dynamodb-streams-kinesis-adapter:jar:1.4.0
 
