@@ -52,4 +52,9 @@ public class TestingJobClient implements JobClient {
 		return CompletableFuture.completedFuture("null");
 	}
 
+	@Override
+	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+		return CompletableFuture.completedFuture("null");
+	}
+
 }

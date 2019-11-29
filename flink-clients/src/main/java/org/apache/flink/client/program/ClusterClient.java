@@ -163,7 +163,6 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @param jobId job id
 	 * @param savepointDirectory directory the savepoint should be written to
 	 * @return path future where the savepoint is located
-	 * @throws FlinkException if no connection to the cluster could be established
 	 */
-	CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException;
+	CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory);
 }

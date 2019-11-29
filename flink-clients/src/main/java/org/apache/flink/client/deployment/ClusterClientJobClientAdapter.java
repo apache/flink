@@ -69,6 +69,11 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	}
 
 	@Override
+	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+		return clusterClient.triggerSavepoint(jobID, savepointDirectory);
+	}
+
+	@Override
 	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
 		checkNotNull(userClassloader);
 
