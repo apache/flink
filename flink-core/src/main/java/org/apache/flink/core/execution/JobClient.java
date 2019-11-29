@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 
+import javax.annotation.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -39,6 +41,19 @@ public interface JobClient extends AutoCloseable {
 	 * Cancels the associated job.
 	 */
 	CompletableFuture<Void> cancel();
+
+	/**
+	 * Stops the associated job on Flink cluster.
+	 *
+	 * <p>Stopping works only for streaming programs. Be aware, that the job might continue to run for
+	 * a while after sending the stop command, because after sources stopped to emit data all operators
+	 * need to finish processing.
+	 *
+	 * @param advanceToEndOfEventTime flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 * @param savepointDirectory directory the savepoint should be written to
+	 * @return a {@link CompletableFuture} containing the path where the savepoint is located
+	 */
+	CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory);
 
 	/**
 	 * Returns the {@link JobExecutionResult result of the job execution} of the submitted job.
