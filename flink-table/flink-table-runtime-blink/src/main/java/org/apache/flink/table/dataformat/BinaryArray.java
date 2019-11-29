@@ -49,7 +49,7 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 	private static final int DOUBLE_ARRAY_OFFSET = UNSAFE.arrayBaseOffset(double[].class);
 
 	public static int calculateHeaderInBytes(int numFields) {
-		return 4 + ((numFields + 31) / 32) * 4;
+		return 4 + (((numFields + 31) >> 5) << 2);
 	}
 
 	/**
@@ -439,7 +439,7 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 		checkNoNull();
 		short[] values = new short[numElements];
 		SegmentsUtil.copyToUnsafe(
-				segments, elementOffset, values, SHORT_ARRAY_OFFSET, numElements * 2);
+				segments, elementOffset, values, SHORT_ARRAY_OFFSET, numElements << 1);
 		return values;
 	}
 
@@ -448,7 +448,7 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 		checkNoNull();
 		int[] values = new int[numElements];
 		SegmentsUtil.copyToUnsafe(
-				segments, elementOffset, values, INT_ARRAY_OFFSET, numElements * 4);
+				segments, elementOffset, values, INT_ARRAY_OFFSET, numElements << 2);
 		return values;
 	}
 
@@ -457,7 +457,7 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 		checkNoNull();
 		long[] values = new long[numElements];
 		SegmentsUtil.copyToUnsafe(
-				segments, elementOffset, values, LONG_ARRAY_OFFSET, numElements * 8);
+				segments, elementOffset, values, LONG_ARRAY_OFFSET, numElements << 3);
 		return values;
 	}
 
@@ -466,7 +466,7 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 		checkNoNull();
 		float[] values = new float[numElements];
 		SegmentsUtil.copyToUnsafe(
-				segments, elementOffset, values, FLOAT_ARRAY_OFFSET, numElements * 4);
+				segments, elementOffset, values, FLOAT_ARRAY_OFFSET, numElements << 2);
 		return values;
 	}
 
@@ -475,7 +475,7 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 		checkNoNull();
 		double[] values = new double[numElements];
 		SegmentsUtil.copyToUnsafe(
-				segments, elementOffset, values, DOUBLE_ARRAY_OFFSET, numElements * 8);
+				segments, elementOffset, values, DOUBLE_ARRAY_OFFSET, numElements << 3);
 		return values;
 	}
 
@@ -511,12 +511,12 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 		final long valueRegionInBytes = elementSize * length;
 
 		// must align by 8 bytes
-		long totalSizeInLongs = (headerInBytes + valueRegionInBytes + 7) / 8;
-		if (totalSizeInLongs > Integer.MAX_VALUE / 8) {
+		long totalSizeInLongs = (headerInBytes + valueRegionInBytes + 7) >> 3;
+		if (totalSizeInLongs > Integer.MAX_VALUE >> 3) {
 			throw new UnsupportedOperationException("Cannot convert this array to unsafe format as " +
 					"it's too big.");
 		}
-		long totalSize = totalSizeInLongs * 8;
+		long totalSize = totalSizeInLongs << 3;
 
 		final byte[] data = new byte[(int) totalSize];
 

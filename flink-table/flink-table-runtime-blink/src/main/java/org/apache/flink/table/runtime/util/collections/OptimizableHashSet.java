@@ -146,7 +146,7 @@ public abstract class OptimizableHashSet {
 	 */
 	public static int arraySize(int expected, float f) {
 		long s = Math.max(2L, nextPowerOfTwo((long) Math.ceil((double) ((float) expected / f))));
-		if (s > (Integer.MAX_VALUE / 2 + 1)) {
+		if (s > ((Integer.MAX_VALUE >> 1) + 1)) {
 			throw new IllegalArgumentException(
 					"Too large (" + expected + " expected elements with load factor " + f + ")");
 		} else {

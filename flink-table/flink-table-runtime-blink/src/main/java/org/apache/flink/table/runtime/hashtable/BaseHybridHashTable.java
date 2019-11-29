@@ -229,8 +229,8 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
 		LOG.info(String.format("Initialize hash table with %d memory segments, each size [%d], the reserved memory %d" +
 						" MB, the max memory %d MB, per allocate {} segments from floating memory pool.",
-				reservedNumBuffers, segmentSize, (long) reservedNumBuffers * segmentSize / 1024 / 1024,
-				(long) maxNumBuffers * segmentSize / 1024 / 1024), perRequestNumBuffers);
+				reservedNumBuffers, segmentSize, (long) reservedNumBuffers * segmentSize >> 10 >> 10,
+				(long) maxNumBuffers * segmentSize >> 10 >> 10), perRequestNumBuffers);
 	}
 
 	/**
@@ -240,7 +240,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	 * can be used because two Buffers are needed to read the data.
 	 */
 	protected int maxNumPartition() {
-		return (availableMemory.size() + buildSpillRetBufferNumbers) / 2;
+		return (availableMemory.size() + buildSpillRetBufferNumbers) >> 1;
 	}
 
 	/**

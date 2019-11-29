@@ -682,15 +682,15 @@ public class SqlDateTimeUtils {
 		int c = 0;
 		if (julian > 2299160) {
 			int a = julian + 32044;
-			b = (4 * a + 3) / 146097;
-			c = a - b * 146097 / 4;
+			b = ((a << 2) + 3) / 146097;
+			c = a - (b * 146097 >> 2);
 		}
 		else {
 			b = 0;
 			c = julian + 32082;
 		}
-		int d = (4 * c + 3) / 1461;
-		int e = c - (1461 * d) / 4;
+		int d = ((c << 2) + 3) / 1461;
+		int e = c - ((1461 * d) >> 2);
 		int m = (5 * e + 2) / 153;
 		int day = e - (153 * m + 2) / 5 + 1;
 		int month = m + 3 - 12 * (m / 10);
@@ -983,15 +983,15 @@ public class SqlDateTimeUtils {
 		int j = julian + 32044;
 		int g = j / 146097;
 		int dg = j % 146097;
-		int c = (dg / 36524 + 1) * 3 / 4;
+		int c = (dg / 36524 + 1) * 3 >> 2;
 		int dc = dg - c * 36524;
 		int b = dc / 1461;
 		int db = dc % 1461;
-		int a = (db / 365 + 1) * 3 / 4;
+		int a = (db / 365 + 1) * 3 >> 2;
 		int da = db - a * 365;
 
 		// integer number of full years elapsed since March 1, 4801 BC
-		int y = g * 400 + c * 100 + b * 4 + a;
+		int y = g * 400 + c * 100 + (b << 2) + a;
 		// integer number of full months elapsed since the last March 1
 		int m = (da * 5 + 308) / 153 - 2;
 		// number of days elapsed since day 1 of the month

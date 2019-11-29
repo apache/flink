@@ -167,7 +167,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		this.partitionNum = partitionNum;
 		this.recursionLevel = recursionLevel;
 
-		int numBuckets = MathUtils.roundDownToPowerOf2(bucketNumSegs * segmentSize / 16);
+		int numBuckets = MathUtils.roundDownToPowerOf2(bucketNumSegs * segmentSize >> 4);
 		MemorySegment[] buckets = new MemorySegment[bucketNumSegs];
 		for (int i = 0; i < bucketNumSegs; i++) {
 			buckets[i] = longTable.nextSegment();
@@ -290,7 +290,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			int size,
 			MemorySegment dataSegment,
 			int currentPositionInSegment) throws IOException {
-		assert (numKeys <= numBuckets / 2);
+		assert (numKeys <= numBuckets >> 1);
 		int bucketId = hashCode & numBucketsMask;
 
 		// each bucket occupied 16 bytes (long key + long pointer to data address)
@@ -315,7 +315,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 					segOffset += SPARSE_BUCKET_ELEMENT_SIZE_IN_BYTES;
 				} else {
 					// otherwise, we should re-calculate segment and offset
-					bucketOffset = bucketId * 16;
+					bucketOffset = bucketId << 4;
 					segment = buckets[bucketOffset >>> segmentSizeBits];
 					segOffset = bucketOffset & segmentSizeMask;
 				}
@@ -332,7 +332,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			if (dataSegment != null) {
 				dataSegment.putLong(currentPositionInSegment, toAddrAndLen(INVALID_ADDRESS, size));
 			}
-			if (numKeys * 2 > numBuckets) {
+			if (numKeys << 1 > numBuckets) {
 				resize();
 			}
 		} else {
@@ -345,8 +345,8 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	private void resize() throws IOException {
 		MemorySegment[] oldBuckets = this.buckets;
 		int oldNumBuckets = numBuckets;
-		int newNumSegs = oldBuckets.length * 2;
-		int newNumBuckets = MathUtils.roundDownToPowerOf2(newNumSegs * segmentSize / 16);
+		int newNumSegs = oldBuckets.length << 1;
+		int newNumBuckets = MathUtils.roundDownToPowerOf2(newNumSegs * segmentSize >> 4);
 
 		// request new buckets.
 		MemorySegment[] newBuckets = new MemorySegment[newNumSegs];

@@ -543,7 +543,7 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 			int tail = list.size() - 1;
 			int mid;
 			while (head < tail) {
-				mid = (head + tail) / 2;
+				mid = (head + tail) >> 1;
 				if (list.get(mid) <= goal) {
 					head = mid + 1;
 				} else {

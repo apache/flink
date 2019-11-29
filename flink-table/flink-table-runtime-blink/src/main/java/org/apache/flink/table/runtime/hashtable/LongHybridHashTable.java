@@ -210,10 +210,10 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		// 1.range is negative mean: range is to big to overflow
 		// 2.range is zero, maybe the max is Long.Max, and the min is Long.Min,
 		// so we should not use dense mode too.
-		if (range > 0 && (range <= recordCount * 4 || range <= segmentSize / 8)) {
+		if (range > 0 && (range <= recordCount << 2 || range <= segmentSize >> 3)) {
 
 			// try to request memory.
-			int buffers = (int) Math.ceil(((double) (range * 8)) / segmentSize);
+			int buffers = (int) Math.ceil(((double) (range << 3)) / segmentSize);
 
 			// TODO MemoryManager needs to support flexible larger segment, so that the index area of the
 			// build side is placed on a segment to avoid the overhead of addressing.

@@ -183,7 +183,7 @@ public class SqlLikeUtils {
 			} else if (c == '^') {
 				javaPattern.append('^');
 			} else if (sqlPattern.startsWith("[:", i)) {
-				int numOfRegCharSets = REG_CHAR_CLASSES.length / 2;
+				int numOfRegCharSets = REG_CHAR_CLASSES.length >> 1;
 				boolean found = false;
 				for (int j = 0; j < numOfRegCharSets; j++) {
 					if (sqlPattern.startsWith(REG_CHAR_CLASSES[j + j], i)) {
@@ -235,7 +235,7 @@ public class SqlLikeUtils {
 
 		boolean insideCharacterEnumeration = false;
 		final StringBuilder javaPattern =
-			new StringBuilder(sqlPattern.length() * 2);
+			new StringBuilder(sqlPattern.length() << 1);
 		final int len = sqlPattern.length();
 		for (int i = 0; i < len; i++) {
 			char c = sqlPattern.charAt(i);
