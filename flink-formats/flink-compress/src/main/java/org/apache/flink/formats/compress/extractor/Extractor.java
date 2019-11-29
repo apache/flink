@@ -16,23 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.strategy;
+package org.apache.flink.formats.compress.extractor;
 
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import java.io.Serializable;
 
 /**
- * Strategy test utilities.
+ * An {@link Extractor} turns a record into a byte array for writing data. For use with {@link
+ * org.apache.flink.formats.compress.CompressWriters}.
  */
-public class StrategyTestUtil {
+public interface Extractor<T> extends Serializable {
 
-	static List<ExecutionVertexID> getExecutionVertexIdsFromDeployOptions(
-			final List<ExecutionVertexDeploymentOption> deploymentOptions) {
+	byte[] extract(T element);
 
-		return deploymentOptions.stream()
-			.map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-			.collect(Collectors.toList());
-	}
 }

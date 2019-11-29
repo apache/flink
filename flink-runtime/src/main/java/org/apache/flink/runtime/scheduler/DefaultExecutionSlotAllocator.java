@@ -79,8 +79,8 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 	}
 
 	@Override
-	public Collection<SlotExecutionVertexAssignment> allocateSlotsFor(
-			Collection<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
+	public List<SlotExecutionVertexAssignment> allocateSlotsFor(
+			List<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
 
 		validateSchedulingRequirements(executionVertexSchedulingRequirements);
 

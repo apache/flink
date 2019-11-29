@@ -16,23 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.strategy;
-
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
-
-import java.util.List;
-import java.util.stream.Collectors;
+package org.apache.flink.formats.compress.extractor;
 
 /**
- * Strategy test utilities.
+ * A {@link Extractor} implementation that extracts element to string with line separator.
+ *
+ * @param <T> The type of element to extract from.
  */
-public class StrategyTestUtil {
+public class DefaultExtractor<T> implements Extractor<T> {
 
-	static List<ExecutionVertexID> getExecutionVertexIdsFromDeployOptions(
-			final List<ExecutionVertexDeploymentOption> deploymentOptions) {
-
-		return deploymentOptions.stream()
-			.map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-			.collect(Collectors.toList());
+	@Override
+	public byte[] extract(T element) {
+		return (element.toString() + System.lineSeparator()).getBytes();
 	}
+
 }

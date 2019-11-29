@@ -16,23 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.strategy;
+package org.apache.flink.formats.compress;
 
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import org.apache.flink.formats.compress.extractor.Extractor;
 
 /**
- * Strategy test utilities.
+ * Convenience builder for creating {@link CompressWriterFactory} instances.
  */
-public class StrategyTestUtil {
+public class CompressWriters {
 
-	static List<ExecutionVertexID> getExecutionVertexIdsFromDeployOptions(
-			final List<ExecutionVertexDeploymentOption> deploymentOptions) {
-
-		return deploymentOptions.stream()
-			.map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-			.collect(Collectors.toList());
+	public static <IN> CompressWriterFactory<IN> forExtractor(Extractor<IN> extractor) {
+		return new CompressWriterFactory<>(extractor);
 	}
 }
+

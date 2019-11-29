@@ -24,14 +24,16 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A simple scheduling topology for testing purposes.
@@ -39,7 +41,8 @@ import java.util.Optional;
 public class TestingSchedulingTopology
 	implements SchedulingTopology<TestingSchedulingExecutionVertex, TestingSchedulingResultPartition> {
 
-	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> schedulingExecutionVertices = new HashMap<>();
+	// Use linked map here to so we can get the values in inserted order
+	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> schedulingExecutionVertices = new LinkedHashMap<>();
 
 	private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition> schedulingResultPartitions = new HashMap<>();
 
@@ -65,7 +68,13 @@ public class TestingSchedulingTopology
 	}
 
 	void addSchedulingExecutionVertex(TestingSchedulingExecutionVertex schedulingExecutionVertex) {
+		checkState(!schedulingExecutionVertices.containsKey(schedulingExecutionVertex.getId()));
+
 		schedulingExecutionVertices.put(schedulingExecutionVertex.getId(), schedulingExecutionVertex);
+		updateVertexResultPartitions(schedulingExecutionVertex);
+	}
+
+	private void updateVertexResultPartitions(final TestingSchedulingExecutionVertex schedulingExecutionVertex) {
 		addSchedulingResultPartitions(schedulingExecutionVertex.getConsumedResults());
 		addSchedulingResultPartitions(schedulingExecutionVertex.getProducedResults());
 	}
@@ -76,7 +85,7 @@ public class TestingSchedulingTopology
 		}
 	}
 
-	private void addSchedulingExecutionVertices(List<TestingSchedulingExecutionVertex> vertices) {
+	void addSchedulingExecutionVertices(List<TestingSchedulingExecutionVertex> vertices) {
 		for (TestingSchedulingExecutionVertex vertex : vertices) {
 			addSchedulingExecutionVertex(vertex);
 		}
@@ -133,8 +142,8 @@ public class TestingSchedulingTopology
 		public List<TestingSchedulingResultPartition> finish() {
 			final List<TestingSchedulingResultPartition> resultPartitions = connect();
 
-			TestingSchedulingTopology.this.addSchedulingExecutionVertices(producers);
-			TestingSchedulingTopology.this.addSchedulingExecutionVertices(consumers);
+			producers.stream().forEach(TestingSchedulingTopology.this::updateVertexResultPartitions);
+			consumers.stream().forEach(TestingSchedulingTopology.this::updateVertexResultPartitions);
 
 			return resultPartitions;
 		}
@@ -158,7 +167,7 @@ public class TestingSchedulingTopology
 			final List<TestingSchedulingExecutionVertex> consumers) {
 			super(producers, consumers);
 			// currently we only support one to one
-			Preconditions.checkState(producers.size() == consumers.size());
+			checkState(producers.size() == consumers.size());
 		}
 
 		@Override

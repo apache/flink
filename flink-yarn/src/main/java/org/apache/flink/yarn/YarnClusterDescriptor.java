@@ -393,10 +393,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			flinkConfiguration.setString(RestOptions.ADDRESS, host);
 			flinkConfiguration.setInteger(RestOptions.PORT, port);
 
-			return createYarnClusterClient(
-				report,
-				flinkConfiguration
-			);
+			return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
 		} catch (Exception e) {
 			throw new ClusterRetrieveException("Couldn't retrieve Yarn cluster", e);
 		}
@@ -577,11 +574,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		flinkConfiguration.setString(RestOptions.ADDRESS, host);
 		flinkConfiguration.setInteger(RestOptions.PORT, port);
 
-		// the Flink cluster is deployed in YARN. Represent cluster
-		return createYarnClusterClient(
-			report,
-			flinkConfiguration
-		);
+		return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
 	}
 
 	private ClusterSpecification validateClusterResources(
@@ -1680,17 +1673,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			.filter(File::isDirectory)
 			.map(File::getName)
 			.noneMatch(name -> name.equals(DEFAULT_FLINK_USR_LIB_DIR));
-	}
-
-	/**
-	 * Creates a YarnClusterClient; may be overridden in tests.
-	 */
-	protected ClusterClient<ApplicationId> createYarnClusterClient(
-		ApplicationReport report,
-		Configuration flinkConfiguration) throws Exception {
-		return new RestClusterClient<>(
-			flinkConfiguration,
-			report.getApplicationId());
 	}
 }
 
