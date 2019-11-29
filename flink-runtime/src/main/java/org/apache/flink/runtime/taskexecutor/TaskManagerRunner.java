@@ -73,7 +73,6 @@ import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -285,25 +284,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			LOG.info("Cannot determine the maximum number of open file descriptors");
 		}
 
-		final Configuration configuration = loadConfiguration(args);
-
-		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
-
-		SecurityUtils.install(new SecurityConfiguration(configuration));
-
-		try {
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
-					runTaskManager(configuration, ResourceID.generate());
-					return null;
-				}
-			});
-		} catch (Throwable t) {
-			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
-			LOG.error("TaskManager initialization failed.", strippedThrowable);
-			System.exit(STARTUP_FAILURE_RETURN_CODE);
-		}
+		runTaskManagerSecurely(args, ResourceID.generate());
 	}
 
 	public static Configuration loadConfiguration(String[] args) throws FlinkParseException {
@@ -327,6 +308,25 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		final TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, resourceId);
 
 		taskManagerRunner.start();
+	}
+
+	public static void runTaskManagerSecurely(String[] args, ResourceID resourceID) {
+		try {
+			final Configuration configuration = loadConfiguration(args);
+
+			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
+
+			SecurityUtils.install(new SecurityConfiguration(configuration));
+
+			SecurityUtils.getInstalledContext().runSecured(() -> {
+				runTaskManager(configuration, resourceID);
+				return null;
+			});
+		} catch (Throwable t) {
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			LOG.error("TaskManager initialization failed.", strippedThrowable);
+			System.exit(STARTUP_FAILURE_RETURN_CODE);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
