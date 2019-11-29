@@ -735,6 +735,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
 		assertEquals(1.0, map3Config.getManagedMemoryFractionOnHeap(), 0.000001);
 		assertEquals(1.0, map3Config.getManagedMemoryFractionOffHeap(), 0.000001);
+
 	}
 
 	private JobGraph createJobGraphForManagedMemoryFractionTest(
