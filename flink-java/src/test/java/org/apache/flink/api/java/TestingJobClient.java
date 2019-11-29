@@ -40,4 +40,9 @@ public class TestingJobClient implements JobClient {
 		return CompletableFuture.completedFuture(new JobExecutionResult(new JobID(), 0L, Collections.emptyMap()));
 	}
 
+	@Override
+	public CompletableFuture<Void> cancel() {
+		return CompletableFuture.completedFuture(null);
+	}
+
 }
