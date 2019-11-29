@@ -37,6 +37,7 @@ import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.metrics.BackPressureGauge;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -921,6 +922,13 @@ public class TaskTest extends TestLogger {
 	public void testNoBackPressureIfTaskNotStarted() throws Exception {
 		final Task task = createTaskBuilder().build();
 		assertFalse(task.isBackPressured());
+	}
+
+	@Test
+	public void testBackPressureMetric() throws Exception {
+		final Task task = createTaskBuilder().build();
+		BackPressureGauge backPressureGauge = new BackPressureGauge(task);
+		assertEquals(backPressureGauge.getValue(), task.isBackPressured());
 	}
 
 	// ------------------------------------------------------------------------

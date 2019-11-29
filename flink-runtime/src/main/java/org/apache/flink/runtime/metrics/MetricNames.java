@@ -59,4 +59,6 @@ public class MetricNames {
 	public static final String MEMORY_USED = "Used";
 	public static final String MEMORY_COMMITTED = "Committed";
 	public static final String MEMORY_MAX = "Max";
+
+	public static final String IS_BACKPRESSURED = "isBackPressured";
 }
