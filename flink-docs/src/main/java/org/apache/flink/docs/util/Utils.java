@@ -22,7 +22,6 @@ package org.apache.flink.docs.util;
  * Contains various shared utility functions.
  */
 public enum Utils {
-	;
 
 	/**
 	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
