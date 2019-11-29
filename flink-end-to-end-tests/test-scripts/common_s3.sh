@@ -75,37 +75,6 @@ function s3_setup_with_provider {
 }
 
 ###################################
-# List s3 objects by full path prefix.
-#
-# Globals:
-#   IT_CASE_S3_BUCKET
-# Arguments:
-#   $1 - s3 full path key prefix
-# Returns:
-#   List of s3 object keys, separated by newline
-###################################
-function s3_list {
-  AWS_REGION=$AWS_REGION \
-  ${s3util} --action listByFullPathPrefix --s3prefix "$1" --bucket $IT_CASE_S3_BUCKET
-}
-
-###################################
-# Download s3 object.
-#
-# Globals:
-#   IT_CASE_S3_BUCKET
-# Arguments:
-#   $1 - local path to save file
-#   $2 - s3 object key
-# Returns:
-#   None
-###################################
-function s3_get {
-  AWS_REGION=$AWS_REGION \
-  ${s3util} --action downloadFile --localFile "$1" --s3file "$2" --bucket $IT_CASE_S3_BUCKET
-}
-
-###################################
 # Download s3 objects to folder by full path prefix.
 #
 # Globals:
@@ -125,67 +94,6 @@ function s3_get_by_full_path_and_filename_prefix {
 }
 
 ###################################
-# Upload file to s3 object.
-#
-# Globals:
-#   IT_CASE_S3_BUCKET
-# Arguments:
-#   $1 - local file to upload
-#   $2 - s3 bucket
-#   $3 - s3 object key
-# Returns:
-#   None
-###################################
-function s3_put {
-  local_file=$1
-  bucket=$2
-  s3_file=$3
-  resource="/${bucket}/${s3_file}"
-  contentType="application/octet-stream"
-  dateValue=`date -R`
-  stringToSign="PUT\n\n${contentType}\n${dateValue}\n${resource}"
-  s3Key=$IT_CASE_S3_ACCESS_KEY
-  s3Secret=$IT_CASE_S3_SECRET_KEY
-  signature=`echo -en ${stringToSign} | openssl sha1 -hmac ${s3Secret} -binary | base64`
-  curl -X PUT -T "${local_file}" \
-    -H "Host: ${bucket}.s3.amazonaws.com" \
-    -H "Date: ${dateValue}" \
-    -H "Content-Type: ${contentType}" \
-    -H "Authorization: AWS ${s3Key}:${signature}" \
-    https://${bucket}.s3.amazonaws.com/${s3_file}
-}
-
-###################################
-# Delete s3 object.
-#
-# Globals:
-#   None
-# Arguments:
-#   $1 - s3 bucket
-#   $2 - s3 object key
-#   $3 - (optional) s3 host suffix
-# Returns:
-#   None
-###################################
-function s3_delete {
-  bucket=$1
-  s3_file=$2
-  resource="/${bucket}/${s3_file}"
-  contentType="application/octet-stream"
-  dateValue=`date -R`
-  stringToSign="DELETE\n\n${contentType}\n${dateValue}\n${resource}"
-  s3Key=$IT_CASE_S3_ACCESS_KEY
-  s3Secret=$IT_CASE_S3_SECRET_KEY
-  signature=`echo -en ${stringToSign} | openssl sha1 -hmac ${s3Secret} -binary | base64`
-  curl -X DELETE \
-    -H "Host: ${bucket}.s3.amazonaws.com" \
-    -H "Date: ${dateValue}" \
-    -H "Content-Type: ${contentType}" \
-    -H "Authorization: AWS ${s3Key}:${signature}" \
-    https://${bucket}.s3.amazonaws.com/${s3_file}
-}
-
-###################################
 # Delete s3 objects by full path prefix.
 #
 # Globals:
@@ -198,24 +106,6 @@ function s3_delete {
 function s3_delete_by_full_path_prefix {
   AWS_REGION=$AWS_REGION \
   ${s3util} --action deleteByFullPathPrefix --s3prefix "$1" --bucket $IT_CASE_S3_BUCKET
-}
-
-###################################
-# Count number of lines in a file of s3 object.
-# The lines has to be simple to comply with CSV format
-# because SQL is used to query the s3 object.
-#
-# Globals:
-#   IT_CASE_S3_BUCKET
-# Arguments:
-#   $1 - s3 file object key
-#   $2 - s3 bucket
-# Returns:
-#   None
-###################################
-function s3_get_number_of_lines_in_file {
-  AWS_REGION=$AWS_REGION \
-  ${s3util} --action numberOfLinesInFile --s3file "$1" --bucket $IT_CASE_S3_BUCKET
 }
 
 ###################################
