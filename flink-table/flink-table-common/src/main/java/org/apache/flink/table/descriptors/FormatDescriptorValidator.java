@@ -53,6 +53,11 @@ public abstract class FormatDescriptorValidator implements DescriptorValidator {
 	 */
 	public static final String FORMAT_DERIVE_SCHEMA = "format.derive-schema";
 
+	/**
+	 * Key for the schem of the format
+	 */
+	public static final String FORMAT_SCHEMA = "format.schema";
+
 	@Override
 	public void validate(DescriptorProperties properties) {
 		properties.validateString(FORMAT_TYPE, false, 1);

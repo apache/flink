@@ -38,6 +38,7 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
+import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_SCHEMA;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_COMMENT_PREFIX;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
@@ -80,6 +81,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(FORMAT_IGNORE_FIRST_LINE);
 		properties.add(FORMAT_IGNORE_PARSE_ERRORS);
 		properties.add(CONNECTOR_PATH);
+		properties.add(FORMAT_SCHEMA);
 		// schema
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
