@@ -68,12 +68,14 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -656,16 +658,18 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 	@Test
 	public void testManagedMemoryFractionForSpecifiedResourceSpec() throws Exception {
+		// these specific values are needed to produce the double precision issue,
+		// i.e. 100.0 / 1100 + 300.0 / 1100 + 700.0 / 1100 can be larger than 1.0.
 		final ResourceSpec resource1 = ResourceSpec.newBuilder(1, 100)
 			.setOnHeapManagedMemory(new MemorySize(100))
 			.setOffHeapManagedMemory(new MemorySize(40))
 			.build();
 		final ResourceSpec resource2 = ResourceSpec.newBuilder(1, 100)
 			.setOnHeapManagedMemory(new MemorySize(300))
-			.setOffHeapManagedMemory(new MemorySize(50))
+			.setOffHeapManagedMemory(new MemorySize(60))
 			.build();
 		final ResourceSpec resource3 = ResourceSpec.newBuilder(1, 100)
-			.setOnHeapManagedMemory(new MemorySize(600))
+			.setOnHeapManagedMemory(new MemorySize(700))
 			.setOffHeapManagedMemory(new MemorySize(10))
 			.build();
 		final ResourceSpec resource4 = ResourceSpec.newBuilder(1, 100)
@@ -680,17 +684,22 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
 		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(0.1, sourceConfig.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(0.4, sourceConfig.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(100.0 / 1100, sourceConfig.getManagedMemoryFractionOnHeap(), 0.000001);
+		assertEquals(40.0 / 110, sourceConfig.getManagedMemoryFractionOffHeap(), 0.000001);
 
 		final StreamConfig map1Config = Iterables.getOnlyElement(
 			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(0.3, map1Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(0.5, map1Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(300.0 / 1100, map1Config.getManagedMemoryFractionOnHeap(), 0.000001);
+		assertEquals(60.0 / 110, map1Config.getManagedMemoryFractionOffHeap(), 0.000001);
 
 		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(0.6, map2Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(0.1, map2Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(700.0 / 1100, map2Config.getManagedMemoryFractionOnHeap(), 0.000001);
+		assertEquals(10.0 / 110, map2Config.getManagedMemoryFractionOffHeap(), 0.000001);
+
+		final BigDecimal sumFractionOnHeap = BigDecimal.valueOf(sourceConfig.getManagedMemoryFractionOnHeap())
+			.add(BigDecimal.valueOf(map1Config.getManagedMemoryFractionOnHeap()))
+			.add(BigDecimal.valueOf(map2Config.getManagedMemoryFractionOnHeap()));
+		assertThat(sumFractionOnHeap, lessThanOrEqualTo(BigDecimal.ONE));
 
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
 		assertEquals(1.0, map3Config.getManagedMemoryFractionOnHeap(), 0.000001);
@@ -726,7 +735,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
 		assertEquals(1.0, map3Config.getManagedMemoryFractionOnHeap(), 0.000001);
 		assertEquals(1.0, map3Config.getManagedMemoryFractionOffHeap(), 0.000001);
-
 	}
 
 	private JobGraph createJobGraphForManagedMemoryFractionTest(
