@@ -57,7 +57,13 @@ public final class ChildFirstClassLoader extends URLClassLoader {
 			// check whether the class should go parent-first
 			for (String alwaysParentFirstPattern : alwaysParentFirstPatterns) {
 				if (name.startsWith(alwaysParentFirstPattern)) {
-					return super.loadClass(name, resolve);
+					try {
+						c = super.loadClass(name, resolve);
+					} catch (ClassNotFoundException e) {
+						// Try the child classloader if the class couldn't be found in the parent
+						c = findClass(name);
+					}
+					return c;
 				}
 			}
 
