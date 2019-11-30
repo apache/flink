@@ -257,8 +257,9 @@ public class YarnConfigOptions {
 		key("yarn.pre-uploaded.flink.path")
 			.stringType()
 			.noDefaultValue()
-			.withDescription("Specify the pre-uploaded path of flink. It will be used to accelerate the job submission" +
-				" and taskmanger launch.");
+			.withDescription("Specifies the pre-uploaded path of the Flink Jar. If specified, Flink will locate the " +
+				"pre-uploaded Flink Jar via the provided path during container localization. This could accelerate the " +
+				"job submission process.");
 
 	// ------------------------------------------------------------------------
 

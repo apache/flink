@@ -662,7 +662,7 @@ public final class Utils {
 					}
 				}
 			} catch (IOException e) {
-				LOG.warn("Error to get the ");
+				LOG.warn("Error getting pre-uploaded Flink binary via path: {}", flinkSharedBinary, e);
 			}
 		}
 		return flinkShareFiles;
