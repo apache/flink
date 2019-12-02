@@ -240,4 +240,30 @@ public abstract class FlinkMetadata {
 		}
 	}
 
+	/**
+	 * Metadata about whether the table has real number of rows (not default value).
+	 *
+	 * <p>TableScan has real number of rows iff the rowCount in its table's statistic is not null.
+	 *
+	 * <p>A RelNode has real number of rows iff all its input has real the number of rows.
+	 */
+	public interface TableRealRowCountDetection extends Metadata {
+
+		Method METHOD = Types.lookupMethod(TableRealRowCountDetection.class, "hasRealRowCount");
+
+		MetadataDef<TableRealRowCountDetection> DEF = MetadataDef.of(
+				TableRealRowCountDetection.class,
+				TableRealRowCountDetection.Handler.class,
+				METHOD);
+
+		Boolean hasRealRowCount();
+
+		/**
+		 * Handler API.
+		 */
+		interface Handler extends MetadataHandler<TableRealRowCountDetection> {
+			Boolean hasRealRowCount(RelNode r, RelMetadataQuery mq);
+		}
+	}
+
 }

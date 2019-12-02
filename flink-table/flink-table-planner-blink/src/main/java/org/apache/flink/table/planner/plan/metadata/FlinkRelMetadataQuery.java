@@ -43,6 +43,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 	private FlinkMetadata.UniqueGroups.Handler uniqueGroupsHandler;
 	private FlinkMetadata.FlinkDistribution.Handler distributionHandler;
 	private FlinkMetadata.ModifiedMonotonicity.Handler modifiedMonotonicityHandler;
+	private FlinkMetadata.TableRealRowCountDetection.Handler tableRealRowCountDetectionHandler;
 
 	/**
 	 * Returns an instance of FlinkRelMetadataQuery. It ensures that cycles do not
@@ -82,6 +83,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 		this.uniqueGroupsHandler = PROTOTYPE.uniqueGroupsHandler;
 		this.distributionHandler = PROTOTYPE.distributionHandler;
 		this.modifiedMonotonicityHandler = PROTOTYPE.modifiedMonotonicityHandler;
+		this.tableRealRowCountDetectionHandler = PROTOTYPE.tableRealRowCountDetectionHandler;
 	}
 
 	/**
@@ -104,6 +106,8 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 				RelMetadataQuery.initialHandler(FlinkMetadata.FlinkDistribution.Handler.class);
 		this.modifiedMonotonicityHandler =
 				RelMetadataQuery.initialHandler(FlinkMetadata.ModifiedMonotonicity.Handler.class);
+		this.tableRealRowCountDetectionHandler =
+				RelMetadataQuery.initialHandler(FlinkMetadata.TableRealRowCountDetection.Handler.class);
 	}
 
 	/**
@@ -243,6 +247,23 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 			} catch (JaninoRelMetadataProvider.NoHandler e) {
 				modifiedMonotonicityHandler =
 						revise(e.relClass, FlinkMetadata.ModifiedMonotonicity.DEF);
+			}
+		}
+	}
+
+	/**
+	 * Returns the {@link FlinkMetadata.TableRealRowCountDetection#hasRealRowCount()} statistic.
+	 *
+	 * @param rel the relational expression
+	 * @return true iff all input of the given rel have real number of rows, else false.
+	 * (TableScan has real number of rows iff the rowCount in its table's statistic is not null)
+	 */
+	public Boolean hasRealRowCount(RelNode rel) {
+		for (; ; ) {
+			try {
+				return tableRealRowCountDetectionHandler.hasRealRowCount(rel, this);
+			} catch (JaninoRelMetadataProvider.NoHandler e) {
+				tableRealRowCountDetectionHandler = revise(e.relClass, FlinkMetadata.TableRealRowCountDetection.DEF);
 			}
 		}
 	}

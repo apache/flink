@@ -29,6 +29,7 @@ object FlinkDefaultRelMetadataProvider {
       FlinkRelMdNonCumulativeCost.SOURCE,
       FlinkRelMdCumulativeCost.SOURCE,
       FlinkRelMdRowCount.SOURCE,
+      FlinkRelMdTableRealRowCountDetection.SOURCE,
       FlinkRelMdSize.SOURCE,
       FlinkRelMdSelectivity.SOURCE,
       FlinkRelMdDistinctRowCount.SOURCE,
