@@ -67,7 +67,7 @@ public class HiveTableSource extends InputFormatTableSource<BaseRow>
 	private boolean partitionPruned;
 	private int[] projectedFields;
 	private boolean isLimitPushDown = false;
-	private long limit = -1;
+	private long limit = -1L;
 
 	public HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable) {
 		this.jobConf = Preconditions.checkNotNull(jobConf);
@@ -107,7 +107,7 @@ public class HiveTableSource extends InputFormatTableSource<BaseRow>
 		if (!initAllPartitions) {
 			initAllPartitions();
 		}
-		return new HiveTableInputFormat(jobConf, catalogTable, allHivePartitions, projectedFields, hiveVersion, limit);
+		return new HiveTableInputFormat(jobConf, catalogTable, allHivePartitions, projectedFields, limit, hiveVersion);
 	}
 
 	@Override
