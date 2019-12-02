@@ -481,11 +481,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				createTableOperation.isIgnoreIfExists());
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
-			Catalog catalog = getCatalog(createDatabaseOperation.getCatalogName())
-					.orElseThrow(() -> new ValidationException(
-							String.format("Catalog %s does not exist.", createDatabaseOperation.getCatalogName())));
-			String exMsg = String.format("Could not execute %s in path %s", "CREATE DATABASE",
-										createDatabaseOperation.getCatalogName());
+			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg("CREATE DATABASE", createDatabaseOperation.getCatalogName());
 			try {
 				catalog.createDatabase(
 						createDatabaseOperation.getDatabaseName(),
@@ -503,11 +500,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				dropTableOperation.isIfExists());
 		} else if (operation instanceof DropDatabaseOperation) {
 			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
-			Catalog catalog = getCatalog(dropDatabaseOperation.getCatalogName())
-					.orElseThrow(() -> new ValidationException(
-							String.format("Catalog %s does not exist.", dropDatabaseOperation.getCatalogName())));
-			String exMsg = String.format("Could not execute %s in path %s", "DROP DATABASE",
-										dropDatabaseOperation.getCatalogName());
+			Catalog catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg("DROP DATABASE", dropDatabaseOperation.getCatalogName());
 			try {
 				catalog.dropDatabase(
 						dropDatabaseOperation.getDatabaseName(),
@@ -520,11 +514,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else if (operation instanceof AlterDatabaseOperation) {
 			AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
-			Catalog catalog = getCatalog(alterDatabaseOperation.getCatalogName())
-					.orElseThrow(() -> new ValidationException(
-							String.format("Catalog %s does not exist.", alterDatabaseOperation.getCatalogName())));
-			String exMsg = String.format("Could not execute %s in path %s", "ALTER DATABASE",
-										alterDatabaseOperation.getCatalogName());
+			Catalog catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg("ALTER DATABASE", alterDatabaseOperation.getCatalogName());
 			try {
 				catalog.alterDatabase(
 						alterDatabaseOperation.getDatabaseName(),
@@ -554,6 +545,16 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
+	}
+
+	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
+	private Catalog getCatalogOrThrowException(String catalogName) {
+		return getCatalog(catalogName)
+				.orElseThrow(() -> new ValidationException(String.format("Catalog %s does not exist.", catalogName)));
+	}
+
+	private String getDDLOpExecuteErrorMsg(String action, String path) {
+		return String.format("Could not execute %s in path %s", action, path);
 	}
 
 	@Override

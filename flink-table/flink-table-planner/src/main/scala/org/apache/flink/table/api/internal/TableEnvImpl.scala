@@ -486,14 +486,9 @@ abstract class TableEnvImpl(
           createTableOperation.getTableIdentifier,
           createTableOperation.isIgnoreIfExists)
       case createDatabaseOperation: CreateDatabaseOperation =>
-        val catalog = getCatalog(createDatabaseOperation.getCatalogName)
-          .orElseThrow(
-            new JSupplier[Throwable] {
-              override def get(): Throwable = new ValidationException(
-              String.format("Catalog %s does not exist", createDatabaseOperation.getCatalogName))
-            })
-        val exMsg = String.format("Could not execute %s in path %s", "CREATE DATABASE",
-                                  createDatabaseOperation.getCatalogName)
+        val catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg("CREATE DATABASE",
+                                            createDatabaseOperation.getCatalogName)
         try {
           catalog.createDatabase(
             createDatabaseOperation.getDatabaseName,
@@ -508,14 +503,9 @@ abstract class TableEnvImpl(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
       case dropDatabaseOperation: DropDatabaseOperation =>
-        val catalog = getCatalog(dropDatabaseOperation.getCatalogName)
-          .orElseThrow(
-            new JSupplier[Throwable] {
-              override def get(): Throwable = new ValidationException(
-              String.format("Catalog %s does not exist", dropDatabaseOperation.getCatalogName))
-            })
-        val exMsg = String.format("Could not execute %s in path %s", "DROP DATABASE",
-                                  dropDatabaseOperation.getCatalogName)
+        val catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg("DROP DATABASE",
+                                            dropDatabaseOperation.getCatalogName)
         try {
           catalog.dropDatabase(
             dropDatabaseOperation.getDatabaseName,
@@ -527,14 +517,9 @@ abstract class TableEnvImpl(
           case ex: Exception => throw new TableException(exMsg, ex)
         }
       case alterDatabaseOperation: AlterDatabaseOperation =>
-        val catalog = getCatalog(alterDatabaseOperation.getCatalogName)
-          .orElseThrow(
-            new JSupplier[Throwable] {
-              override def get() = new ValidationException(
-              String.format("Catalog %s does not exist", alterDatabaseOperation.getCatalogName))
-            })
-        val exMsg = String.format("Could not execute %s in path %s", "ALTER DATABASE",
-                                  alterDatabaseOperation.getCatalogName)
+        val catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg("ALTER DATABASE",
+                                            alterDatabaseOperation.getCatalogName)
         try {
           catalog.alterDatabase(
             alterDatabaseOperation.getDatabaseName,
@@ -559,6 +544,20 @@ abstract class TableEnvImpl(
           catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
         case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
       }
+  }
+
+  /** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
+  private def getCatalogOrThrowException(catalogName: String): Catalog = {
+    getCatalog(catalogName)
+      .orElseThrow(
+        new JSupplier[Throwable] {
+          override def get() = new ValidationException(
+            String.format("Catalog %s does not exist", catalogName))
+        })
+  }
+
+  private def getDDLOpExecuteErrorMsg(action: String, path: String):String = {
+    String.format("Could not execute %s in path %s", action, path)
   }
 
   protected def createTable(tableOperation: QueryOperation): TableImpl = {
