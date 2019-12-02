@@ -1,14 +1,14 @@
-LogicalIntersect(all=[false],rowType=[RecordType(INTEGER random)])
-LogicalIntersect(all=[false],rowType=[RecordType(INTEGER random)])
-LogicalProject(random=[$0],rowType=[RecordType(INTEGER random)])
-LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1],rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)])
-LogicalProject(random=[$1], EXPR$1=[RAND()],rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)])
-LogicalTableScan(table=[[default_catalog, default_database, MyTable]],rowType=[RecordType(VARCHAR(2147483647) first, INTEGER id, DOUBLE score, VARCHAR(2147483647) last)])
-LogicalProject(random=[$0],rowType=[RecordType(INTEGER random)])
-LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1],rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)])
-LogicalProject(random=[$1], EXPR$1=[RAND()],rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)])
-LogicalTableScan(table=[[default_catalog, default_database, MyTable]],rowType=[RecordType(VARCHAR(2147483647) first, INTEGER id, DOUBLE score, VARCHAR(2147483647) last)])
-LogicalProject(random=[$0],rowType=[RecordType(INTEGER random)])
-LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1],rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)])
-LogicalProject(random=[$1], EXPR$1=[RAND()],rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)])
-LogicalTableScan(table=[[default_catalog, default_database, MyTable]],rowType=[RecordType(VARCHAR(2147483647) first, INTEGER id, DOUBLE score, VARCHAR(2147483647) last)])
+LogicalIntersect(all=[false]), rowType=[RecordType(INTEGER random)]
+LogicalIntersect(all=[false]), rowType=[RecordType(INTEGER random)]
+LogicalProject(random=[$0]), rowType=[RecordType(INTEGER random)]
+LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1]), rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)]
+LogicalProject(random=[$1], EXPR$1=[RAND()]), rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)]
+LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(VARCHAR(2147483647) first, INTEGER id, DOUBLE score, VARCHAR(2147483647) last)]
+LogicalProject(random=[$0]), rowType=[RecordType(INTEGER random)]
+LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1]), rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)]
+LogicalProject(random=[$1], EXPR$1=[RAND()]), rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)]
+LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(VARCHAR(2147483647) first, INTEGER id, DOUBLE score, VARCHAR(2147483647) last)]
+LogicalProject(random=[$0]), rowType=[RecordType(INTEGER random)]
+LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1]), rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)]
+LogicalProject(random=[$1], EXPR$1=[RAND()]), rowType=[RecordType(INTEGER random, DOUBLE EXPR$1)]
+LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(VARCHAR(2147483647) first, INTEGER id, DOUBLE score, VARCHAR(2147483647) last)]
