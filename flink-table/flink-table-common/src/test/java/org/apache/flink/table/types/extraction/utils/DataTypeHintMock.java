@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.extraction.utils;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ExtractionVersion;
 import org.apache.flink.table.annotation.HintFlag;
@@ -44,7 +45,7 @@ public class DataTypeHintMock implements DataTypeHint {
 	}
 
 	@Override
-	public Class<?> rawSerializer() {
+	public Class<? extends TypeSerializer<?>> rawSerializer() {
 		return DEFAULT_ANNOTATION.rawSerializer();
 	}
 

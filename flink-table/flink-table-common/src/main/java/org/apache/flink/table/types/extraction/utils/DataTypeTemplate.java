@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ExtractionVersion;
 import org.apache.flink.table.annotation.HintFlag;
@@ -57,7 +58,7 @@ public final class DataTypeTemplate {
 
 	public final @Nullable DataType dataType;
 
-	public final @Nullable Class<?> rawSerializer;
+	public final @Nullable Class<? extends TypeSerializer<?>> rawSerializer;
 
 	public final @Nullable InputGroup inputGroup;
 
@@ -79,7 +80,7 @@ public final class DataTypeTemplate {
 
 	private DataTypeTemplate(
 			@Nullable DataType dataType,
-			@Nullable Class<?> rawSerializer,
+			@Nullable Class<? extends TypeSerializer<?>> rawSerializer,
 			@Nullable InputGroup inputGroup,
 			@Nullable ExtractionVersion version,
 			@Nullable Boolean allowRawGlobally,
@@ -239,6 +240,45 @@ public final class DataTypeTemplate {
 			"Data type hint does not specify an explicit data type.");
 	}
 
+	/**
+	 * Returns whether RAW types are allowed everywhere.
+	 */
+	public boolean isAllowRawGlobally() {
+		return allowRawGlobally != null && allowRawGlobally;
+	}
+
+	/**
+	 * Returns whether the given class is eligible for being treated as RAW type.
+	 */
+	public boolean isAllowAnyPattern(@Nullable Class<?> clazz) {
+		if (allowRawPattern == null || clazz == null) {
+			return false;
+		}
+		final String className = clazz.getName();
+		for (String pattern : allowRawPattern) {
+			if (className.startsWith(pattern)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Returns whether the given class must be treated as RAW type.
+	 */
+	public boolean isForceAnyPattern(@Nullable Class<?> clazz) {
+		if (forceRawPattern == null || clazz == null) {
+			return false;
+		}
+		final String className = clazz.getName();
+		for (String pattern : forceRawPattern) {
+			if (className.startsWith(pattern)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -331,9 +371,7 @@ public final class DataTypeTemplate {
 					}
 					return dataType;
 				})
-				.orElseGet(() -> {
-					throw extractionError("Could not resolve type with name '%s'.", typeName);
-				});
+				.orElseThrow(() -> extractionError("Could not resolve type with name '%s'.", typeName));
 		}
 		// extracted data type
 		else if (conversionClass != null) {

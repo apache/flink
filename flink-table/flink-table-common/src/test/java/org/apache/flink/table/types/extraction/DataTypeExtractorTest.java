@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.extraction;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -50,6 +51,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -77,6 +79,18 @@ public class DataTypeExtractorTest {
 			TestSpec
 				.forType(Integer.class)
 				.expectDataType(DataTypes.INT()),
+
+			// extraction from hint conversion class
+			TestSpec
+				.forType(
+					new DataTypeHintMock() {
+						@Override
+						public Class<?> bridgedTo() {
+							return Long.class;
+						}
+					},
+					Object.class)
+				.expectDataType(DataTypes.BIGINT()),
 
 			// missing precision/scale
 			TestSpec
@@ -194,13 +208,13 @@ public class DataTypeExtractorTest {
 						}
 					},
 					Object[][].class)
-				.lookupReturns(DataTypes.RAW(new GenericTypeInfo<>(Object.class)))
+				.lookupExpects(Object.class)
 				.expectDataType(
 					DataTypes.ARRAY(
 						DataTypes.ARRAY(
 							DataTypes.RAW(new GenericTypeInfo<>(Object.class))))),
 
-			// RAW with default serializer
+			// RAW with custom serializer
 			TestSpec
 				.forType(
 					new DataTypeHintMock() {
@@ -210,12 +224,30 @@ public class DataTypeExtractorTest {
 						}
 
 						@Override
-						public Class<?> rawSerializer() {
+						public Class<? extends TypeSerializer<?>> rawSerializer() {
 							return IntSerializer.class;
 						}
 					},
 					Integer.class)
 				.expectDataType(DataTypes.RAW(Integer.class, new IntSerializer())),
+
+			// RAW with different conversion class
+			TestSpec
+				.forType(
+					new DataTypeHintMock() {
+						@Override
+						public String value() {
+							return "RAW";
+						}
+
+						@Override
+						public Class<?> bridgedTo() {
+							return Integer.class;
+						}
+					},
+					Object.class)
+				.lookupExpects(Integer.class)
+				.expectDataType(DataTypes.RAW(new GenericTypeInfo<>(Integer.class))),
 
 			// MAP type with type variable magic
 			TestSpec
@@ -242,7 +274,7 @@ public class DataTypeExtractorTest {
 			// complex nested structured type annotation on top of type
 			TestSpec
 				.forType(ComplexPojo.class)
-				.lookupReturns(DataTypes.RAW(new GenericTypeInfo<>(Object.class)))
+				.lookupExpects(Object.class)
 				.expectDataType(getComplexPojoDataType(ComplexPojo.class, SimplePojo.class)),
 
 			// structured type with missing generics
@@ -255,13 +287,23 @@ public class DataTypeExtractorTest {
 			// structured type with annotation on top of field
 			TestSpec
 				.forGeneric(TableFunction.class, 0, TableFunctionWithGenericPojo.class)
-				.lookupReturns(DataTypes.RAW(new GenericTypeInfo<>(Object.class)))
+				.lookupExpects(Object.class)
 				.expectDataType(getComplexPojoDataType(ComplexPojoWithGeneric.class, SimplePojoWithGeneric.class)),
+
+			// extraction with generic interfaces
+			TestSpec
+				.forGeneric(BaseInterface.class, 0, ConcreteClass.class)
+				.expectDataType(DataTypes.STRING()),
+
+			// structured type with hierarchy
+			TestSpec
+				.forType(SimplePojoWithGenericHierarchy.class)
+				.expectDataType(getSimplePojoDataType(SimplePojoWithGenericHierarchy.class)),
 
 			// structured type with different getter and setter flavors
 			TestSpec
 				.forType(ComplexPojoWithGettersAndSetters.class)
-				.lookupReturns(DataTypes.RAW(new GenericTypeInfo<>(Object.class)))
+				.lookupExpects(Object.class)
 				.expectDataType(getComplexPojoDataType(ComplexPojoWithGettersAndSetters.class, SimplePojo.class)),
 
 			// structure type with missing setter
@@ -301,7 +343,7 @@ public class DataTypeExtractorTest {
 			// many annotations that partially override each other
 			TestSpec
 				.forType(ComplexPojoWithManyAnnotations.class)
-				.lookupReturns(DataTypes.RAW(new GenericTypeInfo<>(Object.class)))
+				.lookupExpects(Object.class)
 				.expectDataType(getComplexPojoDataType(ComplexPojoWithManyAnnotations.class, SimplePojo.class))
 		);
 	}
@@ -376,8 +418,9 @@ public class DataTypeExtractorTest {
 				DataTypeExtractor.extractFromMethodOutput(lookup, clazz, method));
 		}
 
-		TestSpec lookupReturns(DataType dataType) {
-			lookup.dataType = Optional.of(dataType);
+		TestSpec lookupExpects(Class<?> lookupClass) {
+			lookup.dataType = Optional.of(DataTypes.RAW(new GenericTypeInfo<>(lookupClass)));
+			lookup.expectedClass = Optional.of(lookupClass);
 			return this;
 		}
 
@@ -600,6 +643,29 @@ public class DataTypeExtractorTest {
 
 	// --------------------------------------------------------------------------------------------
 
+	private interface BaseInterface<T> {
+		// no implementation
+	}
+
+	private abstract static class GenericClass<T> implements Serializable, BaseInterface<T> {
+		// no implementation
+	}
+
+	private static class ConcreteClass extends GenericClass<String> {
+		// no implementation
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Hierarchy of structured type.
+	 */
+	public static class SimplePojoWithGenericHierarchy extends SimplePojoWithGeneric<String> {
+		// no implementation
+	}
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Private member variables.
 	 */
@@ -714,6 +780,11 @@ public class DataTypeExtractorTest {
 			this.y = y;
 			this.x = x;
 		}
+
+		@SuppressWarnings("unused")
+		public PojoWithCustomFieldOrder(long z, boolean y, int x, int additional) {
+			this(z, y, x);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -725,7 +796,7 @@ public class DataTypeExtractorTest {
 	@DataTypeHint(forceRawPattern = {"java.lang."})
 	public static class SimplePojoWithManyAnnotations {
 		public @DataTypeHint("INT") Integer intField;
-		public boolean primitiveBooleanField;
+		public @DataTypeHint(bridgedTo = boolean.class) Object primitiveBooleanField;
 		public @DataTypeHint(value = "INT NOT NULL", bridgedTo = int.class) Object primitiveIntField;
 		@DataTypeHint(forceRawPattern = {})
 		public String stringField;

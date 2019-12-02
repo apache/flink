@@ -77,27 +77,25 @@ public final class ExtractionUtils {
 	}
 
 	/**
-	 * Collects the type hierarchy from the given type to the base class. The base class is included
-	 * in the returned hierarchy if it is not {@link Object}.
+	 * Collects the partially ordered type hierarchy (i.e. all involved super classes and super
+	 * interfaces) of the given type.
 	 */
-	public static List<Type> collectTypeHierarchy(Class<?> baseClass, Type type) {
+	public static List<Type> collectTypeHierarchy(Type type) {
 		Type currentType = type;
 		Class<?> currentClass = toClass(type);
-		if (currentClass == null || !baseClass.isAssignableFrom(currentClass)) {
-			throw extractionError(
-				"Base class %s is not a super class of type %s.",
-				baseClass.getName(),
-				type.toString());
-		}
 		final List<Type> typeHierarchy = new ArrayList<>();
-		while (currentClass != baseClass) {
-			assert currentClass != null;
+		while (currentClass != null) {
+			// collect type
 			typeHierarchy.add(currentType);
+			// collect super interfaces
+			for (Type genericInterface : currentClass.getGenericInterfaces()) {
+				final Class<?> interfaceClass = toClass(genericInterface);
+				if (interfaceClass != null) {
+					typeHierarchy.addAll(collectTypeHierarchy(genericInterface));
+				}
+			}
 			currentType = currentClass.getGenericSuperclass();
 			currentClass = toClass(currentType);
-		}
-		if (currentClass != Object.class) {
-			typeHierarchy.add(currentType);
 		}
 		return typeHierarchy;
 	}
@@ -122,7 +120,7 @@ public final class ExtractionUtils {
 	@SuppressWarnings("unchecked")
 	public static DataType createRawType(
 			DataTypeLookup lookup,
-			@Nullable Class<?> rawSerializer,
+			@Nullable Class<? extends TypeSerializer<?>> rawSerializer,
 			@Nullable Class<?> conversionClass) {
 		if (rawSerializer != null) {
 			return DataTypes.RAW((Class) createConversionClass(conversionClass), instantiateRawSerializer(rawSerializer));
@@ -137,7 +135,7 @@ public final class ExtractionUtils {
 		return Object.class;
 	}
 
-	private static TypeSerializer<?> instantiateRawSerializer(Class<?> rawSerializer) {
+	private static TypeSerializer<?> instantiateRawSerializer(Class<? extends TypeSerializer<?>> rawSerializer) {
 		if (!TypeSerializer.class.isAssignableFrom(rawSerializer)) {
 			throw extractionError(
 				"Defined class '%s' for RAW serializer does not extend '%s'.",
@@ -146,12 +144,12 @@ public final class ExtractionUtils {
 			);
 		}
 		try {
-			return (TypeSerializer<?>) rawSerializer.newInstance();
+			return rawSerializer.newInstance();
 		} catch (Exception e) {
 			throw extractionError(
 				e,
 				"Cannot instantiate type serializer '%s' for RAW type. " +
-					"Make sure the class is publicly accessible and has a default constructor",
+					"Make sure the class is publicly accessible and has a default constructor.",
 				rawSerializer.getName()
 			);
 		}
@@ -164,28 +162,40 @@ public final class ExtractionUtils {
 		// iterate through hierarchy from top to bottom until type variable gets a non-variable assigned
 		for (int i = typeHierarchy.size() - 1; i >= 0; i--) {
 			final Type currentType = typeHierarchy.get(i);
+
 			if (currentType instanceof ParameterizedType) {
-				final ParameterizedType currentParameterized = (ParameterizedType) currentType;
-				final Class<?> currentRaw = (Class<?>) currentParameterized.getRawType();
-				final TypeVariable<?>[] currentVariables = currentRaw.getTypeParameters();
-				// search for matching type variable
-				for (int paramPos = 0; paramPos < currentVariables.length; paramPos++) {
-					final TypeVariable<?> currentVariable = currentVariables[paramPos];
-					if (currentVariable.getGenericDeclaration().equals(variable.getGenericDeclaration()) &&
-							currentVariable.getName().equals(variable.getName())) {
-						final Type resolvedType = currentParameterized.getActualTypeArguments()[paramPos];
-						// follow type variables transitively
-						if (resolvedType instanceof TypeVariable) {
-							variable = (TypeVariable<?>) resolvedType;
-						} else {
-							return resolvedType;
-						}
-					}
+				final Type resolvedType = resolveVariableInParameterizedType(
+					variable,
+					(ParameterizedType) currentType);
+				if (resolvedType instanceof TypeVariable) {
+					// follow type variables transitively
+					variable = (TypeVariable<?>) resolvedType;
+				} else if (resolvedType != null) {
+					return resolvedType;
 				}
 			}
 		}
 		// unresolved variable
 		return variable;
+	}
+
+	private static @Nullable Type resolveVariableInParameterizedType(
+			TypeVariable<?> variable,
+			ParameterizedType currentType) {
+		final Class<?> currentRaw = (Class<?>) currentType.getRawType();
+		final TypeVariable<?>[] currentVariables = currentRaw.getTypeParameters();
+		// search for matching type variable
+		for (int paramPos = 0; paramPos < currentVariables.length; paramPos++) {
+			if (typeVariableEquals(variable, currentVariables[paramPos])) {
+				return currentType.getActualTypeArguments()[paramPos];
+			}
+		}
+		return null;
+	}
+
+	private static boolean typeVariableEquals(TypeVariable<?> variable, TypeVariable<?> currentVariable) {
+		return currentVariable.getGenericDeclaration().equals(variable.getGenericDeclaration()) &&
+				currentVariable.getName().equals(variable.getName());
 	}
 
 	/**
@@ -276,7 +286,7 @@ public final class ExtractionUtils {
 	 * in different flavors.
 	 */
 	public static boolean hasFieldSetter(Class<?> clazz, Field field) {
-		final String normalizedFieldName = field.getName().toUpperCase().replaceAll("_", "");
+		final String normalizedFieldName = field.getName().toUpperCase();
 
 		final List<Method> methods = collectStructuredMethods(clazz);
 		for (Method method : methods) {
@@ -285,10 +295,10 @@ public final class ExtractionUtils {
 			// set<Name>(type)
 			// <Name>(type)
 			// <Name>_$eq(type) for Scala
-			final String normalizedMethodName = method.getName().toUpperCase().replaceAll("_", "");
+			final String normalizedMethodName = method.getName().toUpperCase();
 			final boolean hasName = normalizedMethodName.equals("SET" + normalizedFieldName) ||
 				normalizedMethodName.equals(normalizedFieldName) ||
-				normalizedMethodName.equals(normalizedFieldName + "$EQ");
+				normalizedMethodName.equals(normalizedFieldName + "_$EQ");
 			if (!hasName) {
 				continue;
 			}
@@ -345,7 +355,7 @@ public final class ExtractionUtils {
 	 * in different flavors.
 	 */
 	public static boolean hasStructuredFieldGetter(Class<?> clazz, Field field) {
-		final String normalizedFieldName = field.getName().toUpperCase().replaceAll("_", "");
+		final String normalizedFieldName = field.getName().toUpperCase();
 
 		final List<Method> methods = collectStructuredMethods(clazz);
 		for (Method method : methods) {
@@ -353,7 +363,7 @@ public final class ExtractionUtils {
 			// get<Name>()
 			// is<Name>()
 			// <Name>() for Scala
-			final String normalizedMethodName = method.getName().toUpperCase().replaceAll("_", "");
+			final String normalizedMethodName = method.getName().toUpperCase();
 			final boolean hasName = normalizedMethodName.equals("GET" + normalizedFieldName) ||
 				normalizedMethodName.equals("IS" + normalizedFieldName) ||
 				normalizedMethodName.equals(normalizedFieldName);
@@ -428,7 +438,9 @@ public final class ExtractionUtils {
 			List<Field> fields) {
 		AssigningConstructor foundConstructor = null;
 		for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-			if (!Modifier.isPublic(constructor.getModifiers())) {
+			final boolean qualifyingConstructor = Modifier.isPublic(constructor.getModifiers()) &&
+				constructor.getParameterTypes().length == fields.size();
+			if (!qualifyingConstructor) {
 				continue;
 			}
 			final List<String> parameterNames = extractConstructorParameterNames(clazz, constructor, fields);
@@ -453,12 +465,12 @@ public final class ExtractionUtils {
 			Constructor<?> constructor,
 			List<Field> fields) {
 		final Type[] parameterTypes = constructor.getGenericParameterTypes();
-		List<String> parameterNames = Stream.of(constructor.getParameters())
-			.map(Parameter::getName)
-			.collect(Collectors.toList());
 
 		// by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set
 		// so we need to extract them manually if possible
+		List<String> parameterNames = Stream.of(constructor.getParameters())
+			.map(Parameter::getName)
+			.collect(Collectors.toList());
 		if (parameterNames.stream().allMatch(n -> n.startsWith("arg"))) {
 			final ParameterExtractor extractor = new ParameterExtractor(constructor);
 			getClassReader(clazz).accept(extractor, 0);
@@ -468,6 +480,7 @@ public final class ExtractionUtils {
 				return null;
 			}
 			// remove "this" and additional local variables
+			// select less names if class file has not the required information
 			parameterNames = extractedNames.subList(1, Math.min(fields.size() + 1, extractedNames.size()));
 		}
 

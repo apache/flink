@@ -70,7 +70,7 @@ import java.lang.annotation.Target;
 public @interface DataTypeHint {
 
 	// Note to implementers:
-	// Because "null" is not supported as an annotation value. Every annotation parameter has
+	// Because "null" is not supported as an annotation value. Every annotation parameter *must* have
 	// some representation for unknown values in order to merge multi-level annotations.
 
 	// --------------------------------------------------------------------------------------------
@@ -126,18 +126,32 @@ public @interface DataTypeHint {
 	 *
 	 * @see DataTypes#RAW(Class, TypeSerializer)
 	 */
-	Class<?> rawSerializer() default void.class;
+	Class<? extends TypeSerializer<?>> rawSerializer() default UnknownSerializer.class;
 
 	// --------------------------------------------------------------------------------------------
 	// Group of data types specification
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * This hint influences the extraction of a {@link TypeInference} in functions. It adds a hint for
-	 * accepting pre-defined groups of similar types, i.e., more than just one explicit data type.
+	 * This hint parameter influences the extraction of a {@link TypeInference} in functions. It adds
+	 * a hint for accepting pre-defined groups of similar types, i.e., more than just one explicit data type.
 	 *
-	 * <p>Note: This annotation is only allowed as a top-level hint and is ignored within nested
-	 * structured types. This parameter has higher precedence than {@link #value()}.
+	 * <p>Note: This hint parameter is only interpreted when used in function hints or next to arguments
+	 * of implementation methods. It has highest precedence above all other hint parameter.
+	 *
+	 * <p>Some examples:
+	 * <pre>
+	 * {@code
+	 *   // expects an integer for the first input argument and allows any data type for the second
+	 *   @FunctionHint(
+	 *     input = [@DataTypeHint("INT"), @DataTypeHint(inputGroup = ANY)],
+	 *     output = @DataTypeHint("BOOLEAN")
+	 *   )
+	 *
+	 *   // expects an integer for the first input argument and allows any data type for the second
+	 *   eval(int i, @DataTypeHint(inputGroup = ANY) Object o)
+	 * }
+	 * </pre>
 	 */
 	InputGroup inputGroup() default InputGroup.UNKNOWN;
 
@@ -157,12 +171,16 @@ public @interface DataTypeHint {
 	ExtractionVersion version() default ExtractionVersion.UNKNOWN;
 
 	/**
-	 * Defines that a RAW data type should be used for all classes that cannot be mapped to any SQL-like
+	 * Defines that a RAW data type may be used for all classes that cannot be mapped to any SQL-like
 	 * data type or cause an error.
 	 *
 	 * <p>By default, this parameter is set to {@code false} which means that an exception is thrown
 	 * for unmapped types. This is helpful to identify and fix faulty implementations. It is generally
 	 * recommended to use SQL-like types instead of enabling RAW opaque types.
+	 *
+	 * <p>If RAW types cannot be avoided, they should be enabled only in designated areas (i.e., within
+	 * package prefixes using {@link #allowRawPattern()}) in order to not swallow all errors. However,
+	 * this parameter globally enables RAW types for the annotated class and all nested fields.
 	 *
 	 * <p>This parameter has higher precedence than {@link #allowRawPattern()}.
 	 *
@@ -171,28 +189,32 @@ public @interface DataTypeHint {
 	HintFlag allowRawGlobally() default HintFlag.UNKNOWN;
 
 	/**
-	 * Defines that a RAW data type should be used for all classes that cannot be mapped to any SQL-like
-	 * data type or cause an error iff their class name starts with or is equal to one of the given patterns.
+	 * Defines that a RAW data type may be used for all classes that cannot be mapped to any SQL-like
+	 * data type or cause an error if their class name starts with or is equal to one of the given patterns.
 	 *
 	 * <p>For example, if some Joda time classes cannot be mapped to any SQL-like data type, one can
-	 * define the class pattern {@code "org.joda.time"}. Some classes might be handled as structured types
+	 * define the class prefix {@code "org.joda.time"}. Some classes might be handled as structured types
 	 * on a best effort basis but others will be RAW data types if necessary.
 	 *
 	 * <p>By default, the pattern list is empty which means that an exception is thrown for unmapped
 	 * types. This is helpful to identify and fix faulty implementations. It is generally recommended
 	 * to use SQL-like types instead of enabling RAW opaque types.
 	 *
-	 * <p>This parameter has lower precedence than {@link #allowRawGlobally()}.
+	 * <p>If RAW types cannot be avoided, this parameter should be used to enabled them only in designated
+	 * areas (i.e., within package prefixes) in order to not swallow all errors.
+	 *
+	 * <p>This parameter has lower precedence than {@link #allowRawGlobally()} which would globally allow
+	 * RAW types in the annotated class and all nested fields.
 	 *
 	 * @see DataTypes#RAW(Class, TypeSerializer)
 	 */
 	String[] allowRawPattern() default {""};
 
 	/**
-	 * Defines that a RAW data type should be used for all classes iff their class name starts with or
+	 * Defines that a RAW data type must be used for all classes if their class name starts with or
 	 * is equal to one of the given patterns.
 	 *
-	 * <p>For example, one can define the class pattern {@code "org.joda.time", "java.math.BigDecimal"} which
+	 * <p>For example, one can define the class prefix {@code "org.joda.time", "java.math.BigDecimal"} which
 	 * means that all Joda time classes and Java's {@link java.math.BigDecimal} will be handled as RAW data
 	 * types regardless if they could be mapped to a more SQL-like data type.
 	 *
@@ -200,7 +222,12 @@ public @interface DataTypeHint {
 	 * types. This is helpful to identify and fix faulty implementations. It is generally recommended
 	 * to use SQL-like types instead of enabling RAW opaque types.
 	 *
-	 * <p>This parameter has the highest precedence of all hint parameters.
+	 * <p>If RAW types cannot be avoided, they should be enabled only in designated areas (i.e., within
+	 * package prefixes) in order to not swallow all errors. However, compared to {@link #allowRawPattern()},
+	 * this parameter forces to skip the extraction entirely for the given prefixes instead of trying
+	 * to match a class to a more SQL-like data type.
+	 *
+	 * <p>This parameter has the highest precedence of all data type related hint parameters.
 	 *
 	 * @see DataTypes#RAW(Class, TypeSerializer)
 	 */

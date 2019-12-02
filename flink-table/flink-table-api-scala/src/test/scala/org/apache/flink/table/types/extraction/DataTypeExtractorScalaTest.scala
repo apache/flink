@@ -20,11 +20,9 @@ package org.apache.flink.table.types.extraction
 
 import java.util
 
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.annotation.{DataTypeHint, HintFlag}
-import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.types.extraction.DataTypeExtractorScalaTest.{ScalaComplexPojo, ScalaPojoWithCustomFieldOrder, ScalaSimplePojo, ScalaSimplePojoWithManyAnnotations}
-import org.apache.flink.table.types.extraction.DataTypeExtractorTest.{TestSpec, getComplexPojoDataType, getPojoWithCustomOrderDataType, getSimplePojoDataType, runExtraction}
+import org.apache.flink.table.types.extraction.DataTypeExtractorTest._
 import org.junit.Test
 
 /**
@@ -41,7 +39,7 @@ class DataTypeExtractorScalaTest {
     // complex nested structured type annotation on top of type
     TestSpec
       .forType(classOf[ScalaComplexPojo])
-      .lookupReturns(DataTypes.RAW(new GenericTypeInfo[Any](classOf[Any])))
+      .lookupExpects(classOf[Any])
       .expectDataType(getComplexPojoDataType(classOf[ScalaComplexPojo], classOf[ScalaSimplePojo])),
 
     // assigning constructor defines field order

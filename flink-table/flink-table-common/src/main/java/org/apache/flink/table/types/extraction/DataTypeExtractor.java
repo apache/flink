@@ -47,6 +47,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectStructuredFields;
@@ -69,8 +70,11 @@ public final class DataTypeExtractor {
 
 	private final DataTypeLookup lookup;
 
-	private DataTypeExtractor(DataTypeLookup lookup) {
+	private final String contextExplanation;
+
+	private DataTypeExtractor(DataTypeLookup lookup, String contextExplanation) {
 		this.lookup = lookup;
+		this.contextExplanation = contextExplanation;
 	}
 
 	/**
@@ -184,23 +188,14 @@ public final class DataTypeExtractor {
 			@Nullable Type contextType,
 			Type type,
 			String contextExplanation) {
-		final DataTypeExtractor extractor = new DataTypeExtractor(lookup);
-		try {
-			final List<Type> typeHierarchy;
-			if (contextType != null) {
-				typeHierarchy = collectTypeHierarchy(Object.class, contextType);
-			} else {
-				typeHierarchy = Collections.singletonList(type);
-			}
-			return extractor.extractDataTypeOrRaw(outerTemplate, typeHierarchy, type);
-		} catch (Throwable t) {
-			throw extractionError(
-				t,
-				"Could not extract a data type from '%s'%s. " +
-					"Please pass the required data type manually or allow RAW types.",
-				type.toString(),
-				contextExplanation);
+		final DataTypeExtractor extractor = new DataTypeExtractor(lookup, contextExplanation);
+		final List<Type> typeHierarchy;
+		if (contextType != null) {
+			typeHierarchy = collectTypeHierarchy(contextType);
+		} else {
+			typeHierarchy = Collections.emptyList();
 		}
+		return extractor.extractDataTypeOrRaw(outerTemplate, typeHierarchy, type);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -244,11 +239,16 @@ public final class DataTypeExtractor {
 		} catch (Throwable t) {
 			// ignore the exception and just treat it as RAW type
 			final Class<?> clazz = toClass(type);
-			if (isAllowRawGlobally(template) || isAllowAnyPattern(template, clazz)) {
+			if (template.isAllowRawGlobally() || template.isAllowAnyPattern(clazz)) {
 				return createRawType(lookup, template.rawSerializer, clazz);
 			}
 			// forward the root cause otherwise
-			throw t;
+			throw extractionError(
+				t,
+				"Could not extract a data type from '%s'%s. " +
+					"Please pass the required data type manually or allow RAW types.",
+				type.toString(),
+				contextExplanation);
 		}
 	}
 
@@ -320,14 +320,8 @@ public final class DataTypeExtractor {
 
 	private @Nullable DataType extractEnforcedRawType(DataTypeTemplate template, Type type) {
 		final Class<?> clazz = toClass(type);
-		if (template.forceRawPattern == null || clazz == null) {
-			return null;
-		}
-		final String className = clazz.getName();
-		for (String anyPattern : template.forceRawPattern) {
-			if (className.startsWith(anyPattern)) {
-				return createRawType(lookup, template.rawSerializer, clazz);
-			}
+		if (template.isForceAnyPattern(clazz)) {
+			return createRawType(lookup, template.rawSerializer, clazz);
 		}
 		return null;
 	}
@@ -434,18 +428,14 @@ public final class DataTypeExtractor {
 				clazz.getName());
 		}
 
-		boolean requireAssigningConstructor = false;
-		for (Field field : fields) {
-			validateStructuredFieldReadability(clazz, field);
-			final boolean isMutable = isStructuredFieldMutable(clazz, field);
-			// not all fields are mutable, a default constructor is not enough
-			if (!isMutable) {
-				requireAssigningConstructor = true;
-			}
-		}
+		// if not all fields are mutable, a default constructor is not enough
+		final boolean allFieldsMutable = fields.stream().allMatch(f -> {
+			validateStructuredFieldReadability(clazz, f);
+			return isStructuredFieldMutable(clazz, f);
+		});
 
 		final ExtractionUtils.AssigningConstructor constructor = extractAssigningConstructor(clazz, fields);
-		if (requireAssigningConstructor && constructor == null) {
+		if (!allFieldsMutable && constructor == null) {
 			throw extractionError(
 				"Class '%s' has immutable fields and thus requires a constructor that is publicly " +
 					"accessible and assigns all fields: %s",
@@ -472,7 +462,7 @@ public final class DataTypeExtractor {
 			Type type,
 			List<Field> fields) {
 		final Map<String, DataType> fieldDataTypes = new HashMap<>();
-		final List<Type> structuredTypeHierarchy = collectTypeHierarchy(Object.class, type);
+		final List<Type> structuredTypeHierarchy = collectTypeHierarchy(type);
 		for (Field field : fields) {
 			try {
 				final Type fieldType = field.getGenericType();
@@ -481,8 +471,6 @@ public final class DataTypeExtractor {
 				fieldTypeHierarchy.addAll(typeHierarchy);
 				// hierarchy of structured type
 				fieldTypeHierarchy.addAll(structuredTypeHierarchy);
-				// field type
-				fieldTypeHierarchy.add(fieldType);
 				final DataTypeTemplate fieldTemplate = mergeFieldTemplate(lookup, field, template);
 				final DataType fieldDataType = extractDataTypeOrRaw(fieldTemplate, fieldTypeHierarchy, fieldType);
 				fieldDataTypes.put(field.getName(), fieldDataType);
@@ -500,27 +488,20 @@ public final class DataTypeExtractor {
 	private List<StructuredAttribute> createStructuredTypeAttributes(
 			ExtractionUtils.AssigningConstructor constructor,
 			Map<String, DataType> fieldDataTypes) {
-		// field order is defined by assigning constructor
-		if (constructor != null) {
-			return constructor.parameterNames
-				.stream()
-				.map(name -> {
-					final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
-					return new StructuredAttribute(name, logicalType);
-				})
-				.collect(Collectors.toList());
-		}
-		// field order is sorted
-		else {
-			return fieldDataTypes.keySet()
-				.stream()
-				.sorted()
-				.map(name -> {
-					final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
-					return new StructuredAttribute(name, logicalType);
-				})
-				.collect(Collectors.toList());
-		}
+		return Optional.ofNullable(constructor)
+			.map(c -> {
+				// field order is defined by assigning constructor
+				return c.parameterNames.stream();
+			})
+			.orElseGet(() -> {
+				// field order is sorted
+				return fieldDataTypes.keySet().stream().sorted();
+			})
+			.map(name -> {
+				final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
+				return new StructuredAttribute(name, logicalType);
+			})
+			.collect(Collectors.toList());
 	}
 
 	/**
@@ -540,7 +521,8 @@ public final class DataTypeExtractor {
 	 */
 	@SuppressWarnings("unchecked")
 	private DataType closestBridging(DataType dataType, @Nullable Class<?> clazz) {
-		if (clazz == null) {
+		// no context class or conversion class is already more specific than context class
+		if (clazz == null || clazz.isAssignableFrom(dataType.getConversionClass())) {
 			return dataType;
 		}
 		final LogicalType logicalType = dataType.getLogicalType();
@@ -552,23 +534,5 @@ public final class DataTypeExtractor {
 			return dataType.bridgedTo(clazz);
 		}
 		return dataType;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private static boolean isAllowRawGlobally(DataTypeTemplate template) {
-		return template.allowRawGlobally != null && template.allowRawGlobally;
-	}
-
-	private static boolean isAllowAnyPattern(DataTypeTemplate template, @Nullable Class<?> clazz) {
-		if (template.allowRawPattern == null || clazz == null) {
-			return false;
-		}
-		for (String pattern : template.allowRawPattern) {
-			if (clazz.getName().startsWith(pattern)) {
-				return true;
-			}
-		}
-		return false;
 	}
 }

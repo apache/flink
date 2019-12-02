@@ -26,12 +26,16 @@ import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Optional;
 
+import static org.junit.Assert.assertEquals;
+
 /**
  * {@link DataTypeLookup} mock for testing purposes.
  */
 public class DataTypeLookupMock implements DataTypeLookup {
 
 	public Optional<DataType> dataType = Optional.empty();
+
+	public Optional<Class<?>> expectedClass = Optional.empty();
 
 	@Override
 	public Optional<DataType> lookupDataType(String name) {
@@ -45,6 +49,7 @@ public class DataTypeLookupMock implements DataTypeLookup {
 
 	@Override
 	public DataType resolveRawDataType(Class<?> clazz) {
+		expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
 		return dataType.orElseThrow(IllegalStateException::new);
 	}
 }
