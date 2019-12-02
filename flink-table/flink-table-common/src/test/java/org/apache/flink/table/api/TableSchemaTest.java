@@ -20,8 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.table.api.constraints.KeyConstraint;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 
@@ -227,11 +226,11 @@ public class TableSchemaTest {
 			.primaryKey("pk", new String[]{"f0", "f2"})
 			.build();
 
-		KeyConstraint expectedKey = KeyConstraint.primaryKey(
+		UniqueConstraint expectedKey = UniqueConstraint.primaryKey(
 			"pk",
 			Arrays.asList(
-				new FieldReferenceExpression("f0", DataTypes.BIGINT().notNull(), 0, 0),
-				new FieldReferenceExpression("f2", DataTypes.DOUBLE().notNull(), 0, 2)
+				"f0",
+				"f2"
 			));
 
 		assertThat(
@@ -249,11 +248,11 @@ public class TableSchemaTest {
 			.field("f2", DataTypes.DOUBLE().notNull())
 			.build();
 
-		KeyConstraint expectedKey = KeyConstraint.primaryKey(
+		UniqueConstraint expectedKey = UniqueConstraint.primaryKey(
 			"pk",
 			Arrays.asList(
-				new FieldReferenceExpression("f0", DataTypes.BIGINT().notNull(), 0, 0),
-				new FieldReferenceExpression("f2", DataTypes.DOUBLE().notNull(), 0, 2)
+				"f0",
+				"f2"
 			));
 
 		assertThat(
@@ -268,7 +267,29 @@ public class TableSchemaTest {
 		thrown.expectMessage("Could not create a PRIMARY KEY 'pk'. Column 'f2' does not exist.");
 
 		TableSchema.builder()
+			.field("f0", DataTypes.BIGINT().notNull())
+			.primaryKey("pk", new String[]{"f0", "f2"})
+			.build();
+	}
+
+	@Test
+	public void testPrimaryKeyNullableColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Could not create a PRIMARY KEY 'pk'. Column 'f0' is nullable.");
+
+		TableSchema.builder()
 			.field("f0", DataTypes.BIGINT())
+			.primaryKey("pk", new String[]{"f0"})
+			.build();
+	}
+
+	@Test
+	public void testPrimaryKeyGeneratedColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Could not create a PRIMARY KEY 'pk' with a generated column 'f0'.");
+
+		TableSchema.builder()
+			.field("f0", DataTypes.BIGINT().notNull(), "123")
 			.primaryKey("pk", new String[]{"f0", "f2"})
 			.build();
 	}

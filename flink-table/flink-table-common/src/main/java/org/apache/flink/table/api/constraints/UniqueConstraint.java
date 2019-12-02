@@ -19,12 +19,9 @@
 package org.apache.flink.table.api.constraints;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,26 +31,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see ConstraintType
  */
 @PublicEvolving
-public final class KeyConstraint extends AbstractConstraint {
-	private final List<FieldReferenceExpression> columns;
+public final class UniqueConstraint extends AbstractConstraint {
+	private final List<String> columns;
 	private final ConstraintType type;
 
 	/**
 	 * Creates a non enforced {@link ConstraintType#PRIMARY_KEY} constraint. It checks that all
 	 * provided columns are of NOT NULL type.
 	 */
-	public static KeyConstraint primaryKey(String name, List<FieldReferenceExpression> columns) {
-		if (columns.stream().anyMatch(c -> c.getOutputDataType().getLogicalType().isNullable())) {
-			throw new ValidationException("Cannot define PRIMARY KEY constraint on nullable column.");
-		}
-		return new KeyConstraint(name, false, ConstraintType.PRIMARY_KEY, columns);
+	public static UniqueConstraint primaryKey(String name, List<String> columns) {
+		return new UniqueConstraint(name, false, ConstraintType.PRIMARY_KEY, columns);
 	}
 
-	private KeyConstraint(
+	private UniqueConstraint(
 			String name,
 			boolean enforced,
 			ConstraintType type,
-			List<FieldReferenceExpression> columns) {
+			List<String> columns) {
 		super(name, enforced);
 
 		this.columns = checkNotNull(columns);
@@ -61,9 +55,9 @@ public final class KeyConstraint extends AbstractConstraint {
 	}
 
 	/**
-	 * List of column references for which the primary key was defined.
+	 * List of column names for which the primary key was defined.
 	 */
-	public List<FieldReferenceExpression> getColumns() {
+	public List<String> getColumns() {
 		return columns;
 	}
 
@@ -72,9 +66,29 @@ public final class KeyConstraint extends AbstractConstraint {
 		return type;
 	}
 
+	/**
+	 * Returns constraint's summary. All constraints summary will be formatted as
+	 * <pre>
+	 * CONSTRAINT [constraint-name] [constraint-type] ([constraint-definition])
+	 *
+	 * E.g CONSTRAINT pk PRIMARY KEY (f0, f1)
+	 * </pre>
+	 */
 	@Override
-	String constraintDefinition() {
-		return columns.stream().map(FieldReferenceExpression::getName).collect(Collectors.joining(", "));
+	public final String asSummaryString() {
+		final String typeString;
+		switch (getType()) {
+			case PRIMARY_KEY:
+				typeString = "PRIMARY KEY";
+				break;
+			case UNIQUE_KEY:
+				typeString = "UNIQUE";
+				break;
+			default:
+				throw new IllegalStateException("Unknown key type: " + getType());
+		}
+
+		return String.format("CONSTRAINT %s %s (%s)", getName(), typeString, String.join(", ", columns));
 	}
 
 	@Override
@@ -88,7 +102,7 @@ public final class KeyConstraint extends AbstractConstraint {
 		if (!super.equals(o)) {
 			return false;
 		}
-		KeyConstraint that = (KeyConstraint) o;
+		UniqueConstraint that = (UniqueConstraint) o;
 		return Objects.equals(columns, that.columns) &&
 			type == that.type;
 	}

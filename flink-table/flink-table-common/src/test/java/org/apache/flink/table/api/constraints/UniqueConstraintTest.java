@@ -18,10 +18,6 @@
 
 package org.apache.flink.table.api.constraints;
 
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -34,9 +30,9 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link KeyConstraint}.
+ * Tests for {@link UniqueConstraint}.
  */
-public class KeyConstraintTest {
+public class UniqueConstraintTest {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
@@ -44,22 +40,11 @@ public class KeyConstraintTest {
 	@Test
 	public void testCreatingPrimaryKey() {
 		String keyName = "pk";
-		List<FieldReferenceExpression> columns = Collections.singletonList(
-			new FieldReferenceExpression("f0", DataTypes.BIGINT().notNull(), 0, 1));
-		KeyConstraint primaryKey = KeyConstraint.primaryKey(keyName, columns);
+		List<String> columns = Collections.singletonList("f0");
+		UniqueConstraint primaryKey = UniqueConstraint.primaryKey(keyName, columns);
 
 		assertThat(primaryKey.getType(), is(Constraint.ConstraintType.PRIMARY_KEY));
 		assertThat(primaryKey.getName(), is(keyName));
 		assertThat(primaryKey.getColumns(), equalTo(columns));
-	}
-
-	@Test
-	public void testCreatingPrimaryKeyForNullableColumns() {
-		thrown.expect(ValidationException.class);
-		thrown.expectMessage("Cannot define PRIMARY KEY constraint on nullable column.");
-
-		KeyConstraint.primaryKey(
-			"pk",
-			Collections.singletonList(new FieldReferenceExpression("f0", DataTypes.BIGINT(), 0, 1)));
 	}
 }

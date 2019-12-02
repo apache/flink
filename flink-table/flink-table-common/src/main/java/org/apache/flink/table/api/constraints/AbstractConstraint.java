@@ -47,36 +47,6 @@ abstract class AbstractConstraint implements Constraint {
 		return enforced;
 	}
 
-	/**
-	 * Returns the in brackets part of a constraint summary.
-	 */
-	abstract String constraintDefinition();
-
-	/**
-	 * Returns constraint's summary. All constraints summary will be formatted as
-	 * <pre>
-	 * CONSTRAINT [constraint-name] [constraint-type] ([constraint-definition])
-	 *
-	 * E.g CONSTRAINT pk PRIMARY KEY (f0, f1)
-	 * </pre>
-	 */
-	@Override
-	public final String asSummaryString() {
-		final String typeString;
-		switch (getType()) {
-			case PRIMARY_KEY:
-				typeString = "PRIMARY KEY";
-				break;
-			case UNIQUE_KEY:
-				typeString = "UNIQUE";
-				break;
-			default:
-				throw new IllegalStateException("Unknown key type: " + getType());
-		}
-
-		return String.format("CONSTRAINT %s %s (%s)", getName(), typeString, constraintDefinition());
-	}
-
 	@Override
 	public String toString() {
 		return asSummaryString();
