@@ -20,6 +20,15 @@ package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionVisitor;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.TypeLiteralExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.commons.lang3.StringUtils;
@@ -32,6 +41,7 @@ import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -173,6 +183,90 @@ public class HiveTableUtil {
 	// returns whether a trait requires RELY constraint
 	public static boolean requireRelyConstraint(byte trait) {
 		return (trait & HIVE_CONSTRAINT_RELY) != 0;
+	}
+
+	/**
+	 * Generates a filter string for partition columns from the given filter expressions.
+	 *
+	 * @param partColNames The names of all partition columns
+	 * @param expressions  The filter expressions in CNF form
+	 * @return a filter string equivalent to the expressions, or null if the expressions can't be handled
+	 */
+	public static String makePartitionFilter(List<String> partColNames, List<Expression> expressions) {
+		List<String> filters = new ArrayList<>(expressions.size());
+		ExpressionExtractor extractor = new ExpressionExtractor(partColNames);
+		for (Expression expression : expressions) {
+			String str = expression.accept(extractor);
+			if (str == null) {
+				return null;
+			}
+			filters.add(str);
+		}
+		return String.join(" and ", filters);
+	}
+
+	private static class ExpressionExtractor implements ExpressionVisitor<String> {
+
+		private static final Map<FunctionDefinition, String> funcToStr = new HashMap<>();
+
+		static {
+			funcToStr.put(BuiltInFunctionDefinitions.EQUALS, "=");
+			funcToStr.put(BuiltInFunctionDefinitions.NOT_EQUALS, "<>");
+			funcToStr.put(BuiltInFunctionDefinitions.GREATER_THAN, ">");
+			funcToStr.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, ">=");
+			funcToStr.put(BuiltInFunctionDefinitions.LESS_THAN, "<");
+			funcToStr.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, "<=");
+		}
+
+		private final List<String> partColNames;
+
+		ExpressionExtractor(List<String> partColNames) {
+			this.partColNames = partColNames;
+		}
+
+		private String funcToString(BuiltInFunctionDefinition funcDef) {
+			return funcToStr.containsKey(funcDef) ? funcToStr.get(funcDef) : funcDef.getName();
+		}
+
+		@Override
+		public String visit(CallExpression call) {
+			FunctionDefinition funcDef = call.getFunctionDefinition();
+			if (funcDef instanceof BuiltInFunctionDefinition) {
+				List<String> operands = new ArrayList<>();
+				for (Expression child : call.getChildren()) {
+					String operand = child.accept(this);
+					if (operand == null) {
+						return null;
+					}
+					operands.add(operand);
+				}
+				if (funcDef == BuiltInFunctionDefinitions.CAST) {
+					return String.format("cast(%s as %s)", operands.get(0), operands.get(1));
+				}
+				return String.join(" " + funcToString((BuiltInFunctionDefinition) funcDef) + " ", operands);
+			}
+			return null;
+		}
+
+		@Override
+		public String visit(ValueLiteralExpression valueLiteral) {
+			return valueLiteral.asSummaryString();
+		}
+
+		@Override
+		public String visit(FieldReferenceExpression fieldReference) {
+			return partColNames.get(fieldReference.getFieldIndex());
+		}
+
+		@Override
+		public String visit(TypeLiteralExpression typeLiteral) {
+			return typeLiteral.getOutputDataType().toString();
+		}
+
+		@Override
+		public String visit(Expression other) {
+			return null;
+		}
 	}
 
 }
