@@ -4,8 +4,6 @@ Copyright 2014-2019 The Apache Software Foundation
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
-The new frontend bundles the following dependencies:
-
 @angular/animations 7.2.10 : MIT License
 @angular/cdk 7.3.6 : MIT License
 @angular/common 7.2.10 : MIT License
