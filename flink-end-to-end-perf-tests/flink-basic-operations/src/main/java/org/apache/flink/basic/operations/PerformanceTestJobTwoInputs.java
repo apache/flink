@@ -37,11 +37,11 @@ import org.slf4j.LoggerFactory;
  * -checkpointInterval -checkpointPath -stateBackend -checkpointTimeout
  */
 
-public class PerformanceTestJobTwoInput extends PerformanceTestJobBase{
-	private static final Logger LOG = LoggerFactory.getLogger(PerformanceTestJobTwoInput.class);
+public class PerformanceTestJobTwoInputs extends PerformanceTestJobBase{
+	private static final Logger LOG = LoggerFactory.getLogger(PerformanceTestJobTwoInputs.class);
 
 	public static void main(String[] args) throws Exception {
-		PerformanceTestJobTwoInput twoInputs = new PerformanceTestJobTwoInput();
+		PerformanceTestJobTwoInputs twoInputs = new PerformanceTestJobTwoInputs();
 		Params params = twoInputs.initParams(args);
 		twoInputs.setEnv();
 		DataStream<Tuple2<String, String>> output1 = twoInputs.setGraph("oneInput1");
