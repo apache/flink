@@ -24,7 +24,9 @@ import org.apache.flink.util.Preconditions;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -35,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -47,6 +50,9 @@ public class MailboxExecutorImplTest {
 	private MailboxExecutor mailboxExecutor;
 	private ExecutorService otherThreadExecutor;
 	private TaskMailboxImpl mailbox;
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@Before
 	public void setUp() throws Exception {
@@ -142,6 +148,16 @@ public class MailboxExecutorImplTest {
 
 		Assert.assertNull(exceptionReference.get());
 		Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
+	}
+
+	@Test
+	public void testPrettyExceptionMessage() {
+		final String description = "Pretty command description";
+		mailboxExecutor.execute(
+			() -> { throw new RuntimeException("Some random exception"); },
+			description);
+		expectedException.expectMessage(containsString(description));
+		mailboxExecutor.tryYield();
 	}
 
 	@Test
