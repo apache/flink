@@ -176,7 +176,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		if (limit > 0 && currentReadCount > limit) {
+		if (limit > 0 && currentReadCount >= limit) {
 			return true;
 		} else {
 			return reader.reachedEnd();
