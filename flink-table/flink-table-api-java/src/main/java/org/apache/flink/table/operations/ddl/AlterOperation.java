@@ -24,10 +24,8 @@ import org.apache.flink.table.operations.Operation;
 /**
  * A {@link Operation} that describes the DDL statements, e.g. ALTER TABLE or ALTER DATABASE.
  *
- * <p>Different sub operations can have their special instances. For example, a
- * alter table operation will have a {@link org.apache.flink.table.catalog.CatalogTable} instance,
- * while a alter database operation will have a
- * {@link org.apache.flink.table.catalog.CatalogDatabase} instance.
+ * <p>Different sub operations can have their special target name. For example, a alter table
+ * operation may have a target table name and a flag to describe if is exists.
  */
 @Internal
 public interface AlterOperation extends Operation {

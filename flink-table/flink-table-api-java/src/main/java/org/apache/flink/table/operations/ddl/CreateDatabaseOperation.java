@@ -32,8 +32,8 @@ import java.util.Map;
 public class CreateDatabaseOperation implements CreateOperation {
 	private final String catalogName;
 	private final String databaseName;
-	private CatalogDatabase catalogDatabase;
-	private boolean ignoreIfExists;
+	private final CatalogDatabase catalogDatabase;
+	private final boolean ignoreIfExists;
 
 	public CreateDatabaseOperation(
 			String catalogName,

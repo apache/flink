@@ -43,6 +43,8 @@ import org.apache.calcite.tools.FrameworkConfig
 import _root_.java.util.function.{Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
+import org.apache.flink.table.catalog.exceptions.{DatabaseAlreadyExistException, DatabaseNotEmptyException, DatabaseNotExistException}
+
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.util.Try
@@ -115,6 +117,11 @@ abstract class TableEnvImpl(
   )
 
   def getConfig: TableConfig = config
+
+  private val UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
+    "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
+      "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, " +
+      "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -465,10 +472,7 @@ abstract class TableEnvImpl(
   override def sqlUpdate(stmt: String): Unit = {
     val operations = parser.parse(stmt)
 
-    if (operations.size != 1) throw new TableException(
-      "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-        "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, " +
-        "CREATE DATABASE, DROP DATABASE, ALTER DATABASE")
+    if (operations.size != 1) throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
 
     operations.get(0) match {
       case op: CatalogSinkModifyOperation =>
@@ -482,34 +486,66 @@ abstract class TableEnvImpl(
           createTableOperation.getTableIdentifier,
           createTableOperation.isIgnoreIfExists)
       case createDatabaseOperation: CreateDatabaseOperation =>
-        catalogManager.createDatabase(
-          createDatabaseOperation.getCatalogName,
-          createDatabaseOperation.getDatabaseName,
-          createDatabaseOperation.getCatalogDatabase,
-          createDatabaseOperation.isIgnoreIfExists,
-          false)
+        val catalog = getCatalog(createDatabaseOperation.getCatalogName)
+          .orElseThrow(
+            new JSupplier[Throwable] {
+              override def get(): Throwable = new ValidationException(
+              String.format("Catalog %s does not exist", createDatabaseOperation.getCatalogName))
+            })
+        val exMsg = String.format("Could not execute %s in path %s", "CREATE DATABASE",
+                                  createDatabaseOperation.getCatalogName)
+        try {
+          catalog.createDatabase(
+            createDatabaseOperation.getDatabaseName,
+            createDatabaseOperation.getCatalogDatabase,
+            createDatabaseOperation.isIgnoreIfExists)
+        } catch {
+          case ex: DatabaseAlreadyExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
       case dropTableOperation: DropTableOperation =>
         catalogManager.dropTable(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
       case dropDatabaseOperation: DropDatabaseOperation =>
-        catalogManager.dropDatabase(
-          dropDatabaseOperation.getCatalogName,
-          dropDatabaseOperation.getDatabaseName,
-          dropDatabaseOperation.isIfExists,
-          dropDatabaseOperation.isRestrict,
-          false)
+        val catalog = getCatalog(dropDatabaseOperation.getCatalogName)
+          .orElseThrow(
+            new JSupplier[Throwable] {
+              override def get(): Throwable = new ValidationException(
+              String.format("Catalog %s does not exist", dropDatabaseOperation.getCatalogName))
+            })
+        val exMsg = String.format("Could not execute %s in path %s", "DROP DATABASE",
+                                  dropDatabaseOperation.getCatalogName)
+        try {
+          catalog.dropDatabase(
+            dropDatabaseOperation.getDatabaseName,
+            dropDatabaseOperation.isIfExists,
+            dropDatabaseOperation.isRestrict)
+        } catch {
+          case ex: DatabaseNotEmptyException => throw new ValidationException(exMsg, ex)
+          case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
       case alterDatabaseOperation: AlterDatabaseOperation =>
-        catalogManager.alterDatabase(
-          alterDatabaseOperation.getCatalogName,
-          alterDatabaseOperation.getDatabaseName,
-          alterDatabaseOperation.getCatalogDatabase,
-          false)
+        val catalog = getCatalog(alterDatabaseOperation.getCatalogName)
+          .orElseThrow(
+            new JSupplier[Throwable] {
+              override def get() = new ValidationException(
+              String.format("Catalog %s does not exist", alterDatabaseOperation.getCatalogName))
+            })
+        val exMsg = String.format("Could not execute %s in path %s", "ALTER DATABASE",
+                                  alterDatabaseOperation.getCatalogName)
+        try {
+          catalog.alterDatabase(
+            alterDatabaseOperation.getDatabaseName,
+            alterDatabaseOperation.getCatalogDatabase,
+            false)
+        } catch {
+          case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
       case useOperation: UseOperation => applyUseOperation(useOperation)
-      case _ => throw new TableException(
-        "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-          "type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, " +
-          "CREATE DATABASE, DROP DATABASE, ALTER DATABASE")
+      case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
     }
   }
 
@@ -521,6 +557,7 @@ abstract class TableEnvImpl(
         case useDatabaseOperation: UseDatabaseOperation =>
           catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
           catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
+        case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
       }
   }
 

@@ -23,8 +23,6 @@ import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -455,93 +453,6 @@ public class CatalogManager {
 			objectIdentifier,
 			false,
 			"CreateTable");
-	}
-
-	/**
-	 * Creates a database in a given fully qualified path.
-	 *
-	 * @param catalogName The catalog where database will be created.S
-	 * @param databaseName Name of database to be created.
-	 * @param database The database to be created.
-	 * @param ignoreIfExists If false exception will be thrown if a database exists in the given path.
-	 */
-	public void createDatabase(String catalogName,
-					String databaseName,
-					CatalogDatabase database,
-					boolean ignoreIfExists,
-					boolean ignoreNoCatalog) {
-		Optional<Catalog> catalog = getCatalog(catalogName);
-		if (catalog.isPresent()) {
-			try {
-				catalog.get().createDatabase(databaseName, database, ignoreIfExists);
-			} catch (DatabaseAlreadyExistException e) {
-				throw new ValidationException(
-						String.format("Could not execute %s in path %s", "CREATE DATABASE", catalogName), e);
-			} catch (Exception e) {
-				throw new TableException(
-						String.format("Could not execute %s in path %s", "CREATE DATABASE", catalogName), e);
-			}
-		} else if (!ignoreNoCatalog) {
-			throw new ValidationException(String.format("Catalog %s does not exist.", catalogName));
-		}
-	}
-
-	/**
-	 * Drop a database in a given path.
-	 *
-	 * @param catalogName        The catalog where database will be deleted.
-	 * @param databaseName       Name of database to be deleted.
-	 * @param ignoreIfNotExists  If false exception will be thrown if a database not exists in the given path.
-	 * @param isRestrict         Flag to specify behavior when the database contains table:
-	 *                              if set to false, delete all tables in the database and then delete the database,
-	 *                              if set to true, throw an exception.
-	 */
-	public void dropDatabase(String catalogName,
-					String databaseName,
-					boolean ignoreIfNotExists,
-					boolean isRestrict,
-					boolean ignoreNoCatalog) {
-		Optional<Catalog> catalog = getCatalog(catalogName);
-		if (catalog.isPresent()) {
-			try {
-				catalog.get().dropDatabase(databaseName, ignoreIfNotExists, isRestrict);
-			} catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
-				throw new ValidationException(
-						String.format("Could not execute %s in path %s", "DROP DATABASE", catalogName), e);
-			} catch (Exception e) {
-				throw new TableException(
-						String.format("Could not execute %s in path %s", "DROP DATABASE", catalogName), e);
-			}
-		} else if (!ignoreNoCatalog) {
-			throw new ValidationException(String.format("Catalog %s does not exist.", catalogName));
-		}
-	}
-
-	/**
-	 * Alter a database in a given path.
-	 *
-	 * @param catalogName     The catalog where database will be deleted.
-	 * @param databaseName    Name of database to be deleted.
-	 * @param catalogDatabase New catalogDatabase.
-	 */
-	public void alterDatabase(String catalogName,
-							String databaseName,
-							CatalogDatabase catalogDatabase,
-							boolean ignoreNoCatalog) {
-		Optional<Catalog> catalog = getCatalog(catalogName);
-		if (catalog.isPresent()) {
-			try {
-				catalog.get().alterDatabase(databaseName, catalogDatabase, false);
-			} catch (DatabaseNotExistException e) {
-				throw new ValidationException(
-						String.format("Could not execute %s in path %s", "ALTER DATABASE", catalogName), e);
-			} catch (Exception e) {
-				throw new TableException(
-						String.format("Could not execute %s in path %s", "ALTER DATABASE", catalogName), e);
-			}
-		} else if (!ignoreNoCatalog) {
-			throw new ValidationException(String.format("Catalog %s does not exist.", catalogName));
-		}
 	}
 
 	/**

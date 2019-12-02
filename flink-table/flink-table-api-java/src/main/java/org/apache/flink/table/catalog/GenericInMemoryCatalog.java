@@ -107,13 +107,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public void dropDatabase(String name, boolean ignoreIfNotExists)
-			throws DatabaseNotExistException, DatabaseNotEmptyException, CatalogException {
-		dropDatabase(name, ignoreIfNotExists, true);
-	}
-
-	@Override
-	public void dropDatabase(String databaseName, boolean ignoreIfNotExists, boolean isRestrict)
+	public void dropDatabase(String databaseName, boolean ignoreIfNotExists, boolean restrict)
 			throws DatabaseNotExistException, DatabaseNotEmptyException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
 
@@ -122,7 +116,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 			// Make sure the database is empty
 			if (isDatabaseEmpty(databaseName)) {
 				databases.remove(databaseName);
-			} else if (!isRestrict) {
+			} else if (!restrict) {
 				// delete all tables in this database and then delete the database.
 				List<ObjectPath> deleteTablePaths = tables.keySet().stream()
 														.filter(op -> op.getDatabaseName().equals(databaseName))

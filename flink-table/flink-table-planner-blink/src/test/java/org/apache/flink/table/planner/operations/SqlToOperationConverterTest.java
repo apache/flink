@@ -200,14 +200,13 @@ public class SqlToOperationConverterTest {
 	}
 
 	@Test
-	public void testAlterDatabase() {
+	public void testAlterDatabase() throws Exception {
 		catalogManager.registerCatalog("cat1",
 									new GenericInMemoryCatalog("default", "default"));
-		catalogManager.createDatabase("cat1",
-									"db1",
-									new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"),
-									true,
-									true);
+		catalogManager.getCatalog("cat1").get()
+						.createDatabase("db1",
+										new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"),
+										true);
 		final String sql = "alter database cat1.db1 set ('k1'='a')";
 		Operation operation = parse(sql, SqlDialect.DEFAULT);
 		assert operation instanceof AlterDatabaseOperation;

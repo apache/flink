@@ -275,8 +275,7 @@ public class SqlToOperationConverter {
 		}
 		// set with properties
 		sqlAlterDatabase.getPropertyList().getList().forEach(p ->
-																	 properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-																					((SqlTableOption) p).getValueString()));
+			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(), ((SqlTableOption) p).getValueString()));
 		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
 		return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
 	}

@@ -39,6 +39,9 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Parser;
@@ -99,6 +102,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	protected final FunctionCatalog functionCatalog;
 	protected final Planner planner;
 	protected final Parser parser;
+	private static final String UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
+			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
+			"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, " +
+			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -454,10 +461,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		List<Operation> operations = parser.parse(stmt);
 
 		if (operations.size() != 1) {
-			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-					"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, " +
-					"CREATE DATABASE, DROP DATABASE, ALTER DATABASE");
+			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
 
 		Operation operation = operations.get(0);
@@ -477,12 +481,21 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				createTableOperation.isIgnoreIfExists());
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
-			catalogManager.createDatabase(
-					createDatabaseOperation.getCatalogName(),
-					createDatabaseOperation.getDatabaseName(),
-					createDatabaseOperation.getCatalogDatabase(),
-					createDatabaseOperation.isIgnoreIfExists(),
-					false);
+			Catalog catalog = getCatalog(createDatabaseOperation.getCatalogName())
+					.orElseThrow(() -> new ValidationException(
+							String.format("Catalog %s does not exist.", createDatabaseOperation.getCatalogName())));
+			String exMsg = String.format("Could not execute %s in path %s", "CREATE DATABASE",
+										createDatabaseOperation.getCatalogName());
+			try {
+				catalog.createDatabase(
+						createDatabaseOperation.getDatabaseName(),
+						createDatabaseOperation.getCatalogDatabase(),
+						createDatabaseOperation.isIgnoreIfExists());
+			} catch (DatabaseAlreadyExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
 			catalogManager.dropTable(
@@ -490,26 +503,42 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				dropTableOperation.isIfExists());
 		} else if (operation instanceof DropDatabaseOperation) {
 			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
-			catalogManager.dropDatabase(
-					dropDatabaseOperation.getCatalogName(),
-					dropDatabaseOperation.getDatabaseName(),
-					dropDatabaseOperation.isIfExists(),
-					dropDatabaseOperation.isRestrict(),
-					false);
+			Catalog catalog = getCatalog(dropDatabaseOperation.getCatalogName())
+					.orElseThrow(() -> new ValidationException(
+							String.format("Catalog %s does not exist.", dropDatabaseOperation.getCatalogName())));
+			String exMsg = String.format("Could not execute %s in path %s", "DROP DATABASE",
+										dropDatabaseOperation.getCatalogName());
+			try {
+				catalog.dropDatabase(
+						dropDatabaseOperation.getDatabaseName(),
+						dropDatabaseOperation.isIfExists(),
+						dropDatabaseOperation.isRestrict());
+			} catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof AlterDatabaseOperation) {
 			AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
-			catalogManager.alterDatabase(
-					alterDatabaseOperation.getCatalogName(),
-					alterDatabaseOperation.getDatabaseName(),
-					alterDatabaseOperation.getCatalogDatabase(),
-					false);
+			Catalog catalog = getCatalog(alterDatabaseOperation.getCatalogName())
+					.orElseThrow(() -> new ValidationException(
+							String.format("Catalog %s does not exist.", alterDatabaseOperation.getCatalogName())));
+			String exMsg = String.format("Could not execute %s in path %s", "ALTER DATABASE",
+										alterDatabaseOperation.getCatalogName());
+			try {
+				catalog.alterDatabase(
+						alterDatabaseOperation.getDatabaseName(),
+						alterDatabaseOperation.getCatalogDatabase(),
+						false);
+			} catch (DatabaseNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof UseOperation) {
 			applyUseOperation((UseOperation) operation);
 		} else {
-			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, " +
-					"CREATE DATABASE, DROP DATABASE, ALTER DATABASE");
+			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
 	}
 
@@ -522,6 +551,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
 			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
 			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
+		} else {
+			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
 	}
 

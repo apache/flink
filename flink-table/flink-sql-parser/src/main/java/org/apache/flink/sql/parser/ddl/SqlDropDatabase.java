@@ -39,9 +39,9 @@ public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
 	private static final SqlOperator OPERATOR =
 		new SqlSpecialOperator("DROP DATABASE", SqlKind.OTHER_DDL);
 
-	private SqlIdentifier databaseName;
-	private boolean ifExists;
-	private boolean isRestrict = true;
+	private final SqlIdentifier databaseName;
+	private final boolean ifExists;
+	private final boolean isRestrict;
 
 	public SqlDropDatabase(SqlParserPos pos,
 			SqlIdentifier databaseName,
