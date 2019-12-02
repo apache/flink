@@ -1075,10 +1075,10 @@ public abstract class CatalogTest {
 		catalog.createTable(path1, createPartitionedTable(), false);
 		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
 		CatalogTableStatistics tableStatistics = catalog.getPartitionStatistics(path1, createPartitionSpec());
-		assertEquals(0, tableStatistics.getFileCount());
-		assertEquals(0, tableStatistics.getRawDataSize());
-		assertEquals(0, tableStatistics.getTotalSize());
-		assertEquals(0, tableStatistics.getRowCount());
+		assertEquals(-1, tableStatistics.getFileCount());
+		assertEquals(-1, tableStatistics.getRawDataSize());
+		assertEquals(-1, tableStatistics.getTotalSize());
+		assertEquals(-1, tableStatistics.getRowCount());
 	}
 
 	@Test
