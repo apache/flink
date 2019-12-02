@@ -127,7 +127,7 @@ public class SqlDateTimeUtils {
 	 * A ThreadLocal cache map for DateTimeFormatter.
 	 * (string_format) => formatter
 	 */
-	private static final ThreadLocalCache<String, DateTimeFormatter> DateTimeFormatter_CACHE =
+	private static final ThreadLocalCache<String, DateTimeFormatter> DATETIME_FORMATTER_CACHE =
 		new ThreadLocalCache<String, DateTimeFormatter>() {
 			@Override
 			public DateTimeFormatter getNewInstance(String key) {
@@ -241,7 +241,7 @@ public class SqlDateTimeUtils {
 	}
 
 	public static SqlTimestamp toSqlTimestamp(String dateStr, String format) {
-		DateTimeFormatter formatter = DateTimeFormatter_CACHE.get(format);
+		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
 
 		try {
 			if (dateStr.length() == 10) {
@@ -354,7 +354,7 @@ public class SqlDateTimeUtils {
 	 * @param zoneId the ZoneId.
 	 */
 	public static String dateFormat(SqlTimestamp ts, String format, ZoneId zoneId) {
-		DateTimeFormatter formatter = DateTimeFormatter_CACHE.get(format);
+		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
 		return ts.toLocalDateTime().atZone(zoneId).format(formatter);
 	}
 
