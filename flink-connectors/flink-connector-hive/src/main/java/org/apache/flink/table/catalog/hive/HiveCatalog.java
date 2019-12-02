@@ -86,6 +86,7 @@ import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
+import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
@@ -520,15 +521,7 @@ public class HiveCatalog extends AbstractCatalog {
 		String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
 		// Table schema
-		List<FieldSchema> fields;
-		if (org.apache.hadoop.hive.ql.metadata.Table.hasMetastoreBasedSchema(hiveConf,
-				hiveTable.getSd().getSerdeInfo().getSerializationLib())) {
-			// get schema from metastore
-			fields = hiveTable.getSd().getCols();
-		} else {
-			// get schema from deserializer
-			fields = hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
-		}
+		List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable);
 		Set<String> notNullColumns = client.getNotNullColumns(hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
 		Optional<UniqueConstraint> primaryKey = isView ? Optional.empty() :
 				client.getPrimaryKey(hiveTable.getDbName(), hiveTable.getTableName(), HiveTableUtil.relyConstraint((byte) 0));
@@ -552,6 +545,17 @@ public class HiveCatalog extends AbstractCatalog {
 					comment);
 		} else {
 			return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
+		}
+	}
+
+	private List<FieldSchema> getNonPartitionFields(HiveConf hiveConf, Table hiveTable) {
+		if (org.apache.hadoop.hive.ql.metadata.Table.hasMetastoreBasedSchema(hiveConf,
+				hiveTable.getSd().getSerdeInfo().getSerializationLib())) {
+			// get schema from metastore
+			return hiveTable.getSd().getCols();
+		} else {
+			// get schema from deserializer
+			return hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
 		}
 	}
 
@@ -759,9 +763,35 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> filters)
+	public List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> expressions)
 			throws TableNotExistException, TableNotPartitionedException, CatalogException {
-		throw new UnsupportedOperationException();
+		Table hiveTable = getHiveTable(tablePath);
+		ensurePartitionedTable(tablePath, hiveTable);
+		List<String> partColNames = getFieldNames(hiveTable.getPartitionKeys());
+		Optional<String> filter = HiveTableUtil.makePartitionFilter(
+				getNonPartitionFields(hiveConf, hiveTable).size(), partColNames, expressions);
+		if (!filter.isPresent()) {
+			throw new UnsupportedOperationException(
+					"HiveCatalog is unable to handle the partition filter expressions: " + expressions);
+		}
+		try {
+			PartitionSpecProxy partitionSpec = client.listPartitionSpecsByFilter(
+					tablePath.getDatabaseName(), tablePath.getObjectName(), filter.get(), (short) -1);
+			List<CatalogPartitionSpec> res = new ArrayList<>(partitionSpec.size());
+			PartitionSpecProxy.PartitionIterator partitions = partitionSpec.getPartitionIterator();
+			while (partitions.hasNext()) {
+				Partition partition = partitions.next();
+				Map<String, String> spec = new HashMap<>();
+				for (int i = 0; i < partColNames.size(); i++) {
+					spec.put(partColNames.get(i), partition.getValues().get(i));
+				}
+				res.add(new CatalogPartitionSpec(spec));
+			}
+			return res;
+		} catch (TException e) {
+			throw new UnsupportedOperationException(
+					"Failed to list partition by filter from HMS, filter expressions: " + expressions, e);
+		}
 	}
 
 	@Override
