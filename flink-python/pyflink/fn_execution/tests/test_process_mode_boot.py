@@ -217,7 +217,7 @@ class PythonBootTests(PyFlinkTestCase):
     def test_install_requirements_without_cached_dir(self):
         requirements_txt_path = os.path.join(self.tmp_dir, "requirements_txt_" + str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
-            f.write("cloudpickle\\ \n#test line continuation\n==1.2.2\npy4j==0.10.8.1")
+            f.write("#test line continuation\ncloudpickle\\\n==1.2.2\npy4j==0.10.8.1")
 
         self.env[PYTHON_REQUIREMENTS_FILE] = requirements_txt_path
         requirements_target_dir_path = \

@@ -27,7 +27,6 @@ project. So we add a python implementation which will be used when the python wo
 process mode. It downloads and installs users' python artifacts, then launches the python SDK
 harness of Apache Beam.
 """
-import shlex
 import argparse
 import hashlib
 import os
@@ -71,29 +70,6 @@ def append_path_to_env(env, name, value):
         env[name] = value
 
 
-def get_next_command(requirements_file):
-    line_continuation = None
-    while True:
-        text_line = requirements_file.readline()
-        if text_line:
-            if line_continuation is not None:
-                text_line = text_line.strip("\n\r")
-            else:
-                text_line = text_line.strip()
-            if text_line.startswith("#"):
-                continue
-            if line_continuation is not None:
-                text_line = line_continuation + text_line
-            if text_line.strip().endswith("\\"):
-                line_continuation = text_line
-                continue
-            if len(text_line.strip()) == 0:
-                continue
-            return shlex.split(text_line)
-        else:
-            return None
-
-
 def get_site_packages_paths(prefix):
     install_obj = Distribution().get_command_obj('install', create=True)
     install_obj.prefix = prefix
@@ -130,24 +106,19 @@ def pip_install_requirements():
         append_path_to_env(env, "PYTHONPATH", installed_python_path)
         append_path_to_env(env, "PATH", installed_python_script_path)
 
-        with open(requirements_file_path, "r") as f:
-            user_args = get_next_command(f)
-            while user_args is not None:
-                pip_install_commands = [python_exec, "-m", "pip", "install", "--ignore-installed"]
-                pip_install_commands.extend(user_args)
-                pip_install_commands.extend(get_prefix_option(requirements_install_path))
-                if requirements_cache_path is not None:
-                    pip_install_commands.extend(["--find-links", requirements_cache_path])
+        pip_install_commands = [python_exec, "-m", "pip", "install", "--ignore-installed", "-r",
+                                requirements_file_path]
+        pip_install_commands.extend(get_prefix_option(requirements_install_path))
+        if requirements_cache_path is not None:
+            pip_install_commands.extend(["--find-links", requirements_cache_path])
 
-                logging.info("Run command: %s\n" % " ".join(pip_install_commands))
-                exit_code = call(
-                    pip_install_commands, stdout=sys.stdout, stderr=sys.stderr, env=env)
-                if exit_code > 0:
-                    raise Exception(
-                        "Run command: %s error! exit code: %d" %
-                        (" ".join(pip_install_commands), exit_code))
-
-                user_args = get_next_command(f)
+        logging.info("Run command: %s\n" % " ".join(pip_install_commands))
+        exit_code = call(
+            pip_install_commands, stdout=sys.stdout, stderr=sys.stderr, env=env)
+        if exit_code > 0:
+            raise Exception(
+                "Run command: %s error! exit code: %d" %
+                (" ".join(pip_install_commands), exit_code))
 
         os.environ["PYTHONPATH"] = env["PYTHONPATH"]
         os.environ["PATH"] = env["PATH"]
