@@ -36,6 +36,8 @@ import java.util.Objects;
  */
 public class LegacyTimestampTypeInfo extends SqlTimeTypeInfo<Timestamp> {
 
+	private static final long serialVersionUID = 1L;
+
 	private final int precision;
 
 	@SuppressWarnings("unchecked")

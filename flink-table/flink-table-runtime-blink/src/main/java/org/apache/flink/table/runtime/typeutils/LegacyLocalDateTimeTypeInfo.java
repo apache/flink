@@ -36,6 +36,8 @@ import java.util.Objects;
  */
 public class LegacyLocalDateTimeTypeInfo extends LocalTimeTypeInfo<LocalDateTime> {
 
+	private static final long serialVersionUID = 1L;
+
 	private final int precision;
 
 	public LegacyLocalDateTimeTypeInfo(int precision) {
