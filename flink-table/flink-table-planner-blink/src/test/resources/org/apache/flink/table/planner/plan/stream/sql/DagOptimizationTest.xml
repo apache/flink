@@ -158,23 +158,22 @@ LogicalSink(name=[appendSink2], fields=[a, b1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a AS a1, b AS b1], where=[<=(a, 10)], updateAsRetraction=[false], accMode=[Acc], reuse_id=[1])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-
-Union(all=[true], union=[a1, b1], updateAsRetraction=[false], accMode=[Acc], reuse_id=[2])
-:- Reused(reference_id=[1])
+Union(all=[true], union=[a1, b1], updateAsRetraction=[false], accMode=[Acc], reuse_id=[1])
+:- Calc(select=[a AS a1, b AS b1], where=[<=(a, 10)], updateAsRetraction=[false], accMode=[Acc])
+:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
 +- Calc(select=[a, b1], updateAsRetraction=[false], accMode=[Acc])
    +- Join(joinType=[InnerJoin], where=[=(a, a1)], select=[a1, b1, a, b, c, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[Acc])
       :- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
-      :  +- Reused(reference_id=[1])
+      :  +- Calc(select=[a AS a1, b AS b1], where=[<=(a, 10)], updateAsRetraction=[true], accMode=[Acc])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
       +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e], updateAsRetraction=[true], accMode=[Acc])
 
 Sink(name=[appendSink1], fields=[a, b1], updateAsRetraction=[false], accMode=[Acc])
-+- Reused(reference_id=[2])
++- Reused(reference_id=[1])
 
 Sink(name=[appendSink2], fields=[a, b1], updateAsRetraction=[false], accMode=[Acc])
-+- Reused(reference_id=[2])
++- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -370,32 +369,30 @@ LogicalSink(name=[appendSink2], fields=[a, total_c])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc], reuse_id=[1])
-
-Calc(select=[a, total_c], updateAsRetraction=[false], accMode=[Acc], reuse_id=[2])
+Calc(select=[a, total_c], updateAsRetraction=[false], accMode=[Acc], reuse_id=[1])
 +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(DISTINCT c) AS total_c], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
       +- Calc(select=[a, b, f0 AS c], updateAsRetraction=[true], accMode=[Acc])
          +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER], updateAsRetraction=[true], accMode=[Acc])
             +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}')), <>(c, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], updateAsRetraction=[true], accMode=[Acc])
-               +- Reused(reference_id=[1])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
 
-Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))], updateAsRetraction=[false], accMode=[Acc], reuse_id=[3])
-+- Reused(reference_id=[1])
+Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))], updateAsRetraction=[false], accMode=[Acc], reuse_id=[2])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
 
 Sink(name=[appendSink1], fields=[a, total_c], updateAsRetraction=[false], accMode=[Acc])
 +- Union(all=[true], union=[a, total_c], updateAsRetraction=[false], accMode=[Acc])
    :- Calc(select=[a, total_c], where=[>(a, 50)], updateAsRetraction=[false], accMode=[Acc])
-   :  +- Reused(reference_id=[2])
+   :  +- Reused(reference_id=[1])
    +- Calc(select=[a, CAST(total_c) AS total_c], where=[>(a, 50)], updateAsRetraction=[false], accMode=[Acc])
-      +- Reused(reference_id=[3])
+      +- Reused(reference_id=[2])
 
 Sink(name=[appendSink2], fields=[a, total_c], updateAsRetraction=[false], accMode=[Acc])
 +- Union(all=[true], union=[a, total_c], updateAsRetraction=[false], accMode=[Acc])
    :- Calc(select=[a, total_c], where=[<(a, 50)], updateAsRetraction=[false], accMode=[Acc])
-   :  +- Reused(reference_id=[2])
+   :  +- Reused(reference_id=[1])
    +- Calc(select=[a, CAST(total_c) AS total_c], where=[<(a, 50)], updateAsRetraction=[false], accMode=[Acc])
-      +- Reused(reference_id=[3])
+      +- Reused(reference_id=[2])
 ]]>
     </Resource>
   </TestCase>
@@ -479,29 +476,34 @@ LogicalSink(name=[appendSink3], fields=[a])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a], reuse_id=[2])
-+- Union(all=[true], union=[a, c])
-   :- Calc(select=[a, c])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- Calc(select=[d, f])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+Calc(select=[a, c], updateAsRetraction=[true], accMode=[Acc], reuse_id=[2])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
 
-Exchange(distribution=[single], reuse_id=[1])
-+- Union(all=[true], union=[a])
-   :- Reused(reference_id=[2])
-   +- Calc(select=[a])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[d, f], updateAsRetraction=[true], accMode=[Acc], reuse_id=[3])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], updateAsRetraction=[true], accMode=[Acc])
 
-Sink(name=[appendSink1], fields=[total_sum])
-+- GroupAggregate(select=[SUM(a) AS total_sum])
+Exchange(distribution=[single], updateAsRetraction=[true], accMode=[Acc], reuse_id=[1])
++- Union(all=[true], union=[a], updateAsRetraction=[true], accMode=[Acc])
+   :- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc])
+   :  +- Union(all=[true], union=[a, c], updateAsRetraction=[true], accMode=[Acc])
+   :     :- Reused(reference_id=[2])
+   :     +- Reused(reference_id=[3])
+   +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+
+Sink(name=[appendSink1], fields=[total_sum], updateAsRetraction=[false], accMode=[Acc])
++- GroupAggregate(select=[SUM(a) AS total_sum], updateAsRetraction=[false], accMode=[Acc])
    +- Reused(reference_id=[1])
 
-Sink(name=[appendSink2], fields=[total_min])
-+- GroupAggregate(select=[MIN(a) AS total_min])
+Sink(name=[appendSink2], fields=[total_min], updateAsRetraction=[false], accMode=[Acc])
++- GroupAggregate(select=[MIN(a) AS total_min], updateAsRetraction=[false], accMode=[Acc])
    +- Reused(reference_id=[1])
 
-Sink(name=[appendSink3], fields=[a])
-+- Reused(reference_id=[2])
+Sink(name=[appendSink3], fields=[a], updateAsRetraction=[false], accMode=[Acc])
++- Calc(select=[a], updateAsRetraction=[false], accMode=[Acc])
+   +- Union(all=[true], union=[a, c], updateAsRetraction=[false], accMode=[Acc])
+      :- Reused(reference_id=[2])
+      +- Reused(reference_id=[3])
 ]]>
     </Resource>
   </TestCase>
@@ -544,29 +546,33 @@ LogicalSink(name=[upsertSink], fields=[total_min])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Union(all=[true], union=[a, c], updateAsRetraction=[false], accMode=[Acc], reuse_id=[1])
-:- Calc(select=[a, c], updateAsRetraction=[true], accMode=[Acc])
-:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-+- Calc(select=[d, f], updateAsRetraction=[true], accMode=[Acc])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], updateAsRetraction=[true], accMode=[Acc])
+Calc(select=[a, c], updateAsRetraction=[true], accMode=[Acc], reuse_id=[1])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
+
+Calc(select=[d, f], updateAsRetraction=[true], accMode=[Acc], reuse_id=[2])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], updateAsRetraction=[true], accMode=[Acc])
 
 Sink(name=[appendSink], fields=[a, c], updateAsRetraction=[false], accMode=[Acc])
-+- Reused(reference_id=[1])
++- Union(all=[true], union=[a, c], updateAsRetraction=[false], accMode=[Acc])
+   :- Reused(reference_id=[1])
+   +- Reused(reference_id=[2])
 
-Exchange(distribution=[single], updateAsRetraction=[true], accMode=[Acc], reuse_id=[2])
+Exchange(distribution=[single], updateAsRetraction=[true], accMode=[Acc], reuse_id=[3])
 +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc])
    +- Union(all=[true], union=[a, c], updateAsRetraction=[true], accMode=[Acc])
-      :- Reused(reference_id=[1])
+      :- Union(all=[true], union=[a, c], updateAsRetraction=[true], accMode=[Acc])
+      :  :- Reused(reference_id=[1])
+      :  +- Reused(reference_id=[2])
       +- Calc(select=[a, c], updateAsRetraction=[true], accMode=[Acc])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
 
 Sink(name=[retractSink], fields=[total_sum], updateAsRetraction=[true], accMode=[AccRetract])
 +- GroupAggregate(select=[SUM(a) AS total_sum], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Reused(reference_id=[2])
+   +- Reused(reference_id=[3])
 
 Sink(name=[upsertSink], fields=[total_min], updateAsRetraction=[false], accMode=[Acc])
 +- GroupAggregate(select=[MIN(a) AS total_min], updateAsRetraction=[false], accMode=[Acc])
-   +- Reused(reference_id=[2])
+   +- Reused(reference_id=[3])
 ]]>
     </Resource>
   </TestCase>
@@ -796,12 +802,13 @@ LogicalSink(name=[appendSink], fields=[a1, b1])
       <![CDATA[
 Sink(name=[appendSink], fields=[a1, b1], updateAsRetraction=[false], accMode=[Acc])
 +- Union(all=[true], union=[a1, b1], updateAsRetraction=[false], accMode=[Acc])
-   :- Calc(select=[a AS a1, b AS b1], where=[<=(a, 10)], updateAsRetraction=[false], accMode=[Acc], reuse_id=[1])
+   :- Calc(select=[a AS a1, b AS b1], where=[<=(a, 10)], updateAsRetraction=[false], accMode=[Acc])
    :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
    +- Calc(select=[a, b1], updateAsRetraction=[false], accMode=[Acc])
       +- Join(joinType=[InnerJoin], where=[=(a, a1)], select=[a1, b1, a, b, c, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[Acc])
          :- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
-         :  +- Reused(reference_id=[1])
+         :  +- Calc(select=[a AS a1, b AS b1], where=[<=(a, 10)], updateAsRetraction=[true], accMode=[Acc])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
          +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e], updateAsRetraction=[true], accMode=[Acc])
 ]]>
