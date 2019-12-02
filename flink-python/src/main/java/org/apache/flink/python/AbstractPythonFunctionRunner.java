@@ -199,9 +199,7 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 			jobBundleFactory = null;
 		}
 
-		if (environmentManager != null) {
-			environmentManager.close();
-		}
+		environmentManager.close();
 	}
 
 	@Override
