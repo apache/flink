@@ -102,7 +102,9 @@ public class TimeSerializer extends TypeSerializerSingleton<Time> {
 
 	@Override
 	public Time deserialize(Time reuse, DataInputView source) throws IOException {
-		return deserialize(source);
+		int time = source.readInt();
+		reuse.setTime(time - LOCAL_TZ.getOffset(time));
+		return reuse;
 	}
 
 	@Override
