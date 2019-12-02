@@ -58,4 +58,6 @@ public class Constants {
 	public static final String RESOURCE_UNIT_MB = "Mi";
 
 	public static final String ENV_FLINK_CLASSPATH = "FLINK_CLASSPATH";
+
+	public static final String ENV_FLINK_POD_NAME = "_FLINK_POD_NAME";
 }
