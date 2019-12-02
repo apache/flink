@@ -194,7 +194,7 @@ public final class PythonTypeUtils {
 
 		@Override
 		public TypeSerializer visit(TimestampType timestampType) {
-			return LongSerializer.INSTANCE;
+			return new SqlTimestampSerializer(timestampType.getPrecision());
 		}
 	}
 
