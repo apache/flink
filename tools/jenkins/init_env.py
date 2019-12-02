@@ -24,52 +24,7 @@
 # Note by AiHua Li
 
 import os
-import subprocess
-import tempfile
-import traceback
-import uuid
-from threading import Timer
-
-
-def timeout_callback(p):
-    print 'exe time out call back'
-    try:
-        p.kill()
-    except Exception as error:
-        print error
-
-
-def run_command(cmd, timeout=12000):
-    script = '''#!/bin/sh
-    %s
-    '''%cmd
-    script_file = tempfile.NamedTemporaryFile('wt')
-    script_file.write(script)
-    script_file.flush()
-    outputFile = "/tmp/%s"%uuid.uuid1()
-    stderrFile = "/tmp/%s"%uuid.uuid1()
-    stdout = open(outputFile, 'wb')
-    stderr = open(stderrFile, 'wb')
-    cmd = ['bash', script_file.name]
-    p = subprocess.Popen(cmd, stdout=stdout, stderr=stderr)
-    my_timer = Timer(timeout, timeout_callback, [p])
-    my_timer.start()
-    try:
-        p.communicate()
-    except Exception, e:
-        print(traceback.format_exc())
-    finally:
-        my_timer.cancel()
-        stdout.flush()
-        stderr.flush()
-        stdout.close()
-        stderr.close()
-        logfile = open(outputFile, 'r')
-        lines = logfile.readlines()
-        output = "".join(lines)
-        logfile.close()
-        exit_code = p.returncode
-        return exit_code, output
+from utils import run_command
 
 
 def init_standalone_env(host_list, user, source_path, dest_path):
@@ -134,6 +89,7 @@ def init_env():
     else:
         print "find target file error"
         return 1
+
 
 if __name__ == "__main__":
     init_env()
