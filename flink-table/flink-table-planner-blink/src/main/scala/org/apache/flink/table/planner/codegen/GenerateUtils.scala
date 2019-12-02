@@ -387,12 +387,16 @@ object GenerateUtils {
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val fieldTerm = newName("timestampWithLocalZone")
-        val millis = unixTimestampToLocalDateTime(literalValue.asInstanceOf[Long])
+        val millis = unixTimestampToLocalDateTime(
+              literalValue.asInstanceOf[TimestampString].getMillisSinceEpoch)
             .atZone(ctx.tableConfig.getLocalTimeZone)
             .toInstant.toEpochMilli
+        val nanoOfMillis = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(
+          literalValue.asInstanceOf[TimestampString].toString)
         val fieldTimestampWithLocalZone =
           s"""
-             |$SQL_TIMESTAMP $fieldTerm = $SQL_TIMESTAMP.fromEpochMillis(${millis}L);
+             |$SQL_TIMESTAMP $fieldTerm =
+             |  $SQL_TIMESTAMP.fromEpochMillis(${millis}L, $nanoOfMillis);
            """.stripMargin
         ctx.addReusableMember(fieldTimestampWithLocalZone)
         generateNonNullLiteral(literalType, fieldTerm, literalValue)
@@ -678,7 +682,7 @@ object GenerateUtils {
       leftTerm: String,
       rightTerm: String): String = t.getTypeRoot match {
     case BOOLEAN => s"($leftTerm == $rightTerm ? 0 : ($leftTerm ? 1 : -1))"
-    case DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+    case DATE | TIME_WITHOUT_TIME_ZONE =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
     case _ if PlannerTypeUtils.isPrimitive(t) =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"

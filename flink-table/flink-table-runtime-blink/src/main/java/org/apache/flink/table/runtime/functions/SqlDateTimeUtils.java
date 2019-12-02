@@ -356,7 +356,7 @@ public class SqlDateTimeUtils {
 	public static String dateFormat(SqlTimestamp ts, String format, ZoneId zoneId) {
 		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
 		Instant instant = ts.toInstant();
-		return LocalDateTime.ofInstant(instant, zoneId.getRules().getOffset(instant)).format(formatter);
+		return LocalDateTime.ofInstant(instant, zoneId).format(formatter);
 	}
 
 	public static String dateFormat(SqlTimestamp ts, String format) {
@@ -578,24 +578,22 @@ public class SqlDateTimeUtils {
 	}
 
 	private static final DateType REUSE_DATE_TYPE = new DateType();
-	private static final TimestampType REUSE_TIMESTAMP_TYPE = new TimestampType(3);
-
-	public static long extractFromDate(TimeUnitRange range, long ts) {
-		return convertExtract(range, ts, REUSE_DATE_TYPE, TimeZone.getTimeZone("UTC"));
-	}
+	private static final TimestampType REUSE_TIMESTAMP_TYPE = new TimestampType(9);
 
 	public static long unixTimeExtract(TimeUnitRange range, int ts) {
 		return DateTimeUtils.unixTimeExtract(range, ts);
 	}
 
-	public static long extractFromTimestamp(TimeUnitRange range, long ts, TimeZone tz) {
+	public static long extractFromTimestamp(TimeUnitRange range, SqlTimestamp ts, TimeZone tz) {
 		return convertExtract(range, ts, REUSE_TIMESTAMP_TYPE, tz);
 	}
 
-	private static long convertExtract(TimeUnitRange range, long ts, LogicalType type, TimeZone tz) {
+	private static long convertExtract(TimeUnitRange range, SqlTimestamp ts, LogicalType type, TimeZone tz) {
 		TimeUnit startUnit = range.startUnit;
-		long offset = tz.getOffset(ts);
-		long utcTs = ts + offset;
+		long millisecond = ts.getMillisecond();
+		int nanoOfMillisecond = ts.getNanoOfMillisecond();
+		long offset = tz.getOffset(millisecond);
+		long utcTs = millisecond + offset;
 
 		switch (startUnit) {
 			case MILLENNIUM:
@@ -622,11 +620,24 @@ public class SqlDateTimeUtils {
 			case EPOCH:
 				// TODO support it
 				throw new TableException("EPOCH is unsupported now.");
+			case MICROSECOND:
+				if (type instanceof TimestampType) {
+					long millis = divide(mod(utcTs, getFactor(startUnit)), startUnit.multiplier);
+					int micros = nanoOfMillisecond / 1000;
+					return millis + micros;
+				} else {
+					throw new TableException(type + " is unsupported now.");
+				}
+			case NANOSECOND:
+				if (type instanceof TimestampType) {
+					long millis = divide(mod(utcTs, getFactor(startUnit)), startUnit.multiplier);
+					return millis + nanoOfMillisecond;
+				}
 			default:
 				// fall through
 		}
 
-		long res = mod(utcTs, getFactory(startUnit));
+		long res = mod(utcTs, getFactor(startUnit));
 		res = divide(res, startUnit.multiplier);
 		return res;
 
@@ -651,12 +662,16 @@ public class SqlDateTimeUtils {
 		}
 	}
 
-	private static BigDecimal getFactory(TimeUnit unit) {
+	private static BigDecimal getFactor(TimeUnit unit) {
 		switch (unit) {
 			case DAY: return BigDecimal.ONE;
 			case HOUR: return TimeUnit.DAY.multiplier;
 			case MINUTE: return TimeUnit.HOUR.multiplier;
 			case SECOND: return TimeUnit.MINUTE.multiplier;
+			case MILLISECOND:
+			case MICROSECOND:
+			case NANOSECOND:
+				return TimeUnit.SECOND.multiplier;
 			case YEAR: return BigDecimal.ONE;
 			case MONTH: return TimeUnit.YEAR.multiplier;
 			case QUARTER: return TimeUnit.YEAR.multiplier;
@@ -1140,13 +1155,12 @@ public class SqlDateTimeUtils {
 				+ mills;
 	}
 
-	public static long timestampToTimestampWithLocalZone(long ts, TimeZone tz) {
-		return unixTimestampToLocalDateTime(ts).atZone(tz.toZoneId()).toInstant().toEpochMilli();
+	public static SqlTimestamp timestampToTimestampWithLocalZone(SqlTimestamp ts, TimeZone tz) {
+		return SqlTimestamp.fromInstant(ts.toLocalDateTime().atZone(tz.toZoneId()).toInstant());
 	}
 
-	public static long timestampWithLocalZoneToTimestamp(long ts, TimeZone tz) {
-		return localDateTimeToUnixTimestamp(
-				LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), tz.toZoneId()));
+	public static SqlTimestamp timestampWithLocalZoneToTimestamp(SqlTimestamp ts, TimeZone tz) {
+		return SqlTimestamp.fromLocalDateTime(LocalDateTime.ofInstant(ts.toInstant(), tz.toZoneId()));
 	}
 
 	public static int timestampWithLocalZoneToDate(long ts, TimeZone tz) {
@@ -1386,6 +1400,10 @@ public class SqlDateTimeUtils {
 		}
 
 		return ymdhms.toString();
+	}
+
+	public static String timestampToString(SqlTimestamp ts, TimeZone tz) {
+		return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz));
 	}
 
 	private static String pad(int length, long v) {

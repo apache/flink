@@ -302,7 +302,7 @@ public class SqlToOperationConverterTest {
 			createTestItem("TIMESTAMP(3)", DataTypes.TIMESTAMP(3)),
 			createTestItem("TIMESTAMP(3) WITHOUT TIME ZONE", DataTypes.TIMESTAMP(3)),
 			createTestItem("TIMESTAMP WITH LOCAL TIME ZONE",
-				DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+				DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6)),
 			createTestItem("TIMESTAMP(3) WITH LOCAL TIME ZONE",
 				DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
 			createTestItem("ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>",

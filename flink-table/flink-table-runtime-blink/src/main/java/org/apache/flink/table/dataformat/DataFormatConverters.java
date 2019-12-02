@@ -35,6 +35,7 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
@@ -246,6 +247,9 @@ public class DataFormatConverters {
 				} else if (typeInfo instanceof LegacyTimestampTypeInfo) {
 					LegacyTimestampTypeInfo timestampType = (LegacyTimestampTypeInfo) typeInfo;
 					return new TimestampConverter(timestampType.getPrecision());
+				} else if (typeInfo instanceof LegacyInstantTypeInfo) {
+					LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
+					return new InstantConverter(instantTypeInfo.getPrecision());
 				}
 
 				if (clazz == BinaryGeneric.class) {

@@ -44,9 +44,10 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     case SqlTypeName.TIMESTAMP =>
       TimestampType.DEFAULT_PRECISION
 
-    // we currently support only timestamp with local time zone with milliseconds precision
+    // by default we support timestamp with local time zone with microseconds precision
+    // Timestamp(6) with local time zone
     case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-      3
+      LocalZonedTimestampType.DEFAULT_PRECISION
 
     case _ =>
       super.getDefaultPrecision(typeName)

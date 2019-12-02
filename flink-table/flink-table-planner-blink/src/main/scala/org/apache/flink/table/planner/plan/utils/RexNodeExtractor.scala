@@ -345,8 +345,11 @@ class RexNodeToExpressionConverter(
         SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond).toLocalDateTime
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val v = literal.getValueAs(classOf[java.lang.Long])
-        unixTimestampToLocalDateTime(v).atZone(timeZone.toZoneId).toInstant
+        val v = literal.getValueAs(classOf[TimestampString])
+        val millisecond = unixTimestampToLocalDateTime(v.getMillisSinceEpoch)
+          .atZone(timeZone.toZoneId).toInstant.toEpochMilli
+        val nanoOfMillisecond = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(v.toString)
+        SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond).toInstant
 
       case TINYINT =>
         // convert from BigDecimal to Byte

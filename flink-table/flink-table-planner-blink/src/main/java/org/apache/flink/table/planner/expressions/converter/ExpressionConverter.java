@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
 
@@ -54,7 +55,9 @@ import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.TimestampWithTimeZoneString;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -139,27 +142,22 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				TimestampType timestampType = (TimestampType) type;
 				LocalDateTime datetime = extractValue(valueLiteral, LocalDateTime.class);
 				return relBuilder.getRexBuilder().makeTimestampLiteral(
-					new TimestampString(
-						datetime.getYear(),
-						datetime.getMonthValue(),
-						datetime.getDayOfMonth(),
-						datetime.getHour(),
-						datetime.getMinute(),
-						datetime.getSecond()).withNanos(datetime.getNano()), timestampType.getPrecision());
+					toTimestampString(datetime), timestampType.getPrecision());
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
 				TimeZone timeZone = TimeZone.getTimeZone(this.relBuilder.getCluster()
 					.getPlanner()
 					.getContext()
 					.unwrap(FlinkContext.class)
 					.getTableConfig()
 					.getLocalTimeZone());
+				Instant instant = extractValue(valueLiteral, java.time.Instant.class);
 				return this.relBuilder.getRexBuilder().makeTimestampWithLocalTimeZoneLiteral(
 						new TimestampWithTimeZoneString(
-								TimestampString.fromMillisSinceEpoch(
-										extractValue(valueLiteral, java.time.Instant.class).toEpochMilli()),
+								toTimestampString(LocalDateTime.ofInstant(instant, ZoneId.of("UTC"))),
 								timeZone)
 								.withTimeZone(DateTimeUtils.UTC_ZONE)
-								.getLocalTimestampString(), 3);
+								.getLocalTimestampString(), lzTs.getPrecision());
 			case INTERVAL_YEAR_MONTH:
 				return this.relBuilder.getRexBuilder().makeIntervalLiteral(
 						BigDecimal.valueOf(extractValue(valueLiteral, Integer.class)),
@@ -337,5 +335,15 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 		Calendar cal = Calendar.getInstance();
 		cal.setTime(date);
 		return cal;
+	}
+
+	private static TimestampString toTimestampString(LocalDateTime ldt) {
+		return new TimestampString(
+			ldt.getYear(),
+			ldt.getMonthValue(),
+			ldt.getDayOfMonth(),
+			ldt.getHour(),
+			ldt.getMinute(),
+			ldt.getSecond()).withNanos(ldt.getNano());
 	}
 }

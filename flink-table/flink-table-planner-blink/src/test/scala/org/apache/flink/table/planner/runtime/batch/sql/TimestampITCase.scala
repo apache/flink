@@ -25,9 +25,8 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.planner.utils.TestDataTypeTableSource
 import org.apache.flink.types.Row
 import org.junit.Test
-
 import java.sql.Timestamp
-import java.time.LocalDateTime
+import java.time.{Instant, LocalDateTime, ZoneId}
 
 import scala.collection.mutable
 
@@ -37,12 +36,14 @@ class TimestampITCase extends BatchTestBase {
     super.before()
 
     val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d"),
+      Array("a", "b", "c", "d", "e", "f"),
       Array(
         DataTypes.INT(),
         DataTypes.BIGINT(),
         DataTypes.TIMESTAMP(9).bridgedTo(classOf[LocalDateTime]),
-        DataTypes.TIMESTAMP(9).bridgedTo(classOf[Timestamp])
+        DataTypes.TIMESTAMP(9).bridgedTo(classOf[Timestamp]),
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant]),
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant])
       )
     ).build()
 
@@ -65,10 +66,34 @@ class TimestampITCase extends BatchTestBase {
       null
     )
 
+    val instantsOfDateTime = new mutable.MutableList[Instant]
+    for (i <- datetimes.indices) {
+      if (datetimes(i) == null) {
+        instantsOfDateTime += null
+      } else {
+        // Assume the time zone of source side is UTC
+        instantsOfDateTime +=
+          datetimes(i).toInstant(ZoneId.of("UTC").getRules.getOffset(datetimes(i)))
+      }
+    }
+
+    val instantsOfTimestamp = new mutable.MutableList[Instant]
+    for (i <- timestamps.indices) {
+      if (timestamps(i) == null) {
+        instantsOfTimestamp += null
+      } else {
+        // Assume the time zone of source side is UTC
+        val ldt = timestamps(i).toLocalDateTime
+        instantsOfTimestamp += ldt.toInstant(ZoneId.of("UTC").getRules.getOffset(ldt))
+      }
+    }
+
+
     val data = new mutable.MutableList[Row]
 
     for (i <- ints.indices) {
-      data += row(ints(i), longs(i), datetimes(i), timestamps(i))
+      data += row(ints(i), longs(i), datetimes(i), timestamps(i), instantsOfDateTime(i),
+        instantsOfTimestamp(i))
     }
 
     val tableSource = new TestDataTypeTableSource(
@@ -79,13 +104,25 @@ class TimestampITCase extends BatchTestBase {
 
   @Test
   def testGroupBy(): Unit = {
+    // group by TIMESTAMP(9)
     checkResult(
       "SELECT MAX(a), MIN(a), c FROM T GROUP BY c",
       Seq(
         row(1, 1, "1969-01-01T00:00:00.123456789"),
         row(3, 2, "1970-01-01T00:00:00.123456"),
         row(4, 4, "1970-01-01T00:00:00.123"),
-        row(null, null, null)))
+        row(null, null, null))
+    )
+
+    // group by TIMESTAMP(9) WITH LOCAL TIME ZONE
+    checkResult(
+      "SELECT MAX(a), MIN(a), e FROM T GROUP BY e",
+      Seq(
+        row(1, 1, "1969-01-01T00:00:00.123456789Z"),
+        row(3, 2, "1970-01-01T00:00:00.123456Z"),
+        row(4, 4, "1970-01-01T00:00:00.123Z"),
+        row(null, null, null))
+    )
   }
 
   @Test
@@ -116,8 +153,10 @@ class TimestampITCase extends BatchTestBase {
 
   @Test
   def testJoinOn(): Unit = {
+    // Join On TIMESTAMP(9)
     checkResult(
-      "SELECT * FROM T as T1 JOIN T as T2 ON T1.c = T2.d",
+      "SELECT T1.a, T1.b, T1.c, T1.d, T2.a, T2.b, T2.c, T2.d " +
+        "FROM T as T1 JOIN T as T2 ON T1.c = T2.d",
       Seq(
         row(1, 1, "1969-01-01T00:00:00.123456789", "1969-01-01T00:00:00.123456789",
           1, 1, "1969-01-01T00:00:00.123456789", "1969-01-01T00:00:00.123456789"),
@@ -127,6 +166,21 @@ class TimestampITCase extends BatchTestBase {
           2, 2, "1970-01-01T00:00:00.123456", "1970-01-01T00:00:00.123456"),
         row(4, 4, "1970-01-01T00:00:00.123", "1972-01-01T00:00",
           3, 2, "1970-01-01T00:00:00.123456", "1970-01-01T00:00:00.123")
+      ))
+
+    // Join on TIMESTAMP(9) WITH LOCAL TIME ZONE
+    checkResult(
+      "SELECT T1.a, T1.b, T1.e, T1.f, T2.a, T2.b, T2.e, T2.f " +
+        "FROM T as T1 JOIN T as T2 ON T1.e = T2.f",
+      Seq(
+        row(1, 1, "1969-01-01T00:00:00.123456789Z", "1969-01-01T00:00:00.123456789Z",
+          1, 1, "1969-01-01T00:00:00.123456789Z", "1969-01-01T00:00:00.123456789Z"),
+        row(2, 2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123456Z",
+          2, 2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123456Z"),
+        row(3, 2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123Z",
+          2, 2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123456Z"),
+        row(4, 4, "1970-01-01T00:00:00.123Z", "1972-01-01T00:00:00Z",
+          3, 2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123Z")
       ))
   }
 
