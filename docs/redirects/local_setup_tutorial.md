@@ -1,9 +1,8 @@
 ---
-title: "安装教程"
-nav-id: setuptutorials
-nav-title: '安装教程'
-nav-parent_id: tutorials
-nav-pos: 20
+title: "Local Setup Tutorial"
+layout: redirect
+redirect: /ops/deployment/local.html
+permalink: /getting-started/tutorials/local_setup.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

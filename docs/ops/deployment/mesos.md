@@ -2,7 +2,7 @@
 title:  "Mesos Setup"
 nav-title: Mesos
 nav-parent_id: deployment
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

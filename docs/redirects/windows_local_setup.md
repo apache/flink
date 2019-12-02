@@ -1,9 +1,8 @@
 ---
-title: "教程"
-nav-id: tutorials
-nav-title: '<i class="fa fa-power-off title appetizer" aria-hidden="true"></i> 教程'
-nav-parent_id: getting-started
-nav-pos: 30
+title: "Running Flink on Windows"
+layout: redirect
+redirect: /ops/deployment/local.html
+permalink: /getting-started/tutorials/flink_on_windows.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
