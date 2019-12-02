@@ -22,7 +22,6 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -97,8 +96,8 @@ public class BackPressureITCase extends TestLogger {
 		final String networkBuffersMemory = memorySegmentSizeKb * (NUM_TASKS + 2) + "kb";
 
 		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, memorySegmentSizeKb + "kb");
-		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN, networkBuffersMemory);
-		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, networkBuffersMemory);
+		configuration.setString(TaskManagerOptions.SHUFFLE_MEMORY_MIN, networkBuffersMemory);
+		configuration.setString(TaskManagerOptions.SHUFFLE_MEMORY_MAX, networkBuffersMemory);
 		return configuration;
 	}
 
