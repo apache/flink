@@ -326,7 +326,7 @@ class DagOptimizationTest extends TableTestBase {
     val appendSink3 = util.createAppendTableSink(Array("a"), Array(INT))
     util.writeToSink(table3, appendSink3, "appendSink3")
 
-    util.verifyPlan()
+    util.verifyPlanWithTrait()
   }
 
   @Test

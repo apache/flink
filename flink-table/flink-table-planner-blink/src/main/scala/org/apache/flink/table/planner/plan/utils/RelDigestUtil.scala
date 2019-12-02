@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.plan.`trait`.{AccModeTraitDef, UpdateAsRetractionTraitDef}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.sql.SqlExplainLevel
@@ -29,6 +32,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
+  * The digest of RelNode should contain the result of RelNode#explain method, retraction traits
+  * (for StreamPhysicalRel) and RelNode's row type.
+  *
   * Row type is part of the digest for the rare occasion that similar
   * expressions have different types, e.g.
   * "WITH
@@ -95,6 +101,14 @@ class RelDigestWriterImpl(sw: StringWriter)
     }
     if (j > 0) {
       s.append(",")
+    }
+    // add retraction traits to digest for StreamPhysicalRel node,
+    // other traits (e.g. distribution or collation) are considered in explainTerms method
+    if (rel.isInstanceOf[StreamPhysicalRel]) {
+      val retractionTrait = rel.getTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE)
+      val accModeTrait = rel.getTraitSet.getTrait(AccModeTraitDef.INSTANCE)
+      s.append("updateAsRetraction=[").append(retractionTrait).append("],")
+      s.append("accMode=[").append(accModeTrait).append("],")
     }
     s.append("rowType=[").append(rel.getRowType.toString).append("]")
     s.append(")")
