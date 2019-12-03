@@ -18,6 +18,8 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
@@ -30,6 +32,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +46,18 @@ import static org.apache.flink.python.util.ResourceUtil.extractBuiltInDependenci
  */
 public final class PythonDriverEnvUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriverEnvUtils.class);
+
+	@VisibleForTesting
+	public static final String PYFLINK_PY_FILES = "PYFLINK_PY_FILES";
+
+	@VisibleForTesting
+	public static final String PYFLINK_PY_REQUIREMENTS = "PYFLINK_PY_REQUIREMENTS";
+
+	@VisibleForTesting
+	public static final String PYFLINK_PY_EXECUTABLE = "PYFLINK_PY_EXECUTABLE";
+
+	@VisibleForTesting
+	public static final String PYFLINK_PY_ARCHIVES = "PYFLINK_PY_ARCHIVES";
 
 	/**
 	 * Wraps Python exec environment.
@@ -82,12 +98,12 @@ public final class PythonDriverEnvUtils {
 	/**
 	 * Prepares PythonEnvironment to start python process.
 	 *
-	 * @param pythonLibFiles The dependent Python files.
+	 * @param pythonDriverOptions The Python driver options.
 	 * @param tmpDir The temporary directory which files will be copied to.
 	 * @return PythonEnvironment the Python environment which will be executed in Python process.
 	 */
 	public static PythonEnvironment preparePythonEnvironment(
-			List<Path> pythonLibFiles,
+			PythonDriverOptions pythonDriverOptions,
 			String tmpDir) throws IOException, InterruptedException {
 		PythonEnvironment env = new PythonEnvironment();
 
@@ -114,7 +130,7 @@ public final class PythonDriverEnvUtils {
 		}
 
 		// 3. copy relevant python files to tmp dir and set them in PYTHONPATH.
-		for (Path pythonFile : pythonLibFiles) {
+		for (Path pythonFile : pythonDriverOptions.getPythonLibFiles()) {
 			String sourceFileName = pythonFile.getName();
 			// add random UUID parent directory to avoid name conflict.
 			Path targetPath = new Path(
@@ -138,7 +154,33 @@ public final class PythonDriverEnvUtils {
 		}
 
 		env.pythonPath = String.join(File.pathSeparator, pythonPathList);
+
+		if (!pythonDriverOptions.getPyFiles().isEmpty()) {
+			env.systemEnv.put(PYFLINK_PY_FILES, String.join("\n", pythonDriverOptions.getPyFiles()));
+		}
+		if (!pythonDriverOptions.getPyArchives().isEmpty()) {
+			env.systemEnv.put(
+				PYFLINK_PY_ARCHIVES,
+				joinTuples(pythonDriverOptions.getPyArchives()));
+		}
+		pythonDriverOptions.getPyRequirements().ifPresent(
+			pyRequirements -> env.systemEnv.put(
+				PYFLINK_PY_REQUIREMENTS,
+				joinTuples(Collections.singleton(pyRequirements))));
+		pythonDriverOptions.getPyExecutable().ifPresent(
+			pyExecutable -> env.systemEnv.put(PYFLINK_PY_EXECUTABLE, pythonDriverOptions.getPyExecutable().get()));
 		return env;
+	}
+
+	private static String joinTuples(Collection<Tuple2<String, String>> tuples) {
+		List<String> joinedTuples = new ArrayList<>();
+		for (Tuple2<String, String> tuple : tuples) {
+			String f0 = tuple.f0 == null ? "" : tuple.f0;
+			String f1 = tuple.f1 == null ? "" : tuple.f1;
+
+			joinedTuples.add(String.join("\n", f0, f1));
+		}
+		return String.join("\n", joinedTuples);
 	}
 
 	/**

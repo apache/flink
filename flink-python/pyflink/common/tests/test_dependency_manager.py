@@ -16,31 +16,19 @@
 # limitations under the License.
 ################################################################################
 import json
-import re
 import unittest
 
 from pyflink.common import Configuration
 from pyflink.common.dependency_manager import DependencyManager
 from pyflink.java_gateway import get_gateway
 from pyflink.table import TableConfig
-from pyflink.testing.test_case_utils import PyFlinkTestCase
-
-
-def replace_uuid(input_obj):
-    if isinstance(input_obj, str):
-        return re.sub(r'[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}',
-                      '{uuid}', input_obj)
-    elif isinstance(input_obj, dict):
-        input_obj_copy = dict()
-        for key in input_obj:
-            input_obj_copy[replace_uuid(key)] = replace_uuid(input_obj[key])
-        return input_obj_copy
+from pyflink.testing.test_case_utils import PyFlinkTestCase, TestEnv, replace_uuid
 
 
 class DependencyManagerTests(PyFlinkTestCase):
 
     def setUp(self):
-        self.j_env = MockedJavaEnv()
+        self.j_env = TestEnv()
         self.config = Configuration()
         self.dependency_manager = DependencyManager(self.config, self.j_env)
 
@@ -117,30 +105,56 @@ class DependencyManagerTests(PyFlinkTestCase):
         self.assertEqual(DependencyManager.PYTHON_FILES, JDependencyInfo.PYTHON_FILES)
         self.assertEqual(DependencyManager.PYTHON_EXEC, JDependencyInfo.PYTHON_EXEC)
 
+        JPythonDriverEnvUtils = \
+            get_gateway().jvm.org.apache.flink.client.python.PythonDriverEnvUtils
+        self.assertEqual(DependencyManager.PYFLINK_PY_REQUIREMENTS,
+                         JPythonDriverEnvUtils.PYFLINK_PY_REQUIREMENTS)
+        self.assertEqual(DependencyManager.PYFLINK_PY_ARCHIVES,
+                         JPythonDriverEnvUtils.PYFLINK_PY_ARCHIVES)
+        self.assertEqual(DependencyManager.PYFLINK_PY_FILES,
+                         JPythonDriverEnvUtils.PYFLINK_PY_FILES)
+        self.assertEqual(DependencyManager.PYFLINK_PY_EXECUTABLE,
+                         JPythonDriverEnvUtils.PYFLINK_PY_EXECUTABLE)
 
-class Tuple2(object):
+    def test_load_from_env(self):
+        dm = DependencyManager
 
-    def __init__(self, f0, f1):
-        self.f0 = f0
-        self.f1 = f1
+        system_env = dict()
+        system_env[dm.PYFLINK_PY_FILES] = "/file1.py\nhdfs://file2.zip\nfile3.egg"
+        system_env[dm.PYFLINK_PY_REQUIREMENTS] = "a.txt\nb_dir"
+        system_env[dm.PYFLINK_PY_EXECUTABLE] = "/usr/local/bin/python"
+        system_env[dm.PYFLINK_PY_ARCHIVES] = "/py3.zip\nvenv\n/py3.zip\n\ndata.zip\ndata"
 
+        self.dependency_manager.load_from_env(system_env)
 
-class MockedJavaEnv(object):
+        configs = self.config.to_dict()
+        python_files = replace_uuid(json.loads(configs[dm.PYTHON_FILES]))
+        python_requirements_file = replace_uuid(configs[dm.PYTHON_REQUIREMENTS_FILE])
+        python_requirements_cache = replace_uuid(configs[dm.PYTHON_REQUIREMENTS_CACHE])
+        python_archives = replace_uuid(json.loads(configs[dm.PYTHON_ARCHIVES]))
+        python_exec = configs[dm.PYTHON_EXEC]
+        registered_files = replace_uuid(self.j_env.to_dict())
 
-    def __init__(self):
-        self.result = []
-
-    def registerCachedFile(self, file_path, key):
-        self.result.append(Tuple2(key, file_path))
-
-    def getCachedFiles(self):
-        return self.result
-
-    def to_dict(self):
-        result = dict()
-        for item in self.result:
-            result[item.f0] = item.f1
-        return result
+        self.assertEqual(
+            {"python_file_0_{uuid}": "file1.py",
+             "python_file_1_{uuid}": "file2.zip",
+             "python_file_2_{uuid}": "file3.egg"}, python_files)
+        self.assertEqual(
+            {"python_archive_3_{uuid}": "venv",
+             "python_archive_4_{uuid}": "py3.zip",
+             "python_archive_5_{uuid}": "data"}, python_archives)
+        self.assertEqual("python_requirements_file_6_{uuid}", python_requirements_file)
+        self.assertEqual("python_requirements_cache_7_{uuid}", python_requirements_cache)
+        self.assertEqual("/usr/local/bin/python", python_exec)
+        self.assertEqual(
+            {"python_file_0_{uuid}": "/file1.py",
+             "python_file_1_{uuid}": "hdfs://file2.zip",
+             "python_file_2_{uuid}": "file3.egg",
+             "python_archive_3_{uuid}": "/py3.zip",
+             "python_archive_4_{uuid}": "/py3.zip",
+             "python_archive_5_{uuid}": "data.zip",
+             "python_requirements_file_6_{uuid}": "a.txt",
+             "python_requirements_cache_7_{uuid}": "b_dir"}, registered_files)
 
 
 if __name__ == "__main__":

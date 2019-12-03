@@ -126,6 +126,27 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			assertEquals("--arg2", programOptions.getProgramArgs()[3]);
 			assertEquals("value2", programOptions.getProgramArgs()[4]);
 		}
+
+		// test python arguments
+		{
+			String[] parameters =
+				{
+					"-py", "test.py", "-pyfs", "test1.py,test2.zip,test3.egg,test4_dir", "-pyreq", "a.txt#b_dir",
+					"-pyarch", "c.zip#venv,d.zip", "-pyexec", "bin/python"
+				};
+			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			assertEquals("--python", programOptions.getProgramArgs()[0]);
+			assertEquals("test.py", programOptions.getProgramArgs()[1]);
+			assertEquals("--pyFiles", programOptions.getProgramArgs()[2]);
+			assertEquals("test1.py,test2.zip,test3.egg,test4_dir", programOptions.getProgramArgs()[3]);
+			assertEquals("--pyRequirements", programOptions.getProgramArgs()[4]);
+			assertEquals("a.txt#b_dir", programOptions.getProgramArgs()[5]);
+			assertEquals("--pyArchives", programOptions.getProgramArgs()[6]);
+			assertEquals("c.zip#venv,d.zip", programOptions.getProgramArgs()[7]);
+			assertEquals("--pyExecutable", programOptions.getProgramArgs()[8]);
+			assertEquals("bin/python", programOptions.getProgramArgs()[9]);
+		}
 	}
 
 	@Test(expected = CliArgsException.class)
