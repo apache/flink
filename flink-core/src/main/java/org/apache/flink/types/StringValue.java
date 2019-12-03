@@ -828,46 +828,76 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			// the length we write is offset by one, because a length of zero indicates a null value
 			int position = 0;
 			int strlen = cs.length();
-			int buflen = 5; // worst-case when we have a giant string with 5 bytes variable-length size encoding
-			for (int i = 0; i < strlen; i++) {
-				char c = cs.charAt(i);
-				if ((c >= 0x0001) && (c <= 0x007F)) {
-					buflen++;
-				} else if (c > 0x07FF) {
-					buflen += 3;
-				} else {
-					buflen += 2;
-				}
-			}
-			byte[] buffer = new byte[buflen];
-			int lenToWrite = strlen+1;
+
+			int lenToWrite = strlen + 1;
 			if (lenToWrite < 0) {
 				throw new IllegalArgumentException("CharSequence is too long.");
 			}
-			// write the length, variable-length encoded
-			while (lenToWrite >= HIGH_BIT) {
-				buffer[position++] = (byte) (lenToWrite | HIGH_BIT);
-				lenToWrite >>>= 7;
-			}
-			buffer[position++] = (byte) lenToWrite;
 
-			// write the char data, variable length encoded
-			for (int i = 0; i < strlen; i++) {
-				int c = cs.charAt(i);
-
-				// manual loop unroll, as it performs much better on jdk8
-				if (c < HIGH_BIT) {
-					buffer[position++] = (byte)c;
-				} else if (c < HIGH_BIT14) {
-					buffer[position++] = (byte)(c | HIGH_BIT);
-					buffer[position++] = (byte)((c >>> 7));
-				} else {
-					buffer[position++] = (byte)(c | HIGH_BIT);
-					buffer[position++] = (byte)((c >>> 7) | HIGH_BIT);
-					buffer[position++] = (byte)((c >>> 14));
+			// on average, for strings shorter than 6 characters the cost of allocating the buffer
+			// is higher than writing it directly. See benchmarks in https://github.com/apache/flink/pull/10358 for
+			// examples.
+			if (strlen < 6) {
+				// write the length, variable-length encoded
+				while (lenToWrite >= HIGH_BIT) {
+					out.write(lenToWrite | HIGH_BIT);
+					lenToWrite >>>= 7;
 				}
+				out.write(lenToWrite);
+
+				// write the char data, variable length encoded
+				// manually unrolled: on benchmarks it performs better than a while-loop
+				for (int i = 0; i < cs.length(); i++) {
+					int c = cs.charAt(i);
+					if (c < HIGH_BIT) {
+						out.write((byte) c);
+					} else if (c < HIGH_BIT14) {
+						out.write((byte) (c | HIGH_BIT));
+						out.write((byte) ((c >>> 7)));
+					} else {
+						out.write((byte) (c | HIGH_BIT));
+						out.write((byte) ((c >>> 7) | HIGH_BIT));
+						out.write((byte) ((c >>> 14)));
+					}
+				}
+			} else {
+				int buflen = 5; // worst-case when we have a giant string with 5 bytes variable-length size encoding
+				for (int i = 0; i < strlen; i++) {
+					char c = cs.charAt(i);
+					if ((c >= 0x0001) && (c <= 0x007F)) {
+						buflen++;
+					} else if (c > 0x07FF) {
+						buflen += 3;
+					} else {
+						buflen += 2;
+					}
+				}
+				byte[] buffer = new byte[buflen];
+				// write the length, variable-length encoded
+				while (lenToWrite >= HIGH_BIT) {
+					buffer[position++] = (byte) (lenToWrite | HIGH_BIT);
+					lenToWrite >>>= 7;
+				}
+				buffer[position++] = (byte) lenToWrite;
+
+				// write the char data, variable length encoded
+				for (int i = 0; i < strlen; i++) {
+					int c = cs.charAt(i);
+
+					// manual loop unroll, as it performs much better on jdk8
+					if (c < HIGH_BIT) {
+						buffer[position++] = (byte)c;
+					} else if (c < HIGH_BIT14) {
+						buffer[position++] = (byte)(c | HIGH_BIT);
+						buffer[position++] = (byte)((c >>> 7));
+					} else {
+						buffer[position++] = (byte)(c | HIGH_BIT);
+						buffer[position++] = (byte)((c >>> 7) | HIGH_BIT);
+						buffer[position++] = (byte)((c >>> 14));
+					}
+				}
+				out.write(buffer, 0, position);
 			}
-			out.write(buffer, 0, position);
 		} else {
 			out.write(0);
 		}
