@@ -55,7 +55,6 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
@@ -806,7 +805,6 @@ public class ExecutionEnvironment {
 	 */
 	public JobExecutionResult execute(String jobName) throws Exception {
 		try (final JobClient jobClient = executeAsync(jobName).get()) {
-
 			lastJobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
 					? jobClient.getJobExecutionResult(userClassloader).get()
 					: new DetachedJobExecutionResult(jobClient.getJobID());
@@ -823,6 +821,10 @@ public class ExecutionEnvironment {
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
 	 * <p>The program execution will be logged and displayed with a generated default name.
+	 *
+	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
+	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
+	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
@@ -841,14 +843,16 @@ public class ExecutionEnvironment {
 	 *
 	 * <p>The program execution will be logged and displayed with the given job name.
 	 *
+	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
+	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
+	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
+	 *
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
 	 */
 	@PublicEvolving
 	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
-		if (configuration.get(DeploymentOptions.TARGET) == null) {
-			throw new RuntimeException("No execution.target specified in your configuration file.");
-		}
+		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
 		consolidateParallelismDefinitionsInConfiguration();
 
@@ -858,12 +862,12 @@ public class ExecutionEnvironment {
 
 		checkNotNull(
 			executorFactory,
-			"Cannot find compatible factory for current environment(%s)",
-			getClass().getSimpleName());
+			"Cannot find compatible factory for specified execution.target (=%s)",
+			configuration.get(DeploymentOptions.TARGET));
 
-		final Executor executor = executorFactory.getExecutor(configuration);
-
-		return executor.execute(plan, configuration);
+		return executorFactory
+			.getExecutor(configuration)
+			.execute(plan, configuration);
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

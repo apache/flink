@@ -503,6 +503,11 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * The program execution will be logged and displayed with a generated default name.
    *
+   * <b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle
+   * of the returned [[JobClient]]. This means calling [[JobClient#close()]] at the end of
+   * its usage. In other case, there may be resource leaks depending on the JobClient
+   * implementation.
+   *
    * @return A future of [[JobClient]] that can be used to communicate with the submitted job,
    *         completed on submission succeeded.
    */
@@ -517,6 +522,11 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * generic data sinks created with [[DataSet.output]].
    *
    * The program execution will be logged and displayed with the given name.
+   *
+   * <b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle
+   * of the returned [[JobClient]]. This means calling [[JobClient#close()]] at the end of
+   * its usage. In other case, there may be resource leaks depending on the JobClient
+   * implementation.
    *
    * @return A future of [[JobClient]] that can be used to communicate with the submitted job,
    *         completed on submission succeeded.
