@@ -33,6 +33,8 @@ import org.apache.flink.runtime.clusterframework.overlays.HadoopUserOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.KeytabOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.SSLStoreOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.UserLibOverlay;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
@@ -143,6 +145,7 @@ public class MesosUtils {
 		// create the overlays that will produce the specification
 		CompositeContainerOverlay overlay = new CompositeContainerOverlay(
 			FlinkDistributionOverlay.newBuilder().fromEnvironment(configuration).build(),
+			UserLibOverlay.newBuilder().setUsrLibDirectory(ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null)).build(),
 			HadoopConfOverlay.newBuilder().fromEnvironment(configuration).build(),
 			HadoopUserOverlay.newBuilder().fromEnvironment(configuration).build(),
 			KeytabOverlay.newBuilder().fromEnvironment(configuration).build(),

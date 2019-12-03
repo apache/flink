@@ -87,6 +87,7 @@ under the License.
 		<module>flink-python</module>
 		<module>flink-ml-parent</module>
 		<module>flink-walkthroughs</module>
+		<module>flink-kubernetes</module>
 	</modules>
 
 	<properties>
@@ -125,6 +126,7 @@ under the License.
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
+		<jaxb.api.version>2.3.0</jaxb.api.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.2</powermock.version>
@@ -626,6 +628,15 @@ under the License.
 				</exclusions>
 			</dependency>
 
+			<dependency>
+				<!-- For dependency convergence
+					On Java 8- this dependency is bundled with the JDK
+					On Java 11+ this dependency is bundled in flink-dist -->
+				<groupId>javax.xml.bind</groupId>
+				<artifactId>jaxb-api</artifactId>
+				<version>${jaxb.api.version}</version>
+			</dependency>
+
 			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
 			 version is used by the shaded hadoop jars and the flink-yarn-test project because of MNG-5899.
 
@@ -660,14 +671,14 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>scheduler-ng</id>
+			<id>legacy-scheduler</id>
 			<properties>
-				<test.scheduler.type>ng</test.scheduler.type>
-				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG</test.groups>
+				<test.scheduler.type>legacy</test.scheduler.type>
+				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler</test.groups>
 			</properties>
 			<activation>
 				<property>
-					<name>scheduler-ng</name>
+					<name>legacy-scheduler</name>
 				</property>
 			</activation>
 		</profile>
@@ -1384,6 +1395,8 @@ under the License.
 						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-0.11/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
+						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
+						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/*-snapshot</exclude>

@@ -150,8 +150,6 @@ public class SingleInputGate extends InputGate {
 	 */
 	private BufferPool bufferPool;
 
-	private final boolean isCreditBased;
-
 	private boolean hasReceivedAllEndOfPartitionEvents;
 
 	/** Flag indicating whether partitions have been requested. */
@@ -175,7 +173,6 @@ public class SingleInputGate extends InputGate {
 		int consumedSubpartitionIndex,
 		int numberOfInputChannels,
 		PartitionProducerStateProvider partitionProducerStateProvider,
-		boolean isCreditBased,
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
@@ -196,18 +193,14 @@ public class SingleInputGate extends InputGate {
 
 		this.partitionProducerStateProvider = checkNotNull(partitionProducerStateProvider);
 
-		this.isCreditBased = isCreditBased;
-
 		this.closeFuture = new CompletableFuture<>();
 	}
 
 	@Override
 	public void setup() throws IOException, InterruptedException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
-		if (isCreditBased) {
-			// assign exclusive buffers to input channels directly and use the rest for floating buffers
-			assignExclusiveSegments();
-		}
+		// assign exclusive buffers to input channels directly and use the rest for floating buffers
+		assignExclusiveSegments();
 
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
@@ -310,7 +303,6 @@ public class SingleInputGate extends InputGate {
 	 */
 	@VisibleForTesting
 	public void assignExclusiveSegments() throws IOException {
-		checkState(this.isCreditBased, "Bug in input gate setup logic: exclusive buffers only exist with credit-based flow control.");
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
 				if (inputChannel instanceof RemoteInputChannel) {
@@ -352,9 +344,7 @@ public class SingleInputGate extends InputGate {
 				} else {
 					RemoteInputChannel remoteInputChannel =
 						unknownChannel.toRemoteInputChannel(shuffleDescriptor.getConnectionId());
-					if (isCreditBased) {
-						remoteInputChannel.assignExclusiveSegments();
-					}
+					remoteInputChannel.assignExclusiveSegments();
 					newChannel = remoteInputChannel;
 				}
 				LOG.debug("{}: Updated unknown input channel to {}.", owningTaskName, newChannel);

@@ -700,6 +700,41 @@ class TestDataTypeTableSource(
   override def getTableSchema: TableSchema = tableSchema
 }
 
+class TestDataTypeTableSourceWithTime(
+    tableSchema: TableSchema,
+    values: Seq[Row],
+    rowtime: String = null)
+  extends InputFormatTableSource[Row]
+  with DefinedRowtimeAttributes {
+
+  override def getInputFormat: InputFormat[Row, _ <: InputSplit] = {
+    new CollectionInputFormat[Row](
+      values.asJava,
+      fromDataTypeToTypeInfo(getProducedDataType)
+        .createSerializer(new ExecutionConfig)
+        .asInstanceOf[TypeSerializer[Row]])
+  }
+
+  override def getReturnType: TypeInformation[Row] =
+    throw new RuntimeException("Should not invoke this deprecated method.")
+
+  override def getProducedDataType: DataType = tableSchema.toRowDataType
+
+  override def getTableSchema: TableSchema = tableSchema
+
+  override def getRowtimeAttributeDescriptors: JList[RowtimeAttributeDescriptor] = {
+    // return a RowtimeAttributeDescriptor if rowtime attribute is defined
+    if (rowtime != null) {
+      Collections.singletonList(new RowtimeAttributeDescriptor(
+        rowtime,
+        new ExistingField(rowtime),
+        new AscendingTimestamps))
+    } else {
+      Collections.EMPTY_LIST.asInstanceOf[JList[RowtimeAttributeDescriptor]]
+    }
+  }
+}
+
 class TestStreamTableSource(
     tableSchema: TableSchema,
     values: Seq[Row]) extends StreamTableSource[Row] {

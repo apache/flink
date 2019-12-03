@@ -43,13 +43,13 @@ public class LeastUtilizationSlotMatchingStrategyTest extends TestLogger {
 
 	@Test
 	public void findMatchingSlot_multipleMatchingSlots_returnsSlotWithLeastUtilization() {
-		final ResourceProfile requestedResourceProfile = new ResourceProfile(2.0, 2);
+		final ResourceProfile requestedResourceProfile = ResourceProfile.fromResources(2.0, 2);
 
 		final TestingTaskManagerSlotInformation leastUtilizedSlot = TestingTaskManagerSlotInformation.newBuilder()
 			.setResourceProfile(requestedResourceProfile)
 			.build();
 		final TestingTaskManagerSlotInformation tooSmallSlot = TestingTaskManagerSlotInformation.newBuilder()
-			.setResourceProfile(new ResourceProfile(1.0, 10))
+			.setResourceProfile(ResourceProfile.fromResources(1.0, 10))
 			.build();
 		final TestingTaskManagerSlotInformation alternativeSlot = TestingTaskManagerSlotInformation.newBuilder()
 			.setResourceProfile(requestedResourceProfile)

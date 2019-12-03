@@ -18,7 +18,7 @@
 import datetime
 
 from pyflink.common import Configuration
-from pyflink.table import TableConfig
+from pyflink.table import TableConfig, SqlDialect
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -95,3 +95,13 @@ class TableConfigTests(PyFlinkTestCase):
         table_config.add_configuration(configuration)
 
         self.assertEqual(table_config.get_configuration().get_string("k1", ""), "v1")
+
+    def test_get_set_sql_dialect(self):
+        table_config = TableConfig.get_default()
+
+        sql_dialect = table_config.get_sql_dialect()
+        self.assertEqual(sql_dialect, SqlDialect.DEFAULT)
+
+        table_config.set_sql_dialect(SqlDialect.HIVE)
+        sql_dialect = table_config.get_sql_dialect()
+        self.assertEqual(sql_dialect, SqlDialect.HIVE)

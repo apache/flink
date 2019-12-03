@@ -28,8 +28,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
-
 /**
  * The {@link CheckpointBarrierHandler} reacts to checkpoint barrier arriving from the input channels.
  * Different implementations may either simply track barriers, or block certain inputs on
@@ -45,7 +43,7 @@ public abstract class CheckpointBarrierHandler {
 		this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 	}
 
-	public abstract void releaseBlocksAndResetBarriers() throws IOException;
+	public abstract void releaseBlocksAndResetBarriers();
 
 	/**
 	 * Checks whether the channel with the given index is blocked.

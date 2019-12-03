@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.Optional;
@@ -61,4 +62,11 @@ public interface CallContextBase {
 	 * <p>Note: The name is meant for debugging purposes only.
 	 */
 	String getName();
+
+	/**
+	 * Creates a validation error for exiting the type inference process with a meaningful exception.
+	 */
+	default ValidationException newValidationError(String message, Object... args) {
+		return new ValidationException(String.format(message, args));
+	}
 }

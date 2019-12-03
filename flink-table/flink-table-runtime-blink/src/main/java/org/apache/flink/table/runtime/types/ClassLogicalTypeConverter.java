@@ -24,6 +24,7 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -53,8 +54,9 @@ public class ClassLogicalTypeConverter {
 			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return Integer.class;
-			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return SqlTimestamp.class;
+			case BIGINT:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				return Long.class;
@@ -77,7 +79,7 @@ public class ClassLogicalTypeConverter {
 			case BINARY:
 			case VARBINARY:
 				return byte[].class;
-			case ANY:
+			case RAW:
 				return BinaryGeneric.class;
 			default:
 				throw new RuntimeException("Not support type: " + type);

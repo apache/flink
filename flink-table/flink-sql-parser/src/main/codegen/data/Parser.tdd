@@ -72,6 +72,7 @@
     "OVERWRITE",
     "STRING",
     "BYTES",
+    "RAW",
     "CATALOGS",
     "USE",
     "DATABASES",

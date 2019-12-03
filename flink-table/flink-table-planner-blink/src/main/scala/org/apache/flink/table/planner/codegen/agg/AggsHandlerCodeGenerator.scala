@@ -941,20 +941,29 @@ class AggsHandlerCodeGenerator(
       windowProperties: Seq[PlannerWindowProperty]): Seq[GeneratedExpression] = {
     windowProperties.map {
       case w: PlannerWindowStart =>
-        // return a Timestamp(Internal is long)
+        // return a Timestamp(Internal is SqlTimestamp)
         GeneratedExpression(
-          s"$NAMESPACE_TERM.getStart()", "false", "", w.resultType)
+          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getStart())",
+          "false",
+          "",
+          w.resultType)
       case w: PlannerWindowEnd =>
-        // return a Timestamp(Internal is long)
+        // return a Timestamp(Internal is SqlTimestamp)
         GeneratedExpression(
-          s"$NAMESPACE_TERM.getEnd()", "false", "", w.resultType)
+          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getEnd())",
+          "false",
+          "",
+          w.resultType)
       case r: PlannerRowtimeAttribute =>
-        // return a rowtime, use long as internal type
+        // return a rowtime, use SqlTimestamp as internal type
         GeneratedExpression(
-          s"$NAMESPACE_TERM.getEnd() - 1", "false", "", r.resultType)
+          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
+          "false",
+          "",
+          r.resultType)
       case p: PlannerProctimeAttribute =>
         // ignore this property, it will be null at the position later
-        GeneratedExpression("-1L", "true", "", p.resultType)
+        GeneratedExpression(s"$SQL_TIMESTAMP.fromEpochMillis(-1L)", "true", "", p.resultType)
     }
   }
 

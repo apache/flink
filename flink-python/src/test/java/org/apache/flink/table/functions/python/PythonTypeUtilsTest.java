@@ -21,6 +21,7 @@ package org.apache.flink.table.functions.python;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -78,8 +79,8 @@ public class PythonTypeUtilsTest {
 
 	@Test
 	public void testUnsupportedTypeSerializer() {
-		LogicalType logicalType = new UnresolvedUserDefinedType("", "", "");
-		String expectedTestException = "Python UDF doesn't support logical type ``.``.`` currently.";
+		LogicalType logicalType = new UnresolvedUserDefinedType(UnresolvedIdentifier.of("cat", "db", "MyType"));
+		String expectedTestException = "Python UDF doesn't support logical type `cat`.`db`.`MyType` currently.";
 		try {
 			PythonTypeUtils.toFlinkTypeSerializer(logicalType);
 		} catch (Exception e) {

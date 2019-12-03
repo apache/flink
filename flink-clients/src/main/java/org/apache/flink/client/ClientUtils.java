@@ -108,7 +108,6 @@ public enum ClientUtils {
 		try {
 			return client
 				.submitJob(jobGraph)
-				.thenApply(JobSubmissionResult::getJobID)
 				.thenApply(DetachedJobExecutionResult::new)
 				.get();
 		} catch (InterruptedException | ExecutionException e) {
@@ -130,7 +129,6 @@ public enum ClientUtils {
 		try {
 			jobResult = client
 				.submitJob(jobGraph)
-				.thenApply(JobSubmissionResult::getJobID)
 				.thenCompose(client::requestJobResult)
 				.get();
 		} catch (InterruptedException | ExecutionException e) {

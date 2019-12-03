@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -47,8 +48,10 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -103,9 +106,12 @@ public class CliClientTest extends TestLogger {
 			public void write(int b) throws IOException {
 			}
 		};
+		SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+
 		CliClient cliClient = null;
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, new SessionContext("test-session", new Environment()), executor);
+			cliClient = new CliClient(terminal, sessionId, executor);
 			cliClient.open();
 			verify(executor).useDatabase(any(), any());
 		} finally {
@@ -127,8 +133,11 @@ public class CliClientTest extends TestLogger {
 			}
 		};
 		CliClient cliClient = null;
+		SessionContext sessionContext = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(sessionContext);
+
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, new SessionContext("test-session", new Environment()), executor);
+			cliClient = new CliClient(terminal, sessionId, executor);
 			cliClient.open();
 			verify(executor).useCatalog(any(), any());
 		} finally {
@@ -144,11 +153,12 @@ public class CliClientTest extends TestLogger {
 		final SessionContext context = new SessionContext("test-session", new Environment());
 
 		final MockExecutor mockExecutor = new MockExecutor();
+		String sessionId = mockExecutor.openSession(context);
 		mockExecutor.failExecution = failExecution;
 
 		CliClient cli = null;
 		try {
-			cli = new CliClient(TerminalUtils.createDummyTerminal(), context, mockExecutor);
+			cli = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, mockExecutor);
 			if (testFailure) {
 				assertFalse(cli.submitUpdate(statement));
 			} else {
@@ -166,8 +176,9 @@ public class CliClientTest extends TestLogger {
 	private void verifySqlCompletion(String statement, int position, List<String> expectedHints, List<String> notExpectedHints) throws IOException {
 		final SessionContext context = new SessionContext("test-session", new Environment());
 		final MockExecutor mockExecutor = new MockExecutor();
+		String sessionId = mockExecutor.openSession(context);
 
-		final SqlCompleter completer = new SqlCompleter(context, mockExecutor);
+		final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
 		final SqlMultiLineParser parser = new SqlMultiLineParser();
 
 		try (Terminal terminal = TerminalUtils.createDummyTerminal()) {
@@ -201,6 +212,7 @@ public class CliClientTest extends TestLogger {
 		public SessionContext receivedContext;
 		public String receivedStatement;
 		public int receivedPosition;
+		private final Map<String, SessionContext> sessionMap = new HashMap<>();
 
 		@Override
 		public void start() throws SqlExecutionException {
@@ -208,80 +220,117 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public Map<String, String> getSessionProperties(SessionContext session) throws SqlExecutionException {
+		public String openSession(SessionContext session) throws SqlExecutionException {
+			String sessionId = UUID.randomUUID().toString();
+			sessionMap.put(sessionId, session);
+			return sessionId;
+		}
+
+		@Override
+		public void closeSession(String sessionId) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listCatalogs(SessionContext session) throws SqlExecutionException {
+		public void resetSessionProperties(String sessionId) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void addView(String sessionId, String name, String query) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void removeView(String sessionId, String name) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listDatabases(SessionContext session) throws SqlExecutionException {
+		public List<String> listCatalogs(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listTables(SessionContext session) throws SqlExecutionException {
+		public List<String> listDatabases(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException {
+		public List<String> listTables(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listFunctions(SessionContext session) throws SqlExecutionException {
+		public List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listModules(SessionContext session) throws SqlExecutionException {
+		public List<String> listFunctions(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
+		public List<String> listModules(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public String explainStatement(SessionContext session, String statement) throws SqlExecutionException {
+		public void useCatalog(String sessionId, String catalogName) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void useDatabase(String sessionId, String databaseName) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> completeStatement(SessionContext session, String statement, int position) {
-			receivedContext = session;
+		public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
+		public List<String> completeStatement(String sessionId, String statement, int position) {
+			receivedContext = sessionMap.get(sessionId);
 			receivedStatement = statement;
 			receivedPosition = position;
 			return Arrays.asList("HintA", "Hint B");
 		}
 
 		@Override
-		public ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException {
+		public ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext session, String resultId) throws SqlExecutionException {
+		public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(String sessionId, String resultId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public TypedResult<Integer> snapshotResult(SessionContext session, String resultId, int pageSize) throws SqlExecutionException {
+		public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize) throws SqlExecutionException {
 			return null;
 		}
 
@@ -291,28 +340,18 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException {
+		public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
 			// nothing to do
 		}
 
 		@Override
-		public ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException {
-			receivedContext = session;
+		public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
+			receivedContext = sessionMap.get(sessionId);
 			receivedStatement = statement;
 			if (failExecution) {
 				throw new SqlExecutionException("Fail execution.");
 			}
 			return new ProgramTargetDescriptor("testClusterId", "testJobId", "http://testcluster:1234");
-		}
-
-		@Override
-		public void validateSession(SessionContext session) throws SqlExecutionException {
-			// nothing to do
-		}
-
-		@Override
-		public void stop(SessionContext session) {
-			// nothing to do
 		}
 	}
 }

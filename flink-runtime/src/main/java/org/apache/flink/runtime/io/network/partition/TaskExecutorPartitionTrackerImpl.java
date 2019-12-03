@@ -18,13 +18,14 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,12 +43,11 @@ public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<J
 	}
 
 	@Override
-	public void startTrackingPartition(JobID producingJobId, ResultPartitionID resultPartitionId, IntermediateDataSetID intermediateDataSetId) {
+	public void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
 		Preconditions.checkNotNull(producingJobId);
-		Preconditions.checkNotNull(resultPartitionId);
-		Preconditions.checkNotNull(intermediateDataSetId);
+		Preconditions.checkNotNull(partitionInfo);
 
-		startTrackingPartition(producingJobId, resultPartitionId, new TaskExecutorPartitionInfo(intermediateDataSetId));
+		startTrackingPartition(producingJobId, partitionInfo.getResultPartitionId(), partitionInfo);
 	}
 
 	@Override
@@ -88,5 +88,19 @@ public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<J
 	public void stopTrackingAndReleaseAllClusterPartitions() {
 		clusterPartitions.values().forEach(shuffleEnvironment::releasePartitionsLocally);
 		clusterPartitions.clear();
+	}
+
+	@Override
+	public ClusterPartitionReport createClusterPartitionReport() {
+		List<ClusterPartitionReport.ClusterPartitionReportEntry> collect = clusterPartitions.entrySet().stream().map(entry -> {
+			TaskExecutorPartitionInfo dataSetMetaInfo = entry.getKey();
+			Set<ResultPartitionID> partitionsIds = entry.getValue();
+			return new ClusterPartitionReport.ClusterPartitionReportEntry(
+				dataSetMetaInfo.getIntermediateDataSetId(),
+				partitionsIds,
+				dataSetMetaInfo.getNumberOfPartitions());
+		}).collect(Collectors.toList());
+
+		return new ClusterPartitionReport(collect);
 	}
 }

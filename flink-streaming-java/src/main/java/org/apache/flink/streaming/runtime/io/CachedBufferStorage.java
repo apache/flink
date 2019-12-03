@@ -20,10 +20,15 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * The {@link CachedBufferStorage} takes the buffers and events from a data stream and adds them to
@@ -35,16 +40,40 @@ import java.util.ArrayDeque;
  * alignment in exactly-once mode.
  */
 @Internal
-public class CachedBufferStorage extends AbstractBufferStorage {
+public class CachedBufferStorage implements BufferStorage {
+	private static final Logger LOG = LoggerFactory.getLogger(CachedBufferStorage.class);
+
+	private final long maxBufferedBytes;
+
+	private final String taskName;
+
+	/**
+	 * The pending blocked buffer/event sequences. Must be consumed before requesting further data
+	 * from the input gate.
+	 */
+	private final ArrayDeque<BufferOrEventSequence> rolledOverBuffersQueue = new ArrayDeque<>();
+
+	/**
+	 * The sequence of buffers/events that has been unblocked and must now be consumed before
+	 * requesting further data from the input gate. This is effectively a "zero" element of
+	 * {@link #rolledOverBuffersQueue}.
+	 *
+	 * <p>TODO: probably this field could be removed in favour of using
+	 * {@code rolledOverBuffersQueue.peek()}.
+	 */
+	private BufferOrEventSequence rolledOverBuffers;
 
 	/** The page size, to estimate the total cached data size. */
 	private final int pageSize;
+
+	/** The number of bytes in the queued cached sequences. */
+	private long rolledBytes;
 
 	/** The number of bytes cached since the last roll over. */
 	private long bytesBlocked;
 
 	/** The current memory queue for caching the buffers or events. */
-	private ArrayDeque<BufferOrEvent> currentBuffers;
+	private ArrayDeque<BufferOrEvent> cachedBuffers;
 
 	/**
 	 * Create a new {@link CachedBufferStorage} with unlimited storage.
@@ -61,53 +90,124 @@ public class CachedBufferStorage extends AbstractBufferStorage {
 	 * @param pageSize The page size used to estimate the cached size.
 	 */
 	public CachedBufferStorage(int pageSize, long maxBufferedBytes, String taskName) {
-		super(maxBufferedBytes, taskName);
+		checkArgument(maxBufferedBytes == -1 || maxBufferedBytes > 0);
+
+		this.maxBufferedBytes = maxBufferedBytes;
+		this.taskName = taskName;
 		this.pageSize = pageSize;
-		this.currentBuffers = new ArrayDeque<>();
+		this.cachedBuffers = new ArrayDeque<>();
 	}
 
 	@Override
 	public void add(BufferOrEvent boe) {
 		bytesBlocked += pageSize;
 
-		currentBuffers.add(boe);
-	}
-
-	/**
-	 * It is never reusing resources and is defaulting to {@link #rollOverWithoutReusingResources()}.
-	 */
-	@Override
-	public BufferOrEventSequence rollOverReusingResources() {
-		return rollOverWithoutReusingResources();
+		cachedBuffers.add(boe);
 	}
 
 	@Override
-	public BufferOrEventSequence rollOverWithoutReusingResources() {
+	public void close() {
+		BufferOrEvent boe;
+		while ((boe = cachedBuffers.poll()) != null) {
+			if (boe.isBuffer()) {
+				boe.getBuffer().recycleBuffer();
+			}
+		}
+		if (rolledOverBuffers != null) {
+			rolledOverBuffers.cleanup();
+		}
+		for (BufferOrEventSequence seq : rolledOverBuffersQueue) {
+			seq.cleanup();
+		}
+		rolledOverBuffersQueue.clear();
+		rolledBytes = 0L;
+	}
+
+	@Override
+	public long getPendingBytes() {
+		return bytesBlocked;
+	}
+
+	@Override
+	public boolean isFull() {
+		return maxBufferedBytes > 0 && (getRolledBytes() + getPendingBytes()) > maxBufferedBytes;
+	}
+
+	@Override
+	public void rollOver() {
+		if (rolledOverBuffers == null) {
+			// common case: no more buffered data
+			rolledOverBuffers = rollOverCachedBuffers();
+		}
+		else {
+			// uncommon case: buffered data pending
+			// push back the pending data, if we have any
+			LOG.debug("{}: Checkpoint skipped via buffered data:" +
+				"Pushing back current alignment buffers and feeding back new alignment data first.", taskName);
+
+			// since we did not fully drain the previous sequence, we need to allocate a new buffer for this one
+			BufferOrEventSequence bufferedNow = rollOverCachedBuffers();
+			if (bufferedNow != null) {
+				rolledOverBuffersQueue.addFirst(rolledOverBuffers);
+				rolledBytes += rolledOverBuffers.size();
+				rolledOverBuffers = bufferedNow;
+			}
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("{}: Size of buffered data: {} bytes",
+				taskName,
+				rolledOverBuffers == null ? 0L : rolledOverBuffers.size());
+		}
+	}
+
+	private BufferOrEventSequence rollOverCachedBuffers() {
 		if (bytesBlocked == 0) {
 			return null;
 		}
 
-		CachedBufferOrEventSequence currentSequence = new CachedBufferOrEventSequence(currentBuffers, bytesBlocked);
-		currentBuffers = new ArrayDeque<>();
+		BufferOrEventSequence currentSequence = new BufferOrEventSequence(cachedBuffers, bytesBlocked);
+		cachedBuffers = new ArrayDeque<>();
 		bytesBlocked = 0L;
 
 		return currentSequence;
 	}
 
 	@Override
-	public void close() throws IOException {
-		BufferOrEvent boe;
-		while ((boe = currentBuffers.poll()) != null) {
-			if (boe.isBuffer()) {
-				boe.getBuffer().recycleBuffer();
-			}
-		}
-		super.close();
+	public long getRolledBytes() {
+		return rolledBytes;
 	}
 
 	@Override
-	public long getPendingBytes() {
-		return bytesBlocked;
+	public boolean isEmpty() {
+		return rolledOverBuffers == null;
+	}
+
+	@Override
+	public Optional<BufferOrEvent> pollNext() {
+		if (rolledOverBuffers == null) {
+			return Optional.empty();
+		}
+		Optional<BufferOrEvent> next = Optional.ofNullable(rolledOverBuffers.getNext());
+		if (!next.isPresent()) {
+			completeBufferedSequence();
+		}
+		return next;
+	}
+
+	private void completeBufferedSequence() {
+		LOG.debug("{}: Finished feeding back buffered data.", taskName);
+
+		rolledOverBuffers.cleanup();
+		rolledOverBuffers = rolledOverBuffersQueue.pollFirst();
+		if (rolledOverBuffers != null) {
+			rolledBytes -= rolledOverBuffers.size();
+		}
+	}
+
+	@Override
+	public long getMaxBufferedBytes() {
+		return maxBufferedBytes;
 	}
 
 	// ------------------------------------------------------------------------
@@ -116,7 +216,7 @@ public class CachedBufferStorage extends AbstractBufferStorage {
 	 * This class represents a sequence of cached buffers and events, created by the
 	 * {@link CachedBufferStorage}.
 	 */
-	public static class CachedBufferOrEventSequence implements BufferOrEventSequence {
+	private static class BufferOrEventSequence {
 
 		/** The sequence of buffers and events to be consumed. */
 		private final ArrayDeque<BufferOrEvent> queuedBuffers;
@@ -129,21 +229,25 @@ public class CachedBufferStorage extends AbstractBufferStorage {
 		 *
 		 * @param size The total size of cached data.
 		 */
-		CachedBufferOrEventSequence(ArrayDeque<BufferOrEvent> buffers, long size) {
+		BufferOrEventSequence(ArrayDeque<BufferOrEvent> buffers, long size) {
 			this.queuedBuffers = buffers;
 			this.size = size;
 		}
 
-		@Override
-		public void open() {}
-
-		@Override
+		/**
+		 * Gets the next BufferOrEvent from the sequence, or {@code null}, if the
+		 * sequence is exhausted.
+		 *
+		 * @return The next BufferOrEvent from the buffered sequence, or {@code null} (end of sequence).
+		 */
 		@Nullable
 		public BufferOrEvent getNext() {
 			return queuedBuffers.poll();
 		}
 
-		@Override
+		/**
+		 * Cleans up all the resources held by the sequence.
+		 */
 		public void cleanup() {
 			BufferOrEvent boe;
 			while ((boe = queuedBuffers.poll()) != null) {
@@ -153,7 +257,9 @@ public class CachedBufferStorage extends AbstractBufferStorage {
 			}
 		}
 
-		@Override
+		/**
+		 * Gets the size of the sequence.
+		 */
 		public long size() {
 			return size;
 		}

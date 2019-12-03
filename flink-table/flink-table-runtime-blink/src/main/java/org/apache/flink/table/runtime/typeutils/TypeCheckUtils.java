@@ -23,13 +23,13 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.ANY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
@@ -109,8 +109,8 @@ public class TypeCheckUtils {
 		return type.getTypeRoot() == MAP;
 	}
 
-	public static boolean isAny(LogicalType type) {
-		return type.getTypeRoot() == ANY;
+	public static boolean isRaw(LogicalType type) {
+		return type.getTypeRoot() == RAW;
 	}
 
 	public static boolean isRow(LogicalType type) {
@@ -118,7 +118,7 @@ public class TypeCheckUtils {
 	}
 
 	public static boolean isComparable(LogicalType type) {
-		return !isAny(type) && !isMap(type) && !isRow(type) && !isArray(type);
+		return !isRaw(type) && !isMap(type) && !isRow(type) && !isArray(type);
 	}
 
 	public static boolean isMutable(LogicalType type) {
@@ -130,7 +130,7 @@ public class TypeCheckUtils {
 			case MULTISET:
 			case MAP:
 			case ROW:
-			case ANY:
+			case RAW:
 				return true;
 			default:
 				return false;

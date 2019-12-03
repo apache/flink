@@ -589,9 +589,32 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	@Test
 	public void testResourceCalculationOnSlotAllocatingAndReleasing() {
-		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
-		ResourceProfile rp2 = new ResourceProfile(2.0, 200, 200, 200, 200, 200, Collections.singletonMap("gpu", new GPUResource(2.0)));
-		ResourceProfile rp3 = new ResourceProfile(3.0, 300, 300, 300, 300, 300, Collections.singletonMap("gpu", new GPUResource(3.0)));
+		final ResourceProfile rp1 = ResourceProfile.newBuilder()
+			.setCpuCores(1.0)
+			.setTaskHeapMemoryMB(100)
+			.setTaskOffHeapMemoryMB(100)
+			.setOnHeapManagedMemoryMB(100)
+			.setOffHeapManagedMemoryMB(100)
+			.setShuffleMemoryMB(100)
+			.build();
+		final ResourceProfile rp2 = ResourceProfile.newBuilder()
+			.setCpuCores(2.0)
+			.setTaskHeapMemoryMB(200)
+			.setTaskOffHeapMemoryMB(200)
+			.setOnHeapManagedMemoryMB(200)
+			.setOffHeapManagedMemoryMB(200)
+			.setShuffleMemoryMB(200)
+			.addExtendedResource("gpu", new GPUResource(2.0))
+			.build();
+		final ResourceProfile rp3 = ResourceProfile.newBuilder()
+			.setCpuCores(3.0)
+			.setTaskHeapMemoryMB(300)
+			.setTaskOffHeapMemoryMB(300)
+			.setOnHeapManagedMemoryMB(300)
+			.setOffHeapManagedMemoryMB(300)
+			.setShuffleMemoryMB(300)
+			.addExtendedResource("gpu", new GPUResource(3.0))
+			.build();
 
 		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
 
@@ -650,9 +673,9 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	@Test
 	public void testGetResolvedSlotWithResourceConfigured() {
-		ResourceProfile rp1 = new ResourceProfile(1.0, 100);
-		ResourceProfile rp2 = new ResourceProfile(2.0, 200);
-		ResourceProfile allocatedSlotRp = new ResourceProfile(5.0, 500);
+		ResourceProfile rp1 = ResourceProfile.fromResources(1.0, 100);
+		ResourceProfile rp2 = ResourceProfile.fromResources(2.0, 200);
+		ResourceProfile allocatedSlotRp = ResourceProfile.fromResources(5.0, 500);
 
 		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
 
@@ -695,9 +718,9 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	@Test
 	public void testHashEnoughResourceOfMultiTaskSlot() {
-		ResourceProfile rp1 = new ResourceProfile(1.0, 100);
-		ResourceProfile rp2 = new ResourceProfile(2.0, 200);
-		ResourceProfile allocatedSlotRp = new ResourceProfile(2.0, 200);
+		ResourceProfile rp1 = ResourceProfile.fromResources(1.0, 100);
+		ResourceProfile rp2 = ResourceProfile.fromResources(2.0, 200);
+		ResourceProfile allocatedSlotRp = ResourceProfile.fromResources(2.0, 200);
 
 		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
 
@@ -740,7 +763,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	@Test
 	public void testSlotAllocatedWithEnoughResource() {
-		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(16.0, 1600));
+		SlotSharingResourceTestContext context = createResourceTestContext(ResourceProfile.fromResources(16.0, 1600));
 
 		// With enough resources, all the requests should be fulfilled.
 		for (SlotSharingManager.SingleTaskSlot singleTaskSlot : context.singleTaskSlotsInOrder) {
@@ -754,7 +777,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	@Test
 	public void testSlotOverAllocatedAndTaskSlotsReleased() {
-		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(7.0, 700));
+		SlotSharingResourceTestContext context = createResourceTestContext(ResourceProfile.fromResources(7.0, 700));
 
 		for (int i = 0; i < context.singleTaskSlotsInOrder.size(); ++i) {
 			SlotSharingManager.SingleTaskSlot singleTaskSlot = context.singleTaskSlotsInOrder.get(i);
@@ -771,9 +794,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	}
 
 	private SlotSharingResourceTestContext createResourceTestContext(ResourceProfile allocatedResourceProfile) {
-		ResourceProfile coLocationTaskRp = new ResourceProfile(2.0, 200);
-		ResourceProfile thirdChildRp = new ResourceProfile(3.0, 300);
-		ResourceProfile forthChildRp = new ResourceProfile(9.0, 900);
+		ResourceProfile coLocationTaskRp = ResourceProfile.fromResources(2.0, 200);
+		ResourceProfile thirdChildRp = ResourceProfile.fromResources(3.0, 300);
+		ResourceProfile forthChildRp = ResourceProfile.fromResources(9.0, 900);
 
 		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
 

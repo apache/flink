@@ -137,7 +137,7 @@ object FlinkRelOptUtil {
   }
 
   def getTableConfigFromContext(rel: RelNode): TableConfig = {
-    rel.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    rel.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
   }
 
   /** Get max cnf node limit by context of rel */

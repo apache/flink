@@ -231,13 +231,13 @@ public class OrcTableSourceTest {
 		when(environment.createInput(any(InputFormat.class))).thenReturn(mock(DataSource.class));
 		spyTS.getDataSet(environment);
 
-		ArgumentCaptor<OrcRowInputFormat.Predicate> arguments = ArgumentCaptor.forClass(OrcRowInputFormat.Predicate.class);
+		ArgumentCaptor<OrcSplitReader.Predicate> arguments = ArgumentCaptor.forClass(OrcSplitReader.Predicate.class);
 		verify(mockIF, times(2)).addPredicate(arguments.capture());
 		List<String> values = arguments.getAllValues().stream().map(Object::toString).collect(Collectors.toList());
 		assertTrue(values.contains(
-			new OrcRowInputFormat.Not(new OrcRowInputFormat.LessThanEquals("int1", PredicateLeaf.Type.LONG, 100)).toString()));
+			new OrcSplitReader.Not(new OrcSplitReader.LessThanEquals("int1", PredicateLeaf.Type.LONG, 100)).toString()));
 		assertTrue(values.contains(
-			new OrcRowInputFormat.Equals("string1", PredicateLeaf.Type.STRING, "hello").toString()));
+			new OrcSplitReader.Equals("string1", PredicateLeaf.Type.STRING, "hello").toString()));
 
 		// ensure filter pushdown is correct
 		assertTrue(spyTS.isFilterPushedDown());

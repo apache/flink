@@ -45,6 +45,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionInfo;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -190,8 +191,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 			runInTaskExecutorThreadAndWait(taskExecutor, () -> partitionTracker.startTrackingPartition(
 				jobId,
-				resultPartitionId,
-				resultPartitionDeploymentDescriptor.getResultId()));
+				TaskExecutorPartitionInfo.from(resultPartitionDeploymentDescriptor)));
 
 			final CompletableFuture<Collection<ResultPartitionID>> firstReleasePartitionsCallFuture = new CompletableFuture<>();
 			runInTaskExecutorThreadAndWait(taskExecutor, () -> shuffleEnvironment.releasePartitionsLocallyFuture = firstReleasePartitionsCallFuture);

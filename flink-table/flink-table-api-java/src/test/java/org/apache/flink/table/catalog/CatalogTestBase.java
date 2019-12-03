@@ -120,22 +120,6 @@ public abstract class CatalogTestBase extends CatalogTest {
 			"This is another view");
 	}
 
-	@Override
-	protected CatalogFunction createFunction() {
-		return new CatalogFunctionImpl(
-			"test.class.name",
-			getGenericFlag(isGeneric())
-		);
-	}
-
-	@Override
-	protected CatalogFunction createAnotherFunction() {
-		return new CatalogFunctionImpl(
-			"test.another.class.name",
-			getGenericFlag(isGeneric())
-		);
-	}
-
 	protected Map<String, String> getBatchTableProperties() {
 		return new HashMap<String, String>() {{
 			put(IS_STREAMING, "false");

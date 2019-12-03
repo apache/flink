@@ -27,7 +27,7 @@ DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a,
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -53,7 +53,7 @@ Calc(select=[EXPR$0], updateAsRetraction=[false], accMode=[Acc]): rowcount = , c
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -85,7 +85,7 @@ DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a,
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -105,7 +105,7 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
@@ -125,7 +125,7 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
@@ -151,7 +151,7 @@ Calc(select=[EXPR$0])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -185,7 +185,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -211,7 +211,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)], updateAsRetraction=[false], accM
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -243,10 +243,10 @@ Calc(select=[a, b, c, e, f])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -283,10 +283,10 @@ Union(all=[true], union=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): r
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -318,10 +318,10 @@ Calc(select=[a, b, c, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcoun
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -375,7 +375,7 @@ Sink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -457,7 +457,7 @@ Sink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt],
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -521,7 +521,7 @@ Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -557,7 +557,7 @@ Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c],
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -592,7 +592,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -619,7 +619,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], ac
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -680,10 +680,10 @@ Sink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b], u
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.T1], fields=[id1, text, rowtime])
@@ -756,10 +756,10 @@ Union(all=[true], union=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -820,10 +820,10 @@ Sink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.T1], fields=[id1, text, rowtime])

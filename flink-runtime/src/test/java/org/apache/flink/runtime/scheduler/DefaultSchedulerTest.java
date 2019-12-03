@@ -21,9 +21,9 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -35,7 +35,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
@@ -43,7 +42,6 @@ import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTrack
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -77,6 +75,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -93,6 +92,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -131,7 +131,6 @@ public class DefaultSchedulerTest extends TestLogger {
 		scheduledExecutorService = new DirectScheduledExecutorService();
 
 		configuration = new Configuration();
-		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, FailoverStrategyLoader.NO_OP_FAILOVER_STRATEGY);
 
 		testRestartBackoffTimeStrategy = new TestRestartBackoffTimeStrategy(true, 0);
 
@@ -165,6 +164,29 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
 		assertThat(deployedExecutionVertices, contains(executionVertexId));
+	}
+
+	@Test
+	public void scheduledVertexOrderFromSchedulingStrategyIsRespected() throws Exception {
+		final JobGraph jobGraph = singleJobVertexJobGraph(10);
+		final JobVertexID onlyJobVertexId = getOnlyJobVertex(jobGraph).getID();
+
+		final List<ExecutionVertexID> desiredScheduleOrder = Arrays.asList(
+			new ExecutionVertexID(onlyJobVertexId, 4),
+			new ExecutionVertexID(onlyJobVertexId, 0),
+			new ExecutionVertexID(onlyJobVertexId, 3),
+			new ExecutionVertexID(onlyJobVertexId, 1),
+			new ExecutionVertexID(onlyJobVertexId, 2));
+
+		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
+		createScheduler(jobGraph, schedulingStrategyFactory);
+		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
+
+		schedulingStrategy.schedule(desiredScheduleOrder);
+
+		final List<ExecutionVertexID> deployedExecutionVertices = testExecutionVertexOperations.getDeployedVertices();
+
+		assertEquals(desiredScheduleOrder, deployedExecutionVertices);
 	}
 
 	@Test
@@ -327,7 +349,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		startScheduling(scheduler);
 
 		final SchedulingExecutionVertex<?, ?> onlySchedulingVertex = Iterables.getOnlyElement(topology.getVertices());
-		schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertex.getId()));
+		schedulingStrategy.schedule(Collections.singletonList(onlySchedulingVertex.getId()));
 
 		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
 		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
@@ -353,11 +375,11 @@ public class DefaultSchedulerTest extends TestLogger {
 		final ExecutionVertexID onlySchedulingVertexId = Iterables.getOnlyElement(topology.getVertices()).getId();
 
 		// Schedule the vertex to get it to a non-CREATED state
-		schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertexId));
+		schedulingStrategy.schedule(Collections.singletonList(onlySchedulingVertexId));
 
 		// The scheduling of a non-CREATED vertex will result in IllegalStateException
 		try {
-			schedulingStrategy.schedule(Collections.singleton(onlySchedulingVertexId));
+			schedulingStrategy.schedule(Collections.singletonList(onlySchedulingVertexId));
 			fail("IllegalStateException should happen");
 		} catch (IllegalStateException e) {
 			// expected exception

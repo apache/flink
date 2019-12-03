@@ -21,10 +21,12 @@ package org.apache.flink.table.planner.plan;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
+import org.apache.flink.table.planner.catalog.SqlCatalogViewTable;
 import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
@@ -116,6 +118,13 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 				throw new ValidationException("Cannot convert a connector table " +
 					"without source.");
 			}
+		} else if (baseTable instanceof CatalogView) {
+			return convertCatalogView(
+				relOptSchema,
+				names,
+				rowType,
+				schemaTable.getStatistic(),
+				(CatalogView) baseTable);
 		} else if (baseTable instanceof CatalogTable) {
 			return convertCatalogTable(relOptSchema,
 				names,
@@ -133,6 +142,15 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			RelDataType rowType,
 			QueryOperationCatalogView view) {
 		return QueryOperationCatalogViewTable.create(relOptSchema, names, rowType, view);
+	}
+
+	private static FlinkPreparingTableBase convertCatalogView(
+			RelOptSchema relOptSchema,
+			List<String> names,
+			RelDataType rowType,
+			FlinkStatistic statistic,
+			CatalogView view) {
+		return new SqlCatalogViewTable(relOptSchema, rowType, names, statistic, view, names.subList(0, 2));
 	}
 
 	private static FlinkPreparingTableBase convertSourceTable(

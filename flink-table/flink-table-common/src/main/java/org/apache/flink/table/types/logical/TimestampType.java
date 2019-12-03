@@ -58,7 +58,8 @@ public final class TimestampType extends LogicalType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.sql.Timestamp.class.getName(),
-		java.time.LocalDateTime.class.getName());
+		java.time.LocalDateTime.class.getName(),
+		"org.apache.flink.table.dataformat.SqlTimestamp");
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.LocalDateTime.class;
 

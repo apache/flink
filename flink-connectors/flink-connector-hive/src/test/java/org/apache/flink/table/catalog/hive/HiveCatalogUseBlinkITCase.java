@@ -64,7 +64,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -131,19 +130,19 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudf"),
-				new CatalogFunctionImpl(TestHiveSimpleUDF.class.getCanonicalName(), new HashMap<>()),
+				new CatalogFunctionImpl(TestHiveSimpleUDF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "mygenericudf"),
-				new CatalogFunctionImpl(TestHiveGenericUDF.class.getCanonicalName(), new HashMap<>()),
+				new CatalogFunctionImpl(TestHiveGenericUDF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudtf"),
-				new CatalogFunctionImpl(TestHiveUDTF.class.getCanonicalName(), new HashMap<>()),
+				new CatalogFunctionImpl(TestHiveUDTF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudaf"),
-				new CatalogFunctionImpl(GenericUDAFSum.class.getCanonicalName(), new HashMap<>()),
+				new CatalogFunctionImpl(GenericUDAFSum.class.getCanonicalName()),
 				false);
 
 		testUdf(true);

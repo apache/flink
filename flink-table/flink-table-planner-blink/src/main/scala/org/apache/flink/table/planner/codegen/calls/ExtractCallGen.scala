@@ -53,7 +53,7 @@ class ExtractCallGen(method: Method)
               (terms) =>
                 s"""
                    |${qualifyMethod(method)}(${terms.head},
-                   |    ${terms(1)} / ${TimeUnit.DAY.multiplier.intValue()})
+                   |    ${terms(1)}.getMillisecond() / ${TimeUnit.DAY.multiplier.intValue()})
                    |""".stripMargin
             }
 
@@ -71,19 +71,45 @@ class ExtractCallGen(method: Method)
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       (terms) => {
         val factor = getFactor(unit)
+        val longTerm = tpe.getTypeRoot match {
+          case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE => s"${terms(1)}.getMillisecond()"
+          case _ => s"${terms(1)}"
+        }
         unit match {
           case TimeUnit.QUARTER =>
             s"""
-               |((${terms(1)} % $factor) - 1) / ${unit.multiplier.intValue()} + 1
+               |(($longTerm % $factor) - 1) / ${unit.multiplier.intValue()} + 1
                |""".stripMargin
+          case TimeUnit.MICROSECOND =>
+            tpe.getTypeRoot match {
+              case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
+                val nanoOfMilliTerm = s"${terms(1)}.getNanoOfMillisecond()"
+                s"""
+                   |($longTerm % $factor) * 1000 + $nanoOfMilliTerm / 1000
+                 """.stripMargin
+              case _ =>
+                throw new ValidationException(
+                  "unit " + unit + " can not be applied to " + tpe.toString + " variable")
+            }
+          case TimeUnit.NANOSECOND =>
+            tpe.getTypeRoot match {
+              case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
+                val nanoOfMilliTerm = s"${terms(1)}.getNanoOfMillisecond()"
+                s"""
+                   |($longTerm % $factor) * 1000000 + $nanoOfMilliTerm
+                 """.stripMargin
+              case _ =>
+                throw new ValidationException(
+                  "unit " + unit + " can not be applied to " + tpe.toString + " variable")
+            }
           case _ =>
             if (factor == 1) {
               s"""
-                 |${terms(1)} / ${unit.multiplier.intValue()}
+                 |$longTerm / ${unit.multiplier.intValue()}
                  |""".stripMargin
             } else {
               s"""
-                 |(${terms(1)} % $factor) / ${unit.multiplier.intValue()}
+                 |($longTerm % $factor) / ${unit.multiplier.intValue()}
                  |""".stripMargin
             }
         }
@@ -101,6 +127,8 @@ class ExtractCallGen(method: Method)
         TimeUnit.HOUR.multiplier.longValue()
       case TimeUnit.SECOND =>
         TimeUnit.MINUTE.multiplier.longValue()
+      case TimeUnit.MILLISECOND | TimeUnit.MICROSECOND | TimeUnit.NANOSECOND =>
+        TimeUnit.SECOND.multiplier.longValue()
       case TimeUnit.MONTH =>
         TimeUnit.YEAR.multiplier.longValue()
       case TimeUnit.QUARTER =>

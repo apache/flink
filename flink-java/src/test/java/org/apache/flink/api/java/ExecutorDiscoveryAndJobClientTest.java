@@ -19,7 +19,6 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -82,22 +81,7 @@ public class ExecutorDiscoveryAndJobClientTest {
 
 		@Override
 		public Executor getExecutor(Configuration configuration) {
-			return (pipeline, executionConfig) -> CompletableFuture.completedFuture(new JobClient() {
-				@Override
-				public JobID getJobID() {
-					return new JobID();
-				}
-
-				@Override
-				public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader userClassloader) {
-					return CompletableFuture.completedFuture(new JobExecutionResult(new JobID(), 0L, Collections.emptyMap()));
-				}
-
-				@Override
-				public void close() {
-
-				}
-			});
+			return (pipeline, executionConfig) -> CompletableFuture.completedFuture(new TestingJobClient());
 		}
 	}
 }

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -69,7 +68,7 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 	public void onPartitionConsumable(final ExecutionVertexID executionVertexId, final ResultPartitionID resultPartitionId) {
 	}
 
-	public void schedule(final Set<ExecutionVertexID> verticesToSchedule) {
+	public void schedule(final List<ExecutionVertexID> verticesToSchedule) {
 		allocateSlotsAndDeploy(verticesToSchedule);
 	}
 
@@ -81,14 +80,14 @@ public class TestSchedulingStrategy implements SchedulingStrategy {
 		return receivedVerticesToRestart;
 	}
 
-	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesToSchedule) {
+	private void allocateSlotsAndDeploy(final List<ExecutionVertexID> verticesToSchedule) {
 		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
 			createExecutionVertexDeploymentOptions(verticesToSchedule);
 		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
 	}
 
 	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
-			final Collection<ExecutionVertexID> vertices) {
+			final List<ExecutionVertexID> vertices) {
 
 		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>(vertices.size());
 		for (ExecutionVertexID executionVertexID : vertices) {

@@ -80,7 +80,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void releaseBlocksAndResetBarriers() throws IOException {
+	public void releaseBlocksAndResetBarriers() {
 		LOG.debug("{}: End of stream alignment, feeding buffered data back.", taskName);
 
 		for (int i = 0; i < blockedChannels.length; i++) {

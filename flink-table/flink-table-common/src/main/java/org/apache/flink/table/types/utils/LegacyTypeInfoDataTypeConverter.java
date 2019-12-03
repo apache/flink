@@ -41,7 +41,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
@@ -181,7 +181,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return createLegacyType(LogicalTypeRoot.STRUCTURED_TYPE, typeInfo);
 		}
 
-		return createLegacyType(LogicalTypeRoot.ANY, typeInfo);
+		return createLegacyType(LogicalTypeRoot.RAW, typeInfo);
 	}
 
 	public static TypeInformation<?> toLegacyTypeInfo(DataType dataType) {
@@ -237,9 +237,9 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return convertToMapTypeInfo((KeyValueDataType) dataType);
 		}
 
-		// makes the any type accessible in the legacy planner
-		else if (canConvertToAnyTypeInfo(dataType)) {
-			return convertToAnyTypeInfo(dataType);
+		// makes the raw type accessible in the legacy planner
+		else if (canConvertToRawTypeInfo(dataType)) {
+			return convertToRawTypeInfo(dataType);
 		}
 
 		throw new TableException(
@@ -380,14 +380,14 @@ public final class LegacyTypeInfoDataTypeConverter {
 		return ((LegacyTypeInformationType) dataType.getLogicalType()).getTypeInformation();
 	}
 
-	private static boolean canConvertToAnyTypeInfo(DataType dataType) {
-		return dataType.getLogicalType() instanceof TypeInformationAnyType &&
+	private static boolean canConvertToRawTypeInfo(DataType dataType) {
+		return dataType.getLogicalType() instanceof TypeInformationRawType &&
 			dataType.getConversionClass().equals(
-				((TypeInformationAnyType) dataType.getLogicalType()).getTypeInformation().getTypeClass());
+				((TypeInformationRawType) dataType.getLogicalType()).getTypeInformation().getTypeClass());
 	}
 
-	private static TypeInformation<?> convertToAnyTypeInfo(DataType dataType) {
-		return ((TypeInformationAnyType) dataType.getLogicalType()).getTypeInformation();
+	private static TypeInformation<?> convertToRawTypeInfo(DataType dataType) {
+		return ((TypeInformationRawType) dataType.getLogicalType()).getTypeInformation();
 	}
 
 	private LegacyTypeInfoDataTypeConverter() {

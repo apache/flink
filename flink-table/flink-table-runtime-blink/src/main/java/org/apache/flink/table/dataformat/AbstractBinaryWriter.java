@@ -199,7 +199,7 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 				setOffsetAndSize(pos, cursor, value.getNanoOfMillisecond());
 			}
 
-			cursor += 12;
+			cursor += 8;
 		}
 	}
 
