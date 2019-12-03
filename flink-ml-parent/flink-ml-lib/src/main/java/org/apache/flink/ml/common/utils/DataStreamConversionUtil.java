@@ -27,6 +27,7 @@ import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.types.Row;
 
 /**
@@ -121,7 +122,7 @@ public class DataStreamConversionUtil {
 	public static Table toTable(MLEnvironment session, DataStream <Row> data, String[] colNames, TypeInformation <?>[] colTypes) {
 		try {
 			return toTable(session, data, colNames);
-		} catch (Exception ex) {
+		} catch (ValidationException ex) {
 			if (null == colTypes) {
 				throw ex;
 			} else {

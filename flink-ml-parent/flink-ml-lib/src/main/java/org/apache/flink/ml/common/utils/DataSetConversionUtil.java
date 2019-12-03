@@ -29,6 +29,7 @@ import org.apache.flink.ml.common.MLEnvironment;
 import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.types.Row;
 
 /**
@@ -110,7 +111,7 @@ public class DataSetConversionUtil {
 				((TwoInputUdfOperator) data).returns(new RowTypeInfo(colTypes, colNames));
 			}
 			return toTable(session, data, colNames);
-		} catch (Exception ex) {
+		} catch (ValidationException ex) {
 			if (null == colTypes) {
 				throw ex;
 			} else {
