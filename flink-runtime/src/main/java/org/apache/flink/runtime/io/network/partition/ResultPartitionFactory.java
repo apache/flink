@@ -188,7 +188,8 @@ public class ResultPartitionFactory {
 				numberOfSubpartitions * networkBuffersPerChannel + floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
 			// If the partition type is back pressure-free, we register with the buffer pool for
 			// callbacks to release memory.
-			return bufferPoolFactory.createBufferPool(numberOfSubpartitions,
+			return bufferPoolFactory.createBufferPool(
+				numberOfSubpartitions + 1,
 				maxNumberOfMemorySegments,
 				type.hasBackPressure() ? Optional.empty() : Optional.of(p));
 		};

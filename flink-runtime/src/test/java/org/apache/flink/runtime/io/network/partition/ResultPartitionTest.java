@@ -19,26 +19,35 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.types.IntValue;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
@@ -63,6 +72,9 @@ public class ResultPartitionTest {
 	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
 
 	private static FileChannelManager fileChannelManager;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@BeforeClass
 	public static void setUp() {
@@ -324,6 +336,56 @@ public class ResultPartitionTest {
 		} finally {
 			resultPartition.release();
 			network.close();
+		}
+	}
+
+	/**
+	 * Tests that blocking result partition can work with the minimum required buffers.
+	 */
+	@Test(timeout = 10000)
+	public void testWriteToBlockingResultPartitionWithMinimumBuffers() throws Exception {
+		int bufferSize = 4096;
+		int numSubpartitions = 10;
+		List<List<MemorySegment>> segments = new ArrayList<>();
+		NetworkBufferPool bufferPool = null;
+		ResultPartition resultPartition = null;
+
+		try {
+			String outputPath = tempFolder.newFolder().getPath();
+			bufferPool = new NetworkBufferPool(numSubpartitions + 1, bufferSize, 1);
+			resultPartition = new ResultPartitionBuilder()
+				.setNetworkBufferSize(bufferSize)
+				.setNetworkBufferPool(bufferPool)
+				.setNumberOfSubpartitions(numSubpartitions)
+				.setResultPartitionType(ResultPartitionType.BLOCKING)
+				.setFileChannelManager(new FileChannelManagerImpl(new String[] { outputPath }, "temp"))
+				.build();
+			resultPartition.setup();
+
+			// request all unreserved buffers
+			try {
+				while (true) {
+					segments.add(bufferPool.requestMemorySegments());
+				}
+			} catch (IOException e) {
+				assertTrue(e.getMessage().startsWith("Insufficient number of network buffer"));
+			}
+
+			RecordWriter recordWriter = new RecordWriterBuilder().build(resultPartition);
+			IntValue value = new IntValue(1024);
+			for (int i = 0; i < bufferSize * numSubpartitions / 8 + 1; ++i) {
+				recordWriter.emit(value);
+			}
+		} finally {
+			if (resultPartition != null) {
+				resultPartition.release();
+			}
+			if (bufferPool != null) {
+				for (List<MemorySegment> segmentList: segments) {
+					bufferPool.recycleMemorySegments(segmentList);
+				}
+				bufferPool.destroy();
+			}
 		}
 	}
 

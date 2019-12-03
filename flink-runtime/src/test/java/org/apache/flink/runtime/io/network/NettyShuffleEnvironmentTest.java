@@ -91,13 +91,13 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	@Test
 	public void testRegisterTaskWithLimitedBuffers() throws Exception {
 		final int bufferCount;
-		// outgoing: 1 buffer per channel (always)
+		// outgoing: 1 buffer per channel (always) plus 1 buffer per result partition
 		if (!enableCreditBasedFlowControl) {
 			// incoming: 1 buffer per channel
-			bufferCount = 20;
+			bufferCount = 20 + 4;
 		} else {
 			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+			bufferCount = 10 + 4 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 		}
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
@@ -110,13 +110,13 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	@Test
 	public void testRegisterTaskWithInsufficientBuffers() throws Exception {
 		final int bufferCount;
-		// outgoing: 1 buffer per channel (always)
+		// outgoing: 1 buffer per channel (always) plus 1 buffer per result partition
 		if (!enableCreditBasedFlowControl) {
 			// incoming: 1 buffer per channel
-			bufferCount = 19;
+			bufferCount = 19 + 4;
 		} else {
 			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
+			bufferCount = 10 + 4 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
 		}
 
 		expectedException.expect(IOException.class);
@@ -178,8 +178,8 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		assertEquals(expectedRp4Buffers, rp4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		for (ResultPartition rp : resultPartitions) {
-			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumberOfRequiredMemorySegments());
-			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumBuffers());
+			assertEquals(rp.getNumberOfSubpartitions() + 1, rp.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(rp.getNumberOfSubpartitions() + 1, rp.getBufferPool().getNumBuffers());
 		}
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
