@@ -417,8 +417,19 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 			nodeManagerClient.startContainerAsync(container, taskExecutorLaunchContext);
 		} catch (Throwable t) {
-			onStartContainerError(container.getId(), t);
+			releaseFailedContainerAndRequestNewContainerIfRequired(container.getId(), t);
 		}
+	}
+
+	private void releaseFailedContainerAndRequestNewContainerIfRequired(ContainerId containerId, Throwable throwable) {
+		log.error("Could not start TaskManager in container {}.", containerId, throwable);
+
+		final ResourceID resourceId = new ResourceID(containerId.toString());
+		// release the failed container
+		workerNodeMap.remove(resourceId);
+		resourceManagerClient.releaseAssignedContainer(containerId);
+		// and ask for a new one
+		requestYarnContainerIfRequired();
 	}
 
 	private void returnExcessContainer(Container excessContainer) {
@@ -490,15 +501,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public void onStartContainerError(ContainerId containerId, Throwable throwable) {
-		log.error("Could not start TaskManager in container {}.", containerId, throwable);
-
-		final ResourceID resourceId = new ResourceID(containerId.toString());
-		// release the failed container
-		workerNodeMap.remove(resourceId);
-		resourceManagerClient.releaseAssignedContainer(containerId);
-		// and ask for a new one
-		requestYarnContainerIfRequired();
+	public void onStartContainerError(ContainerId containerId, Throwable t) {
+		runAsync(() -> releaseFailedContainerAndRequestNewContainerIfRequired(containerId, t));
 	}
 
 	@Override
