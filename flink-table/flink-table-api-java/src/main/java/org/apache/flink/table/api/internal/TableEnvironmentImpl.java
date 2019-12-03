@@ -104,7 +104,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	protected final Parser parser;
 	private static final String UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
 			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-			"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, " +
+			"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
 			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE";
 
 	/**
@@ -482,7 +482,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());
-			String exMsg = getDDLOpExecuteErrorMsg("CREATE DATABASE", createDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString());
 			try {
 				catalog.createDatabase(
 						createDatabaseOperation.getDatabaseName(),
@@ -501,7 +501,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof DropDatabaseOperation) {
 			DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName());
-			String exMsg = getDDLOpExecuteErrorMsg("DROP DATABASE", dropDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString());
 			try {
 				catalog.dropDatabase(
 						dropDatabaseOperation.getDatabaseName(),
@@ -515,7 +515,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof AlterDatabaseOperation) {
 			AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName());
-			String exMsg = getDDLOpExecuteErrorMsg("ALTER DATABASE", alterDatabaseOperation.getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(alterDatabaseOperation.asSummaryString());
 			try {
 				catalog.alterDatabase(
 						alterDatabaseOperation.getDatabaseName(),
@@ -527,21 +527,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				throw new TableException(exMsg, e);
 			}
 		} else if (operation instanceof UseOperation) {
-			applyUseOperation((UseOperation) operation);
-		} else {
-			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
-		}
-	}
-
-	/**Apply use operation to current table environment. */
-	private void applyUseOperation(UseOperation operation) {
-		if (operation instanceof UseCatalogOperation) {
-			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
-			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
-		} else if (operation instanceof UseDatabaseOperation) {
-			UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
-			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
-			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
+			if (operation instanceof UseCatalogOperation) {
+				UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
+				catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
+			} else if (operation instanceof UseDatabaseOperation) {
+				UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
+				catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
+				catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
+			}
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
@@ -553,8 +546,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				.orElseThrow(() -> new ValidationException(String.format("Catalog %s does not exist.", catalogName)));
 	}
 
-	private String getDDLOpExecuteErrorMsg(String action, String path) {
-		return String.format("Could not execute %s in path %s", action, path);
+	private String getDDLOpExecuteErrorMsg(String action) {
+		return String.format("Could not execute %s ", action);
 	}
 
 	@Override

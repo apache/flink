@@ -120,7 +120,7 @@ abstract class TableEnvImpl(
 
   private val UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
     "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-      "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [catalog.]database, " +
+      "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
 
   private def isStreamingMode: Boolean = this match {
@@ -487,8 +487,7 @@ abstract class TableEnvImpl(
           createTableOperation.isIgnoreIfExists)
       case createDatabaseOperation: CreateDatabaseOperation =>
         val catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName)
-        val exMsg = getDDLOpExecuteErrorMsg("CREATE DATABASE",
-                                            createDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString)
         try {
           catalog.createDatabase(
             createDatabaseOperation.getDatabaseName,
@@ -504,8 +503,7 @@ abstract class TableEnvImpl(
           dropTableOperation.isIfExists)
       case dropDatabaseOperation: DropDatabaseOperation =>
         val catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName)
-        val exMsg = getDDLOpExecuteErrorMsg("DROP DATABASE",
-                                            dropDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString)
         try {
           catalog.dropDatabase(
             dropDatabaseOperation.getDatabaseName,
@@ -518,8 +516,7 @@ abstract class TableEnvImpl(
         }
       case alterDatabaseOperation: AlterDatabaseOperation =>
         val catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName)
-        val exMsg = getDDLOpExecuteErrorMsg("ALTER DATABASE",
-                                            alterDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(alterDatabaseOperation.asSummaryString)
         try {
           catalog.alterDatabase(
             alterDatabaseOperation.getDatabaseName,
@@ -529,21 +526,17 @@ abstract class TableEnvImpl(
           case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
           case ex: Exception => throw new TableException(exMsg, ex)
         }
-      case useOperation: UseOperation => applyUseOperation(useOperation)
+      case useOperation: UseOperation => {
+        useOperation match {
+          case useCatalogOperation: UseCatalogOperation =>
+            catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
+          case useDatabaseOperation: UseDatabaseOperation =>
+            catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
+            catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
+        }
+      }
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
     }
-  }
-
-  /** Apply use operation to current table environment. */
-  private def applyUseOperation(useOperation: UseOperation): Unit = {
-      useOperation match {
-        case useCatalogOperation: UseCatalogOperation =>
-          catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
-        case useDatabaseOperation: UseDatabaseOperation =>
-          catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
-          catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
-        case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
-      }
   }
 
   /** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
@@ -556,8 +549,8 @@ abstract class TableEnvImpl(
         })
   }
 
-  private def getDDLOpExecuteErrorMsg(action: String, path: String):String = {
-    String.format("Could not execute %s in path %s", action, path)
+  private def getDDLOpExecuteErrorMsg(action: String):String = {
+    String.format("Could not execute %s", action)
   }
 
   protected def createTable(tableOperation: QueryOperation): TableImpl = {

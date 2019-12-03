@@ -119,8 +119,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 			} else if (cascade) {
 				// delete all tables in this database and then delete the database.
 				List<ObjectPath> deleteTablePaths = tables.keySet().stream()
-														.filter(op -> op.getDatabaseName().equals(databaseName))
-														.collect(Collectors.toList());
+						.filter(op -> op.getDatabaseName().equals(databaseName)).collect(Collectors.toList());
 				deleteTablePaths.forEach(objectPath -> {
 						try {
 							dropTable(objectPath, true);
@@ -129,8 +128,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 						}
 					});
 				List<ObjectPath> deleteFunctionPaths = functions.keySet().stream()
-															.filter(op -> op.getDatabaseName().equals(databaseName))
-															.collect(Collectors.toList());
+						.filter(op -> op.getDatabaseName().equals(databaseName)).collect(Collectors.toList());
 				deleteFunctionPaths.forEach(objectPath -> {
 						try {
 							dropFunction(objectPath, true);
