@@ -16,31 +16,19 @@
 # limitations under the License.
 ################################################################################
 import json
-import re
 import unittest
 
 from pyflink.common import Configuration
 from pyflink.common.dependency_manager import DependencyManager
 from pyflink.java_gateway import get_gateway
 from pyflink.table import TableConfig
-from pyflink.testing.test_case_utils import PyFlinkTestCase
-
-
-def replace_uuid(input_obj):
-    if isinstance(input_obj, str):
-        return re.sub(r'[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}',
-                      '{uuid}', input_obj)
-    elif isinstance(input_obj, dict):
-        input_obj_copy = dict()
-        for key in input_obj:
-            input_obj_copy[replace_uuid(key)] = replace_uuid(input_obj[key])
-        return input_obj_copy
+from pyflink.testing.test_case_utils import PyFlinkTestCase, TestEnv, replace_uuid
 
 
 class DependencyManagerTests(PyFlinkTestCase):
 
     def setUp(self):
-        self.j_env = MockedJavaEnv()
+        self.j_env = TestEnv()
         self.config = Configuration()
         self.dependency_manager = DependencyManager(self.config, self.j_env)
 
@@ -117,30 +105,16 @@ class DependencyManagerTests(PyFlinkTestCase):
         self.assertEqual(DependencyManager.PYTHON_FILES, JDependencyInfo.PYTHON_FILES)
         self.assertEqual(DependencyManager.PYTHON_EXEC, JDependencyInfo.PYTHON_EXEC)
 
-
-class Tuple2(object):
-
-    def __init__(self, f0, f1):
-        self.f0 = f0
-        self.f1 = f1
-
-
-class MockedJavaEnv(object):
-
-    def __init__(self):
-        self.result = []
-
-    def registerCachedFile(self, file_path, key):
-        self.result.append(Tuple2(key, file_path))
-
-    def getCachedFiles(self):
-        return self.result
-
-    def to_dict(self):
-        result = dict()
-        for item in self.result:
-            result[item.f0] = item.f1
-        return result
+        JPythonDriverEnvUtils = \
+            get_gateway().jvm.org.apache.flink.client.python.PythonDriverEnvUtils
+        self.assertEqual(DependencyManager.PYFLINK_PY_REQUIREMENTS,
+                         JPythonDriverEnvUtils.PYFLINK_PY_REQUIREMENTS)
+        self.assertEqual(DependencyManager.PYFLINK_PY_ARCHIVES,
+                         JPythonDriverEnvUtils.PYFLINK_PY_ARCHIVES)
+        self.assertEqual(DependencyManager.PYFLINK_PY_FILES,
+                         JPythonDriverEnvUtils.PYFLINK_PY_FILES)
+        self.assertEqual(DependencyManager.PYFLINK_PY_EXECUTABLE,
+                         JPythonDriverEnvUtils.PYFLINK_PY_EXECUTABLE)
 
 
 if __name__ == "__main__":

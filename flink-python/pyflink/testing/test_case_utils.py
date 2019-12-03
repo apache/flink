@@ -15,9 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-
+import base64
+import json
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -247,3 +249,90 @@ class PythonAPICompletenessTestCase(object):
 
     def test_completeness(self):
         self.check_methods()
+
+
+def replace_uuid(input_obj):
+    if isinstance(input_obj, str):
+        return re.sub(r'[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}',
+                      '{uuid}', input_obj)
+    elif isinstance(input_obj, dict):
+        input_obj_copy = dict()
+        for key in input_obj:
+            input_obj_copy[replace_uuid(key)] = replace_uuid(input_obj[key])
+        return input_obj_copy
+
+
+def encode_to_base64(dict_obj):
+    return base64.b64encode(bytes(replace_uuid(json.dumps(dict_obj)), encoding="utf8"))
+
+
+def decode_from_base64(bytes_data):
+    return json.loads(str(base64.b64decode(bytes_data), encoding="utf8"))
+
+
+def create_empty_file(suffix, base_dir):
+    fd, path = tempfile.mkstemp(suffix=suffix, dir=base_dir)
+    os.close(fd)
+    return path
+
+
+def sort_dict_by_key(obj):
+    if not isinstance(obj, dict):
+        return obj
+    new_dict = dict()
+    for key, value in sorted(obj.items()):
+        new_dict[key] = sort_dict_by_key(value)
+    return new_dict
+
+
+class Tuple2(object):
+
+    def __init__(self, f0, f1):
+        self.f0 = f0
+        self.f1 = f1
+        self.field = [f0, f1]
+
+    def getField(self, index):
+        return self.field[index]
+
+
+class TestEnv(object):
+
+    def __init__(self):
+        self.result = []
+
+    def registerCachedFile(self, file_path, key):
+        self.result.append(Tuple2(key, file_path))
+
+    def getCachedFiles(self):
+        return self.result
+
+    def to_dict(self):
+        result = dict()
+        for item in self.result:
+            result[item.f0] = item.f1
+        return result
+
+
+class TestConfiguration(object):
+
+    def __init__(self):
+        self._dict = dict()
+
+    def get_string(self, key, default_value):
+        if key in self._dict:
+            return self._dict[key]
+        else:
+            return default_value
+
+    def set_string(self, key, value):
+        self._dict[key] = value
+
+    def remove_config(self, key):
+        del self._dict[key]
+
+    def contains_key(self, key):
+        return key in self._dict
+
+    def to_dict(self):
+        return self._dict

@@ -81,6 +81,7 @@ class TableEnvironment(object):
         self._serializer = serializer
         self._dependency_manager = DependencyManager(self.get_config().get_configuration(),
                                                      self._get_j_env())
+        self._dependency_manager.load_from_env(os.environ)
 
     def from_table_source(self, table_source):
         """

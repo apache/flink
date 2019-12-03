@@ -70,7 +70,7 @@ public final class PythonDriver {
 			String tmpDir = System.getProperty("java.io.tmpdir") +
 				File.separator + "pyflink" + File.separator + UUID.randomUUID();
 			PythonDriverEnvUtils.PythonEnvironment pythonEnv = PythonDriverEnvUtils.preparePythonEnvironment(
-				pythonDriverOptions.getPythonLibFiles(), tmpDir);
+				pythonDriverOptions, tmpDir);
 			// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python progress.
 			pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 			// start the python process.
