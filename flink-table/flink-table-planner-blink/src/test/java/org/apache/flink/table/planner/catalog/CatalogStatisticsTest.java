@@ -126,7 +126,7 @@ public class CatalogStatisticsTest {
 		CatalogColumnStatisticsDataLong longColStats = new CatalogColumnStatisticsDataLong(-123L, 763322L, 23L, 77L);
 		CatalogColumnStatisticsDataString stringColStats = new CatalogColumnStatisticsDataString(152L, 43.5D, 20L, 0L);
 		CatalogColumnStatisticsDataDate dateColStats =
-				new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 100, 0L);
+				new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 100L, 0L);
 		CatalogColumnStatisticsDataDouble doubleColStats =
 				new CatalogColumnStatisticsDataDouble(-123.35D, 7633.22D, 73L, 27L);
 		Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(6);
