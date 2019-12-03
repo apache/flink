@@ -77,6 +77,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 				jobMasterConfiguration,
 				jobGraph.isCheckpointingEnabled())
 			.create();
+		log.info("Using restart back off time strategy {} for {} ({}).", restartBackoffTimeStrategy, jobGraph.getName(), jobGraph.getJobID());
 
 		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
 			jobGraph.getScheduleMode(),
