@@ -585,6 +585,20 @@ public class MemoryManager {
 		return (int) (budgetByType.maxTotalNumberOfPages() * fraction);
 	}
 
+	/**
+	 * Computes the memory size corresponding to the fraction of all memory governed by this MemoryManager.
+	 *
+	 * @param fraction The fraction of all memory governed by this MemoryManager
+	 * @return The memory size corresponding to the memory fraction
+	 */
+	public long computeMemorySize(double fraction) {
+		Preconditions.checkArgument(
+			fraction > 0 && fraction <= 1,
+			"The fraction of memory to allocate must within (0, 1], was: %s", fraction);
+
+		return (long) (budgetByType.maxTotalBudget() * fraction);
+	}
+
 	private MemorySegment allocateManagedSegment(MemoryType memoryType, Object owner) {
 		switch (memoryType) {
 			case HEAP:
