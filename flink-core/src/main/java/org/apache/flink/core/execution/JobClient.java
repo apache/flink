@@ -85,7 +85,5 @@ public interface JobClient extends AutoCloseable {
 	CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader);
 
 	@Override
-	default void close() {
-
-	}
+	void close();
 }

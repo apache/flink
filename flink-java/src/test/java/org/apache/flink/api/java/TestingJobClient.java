@@ -69,4 +69,8 @@ public class TestingJobClient implements JobClient {
 		return CompletableFuture.completedFuture(Collections.emptyMap());
 	}
 
+	@Override
+	public void close() {
+
+	}
 }
