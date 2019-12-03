@@ -437,7 +437,7 @@ public class ResourceProfile implements Serializable {
 			.setCpuCores(resourceSpec.getCpuCores())
 			.setTaskHeapMemory(resourceSpec.getTaskHeapMemory())
 			.setTaskOffHeapMemory(resourceSpec.getTaskOffHeapMemory())
-			.setManagedMemory(resourceSpec.getOffHeapManagedMemory())
+			.setManagedMemory(resourceSpec.getManagedMemory())
 			.setShuffleMemory(networkMemory)
 			.addExtendedResources(resourceSpec.getExtendedResources())
 			.build();

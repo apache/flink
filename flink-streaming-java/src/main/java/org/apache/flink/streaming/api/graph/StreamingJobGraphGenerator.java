@@ -787,15 +787,15 @@ public class StreamingJobGraphGenerator {
 			managedMemoryFractionOnHeap = fraction;
 			managedMemoryFractionOffHeap = fraction;
 		} else {
-			final long groupOnHeapManagedMemoryBytes = groupResourceSpec.getOnHeapManagedMemory().getBytes();
-			final long groupOffHeapManagedMemoryBytes = groupResourceSpec.getOffHeapManagedMemory().getBytes();
+			final long groupOnHeapManagedMemoryBytes = groupResourceSpec.getManagedMemory().getBytes();
+			final long groupOffHeapManagedMemoryBytes = groupResourceSpec.getManagedMemory().getBytes();
 
 			managedMemoryFractionOnHeap = groupOnHeapManagedMemoryBytes > 0
-				? getFractionRoundedDown(operatorResourceSpec.getOnHeapManagedMemory().getBytes(), groupOnHeapManagedMemoryBytes)
+				? getFractionRoundedDown(operatorResourceSpec.getManagedMemory().getBytes(), groupOnHeapManagedMemoryBytes)
 				: 0.0;
 
 			managedMemoryFractionOffHeap = groupOffHeapManagedMemoryBytes > 0
-				? getFractionRoundedDown(operatorResourceSpec.getOffHeapManagedMemory().getBytes(), groupOffHeapManagedMemoryBytes)
+				? getFractionRoundedDown(operatorResourceSpec.getManagedMemory().getBytes(), groupOffHeapManagedMemoryBytes)
 				: 0.0;
 		}
 
