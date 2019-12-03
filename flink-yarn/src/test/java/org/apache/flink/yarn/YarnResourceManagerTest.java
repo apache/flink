@@ -96,6 +96,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
@@ -176,6 +177,11 @@ public class YarnResourceManagerTest extends TestLogger {
 	static class TestingYarnResourceManager extends YarnResourceManager {
 		AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient;
 		NMClientAsync mockNMClient;
+		/**
+		 * When runAsync is called, runAsyncCalledNum will increase one. This variable could be used to check whether
+		 * callback methods of AMRMClientAsync and NMClientAsync are executed in ResourceManager's main thread.
+		 */
+		int runAsyncCalledNum;
 
 		TestingYarnResourceManager(
 				RpcService rpcService,
@@ -211,6 +217,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				jobManagerMetricGroup);
 			this.mockNMClient = mockNMClient;
 			this.mockResourceManagerClient = mockResourceManagerClient;
+			this.runAsyncCalledNum = 0;
 		}
 
 		<T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
@@ -236,6 +243,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		@Override
 		protected void runAsync(final Runnable runnable) {
+			runAsyncCalledNum++;
 			runnable.run();
 		}
 
@@ -416,14 +424,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		new Context() {{
 			runTest(() -> {
 				// Request slot from SlotManager.
-				CompletableFuture<?> registerSlotRequestFuture = resourceManager.runInMainThread(() -> {
-					rmServices.slotManager.registerSlotRequest(
-						new SlotRequest(new JobID(), new AllocationID(), resourceProfile1, taskHost));
-					return null;
-				});
-
-				// wait for the registerSlotRequest completion
-				registerSlotRequestFuture.get();
+				registerSlotRequest(resourceManager, rmServices, resourceProfile1, taskHost);
 
 				// Callback from YARN when container is allocated.
 				Container testingContainer = mockContainer("container", 1234, 1, resourceManager.getContainerResource());
@@ -514,14 +515,7 @@ public class YarnResourceManagerTest extends TestLogger {
 	public void testOnContainerCompleted() throws Exception {
 		new Context() {{
 			runTest(() -> {
-				CompletableFuture<?> registerSlotRequestFuture = resourceManager.runInMainThread(() -> {
-					rmServices.slotManager.registerSlotRequest(
-						new SlotRequest(new JobID(), new AllocationID(), resourceProfile1, taskHost));
-					return null;
-				});
-
-				// wait for the registerSlotRequest completion
-				registerSlotRequestFuture.get();
+				registerSlotRequest(resourceManager, rmServices, resourceProfile1, taskHost);
 
 				// Callback from YARN when container is allocated.
 				Container testingContainer = mockContainer("container", 1234, 1, resourceManager.getContainerResource());
@@ -545,7 +539,49 @@ public class YarnResourceManagerTest extends TestLogger {
 				// slot is already fulfilled by pending containers, no need to request new container.
 				resourceManager.onContainersCompleted(ImmutableList.of(testingContainerStatus));
 				verify(mockResourceManagerClient, times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+
+				assertEquals(3, resourceManager.runAsyncCalledNum);
 			});
 		}};
+	}
+
+	@Test
+	public void testOnStartContainerError() throws Exception {
+		new Context() {{
+			runTest(() -> {
+				registerSlotRequest(resourceManager, rmServices, resourceProfile1, taskHost);
+				Container testingContainer = mockContainer("container", 1234, 1, resourceManager.getContainerResource());
+
+				doReturn(Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest())))
+					.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
+
+				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
+				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+				verify(mockResourceManagerClient).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
+				verify(mockNMClient).startContainerAsync(eq(testingContainer), any(ContainerLaunchContext.class));
+
+				resourceManager.onStartContainerError(testingContainer.getId(), new Exception("start error"));
+				verify(mockResourceManagerClient).releaseAssignedContainer(testingContainer.getId());
+				verify(mockResourceManagerClient, times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+
+				assertEquals(2, resourceManager.runAsyncCalledNum);
+			});
+		}};
+	}
+
+	private void registerSlotRequest(
+			TestingYarnResourceManager resourceManager,
+			Context.MockResourceManagerRuntimeServices rmServices,
+			ResourceProfile resourceProfile,
+			String taskHost) throws ExecutionException, InterruptedException {
+
+		CompletableFuture<?> registerSlotRequestFuture = resourceManager.runInMainThread(() -> {
+			rmServices.slotManager.registerSlotRequest(
+				new SlotRequest(new JobID(), new AllocationID(), resourceProfile, taskHost));
+			return null;
+		});
+
+		// wait for the registerSlotRequest completion
+		registerSlotRequestFuture.get();
 	}
 }
