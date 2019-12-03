@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Testing job for distributed cache in per job cluster mode.
@@ -76,7 +77,9 @@ public class YarnTestCacheJob {
 
 		@Override
 		public String map(String value) {
-			return (String) properties.getOrDefault(value, "null");
+			String property = (String) properties.getOrDefault(value, "null");
+			checkState(property.equals(value + "_property"));
+			return value;
 		}
 	}
 
