@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAUL
 import org.apache.flink.table.planner.utils.{BaseRowTestUtil, TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
-import org.apache.flink.table.utils.TableResultUtils
+import org.apache.flink.table.util.TableResultUtils
 import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode

@@ -29,7 +29,7 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.utils.TableResultUtils;
+import org.apache.flink.table.util.TableResultUtils;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;

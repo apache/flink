@@ -27,7 +27,7 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.utils.TableResultUtils;
+import org.apache.flink.table.util.TableResultUtils;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;

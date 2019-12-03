@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.util;
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.Table;
@@ -34,7 +34,6 @@ import static org.junit.Assert.assertEquals;
 
 /**
  * IT case for {@link TableResultUtils}.
- * As runtime is needed for the tests, we put these cases into planner modules, not in the api modules.
  */
 public class TableResultUtilsITCase extends BatchTestBase {
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.util;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -32,6 +32,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableImpl;
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
@@ -46,6 +47,9 @@ import java.util.List;
  *
  * <p>NOTE: Methods in this utility class are experimental and can only be used for demonstration or testing
  * small table results. Please DO NOT use them in production or on large tables.
+ *
+ * <p>We ought to put this class in the api module, but as converting high precision timestamp data type
+ * to type information is not possible in flink planner, we have to put this class in blink planner.
  */
 @Experimental
 public class TableResultUtils {
@@ -57,11 +61,16 @@ public class TableResultUtils {
 	 * @param table		Flink table to convert
 	 * @return			Converted Java list
 	 */
+	@SuppressWarnings("unchecked")
 	public static List<Row> tableResultToList(Table table) throws Exception {
 		final TableEnvironment tEnv = ((TableImpl) table).getTableEnvironment();
 
 		final String id = new AbstractID().toString();
-		final TypeSerializer<Row> serializer = table.getSchema().toRowType().createSerializer(new ExecutionConfig());
+		final DataType rowDataType = table.getSchema().toRowDataType();
+		final TypeSerializer<Row> serializer =
+			TypeInfoLogicalTypeConverter
+				.fromLogicalTypeToTypeInfo(rowDataType.getLogicalType())
+				.createSerializer(new ExecutionConfig());
 		final Utils.CollectHelper<Row> outputFormat = new Utils.CollectHelper<>(id, serializer);
 		final TableResultSink sink = new TableResultSink(table, outputFormat);
 
