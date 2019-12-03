@@ -119,6 +119,9 @@ public class TableUtil {
 	 * @return the corresponding types.
 	 */
 	public static TypeInformation[] findColTypes(TableSchema tableSchema, String[] targetCols) {
+		if (targetCols == null) {
+			return tableSchema.getFieldTypes();
+		}
 		TypeInformation[] types = new TypeInformation[targetCols.length];
 		for (int i = 0; i < types.length; i++) {
 			types[i] = findColType(tableSchema, targetCols[i]);
