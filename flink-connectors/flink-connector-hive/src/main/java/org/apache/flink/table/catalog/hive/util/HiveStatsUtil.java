@@ -63,7 +63,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class HiveStatsUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveStatsUtil.class);
 
-	public static final String DEFAULT_STATS_ZERO_CONST = "0";
+	public static final String DEFAULT_UNKNOWN_STATS_CONST = "-1";
 
 	private HiveStatsUtil() {}
 

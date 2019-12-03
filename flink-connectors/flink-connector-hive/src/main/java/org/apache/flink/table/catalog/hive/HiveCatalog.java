@@ -1115,7 +1115,8 @@ public class HiveCatalog extends AbstractCatalog {
 				throw new CatalogException("Alter table stats is not supported in Hive version " + hiveVersion);
 			}
 			// Set table stats
-			if (compareAndUpdateStatisticsProperties(tableStatistics, hiveTable.getParameters())) {
+			if (statsChanged(tableStatistics, hiveTable.getParameters())) {
+				updateStats(tableStatistics, hiveTable.getParameters());
 				client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), hiveTable);
 			}
 		} catch (TableNotExistException e) {
@@ -1147,34 +1148,40 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	/**
-	 * Determine if statistics is need to be updated, if it needs to be updated and updated its parameters.
-	 * @param statistics original ``hive table statistics.
-	 * @param parameters new catalog table statistics parameters.
-	 * @return needUpdateStatistics flag which indicates whether need to update stats.
+	 * Determine if statistics need to be updated or not.
+	 * @param newTableStats   new catalog table statistics.
+	 * @param parameters      original hive table statistics parameters.
+	 * @return                whether need to update stats.
 	 */
-	private static boolean compareAndUpdateStatisticsProperties(CatalogTableStatistics statistics, Map<String, String> parameters) {
-		boolean needUpdateStatistics;
-		String oldRowCount = parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST);
-		String oldTotalSize = parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST);
-		String oldNumFiles = parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST);
-		String oldRawDataSize = parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST);
-		needUpdateStatistics = statistics.getRowCount() != Long.parseLong(oldRowCount) || statistics.getTotalSize() != Long.parseLong(oldTotalSize)
-			|| statistics.getFileCount() != Integer.parseInt(oldNumFiles) || statistics.getRawDataSize() != Long.parseLong(oldRawDataSize);
-		if (needUpdateStatistics) {
-			parameters.put(StatsSetupConst.ROW_COUNT, String.valueOf(statistics.getRowCount()));
-			parameters.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(statistics.getTotalSize()));
-			parameters.put(StatsSetupConst.NUM_FILES, String.valueOf(statistics.getFileCount()));
-			parameters.put(StatsSetupConst.RAW_DATA_SIZE, String.valueOf(statistics.getRawDataSize()));
-		}
-		return needUpdateStatistics;
+	private boolean statsChanged(CatalogTableStatistics newTableStats, Map<String, String> parameters) {
+		String oldRowCount = parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
+		String oldTotalSize = parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
+		String oldNumFiles = parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
+		String oldRawDataSize = parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
+		return newTableStats.getRowCount() != Long.parseLong(oldRowCount)
+				|| newTableStats.getTotalSize() != Long.parseLong(oldTotalSize)
+				|| newTableStats.getFileCount() != Integer.parseInt(oldNumFiles)
+				|| newTableStats.getRawDataSize() != Long.parseLong(oldRawDataSize);
+	}
+
+	/**
+	 * Update original table statistics parameters.
+	 * @param newTableStats   new catalog table statistics.
+	 * @param parameters      original hive table statistics parameters.
+	 */
+	private void updateStats(CatalogTableStatistics newTableStats, Map<String, String> parameters) {
+		parameters.put(StatsSetupConst.ROW_COUNT, String.valueOf(newTableStats.getRowCount()));
+		parameters.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(newTableStats.getTotalSize()));
+		parameters.put(StatsSetupConst.NUM_FILES, String.valueOf(newTableStats.getFileCount()));
+		parameters.put(StatsSetupConst.RAW_DATA_SIZE, String.valueOf(newTableStats.getRawDataSize()));
 	}
 
 	private static CatalogTableStatistics createCatalogTableStatistics(Map<String, String> parameters) {
-		long rowRount = Long.parseLong(parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST));
-		long totalSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST));
-		int numFiles = Integer.parseInt(parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST));
-		long rawDataSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST));
-		return new CatalogTableStatistics(rowRount, numFiles, totalSize, rawDataSize);
+		long rowCount = Long.parseLong(parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST));
+		long totalSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST));
+		int numFiles = Integer.parseInt(parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST));
+		long rawDataSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST));
+		return new CatalogTableStatistics(rowCount, numFiles, totalSize, rawDataSize);
 	}
 
 	@Override
@@ -1182,7 +1189,8 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			Partition hivePartition = getHivePartition(tablePath, partitionSpec);
 			// Set table stats
-			if (compareAndUpdateStatisticsProperties(partitionStatistics, hivePartition.getParameters())) {
+			if (statsChanged(partitionStatistics, hivePartition.getParameters())) {
+				updateStats(partitionStatistics, hivePartition.getParameters());
 				client.alter_partition(tablePath.getDatabaseName(), tablePath.getObjectName(), hivePartition);
 			}
 		} catch (TableNotExistException | PartitionSpecInvalidException e) {
