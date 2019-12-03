@@ -42,6 +42,7 @@ public final class CliStrings {
 	public static final AttributedString MESSAGE_HELP = new AttributedStringBuilder()
 		.append("The following commands are available:\n\n")
 		.append(formatCommand(SqlCommand.CLEAR, "Clears the current terminal."))
+		.append(formatCommand(SqlCommand.CREATE_TABLE, "Create table under current catalog and database."))
 		.append(formatCommand(SqlCommand.CREATE_VIEW, "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
 		.append(formatCommand(SqlCommand.DESCRIBE, "Describes the schema of a table with the given name."))
 		.append(formatCommand(SqlCommand.DROP_VIEW, "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))

@@ -338,6 +338,17 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public void createTable(String sessionId, String ddl) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			tEnv.sqlUpdate(ddl);
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not create a table from ddl: " + ddl, e);
+		}
+	}
+
+	@Override
 	public List<String> listTables(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();

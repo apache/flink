@@ -296,6 +296,9 @@ public class CliClient {
 			case INSERT_INTO:
 				callInsertInto(cmdCall);
 				break;
+			case CREATE_TABLE:
+				callCreateTable(cmdCall);
+				break;
 			case CREATE_VIEW:
 				callCreateView(cmdCall);
 				break;
@@ -523,6 +526,16 @@ public class CliClient {
 			return false;
 		}
 		return true;
+	}
+
+	private void callCreateTable(SqlCommandCall cmdCall) {
+		try {
+			executor.createTable(sessionId, cmdCall.operands[0]);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		terminal.flush();
 	}
 
 	private void callCreateView(SqlCommandCall cmdCall) {

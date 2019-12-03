@@ -614,6 +614,67 @@ public class LocalExecutorITCase extends TestLogger {
 		executor.closeSession(sessionId);
 	}
 
+	@Test
+	public void testCreateTable() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			executor.useCatalog(sessionId, "catalog1");
+			final String ddlTemplate = "create table %s(\n" +
+					"  a int,\n" +
+					"  b bigint,\n" +
+					"  c varchar\n" +
+					") with (\n" +
+					"  'connector.type'='filesystem',\n" +
+					"  'format.type'='csv',\n" +
+					"  'connector.path'='xxx'\n" +
+					")\n";
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+
+			final List<String> expectedTables = Arrays.asList(
+					"MyTable1",
+					"MyTable2");
+			assertEquals(expectedTables, executor.listTables(sessionId));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
+	public void testCreateTableWithMultiSession() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			executor.useCatalog(sessionId, "catalog1");
+			executor.setSessionProperty(sessionId, "execution.type", "batch");
+			final String ddlTemplate = "create table %s(\n" +
+					"  a int,\n" +
+					"  b bigint,\n" +
+					"  c varchar\n" +
+					") with (\n" +
+					"  'connector.type'='filesystem',\n" +
+					"  'format.type'='csv',\n" +
+					"  'connector.path'='xxx',\n" +
+					"  'update-mode'='append'\n" +
+					")\n";
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			// change the session property to trigger `new ExecutionContext`.
+			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
+			executor.useCatalog(sessionId, "catalog1");
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+
+			final List<String> expectedTables = Collections.singletonList("MyTable2");
+			assertEquals(expectedTables, executor.listTables(sessionId));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
 	private void executeStreamQueryTable(
 			Map<String, String> replaceVars,
 			String query,
