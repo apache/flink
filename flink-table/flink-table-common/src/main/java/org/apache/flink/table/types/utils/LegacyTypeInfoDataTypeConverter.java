@@ -42,12 +42,12 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -212,8 +212,22 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return Types.STRING;
 		}
 
-		else if (canConvertToTimestampTypeInfoLenient(dataType)) {
+		// relax the precision constraint as Timestamp can store the highest precision
+		else if (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
+			dataType.getConversionClass() == Timestamp.class) {
 			return Types.SQL_TIMESTAMP;
+		}
+
+		// relax the precision constraint as LocalDateTime can store the highest precision
+		else if (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
+			dataType.getConversionClass() == LocalDateTime.class) {
+			return Types.LOCAL_DATE_TIME;
+		}
+
+		// relax the precision constraint as LocalTime can store the highest precision
+		else if (hasRoot(logicalType, LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE) &&
+			dataType.getConversionClass() == LocalTime.class) {
+			return Types.LOCAL_TIME;
 		}
 
 		else if (canConvertToLegacyTypeInfo(dataType)) {
@@ -248,13 +262,6 @@ public final class LegacyTypeInfoDataTypeConverter {
 					"that originated from type information fully support a reverse conversion.",
 				dataType,
 				dataType.getConversionClass().getName()));
-	}
-
-	private static boolean canConvertToTimestampTypeInfoLenient(DataType dataType) {
-		LogicalType logicalType = dataType.getLogicalType();
-		return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
-			dataType.getConversionClass() != LocalDateTime.class &&
-			LogicalTypeChecks.getPrecision(logicalType) <= 3;
 	}
 
 	private static DataType createLegacyType(LogicalTypeRoot typeRoot, TypeInformation<?> typeInfo) {

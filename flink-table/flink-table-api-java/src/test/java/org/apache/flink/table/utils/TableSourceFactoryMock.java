@@ -69,6 +69,7 @@ public class TableSourceFactoryMock implements TableSourceFactory<Row> {
 		supportedProperties.add(ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION);
 		supportedProperties.add(FormatDescriptorValidator.FORMAT + ".*");
 		supportedProperties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_NAME);
+		supportedProperties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_DATA_TYPE);
 		supportedProperties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_TYPE);
 		return supportedProperties;
 	}
