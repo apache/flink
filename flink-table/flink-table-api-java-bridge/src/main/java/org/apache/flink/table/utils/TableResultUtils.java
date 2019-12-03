@@ -32,7 +32,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableImpl;
-import org.apache.flink.table.sinks.StreamTableSink;
+import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -52,6 +52,7 @@ public class TableResultUtils {
 
 	/**
 	 * Convert Flink table to Java list.
+	 * This method is only applicable for small batch jobs and small finite append only stream jobs.
 	 *
 	 * @param table		Flink table to convert
 	 * @return			Converted Java list
@@ -79,9 +80,9 @@ public class TableResultUtils {
 	}
 
 	/**
-	 * A {@link StreamTableSink} which stores rows into {@link Accumulator}s.
+	 * A {@link AppendStreamTableSink} which stores rows into {@link Accumulator}s.
 	 */
-	private static class TableResultSink implements StreamTableSink<Row> {
+	private static class TableResultSink implements AppendStreamTableSink<Row> {
 		private TableSchema schema;
 		private DataType rowType;
 		private Utils.CollectHelper<Row> outputFormat;
