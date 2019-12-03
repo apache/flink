@@ -777,30 +777,19 @@ public class StreamingJobGraphGenerator {
 			final int groupOperatorCount,
 			final StreamConfig operatorConfig) {
 
-		final double managedMemoryFractionOnHeap;
-		final double managedMemoryFractionOffHeap;
+		final double managedMemoryFraction;
 
 		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
 			checkArgument(groupOperatorCount > 0, "A slot sharing group must contain at least 1 operator");
-
-			final double fraction = getFractionRoundedDown(1, groupOperatorCount);
-			managedMemoryFractionOnHeap = fraction;
-			managedMemoryFractionOffHeap = fraction;
+			managedMemoryFraction = getFractionRoundedDown(1, groupOperatorCount);
 		} else {
-			final long groupOnHeapManagedMemoryBytes = groupResourceSpec.getManagedMemory().getBytes();
-			final long groupOffHeapManagedMemoryBytes = groupResourceSpec.getManagedMemory().getBytes();
-
-			managedMemoryFractionOnHeap = groupOnHeapManagedMemoryBytes > 0
-				? getFractionRoundedDown(operatorResourceSpec.getManagedMemory().getBytes(), groupOnHeapManagedMemoryBytes)
-				: 0.0;
-
-			managedMemoryFractionOffHeap = groupOffHeapManagedMemoryBytes > 0
-				? getFractionRoundedDown(operatorResourceSpec.getManagedMemory().getBytes(), groupOffHeapManagedMemoryBytes)
+			final long groupManagedMemoryBytes = groupResourceSpec.getManagedMemory().getBytes();
+				managedMemoryFraction = groupManagedMemoryBytes > 0
+				? getFractionRoundedDown(operatorResourceSpec.getManagedMemory().getBytes(), groupManagedMemoryBytes)
 				: 0.0;
 		}
 
-		operatorConfig.setManagedMemoryFractionOnHeap(managedMemoryFractionOnHeap);
-		operatorConfig.setManagedMemoryFractionOffHeap(managedMemoryFractionOffHeap);
+		operatorConfig.setManagedMemoryFraction(managedMemoryFraction);
 	}
 
 	private static double getFractionRoundedDown(final long dividend, final long divisor) {

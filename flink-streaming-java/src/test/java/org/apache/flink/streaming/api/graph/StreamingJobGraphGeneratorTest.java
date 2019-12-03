@@ -680,22 +680,22 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
 		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(100.0 / 1100, sourceConfig.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(100.0 / 1100, sourceConfig.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map1Config = Iterables.getOnlyElement(
 			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(300.0 / 1100, map1Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(300.0 / 1100, map1Config.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(700.0 / 1100, map2Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(700.0 / 1100, map2Config.getManagedMemoryFraction(), 0.000001);
 
-		final BigDecimal sumFractionOnHeap = BigDecimal.valueOf(sourceConfig.getManagedMemoryFractionOffHeap())
-			.add(BigDecimal.valueOf(map1Config.getManagedMemoryFractionOffHeap()))
-			.add(BigDecimal.valueOf(map2Config.getManagedMemoryFractionOffHeap()));
-		assertThat(sumFractionOnHeap, lessThanOrEqualTo(BigDecimal.ONE));
+		final BigDecimal sumFraction = BigDecimal.valueOf(sourceConfig.getManagedMemoryFraction())
+			.add(BigDecimal.valueOf(map1Config.getManagedMemoryFraction()))
+			.add(BigDecimal.valueOf(map2Config.getManagedMemoryFraction()));
+		assertThat(sumFraction, lessThanOrEqualTo(BigDecimal.ONE));
 
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
 	}
 
 	@Test
@@ -712,21 +712,17 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
 		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(1.0 / 3, sourceConfig.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0 / 3, sourceConfig.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(1.0 / 3, sourceConfig.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map1Config = Iterables.getOnlyElement(
 			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(1.0 / 3, map1Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0 / 3, map1Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(1.0 / 3, map1Config.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(1.0 / 3, map2Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0 / 3, map2Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(1.0 / 3, map2Config.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0, map3Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
 
 	}
 
