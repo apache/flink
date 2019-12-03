@@ -57,7 +57,7 @@ under the License.
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>5.17.2-artisans-1.0</version>
+			<version>5.17.2-artisans-2.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
