@@ -43,13 +43,15 @@ public class JsonRowSerializationSchemaTest {
 	@Test
 	public void testRowSerialization() {
 		final TypeInformation<Row> rowSchema = Types.ROW_NAMED(
-			new String[] {"f1", "f2", "f3"},
-			Types.INT, Types.BOOLEAN, Types.STRING);
+			new String[] {"f1", "f2", "f3", "f4", "f5"},
+			Types.INT, Types.BOOLEAN, Types.STRING, Types.SQL_TIMESTAMP, Types.LOCAL_DATE_TIME);
 
-		final Row row = new Row(3);
+		final Row row = new Row(5);
 		row.setField(0, 1);
 		row.setField(1, true);
 		row.setField(2, "str");
+		row.setField(3, Timestamp.valueOf("1990-10-14 12:12:43"));
+		row.setField(4, Timestamp.valueOf("1990-10-14 12:12:43").toLocalDateTime());
 
 		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
 			.build();
