@@ -72,6 +72,12 @@ public class CsvRowDeSerializationSchemaTest {
 			Types.SQL_TIMESTAMP,
 			"\"2018-10-12 12:12:12.0\"",
 			Timestamp.valueOf("2018-10-12 12:12:12"));
+		testNullableField(Types.LOCAL_DATE, "2018-10-12", Date.valueOf("2018-10-12").toLocalDate());
+		testNullableField(Types.LOCAL_TIME, "12:12:12", Time.valueOf("12:12:12").toLocalTime());
+		testNullableField(
+			Types.LOCAL_DATE_TIME,
+			"\"2018-10-12 12:12:12\"",
+			Timestamp.valueOf("2018-10-12 12:12:12").toLocalDateTime());
 		testNullableField(
 			Types.ROW(Types.STRING, Types.INT, Types.BOOLEAN),
 			"Hello;42;false",
