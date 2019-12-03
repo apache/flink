@@ -43,6 +43,7 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -252,6 +253,8 @@ public class DataFormatConverters {
 					return BinaryGenericConverter.INSTANCE;
 				}
 				return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return new TimestampConverter(((TimestampType) logicalType).getPrecision());
 			default:
 				throw new RuntimeException("Not support dataType: " + dataType);
 		}

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 import org.apache.flink.table.types.DataType;
@@ -87,6 +88,7 @@ import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -129,7 +131,7 @@ public class HiveInspectors {
 	/**
 	 * Get conversion for converting Flink object to Hive object from an ObjectInspector and the corresponding Flink DataType.
 	 */
-	public static HiveObjectConversion getConversion(ObjectInspector inspector, LogicalType dataType) {
+	public static HiveObjectConversion getConversion(ObjectInspector inspector, LogicalType dataType, HiveShim hiveShim) {
 		if (inspector instanceof PrimitiveObjectInspector) {
 			HiveObjectConversion conversion;
 			if (inspector instanceof BooleanObjectInspector ||
@@ -141,9 +143,10 @@ public class HiveInspectors {
 					inspector instanceof FloatObjectInspector ||
 					inspector instanceof DoubleObjectInspector ||
 					inspector instanceof DateObjectInspector ||
-					inspector instanceof TimestampObjectInspector ||
 					inspector instanceof BinaryObjectInspector) {
 				conversion = IdentityConversion.INSTANCE;
+			} else if (inspector instanceof TimestampObjectInspector) {
+				conversion = o -> HiveReflectionUtils.toHiveTimestamp(hiveShim, o);
 			} else if (inspector instanceof HiveCharObjectInspector) {
 				conversion = o -> new HiveChar((String) o, ((CharType) dataType).getLength());
 			} else if (inspector instanceof HiveVarcharObjectInspector) {
@@ -162,7 +165,7 @@ public class HiveInspectors {
 		if (inspector instanceof ListObjectInspector) {
 			HiveObjectConversion eleConvert = getConversion(
 				((ListObjectInspector) inspector).getListElementObjectInspector(),
-				((ArrayType) dataType).getElementType());
+				((ArrayType) dataType).getElementType(), hiveShim);
 			return o -> {
 				Object[] array = (Object[]) o;
 				List<Object> result = new ArrayList<>();
@@ -179,9 +182,9 @@ public class HiveInspectors {
 			MapType kvType = (MapType) dataType;
 
 			HiveObjectConversion keyConversion =
-				getConversion(mapInspector.getMapKeyObjectInspector(), kvType.getKeyType());
+				getConversion(mapInspector.getMapKeyObjectInspector(), kvType.getKeyType(), hiveShim);
 			HiveObjectConversion valueConversion =
-				getConversion(mapInspector.getMapValueObjectInspector(), kvType.getValueType());
+				getConversion(mapInspector.getMapValueObjectInspector(), kvType.getValueType(), hiveShim);
 
 			return o -> {
 				Map<Object, Object> map = (Map) o;
@@ -205,7 +208,7 @@ public class HiveInspectors {
 
 			HiveObjectConversion[] conversions = new HiveObjectConversion[structFields.size()];
 			for (int i = 0; i < structFields.size(); i++) {
-				conversions[i] = getConversion(structFields.get(i).getFieldObjectInspector(), rowFields.get(i).getType());
+				conversions[i] = getConversion(structFields.get(i).getFieldObjectInspector(), rowFields.get(i).getType(), hiveShim);
 			}
 
 			return o -> {
@@ -225,7 +228,7 @@ public class HiveInspectors {
 	/**
 	 * Converts a Hive object to Flink object with an ObjectInspector.
 	 */
-	public static Object toFlinkObject(ObjectInspector inspector, Object data) {
+	public static Object toFlinkObject(ObjectInspector inspector, Object data, HiveShim hiveShim) {
 		if (data == null || inspector instanceof VoidObjectInspector) {
 			return null;
 		}
@@ -244,7 +247,11 @@ public class HiveInspectors {
 					inspector instanceof BinaryObjectInspector) {
 
 				PrimitiveObjectInspector poi = (PrimitiveObjectInspector) inspector;
-				return poi.getPrimitiveJavaObject(data);
+				Object javaObject = poi.getPrimitiveJavaObject(data);
+				if (inspector instanceof TimestampObjectInspector) {
+					javaObject = HiveReflectionUtils.toFlinkTimestamp(hiveShim, javaObject);
+				}
+				return javaObject;
 			} else if (inspector instanceof HiveCharObjectInspector) {
 				HiveCharObjectInspector oi = (HiveCharObjectInspector) inspector;
 
@@ -268,7 +275,7 @@ public class HiveInspectors {
 			ObjectInspector elementInspector = listInspector.getListElementObjectInspector();
 			Object[] result = (Object[]) Array.newInstance(getClassFromObjectInspector(elementInspector), list.size());
 			for (int i = 0; i < list.size(); i++) {
-				result[i] = toFlinkObject(elementInspector, list.get(i));
+				result[i] = toFlinkObject(elementInspector, list.get(i), hiveShim);
 			}
 			return result;
 		}
@@ -280,8 +287,8 @@ public class HiveInspectors {
 			Map<Object, Object> result = new HashMap<>(map.size());
 			for (Map.Entry<?, ?> entry : map.entrySet()){
 				result.put(
-					toFlinkObject(mapInspector.getMapKeyObjectInspector(), entry.getKey()),
-					toFlinkObject(mapInspector.getMapValueObjectInspector(), entry.getValue()));
+					toFlinkObject(mapInspector.getMapKeyObjectInspector(), entry.getKey(), hiveShim),
+					toFlinkObject(mapInspector.getMapValueObjectInspector(), entry.getValue(), hiveShim));
 			}
 			return result;
 		}
@@ -301,7 +308,8 @@ public class HiveInspectors {
 					i,
 					toFlinkObject(
 							fields.get(i).getFieldObjectInspector(),
-							structInspector.getStructFieldData(data, fields.get(i)))
+							structInspector.getStructFieldData(data, fields.get(i)),
+							hiveShim)
 				);
 			}
 			return row;
@@ -401,10 +409,6 @@ public class HiveInspectors {
 		}
 	}
 
-	public static DataType toFlinkType(ObjectInspector inspector) {
-		return HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(inspector.getTypeName()));
-	}
-
 	// given a Hive ObjectInspector, get the class for corresponding Flink object
 	private static Class<?> getClassFromObjectInspector(ObjectInspector inspector) {
 		switch (inspector.getCategory()) {
@@ -436,6 +440,7 @@ public class HiveInspectors {
 					case DATE:
 						return Date.class;
 					case TIMESTAMP:
+						return LocalDateTime.class;
 					case INTERVAL_DAY_TIME:
 					case INTERVAL_YEAR_MONTH:
 					default:

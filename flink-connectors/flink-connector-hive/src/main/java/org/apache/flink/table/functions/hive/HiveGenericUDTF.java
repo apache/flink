@@ -76,7 +76,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 		function = hiveFunctionWrapper.createFunction();
 
 		function.setCollector(input -> {
-			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, input);
+			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, input, hiveShim);
 			HiveGenericUDTF.this.collect(row);
 		});
 
@@ -87,7 +87,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
 		conversions = new HiveObjectConversion[argumentInspectors.length];
 		for (int i = 0; i < argumentInspectors.length; i++) {
-			conversions[i] = HiveInspectors.getConversion(argumentInspectors[i], argTypes[i].getLogicalType());
+			conversions[i] = HiveInspectors.getConversion(argumentInspectors[i], argTypes[i].getLogicalType(), hiveShim);
 		}
 
 		allIdentityConverter = Arrays.stream(conversions)

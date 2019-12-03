@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog.hive.util;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -29,6 +31,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -82,12 +86,34 @@ public class HiveReflectionUtils {
 		}
 	}
 
-	public static Object convertToHiveTimestamp(HiveShim hiveShim, String s) throws FlinkHiveUDFException {
+	// converts a Flink timestamp instance to what's expected by Hive
+	public static Object toHiveTimestamp(HiveShim hiveShim, Object flinkTimestamp) {
+		Preconditions.checkArgument(flinkTimestamp instanceof Timestamp || flinkTimestamp instanceof LocalDateTime,
+				String.format("Only support converting %s or %s to Hive timestamp, but got %s",
+						Timestamp.class.getName(), LocalDateTime.class.getName(), flinkTimestamp.getClass().getName()));
+		Class hiveTimestampClz = hiveShim.getTimestampDataTypeClass();
+		if (hiveTimestampClz.equals(Timestamp.class)) {
+			return flinkTimestamp instanceof Timestamp ? flinkTimestamp : Timestamp.valueOf((LocalDateTime) flinkTimestamp);
+		} else {
+			try {
+				return invokeMethod(hiveTimestampClz, null, "valueOf", new Class[]{String.class}, new Object[]{flinkTimestamp.toString()});
+			} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+				throw new FlinkHiveException("Failed to convert to Hive timestamp", e);
+			}
+		}
+	}
+
+	// converts a hive timestamp instance to java.sql.Timestamp which is expected by DataFormatConverter
+	public static Timestamp toFlinkTimestamp(HiveShim hiveShim, Object hiveTimestamp) {
+		if (hiveTimestamp instanceof Timestamp) {
+			return (Timestamp) hiveTimestamp;
+		}
 		try {
-			Method method = hiveShim.getTimestampDataTypeClass().getMethod("valueOf", String.class);
-			return method.invoke(null, s);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to invoke Hive's Timestamp.valueOf()", e);
+			String hiveTSStr = (String) invokeMethod(hiveShim.getTimestampDataTypeClass(), hiveTimestamp,
+					"toString", null, null);
+			return Timestamp.valueOf(hiveTSStr);
+		} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+			throw new FlinkHiveException("Failed to convert to Flink timestamp", e);
 		}
 	}
 

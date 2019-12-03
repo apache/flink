@@ -90,7 +90,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 			conversionHelper = new GenericUDFUtils.ConversionHelper(method, argInspectors);
 			conversions = new HiveObjectConversion[argInspectors.length];
 			for (int i = 0; i < argInspectors.length; i++) {
-				conversions[i] = HiveInspectors.getConversion(argInspectors[i], argTypes[i].getLogicalType());
+				conversions[i] = HiveInspectors.getConversion(argInspectors[i], argTypes[i].getLogicalType(), hiveShim);
 			}
 
 			allIdentityConverter = Arrays.stream(conversions)
@@ -113,7 +113,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 
 		try {
 			Object result = FunctionRegistry.invoke(method, function, conversionHelper.convertIfNecessary(args));
-			return HiveInspectors.toFlinkObject(returnInspector, result);
+			return HiveInspectors.toFlinkObject(returnInspector, result, hiveShim);
 		} catch (HiveException e) {
 			throw new FlinkHiveUDFException(e);
 		}
@@ -129,7 +129,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 			Class returnType = hiveFunctionWrapper.createFunction()
 				.getResolver().getEvalMethod(argTypeInfo).getReturnType();
 
-			return HiveInspectors.toFlinkType(
+			return HiveTypeUtil.toFlinkType(
 				HiveInspectors.getObjectInspector(hiveShim, returnType));
 		} catch (UDFArgumentException e) {
 			throw new FlinkHiveUDFException(e);

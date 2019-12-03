@@ -27,6 +27,7 @@ import org.apache.flink.connectors.hive.HiveOptions;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.types.DataType;
 
@@ -116,7 +117,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			this.reader = new HiveVectorizedOrcSplitReader(
 					jobConf, fieldNames, fieldTypes, selectedFields, split);
 		} else {
-			this.reader = new HiveMapredSplitReader(jobConf, partitionKeys, fieldTypes, selectedFields, split);
+			this.reader = new HiveMapredSplitReader(jobConf, partitionKeys, fieldTypes, selectedFields, split,
+					HiveShimLoader.loadHiveShim(hiveVersion));
 		}
 		currentReadCount = 0L;
 	}

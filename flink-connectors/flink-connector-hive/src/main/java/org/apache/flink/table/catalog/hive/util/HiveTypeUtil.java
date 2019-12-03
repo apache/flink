@@ -167,7 +167,7 @@ public class HiveTypeUtil {
 			case DATE:
 				return DataTypes.DATE();
 			case TIMESTAMP:
-				return DataTypes.TIMESTAMP();
+				return DataTypes.TIMESTAMP(9);
 			case BINARY:
 				return DataTypes.BYTES();
 			case DECIMAL:
@@ -274,6 +274,9 @@ public class HiveTypeUtil {
 
 		@Override
 		public TypeInfo visit(TimestampType timestampType) {
+			if (timestampType.getPrecision() != 9) {
+				throw new CatalogException("HiveCatalog currently only supports timestamp of precision 9");
+			}
 			return TypeInfoFactory.timestampTypeInfo;
 		}
 

@@ -69,7 +69,8 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 		for (int i = 0; i < deferredObjects.length; i++) {
 			deferredObjects[i] = new DeferredObjectAdapter(
 				argInspectors[i],
-				argTypes[i].getLogicalType()
+				argTypes[i].getLogicalType(),
+				hiveShim
 			);
 		}
 	}
@@ -82,7 +83,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 		}
 
 		try {
-			return HiveInspectors.toFlinkObject(returnInspector, function.evaluate(deferredObjects));
+			return HiveInspectors.toFlinkObject(returnInspector, function.evaluate(deferredObjects), hiveShim);
 		} catch (HiveException e) {
 			throw new FlinkHiveUDFException(e);
 		}
