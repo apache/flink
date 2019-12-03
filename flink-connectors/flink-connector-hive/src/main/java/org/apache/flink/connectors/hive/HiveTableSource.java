@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -32,6 +33,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sources.LimitableTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
@@ -39,6 +41,7 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -56,11 +59,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM;
-import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX;
-import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo;
-import static org.apache.flink.table.utils.TableConnectorUtils.generateRuntimeName;
 
 /**
  * A TableSource implementation to read data from Hive tables.
@@ -132,13 +130,20 @@ public class HiveTableSource implements
 		}
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<BaseRow> typeInfo = (TypeInformation<BaseRow>) fromDataTypeToTypeInfo(getProducedDataType());
+		TypeInformation<BaseRow> typeInfo =
+				(TypeInformation<BaseRow>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());
 		HiveTableInputFormat inputFormat = getInputFormat();
 		DataStreamSource<BaseRow> source = execEnv.createInput(inputFormat, typeInfo);
 
 		Configuration conf = GlobalConfiguration.loadConfiguration();
-		if (conf.getBoolean(TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM)) {
-			int max = conf.getInteger(TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
+		if (conf.getBoolean(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM)) {
+			int max = conf.getInteger(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
+			if (max < 1) {
+				throw new IllegalConfigurationException(
+						HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key() +
+								" cannot be less than 1");
+			}
+
 			int splitNum;
 			try {
 				long nano1 = System.nanoTime();
@@ -306,7 +311,7 @@ public class HiveTableSource implements
 		if (isLimitPushDown) {
 			explain += String.format(", LimitPushDown %s, Limit %d", isLimitPushDown, limit);
 		}
-		return generateRuntimeName(getClass(), getTableSchema().getFieldNames()) + explain;
+		return TableConnectorUtils.generateRuntimeName(getClass(), getTableSchema().getFieldNames()) + explain;
 	}
 
 	@Override
