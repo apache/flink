@@ -69,7 +69,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 
 		final SchedulingStrategyFactory schedulingStrategyFactory = createSchedulingStrategyFactory(jobGraph.getScheduleMode());
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy = RestartBackoffTimeStrategyFactoryLoader
-			.createRestartStrategyFactory(
+			.createRestartBackoffTimeStrategyFactory(
 				jobGraph
 					.getSerializedExecutionConfig()
 					.deserializeValue(userCodeLoader)
