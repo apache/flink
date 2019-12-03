@@ -865,42 +865,6 @@ public class TaskTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a fatal error gotten from externally failing task is notified.
-	 */
-	@Test
-	public void testFatalErrorOnFailingExternally() throws Exception {
-		final AwaitFatalErrorTaskManagerActions taskManagerActions =
-			new AwaitFatalErrorTaskManagerActions();
-
-		final Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
-
-		final Task task = spy(createTaskBuilder()
-			.setInvokable(InvokableBlockingWithTrigger.class)
-			.setTaskManagerConfig(config)
-			.setTaskManagerActions(taskManagerActions)
-			.build());
-
-		doThrow(UnknownError.class).when(task).cancelOrFailAndCancelInvokableInternal(eq(ExecutionState.FAILED), any(Throwable.class));
-
-		try {
-			task.startTaskThread();
-
-			awaitLatch.await();
-
-			task.failExternally(new RuntimeException("test"));
-
-			// wait for the notification of notifyFatalError
-			taskManagerActions.latch.await();
-		} catch (Throwable t) {
-			fail("No exception is expected to be thrown by fatal error handling");
-		} finally {
-			triggerLatch.trigger();
-		}
-	}
-
-	/**
 	 * Tests that the task configuration is respected and overwritten by the execution config.
 	 */
 	@Test

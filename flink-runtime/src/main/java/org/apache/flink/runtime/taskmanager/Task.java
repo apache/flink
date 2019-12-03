@@ -993,8 +993,8 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			cancelOrFailAndCancelInvokableInternal(targetState, cause);
 		} catch (Throwable t) {
 			if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(t)) {
-				notifyFatalError(String.format("%s (%s) with state %s ran into fatal error on cancellation.",
-					taskNameWithSubtask, executionId, targetState), t);
+				String message = String.format("FATAL - exception in cancelling task %s (%s).", taskNameWithSubtask, executionId);
+				notifyFatalError(message, t);
 			} else {
 				throw t;
 			}
