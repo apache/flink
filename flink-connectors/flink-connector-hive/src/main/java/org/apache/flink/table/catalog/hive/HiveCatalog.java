@@ -1109,8 +1109,8 @@ public class HiveCatalog extends AbstractCatalog {
 				throw new CatalogException("Alter table stats is not supported in Hive version " + hiveVersion);
 			}
 			// Set table stats
-			if (needUpdateStatistics(tableStatistics, hiveTable.getParameters())) {
-				updateStatistics(tableStatistics, hiveTable.getParameters());
+			if (statsChanged(tableStatistics, hiveTable.getParameters())) {
+				updateStats(tableStatistics, hiveTable.getParameters());
 				client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), hiveTable);
 			}
 		} catch (TableNotExistException e) {
@@ -1147,7 +1147,7 @@ public class HiveCatalog extends AbstractCatalog {
 	 * @param parameters      original hive table statistics parameters.
 	 * @return                whether need to update stats.
 	 */
-	private static boolean needUpdateStatistics(CatalogTableStatistics newTableStats, Map<String, String> parameters) {
+	private boolean statsChanged(CatalogTableStatistics newTableStats, Map<String, String> parameters) {
 		String oldRowCount = parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
 		String oldTotalSize = parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
 		String oldNumFiles = parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_UNKNOWN_STATS_CONST);
@@ -1163,7 +1163,7 @@ public class HiveCatalog extends AbstractCatalog {
 	 * @param newTableStats   new catalog table statistics.
 	 * @param parameters      original hive table statistics parameters.
 	 */
-	private static void updateStatistics(CatalogTableStatistics newTableStats, Map<String, String> parameters) {
+	private void updateStats(CatalogTableStatistics newTableStats, Map<String, String> parameters) {
 		parameters.put(StatsSetupConst.ROW_COUNT, String.valueOf(newTableStats.getRowCount()));
 		parameters.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(newTableStats.getTotalSize()));
 		parameters.put(StatsSetupConst.NUM_FILES, String.valueOf(newTableStats.getFileCount()));
@@ -1183,8 +1183,8 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			Partition hivePartition = getHivePartition(tablePath, partitionSpec);
 			// Set table stats
-			if (needUpdateStatistics(partitionStatistics, hivePartition.getParameters())) {
-				updateStatistics(partitionStatistics, hivePartition.getParameters());
+			if (statsChanged(partitionStatistics, hivePartition.getParameters())) {
+				updateStats(partitionStatistics, hivePartition.getParameters());
 				client.alter_partition(tablePath.getDatabaseName(), tablePath.getObjectName(), hivePartition);
 			}
 		} catch (TableNotExistException | PartitionSpecInvalidException e) {
