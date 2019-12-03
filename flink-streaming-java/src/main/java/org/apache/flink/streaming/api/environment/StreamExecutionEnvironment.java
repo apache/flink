@@ -101,6 +101,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1619,6 +1620,57 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		try (final JobClient jobClient = executeAsync(streamGraph).get()) {
+
+			return configuration.getBoolean(DeploymentOptions.ATTACHED)
+					? jobClient.getJobExecutionResult(userClassloader).get()
+					: new DetachedJobExecutionResult(jobClient.getJobID());
+		}
+	}
+
+	/**
+	 * Triggers the program asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * <p>The program execution will be logged and displayed with a generated
+	 * default name.
+	 *
+	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@PublicEvolving
+	public final CompletableFuture<JobClient> executeAsync() throws Exception {
+		return executeAsync(DEFAULT_JOB_NAME);
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * <p>The program execution will be logged and displayed with the provided name
+	 *
+	 * @param jobName desired name of the job
+	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@PublicEvolving
+	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
+		return executeAsync(getStreamGraph(checkNotNull(jobName)));
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * @param streamGraph the stream graph representing the transformations
+	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@Internal
+	public CompletableFuture<JobClient> executeAsync(StreamGraph streamGraph) throws Exception {
 		if (configuration.get(DeploymentOptions.TARGET) == null) {
 			throw new RuntimeException("No execution.target specified in your configuration file.");
 		}
@@ -1626,16 +1678,16 @@ public class StreamExecutionEnvironment {
 		consolidateParallelismDefinitionsInConfiguration();
 
 		final ExecutorFactory executorFactory =
-				executorServiceLoader.getExecutorFactory(configuration);
+			executorServiceLoader.getExecutorFactory(configuration);
+
+		checkNotNull(
+			executorFactory,
+			"Cannot find compatible factory for current environment(%s)",
+			getClass().getSimpleName());
 
 		final Executor executor = executorFactory.getExecutor(configuration);
 
-		try (final JobClient jobClient = executor.execute(streamGraph, configuration).get()) {
-
-			return configuration.getBoolean(DeploymentOptions.ATTACHED)
-					? jobClient.getJobExecutionResult(userClassloader).get()
-					: new DetachedJobExecutionResult(jobClient.getJobID());
-		}
+		return executor.execute(streamGraph, configuration);
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
