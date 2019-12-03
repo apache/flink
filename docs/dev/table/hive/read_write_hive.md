@@ -176,7 +176,6 @@ amount of data transferred across network.
 Optimization is used automatically when the following conditions are met:
 
 - Columns without complex data type, like hive types: List, Map, Struct, Union.
-- Hive version greater than or equal to version 2.0.0.
 
 This feature is turned on by default. If there is a problem, you can use this config option to close ORC Vectorized Optimization:
 

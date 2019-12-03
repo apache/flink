@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.vector;
+package org.apache.flink.orc.nohive.vector;
 
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.hadoop.hive.common.type.HiveDecimal;
-import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
-import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
-import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
-import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
-import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
-import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
+import org.apache.orc.storage.common.type.HiveDecimal;
+import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
+import org.apache.orc.storage.ql.exec.vector.ColumnVector;
+import org.apache.orc.storage.ql.exec.vector.DecimalColumnVector;
+import org.apache.orc.storage.ql.exec.vector.DoubleColumnVector;
+import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
+import org.apache.orc.storage.ql.exec.vector.TimestampColumnVector;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -41,18 +41,18 @@ import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToIn
 /**
  * This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector.
  */
-public abstract class AbstractOrcColumnVector implements
+public abstract class AbstractOrcNoHiveVector implements
 		org.apache.flink.table.dataformat.vector.ColumnVector {
 
-	private ColumnVector vector;
+	private ColumnVector orcVector;
 
-	AbstractOrcColumnVector(ColumnVector vector) {
-		this.vector = vector;
+	AbstractOrcNoHiveVector(ColumnVector orcVector) {
+		this.orcVector = orcVector;
 	}
 
 	@Override
 	public boolean isNullAt(int i) {
-		return !vector.noNulls && vector.isNull[vector.isRepeating ? 0 : i];
+		return !orcVector.noNulls && orcVector.isNull[orcVector.isRepeating ? 0 : i];
 	}
 
 	@Override
@@ -63,15 +63,15 @@ public abstract class AbstractOrcColumnVector implements
 	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVector(
 			ColumnVector vector) {
 		if (vector instanceof LongColumnVector) {
-			return new OrcLongColumnVector((LongColumnVector) vector);
+			return new OrcNoHiveLongVector((LongColumnVector) vector);
 		} else if (vector instanceof DoubleColumnVector) {
-			return new OrcDoubleColumnVector((DoubleColumnVector) vector);
+			return new OrcNoHiveDoubleVector((DoubleColumnVector) vector);
 		} else if (vector instanceof BytesColumnVector) {
-			return new OrcBytesColumnVector((BytesColumnVector) vector);
+			return new OrcNoHiveBytesVector((BytesColumnVector) vector);
 		} else if (vector instanceof DecimalColumnVector) {
-			return new OrcDecimalColumnVector((DecimalColumnVector) vector);
+			return new OrcNoHiveDecimalVector((DecimalColumnVector) vector);
 		} else if (vector instanceof TimestampColumnVector) {
-			return new OrcTimestampColumnVector((TimestampColumnVector) vector);
+			return new OrcNoHiveTimestampVector((TimestampColumnVector) vector);
 		} else {
 			throw new UnsupportedOperationException("Unsupport vector: " + vector.getClass().getName());
 		}
@@ -188,7 +188,7 @@ public abstract class AbstractOrcColumnVector implements
 			lcv.isRepeating = true;
 		} else {
 			Timestamp timestamp = value instanceof LocalDateTime ?
-				Timestamp.valueOf((LocalDateTime) value) : (Timestamp) value;
+					Timestamp.valueOf((LocalDateTime) value) : (Timestamp) value;
 			lcv.fill(timestamp);
 			lcv.isNull[0] = false;
 		}
