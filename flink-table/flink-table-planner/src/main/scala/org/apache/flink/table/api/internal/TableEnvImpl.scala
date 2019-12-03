@@ -526,15 +526,11 @@ abstract class TableEnvImpl(
           case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
           case ex: Exception => throw new TableException(exMsg, ex)
         }
-      case useOperation: UseOperation => {
-        useOperation match {
-          case useCatalogOperation: UseCatalogOperation =>
-            catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
-          case useDatabaseOperation: UseDatabaseOperation =>
-            catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
-            catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
-        }
-      }
+      case useCatalogOperation: UseCatalogOperation =>
+        catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
+      case useDatabaseOperation: UseDatabaseOperation =>
+        catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
+        catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
     }
   }

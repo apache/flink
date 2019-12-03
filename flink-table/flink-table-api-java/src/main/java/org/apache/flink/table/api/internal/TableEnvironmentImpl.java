@@ -63,7 +63,6 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
-import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -526,15 +525,13 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			} catch (Exception e) {
 				throw new TableException(exMsg, e);
 			}
-		} else if (operation instanceof UseOperation) {
-			if (operation instanceof UseCatalogOperation) {
-				UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
-				catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
-			} else if (operation instanceof UseDatabaseOperation) {
-				UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
-				catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
-				catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
-			}
+		} else if (operation instanceof UseCatalogOperation) {
+			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
+			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
+		} else if (operation instanceof UseDatabaseOperation) {
+			UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
+			catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
+			catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
 		}
