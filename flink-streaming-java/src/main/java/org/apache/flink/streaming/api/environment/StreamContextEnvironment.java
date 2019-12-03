@@ -19,11 +19,10 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
@@ -35,10 +34,14 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private final ContextEnvironment ctx;
 
-	protected StreamContextEnvironment(ContextEnvironment ctx) {
+	StreamContextEnvironment(final ContextEnvironment ctx) {
+		super(checkNotNull(ctx).getExecutorServiceLoader(), ctx.getConfiguration(), ctx.getUserCodeClassLoader());
+
 		this.ctx = ctx;
-		if (ctx.getParallelism() > 0) {
-			setParallelism(ctx.getParallelism());
+
+		final int parallelism = ctx.getParallelism();
+		if (parallelism > 0) {
+			setParallelism(parallelism);
 		}
 	}
 
@@ -46,26 +49,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		transformations.clear();
 
-		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
-				streamGraph,
-				ctx.getClient().getFlinkConfiguration(),
-				getParallelism());
-
-		jobGraph.addJars(ctx.getJars());
-		jobGraph.setClasspaths(ctx.getClasspaths());
-
-		// running from the CLI will override the savepoint restore settings
-		jobGraph.setSavepointRestoreSettings(ctx.getSavepointRestoreSettings());
-
-		JobExecutionResult jobExecutionResult;
-		if (ctx.isDetached()) {
-			jobExecutionResult = ClientUtils.submitJob(ctx.getClient(), jobGraph);
-		} else {
-			jobExecutionResult = ClientUtils.submitJobAndWaitForResult(ctx.getClient(), jobGraph, ctx.getUserCodeClassLoader());
-		}
-
+		final JobExecutionResult jobExecutionResult = super.execute(streamGraph);
 		ctx.setJobExecutionResult(jobExecutionResult);
-
 		return jobExecutionResult;
 	}
 }

@@ -48,15 +48,22 @@ import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.ReadableConfigToConfigurationAdapter;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -78,9 +85,11 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -91,6 +100,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -154,6 +165,8 @@ public class StreamExecutionEnvironment {
 
 	private final Configuration configuration;
 
+	private final ClassLoader userClassloader;
+
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
@@ -162,13 +175,17 @@ public class StreamExecutionEnvironment {
 		this(new Configuration());
 	}
 
-	public StreamExecutionEnvironment(final Configuration executorConfiguration) {
-		this(new DefaultExecutorServiceLoader(), executorConfiguration);
+	public StreamExecutionEnvironment(final Configuration configuration) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
 	}
 
-	public StreamExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration executorConfiguration) {
+	public StreamExecutionEnvironment(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
-		this.configuration = checkNotNull(executorConfiguration);
+		this.configuration = checkNotNull(configuration);
+		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
 	}
 
 	protected Configuration getConfiguration() {
@@ -682,6 +699,66 @@ public class StreamExecutionEnvironment {
 	@PublicEvolving
 	public TimeCharacteristic getStreamTimeCharacteristic() {
 		return timeCharacteristic;
+	}
+
+	/**
+	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * {@link StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure
+	 * {@link StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
+	 *
+	 * <p>It will change the value of a setting only if a corresponding option was set in the
+	 * {@code configuration}. If a key is not present, the current value of a field will remain
+	 * untouched.
+	 *
+	 * @param configuration a configuration to read the values from
+	 * @param classLoader a class loader to use when loading classes
+	 */
+	@PublicEvolving
+	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+		configuration.getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
+			.ifPresent(this::setStreamTimeCharacteristic);
+		Optional.ofNullable(loadStateBackend(configuration, classLoader))
+			.ifPresent(this::setStateBackend);
+		configuration.getOptional(PipelineOptions.OPERATOR_CHAINING)
+			.ifPresent(c -> this.isChainingEnabled = c);
+		configuration.getOptional(ExecutionOptions.BUFFER_TIMEOUT)
+			.ifPresent(t -> this.setBufferTimeout(t.toMillis()));
+		configuration.getOptional(PipelineOptions.CACHED_FILES)
+			.ifPresent(f -> {
+				this.cacheFile.clear();
+				parseCachedFiles(f).forEach(t -> registerCachedFile(t.f1, t.f0, t.f2));
+			});
+		config.configure(configuration, classLoader);
+		checkpointCfg.configure(configuration);
+	}
+
+	private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {
+		try {
+			return StateBackendLoader.loadStateBackendFromConfig(
+				new ReadableConfigToConfigurationAdapter(configuration),
+				classLoader,
+				null);
+		} catch (DynamicCodeLoadingException | IOException e) {
+			throw new WrappingRuntimeException(e);
+		}
+	}
+
+	private List<Tuple3<String, String, Boolean>> parseCachedFiles(List<String> s) {
+		return s.stream()
+			.map(v -> Arrays.stream(v.split(","))
+				.map(p -> p.split(":"))
+				.collect(
+					Collectors.toMap(
+						arr -> arr[0], // key name
+						arr -> arr[1] // value
+					)
+				)
+			)
+			.map(m -> Tuple3.of(
+				m.get("name"),
+				m.get("path"),
+				Optional.ofNullable(m.get("executable")).map(Boolean::parseBoolean).orElse(false)))
+			.collect(Collectors.toList());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1552,19 +1629,19 @@ public class StreamExecutionEnvironment {
 				executorServiceLoader.getExecutorFactory(configuration);
 
 		final Executor executor = executorFactory.getExecutor(configuration);
-		return executor.execute(streamGraph, configuration);
+
+		try (final JobClient jobClient = executor.execute(streamGraph, configuration).get()) {
+
+			return configuration.getBoolean(DeploymentOptions.ATTACHED)
+					? jobClient.getJobExecutionResult(userClassloader).get()
+					: new DetachedJobExecutionResult(jobClient.getJobID());
+		}
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
-		final int execParallelism = getParallelism();
-		if (execParallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
-			return;
+		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
 		}
-
-		// if parallelism is set in the ExecutorConfig, then
-		// that value takes precedence over any other value.
-
-		configuration.set(CoreOptions.DEFAULT_PARALLELISM, execParallelism);
 	}
 
 	/**

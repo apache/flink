@@ -192,10 +192,12 @@ The configuration keys in this section are independent of the used resource mana
 ### Pipeline
 
 {% include generated/pipeline_configuration.html %}
+{% include generated/stream_pipeline_configuration.html %}
 
 ### Checkpointing
 
 {% include generated/checkpointing_configuration.html %}
+{% include generated/execution_checkpointing_configuration.html %}
 
 ### RocksDB State Backend
 

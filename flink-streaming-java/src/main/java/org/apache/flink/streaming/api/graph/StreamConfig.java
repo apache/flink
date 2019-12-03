@@ -45,6 +45,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Internal configuration for a {@link StreamOperator}. This is created and populated by the
  * {@link StreamingJobGraphGenerator}.
@@ -133,6 +135,10 @@ public class StreamConfig implements Serializable {
 	}
 
 	public void setManagedMemoryFractionOnHeap(double managedMemFractionOnHeap) {
+		checkArgument(
+			managedMemFractionOnHeap >= 0.0 && managedMemFractionOnHeap <= 1.0,
+			String.format("managedMemFractionOnHeap should be in range [0.0, 1.0], but was: %s", managedMemFractionOnHeap));
+
 		config.setDouble(MANAGED_MEMORY_FRACTION_ON_HEAP, managedMemFractionOnHeap);
 	}
 
@@ -141,6 +147,10 @@ public class StreamConfig implements Serializable {
 	}
 
 	public void setManagedMemoryFractionOffHeap(double managedMemFractionOffHeap) {
+		checkArgument(
+			managedMemFractionOffHeap >= 0.0 && managedMemFractionOffHeap <= 1.0,
+			String.format("managedMemFractionOffHeap should be in range [0.0, 1.0], but was: %s", managedMemFractionOffHeap));
+
 		config.setDouble(MANAGED_MEMORY_FRACTION_OFF_HEAP, managedMemFractionOffHeap);
 	}
 

@@ -102,7 +102,7 @@ class BatchExecWindowAggregateRule
       aggCallsWithoutAuxGroupCalls, input.getRowType)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
 
     window match {
       case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
@@ -163,7 +163,7 @@ class BatchExecWindowAggregateRule
     // local-agg output order: groupset | assignTs | aucGroupSet | aggCalls
     val newInputTimeFieldIndexFromLocal = groupSet.length
 
-    val config = input.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val config = input.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     if (!isEnforceOnePhaseAgg(config) && supportLocalAgg) {
       val windowType = if (inputTimeIsDate) new IntType() else new BigIntType()
       // local

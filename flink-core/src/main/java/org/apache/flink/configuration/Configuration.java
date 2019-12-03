@@ -928,7 +928,12 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return (E) o;
 		}
 
-		return Enum.valueOf(clazz, o.toString().toUpperCase(Locale.ROOT));
+		return Arrays.stream(clazz.getEnumConstants())
+			.filter(e -> e.toString().toUpperCase(Locale.ROOT).equals(o.toString().toUpperCase(Locale.ROOT)))
+			.findAny()
+			.orElseThrow(() -> new IllegalArgumentException(
+				String.format("Could not parse value for enum %s. Expected one of: [%s]", clazz,
+					Arrays.toString(clazz.getEnumConstants()))));
 	}
 
 	private Duration convertToDuration(Object o) {

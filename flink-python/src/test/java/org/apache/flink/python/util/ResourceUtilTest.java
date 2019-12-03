@@ -36,7 +36,7 @@ import static org.junit.Assert.assertTrue;
 public class ResourceUtilTest {
 
 	@Test
-	public void testExtractBasicDependenciesFromResource() throws IOException {
+	public void testExtractBasicDependenciesFromResource() throws IOException, InterruptedException {
 		File tmpdir = File.createTempFile(UUID.randomUUID().toString(), null);
 		tmpdir.delete();
 		tmpdir.mkdirs();
@@ -49,11 +49,9 @@ public class ResourceUtilTest {
 		});
 		Runtime.getRuntime().addShutdownHook(hook);
 		try {
-			ClassLoader classLoader = ResourceUtil.class.getClassLoader();
 			String prefix = "tmp_";
 			List<File> files = ResourceUtil.extractBasicDependenciesFromResource(
 				tmpdir.getAbsolutePath(),
-				classLoader,
 				prefix,
 				true);
 			files.forEach(file -> assertTrue(file.exists()));
@@ -64,7 +62,6 @@ public class ResourceUtilTest {
 			files.forEach(File::delete);
 			files = ResourceUtil.extractBasicDependenciesFromResource(
 				tmpdir.getAbsolutePath(),
-				classLoader,
 				prefix,
 				false);
 			files.forEach(file -> assertTrue(file.exists()));

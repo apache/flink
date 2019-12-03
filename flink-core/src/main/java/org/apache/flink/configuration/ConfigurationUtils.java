@@ -170,7 +170,7 @@ public class ConfigurationUtils {
 	}
 
 	@Nonnull
-	private static String[] splitPaths(@Nonnull String separatedPaths) {
+	public static String[] splitPaths(@Nonnull String separatedPaths) {
 		return separatedPaths.length() > 0 ? separatedPaths.split(",|" + File.pathSeparator) : EMPTY;
 	}
 

@@ -177,16 +177,16 @@ In contrast to that, the task managers will be run as Mesos tasks in the Mesos c
 
 ### Flink job cluster on Mesos
 
-A Flink job cluster is a dedicated cluster which runs a single job. 
+A Flink job cluster is a dedicated cluster which runs a single job.
 There is no extra job submission needed.
 
-In the `/bin` directory of the Flink distribution, you find one startup script 
+In the `/bin` directory of the Flink distribution, you find one startup script
 which manage the Flink processes in a Mesos cluster:
 
 1. `mesos-appmaster-job.sh`
-   This starts the Mesos application master which will register the Mesos scheduler, retrieve the job graph and then launch the task managers accordingly. 
+   This starts the Mesos application master which will register the Mesos scheduler, retrieve the job graph and then launch the task managers accordingly.
 
-In order to run the `mesos-appmaster-job.sh` script you have to define `mesos.master` and `internal.jobgraph-path` in the `flink-conf.yaml` 
+In order to run the `mesos-appmaster-job.sh` script you have to define `mesos.master` and `internal.jobgraph-path` in the `flink-conf.yaml`
 or pass it via `-Dmesos.master=... -Dinterval.jobgraph-path=...` to the Java process.
 
 The job graph file may be generated like this way:
@@ -201,8 +201,11 @@ try (FileOutputStream output = new FileOutputStream(jobGraphFile);
 }
 {% endhighlight %}
 
-Note: 
-1. Make sure that all Mesos processes have the user code jar on the classpath (e.g. putting them in the lib directory)
+<span class="label label-info">Note</span> Make sure that all Mesos processes have the user code jar on the classpath. There are two ways:
+
+1. One way is putting them in the `lib/` directory, which will result in the user code jar being loaded by the system classloader.
+1. The other way is creating a `usrlib/` directory in the parent directory of `lib/` and putting the user code jar in the `usrlib/` directory.
+After launching a job cluster via `bin/mesos-appmaster-job.sh ...`, the user code jar will be loaded by the user code classloader.
 
 #### General configuration
 

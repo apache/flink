@@ -21,6 +21,9 @@ package org.apache.flink.table.runtime.operators.python;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -74,6 +77,13 @@ public class BaseRowPythonScalarFunctionOperatorTest
 	@Override
 	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
 		assertor.assertOutputEquals(message, expected, actual);
+	}
+
+	@Override
+	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
+		return StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build());
 	}
 
 	private static class PassThroughPythonScalarFunctionOperator extends BaseRowPythonScalarFunctionOperator {

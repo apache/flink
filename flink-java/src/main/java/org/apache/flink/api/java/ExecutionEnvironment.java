@@ -54,9 +54,11 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
@@ -132,6 +134,8 @@ public class ExecutionEnvironment {
 
 	private final Configuration configuration;
 
+	private final ClassLoader userClassloader;
+
 	/**
 	 * Creates a new Execution Environment.
 	 */
@@ -139,16 +143,31 @@ public class ExecutionEnvironment {
 		this(new Configuration());
 	}
 
-	protected ExecutionEnvironment(final Configuration executorConfiguration) {
-		this(new DefaultExecutorServiceLoader(), executorConfiguration);
+	protected ExecutionEnvironment(final Configuration configuration) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
 	}
 
-	protected ExecutionEnvironment(final ExecutorServiceLoader executorServiceLoader, final Configuration executorConfiguration) {
+	protected ExecutionEnvironment(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
-		this.configuration = checkNotNull(executorConfiguration);
+		this.configuration = checkNotNull(configuration);
+		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
 	}
 
-	protected Configuration getConfiguration() {
+	@Internal
+	public ClassLoader getUserCodeClassLoader() {
+		return userClassloader;
+	}
+
+	@Internal
+	public ExecutorServiceLoader getExecutorServiceLoader() {
+		return executorServiceLoader;
+	}
+
+	@Internal
+	public Configuration getConfiguration() {
 		return this.configuration;
 	}
 
@@ -796,20 +815,21 @@ public class ExecutionEnvironment {
 				executorServiceLoader.getExecutorFactory(configuration);
 
 		final Executor executor = executorFactory.getExecutor(configuration);
-		lastJobExecutionResult = executor.execute(plan, configuration);
-		return lastJobExecutionResult;
+
+		try (final JobClient jobClient = executor.execute(plan, configuration).get()) {
+
+			lastJobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
+					? jobClient.getJobExecutionResult(userClassloader).get()
+					: new DetachedJobExecutionResult(jobClient.getJobID());
+
+			return lastJobExecutionResult;
+		}
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
-		final int execParallelism = getParallelism();
-		if (execParallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
-			return;
+		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
 		}
-
-		// if parallelism is set in the ExecutorConfig, then
-		// that value takes precedence over any other value.
-
-		configuration.set(CoreOptions.DEFAULT_PARALLELISM, execParallelism);
 	}
 
 	/**

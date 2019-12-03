@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
@@ -91,15 +91,15 @@ public class LogicalTypeCastsTest {
 				{new DecimalType(3, 2), new VarCharType(Integer.MAX_VALUE), false, true},
 
 				{
-					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
-					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
 					true,
 					true
 				},
 
 				{
-					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
-					new TypeInformationAnyType<>(Types.GENERIC(Object.class)),
+					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationRawType<>(Types.GENERIC(Object.class)),
 					false,
 					false
 				},

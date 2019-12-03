@@ -44,7 +44,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -65,7 +65,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Tests the availability of accumulator results during runtime.
  */
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class AccumulatorLiveITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
@@ -169,7 +169,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 				deadline,
 				accumulators -> accumulators.size() == 1
 					&& accumulators.containsKey(ACCUMULATOR_NAME)
-					&& (int) accumulators.get(ACCUMULATOR_NAME).getUnchecked() == NUM_ITERATIONS,
+					&& (int) accumulators.get(ACCUMULATOR_NAME) == NUM_ITERATIONS,
 				TestingUtils.defaultScheduledExecutor()
 			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 

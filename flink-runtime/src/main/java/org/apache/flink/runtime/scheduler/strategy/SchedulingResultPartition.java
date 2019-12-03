@@ -42,29 +42,4 @@ public interface SchedulingResultPartition<V extends SchedulingExecutionVertex<V
 	 * @return result partition state
 	 */
 	ResultPartitionState getState();
-
-	/**
-	 * State of the result partition.
-	 */
-	enum ResultPartitionState {
-		/**
-		 * Producer is not yet running or in abnormal state.
-		 */
-		EMPTY,
-
-		/**
-		 * Producer is running.
-		 */
-		PRODUCING,
-
-		/**
-		 * Producer has terminated.
-		 */
-		DONE,
-
-		/**
-		 * Partition has been released.
-		 */
-		RELEASED
-	}
 }

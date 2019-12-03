@@ -24,7 +24,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -242,7 +244,26 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		assertEquals(5, testingSlotProvider.getNumberOfLocalizedAssignments());
 	}
 
+	@Test
+	public void testNewPhysicalSlotAllocation() {
+		final ResourceProfile taskResourceProfile = ResourceProfile.fromResources(0.5, 250);
+		final ResourceProfile physicalSlotResourceProfile = ResourceProfile.fromResources(1.0, 300);
+
+		testingSlotProvider.allocateSlot(
+			new SlotRequestId(),
+			new ScheduledUnit(new JobVertexID(), null, null),
+			SlotProfile.priorAllocation(
+				taskResourceProfile,
+				physicalSlotResourceProfile,
+				Collections.emptyList(),
+				Collections.emptyList(),
+				Collections.emptySet()),
+			TestingUtils.infiniteTime());
+
+		assertEquals(physicalSlotResourceProfile, testingSlotProvider.getSlotPool().getLastRequestedSlotResourceProfile());
+	}
+
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation... location) {
-		return new SlotProfile(ResourceProfile.UNKNOWN, Arrays.asList(location), Collections.emptySet());
+		return SlotProfile.preferredLocality(ResourceProfile.UNKNOWN, Arrays.asList(location));
 	}
 }

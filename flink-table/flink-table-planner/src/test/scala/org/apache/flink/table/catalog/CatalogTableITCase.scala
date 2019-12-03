@@ -534,6 +534,16 @@ class CatalogTableITCase(isStreaming: Boolean) {
     tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
   }
+
+  @Test
+  def testUseCatalog(): Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+    tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    assertEquals("cat1", tableEnv.getCurrentCatalog)
+    tableEnv.sqlUpdate("use catalog cat2")
+    assertEquals("cat2", tableEnv.getCurrentCatalog)
+  }
 }
 
 object CatalogTableITCase {

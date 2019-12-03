@@ -22,6 +22,8 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.metrics.MetricConfig;
 
+import org.influxdb.InfluxDB;
+
 /**
  * Config options for {@link InfluxdbReporter}.
  */
@@ -57,6 +59,12 @@ public class InfluxdbReporterOptions {
 		.defaultValue("")
 		.withDescription("(optional) the InfluxDB retention policy for metrics");
 
+	public static final ConfigOption<InfluxDB.ConsistencyLevel>  CONSISTENCY = ConfigOptions
+		.key("consistency")
+		.enumType(InfluxDB.ConsistencyLevel.class)
+		.defaultValue(InfluxDB.ConsistencyLevel.ONE)
+		.withDescription("(optional) the InfluxDB consistency level for metrics");
+
 	public static final ConfigOption<Integer> CONNECT_TIMEOUT = ConfigOptions
 		.key("connectTimeout")
 		.defaultValue(10000)
@@ -73,5 +81,9 @@ public class InfluxdbReporterOptions {
 
 	static int getInteger(MetricConfig config, ConfigOption<Integer> key) {
 		return config.getInteger(key.key(), key.defaultValue());
+	}
+
+	static InfluxDB.ConsistencyLevel getConsistencyLevel(MetricConfig config, ConfigOption<InfluxDB.ConsistencyLevel> key) {
+		return InfluxDB.ConsistencyLevel.valueOf(config.getProperty(key.key(), key.defaultValue().name()));
 	}
 }

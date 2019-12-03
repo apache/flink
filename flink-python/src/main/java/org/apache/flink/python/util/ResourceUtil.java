@@ -18,19 +18,16 @@
 
 package org.apache.flink.python.util;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utils for building the most basic environment for running python udf workers.
- * The basic environment does not include python part of Apache Beam.
- * Users need to prepare it themselves.
+ * Utils for building the most basic environment for running python udf workers. The basic environment does not include
+ * python part of Apache Beam. Users need to prepare it themselves.
  */
 public class ResourceUtil {
 
@@ -41,37 +38,59 @@ public class ResourceUtil {
 		"pyflink-udf-runner.sh"
 	};
 
-	public static final int BUFF_SIZE = 4096;
-
 	public static List<File> extractBasicDependenciesFromResource(
 			String tmpdir,
-			ClassLoader classLoader,
 			String prefix,
-			boolean skipShellScript) throws IOException {
+			boolean skipShellScript) throws IOException, InterruptedException {
 		List<File> extractedFiles = new ArrayList<>();
 		for (String fileName : PYTHON_BASIC_DEPENDENCIES) {
 			if (skipShellScript && fileName.endsWith(".sh")) {
 				continue;
 			}
+
 			File file = new File(tmpdir, prefix + fileName);
-
-			try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file));
-				InputStream in = classLoader.getResourceAsStream(fileName)) {
-				// This util will use in the extract program before launching pyflink shell,
-				// so it must do this itself to minimize the dependencies.
-				final byte[] buf = new byte[BUFF_SIZE];
-				int bytesRead = in.read(buf);
-				while (bytesRead >= 0) {
-					out.write(buf, 0, bytesRead);
-					bytesRead = in.read(buf);
-				}
-			}
-
-			if (file.getName().endsWith(".sh")) {
-				file.setExecutable(true);
+			if (fileName.endsWith(".sh")) {
+				// TODO: This is a hacky solution to prevent subprocesses to hold the file descriptor of shell scripts,
+				// which will cause the execution of shell scripts failed with the exception "test file is busy"
+				// randomly. It's a bug of JDK, see https://bugs.openjdk.java.net/browse/JDK-8068370. After moving flink
+				// python jar to lib directory, we can solve this problem elegantly by extracting these files only once.
+				String javaExecutable = String.join(File.separator, System.getProperty("java.home"), "bin", "java");
+				String classPath = new File(
+					ResourceUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getAbsolutePath();
+				new ProcessBuilder(
+					javaExecutable,
+					"-cp",
+					classPath,
+					ResourceUtil.class.getName(),
+					tmpdir,
+					prefix,
+					fileName).inheritIO().start().waitFor();
+			} else {
+				Files.copy(
+					ResourceUtil.class.getClassLoader().getResourceAsStream(fileName),
+					Paths.get(file.getAbsolutePath()));
 			}
 			extractedFiles.add(file);
 		}
 		return extractedFiles;
+	}
+
+	/**
+	 * This main method is used to create the shell script in a subprocess, see the "TODO" hints in method
+	 * {@link ResourceUtil#extractBasicDependenciesFromResource}.
+	 * @param args First argument is the directory where shell script will be created. Second argument is the prefix of
+	 *             the shell script. Third argument is the fileName of the shell script.
+	 * @throws IOException
+	 */
+	public static void main(String[] args) throws IOException {
+		String tmpdir = args[0];
+		String prefix = args[1];
+		String fileName = args[2];
+		File file = new File(tmpdir, prefix + fileName);
+
+		Files.copy(
+			ResourceUtil.class.getClassLoader().getResourceAsStream(fileName), Paths.get(file.getAbsolutePath()));
+
+		file.setExecutable(true);
 	}
 }

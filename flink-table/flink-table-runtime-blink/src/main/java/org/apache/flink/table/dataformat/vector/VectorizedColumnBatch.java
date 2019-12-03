@@ -120,18 +120,7 @@ public class VectorizedColumnBatch implements Serializable {
 	}
 
 	public Decimal getDecimal(int rowId, int colId, int precision, int scale) {
-		if (isNullAt(rowId, colId)) {
-			return null;
-		}
-
-		if (Decimal.is32BitDecimal(precision)) {
-			return Decimal.fromUnscaledLong(precision, scale, getInt(rowId, colId));
-		} else if (Decimal.is64BitDecimal(precision)) {
-			return Decimal.fromUnscaledLong(precision, scale, getLong(rowId, colId));
-		} else {
-			byte[] bytes = getBytes(rowId, colId);
-			return Decimal.fromUnscaledBytes(precision, scale, bytes);
-		}
+		return ((DecimalColumnVector) (columns[colId])).getDecimal(rowId, precision, scale);
 	}
 
 	public SqlTimestamp getTimestamp(int rowId, int colId, int precision) {

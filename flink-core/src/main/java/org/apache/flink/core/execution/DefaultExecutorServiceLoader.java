@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.execution;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.Logger;
@@ -35,6 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The default implementation of the {@link ExecutorServiceLoader}. This implementation uses
  * Java service discovery to find the available {@link ExecutorFactory executor factories}.
  */
+@Internal
 public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 
 	// TODO: This code is almost identical to the ClusterClientServiceLoader and its default implementation.
@@ -44,6 +46,8 @@ public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutorServiceLoader.class);
 
 	private static final ServiceLoader<ExecutorFactory> defaultLoader = ServiceLoader.load(ExecutorFactory.class);
+
+	public static final DefaultExecutorServiceLoader INSTANCE = new DefaultExecutorServiceLoader();
 
 	@Override
 	public ExecutorFactory getExecutorFactory(final Configuration configuration) {
@@ -67,14 +71,18 @@ public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 		}
 
 		if (compatibleFactories.size() > 1) {
-			final List<String> configStr =
+			final String configStr =
 					configuration.toMap().entrySet().stream()
 							.map(e -> e.getKey() + "=" + e.getValue())
-							.collect(Collectors.toList());
+							.collect(Collectors.joining("\n"));
 
-			throw new IllegalStateException("Multiple compatible client factories found for:\n" + String.join("\n", configStr) + ".");
+			throw new IllegalStateException("Multiple compatible client factories found for:\n" + configStr + ".");
 		}
 
 		return compatibleFactories.isEmpty() ? null : compatibleFactories.get(0);
+	}
+
+	private DefaultExecutorServiceLoader() {
+		// make sure nobody instantiates us explicitly.
 	}
 }

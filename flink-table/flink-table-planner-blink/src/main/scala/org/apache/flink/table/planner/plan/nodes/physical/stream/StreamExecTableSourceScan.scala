@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
@@ -43,6 +43,7 @@ import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, P
 import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
 import org.apache.flink.types.Row
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -62,8 +63,8 @@ import scala.collection.JavaConversions._
 class StreamExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkRelOptTable)
-  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
+    tableSourceTable: TableSourceTable[_])
+  extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
@@ -78,7 +79,7 @@ class StreamExecTableSourceScan(
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecTableSourceScan(cluster, traitSet, relOptTable)
+    new StreamExecTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -106,8 +107,8 @@ class StreamExecTableSourceScan(
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      isStreamTable = true,
-      tableSourceTable.selectedFields)
+      tableSourceTable.getRowType,
+      tableSourceTable.isStreamingMode)
 
     val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
@@ -123,7 +124,7 @@ class StreamExecTableSourceScan(
     // get expression to extract rowtime attribute
     val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
       tableSource,
-      tableSourceTable.selectedFields,
+      tableSourceTable.getRowType,
       cluster,
       planner.getRelBuilder
     )
@@ -158,7 +159,7 @@ class StreamExecTableSourceScan(
 
     val withWatermarks = if (tableSourceTable.watermarkSpec.isDefined) {
       // generate watermarks for rowtime indicator from WatermarkSpec
-      val rowType = tableSourceTable.getRowType(planner.getTypeFactory)
+      val rowType = tableSourceTable.getRowType
       val converter = planner.createFlinkPlanner.createSqlExprToRexConverter(rowType)
       applyWatermarkByWatermarkSpec(
         config,
@@ -168,7 +169,7 @@ class StreamExecTableSourceScan(
         converter)
     } else {
       val rowtimeDesc: Option[RowtimeAttributeDescriptor] =
-        TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, tableSourceTable.selectedFields)
+        TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, tableSourceTable.getRowType)
 
       // generate watermarks for rowtime indicator from DefinedRowtimeAttributes
       if (rowtimeDesc.isDefined) {
@@ -243,8 +244,8 @@ class StreamExecTableSourceScan(
   private def needInternalConversion: Boolean = {
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      isStreamTable = true,
-      tableSourceTable.selectedFields)
+      tableSourceTable.getRowType,
+      tableSourceTable.isStreamingMode)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)
   }
@@ -273,7 +274,7 @@ private class PeriodicWatermarkAssignerWrapper(
   override def getCurrentWatermark: Watermark = assigner.getWatermark
 
   override def extractTimestamp(row: BaseRow, previousElementTimestamp: Long): Long = {
-    val timestamp: Long = row.getLong(timeFieldIdx)
+    val timestamp: Long = row.getTimestamp(timeFieldIdx, 3).getMillisecond
     assigner.nextTimestamp(timestamp)
     0L
   }

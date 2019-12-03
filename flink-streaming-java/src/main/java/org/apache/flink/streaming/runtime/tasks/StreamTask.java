@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -410,9 +409,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			operatorChain = new OperatorChain<>(this, recordWriter);
 			headOperator = operatorChain.getHeadOperator();
 
-			// check environment for selective reading
-			checkSelectiveReadingEnv();
-
 			// task specific initialization
 			init();
 
@@ -432,8 +428,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// so that we avoid race conditions in the case that initializeState()
 				// registers a timer, that fires before the open() is called.
 
-				initializeState();
-				openAllOperators();
+				initializeStateAndOpen();
 			}
 
 			// final check to exit early before starting to run
@@ -574,24 +569,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Execute {@link StreamOperator#open()} of each operator in the chain of this
-	 * {@link StreamTask}. Opening happens from <b>tail to head</b> operator in the chain, contrary
-	 * to {@link StreamOperator#close()} which happens <b>head to tail</b>
-	 * (see {@link #closeAllOperators()}.
-	 */
-	private void openAllOperators() throws Exception {
-		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-			if (operator != null) {
-				operator.open();
-			}
-		}
-	}
-
-	/**
 	 * Execute {@link StreamOperator#close()} of each operator in the chain of this
 	 * {@link StreamTask}. Closing happens from <b>head to tail</b> operator in the chain,
 	 * contrary to {@link StreamOperator#open()} which happens <b>tail to head</b>
-	 * (see {@link #openAllOperators()}.
+	 * (see {@link #initializeStateAndOpen()}).
 	 */
 	private void closeAllOperators() throws Exception {
 		// We need to close them first to last, since upstream operators in the chain might emit
@@ -675,19 +656,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	boolean isSerializingTimestamps() {
 		TimeCharacteristic tc = configuration.getTimeCharacteristic();
 		return tc == TimeCharacteristic.EventTime | tc == TimeCharacteristic.IngestionTime;
-	}
-
-	private void checkSelectiveReadingEnv() {
-		boolean isCreditBased = getEnvironment()
-			.getTaskManagerInfo()
-			.getConfiguration()
-			.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL);
-
-		if (!isCreditBased && operatorChain.hasSelectiveReadingOperator()) {
-			throw new UnsupportedOperationException(
-				"The operator that implements the InputSelectable interface is not supported in the non-credited" +
-					" network mode. (please set 'taskmanager.network.credit-model' to 'true')");
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -968,13 +936,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		checkpointingOperation.executeCheckpointing();
 	}
 
-	private void initializeState() throws Exception {
+	/**
+	 * Execute {@link StreamOperator#initializeState()} followed by {@link StreamOperator#open()} of each operator in
+	 * the chain of this {@link StreamTask}. State initialization and opening happens from <b>tail to head</b> operator
+	 * in the chain, contrary to {@link StreamOperator#close()} which happens <b>head to tail</b>
+	 * (see {@link #closeAllOperators()}.
+	 */
+	private void initializeStateAndOpen() throws Exception {
 
 		StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
 
 		for (StreamOperator<?> operator : allOperators) {
 			if (null != operator) {
 				operator.initializeState();
+				operator.open();
 			}
 		}
 	}

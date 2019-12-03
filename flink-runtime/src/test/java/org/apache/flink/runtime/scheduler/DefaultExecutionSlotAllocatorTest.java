@@ -118,21 +118,23 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 		final AllocationID allocationId = new AllocationID();
 		final SlotSharingGroupId sharingGroupId = new SlotSharingGroupId();
-		final ResourceProfile resourceProfile = new ResourceProfile(0.5, 250);
+		final ResourceProfile taskResourceProfile = ResourceProfile.fromResources(0.5, 250);
+		final ResourceProfile physicalSlotResourceProfile = ResourceProfile.fromResources(1.0, 300);
 		final CoLocationConstraint coLocationConstraint = new CoLocationGroup().getLocationConstraint(0);
 		final Collection<TaskManagerLocation> taskManagerLocations = Collections.singleton(new LocalTaskManagerLocation());
 
 		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
 
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements = Arrays.asList(
-				new ExecutionVertexSchedulingRequirements.Builder()
-						.withExecutionVertexId(executionVertexId)
-						.withPreviousAllocationId(allocationId)
-						.withSlotSharingGroupId(sharingGroupId)
-						.withPreferredLocations(taskManagerLocations)
-						.withResourceProfile(resourceProfile)
-						.withCoLocationConstraint(coLocationConstraint)
-						.build()
+			new ExecutionVertexSchedulingRequirements.Builder()
+				.withExecutionVertexId(executionVertexId)
+				.withPreviousAllocationId(allocationId)
+				.withSlotSharingGroupId(sharingGroupId)
+				.withPreferredLocations(taskManagerLocations)
+				.withPhysicalSlotResourceProfile(physicalSlotResourceProfile)
+				.withTaskResourceProfile(taskResourceProfile)
+				.withCoLocationConstraint(coLocationConstraint)
+				.build()
 		);
 
 		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
@@ -145,7 +147,8 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		assertEquals(coLocationConstraint, expectedTask.getCoLocationConstraint());
 		assertThat(expectedSlotProfile.getPreferredAllocations(), contains(allocationId));
 		assertThat(expectedSlotProfile.getPreviousExecutionGraphAllocations(), contains(allocationId));
-		assertEquals(resourceProfile, expectedSlotProfile.getResourceProfile());
+		assertEquals(taskResourceProfile, expectedSlotProfile.getTaskResourceProfile());
+		assertEquals(physicalSlotResourceProfile, expectedSlotProfile.getPhysicalSlotResourceProfile());
 		assertThat(expectedSlotProfile.getPreferredLocations(), contains(taskManagerLocations.toArray()));
 	}
 

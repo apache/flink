@@ -47,6 +47,7 @@ import org.apache.flink.queryablestate.network.Client;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -120,8 +121,8 @@ public class QueryableStateClient {
 	 * @param remotePort the port of the proxy to connect to.
 	 */
 	public QueryableStateClient(final InetAddress remoteAddress, final int remotePort) {
-		Preconditions.checkArgument(remotePort >= 0 && remotePort <= 65536,
-				"Remote Port " + remotePort + " is out of valid port range (0-65536).");
+		Preconditions.checkArgument(NetUtils.isValidHostPort(remotePort),
+				"Remote Port " + remotePort + " is out of valid port range [0-65535].");
 
 		this.remoteAddress = new InetSocketAddress(remoteAddress, remotePort);
 

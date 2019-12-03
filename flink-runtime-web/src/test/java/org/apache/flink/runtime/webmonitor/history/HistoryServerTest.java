@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.history.FsJobArchivist;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
@@ -31,7 +31,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
@@ -67,7 +67,7 @@ import java.util.concurrent.TimeUnit;
  * Tests for the HistoryServer.
  */
 @RunWith(Parameterized.class)
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class HistoryServerTest extends TestLogger {
 
 	private static final JsonFactory JACKSON_FACTORY = new JsonFactory()

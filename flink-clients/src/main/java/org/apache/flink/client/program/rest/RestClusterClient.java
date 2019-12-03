@@ -20,7 +20,7 @@ package org.apache.flink.client.program.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
@@ -37,7 +37,6 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -89,7 +88,6 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
@@ -119,6 +117,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -149,6 +148,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	private final LeaderRetrievalService webMonitorRetrievalService;
 
 	private final LeaderRetriever webMonitorLeaderRetriever = new LeaderRetriever();
+
+	private final AtomicBoolean running = new AtomicBoolean(true);
 
 	/** ExecutorService to run operations that can be retried on exceptions. */
 	private ScheduledExecutorService retryExecutorService;
@@ -199,21 +200,23 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
 	@Override
 	public void close() {
-		ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
+		if (running.compareAndSet(true, false)) {
+			ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
 
-		this.restClient.shutdown(Time.seconds(5));
-		ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
+			this.restClient.shutdown(Time.seconds(5));
+			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
 
-		try {
-			webMonitorRetrievalService.stop();
-		} catch (Exception e) {
-			LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
-		}
+			try {
+				webMonitorRetrievalService.stop();
+			} catch (Exception e) {
+				LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
+			}
 
-		try {
-			clientHAServices.close();
-		} catch (Exception e) {
-			LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+			try {
+				clientHAServices.close();
+			} catch (Exception e) {
+				LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+			}
 		}
 	}
 
@@ -258,14 +261,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			});
 	}
 
-	/**
-	 * Submits the given {@link JobGraph} to the dispatcher.
-	 *
-	 * @param jobGraph to submit
-	 * @return Future which is completed with the submission response
-	 */
 	@Override
-	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
+	public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
 		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
 			try {
 				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
@@ -323,8 +320,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 		});
 
 		return submissionFuture
-			.thenApply(
-				(JobSubmitResponseBody jobSubmitResponseBody) -> new JobSubmissionResult(jobGraph.getJobID()))
+			.thenApply(ignore -> jobGraph.getJobID())
 			.exceptionally(
 				(Throwable throwable) -> {
 					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", ExceptionUtils.stripCompletionException(throwable)));
@@ -408,7 +404,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	}
 
 	@Override
-	public CompletableFuture<Map<String, OptionalFailure<Object>>> getAccumulators(JobID jobID, ClassLoader loader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators(JobID jobID, ClassLoader loader) {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
 		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
 		accMsgParams.jobPathParameter.resolve(jobID);
@@ -418,18 +414,15 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			accumulatorsHeaders,
 			accMsgParams);
 
-		return responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
-			try {
-				return AccumulatorHelper.deserializeAccumulators(
-					accumulatorsInfo.getSerializedUserAccumulators(),
-					loader);
-			} catch (Exception e) {
-				throw new CompletionException(
-					new FlinkException(
-						String.format("Deserialization of accumulators for job %s failed.", jobID),
-						e));
-			}
-		});
+		return responseFuture
+			.thenApply(JobAccumulatorsInfo::getSerializedUserAccumulators)
+			.thenApply(accumulators -> {
+				try {
+					return AccumulatorHelper.deserializeAndUnwrapAccumulators(accumulators, loader);
+				} catch (Exception e) {
+					throw new CompletionException("Cannot deserialize and unwrap accumulators properly.", e);
+				}
+			});
 	}
 
 	private CompletableFuture<SavepointInfo> pollSavepointAsync(

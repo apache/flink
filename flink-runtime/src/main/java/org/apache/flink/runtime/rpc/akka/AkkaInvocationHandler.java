@@ -267,7 +267,10 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 					args);
 
 				if (remoteRpcInvocation.getSize() > maximumFramesize) {
-					throw new IOException("The rpc invocation size exceeds the maximum akka framesize.");
+					throw new IOException(
+						String.format(
+							"The rpc invocation size %d exceeds the maximum akka framesize.",
+							remoteRpcInvocation.getSize()));
 				} else {
 					rpcInvocation = remoteRpcInvocation;
 				}

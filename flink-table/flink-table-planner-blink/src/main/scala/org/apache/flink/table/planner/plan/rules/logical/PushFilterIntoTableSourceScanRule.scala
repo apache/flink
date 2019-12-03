@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RexNodeExtractor}
 import org.apache.flink.table.sources.FilterableTableSource
@@ -48,7 +48,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
   "PushFilterIntoTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val config = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val config = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     if (!config.getConfiguration.getBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)) {
       return false
@@ -73,7 +73,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
-    val table: FlinkRelOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val table: TableSourceTable[_] = scan.getTable.asInstanceOf[TableSourceTable[_]]
     pushFilterIntoScan(call, filter, scan, table)
   }
 
@@ -81,10 +81,10 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       call: RelOptRuleCall,
       filter: Filter,
       scan: LogicalTableScan,
-      relOptTable: FlinkRelOptTable): Unit = {
+      relOptTable: FlinkPreparingTableBase): Unit = {
 
     val relBuilder = call.builder()
-    val context = call.getPlanner.getContext.asInstanceOf[FlinkContext]
+    val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
     val (predicates, unconvertedRexNodes) =
       RexNodeExtractor.extractConjunctiveConditions(
@@ -95,7 +95,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
         context.getFunctionCatalog,
         context.getCatalogManager,
         TimeZone.getTimeZone(scan.getCluster.getPlanner.getContext
-            .asInstanceOf[FlinkContext].getTableConfig.getLocalTimeZone))
+            .unwrap(classOf[FlinkContext]).getTableConfig.getLocalTimeZone))
 
     if (predicates.isEmpty) {
       // no condition can be translated to expression
@@ -105,7 +105,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
     val remainingPredicates = new util.LinkedList[Expression]()
     predicates.foreach(e => remainingPredicates.add(e))
 
-    val newRelOptTable: FlinkRelOptTable = 
+    val newRelOptTable: FlinkPreparingTableBase =
       applyPredicate(remainingPredicates, relOptTable, relBuilder.getTypeFactory)
     val newTableSource = newRelOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
     val oldTableSource = relOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
@@ -134,14 +134,14 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
   private def applyPredicate(
       predicates: util.List[Expression],
-      relOptTable: FlinkRelOptTable,
-      typeFactory: RelDataTypeFactory): FlinkRelOptTable = {
+      relOptTable: FlinkPreparingTableBase,
+      typeFactory: RelDataTypeFactory): FlinkPreparingTableBase = {
     val originPredicatesSize = predicates.size()
     val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
     val filterableSource = tableSourceTable.tableSource.asInstanceOf[FilterableTableSource[_]]
     val newTableSource = filterableSource.applyPredicate(predicates)
     val updatedPredicatesSize = predicates.size()
-    val statistic = tableSourceTable.statistic
+    val statistic = tableSourceTable.getStatistic
     val newStatistic = if (originPredicatesSize == updatedPredicatesSize) {
       // Keep all Statistics if no predicates can be pushed down
       statistic
@@ -151,12 +151,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       // Remove tableStats after predicates pushed down
       FlinkStatistic.builder().statistic(statistic).tableStats(null).build()
     }
-    val newTableSourceTable = new TableSourceTable(
-      newTableSource,
-      tableSourceTable.isStreamingMode,
-      newStatistic,
-      tableSourceTable.catalogTable)
-    relOptTable.copy(newTableSourceTable, tableSourceTable.getRowType(typeFactory))
+    tableSourceTable.copy(newTableSource, newStatistic)
   }
 
 }

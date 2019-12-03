@@ -20,6 +20,7 @@ package org.apache.flink.client.program.rest;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.DefaultCLI;
@@ -28,17 +29,16 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -131,6 +131,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -512,21 +513,15 @@ public class RestClusterClientTest extends TestLogger {
 		TestAccumulatorHandler accumulatorHandler = new TestAccumulatorHandler();
 
 		try (TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(accumulatorHandler)){
-			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			try {
+			try (RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
 				JobID id = new JobID();
+				Map<String, Object> accumulators = restClusterClient.getAccumulators(id).get();
+				assertNotNull(accumulators);
+				assertEquals(1, accumulators.size());
 
-				{
-					Map<String, OptionalFailure<Object>> accumulators = restClusterClient.getAccumulators(id).get();
-					assertNotNull(accumulators);
-					assertEquals(1, accumulators.size());
-
-					assertEquals(true, accumulators.containsKey("testKey"));
-					assertEquals("testValue", accumulators.get("testKey").get().toString());
-				}
-			} finally {
-				restClusterClient.close();
+				assertTrue(accumulators.containsKey("testKey"));
+				assertEquals("testValue", accumulators.get("testKey").toString());
 			}
 		}
 	}

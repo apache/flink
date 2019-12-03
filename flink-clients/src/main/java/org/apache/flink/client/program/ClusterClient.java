@@ -19,17 +19,14 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.OptionalFailure;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
@@ -44,7 +41,7 @@ import java.util.concurrent.CompletableFuture;
 public interface ClusterClient<T> extends AutoCloseable {
 
 	@Override
-	default void close() throws Exception {
+	default void close() {
 
 	}
 
@@ -65,9 +62,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	/**
 	 * Shut down the cluster that this client communicate with.
 	 */
-	default void shutDownCluster() {
-		throw new UnsupportedOperationException();
-	}
+	void shutDownCluster();
 
 	/**
 	 * Returns an URL (as a string) to the cluster web interface.
@@ -94,9 +89,9 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * Submit the given {@link JobGraph} to the cluster.
 	 *
 	 * @param jobGraph to submit
-	 * @return Future which is completed with the {@link JobSubmissionResult}
+	 * @return {@link JobID} of the submitted job
 	 */
-	CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph);
+	CompletableFuture<JobID> submitJob(JobGraph jobGraph);
 
 	/**
 	 * Requests the {@link JobStatus} of the job with the given {@link JobID}.
@@ -109,7 +104,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @param jobId for which to request the {@link JobResult}
 	 * @return Future which is completed with the {@link JobResult}
 	 */
-	CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId);
+	CompletableFuture<JobResult> requestJobResult(JobID jobId);
 
 	/**
 	 * Requests and returns the accumulators for the given job identifier. Accumulators can be
@@ -118,7 +113,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @param jobID The job identifier of a job.
 	 * @return A Map containing the accumulator's name and its value.
 	 */
-	default CompletableFuture<Map<String, OptionalFailure<Object>>> getAccumulators(JobID jobID) {
+	default CompletableFuture<Map<String, Object>> getAccumulators(JobID jobID) {
 		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
 	}
 
@@ -129,7 +124,7 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @param loader The class loader for deserializing the accumulator results.
 	 * @return A Map containing the accumulator's name and its value.
 	 */
-	CompletableFuture<Map<String, OptionalFailure<Object>>> getAccumulators(JobID jobID, ClassLoader loader);
+	CompletableFuture<Map<String, Object>> getAccumulators(JobID jobID, ClassLoader loader);
 
 	/**
 	 * Cancels a job identified by the job id.
@@ -167,7 +162,6 @@ public interface ClusterClient<T> extends AutoCloseable {
 	 * @param jobId job id
 	 * @param savepointDirectory directory the savepoint should be written to
 	 * @return path future where the savepoint is located
-	 * @throws FlinkException if no connection to the cluster could be established
 	 */
-	CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException;
+	CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory);
 }

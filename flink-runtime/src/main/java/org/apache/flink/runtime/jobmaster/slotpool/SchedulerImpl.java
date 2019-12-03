@@ -32,7 +32,6 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -162,25 +161,11 @@ public class SchedulerImpl implements Scheduler {
 
 		allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
 			if (failure != null) {
-				Optional<SharedSlotOversubscribedException> sharedSlotOverAllocatedException =
-						ExceptionUtils.findThrowable(failure, SharedSlotOversubscribedException.class);
-				if (sharedSlotOverAllocatedException.isPresent() &&
-						sharedSlotOverAllocatedException.get().canRetry()) {
-
-					// Retry the allocation
-					internalAllocateSlot(
-							allocationResultFuture,
-							slotRequestId,
-							scheduledUnit,
-							slotProfile,
-							allocationTimeout);
-				} else {
-					cancelSlotRequest(
-							slotRequestId,
-							scheduledUnit.getSlotSharingGroupId(),
-							failure);
-					allocationResultFuture.completeExceptionally(failure);
-				}
+				cancelSlotRequest(
+					slotRequestId,
+					scheduledUnit.getSlotSharingGroupId(),
+					failure);
+				allocationResultFuture.completeExceptionally(failure);
 			} else {
 				allocationResultFuture.complete(slot);
 			}
@@ -246,9 +231,9 @@ public class SchedulerImpl implements Scheduler {
 			SlotProfile slotProfile,
 			@Nullable Time allocationTimeout) {
 		if (allocationTimeout == null) {
-			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, slotProfile.getResourceProfile());
+			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile());
 		} else {
-			return slotPool.requestNewAllocatedSlot(slotRequestId, slotProfile.getResourceProfile(), allocationTimeout);
+			return slotPool.requestNewAllocatedSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile(), allocationTimeout);
 		}
 	}
 
@@ -338,7 +323,7 @@ public class SchedulerImpl implements Scheduler {
 
 		final SlotSharingManager.SingleTaskSlot leaf = multiTaskSlotLocality.getMultiTaskSlot().allocateSingleTaskSlot(
 			slotRequestId,
-			slotProfile.getResourceProfile(),
+			slotProfile.getTaskResourceProfile(),
 			scheduledUnit.getJobVertexId(),
 			multiTaskSlotLocality.getLocality());
 		return leaf.getLogicalSlotFuture();
@@ -372,7 +357,7 @@ public class SchedulerImpl implements Scheduler {
 
 				SlotSharingManager.MultiTaskSlot multiTaskSlot = (SlotSharingManager.MultiTaskSlot) taskSlot;
 
-				if (multiTaskSlot.mayHaveEnoughResourcesToFulfill(slotProfile.getResourceProfile())) {
+				if (multiTaskSlot.mayHaveEnoughResourcesToFulfill(slotProfile.getTaskResourceProfile())) {
 					return SlotSharingManager.MultiTaskSlotLocality.of(multiTaskSlot, Locality.LOCAL);
 				}
 
@@ -385,10 +370,12 @@ public class SchedulerImpl implements Scheduler {
 
 		if (coLocationConstraint.isAssigned()) {
 			// refine the preferred locations of the slot profile
-			slotProfile = new SlotProfile(
-				slotProfile.getResourceProfile(),
+			slotProfile = SlotProfile.priorAllocation(
+				slotProfile.getTaskResourceProfile(),
+				slotProfile.getPhysicalSlotResourceProfile(),
 				Collections.singleton(coLocationConstraint.getLocation()),
-				slotProfile.getPreferredAllocations());
+				slotProfile.getPreferredAllocations(),
+				slotProfile.getPreviousExecutionGraphAllocations());
 		}
 
 		// get a new multi task slot

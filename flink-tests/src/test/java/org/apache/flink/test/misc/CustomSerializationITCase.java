@@ -29,7 +29,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.TestLogger;
 
@@ -49,7 +49,7 @@ import static org.junit.Assert.fail;
  * and detected in the network stack.
  */
 @SuppressWarnings("serial")
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class CustomSerializationITCase extends TestLogger {
 
 	private static final int PARLLELISM = 5;

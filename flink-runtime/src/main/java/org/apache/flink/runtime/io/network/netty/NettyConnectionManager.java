@@ -43,8 +43,7 @@ public class NettyConnectionManager implements ConnectionManager {
 	public NettyConnectionManager(
 		ResultPartitionProvider partitionProvider,
 		TaskEventPublisher taskEventPublisher,
-		NettyConfig nettyConfig,
-		boolean isCreditBased) {
+		NettyConfig nettyConfig) {
 
 		this.server = new NettyServer(nettyConfig);
 		this.client = new NettyClient(nettyConfig);
@@ -52,7 +51,7 @@ public class NettyConnectionManager implements ConnectionManager {
 
 		this.partitionRequestClientFactory = new PartitionRequestClientFactory(client);
 
-		this.nettyProtocol = new NettyProtocol(checkNotNull(partitionProvider), checkNotNull(taskEventPublisher), isCreditBased);
+		this.nettyProtocol = new NettyProtocol(checkNotNull(partitionProvider), checkNotNull(taskEventPublisher));
 	}
 
 	@Override

@@ -20,7 +20,6 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -55,10 +54,16 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 	@Test
 	public void testRun() throws Exception {
 		final Configuration configuration = getConfiguration();
-		// test without parallelism
+
+		// test without parallelism, should use parallelism default
 		{
-			String[] parameters = {"-v", getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 1, false);
+			String[] parameters = {"-v",  getTestJarPath()};
+			verifyCliFrontend(getCli(configuration), parameters, 4, false);
+		}
+		//  test parallelism in detached mode, should use parallelism default
+		{
+			String[] parameters = {"-v", "-d", getTestJarPath()};
+			verifyCliFrontend(getCli(configuration), parameters, 4, true);
 		}
 
 		// test configure parallelism
@@ -198,7 +203,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		}
 
 		@Override
-		protected void executeProgram(Configuration configuration, PackagedProgram program, ClusterClient client) {
+		protected void executeProgram(Configuration configuration, PackagedProgram program) {
 			final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
 			assertEquals(isDetached, executionConfigAccessor.getDetachedMode());
 			assertEquals(expectedParallelism, executionConfigAccessor.getParallelism());

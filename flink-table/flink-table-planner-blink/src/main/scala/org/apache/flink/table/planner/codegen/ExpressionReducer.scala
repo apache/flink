@@ -23,19 +23,18 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.BinaryStringUtil.safeToString
-import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
+import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow, SqlTimestamp}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
-
 import java.io.File
 import java.util.TimeZone
 
@@ -167,6 +166,24 @@ class ExpressionReducer(
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
               reducedValue.asInstanceOf[Decimal].toBigDecimal
+            } else {
+              reducedValue
+            }
+            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+            reducedIdx += 1
+          case SqlTypeName.TIMESTAMP =>
+            val reducedValue = reduced.getField(reducedIdx)
+            val value = if (reducedValue != null) {
+              val dt = reducedValue.asInstanceOf[SqlTimestamp].toLocalDateTime
+              val timestampString =
+                new TimestampString(
+                  dt.getYear,
+                  dt.getMonthValue,
+                  dt.getDayOfMonth,
+                  dt.getHour,
+                  dt.getMinute,
+                  dt.getSecond)
+              timestampString.withNanos(dt.getNano)
             } else {
               reducedValue
             }

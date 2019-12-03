@@ -100,8 +100,9 @@ public class DependencyTest {
 			new DefaultClusterClientServiceLoader());
 
 		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
 
-		final TableSchema result = executor.getTableSchema(session, "TableNumber1");
+		final TableSchema result = executor.getTableSchema(sessionId, "TableNumber1");
 		final TableSchema expected = TableSchema.builder()
 			.field("IntegerField1", Types.INT())
 			.field("StringField1", Types.STRING())

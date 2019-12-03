@@ -32,7 +32,7 @@ import org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
@@ -50,7 +50,7 @@ import static org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismT
  * Tests for the lazy scheduling/updating of consumers depending on the
  * producers result.
  */
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 	private static final int NUMBER_OF_TMS = 2;
@@ -115,8 +115,7 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
-				sender.getID(), pipelinedReceiver.getID(), blockingReceiver.getID());
+		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
 		sender.setSlotSharingGroup(slotSharingGroup);
 		pipelinedReceiver.setSlotSharingGroup(slotSharingGroup);

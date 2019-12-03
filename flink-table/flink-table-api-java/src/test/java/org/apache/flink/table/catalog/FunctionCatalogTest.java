@@ -91,7 +91,7 @@ public class FunctionCatalogTest {
 		// test catalog function is found
 		catalog.createFunction(
 			oi.toObjectPath(),
-			new CatalogFunctionImpl(TestFunction1.class.getName(), Collections.emptyMap()), false);
+			new CatalogFunctionImpl(TestFunction1.class.getName()), false);
 
 		FunctionLookup.Result result = functionCatalog.lookupFunction(identifier).get();
 
@@ -125,7 +125,7 @@ public class FunctionCatalogTest {
 		// test catalog function is found
 		catalog.createFunction(
 			oi.toObjectPath(),
-			new CatalogFunctionImpl(TestFunction1.class.getName(), Collections.emptyMap()), false);
+			new CatalogFunctionImpl(TestFunction1.class.getName()), false);
 
 		FunctionLookup.Result result = functionCatalog.lookupFunction(UnresolvedIdentifier.of(TEST_FUNCTION_NAME)).get();
 

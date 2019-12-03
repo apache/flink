@@ -58,6 +58,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
@@ -236,7 +237,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private void createTemporaryView(UnresolvedIdentifier identifier, Table view) {
 		if (((TableImpl) view).getTableEnvironment() != this) {
 			throw new TableException(
-				"Only table API objects that belong to this TableEnvironment can be registered.");
+					"Only table API objects that belong to this TableEnvironment can be registered.");
 		}
 
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
@@ -450,7 +451,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		if (operations.size() != 1) {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-					"INSERT, CREATE TABLE, DROP TABLE");
+					"INSERT, CREATE TABLE, DROP TABLE, USE CATALOG");
 		}
 
 		Operation operation = operations.get(0);
@@ -473,10 +474,13 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			catalogManager.dropTable(
 				dropTableOperation.getTableIdentifier(),
 				dropTableOperation.isIfExists());
+		} else if (operation instanceof UseCatalogOperation) {
+			UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
+			catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
 		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE");
+					"type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG");
 		}
 	}
 

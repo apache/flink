@@ -1075,10 +1075,10 @@ public abstract class CatalogTest {
 		catalog.createTable(path1, createPartitionedTable(), false);
 		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
 		CatalogTableStatistics tableStatistics = catalog.getPartitionStatistics(path1, createPartitionSpec());
-		assertEquals(0, tableStatistics.getFileCount());
-		assertEquals(0, tableStatistics.getRawDataSize());
-		assertEquals(0, tableStatistics.getTotalSize());
-		assertEquals(0, tableStatistics.getRowCount());
+		assertEquals(-1, tableStatistics.getFileCount());
+		assertEquals(-1, tableStatistics.getRawDataSize());
+		assertEquals(-1, tableStatistics.getTotalSize());
+		assertEquals(-1, tableStatistics.getRowCount());
 	}
 
 	@Test
@@ -1322,7 +1322,8 @@ public abstract class CatalogTest {
 
 	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
 		assertEquals(f1.getClassName(), f2.getClassName());
-		assertEquals(f1.getProperties(), f2.getProperties());
+		assertEquals(f1.isGeneric(), f2.isGeneric());
+		assertEquals(f1.getFunctionLanguage(), f2.getFunctionLanguage());
 	}
 
 	protected void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {

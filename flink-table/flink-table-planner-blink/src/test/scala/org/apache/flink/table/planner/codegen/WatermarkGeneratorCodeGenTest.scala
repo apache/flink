@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.dataformat.{GenericRow, SqlTimestamp}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
@@ -59,12 +59,12 @@ class WatermarkGeneratorCodeGenTest {
     catalogManager.getCurrentDatabase)
 
   val data = List(
-    GenericRow.of(JLong.valueOf(1000L), JInt.valueOf(5)),
+    GenericRow.of(SqlTimestamp.fromEpochMillis(1000L), JInt.valueOf(5)),
     GenericRow.of(null, JInt.valueOf(4)),
-    GenericRow.of(JLong.valueOf(3000L), null),
-    GenericRow.of(JLong.valueOf(5000L), JInt.valueOf(3)),
-    GenericRow.of(JLong.valueOf(4000L), JInt.valueOf(10)),
-    GenericRow.of(JLong.valueOf(6000L), JInt.valueOf(8))
+    GenericRow.of(SqlTimestamp.fromEpochMillis(3000L), null),
+    GenericRow.of(SqlTimestamp.fromEpochMillis(5000L), JInt.valueOf(3)),
+    GenericRow.of(SqlTimestamp.fromEpochMillis(4000L), JInt.valueOf(10)),
+    GenericRow.of(SqlTimestamp.fromEpochMillis(6000L), JInt.valueOf(8))
   )
 
   @Test

@@ -27,7 +27,6 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -68,7 +68,6 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -118,7 +117,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		this.jobMasterId = jobMasterId;
 
 		if (slotSize > 0) {
-			this.taskSlotTable = generateTaskSlotTable(slotSize);
+			this.taskSlotTable = TaskSlotUtils.createTaskSlotTable(slotSize);
 		} else {
 			this.taskSlotTable = mock(TaskSlotTable.class);
 			when(taskSlotTable.tryMarkSlotActive(eq(jobId), any())).thenReturn(true);
@@ -186,14 +185,6 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	public TestingFatalErrorHandler getTestingFatalErrorHandler() {
 		return testingFatalErrorHandler;
-	}
-
-	private TaskSlotTable generateTaskSlotTable(int numSlot) {
-		Collection<ResourceProfile> resourceProfiles = new ArrayList<>();
-		for (int i = 0; i < numSlot; i++) {
-			resourceProfiles.add(ResourceProfile.ANY);
-		}
-		return new TaskSlotTable(resourceProfiles, timerService);
 	}
 
 	@Nonnull

@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -61,7 +62,6 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,6 +113,16 @@ public class SqlToOperationConverterTest {
 		final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
 		catalog.dropTable(path1, true);
 		catalog.dropTable(path2, true);
+	}
+
+	@Test
+	public void testUseCatalog() {
+		final String sql = "USE CATALOG cat1";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		Operation operation = parse(sql, planner, parser);
+		assert operation instanceof UseCatalogOperation;
+		assertEquals("cat1", ((UseCatalogOperation) operation).getCatalogName());
 	}
 
 	@Test
@@ -199,8 +209,7 @@ public class SqlToOperationConverterTest {
 	@Test
 	public void testCreateTableWithWatermark() throws FunctionAlreadyExistException, DatabaseNotExistException {
 		CatalogFunction cf = new CatalogFunctionImpl(
-			JavaUserDefinedScalarFunctions.JavaFunc5.class.getName(),
-			Collections.emptyMap());
+			JavaUserDefinedScalarFunctions.JavaFunc5.class.getName());
 		catalog.createFunction(ObjectPath.fromString("default.myfunc"), cf, true);
 
 		final String sql = "create table source_table(\n" +
@@ -288,8 +297,8 @@ public class SqlToOperationConverterTest {
 			createTestItem("TIME(3)", DataTypes.TIME()),
 			// Expect to be TIME(3).
 			createTestItem("TIME(3) WITHOUT TIME ZONE", DataTypes.TIME()),
-			createTestItem("TIMESTAMP", DataTypes.TIMESTAMP(3)),
-			createTestItem("TIMESTAMP WITHOUT TIME ZONE", DataTypes.TIMESTAMP(3)),
+			createTestItem("TIMESTAMP", DataTypes.TIMESTAMP(6)),
+			createTestItem("TIMESTAMP WITHOUT TIME ZONE", DataTypes.TIMESTAMP(6)),
 			createTestItem("TIMESTAMP(3)", DataTypes.TIMESTAMP(3)),
 			createTestItem("TIMESTAMP(3) WITHOUT TIME ZONE", DataTypes.TIMESTAMP(3)),
 			createTestItem("TIMESTAMP WITH LOCAL TIME ZONE",

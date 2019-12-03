@@ -54,6 +54,7 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionInfo;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
@@ -64,6 +65,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -269,8 +271,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		this.jobManagerConnections = new HashMap<>(4);
 
-		this.hardwareDescription = HardwareDescription.extractFromSystem(
-			taskExecutorServices.getMemoryManager().getMemorySize());
+		this.hardwareDescription = HardwareDescription.extractFromSystem(taskExecutorServices.getManagedMemorySize());
 
 		this.resourceManagerAddress = null;
 		this.resourceManagerConnection = null;
@@ -404,8 +405,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
-
-		taskSlotTable.stop();
 
 		try {
 			resourceManagerLeaderRetriever.stop();
@@ -553,6 +552,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskRestore,
 				checkpointResponder);
 
+			MemoryManager memoryManager;
+			try {
+				memoryManager = taskSlotTable.getTaskMemoryManager(tdd.getAllocationId());
+			} catch (SlotNotFoundException e) {
+				throw new TaskSubmissionException("Could not submit task.", e);
+			}
+
 			Task task = new Task(
 				jobInformation,
 				taskInformation,
@@ -563,7 +569,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getProducedPartitions(),
 				tdd.getInputGates(),
 				tdd.getTargetSlotNumber(),
-				taskExecutorServices.getMemoryManager(),
+				memoryManager,
 				taskExecutorServices.getIOManager(),
 				taskExecutorServices.getShuffleEnvironment(),
 				taskExecutorServices.getKvStateService(),
@@ -619,7 +625,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions,
 			CompletableFuture<ExecutionState> terminationFuture) {
 		final Set<ResultPartitionID> partitionsRequiringRelease = filterPartitionsRequiringRelease(producedResultPartitions)
-			.peek(rpdd -> partitionTracker.startTrackingPartition(jobId, rpdd.getShuffleDescriptor().getResultPartitionID(), rpdd.getResultId()))
+			.peek(rpdd -> partitionTracker.startTrackingPartition(jobId, TaskExecutorPartitionInfo.from(rpdd)))
 			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
 			.map(ShuffleDescriptor::getResultPartitionID)
 			.collect(Collectors.toSet());
@@ -1835,7 +1841,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		@Override
 		public TaskExecutorHeartbeatPayload retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
-			return new TaskExecutorHeartbeatPayload(taskSlotTable.createSlotReport(getResourceID()));
+			return new TaskExecutorHeartbeatPayload(taskSlotTable.createSlotReport(getResourceID()), partitionTracker.createClusterPartitionReport());
 		}
 	}
 

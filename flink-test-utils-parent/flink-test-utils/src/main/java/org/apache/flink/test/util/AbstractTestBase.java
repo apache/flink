@@ -19,7 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.ClassRule;
@@ -56,7 +56,7 @@ import java.io.IOException;
  *
  * </pre>
  */
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public abstract class AbstractTestBase extends TestBaseUtils {
 
 	private static final int DEFAULT_PARALLELISM = 4;

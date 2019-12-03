@@ -372,12 +372,12 @@ functions:
   - name: ...               # required: name of the function
     from: class             # required: source of the function (can only be "class" for now)
     class: ...              # required: fully qualified class name of the function
-    constructor:            # optimal: constructor parameters of the function class
-      - ...                 # optimal: a literal parameter with implicit type
-      - class: ...          # optimal: full class name of the parameter
-        constructor:        # optimal: constructor parameters of the parameter's class
-          - type: ...       # optimal: type of the literal parameter
-            value: ...      # optimal: value of the literal parameter
+    constructor:            # optional: constructor parameters of the function class
+      - ...                 # optional: a literal parameter with implicit type
+      - class: ...          # optional: full class name of the parameter
+        constructor:        # optional: constructor parameters of the parameter's class
+          - type: ...       # optional: type of the literal parameter
+            value: ...      # optional: value of the literal parameter
 {% endhighlight %}
 
 Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.

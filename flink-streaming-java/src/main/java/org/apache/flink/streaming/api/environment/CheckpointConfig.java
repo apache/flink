@@ -20,7 +20,8 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.slf4j.Logger;
@@ -435,5 +436,34 @@ public class CheckpointConfig implements java.io.Serializable {
 		public boolean deleteOnCancellation() {
 			return deleteOnCancellation;
 		}
+	}
+
+	/**
+	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * {@link ExecutionCheckpointingOptions#CHECKPOINTING_MODE}.
+	 *
+	 * <p>It will change the value of a setting only if a corresponding option was set in the
+	 * {@code configuration}. If a key is not present, the current value of a field will remain
+	 * untouched.
+	 *
+	 * @param configuration a configuration to read the values from
+	 */
+	public void configure(ReadableConfig configuration) {
+		configuration.getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_MODE)
+			.ifPresent(this::setCheckpointingMode);
+		configuration.getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL)
+			.ifPresent(i -> this.setCheckpointInterval(i.toMillis()));
+		configuration.getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT)
+			.ifPresent(t -> this.setCheckpointTimeout(t.toMillis()));
+		configuration.getOptional(ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS)
+			.ifPresent(this::setMaxConcurrentCheckpoints);
+		configuration.getOptional(ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS)
+			.ifPresent(m -> this.setMinPauseBetweenCheckpoints(m.toMillis()));
+		configuration.getOptional(ExecutionCheckpointingOptions.PREFER_CHECKPOINT_FOR_RECOVERY)
+			.ifPresent(this::setPreferCheckpointForRecovery);
+		configuration.getOptional(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
+			.ifPresent(this::setTolerableCheckpointFailureNumber);
+		configuration.getOptional(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT)
+			.ifPresent(this::enableExternalizedCheckpoints);
 	}
 }

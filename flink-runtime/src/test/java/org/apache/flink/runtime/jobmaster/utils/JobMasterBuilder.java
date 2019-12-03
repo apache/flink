@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.utils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.dispatcher.SchedulerNGFactoryFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -40,8 +41,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.scheduler.LegacySchedulerFactory;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
@@ -70,8 +69,6 @@ public class JobMasterBuilder {
 	private SlotPoolFactory slotPoolFactory = null;
 
 	private SchedulerFactory schedulerFactory = null;
-
-	private SchedulerNGFactory schedulerNGFactory = null;
 
 	private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 
@@ -133,11 +130,6 @@ public class JobMasterBuilder {
 		return this;
 	}
 
-	public JobMasterBuilder withSchedulerNGFactory(SchedulerNGFactory schedulerNGFactory) {
-		this.schedulerNGFactory = schedulerNGFactory;
-		return this;
-	}
-
 	public JobMasterBuilder withOnCompletionActions(OnCompletionActions onCompletionActions) {
 		this.onCompletionActions = onCompletionActions;
 		return this;
@@ -175,7 +167,7 @@ public class JobMasterBuilder {
 			onCompletionActions,
 			fatalErrorHandler,
 			JobMasterBuilder.class.getClassLoader(),
-			schedulerNGFactory != null ? schedulerNGFactory : new LegacySchedulerFactory(jobManagerSharedServices.getRestartStrategyFactory()),
+			SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration, jobManagerSharedServices.getRestartStrategyFactory()),
 			shuffleMaster,
 			partitionTrackerFactory);
 	}

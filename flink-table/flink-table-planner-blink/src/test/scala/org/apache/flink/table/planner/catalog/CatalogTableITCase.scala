@@ -21,18 +21,16 @@ package org.apache.flink.table.planner.catalog
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
-import org.apache.flink.table.catalog.{CatalogFunctionImpl, ObjectPath}
+import org.apache.flink.table.catalog.{CatalogFunctionImpl, GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Ignore, Rule, Test}
-
 import java.sql.Timestamp
 import java.util
 
@@ -65,8 +63,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     TestCollectionTableFactory.isStreaming = isStreamingMode
 
     val func = new CatalogFunctionImpl(
-      classOf[JavaFunc0].getName,
-      new util.HashMap[String, String]())
+      classOf[JavaFunc0].getName)
     tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().createFunction(
       new ObjectPath(tableEnv.getCurrentDatabase, "myfunc"),
       func,
@@ -280,17 +277,17 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
   def testInsertSourceTableWithFuncField(): Unit = {
     val sourceData = List(
       toRow(1, "1990-02-10 12:34:56"),
-      toRow(2, "2019-09-10 9:23:41"),
-      toRow(3, "2019-09-10 9:23:42"),
-      toRow(1, "2019-09-10 9:23:43"),
-      toRow(2, "2019-09-10 9:23:44")
+      toRow(2, "2019-09-10 09:23:41"),
+      toRow(3, "2019-09-10 09:23:42"),
+      toRow(1, "2019-09-10 09:23:43"),
+      toRow(2, "2019-09-10 09:23:44")
     )
     val expected = List(
       toRow(1, "1990-02-10 12:34:56", Timestamp.valueOf("1990-02-10 12:34:56")),
-      toRow(2, "2019-09-10 9:23:41", Timestamp.valueOf("2019-09-10 9:23:41")),
-      toRow(3, "2019-09-10 9:23:42", Timestamp.valueOf("2019-09-10 9:23:42")),
-      toRow(1, "2019-09-10 9:23:43", Timestamp.valueOf("2019-09-10 9:23:43")),
-      toRow(2, "2019-09-10 9:23:44", Timestamp.valueOf("2019-09-10 9:23:44"))
+      toRow(2, "2019-09-10 09:23:41", Timestamp.valueOf("2019-09-10 9:23:41")),
+      toRow(3, "2019-09-10 09:23:42", Timestamp.valueOf("2019-09-10 9:23:42")),
+      toRow(1, "2019-09-10 09:23:43", Timestamp.valueOf("2019-09-10 9:23:43")),
+      toRow(2, "2019-09-10 09:23:44", Timestamp.valueOf("2019-09-10 9:23:44"))
     )
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
@@ -308,7 +305,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |create table t2(
         |  a int,
         |  b varchar,
-        |  c timestamp
+        |  c timestamp(3)
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -827,6 +824,16 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
     tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+  }
+
+  @Test
+  def testUseCatalog(): Unit = {
+    tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+    tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+    tableEnv.sqlUpdate("use catalog cat1")
+    assertEquals("cat1", tableEnv.getCurrentCatalog)
+    tableEnv.sqlUpdate("use catalog cat2")
+    assertEquals("cat2", tableEnv.getCurrentCatalog)
   }
 }
 

@@ -78,6 +78,7 @@ under the License.
 		<module>flink-streaming-kinesis-test</module>
 		<module>flink-elasticsearch7-test</module>
 		<module>flink-end-to-end-tests-common-kafka</module>
+		<module>flink-tpcds-test</module>
 	</modules>
 
 	<build>

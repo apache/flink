@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraphRetriever {
 
 	/** User classpaths in relative form to the working directory. */
+	@Nonnull
 	private final Collection<URL> userClassPaths;
 
 	protected AbstractUserClassPathJobGraphRetriever(@Nullable File jobDir) throws IOException {

@@ -112,7 +112,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 
 	private BaseArraySerializer createSerializerWithConfig(ExecutionConfig config) {
 		return new BaseArraySerializer(
-			DataTypes.ANY(TypeInformation.of(MyObj.class)).getLogicalType(), config);
+			DataTypes.RAW(TypeInformation.of(MyObj.class)).getLogicalType(), config);
 	}
 
 	@Override

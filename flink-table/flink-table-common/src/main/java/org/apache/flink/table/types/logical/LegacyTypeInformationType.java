@@ -33,8 +33,8 @@ import java.util.Objects;
  * stack. Many types can be mapped directly to the new type system, however, some types such as
  * {@code DECIMAL}, POJOs, or case classes need special handling.
  *
- * <p>This type differs from {@link TypeInformationAnyType}. This type is allowed to travel through
- * the stack whereas {@link TypeInformationAnyType} should be resolved eagerly to {@link AnyType} by
+ * <p>This type differs from {@link TypeInformationRawType}. This type is allowed to travel through
+ * the stack whereas {@link TypeInformationRawType} should be resolved eagerly to {@link RawType} by
  * the planner.
  *
  * <p>This class can be removed once we have removed all deprecated methods that take or return

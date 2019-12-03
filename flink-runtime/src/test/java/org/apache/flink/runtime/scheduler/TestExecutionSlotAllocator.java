@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
@@ -36,14 +37,16 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Test {@link ExecutionSlotAllocator} implementation.
  */
-public class TestExecutionSlotAllocator implements ExecutionSlotAllocator {
+public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotOwner {
 
 	private final Map<ExecutionVertexID, SlotExecutionVertexAssignment> pendingRequests = new HashMap<>();
 
 	private boolean autoCompletePendingRequests = true;
 
+	private final List<LogicalSlot> returnedSlots = new ArrayList<>();
+
 	@Override
-	public Collection<SlotExecutionVertexAssignment> allocateSlotsFor(final Collection<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {
+	public List<SlotExecutionVertexAssignment> allocateSlotsFor(final List<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {
 		final List<SlotExecutionVertexAssignment> slotVertexAssignments = createSlotVertexAssignments(schedulingRequirementsCollection);
 		registerPendingRequests(slotVertexAssignments);
 		maybeCompletePendingRequests();
@@ -84,7 +87,9 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator {
 		checkState(slotVertexAssignment != null);
 		slotVertexAssignment
 			.getLogicalSlotFuture()
-			.complete(new TestingLogicalSlotBuilder().createTestingLogicalSlot());
+			.complete(new TestingLogicalSlotBuilder()
+				.setSlotOwner(this)
+				.createTestingLogicalSlot());
 	}
 
 	private SlotExecutionVertexAssignment removePendingRequest(final ExecutionVertexID executionVertexId) {
@@ -125,5 +130,14 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator {
 	@Override
 	public CompletableFuture<Void> stop() {
 		return CompletableFuture.completedFuture(null);
+	}
+
+	@Override
+	public void returnLogicalSlot(final LogicalSlot logicalSlot) {
+		returnedSlots.add(logicalSlot);
+	}
+
+	public List<LogicalSlot> getReturnedSlots() {
+		return new ArrayList<>(returnedSlots);
 	}
 }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
@@ -61,7 +59,7 @@ class FlinkRelBuilder(
   require(context != null)
 
   private val toRelNodeConverter = {
-    val functionCatalog = context.asInstanceOf[FlinkContext].getFunctionCatalog
+    val functionCatalog = context.unwrap(classOf[FlinkContext]).getFunctionCatalog
     new QueryOperationConverter(this, functionCatalog)
   }
 
@@ -167,19 +165,9 @@ object FlinkRelBuilder {
 
   def proto(context: Context): RelBuilderFactory = new RelBuilderFactory() {
     def create(cluster: RelOptCluster, schema: RelOptSchema): RelBuilder = {
+      val clusterContext = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+      val mergedContext = Contexts.chain(context, clusterContext)
 
-      val clusterContext = cluster.getPlanner.getContext.asInstanceOf[FlinkContext]
-
-      val mergedContext = new FlinkContext {
-
-        override def getTableConfig: TableConfig = clusterContext.getTableConfig
-
-        override def getFunctionCatalog: FunctionCatalog = clusterContext.getFunctionCatalog
-
-        override def unwrap[C](clazz: Class[C]): C = context.unwrap(clazz)
-
-        override def getCatalogManager: CatalogManager = clusterContext.getCatalogManager
-      }
       new FlinkRelBuilder(mergedContext, cluster, schema)
     }
   }

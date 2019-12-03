@@ -366,114 +366,116 @@ object FunctionGenerator {
 
   addSqlFunction(
     EXTRACT,
-    Seq(ANY, BIGINT),
+    Seq(RAW, BIGINT),
     new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     EXTRACT,
-    Seq(ANY, DATE),
+    Seq(RAW, DATE),
     new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     EXTRACT,
-    Seq(ANY, TIME_WITHOUT_TIME_ZONE),
+    Seq(RAW, TIME_WITHOUT_TIME_ZONE),
     new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     EXTRACT,
-    Seq(ANY, TIMESTAMP_WITHOUT_TIME_ZONE),
+    Seq(RAW, TIMESTAMP_WITHOUT_TIME_ZONE),
     new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     EXTRACT,
-    Seq(ANY, TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+    Seq(RAW, TIMESTAMP_WITH_LOCAL_TIME_ZONE),
     new MethodCallGen(BuiltInMethods.EXTRACT_FROM_TIMESTAMP_TIME_ZONE))
 
   addSqlFunction(
     EXTRACT,
-    Seq(ANY, INTERVAL_DAY_TIME),
+    Seq(RAW, INTERVAL_DAY_TIME),
     new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     EXTRACT,
-    Seq(ANY, INTERVAL_YEAR_MONTH),
+    Seq(RAW, INTERVAL_YEAR_MONTH),
     new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     TIMESTAMP_DIFF,
     Seq(
-      ANY,
+      RAW,
       TIMESTAMP_WITHOUT_TIME_ZONE,
       TIMESTAMP_WITHOUT_TIME_ZONE),
     new TimestampDiffCallGen)
 
   addSqlFunction(
     TIMESTAMP_DIFF,
-    Seq(ANY, TIMESTAMP_WITHOUT_TIME_ZONE, DATE),
+    Seq(RAW, TIMESTAMP_WITHOUT_TIME_ZONE, DATE),
     new TimestampDiffCallGen)
 
   addSqlFunction(
     TIMESTAMP_DIFF,
-    Seq(ANY, DATE, TIMESTAMP_WITHOUT_TIME_ZONE),
+    Seq(RAW, DATE, TIMESTAMP_WITHOUT_TIME_ZONE),
     new TimestampDiffCallGen)
 
   addSqlFunction(
     TIMESTAMP_DIFF,
-    Seq(ANY, DATE, DATE),
+    Seq(RAW, DATE, DATE),
     new TimestampDiffCallGen)
 
   addSqlFunction(
     FLOOR,
-    Seq(DATE, ANY),
+    Seq(DATE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethod.UNIX_DATE_FLOOR.method)))
 
   addSqlFunction(
     FLOOR,
-    Seq(TIME_WITHOUT_TIME_ZONE, ANY),
+    Seq(TIME_WITHOUT_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethod.UNIX_DATE_FLOOR.method)))
 
   addSqlFunction(
     FLOOR,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, ANY),
+    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethod.UNIX_TIMESTAMP_FLOOR.method)))
 
   addSqlFunction(
     FLOOR,
-    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, ANY),
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
       Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE)))
 
+  // TODO: fixme if CALCITE-3199 fixed
+  //  https://issues.apache.org/jira/browse/CALCITE-3199
   addSqlFunction(
     CEIL,
-    Seq(DATE, ANY),
+    Seq(DATE, RAW),
+    new FloorCeilCallGen(
+      BuiltInMethod.CEIL.method,
+      Some(BuiltInMethods.UNIX_DATE_CEIL)))
+
+  addSqlFunction(
+    CEIL,
+    Seq(TIME_WITHOUT_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
       Some(BuiltInMethod.UNIX_DATE_CEIL.method)))
 
   addSqlFunction(
     CEIL,
-    Seq(TIME_WITHOUT_TIME_ZONE, ANY),
-    new FloorCeilCallGen(
-      BuiltInMethod.CEIL.method,
-      Some(BuiltInMethod.UNIX_DATE_CEIL.method)))
-
-  addSqlFunction(
-    CEIL,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, ANY),
+    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
       Some(BuiltInMethod.UNIX_TIMESTAMP_CEIL.method)))
 
   addSqlFunction(
     CEIL,
-    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, ANY),
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, RAW),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
       Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE)))

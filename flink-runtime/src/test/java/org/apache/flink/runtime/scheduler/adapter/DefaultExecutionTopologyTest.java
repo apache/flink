@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -52,7 +53,6 @@ import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
-import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.junit.Assert.assertEquals;
@@ -78,7 +78,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		int parallelism = 3;
 		jobVertices[0] = createNoOpVertex(parallelism);
 		jobVertices[1] = createNoOpVertex(parallelism);
-		jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, BLOCKING);
+		jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
 		jobVertices[0].setInputDependencyConstraint(ALL);
 		jobVertices[1].setInputDependencyConstraint(ANY);
 		executionGraph = createSimpleTestGraph(
@@ -106,6 +106,24 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 				assertPartitionEquals(partition, schedulingResultPartition);
 			}
 		}
+	}
+
+	@Test
+	public void testResultPartitionStateSupplier() {
+		final IntermediateResultPartition intermediateResultPartition = IterableUtils
+			.toStream(executionGraph.getAllExecutionVertices())
+			.flatMap(v -> v.getProducedPartitions().values().stream())
+			.findAny()
+			.get();
+
+		final DefaultResultPartition schedulingResultPartition = adapter
+			.getResultPartition(intermediateResultPartition.getPartitionId())
+			.get();
+
+		assertEquals(ResultPartitionState.CREATED, schedulingResultPartition.getState());
+
+		intermediateResultPartition.markDataProduced();
+		assertEquals(ResultPartitionState.CONSUMABLE, schedulingResultPartition.getState());
 	}
 
 	@Test

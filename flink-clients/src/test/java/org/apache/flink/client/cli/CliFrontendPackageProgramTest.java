@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
@@ -96,12 +97,12 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		ProgramOptions programOptions = mock(ProgramOptions.class);
 		when(programOptions.getJarFilePath()).thenReturn(getNonJarFilePath());
 		when(programOptions.getProgramArgs()).thenReturn(new String[0]);
+		when(programOptions.getSavepointRestoreSettings()).thenReturn(SavepointRestoreSettings.none());
 
 		try {
 			frontend.buildProgram(programOptions);
 			fail("should throw an exception");
-		}
-		catch (ProgramInvocationException e) {
+		} catch (ProgramInvocationException e) {
 			// that's what we want
 		}
 	}

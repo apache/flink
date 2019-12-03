@@ -27,6 +27,8 @@ import java.util.List;
 /**
  * Validator for checking the input data types of a function call.
  *
+ * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link Object#equals(Object)}.
+ *
  * @see InputTypeValidators
  */
 @PublicEvolving
@@ -44,7 +46,8 @@ public interface InputTypeValidator {
 	 * @param callContext provides details about the function call
 	 * @param throwOnFailure whether this function is allowed to throw an {@link ValidationException}
 	 *                       with a meaningful exception in case the validation is not successful or
-	 *                       if this function should simple return {@code false}.
+	 *                       if this function should simply return {@code false}.
+	 * @see CallContext#newValidationError(String, Object...)
 	 */
 	boolean validate(CallContext callContext, boolean throwOnFailure);
 

@@ -88,9 +88,9 @@ public class PackagedProgram {
 
 	private final List<URL> classpaths;
 
-	private ClassLoader userCodeClassLoader;
+	private final ClassLoader userCodeClassLoader;
 
-	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
+	private final SavepointRestoreSettings savepointSettings;
 
 	/**
 	 * Flag indicating whether the job is a Python job.
@@ -117,36 +117,24 @@ public class PackagedProgram {
 			List<URL> classpaths,
 			@Nullable String entryPointClassName,
 			Configuration configuration,
+			SavepointRestoreSettings savepointRestoreSettings,
 			String... args) throws ProgramInvocationException {
-		checkNotNull(classpaths);
-		checkNotNull(args);
+		this.classpaths = checkNotNull(classpaths);
+		this.savepointSettings = checkNotNull(savepointRestoreSettings);
+		this.args = checkNotNull(args);
+
 		checkArgument(jarFile != null || entryPointClassName != null, "Either the jarFile or the entryPointClassName needs to be non-null.");
 
-		// Whether the job is a Python job.
-		isPython = isPython(entryPointClassName);
+		// whether the job is a Python job.
+		this.isPython = isPython(entryPointClassName);
 
-		URL jarFileUrl = null;
-		if (jarFile != null) {
-			try {
-				jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
-			} catch (MalformedURLException e1) {
-				throw new IllegalArgumentException("The jar file path is invalid.");
-			}
+		// load the jar file if exists
+		this.jarFile = loadJarFile(jarFile);
 
-			checkJarFile(jarFileUrl);
-		}
-
-		this.jarFile = jarFileUrl;
-		this.args = args;
-
-		// if no entryPointClassName name was given, we try and look one up through the manifest
-		if (entryPointClassName == null) {
-			entryPointClassName = getEntryPointClassNameFromJar(jarFileUrl);
-		}
+		assert this.jarFile != null || entryPointClassName != null;
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
-		this.classpaths = classpaths;
+		this.extractedTempLibraries = this.jarFile == null ? Collections.emptyList() : extractContainedLibraries(this.jarFile);
 		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 			getJobJarAndDependencies(),
 			classpaths,
@@ -154,15 +142,14 @@ public class PackagedProgram {
 			configuration);
 
 		// load the entry point class
-		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
+		this.mainClass = loadMainClass(
+			// if no entryPointClassName name was given, we try and look one up through the manifest
+			entryPointClassName != null ? entryPointClassName : getEntryPointClassNameFromJar(this.jarFile),
+			userCodeClassLoader);
 
 		if (!hasMainMethod(mainClass)) {
 			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
 		}
-	}
-
-	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointSettings) {
-		this.savepointSettings = savepointSettings;
 	}
 
 	public SavepointRestoreSettings getSavepointSettings() {
@@ -405,6 +392,25 @@ public class PackagedProgram {
 		}
 	}
 
+	@Nullable
+	private static URL loadJarFile(File jar) throws ProgramInvocationException {
+		if (jar != null) {
+			URL jarFileUrl;
+
+			try {
+				jarFileUrl = jar.getAbsoluteFile().toURI().toURL();
+			} catch (MalformedURLException e1) {
+				throw new IllegalArgumentException("The jar file path is invalid.");
+			}
+
+			checkJarFile(jarFileUrl);
+
+			return jarFileUrl;
+		} else {
+			return null;
+		}
+	}
+
 	private static Class<?> loadMainClass(String className, ClassLoader cl) throws ProgramInvocationException {
 		ClassLoader contextCl = null;
 		try {
@@ -544,6 +550,8 @@ public class PackagedProgram {
 
 		private Configuration configuration = new Configuration();
 
+		private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
+
 		public Builder setJarFile(@Nullable File jarFile) {
 			this.jarFile = jarFile;
 			return this;
@@ -569,6 +577,11 @@ public class PackagedProgram {
 			return this;
 		}
 
+		public Builder setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
+			this.savepointRestoreSettings = savepointRestoreSettings;
+			return this;
+		}
+
 		public PackagedProgram build() throws ProgramInvocationException {
 			if (jarFile == null && entryPointClassName == null) {
 				throw new IllegalArgumentException("The jarFile and entryPointClassName can not be null at the same time.");
@@ -578,6 +591,7 @@ public class PackagedProgram {
 				userClassPaths,
 				entryPointClassName,
 				configuration,
+				savepointRestoreSettings,
 				args);
 		}
 
