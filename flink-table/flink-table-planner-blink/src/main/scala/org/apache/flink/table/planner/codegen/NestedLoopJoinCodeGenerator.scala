@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.configuration.MemorySize
-import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
@@ -70,9 +68,6 @@ class NestedLoopJoinCodeGenerator(
     val isFirstRow = newName("isFirstRow")
     val isBinaryRow = newName("isBinaryRow")
 
-    val externalBufferMemorySize = MemorySize.parse(config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
-
     if (singleRowJoin) {
       ctx.addReusableMember(s"$BASE_ROW $buildRow = null;")
     } else {
@@ -90,7 +85,7 @@ class NestedLoopJoinCodeGenerator(
       }
       if (leftIsBuild) initSerializer(1) else initSerializer(2)
 
-      addReusableResettableExternalBuffer(buffer, externalBufferMemorySize, serializer)
+      addReusableResettableExternalBuffer(buffer, serializer)
       ctx.addReusableCloseStatement(s"$buffer.close();")
 
       val iterTerm = classOf[ResettableExternalBuffer#BufferIterator].getCanonicalName
@@ -348,8 +343,8 @@ class NestedLoopJoinCodeGenerator(
        |""".stripMargin
   }
 
-  def addReusableResettableExternalBuffer(
-      fieldTerm: String, memSize: Long, serializer: String): Unit = {
+  private def addReusableResettableExternalBuffer(
+      fieldTerm: String, serializer: String): Unit = {
     val memManager = "getContainingTask().getEnvironment().getMemoryManager()"
     val ioManager = "getContainingTask().getEnvironment().getIOManager()"
 
@@ -359,7 +354,7 @@ class NestedLoopJoinCodeGenerator(
          |  $memManager,
          |  $ioManager,
          |  $memManager.allocatePages(
-         |    getContainingTask(), ((int) $memSize) / $memManager.getPageSize()),
+         |    getContainingTask(), (int) (computeMemorySize() / $memManager.getPageSize())),
          |  $serializer,
          |  false);
          |""".stripMargin

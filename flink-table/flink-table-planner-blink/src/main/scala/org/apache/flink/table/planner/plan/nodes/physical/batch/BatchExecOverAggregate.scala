@@ -414,7 +414,6 @@ class BatchExecOverAggregate(
         ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
       managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
       new BufferDataOverWindowOperator(
-        managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB,
         windowFrames,
         genComparator,
         inputType.getChildren.forall(t => BinaryRow.isInFixedLengthPart(t)))

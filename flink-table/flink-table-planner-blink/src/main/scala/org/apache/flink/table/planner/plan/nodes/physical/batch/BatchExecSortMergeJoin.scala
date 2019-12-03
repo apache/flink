@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
@@ -224,11 +223,6 @@ class BatchExecSortMergeJoin(
     val externalBufferMemoryInMB = MemorySize.parse(externalBufferMemText).getMebiBytes
     val externalBufferMemory = externalBufferMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
-    val sortMemText = config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-    val sortMemoryInMB = MemorySize.parse(sortMemText).getMebiBytes
-    val sortMemory = sortMemoryInMB * NodeResourceUtil.SIZE_IN_MB
-
     def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {
       val originalOrders = originalKeys.map(_ => true)
       val (keys, orders, nullsIsLast) = SortUtil.deduplicateSortKeys(
@@ -243,8 +237,7 @@ class BatchExecSortMergeJoin(
     val rightSortGen = newSortGen(rightAllKey, rightType)
 
     val operator = new SortMergeJoinOperator(
-      sortMemory,
-      sortMemory,
+      0.5,
       externalBufferMemory,
       flinkJoinType,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
@@ -261,6 +254,9 @@ class BatchExecSortMergeJoin(
       filterNulls)
 
     val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
+    val sortMemText = config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
+    val sortMemoryInMB = MemorySize.parse(sortMemText).getMebiBytes
     val managedMemoryInMB = externalBufferMemoryInMB * externalBufferNum + sortMemoryInMB * 2
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftInput,

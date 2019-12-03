@@ -68,13 +68,10 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 			BinaryRowSerializer probeSideSerializer,
 			MemoryManager memManager,
 			long reservedMemorySize,
-			long preferredMemorySize,
-			long perRequestMemorySize,
 			IOManager ioManager,
 			int avgRecordLen,
 			long buildRowCount) {
-		super(conf, owner, memManager, reservedMemorySize, preferredMemorySize, perRequestMemorySize,
-				ioManager, avgRecordLen, buildRowCount, false);
+		super(conf, owner, memManager, reservedMemorySize, ioManager, avgRecordLen, buildRowCount, false);
 		this.buildSideSerializer = buildSideSerializer;
 		this.probeSideSerializer = probeSideSerializer;
 
@@ -403,10 +400,10 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		// 2) We can not guarantee that enough memory segments are available and read the partition
 		//    in, distributing its data among newly created partitions.
 		final int totalBuffersAvailable = this.availableMemory.size() + this.buildSpillRetBufferNumbers;
-		if (totalBuffersAvailable != this.reservedNumBuffers + this.allocatedFloatingNum) {
+		if (totalBuffersAvailable != this.totalNumBuffers) {
 			throw new RuntimeException(String.format("Hash Join bug in memory management: Memory buffers leaked." +
-							" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s), allocatedFloatingNum(%s)",
-					availableMemory.size(), buildSpillRetBufferNumbers, reservedNumBuffers, allocatedFloatingNum));
+							" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s)",
+					availableMemory.size(), buildSpillRetBufferNumbers, totalNumBuffers));
 		}
 
 		int maxBucketAreaBuffers = MathUtils.roundUpToPowerOfTwo(

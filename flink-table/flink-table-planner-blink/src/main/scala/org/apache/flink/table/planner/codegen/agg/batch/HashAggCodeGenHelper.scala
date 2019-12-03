@@ -73,7 +73,7 @@ object HashAggCodeGenHelper {
         s"= new $mapTypeTerm(" +
         s"this.getContainingTask()," +
         s"this.getContainingTask().getEnvironment().getMemoryManager()," +
-        s"${reservedManagedMemory}L," +
+        s"computeMemorySize()," +
         s" $groupKeyTypesTerm," +
         s" $aggBufferTypesTerm);")
     // close aggregate map and release memory segments

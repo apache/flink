@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators;
 
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
@@ -46,4 +47,13 @@ public class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
 		super.dispose();
 	}
 
+	/**
+	 * Compute memory size from memory faction.
+	 */
+	public long computeMemorySize() {
+		double memFraction = getOperatorConfig().getManagedMemoryFractionOnHeap() +
+				getOperatorConfig().getManagedMemoryFractionOffHeap();
+		MemoryManager memManager = getContainingTask().getEnvironment().getMemoryManager();
+		return ((long) memManager.computeNumberOfPages(memFraction)) * memManager.getPageSize();
+	}
 }
