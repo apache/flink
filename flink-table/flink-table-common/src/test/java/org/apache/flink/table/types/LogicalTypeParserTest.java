@@ -19,6 +19,10 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -34,6 +38,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
@@ -52,6 +57,7 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -420,6 +426,18 @@ public class LogicalTypeParserTest {
 						new UnresolvedUserDefinedType(UnresolvedIdentifier.of("c", "d", "t")))
 				),
 
+			TestSpec
+				.forString("LEGACY('STRUCTURED_TYPE', 'POJO<org.apache.flink.table.types.LogicalTypeParserTest$MyPojo>')")
+				.expectType(createPojoLegacyType()),
+
+			TestSpec
+				.forString("LEGACY('DECIMAL', 'DECIMAL')")
+				.expectType(TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC).getLogicalType()),
+
+			TestSpec
+				.forString("LEGACY('RAW', 'ANY<org.apache.flink.table.types.LogicalTypeParserTest>')")
+				.expectType(createGenericLegacyType()),
+
 			// error message testing
 
 			TestSpec
@@ -516,5 +534,25 @@ public class LogicalTypeParserTest {
 
 	private static <T> RawType<T> createRawType(Class<T> clazz) {
 		return new RawType<>(clazz, new KryoSerializer<>(clazz, new ExecutionConfig()));
+	}
+
+	@SuppressWarnings("unchecked")
+	private static LegacyTypeInformationType<MyPojo> createPojoLegacyType() {
+		TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(MyPojo.class);
+		return (LegacyTypeInformationType) TypeConversions.fromLegacyInfoToDataType(typeInfo).getLogicalType();
+	}
+
+	@SuppressWarnings("unchecked")
+	private static LegacyTypeInformationType<MyPojo> createGenericLegacyType() {
+		TypeInformation<?> typeInfo = new GenericTypeInfo<>(LogicalTypeParserTest.class);
+		return (LegacyTypeInformationType) TypeConversions.fromLegacyInfoToDataType(typeInfo).getLogicalType();
+	}
+
+	/**
+	 * A testing POJO class.
+	 */
+	public static class MyPojo {
+		public String name;
+		public int age;
 	}
 }
