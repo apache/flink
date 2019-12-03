@@ -160,12 +160,8 @@ public class TaskManagerServicesConfiguration {
 		return taskExecutorResourceSpec.getShuffleMemSize();
 	}
 
-	public MemorySize getOnHeapManagedMemorySize() {
-		return taskExecutorResourceSpec.getOnHeapManagedMemorySize();
-	}
-
-	public MemorySize getOffHeapManagedMemorySize() {
-		return taskExecutorResourceSpec.getOffHeapManagedMemorySize();
+	public MemorySize getManagedMemorySize() {
+		return taskExecutorResourceSpec.getManagedMemorySize();
 	}
 
 	long getTimerServiceShutdownTimeout() {

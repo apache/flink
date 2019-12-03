@@ -150,8 +150,7 @@ public class BootstrapToolsTest extends TestLogger {
 			new MemorySize(111), // taskHeapSize
 			new MemorySize(0), // taskOffHeapSize
 			new MemorySize(222), // shuffleMemSize
-			new MemorySize(0), // onHeapManagedMemorySize
-			new MemorySize(0), // offHeapManagedMemorySize
+			new MemorySize(0), // managedMemorySize
 			new MemorySize(333), // jvmMetaspaceSize
 			new MemorySize(0)); // jvmOverheadSize
 		final ContaineredTaskManagerParameters containeredParams =

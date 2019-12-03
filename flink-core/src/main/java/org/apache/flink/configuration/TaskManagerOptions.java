@@ -175,18 +175,6 @@ public class TaskManagerOptions {
 			.withDescription("Size of memory buffers used by the network stack and the memory manager.");
 
 	/**
-	 * Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager
-	 * as well as the network buffers.
-	 **/
-	@Deprecated
-	public static final ConfigOption<Boolean> MEMORY_OFF_HEAP =
-			key("taskmanager.memory.off-heap")
-			.defaultValue(true)
-				.withDescription("Memory allocation method (JVM heap or off-heap), used for managed memory of the" +
-						" TaskManager. For setups with larger quantities of memory, this can" +
-						" improve the efficiency of the operations performed on the memory.");
-
-	/**
 	 * The config parameter for automatically defining the TaskManager's binding address,
 	 * if {@link #HOST} configuration option is not set.
 	 */
@@ -254,7 +242,7 @@ public class TaskManagerOptions {
 			.noDefaultValue()
 			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
 				+ " user code. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
-				+ " Task Off-Heap Memory, (On-Heap and Off-Heap) Managed Memory and Shuffle Memory.");
+				+ " Task Off-Heap Memory, Managed Memory and Shuffle Memory.");
 
 	/**
 	 * Task Off-Heap Memory size for TaskExecutors.
@@ -272,12 +260,12 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.managed.size")
 			.noDefaultValue()
 			.withDeprecatedKeys("taskmanager.memory.size")
-			.withDescription("Managed Memory size for TaskExecutors. This is the size of memory managed by the memory"
-				+ " manager, including both On-Heap Managed Memory and Off-Heap Managed Memory, reserved for sorting,"
-				+ " hash tables, caching of intermediate results and state backends. Memory consumers can either"
-				+ " allocate memory from the memory manager in the form of MemorySegments, or reserve bytes from the"
-				+ " memory manager and keep their memory usage within that boundary. If unspecified, it will be derived"
-				+ " to make up the configured fraction of the Total Flink Memory.");
+			.withDescription("Managed Memory size for TaskExecutors. This is the size of off-heap memory managed by the"
+				+ " memory manager, reserved for sorting, hash tables, caching of intermediate results and RocksDB state"
+				+ " backend. Memory consumers can either allocate memory from the memory manager in the form of"
+				+ " MemorySegments, or reserve bytes from the memory manager and keep their memory usage within that"
+				+ " boundary. If unspecified, it will be derived to make up the configured fraction of the Total Flink"
+				+ " Memory.");
 
 	/**
 	 * Fraction of Total Flink Memory to be used as Managed Memory, if {@link #MANAGED_MEMORY_SIZE} is not specified.
@@ -287,28 +275,6 @@ public class TaskManagerOptions {
 			.defaultValue(0.4f)
 			.withDescription("Fraction of Total Flink Memory to be used as Managed Memory, if Managed Memory size is not"
 				+ " explicitly specified.");
-
-	/**
-	 * Off-Heap Managed Memory size for TaskExecutors.
-	 */
-	public static final ConfigOption<String> MANAGED_MEMORY_OFFHEAP_SIZE =
-		key("taskmanager.memory.managed.off-heap.size")
-			.noDefaultValue()
-			.withDescription("Off-Heap Managed Memory size for TaskExecutors. This is the part of Managed Memory that is"
-				+ " off-heap, while the remaining is on-heap. If unspecified, it will be derived to make up the"
-				+ " configured fraction of the Managed Memory size.");
-
-	/**
-	 * Fraction of Managed Memory that Off-Heap Managed Memory takes.
-	 */
-	public static final ConfigOption<Float> MANAGED_MEMORY_OFFHEAP_FRACTION =
-		key("taskmanager.memory.managed.off-heap.fraction")
-			.defaultValue(-1.0f)
-			.withDescription("Fraction of Managed Memory that Off-Heap Managed Memory takes, if Off-Heap Managed Memory"
-				+ " size is not explicitly specified. If the fraction is not explicitly specified (or configured with"
-				+ " negative values), it will be derived from the legacy config option '"
-				+ TaskManagerOptions.MEMORY_OFF_HEAP.key() + "', to use either all on-heap memory or all off-heap memory"
-				+ " for Managed Memory.");
 
 	/**
 	 * Min Shuffle Memory size for TaskExecutors.

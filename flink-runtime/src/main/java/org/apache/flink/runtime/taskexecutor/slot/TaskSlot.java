@@ -30,7 +30,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.EnumMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -335,9 +335,8 @@ public class TaskSlot implements AutoCloseable {
 	}
 
 	private static MemoryManager createMemoryManager(ResourceProfile resourceProfile, int pageSize) {
-		Map<MemoryType, Long> memorySizeByType = new EnumMap<>(MemoryType.class);
-		memorySizeByType.put(MemoryType.HEAP, resourceProfile.getOnHeapManagedMemory().getBytes());
-		memorySizeByType.put(MemoryType.OFF_HEAP, resourceProfile.getOffHeapManagedMemory().getBytes());
+		Map<MemoryType, Long> memorySizeByType =
+			Collections.singletonMap(MemoryType.OFF_HEAP, resourceProfile.getManagedMemory().getBytes());
 		return new MemoryManager(memorySizeByType, pageSize);
 	}
 }

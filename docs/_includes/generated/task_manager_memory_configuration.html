@@ -51,22 +51,10 @@
             <td>Fraction of Total Flink Memory to be used as Managed Memory, if Managed Memory size is not explicitly specified.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.memory.managed.off-heap.fraction</h5></td>
-            <td style="word-wrap: break-word;">-1.0</td>
-            <td>Float</td>
-            <td>Fraction of Managed Memory that Off-Heap Managed Memory takes, if Off-Heap Managed Memory size is not explicitly specified. If the fraction is not explicitly specified (or configured with negative values), it will be derived from the legacy config option 'taskmanager.memory.off-heap', to use either all on-heap memory or all off-heap memory for Managed Memory.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.memory.managed.off-heap.size</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Off-Heap Managed Memory size for TaskExecutors. This is the part of Managed Memory that is off-heap, while the remaining is on-heap. If unspecified, it will be derived to make up the configured fraction of the Managed Memory size.</td>
-        </tr>
-        <tr>
             <td><h5>taskmanager.memory.managed.size</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Managed Memory size for TaskExecutors. This is the size of memory managed by the memory manager, including both On-Heap Managed Memory and Off-Heap Managed Memory, reserved for sorting, hash tables, caching of intermediate results and state backends. Memory consumers can either allocate memory from the memory manager in the form of MemorySegments, or reserve bytes from the memory manager and keep their memory usage within that boundary. If unspecified, it will be derived to make up the configured fraction of the Total Flink Memory.</td>
+            <td>Managed Memory size for TaskExecutors. This is the size of off-heap memory managed by the memory manager, reserved for sorting, hash tables, caching of intermediate results and RocksDB state backend. Memory consumers can either allocate memory from the memory manager in the form of MemorySegments, or reserve bytes from the memory manager and keep their memory usage within that boundary. If unspecified, it will be derived to make up the configured fraction of the Total Flink Memory.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.segment-size</h5></td>
@@ -96,7 +84,7 @@
             <td><h5>taskmanager.memory.task.heap.size</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for user code. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory, Task Off-Heap Memory, (On-Heap and Off-Heap) Managed Memory and Shuffle Memory.</td>
+            <td>Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for user code. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory, Task Off-Heap Memory, Managed Memory and Shuffle Memory.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.task.off-heap.size</h5></td>
