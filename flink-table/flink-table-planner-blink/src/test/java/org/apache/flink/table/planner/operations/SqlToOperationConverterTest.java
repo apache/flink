@@ -186,7 +186,7 @@ public class SqlToOperationConverterTest {
 		final String[] expectedCatalogs = new String[] {"builtin", "builtin", "cat1", "cat1"};
 		final String expectedDatabase = "db1";
 		final boolean[] expectedIfExists = new boolean[] {false, true, true, true};
-		final boolean[] expectedIsRestricts = new boolean[] {true, true, false, true};
+		final boolean[] expectedIsCascades = new boolean[] {false, false, true, false};
 
 		for (int i = 0; i < dropDatabaseSqls.length; i++) {
 			Operation operation = parse(dropDatabaseSqls[i], SqlDialect.DEFAULT);
@@ -195,7 +195,7 @@ public class SqlToOperationConverterTest {
 			assertEquals(expectedCatalogs[i], dropDatabaseOperation.getCatalogName());
 			assertEquals(expectedDatabase, dropDatabaseOperation.getDatabaseName());
 			assertEquals(expectedIfExists[i], dropDatabaseOperation.isIfExists());
-			assertEquals(expectedIsRestricts[i], dropDatabaseOperation.isRestrict());
+			assertEquals(expectedIsCascades[i], dropDatabaseOperation.isCascade());
 		}
 	}
 

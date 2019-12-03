@@ -506,7 +506,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				catalog.dropDatabase(
 						dropDatabaseOperation.getDatabaseName(),
 						dropDatabaseOperation.isIfExists(),
-						dropDatabaseOperation.isRestrict());
+						dropDatabaseOperation.isCascade());
 			} catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
 				throw new ValidationException(exMsg, e);
 			} catch (Exception e) {

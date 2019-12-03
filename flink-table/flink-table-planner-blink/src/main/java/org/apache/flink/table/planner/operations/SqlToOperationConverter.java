@@ -249,7 +249,7 @@ public class SqlToOperationConverter {
 				catalogName,
 				databaseName,
 				sqlDropDatabase.getIfExists(),
-				sqlDropDatabase.isRestrict());
+				sqlDropDatabase.isCascade());
 	}
 
 	/** Convert ALTER DATABASE statement. */

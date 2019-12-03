@@ -125,9 +125,9 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 		// Clean up
 		catalog.dropTable(path1, false);
-		catalog.dropDatabase(db1, false, true);
+		catalog.dropDatabase(db1, false, false);
 		catalog.dropTable(path2, false);
-		catalog.dropDatabase(db2, false, true);
+		catalog.dropDatabase(db2, false, false);
 	}
 
 	// ------ utilities ------

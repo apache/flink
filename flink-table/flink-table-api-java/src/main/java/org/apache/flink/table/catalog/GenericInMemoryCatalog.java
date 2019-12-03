@@ -107,7 +107,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public void dropDatabase(String databaseName, boolean ignoreIfNotExists, boolean restrict)
+	public void dropDatabase(String databaseName, boolean ignoreIfNotExists, boolean cascade)
 			throws DatabaseNotExistException, DatabaseNotEmptyException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
 
@@ -116,7 +116,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 			// Make sure the database is empty
 			if (isDatabaseEmpty(databaseName)) {
 				databases.remove(databaseName);
-			} else if (!restrict) {
+			} else if (cascade) {
 				// delete all tables in this database and then delete the database.
 				List<ObjectPath> deleteTablePaths = tables.keySet().stream()
 														.filter(op -> op.getDatabaseName().equals(databaseName))
@@ -128,10 +128,10 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 							//ignore
 						}
 					});
-				List<ObjectPath> deleteFuntcionPaths = functions.keySet().stream()
+				List<ObjectPath> deleteFunctionPaths = functions.keySet().stream()
 															.filter(op -> op.getDatabaseName().equals(databaseName))
 															.collect(Collectors.toList());
-				deleteFuntcionPaths.forEach(objectPath -> {
+				deleteFunctionPaths.forEach(objectPath -> {
 						try {
 							dropFunction(objectPath, true);
 						} catch (FunctionNotExistException e) {

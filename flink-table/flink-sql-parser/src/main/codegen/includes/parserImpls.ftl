@@ -138,7 +138,7 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 {
     SqlIdentifier databaseName = null;
     boolean ifExists = false;
-    boolean isRestrict = true;
+    boolean cascade = false;
 }
 {
     <DATABASE>
@@ -151,13 +151,13 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 
     databaseName = CompoundIdentifier()
     [
-                <RESTRICT> { isRestrict = true; }
+                <RESTRICT> { cascade = false; }
         |
-                <CASCADE>  { isRestrict = false; }
+                <CASCADE>  { cascade = true; }
     ]
 
     {
-         return new SqlDropDatabase(s.pos(), databaseName, ifExists, isRestrict);
+         return new SqlDropDatabase(s.pos(), databaseName, ifExists, cascade);
     }
 }
 

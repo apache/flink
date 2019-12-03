@@ -301,10 +301,10 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public void dropDatabase(String name, boolean ignoreIfNotExists, boolean restrict)
+	public void dropDatabase(String name, boolean ignoreIfNotExists, boolean cascade)
 			throws DatabaseNotExistException, DatabaseNotEmptyException, CatalogException {
 		try {
-			client.dropDatabase(name, true, ignoreIfNotExists, !restrict);
+			client.dropDatabase(name, true, ignoreIfNotExists, cascade);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
 				throw new DatabaseNotExistException(getName(), name);

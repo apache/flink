@@ -41,16 +41,16 @@ public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
 
 	private final SqlIdentifier databaseName;
 	private final boolean ifExists;
-	private final boolean isRestrict;
+	private final boolean isCascade;
 
 	public SqlDropDatabase(SqlParserPos pos,
 			SqlIdentifier databaseName,
 			boolean ifExists,
-			boolean isRestrict) {
+			boolean isCascade) {
 		super(OPERATOR, pos, ifExists);
 		this.databaseName = databaseName;
 		this.ifExists = ifExists;
-		this.isRestrict = isRestrict;
+		this.isCascade = isCascade;
 	}
 
 	@Override
@@ -66,8 +66,8 @@ public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
 		return this.ifExists;
 	}
 
-	public boolean isRestrict() {
-		return isRestrict;
+	public boolean isCascade() {
+		return isCascade;
 	}
 
 	@Override
@@ -78,10 +78,10 @@ public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
 			writer.keyword("IF EXISTS");
 		}
 		databaseName.unparse(writer, leftPrec, rightPrec);
-		if (isRestrict) {
-			writer.keyword("RESTRICT");
-		} else {
+		if (isCascade) {
 			writer.keyword("CASCADE");
+		} else {
+			writer.keyword("RESTRICT");
 		}
 	}
 

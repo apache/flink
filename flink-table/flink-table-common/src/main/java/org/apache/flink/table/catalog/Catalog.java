@@ -146,7 +146,7 @@ public interface Catalog {
 	 */
 	default void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
 			DatabaseNotEmptyException, CatalogException{
-		dropDatabase(name, ignoreIfNotExists, true);
+		dropDatabase(name, ignoreIfNotExists, false);
 	}
 
 	/**
@@ -154,16 +154,17 @@ public interface Catalog {
 	 *
 	 * @param name              Name of the database to be dropped.
 	 * @param ignoreIfNotExists Flag to specify behavior when the database does not exist:
-	 *                          if set to false, throw an exception,
-	 *                          if set to true, do nothing.
-	 * @param restrict         Flag to specify behavior when the database contains table:
-	 *                          if set to false, delete all tables in the database and then delete the database,
-	 *                          if set to true, throw an exception.
+	 *                           if set to false, throw an exception,
+	 *                           if set to true, do nothing.
+	 * @param cascade          Flag to specify behavior when the database contains table or function:
+	 *                           if set to true, delete all tables and functions in the database and then delete the
+	 *                             database,
+	 *                           if set to false, throw an exception.
 	 * @throws DatabaseNotExistException if the given database does not exist
 	 * @throws DatabaseNotEmptyException if the given database is not empty and isRestrict is true
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	void dropDatabase(String name, boolean ignoreIfNotExists, boolean restrict) throws DatabaseNotExistException,
+	void dropDatabase(String name, boolean ignoreIfNotExists, boolean cascade) throws DatabaseNotExistException,
 		DatabaseNotEmptyException, CatalogException;
 
 	/**

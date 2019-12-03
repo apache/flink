@@ -510,7 +510,7 @@ abstract class TableEnvImpl(
           catalog.dropDatabase(
             dropDatabaseOperation.getDatabaseName,
             dropDatabaseOperation.isIfExists,
-            dropDatabaseOperation.isRestrict)
+            dropDatabaseOperation.isCascade)
         } catch {
           case ex: DatabaseNotEmptyException => throw new ValidationException(exMsg, ex)
           case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
