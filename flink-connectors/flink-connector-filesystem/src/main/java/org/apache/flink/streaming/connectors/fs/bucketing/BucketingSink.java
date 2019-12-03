@@ -895,6 +895,8 @@ public class BucketingSink<T>
 		for (Map.Entry<Long, List<String>> entry : pendingFilesPerCheckpoint.entrySet()) {
 			Long pastCheckpointId = entry.getKey();
 			List<String> pendingFiles = entry.getValue();
+			// All the pending files are buckets that have been completed but are waiting to be renamed
+			// to their final name
 			for (String filename : pendingFiles) {
 				Path finalPath = new Path(filename);
 				Path pendingPath = getPendingPathFor(finalPath);
