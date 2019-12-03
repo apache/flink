@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialects;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.JDBCValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
@@ -55,6 +56,7 @@ import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_WRITE_F
 import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_WRITE_FLUSH_MAX_ROWS;
 import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_WRITE_MAX_RETRIES;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_DATA_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 
@@ -102,6 +104,7 @@ public class JDBCTableSourceSinkFactory implements
 		properties.add(CONNECTOR_WRITE_MAX_RETRIES);
 
 		// schema
+		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 
@@ -110,23 +113,25 @@ public class JDBCTableSourceSinkFactory implements
 
 	@Override
 	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		TableSchema schema = descriptorProperties.getTableSchema(SCHEMA);
 
 		return JDBCTableSource.builder()
 			.setOptions(getJDBCOptions(descriptorProperties))
 			.setReadOptions(getJDBCReadOptions(descriptorProperties))
 			.setLookupOptions(getJDBCLookupOptions(descriptorProperties))
-			.setSchema(descriptorProperties.getTableSchema(SCHEMA))
+			.setSchema(schema)
 			.build();
 	}
 
 	@Override
 	public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		TableSchema schema = descriptorProperties.getTableSchema(SCHEMA);
 
 		final JDBCUpsertTableSink.Builder builder = JDBCUpsertTableSink.builder()
 			.setOptions(getJDBCOptions(descriptorProperties))
-			.setTableSchema(descriptorProperties.getTableSchema(SCHEMA));
+			.setTableSchema(schema);
 
 		descriptorProperties.getOptionalInt(CONNECTOR_WRITE_FLUSH_MAX_ROWS).ifPresent(builder::setFlushMaxSize);
 		descriptorProperties.getOptionalDuration(CONNECTOR_WRITE_FLUSH_INTERVAL).ifPresent(
