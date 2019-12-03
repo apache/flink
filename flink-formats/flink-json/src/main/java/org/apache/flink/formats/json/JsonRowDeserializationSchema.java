@@ -335,61 +335,73 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		} else if (simpleTypeInfo == Types.BIG_INT) {
 			return Optional.of((mapper, jsonNode) -> jsonNode.bigIntegerValue());
 		} else if (simpleTypeInfo == Types.SQL_DATE) {
-			return Optional.of(createDateConverter());
+			return Optional.of(this::convertToDate);
 		} else if (simpleTypeInfo == Types.SQL_TIME) {
-			return Optional.of(createTimeConverter());
+			return Optional.of(this::convertToTime);
 		} else if (simpleTypeInfo == Types.SQL_TIMESTAMP) {
-			return Optional.of(createTimestampConverter());
+			return Optional.of(this::convertToTimestamp);
+		} else if (simpleTypeInfo == Types.LOCAL_DATE) {
+			return Optional.of(this::convertToLocalDate);
+		} else if (simpleTypeInfo == Types.LOCAL_TIME) {
+			return Optional.of(this::convertToLocalTime);
+		} else if (simpleTypeInfo == Types.LOCAL_DATE_TIME) {
+			return Optional.of(this::convertToLocalDateTime);
 		} else {
 			return Optional.empty();
 		}
 	}
 
-	private DeserializationRuntimeConverter createDateConverter() {
-		return (mapper, jsonNode) -> Date.valueOf(ISO_LOCAL_DATE.parse(jsonNode.asText())
-			.query(TemporalQueries.localDate()));
+	private LocalDate convertToLocalDate(ObjectMapper mapper, JsonNode jsonNode) {
+		return ISO_LOCAL_DATE.parse(jsonNode.asText()).query(TemporalQueries.localDate());
 	}
 
-	private DeserializationRuntimeConverter createTimestampConverter() {
-		return (mapper, jsonNode) -> {
-			// according to RFC 3339 every date-time must have a timezone;
-			// until we have full timezone support, we only support UTC;
-			// users can parse their time as string as a workaround
-			TemporalAccessor parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
-
-			ZoneOffset zoneOffset = parsedTimestamp.query(TemporalQueries.offset());
-
-			if (zoneOffset != null && zoneOffset.getTotalSeconds() != 0) {
-				throw new IllegalStateException(
-					"Invalid timestamp format. Only a timestamp in UTC timezone is supported yet. " +
-						"Format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-			}
-
-			LocalTime localTime = parsedTimestamp.query(TemporalQueries.localTime());
-			LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
-
-			return Timestamp.valueOf(LocalDateTime.of(localDate, localTime));
-		};
+	private Date convertToDate(ObjectMapper mapper, JsonNode jsonNode) {
+		return Date.valueOf(convertToLocalDate(mapper, jsonNode));
 	}
 
-	private DeserializationRuntimeConverter createTimeConverter() {
-		return (mapper, jsonNode) -> {
+	private LocalDateTime convertToLocalDateTime(ObjectMapper mapper, JsonNode jsonNode) {
+		// according to RFC 3339 every date-time must have a timezone;
+		// until we have full timezone support, we only support UTC;
+		// users can parse their time as string as a workaround
+		TemporalAccessor parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
 
-			// according to RFC 3339 every full-time must have a timezone;
-			// until we have full timezone support, we only support UTC;
-			// users can parse their time as string as a workaround
-			TemporalAccessor parsedTime = RFC3339_TIME_FORMAT.parse(jsonNode.asText());
+		ZoneOffset zoneOffset = parsedTimestamp.query(TemporalQueries.offset());
 
-			ZoneOffset zoneOffset = parsedTime.query(TemporalQueries.offset());
-			LocalTime localTime = parsedTime.query(TemporalQueries.localTime());
+		if (zoneOffset != null && zoneOffset.getTotalSeconds() != 0) {
+			throw new IllegalStateException(
+				"Invalid timestamp format. Only a timestamp in UTC timezone is supported yet. " +
+					"Format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+		}
 
-			if (zoneOffset != null && zoneOffset.getTotalSeconds() != 0 || localTime.getNano() != 0) {
-				throw new IllegalStateException(
-					"Invalid time format. Only a time in UTC timezone without milliseconds is supported yet.");
-			}
+		LocalTime localTime = parsedTimestamp.query(TemporalQueries.localTime());
+		LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
 
-			return Time.valueOf(localTime);
-		};
+		return LocalDateTime.of(localDate, localTime);
+	}
+
+	private Timestamp convertToTimestamp(ObjectMapper mapper, JsonNode jsonNode) {
+		return Timestamp.valueOf(convertToLocalDateTime(mapper, jsonNode));
+	}
+
+	private LocalTime convertToLocalTime(ObjectMapper mapper, JsonNode jsonNode) {
+		// according to RFC 3339 every full-time must have a timezone;
+		// until we have full timezone support, we only support UTC;
+		// users can parse their time as string as a workaround
+		TemporalAccessor parsedTime = RFC3339_TIME_FORMAT.parse(jsonNode.asText());
+
+		ZoneOffset zoneOffset = parsedTime.query(TemporalQueries.offset());
+		LocalTime localTime = parsedTime.query(TemporalQueries.localTime());
+
+		if (zoneOffset != null && zoneOffset.getTotalSeconds() != 0 || localTime.getNano() != 0) {
+			throw new IllegalStateException(
+				"Invalid time format. Only a time in UTC timezone without milliseconds is supported yet.");
+		}
+
+		return localTime;
+	}
+
+	private Time convertToTime(ObjectMapper mapper, JsonNode jsonNode) {
+		return Time.valueOf(convertToLocalTime(mapper, jsonNode));
 	}
 
 	private DeserializationRuntimeConverter assembleRowConverter(
