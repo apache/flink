@@ -21,6 +21,7 @@ package org.apache.flink.orc;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader.ColumnBatchGenerator;
 import org.apache.flink.orc.shim.OrcShim;
+import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
@@ -54,7 +55,7 @@ public class OrcSplitReaderUtil {
 	/**
 	 * Util for generating partitioned {@link OrcColumnarRowSplitReader}.
 	 */
-	public static OrcColumnarRowSplitReader genPartColumnarRowReader(
+	public static OrcColumnarRowSplitReader<HiveOrcVectorizedBatch> genPartColumnarRowReader(
 			String hiveVersion,
 			Configuration conf,
 			String[] fullFieldNames,
@@ -67,17 +68,11 @@ public class OrcSplitReaderUtil {
 			long splitStart,
 			long splitLength) throws IOException {
 
-		List<String> nonPartNames = Arrays.stream(fullFieldNames)
-				.filter(n -> !partitionSpec.containsKey(n))
-				.collect(Collectors.toList());
+		List<String> nonPartNames = getNonPartNames(fullFieldNames, partitionSpec);
 
-		int[] selectedOrcFields = Arrays.stream(selectedFields)
-				.mapToObj(i -> fullFieldNames[i])
-				.filter(nonPartNames::contains)
-				.mapToInt(nonPartNames::indexOf)
-				.toArray();
+		int[] selectedOrcFields = getSelectedOrcFields(fullFieldNames, selectedFields, nonPartNames);
 
-		ColumnBatchGenerator gen = rowBatch -> {
+		ColumnBatchGenerator<HiveOrcVectorizedBatch> gen = (HiveOrcVectorizedBatch rowBatch) -> {
 			// create and initialize the row batch
 			ColumnVector[] vectors = new ColumnVector[selectedFields.length];
 			for (int i = 0; i < vectors.length; i++) {
@@ -85,12 +80,12 @@ public class OrcSplitReaderUtil {
 				LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
 				vectors[i] = partitionSpec.containsKey(name) ?
 						createVectorFromConstant(type, partitionSpec.get(name), batchSize) :
-						createVector(rowBatch.cols[nonPartNames.indexOf(name)]);
+						createVector(rowBatch.getBatch().cols[nonPartNames.indexOf(name)]);
 			}
 			return new VectorizedColumnBatch(vectors);
 		};
 
-		return new OrcColumnarRowSplitReader(
+		return new OrcColumnarRowSplitReader<>(
 				OrcShim.createShim(hiveVersion),
 				conf,
 				convertToOrcTypeWithPart(fullFieldNames, fullFieldTypes, partitionSpec.keySet()),
@@ -103,7 +98,23 @@ public class OrcSplitReaderUtil {
 				splitLength);
 	}
 
-	private static TypeDescription convertToOrcTypeWithPart(
+	public static int[] getSelectedOrcFields(String[] fullFieldNames, int[] selectedFields,
+			List<String> nonPartNames) {
+		return Arrays.stream(selectedFields)
+					.mapToObj(i -> fullFieldNames[i])
+					.filter(nonPartNames::contains)
+					.mapToInt(nonPartNames::indexOf)
+					.toArray();
+	}
+
+	public static List<String> getNonPartNames(String[] fullFieldNames,
+			Map<String, Object> partitionSpec) {
+		return Arrays.stream(fullFieldNames)
+					.filter(n -> !partitionSpec.containsKey(n))
+					.collect(Collectors.toList());
+	}
+
+	public static TypeDescription convertToOrcTypeWithPart(
 			String[] fullFieldNames,
 			DataType[] fullFieldTypes,
 			Collection<String> partitionKeys) {

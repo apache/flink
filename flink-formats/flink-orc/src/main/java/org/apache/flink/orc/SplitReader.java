@@ -16,23 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.shim;
+package org.apache.flink.orc;
 
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
-
-import org.apache.orc.RecordReader;
-
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
- * Shim orc for Hive version 2.1.0 and upper versions.
+ * Split reader to read record from files. The reader is only responsible for reading the data
+ * of a single split.
  */
-public class OrcShimV210 extends OrcShimV200 {
+public interface SplitReader<T> extends Closeable {
 
-	private static final long serialVersionUID = 1L;
+	/**
+	 * Method used to check if the end of the input is reached.
+	 *
+	 * @return True if the end is reached, otherwise false.
+	 * @throws IOException Thrown, if an I/O error occurred.
+	 */
+	boolean reachedEnd() throws IOException;
 
-	@Override
-	public boolean nextBatch(RecordReader reader, HiveOrcVectorizedBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch.getBatch());
-	}
+	/**
+	 * Reads the next record from the input.
+	 *
+	 * @param reuse Object that may be reused.
+	 * @return Read record.
+	 *
+	 * @throws IOException Thrown, if an I/O error occurred.
+	 */
+	T nextRecord(T reuse) throws IOException;
 }

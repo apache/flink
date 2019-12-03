@@ -21,10 +21,10 @@ package org.apache.flink.orc;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.shim.OrcShim;
+import org.apache.flink.orc.vector.OrcVectorizedBatch;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
@@ -44,7 +44,7 @@ import java.util.List;
  * Orc split reader to read record from orc file. The reader is only responsible for reading the data
  * of a single split.
  */
-public abstract class OrcSplitReader<T> implements Closeable {
+public abstract class OrcSplitReader<T, BATCH extends OrcVectorizedBatch> implements Closeable {
 
 	private final OrcShim shim;
 
@@ -52,7 +52,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	private RecordReader orcRowsReader;
 
 	// the vectorized row data to be read in a batch
-	protected final VectorizedRowBatch rowBatch;
+	protected final BATCH rowBatch;
 
 	// the number of rows in the current batch
 	private int rowsInBatch;
@@ -60,7 +60,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	protected int nextRow;
 
 	public OrcSplitReader(
-			OrcShim shim,
+			OrcShim<BATCH> shim,
 			Configuration conf,
 			TypeDescription schema,
 			int[] selectedFields,
@@ -74,7 +74,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 				conf, schema, selectedFields, conjunctPredicates, path, splitStart, splitLength);
 
 		// create row batch
-		this.rowBatch = schema.createRowBatch(batchSize);
+		this.rowBatch = shim.createVectorizedBatch(schema, batchSize);
 		rowsInBatch = 0;
 		nextRow = 0;
 	}

@@ -32,7 +32,6 @@ import org.apache.hadoop.mapred.JobConf;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import static org.apache.flink.orc.OrcSplitReaderUtil.genPartColumnarRowReader;
 import static org.apache.flink.table.dataformat.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
 /**
@@ -62,18 +61,30 @@ public class HiveVectorizedOrcSplitReader implements SplitReader {
 			throw new IllegalArgumentException("Unknown split type: " + hadoopSplit);
 		}
 
-		this.reader = genPartColumnarRowReader(
-				hiveVersion,
-				conf,
-				fieldNames,
-				fieldTypes,
-				split.getHiveTablePartition().getPartitionSpec(),
-				selectedFields,
-				new ArrayList<>(),
-				DEFAULT_SIZE,
-				new Path(fileSplit.getPath().toString()),
-				fileSplit.getStart(),
-				fileSplit.getLength());
+		this.reader = hiveVersion.startsWith("1.") ?
+				org.apache.flink.orc.nohive.OrcSplitReaderUtil.genPartColumnarRowReader(
+						conf,
+						fieldNames,
+						fieldTypes,
+						split.getHiveTablePartition().getPartitionSpec(),
+						selectedFields,
+						new ArrayList<>(),
+						DEFAULT_SIZE,
+						new Path(fileSplit.getPath().toString()),
+						fileSplit.getStart(),
+						fileSplit.getLength()) :
+				org.apache.flink.orc.OrcSplitReaderUtil.genPartColumnarRowReader(
+						hiveVersion,
+						conf,
+						fieldNames,
+						fieldTypes,
+						split.getHiveTablePartition().getPartitionSpec(),
+						selectedFields,
+						new ArrayList<>(),
+						DEFAULT_SIZE,
+						new Path(fileSplit.getPath().toString()),
+						fileSplit.getStart(),
+						fileSplit.getLength());
 	}
 
 	@Override

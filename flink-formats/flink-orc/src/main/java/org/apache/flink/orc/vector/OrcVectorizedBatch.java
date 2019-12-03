@@ -16,23 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.shim;
-
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
-
-import org.apache.orc.RecordReader;
-
-import java.io.IOException;
+package org.apache.flink.orc.vector;
 
 /**
- * Shim orc for Hive version 2.1.0 and upper versions.
+ * Interface to unify orc reader in hive and orc reader without hive dependents.
  */
-public class OrcShimV210 extends OrcShimV200 {
+public interface OrcVectorizedBatch {
 
-	private static final long serialVersionUID = 1L;
-
-	@Override
-	public boolean nextBatch(RecordReader reader, HiveOrcVectorizedBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch.getBatch());
-	}
+	/**
+	 * @return batch size.
+	 */
+	int size();
 }

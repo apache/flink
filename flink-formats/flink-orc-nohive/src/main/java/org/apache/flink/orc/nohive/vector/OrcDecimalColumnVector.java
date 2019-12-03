@@ -16,23 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.shim;
+package org.apache.flink.orc.nohive.vector;
 
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
+import org.apache.flink.table.dataformat.Decimal;
 
-import org.apache.orc.RecordReader;
+import org.apache.orc.storage.ql.exec.vector.DecimalColumnVector;
 
-import java.io.IOException;
+import java.math.BigDecimal;
 
 /**
- * Shim orc for Hive version 2.1.0 and upper versions.
+ * This column vector is used to adapt hive's DecimalColumnVector to Flink's DecimalColumnVector.
  */
-public class OrcShimV210 extends OrcShimV200 {
+public class OrcDecimalColumnVector extends AbstractOrcColumnVector implements
+		org.apache.flink.table.dataformat.vector.DecimalColumnVector {
 
-	private static final long serialVersionUID = 1L;
+	private DecimalColumnVector vector;
+
+	public OrcDecimalColumnVector(DecimalColumnVector vector) {
+		super(vector);
+		this.vector = vector;
+	}
 
 	@Override
-	public boolean nextBatch(RecordReader reader, HiveOrcVectorizedBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch.getBatch());
+	public Decimal getDecimal(int i, int precision, int scale) {
+		BigDecimal data = vector.vector[vector.isRepeating ? 0 : i]
+				.getHiveDecimal().bigDecimalValue();
+		return Decimal.fromBigDecimal(data, precision, scale);
 	}
 }

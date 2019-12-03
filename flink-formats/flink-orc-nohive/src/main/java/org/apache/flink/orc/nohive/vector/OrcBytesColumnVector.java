@@ -16,23 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.shim;
+package org.apache.flink.orc.nohive.vector;
 
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
-
-import org.apache.orc.RecordReader;
-
-import java.io.IOException;
+import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
 
 /**
- * Shim orc for Hive version 2.1.0 and upper versions.
+ * This column vector is used to adapt hive's BytesColumnVector to Flink's BytesColumnVector.
  */
-public class OrcShimV210 extends OrcShimV200 {
+public class OrcBytesColumnVector extends AbstractOrcColumnVector implements
+		org.apache.flink.table.dataformat.vector.BytesColumnVector {
 
-	private static final long serialVersionUID = 1L;
+	private BytesColumnVector vector;
+
+	public OrcBytesColumnVector(BytesColumnVector vector) {
+		super(vector);
+		this.vector = vector;
+	}
 
 	@Override
-	public boolean nextBatch(RecordReader reader, HiveOrcVectorizedBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch.getBatch());
+	public Bytes getBytes(int i) {
+		int rowId = vector.isRepeating ? 0 : i;
+		byte[][] data = vector.vector;
+		int[] start = vector.start;
+		int[] length = vector.length;
+		return new Bytes(data[rowId], start[rowId], length[rowId]);
 	}
 }

@@ -16,23 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.shim;
+package org.apache.flink.orc.nohive.vector;
 
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
-
-import org.apache.orc.RecordReader;
-
-import java.io.IOException;
+import org.apache.orc.storage.ql.exec.vector.DoubleColumnVector;
 
 /**
- * Shim orc for Hive version 2.1.0 and upper versions.
+ * This column vector is used to adapt hive's DoubleColumnVector to Flink's float and double ColumnVector.
  */
-public class OrcShimV210 extends OrcShimV200 {
+public class OrcDoubleColumnVector extends AbstractOrcColumnVector implements
+		org.apache.flink.table.dataformat.vector.DoubleColumnVector,
+		org.apache.flink.table.dataformat.vector.FloatColumnVector {
 
-	private static final long serialVersionUID = 1L;
+	private DoubleColumnVector vector;
+
+	public OrcDoubleColumnVector(DoubleColumnVector vector) {
+		super(vector);
+		this.vector = vector;
+	}
 
 	@Override
-	public boolean nextBatch(RecordReader reader, HiveOrcVectorizedBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch.getBatch());
+	public double getDouble(int i) {
+		return vector.vector[vector.isRepeating ? 0 : i];
+	}
+
+	@Override
+	public float getFloat(int i) {
+		return (float) vector.vector[vector.isRepeating ? 0 : i];
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.shim.OrcShim;
+import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
@@ -31,7 +32,7 @@ import java.util.List;
 /**
  * {@link OrcSplitReader} to read ORC files into {@link Row}.
  */
-public class OrcRowSplitReader extends OrcSplitReader<Row> {
+public class OrcRowSplitReader extends OrcSplitReader<Row, HiveOrcVectorizedBatch> {
 
 	private final TypeDescription schema;
 	private final int[] selectedFields;
@@ -59,7 +60,7 @@ public class OrcRowSplitReader extends OrcSplitReader<Row> {
 
 	@Override
 	protected int fillRows() {
-		return OrcBatchReader.fillRows(rows, schema, rowBatch, selectedFields);
+		return OrcBatchReader.fillRows(rows, schema, rowBatch.getBatch(), selectedFields);
 	}
 
 	@Override
