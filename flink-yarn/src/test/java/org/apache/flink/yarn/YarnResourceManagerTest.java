@@ -400,8 +400,7 @@ public class YarnResourceManagerTest extends TestLogger {
 					.setCpuCores(10.0)
 					.setTaskHeapMemoryMB(1)
 					.setTaskOffHeapMemoryMB(1)
-					.setOnHeapManagedMemoryMB(1)
-					.setOffHeapManagedMemoryMB(0)
+					.setManagedMemoryMB(1)
 					.setShuffleMemoryMB(0)
 					.build();
 				final SlotReport slotReport = new SlotReport(

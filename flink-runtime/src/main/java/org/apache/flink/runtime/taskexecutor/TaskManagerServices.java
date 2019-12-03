@@ -382,17 +382,17 @@ public class TaskManagerServices {
 	}
 
 	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
-		// TODO: before operators separate on-heap/off-heap managed memory, we use off-heap managed memory to denote total managed memory
 		return computeSlotResourceProfile(numOfSlots, Collections.singletonMap(MemoryType.OFF_HEAP, managedMemorySize));
 	}
 
 	private static ResourceProfile computeSlotResourceProfile(int numOfSlots, Map<MemoryType, Long> memorySizeByType) {
+		long totalManagedMemory = memorySizeByType.getOrDefault(MemoryType.HEAP, 0L)
+			+ memorySizeByType.getOrDefault(MemoryType.OFF_HEAP, 0L);
 		return ResourceProfile.newBuilder()
 			.setCpuCores(Double.MAX_VALUE)
 			.setTaskHeapMemory(MemorySize.MAX_VALUE)
 			.setTaskOffHeapMemory(MemorySize.MAX_VALUE)
-			.setOnHeapManagedMemory(new MemorySize(memorySizeByType.getOrDefault(MemoryType.HEAP, 0L) / numOfSlots))
-			.setOffHeapManagedMemory(new MemorySize(memorySizeByType.getOrDefault(MemoryType.OFF_HEAP, 0L) / numOfSlots))
+			.setManagedMemory(new MemorySize(totalManagedMemory / numOfSlots))
 			.setShuffleMemory(MemorySize.MAX_VALUE)
 			.build();
 	}

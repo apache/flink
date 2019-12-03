@@ -39,8 +39,7 @@ public enum TaskSlotUtils {
 		.setCpuCores(Double.MAX_VALUE)
 		.setTaskHeapMemory(MemorySize.MAX_VALUE)
 		.setTaskOffHeapMemory(MemorySize.MAX_VALUE)
-		.setOnHeapManagedMemory(new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE))
-		.setOffHeapManagedMemory(MemorySize.ZERO)
+		.setManagedMemory(new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE))
 		.setShuffleMemory(MemorySize.MAX_VALUE)
 		.build();
 
