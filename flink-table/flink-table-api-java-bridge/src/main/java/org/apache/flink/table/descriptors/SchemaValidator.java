@@ -49,6 +49,7 @@ import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_DELA
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_SERIALIZED;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_DATA_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_FROM;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
@@ -74,18 +75,19 @@ public class SchemaValidator implements DescriptorValidator {
 	@Override
 	public void validate(DescriptorProperties properties) {
 		Map<String, String> names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME);
-		Map<String, String> types = properties.getIndexedProperty(SCHEMA, SCHEMA_TYPE);
+		Map<String, String> legacyTypes = properties.getIndexedProperty(SCHEMA, SCHEMA_TYPE);
+		Map<String, String> dataTypes = properties.getIndexedProperty(SCHEMA, SCHEMA_DATA_TYPE);
 
-		if (names.isEmpty() && types.isEmpty()) {
+		if (names.isEmpty() && legacyTypes.isEmpty() && dataTypes.isEmpty()) {
 			throw new ValidationException(
 					format("Could not find the required schema in property '%s'.", SCHEMA));
 		}
 
 		boolean proctimeFound = false;
 
-		for (int i = 0; i < Math.max(names.size(), types.size()); i++) {
+		for (int i = 0; i < Math.max(names.size(), legacyTypes.size()); i++) {
 			properties.validateString(SCHEMA + "." + i + "." + SCHEMA_NAME, false, 1);
-			properties.validateType(SCHEMA + "." + i + "." + SCHEMA_TYPE, false, false);
+			properties.validateDataType(SCHEMA + "." + i + "." + SCHEMA_DATA_TYPE, SCHEMA + "." + i + "." + SCHEMA_TYPE, false);
 			properties.validateString(SCHEMA + "." + i + "." + SCHEMA_FROM, true, 1);
 			// either proctime or rowtime
 			String proctime = SCHEMA + "." + i + "." + SCHEMA_PROCTIME;
@@ -126,6 +128,7 @@ public class SchemaValidator implements DescriptorValidator {
 		List<String> keys = new ArrayList<>();
 
 		// schema
+		keys.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		keys.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		keys.add(SCHEMA + ".#." + SCHEMA_NAME);
 		keys.add(SCHEMA + ".#." + SCHEMA_FROM);

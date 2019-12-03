@@ -22,6 +22,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.TypeStringUtils;
 
 import java.util.ArrayList;
@@ -40,7 +45,13 @@ public class Schema implements Descriptor {
 
 	public static final String SCHEMA = "schema";
 	public static final String SCHEMA_NAME = "name";
+	/**
+	 * @deprecated {@link Schema} uses the legacy type key (e.g. schema.0.type = LONG) to store type information in
+	 * prior v1.9. Since v1.10, {@link Schema} uses data type key (e.g. schema.0.data-type = BIGINT) to store types.
+	 */
+	@Deprecated
 	public static final String SCHEMA_TYPE = "type";
+	public static final String SCHEMA_DATA_TYPE = "data-type";
 	public static final String SCHEMA_PROCTIME = "proctime";
 	public static final String SCHEMA_FROM = "from";
 
@@ -52,7 +63,7 @@ public class Schema implements Descriptor {
 	/**
 	 * Sets the schema with field names and the types. Required.
 	 *
-	 * <p>This method overwrites existing fields added with {@link #field(String, TypeInformation)}.
+	 * <p>This method overwrites existing fields added with {@link #field(String, DataType)}.
 	 *
 	 * @param schema the table schema
 	 */
@@ -60,10 +71,24 @@ public class Schema implements Descriptor {
 		tableSchema.clear();
 		lastField = null;
 		for (int i = 0; i < schema.getFieldCount(); i++) {
-			field(schema.getFieldName(i).get(), schema.getFieldType(i).get());
+			field(schema.getFieldName(i).get(), schema.getFieldDataType(i).get());
 		}
 		return this;
 	}
+
+	/**
+	 * Adds a field with the field name and the data type. Required.
+	 * This method can be called multiple times. The call order of this method defines
+	 * also the order of the fields in a row.
+	 *
+	 * @param fieldName the field name
+	 * @param fieldType the type information of the field
+	 */
+	public Schema field(String fieldName, DataType fieldType) {
+		addField(fieldName, fieldType.getLogicalType().asSerializableString());
+		return this;
+	}
+
 
 	/**
 	 * Adds a field with the field name and the type information. Required.
@@ -72,9 +97,12 @@ public class Schema implements Descriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type information of the field
+	 * @deprecated This method will be removed in future versions as it uses the old type system.
+	 * 				Please use {@link #field(String, DataType)} instead.
 	 */
+	@Deprecated
 	public Schema field(String fieldName, TypeInformation<?> fieldType) {
-		field(fieldName, TypeStringUtils.writeTypeInfo(fieldType));
+		field(fieldName, TypeConversions.fromLegacyInfoToDataType(fieldType));
 		return this;
 	}
 
@@ -83,21 +111,45 @@ public class Schema implements Descriptor {
 	 * This method can be called multiple times. The call order of this method defines
 	 * also the order of the fields in a row.
 	 *
+	 * <p>NOTE: the fieldType string should follow the type string defined in {@link LogicalTypeParser}.
+	 * This method also keeps compatible with old type string defined in {@link TypeStringUtils}
+	 * but will be dropped in future versions as it uses the old type system.
+	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type string of the field
 	 */
 	public Schema field(String fieldName, String fieldType) {
+		if (isLegacyTypeString(fieldType)) {
+			// fallback to legacy parser
+			TypeInformation<?> typeInfo = TypeStringUtils.readTypeInfo(fieldType);
+			return field(fieldName, TypeConversions.fromLegacyInfoToDataType(typeInfo));
+		} else {
+			return addField(fieldName, fieldType);
+		}
+	}
+
+	private Schema addField(String fieldName, String fieldType) {
 		if (tableSchema.containsKey(fieldName)) {
-			throw new ValidationException("Duplicate field name $fieldName.");
+			throw new ValidationException("Duplicate field name " + fieldName + ".");
 		}
 
 		LinkedHashMap<String, String> fieldProperties = new LinkedHashMap<>();
-		fieldProperties.put(SCHEMA_TYPE, fieldType);
+		fieldProperties.put(SCHEMA_DATA_TYPE, fieldType);
 
 		tableSchema.put(fieldName, fieldProperties);
 
 		lastField = fieldName;
 		return this;
+	}
+
+	private static boolean isLegacyTypeString(String fieldType) {
+		try {
+			LogicalType type = LogicalTypeParser.parse(fieldType);
+			return type instanceof UnresolvedUserDefinedType;
+		} catch (Exception e) {
+			// if the parsing failed, fallback to the legacy parser
+			return true;
+		}
 	}
 
 	/**

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -50,7 +49,8 @@ public class CsvTableSinkFactoryTest {
 		.field("myfield2", DataTypes.INT())
 		.field("myfield3", DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()))
 		.field("myfield4", DataTypes.ROW(DataTypes.FIELD("nested_f1", DataTypes.BIGINT())))
-		.field("myfield5", Types.PRIMITIVE_ARRAY(Types.SHORT))
+		// TODO: we can't declare the TINYINT as NOT NULL, because CSV connector will ignore the information
+		.field("myfield5", DataTypes.ARRAY(DataTypes.TINYINT()))
 		.build();
 
 	@Parameterized.Parameter

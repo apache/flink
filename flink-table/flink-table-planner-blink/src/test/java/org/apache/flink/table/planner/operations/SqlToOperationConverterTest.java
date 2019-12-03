@@ -322,16 +322,16 @@ public class SqlToOperationConverterTest {
 		Map<String, String> properties = catalogTable.toProperties();
 		Map<String, String> expected = new HashMap<>();
 		expected.put("schema.0.name", "a");
-		expected.put("schema.0.type", "INT");
+		expected.put("schema.0.data-type", "INT");
 		expected.put("schema.1.name", "b");
-		expected.put("schema.1.type", "BIGINT");
+		expected.put("schema.1.data-type", "BIGINT");
 		expected.put("schema.2.name", "c");
-		expected.put("schema.2.type", "TIMESTAMP");
+		expected.put("schema.2.data-type", "TIMESTAMP(3)");
 		expected.put("schema.watermark.0.rowtime", "c");
 		expected.put(
 			"schema.watermark.0.strategy.expr",
 			"`builtin`.`default`.`myfunc`(`c`, 1) - INTERVAL '5' SECOND");
-		expected.put("schema.watermark.0.strategy.datatype", "TIMESTAMP(3)");
+		expected.put("schema.watermark.0.strategy.data-type", "TIMESTAMP(3)");
 		expected.put("connector.type", "kafka");
 		assertEquals(expected, properties);
 	}

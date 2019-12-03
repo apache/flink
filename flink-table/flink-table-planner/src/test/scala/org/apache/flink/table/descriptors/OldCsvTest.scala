@@ -19,7 +19,6 @@
 package org.apache.flink.table.descriptors
 
 import java.util
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
@@ -34,7 +33,7 @@ class OldCsvTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidType(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "format.fields.0.type", "WHATEVER")
+    addPropertyAndVerify(descriptors().get(0), "format.fields.0.data-type", "WHATEVER")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -74,22 +73,22 @@ class OldCsvTest extends DescriptorTestBase {
       "format.type" -> "csv",
       "format.property-version" -> "1",
       "format.fields.0.name" -> "field1",
-      "format.fields.0.type" -> "STRING",
+      "format.fields.0.data-type" -> "STRING",
       "format.fields.1.name" -> "field2",
-      "format.fields.1.type" -> "TIMESTAMP",
+      "format.fields.1.data-type" -> "TIMESTAMP(3)",
       "format.fields.2.name" -> "field3",
-      "format.fields.2.type" -> "ANY<java.lang.Class>",
+      "format.fields.2.data-type" -> "LEGACY('RAW', 'ANY<java.lang.Class>')",
       "format.fields.3.name" -> "field4",
-      "format.fields.3.type" -> "ROW<test INT, row VARCHAR>",
+      "format.fields.3.data-type" -> "ROW<`test` INT, `row` VARCHAR(2147483647)>",
       "format.line-delimiter" -> "^")
 
     val props2 = Map(
       "format.type" -> "csv",
       "format.property-version" -> "1",
       "format.fields.0.name" -> "test",
-      "format.fields.0.type" -> "INT",
+      "format.fields.0.data-type" -> "INT",
       "format.fields.1.name" -> "row",
-      "format.fields.1.type" -> "VARCHAR",
+      "format.fields.1.data-type" -> "VARCHAR(2147483647)",
       "format.quote-character" -> "#",
       "format.ignore-first-line" -> "true")
 

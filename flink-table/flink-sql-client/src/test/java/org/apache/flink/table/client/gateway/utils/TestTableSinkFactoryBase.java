@@ -40,6 +40,7 @@ import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_DATA_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
@@ -70,6 +71,7 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 	public List<String> supportedProperties() {
 		final List<String> properties = new ArrayList<>();
 		properties.add("connector." + testProperty);
+		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);

@@ -19,10 +19,10 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
+import org.apache.flink.table.types.DataType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +42,12 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 	// TODO drop constants once SchemaValidator has been ported to flink-table-common
 	private static final String SCHEMA = "schema";
 	private static final String SCHEMA_NAME = "name";
+	private static final String SCHEMA_DATA_TYPE = "data-type";
+	/**
+	 * @deprecated {@link #SCHEMA_TYPE} will be removed in future version as it uses old type system.
+	 *  Please use {@link #SCHEMA_DATA_TYPE} instead.
+	 */
+	@Deprecated
 	private static final String SCHEMA_TYPE = "type";
 	private static final String SCHEMA_PROCTIME = "proctime";
 	private static final String SCHEMA_FROM = "from";
@@ -87,6 +93,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 		if (supportsSchemaDerivation) {
 			properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 			// schema
+			properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 			properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 			properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 			properties.add(SCHEMA + ".#." + SCHEMA_FROM);
@@ -137,7 +144,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 		final TableSchema baseSchema = descriptorProperties.getTableSchema(SCHEMA);
 		for (int i = 0; i < baseSchema.getFieldCount(); i++) {
 			final String fieldName = baseSchema.getFieldNames()[i];
-			final TypeInformation<?> fieldType = baseSchema.getFieldTypes()[i];
+			final DataType fieldType = baseSchema.getFieldDataTypes()[i];
 
 			final boolean isProctime = descriptorProperties
 				.getOptionalBoolean(SCHEMA + '.' + i + '.' + SCHEMA_PROCTIME)

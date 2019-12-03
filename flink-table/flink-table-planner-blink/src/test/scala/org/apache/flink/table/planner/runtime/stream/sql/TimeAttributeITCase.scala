@@ -29,6 +29,7 @@ import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
 import java.sql.Timestamp
+import java.time.LocalDateTime
 import java.util.TimeZone
 
 import scala.collection.JavaConverters._
@@ -39,13 +40,13 @@ import scala.collection.JavaConverters._
 class TimeAttributeITCase extends StreamingTestBase {
 
   val data = List(
-    row("1970-01-01 00:00:00.001", utcTimestamp(1L), 1, 1d),
-    row("1970-01-01 00:00:00.002", utcTimestamp(2L), 1, 2d),
-    row("1970-01-01 00:00:00.003", utcTimestamp(3L), 1, 2d),
-    row("1970-01-01 00:00:00.004", utcTimestamp(4L), 1, 5d),
-    row("1970-01-01 00:00:00.007", utcTimestamp(7L), 1, 3d),
-    row("1970-01-01 00:00:00.008", utcTimestamp(8L), 1, 3d),
-    row("1970-01-01 00:00:00.016", utcTimestamp(16L), 1, 4d))
+    row("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
+    row("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
+    row("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
+    row("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
+    row("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
+    row("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
+    row("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
 
   TestCollectionTableFactory.reset()
   TestCollectionTableFactory.initData(data.asJava)
@@ -188,8 +189,8 @@ class TimeAttributeITCase extends StreamingTestBase {
 
   // ------------------------------------------------------------------------------------------
 
-  private def utcTimestamp(ts: Long): Timestamp = {
-    new Timestamp(ts - TimeZone.getDefault.getOffset(ts))
+  private def localDateTime(ts: Long): LocalDateTime = {
+    new Timestamp(ts - TimeZone.getDefault.getOffset(ts)).toLocalDateTime
   }
 
   private def row(args: Any*): Row = {
