@@ -44,6 +44,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -140,19 +142,19 @@ public class TableEnvHiveConnectorTest {
 		} else {
 			suffix = "stored as " + format;
 		}
-		hiveShell.execute("create table db1.src (i int,s string) " + suffix);
-		hiveShell.execute("create table db1.dest (i int,s string) " + suffix);
+		hiveShell.execute("create table db1.src (i int,s string,ts timestamp) " + suffix);
+		hiveShell.execute("create table db1.dest (i int,s string,ts timestamp) " + suffix);
 
 		// prepare source data with Hive
 		// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
-		hiveShell.execute("insert into table db1.src values (1,'a'),(2,'b')");
+		hiveShell.execute("insert into table db1.src values (1,'a','2018-08-20 00:00:00.1'),(2,'b','2019-08-26 00:00:00.1')");
 
 		// populate dest table with source table
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
 		tableEnv.execute("test_" + format);
 
 		// verify data on hive side
-		verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
+		verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta\t2018-08-20 00:00:00.1", "2\tb\t2019-08-26 00:00:00.1"));
 
 		hiveShell.execute("drop database db1 cascade");
 	}
@@ -302,6 +304,14 @@ public class TableEnvHiveConnectorTest {
 			results = HiveTestUtils.collectTable(tableEnv,
 					tableEnv.sqlQuery("select x from db1.nested, lateral table(hiveudtf(a)) as T(x)"));
 			assertEquals("[{1=a, 2=b}, {3=c}]", results.toString());
+
+			hiveShell.execute("create table db1.ts (a array<timestamp>)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "ts").addRow(new Object[]{
+					new Object[]{Timestamp.valueOf("2015-04-28 15:23:00"), Timestamp.valueOf("2016-06-03 17:05:52")}})
+					.commit();
+			results = HiveTestUtils.collectTable(tableEnv,
+					tableEnv.sqlQuery("select x from db1.ts, lateral table(hiveudtf(a)) as T(x)"));
+			assertEquals("[2015-04-28T15:23, 2016-06-03T17:05:52]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 			hiveShell.execute("drop function hiveudtf");
@@ -354,6 +364,31 @@ public class TableEnvHiveConnectorTest {
 			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl3"));
 			tableSchema = catalogTable.getSchema();
 			assertFalse(tableSchema.getPrimaryKey().isPresent());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testTimestamp() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (ts timestamp)");
+			hiveShell.execute("create table db1.dest (ts timestamp)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{Timestamp.valueOf("2019-11-11 00:00:00")})
+					.addRow(new Object[]{Timestamp.valueOf("2019-12-03 15:43:32.123456789")})
+					.commit();
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			// test read timestamp from hive
+			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.src"));
+			assertEquals(2, results.size());
+			assertEquals(LocalDateTime.of(2019, 11, 11, 0, 0), results.get(0).getField(0));
+			assertEquals(LocalDateTime.of(2019, 12, 3, 15, 43, 32, 123456789), results.get(1).getField(0));
+			// test write timestamp to hive
+			tableEnv.sqlUpdate("insert into db1.dest select max(ts) from db1.src");
+			tableEnv.execute("write timestamp to hive");
+			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("2019-12-03 15:43:32.123456789"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}

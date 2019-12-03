@@ -126,7 +126,7 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 		for (int i = 0; i < numNonPartitionColumns; i++) {
 			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(allTypes[i]);
 			objectInspectors.add(objectInspector);
-			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, allTypes[i].getLogicalType());
+			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, allTypes[i].getLogicalType(), hiveShim);
 		}
 
 		this.rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(

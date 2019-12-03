@@ -100,7 +100,7 @@ public class HiveGenericUDAF
 
 		conversions = new HiveObjectConversion[inputInspectors.length];
 		for (int i = 0; i < inputInspectors.length; i++) {
-			conversions[i] = HiveInspectors.getConversion(inputInspectors[i], argTypes[i].getLogicalType());
+			conversions[i] = HiveInspectors.getConversion(inputInspectors[i], argTypes[i].getLogicalType(), hiveShim);
 		}
 		allIdentityConverter = Arrays.stream(conversions)
 			.allMatch(conv -> conv instanceof IdentityConversion);
@@ -175,7 +175,7 @@ public class HiveGenericUDAF
 	@Override
 	public Object getValue(GenericUDAFEvaluator.AggregationBuffer accumulator) {
 		try {
-			return HiveInspectors.toFlinkObject(finalResultObjectInspector, finalEvaluator.terminate(accumulator));
+			return HiveInspectors.toFlinkObject(finalResultObjectInspector, finalEvaluator.terminate(accumulator), hiveShim);
 		} catch (HiveException e) {
 			throw new FlinkHiveUDFException(
 				String.format("Failed to get final result on %s", hiveFunctionWrapper.getClassName()), e);

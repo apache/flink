@@ -38,6 +38,7 @@ import org.junit.Test;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -133,7 +134,7 @@ public class HiveSimpleUDFTest {
 
 		assertEquals(29, udf.eval("1969-07-20"));
 		assertEquals(29, udf.eval(HiveReflectionUtils.convertToHiveDate(hiveShim, "1969-07-20")));
-		assertEquals(29, udf.eval(HiveReflectionUtils.convertToHiveTimestamp(hiveShim, "1969-07-20 00:00:00")));
+		assertEquals(29, udf.eval(hiveShim.toHiveTimestamp(Timestamp.valueOf("1969-07-20 00:00:00"))));
 		assertEquals(1, udf.eval("1980-12-31 12:59:59"));
 	}
 

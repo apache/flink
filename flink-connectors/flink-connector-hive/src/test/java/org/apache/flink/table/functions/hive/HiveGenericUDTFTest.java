@@ -223,7 +223,7 @@ public class HiveGenericUDTFTest {
 
 		@Override
 		public void collect(Object o) {
-			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, o);
+			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, o, hiveShim);
 
 			result.add(row);
 		}

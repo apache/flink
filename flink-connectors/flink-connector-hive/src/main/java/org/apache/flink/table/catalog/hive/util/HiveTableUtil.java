@@ -90,7 +90,7 @@ public class HiveTableUtil {
 
 		for (int i = 0; i < fieldNames.length; i++) {
 			columns.add(
-				new FieldSchema(fieldNames[i], HiveTypeUtil.toHiveTypeName(fieldTypes[i]), null));
+				new FieldSchema(fieldNames[i], HiveTypeUtil.toHiveTypeInfo(fieldTypes[i], true).getTypeName(), null));
 		}
 
 		return columns;

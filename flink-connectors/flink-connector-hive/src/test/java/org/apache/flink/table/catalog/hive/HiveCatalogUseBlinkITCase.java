@@ -49,6 +49,7 @@ import org.apache.flink.util.FileUtils;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.udf.UDFYear;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -62,6 +63,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -239,6 +241,26 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 		results = new ArrayList<>(results);
 		results.sort(String::compareTo);
 		Assert.assertEquals(Arrays.asList("1,1,2,2", "2,2,4,4", "3,3,6,6"), results);
+	}
+
+	@Test
+	public void testTimestampUDF() throws Exception {
+		hiveCatalog.createFunction(new ObjectPath("default", "myyear"),
+				new CatalogFunctionImpl(UDFYear.class.getCanonicalName()),
+				false);
+
+		hiveShell.execute("create table src(ts timestamp)");
+		HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
+				.addRow(new Object[]{Timestamp.valueOf("2013-07-15 10:00:00")})
+				.addRow(new Object[]{Timestamp.valueOf("2019-05-23 17:32:55")})
+				.commit();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+
+		List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select myyear(ts) as y from src"));
+		Assert.assertEquals(2, results.size());
+		Assert.assertEquals("[2013, 2019]", results.toString());
 	}
 
 	private static class JavaToScala implements MapFunction<Tuple2<Boolean, Row>, scala.Tuple2<Boolean, Row>> {
