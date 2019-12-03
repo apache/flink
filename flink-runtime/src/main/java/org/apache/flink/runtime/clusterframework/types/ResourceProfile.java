@@ -198,7 +198,7 @@ public class ResourceProfile implements Serializable {
 		return onHeapManagedMemory;
 	}
 
-	/**off
+	/**
 	 * Get the off-heap managed memory needed.
 	 *
 	 * @return The off-heap managed memory
