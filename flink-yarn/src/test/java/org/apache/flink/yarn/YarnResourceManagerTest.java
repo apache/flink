@@ -394,10 +394,16 @@ public class YarnResourceManagerTest extends TestLogger {
 				final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
 				final ResourceID taskManagerResourceId = new ResourceID(testingContainer.getId().toString());
+				final ResourceProfile resourceProfile = ResourceProfile.newBuilder()
+					.setCpuCores(10.0)
+					.setTaskHeapMemoryMB(1)
+					.setTaskOffHeapMemoryMB(1)
+					.setOnHeapManagedMemoryMB(1)
+					.setOffHeapManagedMemoryMB(0)
+					.setShuffleMemoryMB(0)
+					.build();
 				final SlotReport slotReport = new SlotReport(
-					new SlotStatus(
-						new SlotID(taskManagerResourceId, 1),
-						new ResourceProfile(10, 1, 1, 1, 0, 0, Collections.emptyMap())));
+					new SlotStatus(new SlotID(taskManagerResourceId, 1), resourceProfile));
 
 				CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway
 					.registerTaskExecutor(

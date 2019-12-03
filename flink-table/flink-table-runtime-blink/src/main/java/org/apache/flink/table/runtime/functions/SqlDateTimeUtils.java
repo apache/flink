@@ -19,6 +19,7 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -40,6 +41,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.TimeZone;
@@ -99,7 +102,13 @@ public class SqlDateTimeUtils {
 		"yyyy-MM-dd HH:mm:ss",
 		"yyyy-MM-dd HH:mm:ss.S",
 		"yyyy-MM-dd HH:mm:ss.SS",
-		"yyyy-MM-dd HH:mm:ss.SSS"
+		"yyyy-MM-dd HH:mm:ss.SSS",
+		"yyyy-MM-dd HH:mm:ss.SSSS",
+		"yyyy-MM-dd HH:mm:ss.SSSSS",
+		"yyyy-MM-dd HH:mm:ss.SSSSSS",
+		"yyyy-MM-dd HH:mm:ss.SSSSSSS",
+		"yyyy-MM-dd HH:mm:ss.SSSSSSSS",
+		"yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
 	};
 
 	/**
@@ -111,6 +120,18 @@ public class SqlDateTimeUtils {
 			@Override
 			public SimpleDateFormat getNewInstance(String key) {
 				return new SimpleDateFormat(key);
+			}
+		};
+
+	/**
+	 * A ThreadLocal cache map for DateTimeFormatter.
+	 * (string_format) => formatter
+	 */
+	private static final ThreadLocalCache<String, DateTimeFormatter> DATETIME_FORMATTER_CACHE =
+		new ThreadLocalCache<String, DateTimeFormatter>() {
+			@Override
+			public DateTimeFormatter getNewInstance(String key) {
+				return DateTimeFormatter.ofPattern(key);
 			}
 		};
 
@@ -205,6 +226,36 @@ public class SqlDateTimeUtils {
 	// --------------------------------------------------------------------------------------------
 	// String --> Timestamp conversion
 	// --------------------------------------------------------------------------------------------
+	public static SqlTimestamp toSqlTimestamp(String dateStr) {
+		int length = dateStr.length();
+		String format;
+		if (length == 10) {
+			format = DATE_FORMAT_STRING;
+		} else if (length >= 21 && length <= 29) {
+			format = DEFAULT_DATETIME_FORMATS[length - 20];
+		} else {
+			// otherwise fall back to second's precision
+			format = DEFAULT_DATETIME_FORMATS[0];
+		}
+		return toSqlTimestamp(dateStr, format);
+	}
+
+	public static SqlTimestamp toSqlTimestamp(String dateStr, String format) {
+		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
+
+		try {
+			if (dateStr.length() == 10) {
+				// Just a LocalDate
+				LocalDate ld = LocalDate.parse(dateStr, formatter);
+				return SqlTimestamp.fromLocalDateTime(LocalDateTime.of(ld, LocalTime.MIDNIGHT));
+			} else {
+				LocalDateTime ldt = LocalDateTime.parse(dateStr, formatter);
+				return SqlTimestamp.fromLocalDateTime(ldt);
+			}
+		} catch (DateTimeParseException e) {
+			return null;
+		}
+	}
 
 	public static Long toTimestamp(String dateStr) {
 		return toTimestamp(dateStr, UTC_ZONE);
@@ -295,6 +346,21 @@ public class SqlDateTimeUtils {
 	// --------------------------------------------------------------------------------------------
 	// DATE_FORMAT
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Format a timestamp as specific.
+	 * @param ts the {@link SqlTimestamp} to format.
+	 * @param format the string formatter.
+	 * @param zoneId the ZoneId.
+	 */
+	public static String dateFormat(SqlTimestamp ts, String format, ZoneId zoneId) {
+		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
+		return ts.toLocalDateTime().atZone(zoneId).format(formatter);
+	}
+
+	public static String dateFormat(SqlTimestamp ts, String format) {
+		return dateFormat(ts, format, ZoneId.of("UTC"));
+	}
 
 	/**
 	 * Format a timestamp as specific.
@@ -1297,10 +1363,105 @@ public class SqlDateTimeUtils {
 		return r;
 	}
 
+	public static String timestampToString(SqlTimestamp ts) {
+		LocalDateTime ldt = ts.toLocalDateTime();
+
+		String fraction = pad(9, (long) ldt.getNano());
+		while (fraction.endsWith("0")) {
+			fraction = fraction.substring(0, fraction.length() - 1);
+		}
+
+		StringBuilder ymdhms = ymdhms(
+			new StringBuilder(),
+			ldt.getYear(), ldt.getMonthValue(), ldt.getDayOfMonth(),
+			ldt.getHour(), ldt.getMinute(), ldt.getSecond());
+
+		if (fraction.length() > 0) {
+			ymdhms.append(".").append(fraction);
+		}
+
+		return ymdhms.toString();
+	}
+
+	private static String pad(int length, long v) {
+		StringBuilder s = new StringBuilder(Long.toString(v));
+		while (s.length() < length) {
+			s.insert(0, "0");
+		}
+		return s.toString();
+	}
+
+	/** Appends hour:minute:second to a buffer; assumes they are valid. */
+	private static StringBuilder hms(StringBuilder b, int h, int m, int s) {
+		int2(b, h);
+		b.append(':');
+		int2(b, m);
+		b.append(':');
+		int2(b, s);
+		return b;
+	}
+
+	/** Appends year-month-day and hour:minute:second to a buffer; assumes they
+	 * are valid. */
+	private static StringBuilder ymdhms(
+			StringBuilder b, int year, int month, int day, int h, int m, int s) {
+		ymd(b, year, month, day);
+		b.append(' ');
+		hms(b, h, m, s);
+		return b;
+	}
+
+	/** Appends year-month-day to a buffer; assumes they are valid. */
+	private static StringBuilder ymd(StringBuilder b, int year, int month, int day) {
+		int4(b, year);
+		b.append('-');
+		int2(b, month);
+		b.append('-');
+		int2(b, day);
+		return b;
+	}
+
+	private static void int4(StringBuilder buf, int i) {
+		buf.append((char) ('0' + (i / 1000) % 10));
+		buf.append((char) ('0' + (i / 100) % 10));
+		buf.append((char) ('0' + (i / 10) % 10));
+		buf.append((char) ('0' + i % 10));
+	}
+
+	public static int getNanoOfMillisSinceEpoch(final String v) {
+		switch (v.length()) {
+			case 19:
+			case 20:
+				return 0;
+			default:
+				return (Integer.valueOf(v.substring(20)) *
+					(int) Math.pow(10, 9 - (v.length() - 20))) % 1000000;
+		}
+	}
+
 	// TODO: remove if CALCITE-3199 fixed
 	//  https://issues.apache.org/jira/browse/CALCITE-3199
 	public static long unixDateCeil(TimeUnitRange range, long date) {
 		return julianDateFloor(range, (int) date + EPOCH_JULIAN, false);
 	}
 
+	public static SqlTimestamp truncate(SqlTimestamp ts, int precision) {
+		String fraction = Integer.toString(ts.toLocalDateTime().getNano());
+		if (fraction.length() <= precision) {
+			return ts;
+		} else {
+			// need to truncate
+			if (precision <= 3) {
+				return SqlTimestamp.fromEpochMillis(zeroLastDigits(ts.getMillisecond(), 3 - precision));
+			} else {
+				return SqlTimestamp.fromEpochMillis(
+					ts.getMillisecond(), (int) zeroLastDigits(ts.getNanoOfMillisecond(), 9 - precision));
+			}
+		}
+	}
+
+	private static long zeroLastDigits(long l, int n) {
+		long tenToTheN = (long) Math.pow(10, n);
+		return (l / tenToTheN) * tenToTheN;
+	}
 }

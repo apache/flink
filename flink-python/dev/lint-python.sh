@@ -62,6 +62,24 @@ function print_function() {
     echo $str | tee -a $LOG_FILE
 }
 
+function regexp_match() {
+    if echo $1 | grep -e $2 &>/dev/null; then
+        echo true
+    else
+        echo false
+    fi
+}
+
+# decide whether a array contains a specified element.
+function contains_element() {
+    arr=($1)
+    if echo "${arr[@]}" | grep -w "$2" &>/dev/null; then
+        echo true
+    else
+        echo false
+    fi
+}
+
 # Checkpoint the stage:step for convenient to re-exec the script with
 # skipping those success steps.
 # The format is "${Stage}:${Step}". e.g. Install:4
@@ -103,6 +121,29 @@ function check_valid_stage() {
             ;;
     esac
     return 1
+}
+
+function parse_component_args() {
+    local REAL_COMPONENTS=()
+    for component in ${INSTALLATION_COMPONENTS[@]}; do
+        # because all other components depends on conda, the install of conda is
+        # required component.
+        if [[ "$component" == "basic" ]] || [[ "$component" == "miniconda" ]]; then
+            continue
+        fi
+        if [[ "$component" == "all" ]]; then
+            component="environment"
+        fi
+        if [[ `contains_element "${SUPPORTED_INSTALLATION_COMPONENTS[*]}" "${component}"` = true ]]; then
+            REAL_COMPONENTS+=(${component})
+        else
+            echo "unknown install component ${component}, currently we only support installing basic,py_env,tox,flake8,sphinx,all."
+            exit 1
+        fi
+    done
+    if [[ `contains_element "${REAL_COMPONENTS[*]}" "environment"` = false ]]; then
+        SUPPORTED_INSTALLATION_COMPONENTS=(${REAL_COMPONENTS[@]})
+    fi
 }
 
 # For convenient to index something binded to OS.
@@ -269,6 +310,14 @@ function install_sphinx() {
     fi
 }
 
+function need_install_component() {
+    if [[ `contains_element "${SUPPORTED_INSTALLATION_COMPONENTS[*]}" "$1"` = true ]]; then
+        echo true
+    else
+        echo false
+    fi
+}
+
 
 # In this function, the script will prepare all kinds of python environments and checks.
 function install_environment() {
@@ -303,40 +352,40 @@ function install_environment() {
 
     # step-3 install python environment whcih includes
     # 3.5 3.6 3.7
-    print_function "STEP" "installing python environment..."
-    if [ $STEP -lt 3 ]; then
+    if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
+        print_function "STEP" "installing python environment..."
         install_py_env
         STEP=3
         checkpoint_stage $STAGE $STEP
+        print_function "STEP" "install python environment... [SUCCESS]"
     fi
-    print_function "STEP" "install python environment... [SUCCESS]"
 
     # step-4 install tox
-    print_function "STEP" "installing tox..."
-    if [ $STEP -lt 4 ]; then
+    if [ $STEP -lt 4 ] && [ `need_install_component "tox"` = true ]; then
+        print_function "STEP" "installing tox..."
         install_tox
         STEP=4
         checkpoint_stage $STAGE $STEP
+        print_function "STEP" "install tox... [SUCCESS]"
     fi
-    print_function "STEP" "install tox... [SUCCESS]"
 
     # step-5 install  flake8
-    print_function "STEP" "installing flake8..."
-    if [ $STEP -lt 5 ]; then
+    if [ $STEP -lt 5 ] && [ `need_install_component "flake8"` = true ]; then
+        print_function "STEP" "installing flake8..."
         install_flake8
         STEP=5
         checkpoint_stage $STAGE $STEP
+        print_function "STEP" "install flake8... [SUCCESS]"
     fi
-    print_function "STEP" "install flake8... [SUCCESS]"
 
     # step-6 install sphinx
-    print_function "STEP" "installing sphinx..."
-    if [ $STEP -lt 6 ]; then
+    if [ $STEP -lt 6 ] && [ `need_install_component "sphinx"` = true ]; then
+        print_function "STEP" "installing sphinx..."
         install_sphinx
         STEP=6
         checkpoint_stage $STAGE $STEP
+        print_function "STEP" "install sphinx... [SUCCESS]"
     fi
-    print_function "STEP" "install sphinx... [SUCCESS]"
 
     print_function "STAGE"  "install environment... [SUCCESS]"
 }
@@ -392,7 +441,7 @@ function collect_checks() {
     fi
     if [ ! -z "$EXCLUDE_CHECKS" ]; then
         for (( i = 0; i < ${#EXCLUDE_CHECKS[@]}; i++)); do
-            if echo "${SUPPORT_CHECKS[@]}" | grep -w "${EXCLUDE_CHECKS[i]}_check" &>/dev/null; then
+            if [[ `contains_element "${SUPPORT_CHECKS[*]}" "${EXCLUDE_CHECKS[i]}_check"` = true ]]; then
                 SUPPORT_CHECKS=("${SUPPORT_CHECKS[@]/${EXCLUDE_CHECKS[i]}_check}")
             else
                 echo "the check ${EXCLUDE_CHECKS[i]} is invalid."
@@ -403,7 +452,7 @@ function collect_checks() {
     if [ ! -z "$INCLUDE_CHECKS" ]; then
         REAL_SUPPORT_CHECKS=()
         for (( i = 0; i < ${#INCLUDE_CHECKS[@]}; i++)); do
-            if echo "${SUPPORT_CHECKS[@]}" | grep -w "${INCLUDE_CHECKS[i]}_check" &>/dev/null; then
+            if [[ `contains_element "${SUPPORT_CHECKS[*]}" "${INCLUDE_CHECKS[i]}_check"` = true ]]; then
                 REAL_SUPPORT_CHECKS+=("${INCLUDE_CHECKS[i]}_check")
             else
                 echo "the check ${INCLUDE_CHECKS[i]} is invalid."
@@ -416,7 +465,7 @@ function collect_checks() {
 
 # If the check stage is needed
 function include_stage() {
-    if echo "${SUPPORT_CHECKS[@]}" | grep -w "$1" &>/dev/null; then
+    if [[ `contains_element "${SUPPORT_CHECKS[*]}" "$1"` = true ]]; then
         return 0
     else
         return 1
@@ -429,11 +478,32 @@ function get_all_supported_checks() {
     IFS=$'\n'
     SUPPORT_CHECKS=()
     for fun in $(declare -F); do
-        if echo "$fun" | grep -e "_check$" &>/dev/null; then
+        if [[ `regexp_match "$fun" "_check$"` = true ]]; then
             SUPPORT_CHECKS+=("${fun:11}")
         fi
     done
     IFS=$_OLD_IFS
+}
+
+# get all supported install components functions
+function get_all_supported_install_components() {
+    _OLD_IFS=$IFS
+    IFS=$'\n'
+    for fun in $(declare -F); do
+        if [[ `regexp_match "${fun:11}" "^install_"` = true ]]; then
+            SUPPORTED_INSTALLATION_COMPONENTS+=("${fun:19}")
+        fi
+    done
+    IFS=$_OLD_IFS
+    # we don't need to expose "install_wget" to user.
+    local DELETE_COMPONENTS=("wget")
+    local REAL_COMPONENTS=()
+    for component in ${SUPPORTED_INSTALLATION_COMPONENTS[@]}; do
+        if [[ `contains_element "${DELETE_COMPONENTS[*]}" "${component}"` = false ]]; then
+            REAL_COMPONENTS+=("${component}")
+        fi
+    done
+    SUPPORTED_INSTALLATION_COMPONENTS=(${REAL_COMPONENTS[@]})
 }
 
 # exec all selected check stages
@@ -593,16 +663,41 @@ get_all_supported_checks
 EXCLUDE_CHECKS=""
 
 INCLUDE_CHECKS=""
+
+SUPPORTED_INSTALLATION_COMPONENTS=()
+
+# search all supported install functions and put them into SUPPORTED_INSTALLATION_COMPONENTS array
+get_all_supported_install_components
+
+INSTALLATION_COMPONENTS=()
 # parse_opts
 USAGE="
-usage: $0 [options]$
+usage: $0 [options]
 -h          print this help message and exit
 -f          force to exec from the progress of installing environment
--e          exclude checks which split by comma(,) e.g. -e tox,flake8
--i          include checks which split by comma(,) to exec e.g. -i flake8.
+-s [basic,py_env,tox,flake8,sphinx,all]
+            install environment with specified components which split by comma(,)
+            note:
+                This option is used to install environment components and will skip all subsequent checks,
+                so do not use this option with -e,-i simultaneously.
+-e [tox,flake8,sphinx]
+            exclude checks which split by comma(,)
+-i [tox,flake8,sphinx]
+            include checks which split by comma(,)
 -l          list all checks supported.
+Examples:
+  ./lint-python -s basic        =>  install environment with basic components.
+  ./lint-python -s py_env       =>  install environment with python env(3.5,3.6,3.7).
+  ./lint-python -s all          =>  install environment with all components such as python env,tox,flake8,sphinx etc.
+  ./lint-python -s tox,flake8   =>  install environment with tox,flake8.
+  ./lint-python -s tox -f       =>  reinstall environment with tox.
+  ./lint-python -e tox,flake8   =>  exclude checks tox,flake8.
+  ./lint-python -i flake8       =>  include checks flake8.
+  ./lint-python                 =>  exec all checks.
+  ./lint-python -f              =>  reinstall environment with all components and exec all checks.
+  ./lint-python -l              =>  list all checks supported.
 "
-while getopts "hfi:e:l" arg; do
+while getopts "hfs:i:e:l" arg; do
     case "$arg" in
         h)
             printf "%s\\n" "$USAGE"
@@ -610,6 +705,9 @@ while getopts "hfi:e:l" arg; do
             ;;
         f)
             FORCE_START=1
+            ;;
+        s)
+            INSTALLATION_COMPONENTS=($(echo $OPTARG | tr ',' ' ' ))
             ;;
         e)
             EXCLUDE_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
@@ -631,6 +729,13 @@ while getopts "hfi:e:l" arg; do
     esac
 done
 
+# decides whether to skip check stage
+skip_checks=0
+if [ ! -z "$INSTALLATION_COMPONENTS" ]; then
+    parse_component_args
+    skip_checks=1
+fi
+
 # collect checks according to the options
 collect_checks
 
@@ -647,4 +752,6 @@ fi
 install_environment
 
 # exec all selected checks
-check_stage
+if [ $skip_checks -eq 0 ]; then
+    check_stage
+fi

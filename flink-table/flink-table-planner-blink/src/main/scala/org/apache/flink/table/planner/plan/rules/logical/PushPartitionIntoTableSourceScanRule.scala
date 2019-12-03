@@ -96,7 +96,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
 
     val allPartitions = tableSource.getPartitions
     val remainingPartitions = PartitionPruner.prunePartitions(
-      call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig,
+      call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,

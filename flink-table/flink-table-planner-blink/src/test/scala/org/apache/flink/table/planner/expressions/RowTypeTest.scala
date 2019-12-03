@@ -51,12 +51,17 @@ class RowTypeTest extends RowTypeTestBase {
           "0.1p, Array(1, 2, 3), Map('foo', 'bar'), row(1, true))",
       "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
           "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
-      "(1985-04-11,14:15:16,1985-04-11 14:15:16.000,0.1,[1, 2, 3],{foo=bar},(1,true))")
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16,0.1,[1, 2, 3],{foo=bar},(1,true))")
 
     testSqlApi(
       "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
           "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
-      "(1985-04-11,14:15:16,1985-04-11 14:15:16.000,0.1,[1, 2, 3],{foo=bar},(1,true))")
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16,0.1,[1, 2, 3],{foo=bar},(1,true))")
+
+    testSqlApi(
+      "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16.123456', " +
+        "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
+      "(1985-04-11,14:15:16,1985-04-11 14:15:16.123456,0.1,[1, 2, 3],{foo=bar},(1,true))")
 
     testAllApis(
       row(1 + 1, 2 * 3, nullOf(DataTypes.STRING())),

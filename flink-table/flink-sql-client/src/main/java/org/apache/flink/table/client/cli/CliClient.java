@@ -26,7 +26,6 @@ import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 
 import org.jline.reader.EndOfFileException;
@@ -63,7 +62,7 @@ public class CliClient {
 
 	private final Executor executor;
 
-	private final SessionContext context;
+	private final String sessionId;
 
 	private final Terminal terminal;
 
@@ -84,9 +83,9 @@ public class CliClient {
 	 * afterwards using {@link #close()}.
 	 */
 	@VisibleForTesting
-	public CliClient(Terminal terminal, SessionContext context, Executor executor) {
+	public CliClient(Terminal terminal, String sessionId, Executor executor) {
 		this.terminal = terminal;
-		this.context = context;
+		this.sessionId = sessionId;
 		this.executor = executor;
 
 		// make space from previous output and test the writer
@@ -98,7 +97,7 @@ public class CliClient {
 			.terminal(terminal)
 			.appName(CliStrings.CLI_NAME)
 			.parser(new SqlMultiLineParser())
-			.completer(new SqlCompleter(context, executor))
+			.completer(new SqlCompleter(sessionId, executor))
 			.build();
 		// this option is disabled for now for correct backslash escaping
 		// a "SELECT '\'" query should return a string with a backslash
@@ -121,16 +120,16 @@ public class CliClient {
 	 * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
 	 * afterwards using {@link #close()}.
 	 */
-	public CliClient(SessionContext context, Executor executor) {
-		this(createDefaultTerminal(), context, executor);
+	public CliClient(String sessionId, Executor executor) {
+		this(createDefaultTerminal(), sessionId, executor);
 	}
 
 	public Terminal getTerminal() {
 		return terminal;
 	}
 
-	public SessionContext getContext() {
-		return context;
+	public String getSessionId() {
+		return this.sessionId;
 	}
 
 	public void clearTerminal() {
@@ -321,7 +320,7 @@ public class CliClient {
 	}
 
 	private void callReset() {
-		context.resetSessionProperties();
+		executor.resetSessionProperties(sessionId);
 		printInfo(CliStrings.MESSAGE_RESET);
 	}
 
@@ -330,7 +329,7 @@ public class CliClient {
 		if (cmdCall.operands.length == 0) {
 			final Map<String, String> properties;
 			try {
-				properties = executor.getSessionProperties(context);
+				properties = executor.getSessionProperties(sessionId);
 			} catch (SqlExecutionException e) {
 				printExecutionException(e);
 				return;
@@ -348,7 +347,7 @@ public class CliClient {
 		}
 		// set a property
 		else {
-			context.setSessionProperty(cmdCall.operands[0], cmdCall.operands[1]);
+			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1]);
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_SET).toAnsi());
 		}
 		terminal.flush();
@@ -362,7 +361,7 @@ public class CliClient {
 	private void callShowCatalogs() {
 		final List<String> catalogs;
 		try {
-			catalogs = executor.listCatalogs(context);
+			catalogs = executor.listCatalogs(sessionId);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -378,7 +377,7 @@ public class CliClient {
 	private void callShowDatabases() {
 		final List<String> dbs;
 		try {
-			dbs = executor.listDatabases(context);
+			dbs = executor.listDatabases(sessionId);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -394,7 +393,7 @@ public class CliClient {
 	private void callShowTables() {
 		final List<String> tables;
 		try {
-			tables = executor.listTables(context);
+			tables = executor.listTables(sessionId);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -410,7 +409,7 @@ public class CliClient {
 	private void callShowFunctions() {
 		final List<String> functions;
 		try {
-			functions = executor.listFunctions(context);
+			functions = executor.listFunctions(sessionId);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -427,7 +426,7 @@ public class CliClient {
 	private void callShowModules() {
 		final List<String> modules;
 		try {
-			modules = executor.listModules(context);
+			modules = executor.listModules(sessionId);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -443,7 +442,7 @@ public class CliClient {
 
 	private void callUseCatalog(SqlCommandCall cmdCall) {
 		try {
-			executor.useCatalog(context, cmdCall.operands[0]);
+			executor.useCatalog(sessionId, cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -453,7 +452,7 @@ public class CliClient {
 
 	private void callUseDatabase(SqlCommandCall cmdCall) {
 		try {
-			executor.useDatabase(context, cmdCall.operands[0]);
+			executor.useDatabase(sessionId, cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -464,7 +463,7 @@ public class CliClient {
 	private void callDescribe(SqlCommandCall cmdCall) {
 		final TableSchema schema;
 		try {
-			schema = executor.getTableSchema(context, cmdCall.operands[0]);
+			schema = executor.getTableSchema(sessionId, cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -476,7 +475,7 @@ public class CliClient {
 	private void callExplain(SqlCommandCall cmdCall) {
 		final String explanation;
 		try {
-			explanation = executor.explainStatement(context, cmdCall.operands[0]);
+			explanation = executor.explainStatement(sessionId, cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -488,7 +487,7 @@ public class CliClient {
 	private void callSelect(SqlCommandCall cmdCall) {
 		final ResultDescriptor resultDesc;
 		try {
-			resultDesc = executor.executeQuery(context, cmdCall.operands[0]);
+			resultDesc = executor.executeQuery(sessionId, cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -515,7 +514,7 @@ public class CliClient {
 		printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
 		try {
-			final ProgramTargetDescriptor programTarget = executor.executeUpdate(context, cmdCall.operands[0]);
+			final ProgramTargetDescriptor programTarget = executor.executeUpdate(sessionId, cmdCall.operands[0]);
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_STATEMENT_SUBMITTED).toAnsi());
 			terminal.writer().println(programTarget.toString());
 			terminal.flush();
@@ -530,7 +529,7 @@ public class CliClient {
 		final String name = cmdCall.operands[0];
 		final String query = cmdCall.operands[1];
 
-		final ViewEntry previousView = context.getViews().get(name);
+		final ViewEntry previousView = executor.listViews(sessionId).get(name);
 		if (previousView != null) {
 			printExecutionError(CliStrings.MESSAGE_VIEW_ALREADY_EXISTS);
 			return;
@@ -538,20 +537,18 @@ public class CliClient {
 
 		try {
 			// perform and validate change
-			context.addView(ViewEntry.create(name, query));
-			executor.validateSession(context);
+			executor.addView(sessionId, name, query);
 			printInfo(CliStrings.MESSAGE_VIEW_CREATED);
 		} catch (SqlExecutionException e) {
 			// rollback change
-			context.removeView(name);
+			executor.removeView(sessionId, name);
 			printExecutionException(e);
 		}
 	}
 
 	private void callDropView(SqlCommandCall cmdCall) {
 		final String name = cmdCall.operands[0];
-		final ViewEntry view = context.getViews().get(name);
-
+		final ViewEntry view = executor.listViews(sessionId).get(name);
 		if (view == null) {
 			printExecutionError(CliStrings.MESSAGE_VIEW_NOT_FOUND);
 			return;
@@ -559,12 +556,11 @@ public class CliClient {
 
 		try {
 			// perform and validate change
-			context.removeView(name);
-			executor.validateSession(context);
+			executor.removeView(sessionId, name);
 			printInfo(CliStrings.MESSAGE_VIEW_REMOVED);
 		} catch (SqlExecutionException e) {
 			// rollback change
-			context.addView(view);
+			executor.addView(sessionId, view.getName(), view.getQuery());
 			printExecutionException(CliStrings.MESSAGE_VIEW_NOT_REMOVED, e);
 		}
 	}

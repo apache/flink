@@ -19,7 +19,12 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MatchingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
+
+import java.util.Map;
 
 /**
  * Strategies for inferring an output or accumulator data type of a function call.
@@ -33,6 +38,21 @@ public final class TypeStrategies {
 	 * Placeholder for a missing type strategy.
 	 */
 	public static final TypeStrategy MISSING = new MissingTypeStrategy();
+
+	/**
+	 * Type strategy that returns a fixed {@link DataType}.
+	 */
+	public static TypeStrategy explicit(DataType dataType) {
+		return new ExplicitTypeStrategy(dataType);
+	}
+
+	/**
+	 * Type strategy that maps an {@link InputTypeValidator} to a {@link TypeStrategy} if the validator
+	 * matches.
+	 */
+	public static TypeStrategy matching(Map<InputTypeValidator, TypeStrategy> matchers) {
+		return new MatchingTypeStrategy(matchers);
+	}
 
 	// --------------------------------------------------------------------------------------------
 

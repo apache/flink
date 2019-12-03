@@ -308,9 +308,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     } else {
       // types are not all the same
       if (allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)) {
-        // one of the type was ANY.
+        // one of the type was RAW.
         // we cannot generate a common type if it differs from other types.
-        throw new TableException("Generic ANY types must have a common type information.")
+        throw new TableException("Generic RAW types must have a common type information.")
       } else {
         // cannot resolve a common type for different input types
         None

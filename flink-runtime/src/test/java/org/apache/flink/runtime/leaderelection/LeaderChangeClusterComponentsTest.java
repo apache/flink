@@ -33,7 +33,7 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -55,7 +55,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests which verify the cluster behaviour in case of leader changes.
  */
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);

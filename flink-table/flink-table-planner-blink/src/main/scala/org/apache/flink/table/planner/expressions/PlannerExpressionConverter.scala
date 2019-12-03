@@ -748,12 +748,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       }
     }
 
-    else if (hasRoot(logicalType, TIMESTAMP_WITHOUT_TIME_ZONE)) {
-      if (getPrecision(logicalType) <= 3) {
-        return Types.SQL_TIMESTAMP
-      }
-    }
-
     fromDataTypeToTypeInfo(literal.getOutputDataType)
   }
 

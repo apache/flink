@@ -106,7 +106,7 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 		// retrieve change record
 		final TypedResult<List<Tuple2<Boolean, Row>>> result;
 		try {
-			result = client.getExecutor().retrieveResultChanges(client.getContext(), resultDescriptor.getResultId());
+			result = client.getExecutor().retrieveResultChanges(client.getSessionId(), resultDescriptor.getResultId());
 		} catch (SqlExecutionException e) {
 			close(e);
 			return;

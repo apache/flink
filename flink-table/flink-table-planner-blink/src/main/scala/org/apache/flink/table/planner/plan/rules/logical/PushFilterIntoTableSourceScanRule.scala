@@ -48,7 +48,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
   "PushFilterIntoTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val config = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val config = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     if (!config.getConfiguration.getBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)) {
       return false
@@ -84,7 +84,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       relOptTable: FlinkPreparingTableBase): Unit = {
 
     val relBuilder = call.builder()
-    val context = call.getPlanner.getContext.asInstanceOf[FlinkContext]
+    val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
     val (predicates, unconvertedRexNodes) =
       RexNodeExtractor.extractConjunctiveConditions(
@@ -95,7 +95,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
         context.getFunctionCatalog,
         context.getCatalogManager,
         TimeZone.getTimeZone(scan.getCluster.getPlanner.getContext
-            .asInstanceOf[FlinkContext].getTableConfig.getLocalTimeZone))
+            .unwrap(classOf[FlinkContext]).getTableConfig.getLocalTimeZone))
 
     if (predicates.isEmpty) {
       // no condition can be translated to expression

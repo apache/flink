@@ -18,16 +18,22 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.runtime.utils.TableUtil;
+import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
+import org.apache.calcite.rel.RelNode;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -37,12 +43,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import scala.collection.JavaConverters;
 
+import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -181,9 +189,12 @@ public class HiveTableSourceTest {
 		String abstractSyntaxTree = explain[1];
 		String optimizedLogicalPlan = explain[2];
 		String physicalExecutionPlan = explain[3];
-		assertTrue(abstractSyntaxTree.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2"));
-		assertTrue(optimizedLogicalPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
-		assertTrue(physicalExecutionPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
+		assertTrue(abstractSyntaxTree, abstractSyntaxTree.contains(
+				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2"));
+		assertTrue(optimizedLogicalPlan, optimizedLogicalPlan.contains(
+				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
+		assertTrue(physicalExecutionPlan, physicalExecutionPlan.contains(
+				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
 		// second check execute results
 		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
 		assertEquals(2, rows.size());
@@ -212,8 +223,8 @@ public class HiveTableSourceTest {
 			String physicalPlan = explain[3];
 			String expectedExplain =
 					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: 2, ProjectedFields: [2, 1]";
-			assertTrue(logicalPlan.contains(expectedExplain));
-			assertTrue(physicalPlan.contains(expectedExplain));
+			assertTrue(logicalPlan, logicalPlan.contains(expectedExplain));
+			assertTrue(physicalPlan, physicalPlan.contains(expectedExplain));
 
 			List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
 			assertEquals(2, rows.size());
@@ -224,4 +235,63 @@ public class HiveTableSourceTest {
 		}
 	}
 
+	@Test
+	public void testLimitPushDown() throws Exception {
+		hiveShell.execute("create table src (a string)");
+		final String catalogName = "hive";
+		try {
+			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
+						.addRow(new Object[]{"a"})
+						.addRow(new Object[]{"b"})
+						.addRow(new Object[]{"c"})
+						.addRow(new Object[]{"d"})
+						.commit();
+			//Add this to obtain correct stats of table to avoid FLINK-14965 problem
+			hiveShell.execute("analyze table src COMPUTE STATISTICS");
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			tableEnv.registerCatalog(catalogName, hiveCatalog);
+			Table table = tableEnv.sqlQuery("select * from hive.`default`.src limit 1");
+			String[] explain = tableEnv.explain(table).split("==.*==\n");
+			assertEquals(4, explain.length);
+			String logicalPlan = explain[2];
+			String physicalPlan = explain[3];
+			String expectedExplain = "HiveTableSource(a) TablePath: default.src, PartitionPruned: false, " +
+									"PartitionNums: 1, LimitPushDown true, Limit 1";
+			assertTrue(logicalPlan.contains(expectedExplain));
+			assertTrue(physicalPlan.contains(expectedExplain));
+
+			List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
+			assertEquals(1, rows.size());
+			Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
+			assertArrayEquals(new String[]{"a"}, rowStrings);
+		} finally {
+			hiveShell.execute("drop table src");
+		}
+	}
+
+	@Test
+	public void testParallelismSetting() {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		final String tblName = "test_parallelism";
+		hiveShell.execute("CREATE TABLE source_db.test_parallelism " +
+				"(year STRING, value INT) partitioned by (pt int);");
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+				.addRow(new Object[]{"2014", 3})
+				.addRow(new Object[]{"2014", 4})
+				.commit("pt=0");
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+				.addRow(new Object[]{"2015", 2})
+				.addRow(new Object[]{"2015", 5})
+				.commit("pt=1");
+		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism");
+		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
+		RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
+		ExecNode execNode = planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
+		@SuppressWarnings("unchecked")
+		Transformation transformation = execNode.translateToPlan(planner);
+		Assert.assertEquals(2, transformation.getParallelism());
+	}
 }

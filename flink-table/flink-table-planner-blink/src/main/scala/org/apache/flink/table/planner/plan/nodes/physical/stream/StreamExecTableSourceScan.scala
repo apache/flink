@@ -274,7 +274,7 @@ private class PeriodicWatermarkAssignerWrapper(
   override def getCurrentWatermark: Watermark = assigner.getWatermark
 
   override def extractTimestamp(row: BaseRow, previousElementTimestamp: Long): Long = {
-    val timestamp: Long = row.getLong(timeFieldIdx)
+    val timestamp: Long = row.getTimestamp(timeFieldIdx, 3).getMillisecond
     assigner.nextTimestamp(timestamp)
     0L
   }

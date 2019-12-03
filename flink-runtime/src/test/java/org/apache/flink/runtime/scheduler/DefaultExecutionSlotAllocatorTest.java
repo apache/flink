@@ -118,8 +118,8 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 		final AllocationID allocationId = new AllocationID();
 		final SlotSharingGroupId sharingGroupId = new SlotSharingGroupId();
-		final ResourceProfile taskResourceProfile = new ResourceProfile(0.5, 250);
-		final ResourceProfile physicalSlotResourceProfile = new ResourceProfile(1.0, 300);
+		final ResourceProfile taskResourceProfile = ResourceProfile.fromResources(0.5, 250);
+		final ResourceProfile physicalSlotResourceProfile = ResourceProfile.fromResources(1.0, 300);
 		final CoLocationConstraint coLocationConstraint = new CoLocationGroup().getLocationConstraint(0);
 		final Collection<TaskManagerLocation> taskManagerLocations = Collections.singleton(new LocalTaskManagerLocation());
 

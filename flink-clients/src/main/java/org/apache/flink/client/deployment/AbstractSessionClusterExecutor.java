@@ -19,7 +19,6 @@
 package org.apache.flink.client.deployment;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -60,8 +59,12 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 			final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterID);
 			return clusterClient
 					.submitJob(jobGraph)
-					.thenApply(JobSubmissionResult::getJobID)
-					.thenApply(jobID -> new ClusterClientJobClientAdapter<>(clusterClient, jobID, false));
+					.thenApply(jobID -> new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobID) {
+						@Override
+						protected void doClose() {
+							clusterClient.close();
+						}
+					});
 		}
 	}
 }

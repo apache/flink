@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +67,26 @@ public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends Cluster
 			LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
 
 			final boolean withShutdownHook = !configAccessor.getDetachedMode() && configAccessor.isShutdownOnAttachedExit();
-			return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(clusterClient, jobGraph.getJobID(), withShutdownHook));
+
+			if (withShutdownHook) {
+				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+					clusterClient::shutDownCluster, clusterClient.getClass().getSimpleName(), LOG);
+
+				return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobGraph.getJobID()) {
+					@Override
+					protected void doClose() {
+						ShutdownHookUtil.removeShutdownHook(shutdownHook, clusterClient.getClass().getSimpleName(), LOG);
+						clusterClient.close();
+					}
+				});
+			} else {
+				return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobGraph.getJobID()) {
+					@Override
+					protected void doClose() {
+						clusterClient.close();
+					}
+				});
+			}
 		}
 	}
 }

@@ -24,6 +24,8 @@ import java.util.Optional;
 
 /**
  * Defines the count of accepted arguments (including open intervals) that a function can take.
+ *
+ * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link Object#equals(Object)}.
  */
 @PublicEvolving
 public interface ArgumentCount {

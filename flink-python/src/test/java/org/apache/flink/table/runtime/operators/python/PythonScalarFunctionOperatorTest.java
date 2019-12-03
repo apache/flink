@@ -19,7 +19,9 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.types.logical.RowType;
@@ -54,6 +56,11 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 	@Override
 	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
 		TestHarnessUtil.assertOutputEquals(message, (Queue<Object>) expected, (Queue<Object>) actual);
+	}
+
+	@Override
+	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
+		return StreamTableEnvironment.create(env);
 	}
 
 	private static class PassThroughPythonScalarFunctionOperator extends PythonScalarFunctionOperator {

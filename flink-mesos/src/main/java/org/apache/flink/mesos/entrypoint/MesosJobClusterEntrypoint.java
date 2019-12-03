@@ -31,6 +31,7 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -100,7 +101,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			new MesosResourceManagerFactory(
 				mesosServices,
 				schedulerConfiguration),
-			FileJobGraphRetriever.createFrom(configuration, null));
+			FileJobGraphRetriever.createFrom(configuration, ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null)));
 	}
 
 	public static void main(String[] args) {

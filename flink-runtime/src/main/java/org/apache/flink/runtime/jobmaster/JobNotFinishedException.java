@@ -28,6 +28,6 @@ public class JobNotFinishedException extends JobException {
 	private static final long serialVersionUID = 611413276562570622L;
 
 	public JobNotFinishedException(JobID jobId) {
-		super("The job (" + jobId + ") has been not been finished.");
+		super("The job (" + jobId + ") has not been finished.");
 	}
 }

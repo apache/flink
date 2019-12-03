@@ -1030,6 +1030,10 @@ public class BinaryRowTest {
 			writer.writeTimestamp(1, null, precision);
 			writer.complete();
 
+			// the size of row should be 8 + (8 + 8) * 2
+			// (8 bytes nullBits, 8 bytes fixed-length part and 8 bytes variable-length part for each timestamp(9))
+			assertEquals(40, row.getSizeInBytes());
+
 			assertEquals("1969-01-01T00:00:00.123456789", row.getTimestamp(0, precision).toString());
 			assertTrue(row.isNullAt(1));
 			row.setTimestamp(0, sqlTimestamp2, precision);

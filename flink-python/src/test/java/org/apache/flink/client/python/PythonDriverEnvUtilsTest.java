@@ -67,7 +67,7 @@ public class PythonDriverEnvUtilsTest {
 	}
 
 	@Test
-	public void testPreparePythonEnvironment() throws IOException {
+	public void testPreparePythonEnvironment() throws IOException, InterruptedException {
 		// xxx/a.zip, xxx/subdir/b.py, xxx/subdir/c.zip
 		File a = new File(tmpDirPath.toString() + File.separator + "a.zip");
 		a.createNewFile();

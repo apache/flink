@@ -34,7 +34,7 @@ Calc(select=[EXPR$0])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -77,7 +77,7 @@ Calc(select=[EXPR$0]): rowcount = , cumulative cost = {rows, cpu, io, network, m
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -113,7 +113,7 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -133,7 +133,7 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -155,7 +155,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -181,7 +181,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)]): rowcount = , cumulative cost = 
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -213,10 +213,10 @@ Calc(select=[a, b, c, e, f])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -256,10 +256,10 @@ Calc(select=[a, b, c, e, f]): rowcount = , cumulative cost = {rows, cpu, io, net
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -314,7 +314,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -393,7 +393,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt]): rowc
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -453,7 +453,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -489,7 +489,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c]): rowc
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -525,7 +525,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -557,7 +557,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true]): rowcount = , c
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -585,7 +585,7 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
@@ -605,7 +605,7 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
@@ -630,10 +630,10 @@ Union(all=[true], union=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, i
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
@@ -662,10 +662,10 @@ Union(all=[true], union=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
  : Data Source
-	content : collect elements with CollectionInputFormat
+	content : Source: Collection Source
 
 	 : Operator
 		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])

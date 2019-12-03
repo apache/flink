@@ -274,24 +274,23 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 		}
 
 		outputCollector.close();
+		dispose(false);
 	}
 
 	@Override
 	public void closeTask() throws Exception {
-		if (sorter != null) {
-			sorter.dispose();
+		if (running) {
+			BatchTask.closeUserCode(reducer);
 		}
-		if (table != null) {
-			table.close();
-		}
-		parent.getEnvironment().getMemoryManager().release(memory);
-		BatchTask.closeUserCode(reducer);
 	}
 
 	@Override
 	public void cancelTask() {
 		running = false;
+		dispose(true);
+	}
 
+	private void dispose(boolean ignoreException) {
 		try {
 			if (sorter != null) {
 				sorter.dispose();
@@ -300,9 +299,12 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 				table.close();
 			}
 		} catch (Exception e) {
-			// may happen during concurrent modification
+			// May happen during concurrent modification.
+			if (!ignoreException) {
+				throw e;
+			}
+		} finally {
+			parent.getEnvironment().getMemoryManager().release(memory);
 		}
-
-		parent.getEnvironment().getMemoryManager().release(memory);
 	}
 }

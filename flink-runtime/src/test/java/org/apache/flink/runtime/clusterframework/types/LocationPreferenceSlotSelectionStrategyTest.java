@@ -56,7 +56,7 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 		Assert.assertTrue(match.get().getSlotInfo().getResourceProfile().isMatching(slotProfile.getPhysicalSlotResourceProfile()));
 
-		ResourceProfile evenBiggerResourceProfile = new ResourceProfile(
+		ResourceProfile evenBiggerResourceProfile = ResourceProfile.fromResources(
 			biggerResourceProfile.getCpuCores().getValue().doubleValue() + 1.0,
 			resourceProfile.getTaskHeapMemory().getMebiBytes());
 		slotProfile = SlotProfile.priorAllocation(
