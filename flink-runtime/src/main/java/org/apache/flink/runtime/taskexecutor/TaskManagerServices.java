@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -47,9 +46,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.stream.Collectors;
@@ -249,10 +246,9 @@ public class TaskManagerServices {
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		Map<MemoryType, Long> memorySizeByType = calculateMemorySizeByType(taskManagerServicesConfiguration);
 		final TaskSlotTable taskSlotTable = createTaskSlotTable(
 			taskManagerServicesConfiguration.getNumberOfSlots(),
-			memorySizeByType,
+			taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
 			taskManagerServicesConfiguration.getPageSize());
 
@@ -275,7 +271,7 @@ public class TaskManagerServices {
 
 		return new TaskManagerServices(
 			taskManagerLocation,
-			memorySizeByType.values().stream().mapToLong(s -> s).sum(),
+			taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
 			ioManager,
 			shuffleEnvironment,
 			kvStateService,
@@ -289,11 +285,11 @@ public class TaskManagerServices {
 
 	private static TaskSlotTable createTaskSlotTable(
 			final int numberOfSlots,
-			final Map<MemoryType, Long> memorySizeByType,
+			final long managedMemorySize,
 			final long timerServiceShutdownTimeout,
 			final int pageSize) {
 		final List<ResourceProfile> resourceProfiles =
-			Collections.nCopies(numberOfSlots, computeSlotResourceProfile(numberOfSlots, memorySizeByType));
+			Collections.nCopies(numberOfSlots, computeSlotResourceProfile(numberOfSlots, managedMemorySize));
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
 			timerServiceShutdownTimeout);
@@ -326,21 +322,6 @@ public class TaskManagerServices {
 		return ShuffleServiceLoader
 			.loadShuffleServiceFactory(taskManagerServicesConfiguration.getConfiguration())
 			.createShuffleEnvironment(shuffleEnvironmentContext);
-	}
-
-	/**
-	 * Computes memory size for each {@link MemoryType} from the given {@link TaskManagerServicesConfiguration}.
-	 *
-	 * @param taskManagerServicesConfiguration to create the memory manager from
-	 * @return map of {@link MemoryType} (heap/off-heap) to its size
-	 */
-	private static Map<MemoryType, Long> calculateMemorySizeByType(
-			TaskManagerServicesConfiguration taskManagerServicesConfiguration) {
-		final Map<MemoryType, Long> memorySizeByType = new HashMap<>();
-		memorySizeByType.put(MemoryType.HEAP, taskManagerServicesConfiguration.getOnHeapManagedMemorySize().getBytes());
-		memorySizeByType.put(MemoryType.OFF_HEAP, taskManagerServicesConfiguration.getOffHeapManagedMemorySize().getBytes());
-
-		return memorySizeByType;
 	}
 
 	/**
@@ -382,17 +363,11 @@ public class TaskManagerServices {
 	}
 
 	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
-		return computeSlotResourceProfile(numOfSlots, Collections.singletonMap(MemoryType.OFF_HEAP, managedMemorySize));
-	}
-
-	private static ResourceProfile computeSlotResourceProfile(int numOfSlots, Map<MemoryType, Long> memorySizeByType) {
-		long totalManagedMemory = memorySizeByType.getOrDefault(MemoryType.HEAP, 0L)
-			+ memorySizeByType.getOrDefault(MemoryType.OFF_HEAP, 0L);
 		return ResourceProfile.newBuilder()
 			.setCpuCores(Double.MAX_VALUE)
 			.setTaskHeapMemory(MemorySize.MAX_VALUE)
 			.setTaskOffHeapMemory(MemorySize.MAX_VALUE)
-			.setManagedMemory(new MemorySize(totalManagedMemory / numOfSlots))
+			.setManagedMemory(new MemorySize(managedMemorySize / numOfSlots))
 			.setShuffleMemory(MemorySize.MAX_VALUE)
 			.build();
 	}
