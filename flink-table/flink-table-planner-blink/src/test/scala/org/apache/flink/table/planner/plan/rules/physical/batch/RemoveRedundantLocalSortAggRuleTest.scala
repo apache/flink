@@ -17,9 +17,10 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.api.scala._
+import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.stats.TableStats
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
@@ -33,8 +34,14 @@ class RemoveRedundantLocalSortAggRuleTest extends TableTestBase {
 
   @Before
   def setup(): Unit = {
-    util.addTableSource[(Int, Long, String)]("x", 'a, 'b, 'c)
-    util.addTableSource[(Int, Long, String)]("y", 'd, 'e, 'f)
+    util.addTableSource("x",
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
+      Array("a", "b", "c"),
+      FlinkStatistic.builder().tableStats(new TableStats(10000000L)).build())
+    util.addTableSource("y",
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
+      Array("d", "e", "f"),
+      FlinkStatistic.builder().tableStats(new TableStats(50000000L)).build())
   }
 
   @Test

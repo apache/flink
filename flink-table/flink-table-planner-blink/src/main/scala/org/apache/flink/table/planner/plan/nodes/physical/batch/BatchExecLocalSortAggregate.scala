@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
@@ -93,10 +94,14 @@ class BatchExecLocalSortAggregate(
   }
 
   override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
-    // Does not to try to satisfy requirement by localAgg's input if enforce to use two-stage agg.
-    if (isEnforceTwoStageAgg) {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(getCluster.getMetadataQuery)
+    val hasRealRowCount = fmq.hasRealRowCount(this)
+    // Does not to try to satisfy requirement by localAgg's input if enforce to use two-stage agg
+    // or the localAgg does not have real row count
+    if (isEnforceTwoStageAgg || !hasRealRowCount) {
       return None
     }
+
     val groupCount = grouping.length
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val canSatisfy = requiredDistribution.getType match {

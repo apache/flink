@@ -321,6 +321,62 @@ HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testAggregateWithUniqueKey[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable2 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithUniqueKey[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable2 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithUniqueKey[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable2 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAvg[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[

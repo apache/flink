@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecHashAggregate
@@ -89,9 +90,10 @@ class BatchExecHashAggRule
 
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggFunctions)
     val aggProvidedTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    val isTwoPhaseAggEnabled = isTwoPhaseAggWorkable(aggFunctions, tableConfig)
 
     // create two-phase agg if possible
-    if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
+    if (isTwoPhaseAggEnabled) {
       // create BatchExecLocalHashAggregate
       val localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       val newInput = RelOptRule.convert(input, localRequiredTraitSet)
@@ -137,8 +139,14 @@ class BatchExecHashAggRule
       }
     }
 
-    // create one-phase agg if possible
-    if (isOnePhaseAggWorkable(agg, aggFunctions, tableConfig)) {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
+    val hasRealRowCount = fmq.hasRealRowCount(agg)
+    val isOnePhaseAggEnabled = isOnePhaseAggWorkable(agg, aggFunctions, tableConfig)
+
+    // create one-phase agg if one-phase agg is workable,
+    // and the agg has real row count(the planner will use row count to choose the best plan)
+    // or the two-phase agg is not workable (At least one physical agg must be created)
+    if (isOnePhaseAggEnabled && (hasRealRowCount || !isTwoPhaseAggEnabled)) {
       val requiredDistributions = if (agg.getGroupCount != 0) {
         val distributionFields = groupSet.map(Integer.valueOf).toList
         Seq(

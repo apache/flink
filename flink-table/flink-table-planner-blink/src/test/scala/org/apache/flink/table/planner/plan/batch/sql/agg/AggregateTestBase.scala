@@ -17,14 +17,16 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 
+import com.google.common.collect.ImmutableSet
 import org.junit.Test
 
 abstract class AggregateTestBase extends TableTestBase {
@@ -96,7 +98,6 @@ abstract class AggregateTestBase extends TableTestBase {
   def testCountStart(): Unit = {
     util.verifyPlanWithType("SELECT COUNT(*) FROM MyTable")
   }
-
 
   @Test
   def testCannotCountOnMultiFields(): Unit = {
@@ -197,6 +198,17 @@ abstract class AggregateTestBase extends TableTestBase {
   def testPojoAccumulator(): Unit = {
     util.addFunction("var_sum", new VarSum1AggFunction)
     util.verifyPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
+  }
+
+  @Test
+  def testAggregateWithUniqueKey(): Unit = {
+    util.addTableSource("MyTable2",
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
+      Array("a", "b", "c"),
+      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("a"))).build())
+    // will choose two phase agg when the AggregatePhaseStrategy is AUTO
+    // even if the aggregate rate is 0
+    util.verifyPlan("SELECT a, SUM(b), COUNT(c) FROM MyTable2 GROUP BY a")
   }
 
   // TODO supports group sets
