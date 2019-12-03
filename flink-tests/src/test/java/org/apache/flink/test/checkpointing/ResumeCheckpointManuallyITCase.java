@@ -59,6 +59,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage.CHECKPOINT_DIR_PREFIX;
 import static org.junit.Assert.assertNotNull;
 
 /**
@@ -332,7 +333,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 	private static Optional<Path> findExternalizedCheckpoint(File checkpointDir, JobID jobId) throws IOException {
 		try (Stream<Path> checkpoints = Files.list(checkpointDir.toPath().resolve(jobId.toString()))) {
 			return checkpoints
-				.filter(path -> path.getFileName().toString().startsWith("chk-"))
+				.filter(path -> path.getFileName().toString().startsWith(CHECKPOINT_DIR_PREFIX))
 				.filter(path -> {
 					try (Stream<Path> checkpointFiles = Files.list(path)) {
 						return checkpointFiles.anyMatch(child -> child.getFileName().toString().contains("meta"));

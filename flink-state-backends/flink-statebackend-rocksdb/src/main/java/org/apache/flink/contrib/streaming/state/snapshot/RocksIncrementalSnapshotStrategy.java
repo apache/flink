@@ -75,6 +75,7 @@ import java.util.UUID;
 import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage.CHECKPOINT_DIR_PREFIX;
 
 /**
  * Snapshot strategy for {@link org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend} that is based
@@ -214,7 +215,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			}
 		} else {
 			// create a "temporary" snapshot directory because local recovery is inactive.
-			File snapshotDir = new File(instanceBasePath, "chk-" + checkpointId);
+			File snapshotDir = new File(instanceBasePath, CHECKPOINT_DIR_PREFIX + checkpointId);
 			return SnapshotDirectory.temporary(snapshotDir);
 		}
 	}
