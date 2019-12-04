@@ -482,7 +482,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	// ------------------------------------------------------------------------
 	@Override
 	public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> map) {
-		log.debug("Succeed to call YARN Node Manager to start container", containerId);
+		log.debug("Succeeded to call YARN Node Manager to start container {}.", containerId);
 	}
 
 	@Override
@@ -492,7 +492,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onContainerStopped(ContainerId containerId) {
-		log.debug("Succeed to call YARN Node Manager to stop container", containerId);
+		log.debug("Succeeded to call YARN Node Manager to stop container {}.", containerId);
 	}
 
 	@Override
@@ -507,7 +507,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onStopContainerError(ContainerId containerId, Throwable throwable) {
-		log.warn("Error while calling YARN Node Manager to stop container {}", containerId, throwable);
+		log.warn("Error while calling YARN Node Manager to stop container {}.", containerId, throwable);
 	}
 
 	// ------------------------------------------------------------------------
