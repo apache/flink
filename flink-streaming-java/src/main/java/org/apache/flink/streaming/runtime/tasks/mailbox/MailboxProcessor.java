@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 import org.apache.flink.util.function.RunnableWithException;
@@ -80,14 +81,17 @@ public class MailboxProcessor implements Closeable {
 	 */
 	private MailboxDefaultAction.Suspension suspendedDefaultAction;
 
+	private final StreamTaskActionExecutor actionExecutor;
+
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
-		this(mailboxDefaultAction, new TaskMailboxImpl(Thread.currentThread()));
+		this(mailboxDefaultAction, new TaskMailboxImpl(Thread.currentThread()), StreamTaskActionExecutor.IMMEDIATE);
 	}
 
-	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction, TaskMailbox mailbox) {
+	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction, TaskMailbox mailbox, StreamTaskActionExecutor actionExecutor) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
+		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
 		this.mailbox = mailbox;
-		mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY);
+		mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY, actionExecutor);
 		mailboxLoopRunning = true;
 		suspendedDefaultAction = null;
 	}
@@ -105,7 +109,7 @@ public class MailboxProcessor implements Closeable {
 	 * @param priority the priority of the {@link MailboxExecutor}.
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
-		return new MailboxExecutorImpl(mailbox, priority);
+		return new MailboxExecutorImpl(mailbox, priority, actionExecutor);
 	}
 
 	/**
@@ -159,7 +163,7 @@ public class MailboxProcessor implements Closeable {
 		final MailboxController defaultActionContext = new MailboxController(this);
 
 		while (processMail(localMailbox)) {
-			mailboxDefaultAction.runDefaultAction(defaultActionContext);
+			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
 		}
 	}
 

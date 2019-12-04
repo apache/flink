@@ -280,7 +280,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriter = createRecordWriterDelegate(configuration, environment);
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
-		this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox);
+		this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 	}
 
@@ -1491,12 +1491,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private void invokeProcessingTimeCallback(ProcessingTimeCallback callback, long timestamp) {
-		synchronized (getCheckpointLock()) {
-			try {
-				callback.onProcessingTime(timestamp);
-			} catch (Throwable t) {
-				handleAsyncException("Caught exception while processing timer.", new TimerException(t));
-			}
+		try {
+			callback.onProcessingTime(timestamp);
+		} catch (Throwable t) {
+			handleAsyncException("Caught exception while processing timer.", new TimerException(t));
 		}
 	}
 }
