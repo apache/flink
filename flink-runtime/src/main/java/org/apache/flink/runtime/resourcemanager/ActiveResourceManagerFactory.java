@@ -70,7 +70,7 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 	public static Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
 		final TaskExecutorResourceSpec tmResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(originalConfiguration);
 		final Configuration resourceManagerConfig = new Configuration(originalConfiguration);
-		resourceManagerConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, tmResourceSpec.getManagedMemorySize().toString());
+		resourceManagerConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, tmResourceSpec.getManagedMemorySize().getBytes() + "b");
 		return resourceManagerConfig;
 	}
 
