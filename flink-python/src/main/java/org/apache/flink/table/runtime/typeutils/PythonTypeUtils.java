@@ -31,8 +31,8 @@ import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.table.runtime.typeutils.serializers.python.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BinaryArraySerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
@@ -253,8 +253,8 @@ public final class PythonTypeUtils {
 
 		public TypeSerializer visit(ArrayType arrayType) {
 			LogicalType elementType = arrayType.getElementType();
-			TypeSerializer<?> elementTypeSerializer = elementType.accept(this);
-			return new BinaryArraySerializer<>(elementType, elementTypeSerializer);
+			TypeSerializer elementTypeSerializer = elementType.accept(this);
+			return new BaseArraySerializer(elementType, elementTypeSerializer);
 		}
 	}
 

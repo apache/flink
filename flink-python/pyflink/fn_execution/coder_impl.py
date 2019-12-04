@@ -96,11 +96,11 @@ class ArrayCoderImpl(StreamCoderImpl):
     def decode_from_stream(self, in_stream, nested):
         size = in_stream.read_bigendian_int32()
         elements = [self._elem_coder.decode_from_stream(in_stream, nested)
-                    if not not in_stream.read_byte() else None for _ in range(size)]
+                    if in_stream.read_byte() else None for _ in range(size)]
         return elements
 
     def __repr__(self):
-        return 'ArrayCoderImpl[%s]' % str(self._elem_coder)
+        return 'ArrayCoderImpl[%s]' % repr(self._elem_coder)
 
 
 class BigIntCoderImpl(StreamCoderImpl):

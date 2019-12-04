@@ -31,28 +31,28 @@ import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
-import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
 /**
- * A {@link TypeSerializer} for {@link BinaryArray}. It should be noted that the header will not be encoded.
- * Currently Python doesn't support BinaryArray natively, so we can't use BaseArraySerializer in blink directly.
+ * A {@link TypeSerializer} for {@link BaseArray}. It should be noted that the header will not be
+ * encoded. Currently Python doesn't support BinaryArray natively, so we can't use BaseArraySerializer
+ * in blink directly.
  */
 @Internal
-public class BinaryArraySerializer<K> extends BaseArraySerializer {
+public class BaseArraySerializer extends org.apache.flink.table.runtime.typeutils.BaseArraySerializer {
 
 	private static final long serialVersionUID = 1L;
 
 	private final LogicalType elementType;
 
-	private final TypeSerializer<K> elementTypeSerializer;
+	private final TypeSerializer elementTypeSerializer;
 
 	private final int elementSize;
 
-	public BinaryArraySerializer(LogicalType eleType, TypeSerializer<K> elementTypeSerializer) {
+	public BaseArraySerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
 		super(eleType, null);
 		this.elementType = eleType;
 		this.elementTypeSerializer = elementTypeSerializer;
@@ -68,7 +68,7 @@ public class BinaryArraySerializer<K> extends BaseArraySerializer {
 				target.writeBoolean(false);
 			} else {
 				target.writeBoolean(true);
-				K element = (K) TypeGetterSetters.get(array, i, elementType);
+				Object element = TypeGetterSetters.get(array, i, elementType);
 				elementTypeSerializer.serialize(element, target);
 			}
 		}
@@ -82,7 +82,7 @@ public class BinaryArraySerializer<K> extends BaseArraySerializer {
 		for (int i = 0; i < len; i++) {
 			boolean isNonNull = source.readBoolean();
 			if (isNonNull) {
-				K element = elementTypeSerializer.deserialize(source);
+				Object element = elementTypeSerializer.deserialize(source);
 				BinaryWriter.write(writer, i, element, elementType, elementTypeSerializer);
 			} else {
 				writer.setNullAt(i);
@@ -104,29 +104,29 @@ public class BinaryArraySerializer<K> extends BaseArraySerializer {
 
 	@Override
 	public TypeSerializer<BaseArray> duplicate() {
-		return new BinaryArraySerializer<>(elementType, elementTypeSerializer);
+		return new BaseArraySerializer(elementType, elementTypeSerializer);
 	}
 
 	@Override
 	public TypeSerializerSnapshot<BaseArray> snapshotConfiguration() {
-		return new BinaryArraySerializerSnapshot(elementType, elementTypeSerializer);
+		return new BaseArraySerializerSnapshot(elementType, elementTypeSerializer);
 	}
 
 	/**
 	 * {@link TypeSerializerSnapshot} for {@link BaseArraySerializer}.
 	 */
-	public static final class BinaryArraySerializerSnapshot implements TypeSerializerSnapshot<BaseArray> {
+	public static final class BaseArraySerializerSnapshot implements TypeSerializerSnapshot<BaseArray> {
 		private static final int CURRENT_VERSION = 3;
 
 		private LogicalType previousType;
 		private TypeSerializer previousEleSer;
 
 		@SuppressWarnings("unused")
-		public BinaryArraySerializerSnapshot() {
+		public BaseArraySerializerSnapshot() {
 			// this constructor is used when restoring from a checkpoint/savepoint.
 		}
 
-		BinaryArraySerializerSnapshot(LogicalType eleType, TypeSerializer eleSer) {
+		BaseArraySerializerSnapshot(LogicalType eleType, TypeSerializer eleSer) {
 			this.previousType = eleType;
 			this.previousEleSer = eleSer;
 		}
@@ -156,16 +156,16 @@ public class BinaryArraySerializer<K> extends BaseArraySerializer {
 
 		@Override
 		public TypeSerializer<BaseArray> restoreSerializer() {
-			return new BinaryArraySerializer(previousType, previousEleSer);
+			return new BaseArraySerializer(previousType, previousEleSer);
 		}
 
 		@Override
 		public TypeSerializerSchemaCompatibility<BaseArray> resolveSchemaCompatibility(TypeSerializer<BaseArray> newSerializer) {
-			if (!(newSerializer instanceof BinaryArraySerializer)) {
+			if (!(newSerializer instanceof BaseArraySerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 
-			BinaryArraySerializer newBaseArraySerializer = (BinaryArraySerializer) newSerializer;
+			BaseArraySerializer newBaseArraySerializer = (BaseArraySerializer) newSerializer;
 			if (!previousType.equals(newBaseArraySerializer.elementType) ||
 				!previousEleSer.equals(newBaseArraySerializer.elementTypeSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();

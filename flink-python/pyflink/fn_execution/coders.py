@@ -77,9 +77,6 @@ class CollectionCoder(FastCoder):
         self._elem_coder = elem_coder
 
     def _create_impl(self):
-        return self._impl_coder()(self._elem_coder.get_impl())
-
-    def _impl_coder(self):
         raise NotImplementedError
 
     def is_deterministic(self):
@@ -93,7 +90,7 @@ class CollectionCoder(FastCoder):
                 and self._elem_coder == other._elem_coder)
 
     def __repr__(self):
-        return '%s[%s]' % (self.__class__.__name__, str(self._elem_coder))
+        return '%s[%s]' % (self.__class__.__name__, repr(self._elem_coder))
 
     def __ne__(self, other):
         return not self == other
@@ -111,8 +108,8 @@ class ArrayCoder(CollectionCoder):
         self._elem_coder = elem_coder
         super(ArrayCoder, self).__init__(elem_coder)
 
-    def _impl_coder(self):
-        return coder_impl.ArrayCoderImpl
+    def _create_impl(self):
+        return coder_impl.ArrayCoderImpl(self._elem_coder.get_impl())
 
 
 class DeterministicCoder(FastCoder, ABC):
