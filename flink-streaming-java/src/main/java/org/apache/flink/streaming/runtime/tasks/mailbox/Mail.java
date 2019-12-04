@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
@@ -43,11 +44,18 @@ public class Mail {
 
 	private final Object[] descriptionArgs;
 
+	private final StreamTaskActionExecutor actionExecutor;
+
 	public Mail(RunnableWithException runnable, int priority, String descriptionFormat, Object... descriptionArgs) {
+		this(runnable, priority, StreamTaskActionExecutor.IMMEDIATE, descriptionFormat, descriptionArgs);
+	}
+
+	public Mail(RunnableWithException runnable, int priority, StreamTaskActionExecutor actionExecutor, String descriptionFormat, Object... descriptionArgs) {
 		this.runnable = Preconditions.checkNotNull(runnable);
 		this.priority = priority;
 		this.descriptionFormat = descriptionFormat == null ? runnable.toString() : descriptionFormat;
 		this.descriptionArgs = Preconditions.checkNotNull(descriptionArgs);
+		this.actionExecutor = actionExecutor;
 	}
 
 	public int getPriority() {
@@ -65,9 +73,8 @@ public class Mail {
 
 	public void run() throws Exception {
 		try {
-			runnable.run();
-		}
-		catch (Exception e) {
+			actionExecutor.run(runnable);
+		} catch (Exception e) {
 			throw new FlinkException("Cannot process mail " + toString(), e);
 		}
 	}

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -58,7 +59,7 @@ public class MailboxExecutorImplTest {
 	@Before
 	public void setUp() throws Exception {
 		this.mailbox = new TaskMailboxImpl();
-		this.mailboxExecutor = new MailboxExecutorImpl(mailbox, DEFAULT_PRIORITY);
+		this.mailboxExecutor = new MailboxExecutorImpl(mailbox, DEFAULT_PRIORITY, StreamTaskActionExecutor.IMMEDIATE);
 		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
 	}
 
