@@ -19,9 +19,9 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 import org.apache.flink.util.function.RunnableWithException;
@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -84,16 +83,33 @@ public class MailboxProcessor implements Closeable {
 	private final StreamTaskActionExecutor actionExecutor;
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
-		this(mailboxDefaultAction, new TaskMailboxImpl(Thread.currentThread()), StreamTaskActionExecutor.IMMEDIATE);
+		this(mailboxDefaultAction, StreamTaskActionExecutor.IMMEDIATE);
 	}
 
-	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction, TaskMailbox mailbox, StreamTaskActionExecutor actionExecutor) {
+	public MailboxProcessor(
+			MailboxDefaultAction mailboxDefaultAction,
+			StreamTaskActionExecutor actionExecutor) {
+		this(mailboxDefaultAction, new TaskMailboxImpl(Thread.currentThread()), actionExecutor);
+	}
+
+	public MailboxProcessor(
+			MailboxDefaultAction mailboxDefaultAction,
+			TaskMailbox mailbox,
+			StreamTaskActionExecutor actionExecutor) {
+		this(mailboxDefaultAction, actionExecutor, mailbox, new MailboxExecutorImpl(mailbox, MIN_PRIORITY, actionExecutor));
+	}
+
+	public MailboxProcessor(
+			MailboxDefaultAction mailboxDefaultAction,
+			StreamTaskActionExecutor actionExecutor,
+			TaskMailbox mailbox,
+			MailboxExecutor mainMailboxExecutor) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
-		this.mailbox = mailbox;
-		mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY, actionExecutor);
-		mailboxLoopRunning = true;
-		suspendedDefaultAction = null;
+		this.mailbox = Preconditions.checkNotNull(mailbox);
+		this.mainMailboxExecutor = Preconditions.checkNotNull(mainMailboxExecutor);
+		this.mailboxLoopRunning = true;
+		this.suspendedDefaultAction = null;
 	}
 
 	/**
@@ -128,12 +144,17 @@ public class MailboxProcessor implements Closeable {
 		List<Mail> droppedMails = mailbox.close();
 		if (!droppedMails.isEmpty()) {
 			LOG.debug("Closing the mailbox dropped mails {}.", droppedMails);
-			List<RunnableWithException> runnables = new ArrayList<>();
+			Optional<RuntimeException> maybeErr = Optional.empty();
 			for (Mail droppedMail : droppedMails) {
-				RunnableWithException runnable = droppedMail.getRunnable();
-				runnables.add(runnable);
+				try {
+					droppedMail.tryCancel(false);
+				} catch (RuntimeException x) {
+					maybeErr = Optional.of(ExceptionUtils.firstOrSuppressed(x, maybeErr.orElse(null)));
+				}
 			}
-			FutureUtils.cancelRunnableFutures(runnables);
+			maybeErr.ifPresent(e -> {
+				throw e;
+			});
 		}
 	}
 
