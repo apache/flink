@@ -642,6 +642,11 @@ public class RocksDBStateBackendConfigTest {
 		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getTotalMemoryPerSlot());
 		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getHighPriPoolRatio(), 0.0);
 		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getWriteBufferRatio(), 0.0);
+
+		RocksDBStateBackend configure = rocksDbBackend.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
+		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, configure.getTotalMemoryPerSlot());
+		assertEquals(RocksDBOptions.HIGH_PRI_POOL_RATIO.defaultValue(), configure.getHighPriPoolRatio(), 0.0);
+		assertEquals(RocksDBOptions.WRITE_BUFFER_RATIO.defaultValue(), configure.getWriteBufferRatio(), 0.0);
 	}
 
 	@Test

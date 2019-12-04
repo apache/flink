@@ -348,7 +348,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			() -> {
 				if (config.getString(BOUNDED_MEMORY_SIZE) != null) {
 					setTotalMemoryPerSlot(config.getString(BOUNDED_MEMORY_SIZE));
-				}},
+				} else {
+					// we still left total memory size per slot as undefined if no actual settings.
+					this.totalMemoryPerSlot = UNDEFINED_VALUE;
+				}
+			},
 			() -> setTotalMemoryPerSlot(String.valueOf(original.totalMemoryPerSlot)));
 
 		configureBoundedMemory(
