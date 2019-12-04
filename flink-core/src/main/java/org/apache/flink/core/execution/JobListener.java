@@ -19,9 +19,11 @@
 package org.apache.flink.core.execution;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobExecutionResult;
 
 /**
- * A listener that is notified on specific job status changed.
+ * A listener that is notified on specific job status changed, which should be firstly
+ * registered by {@code #registerJobListener} of execution environments.
  */
 @PublicEvolving
 public interface JobListener {
@@ -37,5 +39,11 @@ public interface JobListener {
 	 * @param jobClient to communicate with the job
 	 */
 	void onJobSubmitted(JobClient jobClient);
+
+	/**
+	 * Callback on job execution finished. It is only called back when you call {@code #execute}
+	 * instead of {@code executeAsync} methods of execution environments.
+	 */
+	void onJobExecuted(JobExecutionResult jobExecutionResult);
 
 }

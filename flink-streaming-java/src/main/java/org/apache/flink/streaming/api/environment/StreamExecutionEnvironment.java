@@ -1623,9 +1623,13 @@ public class StreamExecutionEnvironment {
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		try (final JobClient jobClient = executeAsync(streamGraph).get()) {
-			return configuration.getBoolean(DeploymentOptions.ATTACHED)
+			JobExecutionResult jobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
 					? jobClient.getJobExecutionResult(userClassloader).get()
 					: new DetachedJobExecutionResult(jobClient.getJobID());
+
+			CompletableFuture.runAsync(() -> jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult)));
+
+			return jobExecutionResult;
 		}
 	}
 

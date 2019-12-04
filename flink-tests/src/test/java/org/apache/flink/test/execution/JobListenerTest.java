@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.execution;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.core.execution.JobClient;
@@ -39,6 +40,8 @@ public class JobListenerTest extends TestLogger {
 	@Test
 	public void testJobListenerOnBatchEnvironment() throws Exception {
 		OneShotLatch submissionLatch = new OneShotLatch();
+		OneShotLatch executionLatch = new OneShotLatch();
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		env.registerJobListener(new JobListener() {
@@ -46,17 +49,25 @@ public class JobListenerTest extends TestLogger {
 			public void onJobSubmitted(JobClient jobClient) {
 				submissionLatch.trigger();
 			}
+
+			@Override
+			public void onJobExecuted(JobExecutionResult jobExecutionResult) {
+				executionLatch.trigger();
+			}
 		});
 
 		env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
 		env.execute();
 
 		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
+		executionLatch.await(2000L, TimeUnit.MILLISECONDS);
 	}
 
 	@Test
 	public void testJobListenerOnStreamingEnvironment() throws Exception {
 		OneShotLatch submissionLatch = new OneShotLatch();
+		OneShotLatch executionLatch = new OneShotLatch();
+
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.registerJobListener(new JobListener() {
@@ -64,12 +75,18 @@ public class JobListenerTest extends TestLogger {
 			public void onJobSubmitted(JobClient jobClient) {
 				submissionLatch.trigger();
 			}
+
+			@Override
+			public void onJobExecuted(JobExecutionResult jobExecutionResult) {
+				executionLatch.trigger();
+			}
 		});
 
 		env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
 		env.execute();
 
 		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
+		executionLatch.await(2000L, TimeUnit.MILLISECONDS);
 	}
 
 }

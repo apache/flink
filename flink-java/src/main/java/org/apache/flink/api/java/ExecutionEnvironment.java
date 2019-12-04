@@ -812,6 +812,8 @@ public class ExecutionEnvironment {
 					? jobClient.getJobExecutionResult(userClassloader).get()
 					: new DetachedJobExecutionResult(jobClient.getJobID());
 
+			CompletableFuture.runAsync(() -> jobListeners.forEach(jobListener -> jobListener.onJobExecuted(lastJobExecutionResult)));
+
 			return lastJobExecutionResult;
 		}
 	}
