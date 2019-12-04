@@ -38,38 +38,38 @@ public class JobListenerTest extends TestLogger {
 
 	@Test
 	public void testJobListenerOnBatchEnvironment() throws Exception {
-		OneShotLatch latch = new OneShotLatch();
+		OneShotLatch submissionLatch = new OneShotLatch();
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		env.registerJobListener(new JobListener() {
 			@Override
 			public void onJobSubmitted(JobClient jobClient) {
-				latch.trigger();
+				submissionLatch.trigger();
 			}
 		});
 
 		env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
 		env.execute();
 
-		latch.await(2000L, TimeUnit.MILLISECONDS);
+		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
 	}
 
 	@Test
 	public void testJobListenerOnStreamingEnvironment() throws Exception {
-		OneShotLatch latch = new OneShotLatch();
+		OneShotLatch submissionLatch = new OneShotLatch();
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.registerJobListener(new JobListener() {
 			@Override
 			public void onJobSubmitted(JobClient jobClient) {
-				latch.trigger();
+				submissionLatch.trigger();
 			}
 		});
 
 		env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
 		env.execute();
 
-		latch.await(2000L, TimeUnit.MILLISECONDS);
+		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
 	}
 
 }

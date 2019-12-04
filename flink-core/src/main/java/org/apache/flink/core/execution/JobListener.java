@@ -31,6 +31,8 @@ public interface JobListener {
 	 *
 	 * <p><b>ATTENTION:</b> the lifecycle of the passed {@link JobClient} has already
 	 * been handled. Never call {@link JobClient#close()} on the passed {@link JobClient}.
+	 * Also it means that the passed {@link JobClient} can be closed concurrently on job
+	 * finished so that you should take care of the failure case.
 	 *
 	 * @param jobClient to communicate with the job
 	 */
