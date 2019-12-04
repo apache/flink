@@ -19,6 +19,8 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -121,9 +123,6 @@ public class DataFormatConverters {
 		t2C.put(DataTypes.TIME().bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.TIME().bridgedTo(int.class), IntConverter.INSTANCE);
 
-		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), new TimestampConverter(3));
-		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), new LocalDateTimeConverter(3));
-
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(int.class), IntConverter.INSTANCE);
 
@@ -168,6 +167,15 @@ public class DataFormatConverters {
 					return new BigDecimalConverter(ps.f0, ps.f1);
 				} else {
 					return new DecimalConverter(ps.f0, ps.f1);
+				}
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				int precision = getDateTimePrecision(logicalType);
+				if (clazz == Timestamp.class) {
+					return new TimestampConverter(precision);
+				} else if (clazz == LocalDateTime.class) {
+					return new LocalDateTimeConverter(precision);
+				} else {
+					return new SqlTimestampConverter(precision);
 				}
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				int precision = getDateTimePrecision(logicalType);
@@ -264,11 +272,6 @@ public class DataFormatConverters {
 					return BinaryGenericConverter.INSTANCE;
 				}
 				return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				if (dataType.getConversionClass().equals(LocalDateTime.class)) {
-					return new LocalDateTimeConverter(((TimestampType) logicalType).getPrecision());
-				}
-				return new TimestampConverter(((TimestampType) logicalType).getPrecision());
 			default:
 				throw new RuntimeException("Not support dataType: " + dataType);
 		}
@@ -301,12 +304,17 @@ public class DataFormatConverters {
 	private static int getDateTimePrecision(LogicalType logicalType) {
 		if (logicalType instanceof LocalZonedTimestampType) {
 			return ((LocalZonedTimestampType) logicalType).getPrecision();
+		} else if (logicalType instanceof TimestampType) {
+			return ((TimestampType) logicalType).getPrecision()
 		} else {
 			TypeInformation typeInfo = ((LegacyTypeInformationType) logicalType).getTypeInformation();
 			if (typeInfo instanceof LegacyInstantTypeInfo) {
 				return ((LegacyInstantTypeInfo) typeInfo).getPrecision();
+			} else if (typeInfo instanceof LegacyLocalDateTimeTypeInfo) {
+				return ((LegacyLocalDateTimeTypeInfo) typeInfo).getPrecision();
 			} else {
-				return LocalZonedTimestampType.DEFAULT_PRECISION;
+				// TimestampType.DEFAULT_PRECISION == LocalZonedTimestampType.DEFAULT_PRECISION == 6
+				return TimestampType.DEFAULT_PRECISION;
 			}
 		}
 	}
