@@ -117,7 +117,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 			if (isDatabaseEmpty(databaseName)) {
 				databases.remove(databaseName);
 			} else if (cascade) {
-				// delete all tables in this database and then delete the database.
+				// delete all tables and functions in this database and then delete the database.
 				List<ObjectPath> deleteTablePaths = tables.keySet().stream()
 						.filter(op -> op.getDatabaseName().equals(databaseName)).collect(Collectors.toList());
 				deleteTablePaths.forEach(objectPath -> {
