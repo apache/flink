@@ -19,6 +19,9 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
+import org.apache.flink.python.env.PythonDependencyInfo;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
@@ -27,6 +30,9 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -38,7 +44,7 @@ import static org.junit.Assert.assertTrue;
 public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFunctionRunnerTest<BaseRow, BaseRow> {
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() {
+	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() throws Exception {
 		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createSingleUDFRunner();
 
 		// check input TypeSerializer
@@ -54,7 +60,7 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 	}
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() {
+	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() throws Exception {
 		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createMultipleUDFRunner();
 
 		// check input TypeSerializer
@@ -70,7 +76,7 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 	}
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() {
+	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() throws Exception {
 		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createChainedUDFRunner();
 
 		// check input TypeSerializer
@@ -89,20 +95,24 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 	public AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> createPythonScalarFunctionRunner(
 		final PythonFunctionInfo[] pythonFunctionInfos,
 		RowType inputType,
-		RowType outputType) {
+		RowType outputType) throws IOException {
 		final FnDataReceiver<BaseRow> dummyReceiver = input -> {
 			// ignore the execution results
 		};
 
-		final PythonEnv pythonEnv = new PythonEnv(PythonEnv.ExecType.PROCESS);
+		final PythonEnvironmentManager environmentManager =
+			new ProcessPythonEnvironmentManager(
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new String[] {System.getProperty("java.io.tmpdir")},
+				null,
+				new HashMap<>());
 
 		return new BaseRowPythonScalarFunctionRunner(
 			"testPythonRunner",
 			dummyReceiver,
 			pythonFunctionInfos,
-			pythonEnv,
+			environmentManager,
 			inputType,
-			outputType,
-			new String[] {System.getProperty("java.io.tmpdir")});
+			outputType);
 	}
 }

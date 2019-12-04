@@ -33,7 +33,7 @@ import java.util.Collections;
  */
 public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 
-	AbstractPythonScalarFunctionRunner<IN, OUT> createSingleUDFRunner() {
+	AbstractPythonScalarFunctionRunner<IN, OUT> createSingleUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -44,7 +44,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, rowType, rowType);
 	}
 
-	AbstractPythonScalarFunctionRunner<IN, OUT> createMultipleUDFRunner() {
+	AbstractPythonScalarFunctionRunner<IN, OUT> createMultipleUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -64,7 +64,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
 	}
 
-	AbstractPythonScalarFunctionRunner<IN, OUT> createChainedUDFRunner() {
+	AbstractPythonScalarFunctionRunner<IN, OUT> createChainedUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -103,7 +103,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 	}
 
 	public abstract AbstractPythonScalarFunctionRunner<IN, OUT> createPythonScalarFunctionRunner(
-		PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType);
+		PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType) throws Exception;
 
 	/**
 	 * Dummy PythonFunction.
