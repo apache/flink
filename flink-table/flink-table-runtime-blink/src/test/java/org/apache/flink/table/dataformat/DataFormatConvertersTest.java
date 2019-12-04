@@ -128,7 +128,8 @@ public class DataFormatConvertersTest {
 		new AtomicDataType(
 			new LegacyTypeInformationType<>(
 				LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
-				new LegacyTimestampTypeInfo(7)))
+				new LegacyTimestampTypeInfo(7))),
+		DataTypes.TIMESTAMP(3).bridgedTo(SqlTimestamp.class)
 	};
 
 	private Object[] dataValues = new Object[] {
@@ -136,7 +137,8 @@ public class DataFormatConvertersTest {
 		Timestamp.valueOf("1970-01-01 00:00:00.123456789"),
 		LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123),
 		Timestamp.valueOf("1970-01-01 00:00:00.123"),
-		Timestamp.valueOf("1970-01-01 00:00:00.1234567")
+		Timestamp.valueOf("1970-01-01 00:00:00.1234567"),
+		SqlTimestamp.fromEpochMillis(1000L)
 	};
 
 	private static DataFormatConverter getConverter(TypeInformation typeInfo) {
