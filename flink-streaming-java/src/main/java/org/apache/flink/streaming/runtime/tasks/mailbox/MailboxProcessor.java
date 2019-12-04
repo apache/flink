@@ -164,7 +164,7 @@ public class MailboxProcessor implements Closeable {
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
 	public void reportThrowable(Throwable throwable) {
-		sendPriorityMail(
+		sendControlMail(
 			() -> {
 				throw WrappingRuntimeException.wrapIfNecessary(throwable);
 			},
@@ -179,13 +179,21 @@ public class MailboxProcessor implements Closeable {
 			// keep state check and poison mail enqueuing atomic, such that no intermediate #close may cause a
 			// MailboxStateException in #sendPriorityMail.
 			if (mailbox.getState() == TaskMailbox.State.OPEN) {
-				sendPriorityMail(() -> mailboxLoopRunning = false, "poison mail");
+				sendControlMail(() -> mailboxLoopRunning = false, "poison mail");
 			}
 		});
 	}
 
-	private void sendPriorityMail(RunnableWithException priorityMail, String descriptionFormat, Object... descriptionArgs) {
-		mainMailboxExecutor.executeFirst(priorityMail, descriptionFormat, descriptionArgs);
+	/**
+	 * Sends the given <code>mail</code> using {@link TaskMailbox#putFirst(Mail)} .
+	 * Intended use is to control this <code>MailboxProcessor</code>; no interaction with tasks should be performed;
+	 */
+	private void sendControlMail(RunnableWithException mail, String descriptionFormat, Object... descriptionArgs) {
+		mailbox.putFirst(new Mail(
+				mail,
+				Integer.MAX_VALUE /*not used with putFirst*/,
+				descriptionFormat,
+				descriptionArgs));
 	}
 
 	/**
@@ -250,7 +258,7 @@ public class MailboxProcessor implements Closeable {
 	private void ensureControlFlowSignalCheck() {
 		// Make sure that mailbox#hasMail is true via a dummy mail so that the flag change is noticed.
 		if (!mailbox.hasMail()) {
-			sendPriorityMail(() -> {}, "signal check");
+			sendControlMail(() -> {}, "signal check");
 		}
 	}
 
@@ -287,7 +295,7 @@ public class MailboxProcessor implements Closeable {
 			if (mailbox.isMailboxThread()) {
 				resumeInternal();
 			} else {
-				sendPriorityMail(this::resumeInternal, "resume default action");
+				sendControlMail(this::resumeInternal, "resume default action");
 			}
 		}
 
