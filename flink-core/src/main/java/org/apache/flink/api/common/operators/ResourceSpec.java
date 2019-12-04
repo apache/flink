@@ -65,6 +65,11 @@ public final class ResourceSpec implements Serializable {
 	 */
 	public static final ResourceSpec DEFAULT = UNKNOWN;
 
+	/**
+	 * A ResourceSpec that indicates zero amount of resources.
+	 */
+	public static final ResourceSpec ZERO = ResourceSpec.newBuilder(0.0, 0).build();
+
 	/** How many cpu cores are needed. Can be null only if it is unknown. */
 	@Nullable
 	private final Resource cpuCores;
